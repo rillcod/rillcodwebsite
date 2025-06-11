@@ -57,22 +57,12 @@ const StudentRegistration: React.FC = () => {
       console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
       console.log('Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
       
-      // First, try to check the database schema
-      const { data: schemaData, error: schemaError } = await supabase
-        .from('students')
-        .select('*')
-        .limit(0);
-      
-      console.log('Schema check result:', { schemaData, schemaError });
-      
-      // Prepare the data with multiple column name options
+      // Prepare the data with the correct column name (school_name)
       const studentData = {
         full_name: formData.fullName,
         age: parseInt(formData.age) || 0,
         grade: formData.grade,
-        // Try both column names for school
-        school_name: formData.currentSchool,
-        current_school: formData.currentSchool,
+        school_name: formData.currentSchool, // Use school_name as it exists in your database
         gender: formData.gender,
         parent_name: formData.parentName,
         parent_phone: formData.parentPhone,
@@ -84,37 +74,10 @@ const StudentRegistration: React.FC = () => {
 
       console.log('Student data to insert:', studentData);
 
-      // Try the insert with error handling
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from('students')
         .insert([studentData])
         .select();
-
-      // If first attempt fails, try with different column names
-      if (error && error.message.includes('school_name')) {
-        console.log('Retrying with current_school column...');
-        const retryData = {
-          full_name: formData.fullName,
-          age: parseInt(formData.age) || 0,
-          grade: formData.grade,
-          current_school: formData.currentSchool,
-          gender: formData.gender,
-          parent_name: formData.parentName,
-          parent_phone: formData.parentPhone,
-          parent_email: formData.parentEmail,
-          course_interest: formData.courseInterest,
-          preferred_schedule: formData.preferredSchedule,
-          hear_about_us: formData.hearAboutUs
-        };
-        
-        const retryResult = await supabase
-          .from('students')
-          .insert([retryData])
-          .select();
-        
-        data = retryResult.data;
-        error = retryResult.error;
-      }
 
       console.log('Supabase response:', { 
         data: data, 
