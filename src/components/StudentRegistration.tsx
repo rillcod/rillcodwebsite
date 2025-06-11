@@ -57,13 +57,19 @@ const StudentRegistration: React.FC = () => {
       console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
       console.log('Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
       
-      // Try with only the most essential fields that are likely to exist
+      // Try with all the important fields, but keep the working structure
       const essentialData = {
-        name: formData.fullName,           // Most common column name
-        age: parseInt(formData.age) || 0,  // Usually exists
-        email: formData.parentEmail,       // Most common email column
-        phone: formData.parentPhone,       // Most common phone column
-        school: formData.currentSchool     // Most common school column
+        name: formData.fullName,                    // Student's full name
+        age: parseInt(formData.age) || 0,           // Student's age
+        email: formData.parentEmail,                // Parent's email
+        phone: formData.parentPhone,                // Parent's phone
+        school: formData.currentSchool,             // Current school
+        grade: formData.grade,                      // Grade/Class
+        gender: formData.gender,                    // Gender
+        parent_name: formData.parentName,           // Parent's name
+        course_interest: formData.courseInterest,   // Course interest
+        preferred_schedule: formData.preferredSchedule, // Preferred schedule
+        hear_about_us: formData.hearAboutUs         // How they heard about us
       };
 
       console.log('Trying with essential data:', essentialData);
