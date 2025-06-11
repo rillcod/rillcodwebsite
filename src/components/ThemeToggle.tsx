@@ -1,10 +1,25 @@
 'use client'
 
-import { useTheme } from '@/contexts/theme-context'
 import { SunIcon, MoonIcon, ComputerDesktopIcon } from '@heroicons/react/24/outline'
 
 export default function ThemeToggle() {
-  const { theme, toggleTheme, mounted } = useTheme()
+  // Get theme context safely
+  let theme = 'light';
+  let mounted = false;
+  let toggleTheme = () => {};
+  
+  try {
+    const { useTheme } = require('@/contexts/theme-context');
+    const themeContext = useTheme();
+    theme = themeContext.theme;
+    mounted = themeContext.mounted;
+    toggleTheme = themeContext.toggleTheme;
+  } catch (error) {
+    // If theme context is not available, use defaults
+    theme = 'light';
+    mounted = false;
+    toggleTheme = () => {};
+  }
 
   // Don't render until mounted to prevent hydration mismatch
   if (!mounted) {

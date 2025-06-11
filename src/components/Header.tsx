@@ -5,7 +5,6 @@ import { Menu, X, User, School, Users, GraduationCap, BookOpen, Info, HelpCircle
 import Logo from './Logo';
 import ThemeToggle from './ThemeToggle';
 import { brandColors, contactInfo, socialLinks } from '../config/brand';
-import { useTheme } from '@/contexts/theme-context';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -15,16 +14,22 @@ export default function Header() {
   const loginDropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
 
-  // Get theme context - this will throw an error if not within ThemeProvider
+  // Get theme context safely
   let themeContext;
+  let mounted = false;
+  let theme = 'light';
+  
   try {
+    const { useTheme } = require('@/contexts/theme-context');
     themeContext = useTheme();
+    theme = themeContext.theme;
+    mounted = themeContext.mounted;
   } catch (error) {
-    // If theme context is not available, render without theme functionality
-    themeContext = { theme: 'light', mounted: false };
+    // If theme context is not available, use defaults
+    themeContext = { theme: 'light', mounted: false, toggleTheme: () => {} };
+    theme = 'light';
+    mounted = false;
   }
-
-  const { theme, mounted } = themeContext;
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
@@ -286,7 +291,7 @@ export default function Header() {
               <div className="relative">
                 <button
                   onClick={toggleDropdown}
-                  className="flex items-center justify-between w-full text-left px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                  className="flex items-center justify-between w-full text-left px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
                 >
                   <div className="flex items-center space-x-2">
                     <BookOpen className="w-4 h-4" />
@@ -325,7 +330,7 @@ export default function Header() {
               <div className="relative">
                 <button
                   onClick={toggleAboutDropdown}
-                  className="flex items-center justify-between w-full text-left px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                  className="flex items-center justify-between w-full text-left px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
                 >
                   <div className="flex items-center space-x-2">
                     <Info className="w-4 h-4" />
@@ -371,7 +376,7 @@ export default function Header() {
               <Link 
                 href="/faq" 
                 onClick={closeMobileMenu}
-                className="flex items-center space-x-2 px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                className="flex items-center space-x-2 px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
               >
                 <HelpCircle className="w-4 h-4" />
                 <span>Support</span>
@@ -381,14 +386,14 @@ export default function Header() {
               <Link 
                 href="/contact" 
                 onClick={closeMobileMenu}
-                className="block px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                className="block px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
               >
                 Contact
               </Link>
 
               {/* Theme Toggle for Mobile */}
               <div className="flex items-center justify-between px-3 py-3 border-t border-gray-200 dark:border-gray-700">
-                <span className="text-base font-medium text-gray-700 dark:text-gray-300">
+                <span className="text-base font-medium text-gray-700 dark:text-gray-400">
                   Theme: {theme === 'system' ? 'System' : theme === 'dark' ? 'Dark' : 'Light'}
                 </span>
                 <ThemeToggle />
@@ -653,7 +658,7 @@ export default function Header() {
               <div className="relative">
                 <button
                   onClick={toggleDropdown}
-                  className="flex items-center justify-between w-full text-left px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                  className="flex items-center justify-between w-full text-left px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
                 >
                   <div className="flex items-center space-x-2">
                     <BookOpen className="w-4 h-4" />
@@ -692,7 +697,7 @@ export default function Header() {
               <div className="relative">
                 <button
                   onClick={toggleAboutDropdown}
-                  className="flex items-center justify-between w-full text-left px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                  className="flex items-center justify-between w-full text-left px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
                 >
                   <div className="flex items-center space-x-2">
                     <Info className="w-4 h-4" />
@@ -738,7 +743,7 @@ export default function Header() {
               <Link 
                 href="/faq" 
                 onClick={closeMobileMenu}
-                className="flex items-center space-x-2 px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                className="flex items-center space-x-2 px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
               >
                 <HelpCircle className="w-4 h-4" />
                 <span>Support</span>
@@ -748,14 +753,14 @@ export default function Header() {
               <Link 
                 href="/contact" 
                 onClick={closeMobileMenu}
-                className="block px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                className="block px-3 py-3 text-base font-medium text-gray-700 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
               >
                 Contact
               </Link>
 
               {/* Theme Toggle for Mobile */}
               <div className="flex items-center justify-between px-3 py-3 border-t border-gray-200 dark:border-gray-700">
-                <span className="text-base font-medium text-gray-700 dark:text-gray-300">
+                <span className="text-base font-medium text-gray-700 dark:text-gray-400">
                   Theme: {theme === 'system' ? 'System' : theme === 'dark' ? 'Dark' : 'Light'}
                 </span>
                 <ThemeToggle />
