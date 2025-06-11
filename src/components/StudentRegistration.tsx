@@ -57,26 +57,36 @@ const StudentRegistration: React.FC = () => {
       console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
       console.log('Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
       
-      // Prepare the data with the correct column name (school_name)
-      const studentData = {
-        full_name: formData.fullName,
+      // First, let's check what columns actually exist in the students table
+      console.log('Checking students table schema...');
+      const { data: schemaData, error: schemaError } = await supabase
+        .from('students')
+        .select('*')
+        .limit(0);
+      
+      console.log('Schema check result:', { schemaData, schemaError });
+      
+      // Also try to get column information
+      const { data: columnInfo, error: columnError } = await supabase
+        .rpc('get_table_columns', { table_name: 'students' })
+        .single();
+      
+      console.log('Column info:', { columnInfo, columnError });
+      
+      // For now, let's try with minimal data to see what works
+      const minimalData = {
+        name: formData.fullName, // Try 'name' instead of 'full_name'
         age: parseInt(formData.age) || 0,
-        grade: formData.grade,
-        school_name: formData.currentSchool, // Use school_name as it exists in your database
-        gender: formData.gender,
-        parent_name: formData.parentName,
-        parent_phone: formData.parentPhone,
-        parent_email: formData.parentEmail,
-        course_interest: formData.courseInterest,
-        preferred_schedule: formData.preferredSchedule,
-        hear_about_us: formData.hearAboutUs
+        school: formData.currentSchool, // Try 'school' instead of 'school_name'
+        email: formData.parentEmail, // Try 'email' instead of 'parent_email'
+        phone: formData.parentPhone // Try 'phone' instead of 'parent_phone'
       };
 
-      console.log('Student data to insert:', studentData);
+      console.log('Trying with minimal data:', minimalData);
 
       const { data, error } = await supabase
         .from('students')
-        .insert([studentData])
+        .insert([minimalData])
         .select();
 
       console.log('Supabase response:', { 
