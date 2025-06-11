@@ -57,85 +57,65 @@ const StudentRegistration: React.FC = () => {
       console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
       console.log('Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
       
-      // First, let's check what columns actually exist in the students table
-      console.log('Checking students table schema...');
-      
-      // Try to get a single row to see the structure
-      const { data: existingData, error: fetchError } = await supabase
+      // Try with only the most essential fields that are likely to exist
+      const essentialData = {
+        name: formData.fullName,           // Most common column name
+        age: parseInt(formData.age) || 0,  // Usually exists
+        email: formData.parentEmail,       // Most common email column
+        phone: formData.parentPhone,       // Most common phone column
+        school: formData.currentSchool     // Most common school column
+      };
+
+      console.log('Trying with essential data:', essentialData);
+
+      const { data, error } = await supabase
         .from('students')
-        .select('*')
-        .limit(1);
-      
-      console.log('Existing data structure:', { existingData, fetchError });
-      
-      // Try different column name combinations
-      const columnVariations = [
-        // Variation 1: Correct schema (what we're creating)
-        {
-          full_name: formData.fullName,
-          age: parseInt(formData.age) || 0,
-          grade: formData.grade,
-          school_name: formData.currentSchool,
-          gender: formData.gender,
-          parent_name: formData.parentName,
-          parent_phone: formData.parentPhone,
-          parent_email: formData.parentEmail,
-          course_interest: formData.courseInterest,
-          preferred_schedule: formData.preferredSchedule,
-          hear_about_us: formData.hearAboutUs
-        },
-        // Variation 2: Minimal required fields
-        {
-          full_name: formData.fullName,
-          age: parseInt(formData.age) || 0,
-          school_name: formData.currentSchool,
-          parent_email: formData.parentEmail
-        },
-        // Variation 3: Common column names (fallback)
-        {
+        .insert([essentialData])
+        .select();
+
+      console.log('Supabase response:', { 
+        data: data, 
+        error: error,
+        errorMessage: error?.message,
+        errorDetails: error?.details,
+        errorCode: error?.code
+      });
+
+      if (error) {
+        console.error('Registration error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          fullError: JSON.stringify(error, null, 2)
+        });
+        
+        // If the first attempt fails, try with even simpler data
+        console.log('First attempt failed, trying with minimal data...');
+        const minimalData = {
           name: formData.fullName,
-          age: parseInt(formData.age) || 0,
-          school: formData.currentSchool,
           email: formData.parentEmail
-        }
-      ];
-
-      let success = false;
-      let finalData = null;
-      let finalError = null;
-
-      // Try each variation until one works
-      for (let i = 0; i < columnVariations.length; i++) {
-        const variation = columnVariations[i];
-        console.log(`Trying variation ${i + 1}:`, variation);
-
-        const { data, error } = await supabase
+        };
+        
+        const { data: retryData, error: retryError } = await supabase
           .from('students')
-          .insert([variation])
+          .insert([minimalData])
           .select();
-
-        console.log(`Variation ${i + 1} result:`, { data, error });
-
-        if (!error) {
-          success = true;
-          finalData = data;
-          console.log(`Success with variation ${i + 1}!`);
-          break;
-        } else {
-          finalError = error;
-          console.log(`Variation ${i + 1} failed:`, error.message);
+          
+        if (retryError) {
+          console.error('Retry also failed:', retryError);
+          toast.error(`Registration failed: ${retryError.message || 'Database schema issue'}`);
+          return;
         }
+        
+        console.log('Retry successful:', retryData);
+        setFormSubmitted(true);
+        toast.success('Registration successful! We\'ll contact you soon.');
+      } else {
+        console.log('Registration successful:', data);
+        setFormSubmitted(true);
+        toast.success('Registration successful! We\'ll contact you soon.');
       }
-
-      if (!success) {
-        console.error('All variations failed. Final error:', finalError);
-        toast.error(`Registration failed: ${finalError?.message || 'Database schema issue'}`);
-        return;
-      }
-
-      console.log('Registration successful:', finalData);
-      setFormSubmitted(true);
-      toast.success('Registration successful! We\'ll contact you soon.');
       
       // Reset form
       setFormData({
