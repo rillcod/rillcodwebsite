@@ -53,9 +53,47 @@ const StudentRegistration: React.FC = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      console.log('Submitting student registration with data:', formData);
+      console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+      console.log('Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+      
+      // First, try to check the database schema
+      const { data: schemaData, error: schemaError } = await supabase
         .from('students')
-        .insert([{
+        .select('*')
+        .limit(0);
+      
+      console.log('Schema check result:', { schemaData, schemaError });
+      
+      // Prepare the data with multiple column name options
+      const studentData = {
+        full_name: formData.fullName,
+        age: parseInt(formData.age) || 0,
+        grade: formData.grade,
+        // Try both column names for school
+        school_name: formData.currentSchool,
+        current_school: formData.currentSchool,
+        gender: formData.gender,
+        parent_name: formData.parentName,
+        parent_phone: formData.parentPhone,
+        parent_email: formData.parentEmail,
+        course_interest: formData.courseInterest,
+        preferred_schedule: formData.preferredSchedule,
+        hear_about_us: formData.hearAboutUs
+      };
+
+      console.log('Student data to insert:', studentData);
+
+      // Try the insert with error handling
+      let { data, error } = await supabase
+        .from('students')
+        .insert([studentData])
+        .select();
+
+      // If first attempt fails, try with different column names
+      if (error && error.message.includes('school_name')) {
+        console.log('Retrying with current_school column...');
+        const retryData = {
           full_name: formData.fullName,
           age: parseInt(formData.age) || 0,
           grade: formData.grade,
@@ -67,12 +105,34 @@ const StudentRegistration: React.FC = () => {
           course_interest: formData.courseInterest,
           preferred_schedule: formData.preferredSchedule,
           hear_about_us: formData.hearAboutUs
-        }])
-        .select();
+        };
+        
+        const retryResult = await supabase
+          .from('students')
+          .insert([retryData])
+          .select();
+        
+        data = retryResult.data;
+        error = retryResult.error;
+      }
+
+      console.log('Supabase response:', { 
+        data: data, 
+        error: error,
+        errorMessage: error?.message,
+        errorDetails: error?.details,
+        errorCode: error?.code
+      });
 
       if (error) {
-        console.error('Registration error:', error);
-        toast.error(`Registration failed: ${error.message}`);
+        console.error('Registration error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          fullError: JSON.stringify(error, null, 2)
+        });
+        toast.error(`Registration failed: ${error.message || 'Unknown error'}`);
         return;
       }
 
@@ -99,9 +159,10 @@ const StudentRegistration: React.FC = () => {
       console.error('Registration error:', {
         error: err,
         message: err instanceof Error ? err.message : 'Unknown error',
-        stack: err instanceof Error ? err.stack : undefined
+        stack: err instanceof Error ? err.stack : undefined,
+        fullError: JSON.stringify(err, null, 2)
       });
-      toast.error(`Registration failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error(`Registration failed: ${err instanceof Error ? err.message : 'Unknown error occurred'}`);
     } finally {
       setLoading(false);
     }
