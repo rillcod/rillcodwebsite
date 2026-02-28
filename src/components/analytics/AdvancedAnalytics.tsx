@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { UserRole } from '@/types/auth'
 import { 
   ArrowTrendingUpIcon, 
   ArrowTrendingDownIcon, 
@@ -28,8 +29,8 @@ const Doughnut = dynamic(() => import('react-chartjs-2').then(mod => mod.Doughnu
 const Radar = dynamic(() => import('react-chartjs-2').then(mod => mod.Radar), { ssr: false })
 
 interface AdvancedAnalyticsProps {
-  schoolId: string
-  role: 'admin' | 'teacher' | 'student' | 'partner'
+  school_id: string
+  role: UserRole
 }
 
 // Mock data for advanced analytics
@@ -111,7 +112,7 @@ const timeSpentData = {
   ],
 }
 
-export default function AdvancedAnalytics({ schoolId, role }: AdvancedAnalyticsProps) {
+export default function AdvancedAnalytics({ school_id, role }: AdvancedAnalyticsProps) {
   const [selectedPeriod, setSelectedPeriod] = useState('month')
   const [selectedView, setSelectedView] = useState('overview')
   const [isLoading, setIsLoading] = useState(false)

@@ -1,351 +1,191 @@
 'use client';
 
-import { useState } from 'react';
-import { 
-  ChartBarIcon,
-  UserGroupIcon,
-  AcademicCapIcon,
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { fetchAnalyticsOverview, fetchTeachers, fetchStudents } from '@/services/dashboard.service';
+import {
+  ChartBarIcon, UserGroupIcon, AcademicCapIcon, CheckCircleIcon,
+  ArrowTrendingUpIcon, StarIcon, GlobeAltIcon, ClockIcon, BoltIcon,
   BuildingOfficeIcon,
-  CalendarIcon,
-  StarIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline';
-
-// Mock data for analytics
-const mockData = {
-  overview: {
-    totalStudents: 1247,
-    totalTeachers: 23,
-    totalSchools: 18,
-    totalCourses: 12,
-    activeStudents: 1189,
-    pendingStudents: 58,
-    avgProgress: 78.5,
-    avgRating: 4.6
-  },
-  trends: {
-    studentGrowth: [
-      { month: 'Jan', students: 850 },
-      { month: 'Feb', students: 920 },
-      { month: 'Mar', students: 980 },
-      { month: 'Apr', students: 1050 },
-      { month: 'May', students: 1120 },
-      { month: 'Jun', students: 1180 },
-      { month: 'Jul', students: 1247 }
-    ],
-    courseEnrollment: [
-      { course: 'Scratch Programming', students: 320 },
-      { course: 'Python Programming', students: 280 },
-      { course: 'Web Development', students: 245 },
-      { course: 'UI/UX Design', students: 180 },
-      { course: 'Flutter Development', students: 150 },
-      { course: 'Advanced Python', students: 72 }
-    ]
-  },
-  performance: {
-    topSchools: [
-      { name: 'Lagos State Model College', students: 450, progress: 82 },
-      { name: 'Abuja International School', students: 320, progress: 79 },
-      { name: 'Port Harcourt Academy', students: 280, progress: 76 },
-      { name: 'Kano Science College', students: 380, progress: 74 },
-      { name: 'Calabar High School', students: 310, progress: 71 }
-    ],
-    topTeachers: [
-      { name: 'Dr. Sarah Johnson', students: 45, rating: 4.8 },
-      { name: 'Ms. Chioma Okonkwo', students: 38, rating: 4.9 },
-      { name: 'Mr. David Wilson', students: 52, rating: 4.8 },
-      { name: 'Mr. Ahmed Hassan', students: 32, rating: 4.6 },
-      { name: 'Mr. Emeka Nwosu', students: 25, rating: 4.7 }
-    ]
-  }
-};
+import { createClient } from '@/lib/supabase/client';
 
 export default function AnalyticsPage() {
-  const [data] = useState(mockData);
-  const [timeRange, setTimeRange] = useState('6months');
+  const { profile, loading: authLoading } = useAuth();
+  const [overview, setOverview] = useState<any>(null);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const getGrowthIcon = (value: number) => {
-    return value > 0 ? (
-      <ArrowTrendingUpIcon className="h-5 w-5 text-green-500" />
-    ) : (
-      <ArrowTrendingDownIcon className="h-5 w-5 text-red-500" />
-    );
-  };
+  useEffect(() => {
+    if (authLoading || !profile) return;
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const supabase = createClient();
+        const [overviewData, teacherData, programData] = await Promise.all([
+          fetchAnalyticsOverview(),
+          fetchTeachers(),
+          supabase.from('programs').select('id, name, enrollments(id)').eq('is_active', true),
+        ]);
+        if (!cancelled) {
+          setOverview(overviewData);
+          setTeachers(teacherData);
+          setPrograms(programData.data ?? []);
+        }
+      } catch (e: any) {
+        if (!cancelled) setError(e.message ?? 'Failed to load analytics');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [profile?.id, authLoading]); // eslint-disable-line
 
-  const getProgressColor = (progress: number) => {
-    if (progress >= 80) return 'text-green-600 dark:text-green-400';
-    if (progress >= 60) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
-  };
-
-  const getRatingColor = (rating: number) => {
-    if (rating >= 4.5) return 'text-green-600 dark:text-green-400';
-    if (rating >= 4.0) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Analytics Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Comprehensive insights and performance metrics</p>
-        </div>
-        <div className="mt-4 sm:mt-0">
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="1month">Last Month</option>
-            <option value="3months">Last 3 Months</option>
-            <option value="6months">Last 6 Months</option>
-            <option value="1year">Last Year</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                <UserGroupIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Students</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.overview.totalStudents.toLocaleString()}</p>
-              </div>
-            </div>
-            <div className="flex items-center text-green-500">
-              {getGrowthIcon(12)}
-              <span className="text-sm font-medium ml-1">+12%</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
-                <AcademicCapIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Students</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.overview.activeStudents.toLocaleString()}</p>
-              </div>
-            </div>
-            <div className="flex items-center text-green-500">
-              {getGrowthIcon(8)}
-              <span className="text-sm font-medium ml-1">+8%</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-                <ChartBarIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Avg Progress</p>
-                <p className={`text-2xl font-bold ${getProgressColor(data.overview.avgProgress)}`}>
-                  {data.overview.avgProgress}%
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center text-green-500">
-              {getGrowthIcon(5)}
-              <span className="text-sm font-medium ml-1">+5%</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl">
-                <StarIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Avg Rating</p>
-                <p className={`text-2xl font-bold ${getRatingColor(data.overview.avgRating)}`}>
-                  {data.overview.avgRating}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center text-green-500">
-              {getGrowthIcon(2)}
-              <span className="text-sm font-medium ml-1">+2%</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Student Growth Chart */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Student Growth</h3>
-          <div className="space-y-3">
-            {data.trends.studentGrowth.map((item, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">{item.month}</span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(item.students / 1300) * 100}%` }}
-                    ></div>
-                  </div>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white w-12 text-right">
-                    {item.students.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Course Enrollment Chart */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Course Enrollment</h3>
-          <div className="space-y-3">
-            {data.trends.courseEnrollment.map((item, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400 flex-1">{item.course}</span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div 
-                      className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(item.students / 320) * 100}%` }}
-                    ></div>
-                  </div>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white w-12 text-right">
-                    {item.students}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Performance Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Schools */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top Performing Schools</h3>
-          </div>
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {data.performance.topSchools.map((school, index) => (
-              <div key={index} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium text-blue-600 dark:text-blue-400">{index + 1}</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{school.name}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{school.students} students</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-medium ${getProgressColor(school.progress)}`}>{school.progress}%</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">progress</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Top Teachers */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top Rated Teachers</h3>
-          </div>
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {data.performance.topTeachers.map((teacher, index) => (
-              <div key={index} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">{index + 1}</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{teacher.name}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{teacher.students} students</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-medium ${getRatingColor(teacher.rating)}`}>{teacher.rating}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">rating</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Additional Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl">
-              <BuildingOfficeIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Partner Schools</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.overview.totalSchools}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="p-3 bg-pink-100 dark:bg-pink-900/30 rounded-xl">
-              <ClockIcon className="h-6 w-6 text-pink-600 dark:text-pink-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Avg Course Duration</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">10.5 weeks</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
-              <CheckCircleIcon className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completion Rate</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">87%</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="p-3 bg-teal-100 dark:bg-teal-900/30 rounded-xl">
-              <CalendarIcon className="h-6 w-6 text-teal-600 dark:text-teal-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Courses</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.overview.totalCourses}</p>
-            </div>
-          </div>
-        </div>
+  if (authLoading || loading) return (
+    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-white/40 text-sm">Loading analytics…</p>
       </div>
     </div>
   );
-} 
+
+  const maxEnrollment = Math.max(...programs.map((p: any) => p.enrollments?.length ?? 0), 1);
+
+  return (
+    <div className="min-h-screen bg-[#0f0f1a] text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        {/* Header */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <ChartBarIcon className="w-5 h-5 text-violet-400" />
+            <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Admin</span>
+          </div>
+          <h1 className="text-3xl font-extrabold">Analytics Dashboard</h1>
+          <p className="text-white/40 text-sm mt-1">Live data from your Supabase database</p>
+        </div>
+
+        {error && (
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm">{error}</div>
+        )}
+
+        {/* KPI Cards */}
+        {overview && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Students', value: overview.totalStudents.toLocaleString(), icon: UserGroupIcon, gradient: 'from-violet-600 to-violet-400', change: 'Live from DB' },
+              { label: 'Active Students', value: overview.activeStudents.toLocaleString(), icon: CheckCircleIcon, gradient: 'from-emerald-600 to-emerald-400', change: 'Live from DB' },
+              { label: 'Teachers', value: overview.totalTeachers, icon: AcademicCapIcon, gradient: 'from-blue-600 to-blue-400', change: 'Live from DB' },
+              { label: 'Avg Progress', value: `${overview.avgProgress}%`, icon: ChartBarIcon, gradient: 'from-amber-600 to-amber-400', change: 'From graded work' },
+            ].map((kpi) => (
+              <div key={kpi.label} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/8 hover:border-white/20 transition-all">
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${kpi.gradient} flex items-center justify-center`}>
+                    <kpi.icon className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-xs font-medium text-white/30 flex items-center gap-1">
+                    <ArrowTrendingUpIcon className="w-3.5 h-3.5 text-emerald-400" />{kpi.change}
+                  </span>
+                </div>
+                <p className="text-2xl font-extrabold text-white">{kpi.value}</p>
+                <p className="text-white/40 text-sm mt-1">{kpi.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* Program Enrollment */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <AcademicCapIcon className="w-5 h-5 text-blue-400" />
+              <h3 className="text-lg font-bold">Program Enrollment</h3>
+            </div>
+            {programs.length === 0 ? (
+              <p className="text-white/30 text-sm">No programs found in the database.</p>
+            ) : (
+              <div className="space-y-4">
+                {programs.map((prog: any, i: number) => {
+                  const count = prog.enrollments?.length ?? 0;
+                  const pct = Math.round((count / maxEnrollment) * 100);
+                  const colors = ['bg-violet-500', 'bg-blue-500', 'bg-cyan-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500'];
+                  return (
+                    <div key={prog.id}>
+                      <div className="flex justify-between text-sm mb-1.5">
+                        <span className="text-white/60 truncate pr-4">{prog.name}</span>
+                        <span className="text-white font-bold flex-shrink-0">{count} enrolled</span>
+                      </div>
+                      <div className="w-full h-7 bg-white/5 rounded-lg overflow-hidden">
+                        <div
+                          className={`h-full rounded-lg ${colors[i % colors.length]} flex items-center justify-end pr-3 transition-all duration-500`}
+                          style={{ width: `${Math.max(pct, 8)}%` }}
+                        >
+                          {count > 0 && <span className="text-xs font-bold text-white">{count}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Teachers Overview */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+            <div className="p-6 border-b border-white/10 flex items-center gap-2">
+              <StarIcon className="w-5 h-5 text-amber-400" />
+              <h3 className="text-lg font-bold">Teaching Staff</h3>
+            </div>
+            {teachers.length === 0 ? (
+              <div className="p-6 text-center text-white/30 text-sm">No teachers registered yet.</div>
+            ) : (
+              <div className="divide-y divide-white/5 max-h-80 overflow-y-auto">
+                {teachers.map((t: any, i: number) => (
+                  <div key={t.id} className="flex items-center gap-4 p-4 hover:bg-white/5 transition-colors">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
+                      {(t.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-white text-sm truncate">{t.full_name}</p>
+                      <p className="text-xs text-white/40 truncate">{t.email}</p>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${t.is_active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/30'}`}>
+                      {t.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom Metrics */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[
+            { label: 'Active Programs', value: programs.length, icon: GlobeAltIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+            { label: 'Pending Students', value: overview ? overview.totalStudents - overview.activeStudents : 0, icon: ClockIcon, color: 'text-pink-400', bg: 'bg-pink-500/10' },
+            { label: 'Staff Members', value: overview?.totalTeachers ?? 0, icon: AcademicCapIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+            { label: 'Data Source', value: 'Live DB', icon: BoltIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+          ].map((m) => (
+            <div key={m.label} className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center">
+              <div className={`w-10 h-10 ${m.bg} rounded-xl flex items-center justify-center mx-auto mb-3`}>
+                <m.icon className={`w-5 h-5 ${m.color}`} />
+              </div>
+              <p className={`text-2xl font-extrabold ${m.color}`}>{m.value}</p>
+              <p className="text-xs text-white/40 mt-1">{m.label}</p>
+            </div>
+          ))}
+        </div>
+
+      </div>
+    </div>
+  );
+}

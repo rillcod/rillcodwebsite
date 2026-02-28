@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Monitor, Cat, Globe, Palette, Bot, ArrowRight, Clock, Users, Star, Search, Filter, BookOpen, Code, Zap, Target, CheckCircle, TrendingUp, Award, MapPin, Heart, Sparkles, GraduationCap, Lightbulb, Building2, Rocket, Crown, Shield, Brain, Eye, HandHeart, Globe2, Smartphone, Laptop, Gamepad2, Camera, Music, Video, FileText, BarChart3, Cpu, Database, Cloud, Wifi, Tablet, Watch, Headphones, Speaker, Printer, Keyboard, Mouse, HardDrive, Usb, IdCard, Battery, Power, Settings, Lock, Unlock, Key, User, Users2, UserCheck, UserX, UserPlus, UserMinus, UserCog, UserSearch, UserCheck2, UserLock, Calendar, Sun } from "lucide-react";
+import { Monitor, Cat, Globe, Palette, Bot, ArrowRight, Clock, Users, Star, Search, Filter, BookOpen, Code, Zap, Target, CheckCircle, TrendingUp, Award, MapPin, Heart, Sparkles, GraduationCap, Lightbulb, Building2, Rocket, Crown, Shield, Brain, Eye, HandHeart, Globe2, Smartphone, Laptop, Gamepad2, Camera, Music, Video, FileText, BarChart3, Cpu, Database, Cloud, Wifi, Tablet, Watch, Headphones, Speaker, Printer, Keyboard, Mouse, HardDrive, Usb, Battery, Power, Settings, Lock, Unlock, Key, User, Users2, UserCheck, UserX, UserPlus, UserMinus, UserCog, UserSearch, UserCheck2, Calendar, Sun } from "lucide-react";
 import SummerSchoolPopup from "@/components/SummerSchoolPopup";
 
 const programs = [
@@ -268,8 +268,8 @@ export default function Programs() {
 
   const filteredPrograms = programs.filter(program => {
     const matchesSearch = program.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         program.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         program.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()));
+      program.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      program.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = selectedCategory === "All" || program.category === selectedCategory;
     const matchesLevel = selectedLevel === "all" || program.level === selectedLevel;
     return matchesSearch && matchesCategory && matchesLevel;
@@ -321,7 +321,7 @@ export default function Programs() {
                   Accelerate Your Tech Journey This Summer!
                 </h2>
                 <p className="text-lg mb-6 opacity-90">
-                  Intensive programs for JSS3 students starting <strong>June 15th</strong> and other classes from <strong>July 25th</strong>. 
+                  Intensive programs for JSS3 students starting <strong>June 15th</strong> and other classes from <strong>July 25th</strong>.
                   Both online and onsite options available.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -417,11 +417,10 @@ export default function Programs() {
                 <button
                   key={category.name}
                   onClick={() => setSelectedCategory(category.name)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                    selectedCategory === category.name
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${selectedCategory === category.name
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
+                    }`}
                 >
                   {category.icon}
                   <span className="hidden sm:inline">{category.name}</span>
@@ -614,9 +613,9 @@ export default function Programs() {
       </div>
 
       {/* Summer School Popup */}
-      <SummerSchoolPopup 
-        isOpen={showSummerSchoolPopup} 
-        onClose={() => setShowSummerSchoolPopup(false)} 
+      <SummerSchoolPopup
+        isOpen={showSummerSchoolPopup}
+        onClose={() => setShowSummerSchoolPopup(false)}
       />
     </div>
   );

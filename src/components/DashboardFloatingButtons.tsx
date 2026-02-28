@@ -6,9 +6,9 @@ import FloatingRegistrationButton from './FloatingRegistrationButton'
 
 export default function DashboardFloatingButtons() {
   const pathname = usePathname()
-  
+
   // Don't show floating buttons on dashboard pages
-  if (pathname.startsWith('/dashboard')) {
+  if (pathname?.startsWith('/dashboard')) {
     return null
   }
 

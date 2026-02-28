@@ -1,417 +1,266 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  BookOpenIcon,
-  PlusIcon,
-  MagnifyingGlassIcon,
-  EyeIcon,
-  PencilIcon,
-  TrashIcon,
-  ClockIcon,
-  UserGroupIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  VideoCameraIcon,
-  PlayIcon,
-  DocumentTextIcon
+import { useAuth } from '@/contexts/auth-context';
+import { createClient } from '@/lib/supabase/client';
+import {
+  BookOpenIcon, PlusIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon,
+  TrashIcon, ClockIcon, UserGroupIcon, CheckCircleIcon,
+  VideoCameraIcon, PlayIcon, DocumentTextIcon, BoltIcon,
 } from '@heroicons/react/24/outline';
 
-// Mock data for lessons
-const mockLessons = [
-  {
-    id: '1',
-    title: 'Introduction to Python Variables',
-    course: 'Python Programming',
-    class: 'Python Programming - Grade 10A',
-    duration: 45,
-    type: 'video',
-    status: 'completed',
-    date: new Date('2024-03-15'),
-    students: 25,
-    completed: 23,
-    materials: ['video', 'slides', 'exercise'],
-    description: 'Learn about variables, data types, and basic operations in Python'
-  },
-  {
-    id: '2',
-    title: 'HTML Structure and Elements',
-    course: 'Web Development',
-    class: 'Web Development - Grade 11B',
-    duration: 60,
-    type: 'interactive',
-    status: 'active',
-    date: new Date('2024-03-16'),
-    students: 18,
-    completed: 12,
-    materials: ['video', 'code', 'quiz'],
-    description: 'Understanding HTML document structure and semantic elements'
-  },
-  {
-    id: '3',
-    title: 'Creating Animations in Scratch',
-    course: 'Scratch Programming',
-    class: 'Scratch Programming - Grade 8A',
-    duration: 30,
-    type: 'hands-on',
-    status: 'scheduled',
-    date: new Date('2024-03-17'),
-    students: 32,
-    completed: 0,
-    materials: ['tutorial', 'project'],
-    description: 'Learn to create simple animations using Scratch blocks'
-  },
-  {
-    id: '4',
-    title: 'User Research Methods',
-    course: 'UI/UX Design',
-    class: 'UI/UX Design - Grade 12A',
-    duration: 90,
-    type: 'workshop',
-    status: 'active',
-    date: new Date('2024-03-14'),
-    students: 15,
-    completed: 8,
-    materials: ['slides', 'template', 'case-study'],
-    description: 'Conducting effective user research and gathering insights'
-  },
-  {
-    id: '5',
-    title: 'State Management in Flutter',
-    course: 'Flutter Development',
-    class: 'Flutter Development - Grade 12B',
-    duration: 75,
-    type: 'coding',
-    status: 'scheduled',
-    date: new Date('2024-03-18'),
-    students: 12,
-    completed: 0,
-    materials: ['video', 'code', 'documentation'],
-    description: 'Understanding state management patterns in Flutter apps'
-  }
-];
+const STATUS_BADGE: Record<string, string> = {
+  completed: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  active: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  scheduled: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  draft: 'bg-white/10 text-white/40',
+};
+const TYPE_COLORS: Record<string, string> = {
+  video: 'text-blue-400', interactive: 'text-violet-400',
+  'hands-on': 'text-cyan-400', workshop: 'text-emerald-400', coding: 'text-amber-400',
+};
 
 export default function LessonsPage() {
-  const [lessons, _setLessons] = useState(mockLessons);
-  const [searchTerm, setSearchTerm] = useState('');
+  const { profile, loading: authLoading } = useAuth();
+  const [lessons, setLessons] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterType, setFilterType] = useState('all');
 
-  // Filter lessons
-  const filteredLessons = lessons.filter(lesson => {
-    const matchesSearch = lesson.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         lesson.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         lesson.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = filterStatus === 'all' || lesson.status === filterStatus;
-    const matchesType = filterType === 'all' || lesson.type === filterType;
-    
-    return matchesSearch && matchesStatus && matchesType;
+  useEffect(() => {
+    if (authLoading || !profile) return;
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const supabase = createClient();
+        let q = supabase
+          .from('lessons')
+          .select(`id, title, description, lesson_type, status, duration_minutes,
+            session_date, video_url, created_by, created_at,
+            courses ( id, title, programs ( name ) )`)
+          .order('created_at', { ascending: false });
+
+        if (profile!.role === 'teacher') {
+          q = (q as any).eq('created_by', profile!.id);
+        } else if (profile!.role === 'student') {
+          const { data: enr } = await supabase
+            .from('enrollments').select('program_id').eq('user_id', profile!.id);
+          const programIds = (enr ?? []).map((e: any) => e.program_id);
+          if (programIds.length) {
+            const { data: courseData } = await supabase
+              .from('courses').select('id').in('program_id', programIds);
+            const ids = (courseData ?? []).map((c: any) => c.id);
+            if (ids.length) q = (q as any).in('course_id', ids);
+          }
+        }
+
+        const { data, error: err } = await q;
+        if (err) throw err;
+        if (!cancelled) setLessons(data ?? []);
+      } catch (e: any) {
+        if (!cancelled) setError(e.message ?? 'Failed to load lessons');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [profile?.id, authLoading]); // eslint-disable-line
+
+  const filtered = lessons.filter(l => {
+    const ms = (l.title ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (l.courses?.title ?? '').toLowerCase().includes(search.toLowerCase());
+    const mst = filterStatus === 'all' || l.status === filterStatus;
+    return ms && mst;
   });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300';
-      case 'active':
-        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300';
-      case 'scheduled':
-        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300';
-      case 'draft':
-        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
-      default:
-        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
-    }
-  };
+  const completed = lessons.filter(l => l.status === 'completed').length;
+  const active = lessons.filter(l => l.status === 'active').length;
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'video':
-        return <VideoCameraIcon className="h-5 w-5" />;
-      case 'interactive':
-        return <PlayIcon className="h-5 w-5" />;
-      case 'hands-on':
-        return <BookOpenIcon className="h-5 w-5" />;
-      case 'workshop':
-        return <UserGroupIcon className="h-5 w-5" />;
-      case 'coding':
-        return <DocumentTextIcon className="h-5 w-5" />;
-      default:
-        return <BookOpenIcon className="h-5 w-5" />;
-    }
-  };
-
-  const getCompletionRate = (completed: number, total: number) => {
-    return Math.round((completed / total) * 100);
-  };
+  if (authLoading || loading) return (
+    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-white/40 text-sm">Loading lessons…</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Lessons</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage and track lesson progress</p>
-        </div>
-        <div className="mt-4 sm:mt-0">
-          <Link
-            href="/dashboard/lessons/add"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Create Lesson
-          </Link>
-        </div>
-      </div>
+    <div className="min-h-screen bg-[#0f0f1a] text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-              <BookOpenIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <BookOpenIcon className="w-5 h-5 text-cyan-400" />
+              <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest">Learning Content</span>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Lessons</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{lessons.length}</p>
-            </div>
+            <h1 className="text-3xl font-extrabold">Lessons</h1>
+            <p className="text-white/40 text-sm mt-1">Manage and track lesson progress</p>
           </div>
+          {(profile?.role === 'admin' || profile?.role === 'teacher') && (
+            <Link href="/dashboard/lessons/add"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-cyan-900/30">
+              <PlusIcon className="w-4 h-4" /> Create Lesson
+            </Link>
+          )}
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
-              <CheckCircleIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
+        {error && (
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm">{error}</div>
+        )}
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: 'Total Lessons', value: lessons.length, icon: BookOpenIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+            { label: 'Completed', value: completed, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+            { label: 'Active', value: active, icon: BoltIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            { label: 'Completion Rate', value: lessons.length ? `${Math.round((completed / lessons.length) * 100)}%` : '0%', icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+          ].map((s) => (
+            <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-5">
+              <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
+                <s.icon className={`w-5 h-5 ${s.color}`} />
+              </div>
+              <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
+              <p className="text-xs text-white/40 mt-1">{s.label}</p>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {lessons.filter(l => l.status === 'completed').length}
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-              <ClockIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {lessons.filter(l => l.status === 'active').length}
-              </p>
-            </div>
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+            <input type="text" placeholder="Search lessons or courses…" value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-cyan-500 transition-colors" />
           </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-              <UserGroupIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Avg Completion</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {Math.round(lessons.reduce((sum, l) => sum + getCompletionRate(l.completed, l.students), 0) / lessons.length)}%
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search lessons..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
-            />
-          </div>
-
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
-          >
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500 cursor-pointer">
             <option value="all">All Status</option>
             <option value="completed">Completed</option>
             <option value="active">Active</option>
             <option value="scheduled">Scheduled</option>
             <option value="draft">Draft</option>
           </select>
-
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
-          >
-            <option value="all">All Types</option>
-            <option value="video">Video</option>
-            <option value="interactive">Interactive</option>
-            <option value="hands-on">Hands-on</option>
-            <option value="workshop">Workshop</option>
-            <option value="coding">Coding</option>
-          </select>
         </div>
-      </div>
 
-      {/* Lessons List */}
-      <div className="space-y-4">
-        {filteredLessons.map((lesson) => (
-          <div key={lesson.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="p-6">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <div className="text-gray-400 dark:text-gray-500">
-                          {getTypeIcon(lesson.type)}
+        {/* Empty */}
+        {filtered.length === 0 ? (
+          <div className="text-center py-24 bg-white/5 border border-white/10 rounded-2xl">
+            <BookOpenIcon className="w-16 h-16 mx-auto text-white/10 mb-4" />
+            <p className="text-lg font-semibold text-white/30">No lessons found</p>
+            <p className="text-sm text-white/20 mt-1">Create your first lesson or adjust filters</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filtered.map((lesson: any) => {
+              const attendanceCount = lesson.attendance?.length ?? 0;
+              const completedAttendance = lesson.attendance?.filter((a: any) => a.status === 'present').length ?? 0;
+              return (
+                <div key={lesson.id} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/8 hover:border-white/20 transition-all">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className={`mt-0.5 flex-shrink-0 ${TYPE_COLORS[lesson.lesson_type] ?? 'text-white/40'}`}>
+                          {lesson.lesson_type === 'video' ? <VideoCameraIcon className="w-5 h-5" /> :
+                            lesson.lesson_type === 'interactive' ? <PlayIcon className="w-5 h-5" /> :
+                              <BookOpenIcon className="w-5 h-5" />}
                         </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{lesson.title}</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{lesson.course} • {lesson.class}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <h3 className="font-bold text-white">{lesson.title}</h3>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${STATUS_BADGE[lesson.status] ?? 'bg-white/10 text-white/40'}`}>
+                              {lesson.status}
+                            </span>
+                            {lesson.lesson_type && (
+                              <span className="px-2 py-0.5 text-xs text-white/40">{lesson.lesson_type}</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-white/40">{lesson.courses?.title} — {lesson.courses?.programs?.name}</p>
                         </div>
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{lesson.description}</p>
-                    </div>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(lesson.status)}`}>
-                      {lesson.status}
-                    </span>
-                  </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4 text-sm">
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400">Duration</p>
-                      <p className="font-medium text-gray-900 dark:text-white">{lesson.duration} min</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400">Students</p>
-                      <p className="font-medium text-gray-900 dark:text-white">{lesson.students}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400">Completed</p>
-                      <p className="font-medium text-gray-900 dark:text-white">{lesson.completed}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400">Date</p>
-                      <p className="font-medium text-gray-900 dark:text-white">{lesson.date.toLocaleDateString()}</p>
-                    </div>
-                  </div>
+                      {lesson.description && (
+                        <p className="text-white/40 text-sm line-clamp-2 mb-3">{lesson.description}</p>
+                      )}
 
-                  <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600 dark:text-gray-400">Completion Rate</span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {getCompletionRate(lesson.completed, lesson.students)}%
-                      </span>
+                      <div className="flex flex-wrap gap-4 text-xs text-white/30">
+                        {lesson.duration_minutes && (
+                          <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" /> {lesson.duration_minutes} min</span>
+                        )}
+                        {lesson.session_date && (
+                          <span>{new Date(lesson.session_date).toLocaleDateString()}</span>
+                        )}
+                        {attendanceCount > 0 && (
+                          <span className="flex items-center gap-1"><UserGroupIcon className="w-3.5 h-3.5" /> {completedAttendance}/{attendanceCount} present</span>
+                        )}
+                        {attendanceCount > 0 && (
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 h-1.5 bg-white/10 rounded-full">
+                              <div className="h-1.5 rounded-full bg-emerald-500"
+                                style={{ width: `${Math.round((completedAttendance / attendanceCount) * 100)}%` }} />
+                            </div>
+                            <span className="text-emerald-400">{Math.round((completedAttendance / attendanceCount) * 100)}%</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="h-2 rounded-full transition-all duration-300 bg-blue-500"
-                        style={{ width: `${getCompletionRate(lesson.completed, lesson.students)}%` }}
-                      ></div>
-                    </div>
-                  </div>
 
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {lesson.materials.map((material, index) => (
-                      <span key={index} className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                        {material}
-                      </span>
-                    ))}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Link href={`/dashboard/lessons/${lesson.id}`}
+                        className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors">
+                        <EyeIcon className="w-4 h-4" /> View
+                      </Link>
+                      {(profile?.role === 'admin' || profile?.role === 'teacher') && (
+                        <>
+                          <Link href={`/dashboard/lessons/${lesson.id}/edit`}
+                            className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white/50 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
+                            <PencilIcon className="w-4 h-4" /> Edit
+                          </Link>
+                          <button className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors">
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
 
-                <div className="mt-6 lg:mt-0 lg:ml-6 flex items-center space-x-2">
-                  <Link
-                    href={`/dashboard/lessons/${lesson.id}`}
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                  >
-                    <EyeIcon className="h-4 w-4 mr-1" />
-                    View
-                  </Link>
-                  <Link
-                    href={`/dashboard/lessons/${lesson.id}/edit`}
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                  >
-                    <PencilIcon className="h-4 w-4 mr-1" />
-                    Edit
-                  </Link>
-                  <button
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                  >
-                    <TrashIcon className="h-4 w-4 mr-1" />
-                    Delete
-                  </button>
-                </div>
-              </div>
+        {/* Quick Actions */}
+        {(profile?.role === 'admin' || profile?.role === 'teacher') && (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <BoltIcon className="w-5 h-5 text-amber-400" /> Content Tools
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Record Lesson', icon: VideoCameraIcon, color: 'bg-blue-600 hover:bg-blue-700', href: '#' },
+                { label: 'Create Quiz', icon: DocumentTextIcon, color: 'bg-violet-600 hover:bg-violet-700', href: '/dashboard/assignments/new' },
+                { label: 'Interactive Demo', icon: PlayIcon, color: 'bg-emerald-600 hover:bg-emerald-700', href: '#' },
+                { label: 'Group Activity', icon: UserGroupIcon, color: 'bg-amber-600 hover:bg-amber-700', href: '#' },
+              ].map((a) => (
+                <Link key={a.label} href={a.href}
+                  className={`flex items-center gap-2 px-4 py-3 ${a.color} text-white font-semibold text-sm rounded-xl transition-all hover:scale-[1.02]`}>
+                  <a.icon className="w-4 h-4 flex-shrink-0" />{a.label}
+                </Link>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
+        )}
 
-      {filteredLessons.length === 0 && (
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-          <BookOpenIcon className="h-16 w-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-          <p className="text-lg font-medium">No lessons found</p>
-          <p className="text-sm">Try adjusting your search criteria or create a new lesson</p>
-        </div>
-      )}
-
-      {/* Quick Actions */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <button className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left">
-            <div className="flex items-center">
-              <VideoCameraIcon className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">Record Lesson</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Create video content</p>
-              </div>
-            </div>
-          </button>
-
-          <button className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left">
-            <div className="flex items-center">
-              <DocumentTextIcon className="h-8 w-8 text-green-600 dark:text-green-400 mr-3" />
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">Create Quiz</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Assessment tools</p>
-              </div>
-            </div>
-          </button>
-
-          <button className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left">
-            <div className="flex items-center">
-              <PlayIcon className="h-8 w-8 text-purple-600 dark:text-purple-400 mr-3" />
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">Interactive Demo</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Live coding session</p>
-              </div>
-            </div>
-          </button>
-
-          <button className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left">
-            <div className="flex items-center">
-              <UserGroupIcon className="h-8 w-8 text-yellow-600 dark:text-yellow-400 mr-3" />
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">Group Activity</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Collaborative learning</p>
-              </div>
-            </div>
-          </button>
-        </div>
       </div>
     </div>
   );
-} 
+}

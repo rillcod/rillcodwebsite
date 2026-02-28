@@ -1,0 +1,5 @@
+<svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="300" fill="#F3F4F6"/>
+  <text x="200" y="150" text-anchor="middle" font-family="system-ui" font-size="24" fill="#4B5563">Creative Coding</text>
+  <text x="200" y="180" text-anchor="middle" font-family="system-ui" font-size="16" fill="#6B7280">Make Your Own Games!</text>
+</svg> 

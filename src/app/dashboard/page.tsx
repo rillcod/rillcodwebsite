@@ -1,289 +1,459 @@
-'use client'
+'use client';
 
-import { useAuth } from '@/contexts/auth-context'
-import { 
-  UserGroupIcon, 
-  AcademicCapIcon, 
-  BookOpenIcon, 
-  ChartBarIcon, 
-  CogIcon,
-  BuildingOfficeIcon,
-  ClipboardDocumentListIcon,
-  PresentationChartLineIcon,
-  EyeIcon,
-  PencilIcon
-} from '@heroicons/react/24/outline'
-import Link from 'next/link'
+import { useAuth } from '@/contexts/auth-context';
+import {
+  UserGroupIcon, AcademicCapIcon, BookOpenIcon, ChartBarIcon, CogIcon,
+  BuildingOfficeIcon, ClipboardDocumentListIcon, PresentationChartLineIcon,
+  ClockIcon, CheckCircleIcon, BellIcon, ArrowRightIcon, TrophyIcon,
+  ArrowPathIcon, ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
+import { createClient } from '@/lib/supabase/client';
 
-// Mock data for different roles
-const mockAdminStats = [
-  { name: 'Total Schools', value: '24', change: '+12%', changeType: 'positive' },
-  { name: 'Active Teachers', value: '156', change: '+8%', changeType: 'positive' },
-  { name: 'Total Students', value: '1,234', change: '+15%', changeType: 'positive' },
-  { name: 'Revenue', value: '₦2.4M', change: '+23%', changeType: 'positive' }
-]
+/* ── Types ────────────────────────────────────────────── */
+interface DashStats { label: string; value: string | number; change?: string; icon: any; gradient: string }
+interface Activity { id: string; title: string; desc: string; time: string; icon: any; color: string }
 
-const mockTeacherStats = [
-  { name: 'My Classes', value: '4', change: '+1', changeType: 'positive' },
-  { name: 'Total Students', value: '89', change: '+5', changeType: 'positive' },
-  { name: 'Assignments', value: '12', change: '+3', changeType: 'positive' },
-  { name: 'Avg. Performance', value: '87%', change: '+2%', changeType: 'positive' }
-]
+/* ── Helpers ──────────────────────────────────────────── */
+function timeAgo(iso: string | null): string {
+  if (!iso) return '—';
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
-const mockStudentStats = [
-  { name: 'Enrolled Courses', value: '6', change: '+1', changeType: 'positive' },
-  { name: 'Completed Lessons', value: '45', change: '+8', changeType: 'positive' },
-  { name: 'Pending Assignments', value: '3', change: '-2', changeType: 'positive' },
-  { name: 'Overall Grade', value: 'A-', change: '+5%', changeType: 'positive' }
-]
+/* ── Real-data hooks per role ─────────────────────────── */
+async function loadAdminStats(supabase: ReturnType<typeof createClient>) {
+  const [schools, teachers, students, submissions] = await Promise.allSettled([
+    supabase.from('schools').select('id, status', { count: 'exact', head: true }),
+    supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'teacher').eq('is_active', true),
+    supabase.from('students').select('id', { count: 'exact', head: true }),
+    supabase.from('assignment_submissions').select('id, grade', { count: 'exact', head: false }).not('grade', 'is', null),
+  ]);
+  const totalSchools = schools.status === 'fulfilled' ? (schools.value.count ?? 0) : 0;
+  const totalTeachers = teachers.status === 'fulfilled' ? (teachers.value.count ?? 0) : 0;
+  const totalStudents = students.status === 'fulfilled' ? (students.value.count ?? 0) : 0;
+  return [
+    { label: 'Partner Schools', value: totalSchools, icon: BuildingOfficeIcon, gradient: 'from-blue-600 to-blue-400' },
+    { label: 'Active Teachers', value: totalTeachers, icon: AcademicCapIcon, gradient: 'from-violet-600 to-violet-400' },
+    { label: 'Total Students', value: totalStudents, icon: UserGroupIcon, gradient: 'from-emerald-600 to-emerald-400' },
+    { label: 'Submissions Graded', value: submissions.status === 'fulfilled' ? (submissions.value.count ?? 0) : 0, icon: ChartBarIcon, gradient: 'from-amber-600 to-amber-400' },
+  ] as DashStats[];
+}
 
+async function loadAdminActivity(supabase: ReturnType<typeof createClient>): Promise<Activity[]> {
+  const { data } = await supabase
+    .from('assignment_submissions')
+    .select('id, status, submitted_at, portal_users(full_name), assignments(title)')
+    .order('submitted_at', { ascending: false })
+    .limit(5);
+  return (data ?? []).map((s: any) => ({
+    id: s.id,
+    title: `${s.portal_users?.full_name ?? 'Student'} submitted`,
+    desc: s.assignments?.title ?? '—',
+    time: timeAgo(s.submitted_at),
+    icon: ClipboardDocumentListIcon,
+    color: 'bg-violet-500/20 text-violet-400',
+  }));
+}
+
+async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userId: string) {
+  const [classes, pending, subs] = await Promise.allSettled([
+    supabase.from('classes').select('id', { count: 'exact', head: true }).eq('teacher_id', userId),
+    supabase.from('assignment_submissions').select('id', { count: 'exact', head: true })
+      .eq('status', 'submitted')
+      .in('assignments.created_by', [userId]),
+    supabase.from('assignment_submissions').select('grade')
+      .not('grade', 'is', null)
+      .in('assignments.created_by', [userId])
+      .limit(100),
+  ]);
+  const myClasses = classes.status === 'fulfilled' ? (classes.value.count ?? 0) : 0;
+  const pendingGrade = pending.status === 'fulfilled' ? (pending.value.count ?? 0) : 0;
+  const grades = subs.status === 'fulfilled' ? (subs.value.data ?? []) : [];
+  const avg = grades.length > 0
+    ? Math.round(grades.reduce((s: number, g: any) => s + (g.grade ?? 0), 0) / grades.length)
+    : 0;
+  return [
+    { label: 'My Classes', value: myClasses, icon: BookOpenIcon, gradient: 'from-blue-600 to-blue-400' },
+    { label: 'Pending Grading', value: pendingGrade, icon: ClipboardDocumentListIcon, gradient: 'from-amber-600 to-amber-400' },
+    { label: 'Avg Score (My Asgn)', value: `${avg}%`, icon: ChartBarIcon, gradient: 'from-violet-600 to-violet-400' },
+    { label: 'Graded Total', value: grades.length, icon: CheckCircleIcon, gradient: 'from-emerald-600 to-emerald-400' },
+  ] as DashStats[];
+}
+
+async function loadTeacherActivity(supabase: ReturnType<typeof createClient>, userId: string): Promise<Activity[]> {
+  const { data } = await supabase
+    .from('assignment_submissions')
+    .select('id, status, submitted_at, portal_users(full_name), assignments!inner(title, created_by)')
+    .eq('assignments.created_by', userId)
+    .order('submitted_at', { ascending: false })
+    .limit(5);
+  return (data ?? []).map((s: any) => ({
+    id: s.id,
+    title: `${s.portal_users?.full_name ?? 'Student'} submitted`,
+    desc: s.assignments?.title ?? '—',
+    time: timeAgo(s.submitted_at),
+    icon: ClipboardDocumentListIcon,
+    color: s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400',
+  }));
+}
+
+async function loadStudentStats(supabase: ReturnType<typeof createClient>, userId: string) {
+  const [enr, subs, graded] = await Promise.allSettled([
+    supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('portal_user_id', userId),
+    supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('portal_user_id', userId),
+    supabase.from('assignment_submissions').select('grade, assignments(max_points)')
+      .eq('portal_user_id', userId).not('grade', 'is', null).limit(50),
+  ]);
+  const enrolled = enr.status === 'fulfilled' ? (enr.value.count ?? 0) : 0;
+  const totalSubs = subs.status === 'fulfilled' ? (subs.value.count ?? 0) : 0;
+  const gradedData = graded.status === 'fulfilled' ? (graded.value.data ?? []) : [];
+  const avgPct = gradedData.length > 0
+    ? Math.round(gradedData.reduce((s: number, g: any) => {
+      const max = g.assignments?.max_points ?? 100;
+      return s + (g.grade / max) * 100;
+    }, 0) / gradedData.length)
+    : 0;
+  const { letter } = avgPct >= 90 ? { letter: 'A' } : avgPct >= 80 ? { letter: 'B' } :
+    avgPct >= 70 ? { letter: 'C' } : avgPct >= 60 ? { letter: 'D' } : { letter: 'F' };
+  return [
+    { label: 'Enrolled Courses', value: enrolled, icon: BookOpenIcon, gradient: 'from-blue-600 to-blue-400' },
+    { label: 'Assignments Done', value: totalSubs, icon: ClipboardDocumentListIcon, gradient: 'from-violet-600 to-violet-400' },
+    { label: 'Graded Work', value: gradedData.length, icon: CheckCircleIcon, gradient: 'from-emerald-600 to-emerald-400' },
+    { label: 'Overall Grade', value: gradedData.length ? `${letter} (${avgPct}%)` : '—', icon: TrophyIcon, gradient: 'from-amber-600 to-amber-400' },
+  ] as DashStats[];
+}
+
+async function loadStudentActivity(supabase: ReturnType<typeof createClient>, userId: string): Promise<Activity[]> {
+  const { data } = await supabase
+    .from('assignment_submissions')
+    .select('id, grade, status, submitted_at, assignments(title, max_points)')
+    .eq('portal_user_id', userId)
+    .order('submitted_at', { ascending: false })
+    .limit(5);
+  return (data ?? []).map((s: any) => ({
+    id: s.id,
+    title: s.status === 'graded' ? 'Grade received' : 'Assignment submitted',
+    desc: `${s.assignments?.title ?? '—'}${s.grade != null ? ` · ${s.grade}/${s.assignments?.max_points ?? 100}` : ''}`,
+    time: timeAgo(s.submitted_at),
+    icon: s.status === 'graded' ? TrophyIcon : ClipboardDocumentListIcon,
+    color: s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400',
+  }));
+}
+
+/* ── Quick actions by role ────────────────────────────── */
+const QUICK_ACTIONS = {
+  admin: [
+    { name: 'Partner Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon, desc: 'View and approve schools' },
+    { name: 'Manage Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon, desc: 'View and manage staff' },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon, desc: 'System-wide analytics' },
+    { name: 'Settings', href: '/dashboard/settings', icon: CogIcon, desc: 'Account preferences' },
+  ],
+  teacher: [
+    { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View student roster' },
+    { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, desc: 'Create & grade work' },
+    { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'Manage your classes' },
+    { name: 'My Schools', href: '/dashboard/settings', icon: BuildingOfficeIcon, desc: 'View assigned schools' },
+  ],
+  student: [
+    { name: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon, desc: 'View enrolled courses' },
+    { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, desc: 'View & submit work' },
+    { name: 'My Progress', href: '/dashboard/progress', icon: ChartBarIcon, desc: 'Track your progress' },
+    { name: 'Grades', href: '/dashboard/grades', icon: TrophyIcon, desc: 'See your grades' },
+  ],
+};
+
+/* ── Main Component ───────────────────────────────────── */
 export default function DashboardPage() {
-  const { user, profile, loading } = useAuth()
+  const { user, profile, loading } = useAuth();
+  const router = useRouter();
+  const [now, setNow] = useState(new Date());
+  const [authHardStop, setAuthHardStop] = useState(false);
+  const [stats, setStats] = useState<DashStats[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [dataLoading, setDataLoading] = useState(false);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+  // Live clock
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Auth hard-stop (aligned with auth-context 1.5s)
+  useEffect(() => {
+    const t = setTimeout(() => setAuthHardStop(true), 2000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Redirect when auth resolves without a session
+  useEffect(() => {
+    if (!loading && (!user || !profile)) {
+      router.replace('/login?clear=1');
+    }
+  }, [loading, user, profile, router]);
+
+  // Fetch live stats once we know the role
+  const fetchDashData = useCallback(async () => {
+    if (!profile) return;
+    setDataLoading(true);
+    try {
+      const supabase = createClient();
+      const role = profile.role;
+      const [s, a] = await Promise.all([
+        role === 'admin' ? loadAdminStats(supabase) :
+          role === 'teacher' ? loadTeacherStats(supabase, profile.id) :
+            loadStudentStats(supabase, profile.id),
+        role === 'admin' ? loadAdminActivity(supabase) :
+          role === 'teacher' ? loadTeacherActivity(supabase, profile.id) :
+            loadStudentActivity(supabase, profile.id),
+      ]);
+      setStats(s);
+      setActivities(a);
+    } catch { /* silent */ } finally {
+      setDataLoading(false);
+    }
+  }, [profile?.id, profile?.role]); // eslint-disable-line
+
+  useEffect(() => { fetchDashData(); }, [fetchDashData]);
+
+  // ── Loading / guard screens ────────────────────────────────────
+  if (loading && !authHardStop) return (
+    <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 border-4 border-white/10 border-t-violet-500 rounded-full animate-spin" />
+        <p className="text-white/40 text-sm">Loading your dashboard…</p>
+        <a href="/login" className="mt-2 text-xs text-violet-400 hover:text-violet-300 underline underline-offset-2 transition-colors">
+          Sign in instead →
+        </a>
       </div>
-    )
-  }
+    </div>
+  );
 
-  if (!user || !profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
-          <p className="text-gray-600">Please sign in to access the dashboard.</p>
-          <Link 
-            href="/auth/login" 
-            className="mt-4 inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Sign In
-          </Link>
-        </div>
+  if (!user || !profile) return (
+    <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4 text-center px-4">
+        <div className="w-10 h-10 border-4 border-rose-500/20 border-t-rose-500 rounded-full animate-spin" />
+        <p className="text-white font-semibold">Redirecting to login…</p>
+        <a href="/api/auth/signout"
+          className="mt-2 px-6 py-2 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 text-sm font-bold rounded-xl border border-rose-600/30 transition-colors">
+          Force Sign Out
+        </a>
       </div>
-    )
-  }
+    </div>
+  );
 
-  const getRoleSpecificContent = () => {
-    const stats = profile.role === 'admin' ? mockAdminStats : 
-                  profile.role === 'teacher' ? mockTeacherStats : mockStudentStats
-
-    const quickActions = profile.role === 'admin' ? [
-      { name: 'Add School', href: '/dashboard/schools/add', icon: BuildingOfficeIcon, color: 'bg-blue-600' },
-      { name: 'Manage Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon, color: 'bg-green-600' },
-      { name: 'View Analytics', href: '/dashboard/analytics', icon: ChartBarIcon, color: 'bg-purple-600' },
-      { name: 'System Settings', href: '/dashboard/settings', icon: CogIcon, color: 'bg-gray-600' }
-    ] : profile.role === 'teacher' ? [
-      { name: 'Add Student', href: '/dashboard/students/add', icon: UserGroupIcon, color: 'bg-blue-600' },
-      { name: 'Create Assignment', href: '/dashboard/assignments/create', icon: ClipboardDocumentListIcon, color: 'bg-green-600' },
-      { name: 'View Progress', href: '/dashboard/progress', icon: ChartBarIcon, color: 'bg-purple-600' },
-      { name: 'My Classes', href: '/dashboard/classes', icon: BookOpenIcon, color: 'bg-orange-600' }
-    ] : [
-      { name: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon, color: 'bg-blue-600' },
-      { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, color: 'bg-green-600' },
-      { name: 'My Progress', href: '/dashboard/progress', icon: ChartBarIcon, color: 'bg-purple-600' },
-      { name: 'Schedule', href: '/dashboard/schedule', icon: PresentationChartLineIcon, color: 'bg-orange-600' }
-    ]
-
-    return (
-      <div className="space-y-6">
-        {/* Welcome Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 text-white">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-                Welcome back, {profile.full_name}!
-              </h1>
-              <p className="text-blue-100 text-sm sm:text-base capitalize">
-                {profile.role} Dashboard
-              </p>
-            </div>
-            <div className="mt-4 sm:mt-0 flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-sm text-blue-100 capitalize">Active {profile.role}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat, index) => (
-            <div key={index} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.name}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                </div>
-                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  stat.changeType === 'positive' 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {stat.change}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
-            <div className="w-12 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickActions.map((action, index) => {
-              const Icon = action.icon
-              return (
-                <Link
-                  key={index}
-                  href={action.href}
-                  className="group flex items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-300 border border-gray-200 hover:border-gray-300"
-                >
-                  <div className={`p-3 ${action.color} rounded-xl mr-4 group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
-                      {action.name}
-                    </p>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Role-specific content */}
-        {profile.role === 'admin' && (
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent School Registrations</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      School Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Contact
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Students
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      St. Mary&apos;s Academy
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      john@stmarys.edu.ng
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      250
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                        Active
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button className="text-blue-600 hover:text-blue-900">
-                          <EyeIcon className="h-4 w-4" />
-                        </button>
-                        <button className="text-green-600 hover:text-green-900">
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {profile.role === 'teacher' && (
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">My Students</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3].map((student) => (
-                <div key={student} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                      <span className="text-white font-semibold">S{student}</span>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">Student {student}</h4>
-                      <p className="text-sm text-gray-500">Grade A</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex space-x-2">
-                    <button className="text-blue-600 hover:text-blue-900 text-sm">
-                      View Progress
-                    </button>
-                    <button className="text-green-600 hover:text-green-900 text-sm">
-                      Assign Work
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {profile.role === 'student' && (
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Courses</h3>
-            <div className="space-y-4">
-              {[
-                { name: 'Python Programming', progress: 75, status: 'In Progress' },
-                { name: 'Web Development', progress: 90, status: 'Completed' },
-                { name: 'Data Structures', progress: 45, status: 'In Progress' }
-              ].map((course, index) => (
-                <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{course.name}</h4>
-                    <div className="mt-2 flex items-center space-x-4">
-                      <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-blue-600 rounded-full transition-all duration-300" 
-                          style={{ width: `${course.progress}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm text-gray-600">{course.progress}%</span>
-                    </div>
-                  </div>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                    course.status === 'Completed' 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-blue-100 text-blue-800'
-                  }`}>
-                    {course.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
+  const role = profile.role as 'admin' | 'teacher' | 'student';
+  const quickActions = QUICK_ACTIONS[role] ?? QUICK_ACTIONS.student;
 
   return (
     <div className="space-y-6">
-      {getRoleSpecificContent()}
+
+      {/* ── Welcome Banner ── */}
+      <div className="bg-gradient-to-r from-[#0B132B] to-[#1a2b54] rounded-2xl shadow-lg p-6 sm:p-8
+        flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative overflow-hidden">
+        {/* Decorative blobs */}
+        <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-violet-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10">
+          <span className="inline-block px-3 py-1 bg-violet-600/80 text-white text-xs font-bold uppercase tracking-wider rounded-full mb-3">
+            {role} Portal
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+            Welcome back, {profile.full_name?.split(' ')?.[0] || 'User'}!
+          </h1>
+          <p className="text-blue-200 text-sm mt-2 font-medium">
+            {now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
+
+        <div className="relative z-10 flex-shrink-0 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-6 py-4 flex flex-col items-center">
+          <div className="text-3xl font-mono font-bold text-white tracking-widest">
+            {now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
+          </div>
+          <div className="flex items-center gap-2 mt-2 bg-white/10 px-3 py-1 rounded-full">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
+            <span className="text-xs text-white font-medium uppercase tracking-wider">System Online</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Stats Grid ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {dataLoading
+          ? Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-6 animate-pulse">
+              <div className="h-10 w-10 bg-white/10 rounded-xl mb-4" />
+              <div className="h-8 bg-white/10 rounded w-1/2 mb-2" />
+              <div className="h-4 bg-white/5 rounded w-2/3" />
+            </div>
+          ))
+          : stats.map(({ label, value, icon: Icon, gradient }) => (
+            <div key={label} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/8 hover:border-white/20 transition-all group">
+              <div className="flex items-start justify-between mb-4">
+                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}>
+                  <Icon className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-[10px] font-bold text-white/25 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-full">Live</span>
+              </div>
+              <p className="text-3xl font-extrabold text-white">{value}</p>
+              <p className="text-white/40 text-sm mt-1">{label}</p>
+            </div>
+          ))
+        }
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* ── Left: Quick Actions + Activity ── */}
+        <div className="xl:col-span-2 space-y-6">
+
+          {/* Quick Actions */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-white mb-5">Quick Actions</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {quickActions.map(({ name, href, icon: Icon, desc }) => (
+                <Link key={name} href={href}
+                  className="group flex items-start gap-4 p-4 rounded-xl border border-white/10 hover:border-violet-500/40 hover:bg-violet-500/5 transition-all">
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-violet-500/25 transition-colors">
+                    <Icon className="h-5 w-5 text-violet-400" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-white text-sm group-hover:text-violet-200 transition-colors">{name}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{desc}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent Activity — live from DB */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-white">Recent Activity</h2>
+              <button onClick={fetchDashData} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white transition-colors" title="Refresh">
+                <ArrowPathIcon className={`w-4 h-4 ${dataLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+            {dataLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="flex items-center gap-3 animate-pulse">
+                    <div className="w-9 h-9 bg-white/10 rounded-xl flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3.5 bg-white/10 rounded w-3/4" />
+                      <div className="h-3 bg-white/5 rounded w-1/2" />
+                    </div>
+                    <div className="h-3 bg-white/5 rounded w-12" />
+                  </div>
+                ))}
+              </div>
+            ) : activities.length === 0 ? (
+              <div className="text-center py-8">
+                <ClipboardDocumentListIcon className="w-10 h-10 mx-auto text-white/10 mb-2" />
+                <p className="text-white/25 text-sm">No recent activity yet</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {activities.map((a, i) => (
+                  <div key={a.id} className={`flex items-start gap-3 py-3 ${i < activities.length - 1 ? 'border-b border-white/5' : ''}`}>
+                    <div className={`w-9 h-9 rounded-xl ${a.color} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                      <a.icon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-white text-sm">{a.title}</p>
+                      <p className="text-xs text-white/40 truncate mt-0.5">{a.desc}</p>
+                    </div>
+                    <span className="text-xs text-white/25 whitespace-nowrap mt-0.5">{a.time}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Right: Role-specific sidebar ── */}
+        <div className="space-y-5">
+
+          {/* Role summary card */}
+          <div className="bg-gradient-to-br from-violet-600/20 to-blue-600/20 border border-violet-500/20 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xl font-black text-white">
+                {(profile.full_name ?? 'U')[0].toUpperCase()}
+              </div>
+              <div>
+                <p className="font-bold text-white truncate">{profile.full_name}</p>
+                <p className="text-xs text-white/40 truncate">{profile.email}</p>
+              </div>
+            </div>
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border capitalize ${role === 'admin' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                role === 'teacher' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                  'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+              }`}>{role}</span>
+            <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2">
+              <Link href="/dashboard/settings"
+                className="flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors">
+                <CogIcon className="w-4 h-4" /> Account Settings
+              </Link>
+              <Link href="/dashboard/profile"
+                className="flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors">
+                <AcademicCapIcon className="w-4 h-4" /> Edit Profile
+              </Link>
+            </div>
+          </div>
+
+          {/* Useful links */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+            <h3 className="font-bold text-white text-sm mb-4">Navigate To</h3>
+            <div className="space-y-1">
+              {role === 'admin' && [
+                { label: 'Approvals', href: '/dashboard/approvals', icon: CheckCircleIcon },
+                { label: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
+                { label: 'Grades', href: '/dashboard/grades', icon: TrophyIcon },
+                { label: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
+              ].map(({ label, href, icon: Icon }) => (
+                <Link key={label} href={href}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:bg-white/5 hover:text-white transition-all group">
+                  <Icon className="w-4 h-4 group-hover:text-violet-400 transition-colors" />
+                  {label}
+                  <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+                </Link>
+              ))}
+              {role === 'teacher' && [
+                { label: 'Grades', href: '/dashboard/grades', icon: TrophyIcon },
+                { label: 'Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
+                { label: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon },
+                { label: 'Profile', href: '/dashboard/profile', icon: AcademicCapIcon },
+              ].map(({ label, href, icon: Icon }) => (
+                <Link key={label} href={href}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:bg-white/5 hover:text-white transition-all group">
+                  <Icon className="w-4 h-4 group-hover:text-blue-400 transition-colors" />
+                  {label}
+                  <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+                </Link>
+              ))}
+              {role === 'student' && [
+                { label: 'Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
+                { label: 'Progress', href: '/dashboard/progress', icon: PresentationChartLineIcon },
+                { label: 'Classes', href: '/dashboard/classes', icon: ClockIcon },
+                { label: 'Profile', href: '/dashboard/profile', icon: BellIcon },
+              ].map(({ label, href, icon: Icon }) => (
+                <Link key={label} href={href}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:bg-white/5 hover:text-white transition-all group">
+                  <Icon className="w-4 h-4 group-hover:text-emerald-400 transition-colors" />
+                  {label}
+                  <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+                </Link>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div>
-  )
-} 
+  );
+}

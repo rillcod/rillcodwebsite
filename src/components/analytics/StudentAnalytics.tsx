@@ -20,7 +20,7 @@ const Bar = dynamic(() => import('react-chartjs-2').then(mod => mod.Bar), { ssr:
 const Doughnut = dynamic(() => import('react-chartjs-2').then(mod => mod.Doughnut), { ssr: false })
 
 interface StudentAnalyticsProps {
-  schoolId: string
+  school_id: string
 }
 
 // Mock data for detailed analytics
@@ -83,7 +83,7 @@ const timeSpentData = {
   ],
 }
 
-export default function StudentAnalytics({ schoolId }: StudentAnalyticsProps) {
+export default function StudentAnalytics({ school_id }: StudentAnalyticsProps) {
   const [selectedPeriod, setSelectedPeriod] = useState('month')
   const [selectedMetric, setSelectedMetric] = useState('performance')
 

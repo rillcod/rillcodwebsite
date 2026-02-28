@@ -1,434 +1,278 @@
 "use client";
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { Eye, EyeOff, User, School, Users, Shield, Mail, Lock, ArrowRight, Sparkles, Zap, Heart, AlertCircle, CheckCircle, Clock, ChevronDown, Target, Award, Shield as SecurityShield } from 'lucide-react';
-import { useAuth } from '@/contexts/auth-context';
-import { supabase } from '@/lib/supabase';
-import { toast } from 'sonner';
 
-export default function Login() {
-  const searchParams = useSearchParams();
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { createClient } from '@/lib/supabase/client';
+import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, ArrowRight, Loader2, CheckCircle } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
+
+
+
+export default function LoginPage() {
   const router = useRouter();
-  const { refreshProfile } = useAuth();
-  const [userType, setUserType] = useState('student');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const searchParams = useSearchParams();
+  const supabase = useMemo(() => createClient(), []);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
-  const [showSecurityTips, setShowSecurityTips] = useState(false);
-  const [loginAttempts, setLoginAttempts] = useState(0);
-  const [isLocked, setIsLocked] = useState(false);
-  const [lockoutTime, setLockoutTime] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
-  // Handle URL parameters for user type
   useEffect(() => {
-    const type = searchParams.get('type');
-    if (type && ['student', 'teacher', 'admin'].includes(type)) {
-      setUserType(type);
+    const type = searchParams?.get("type");
+    if (type === "admin" || type === "teacher" || type === "student") {
+      setSelectedRole(type);
     }
-  }, [searchParams]);
 
-  const userTypes = [
-    { 
-      id: 'student', 
-      label: 'Student', 
-      icon: User, 
-      color: 'from-blue-500 to-cyan-500', 
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200',
-      description: 'Access your learning dashboard',
-      emoji: '🎓',
-      features: ['AI-powered learning', 'Progress tracking', 'Virtual labs', 'Portfolio building'],
-      benefits: ['Personalized curriculum', 'Real-time feedback', 'Project showcase', 'Skill certification'],
-      stats: { users: '2,500+', courses: '15+', completion: '94%' }
-    },
-    { 
-      id: 'teacher', 
-      label: 'Teacher', 
-      icon: School, 
-      color: 'from-green-500 to-emerald-500', 
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
-      description: 'Manage classes and lessons',
-      emoji: '👨‍🏫',
-      features: ['Lesson planning', 'Student progress', 'AI assistance', 'Resource library'],
-      benefits: ['Automated grading', 'Performance analytics', 'Collaborative tools', 'Professional development'],
-      stats: { users: '150+', classes: '200+', satisfaction: '98%' }
-    },
-    { 
-      id: 'admin', 
-      label: 'Admin', 
-      icon: Shield, 
-      color: 'from-red-500 to-pink-500', 
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
-      description: 'School administration portal',
-      emoji: '⚙️',
-      features: ['User management', 'Analytics dashboard', 'System settings', 'Reports generation'],
-      benefits: ['Comprehensive oversight', 'Data insights', 'System control', 'Performance monitoring'],
-      stats: { users: '50+', schools: '25+', efficiency: '96%' }
+    // Auto-clear stuck sessions
+    if (searchParams?.get("clear") === "1") {
+      supabase.auth.signOut().then(() => {
+        router.replace('/login'); // Strip the ?clear=1 from url
+      });
     }
-  ];
+  }, [searchParams, router, supabase.auth]);
 
-  // Security validation
-  const validateForm = () => {
-    const newErrors: {[key: string]: string} = {};
-    
-    if (!email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-    
-    if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // Handle lockout
-  useEffect(() => {
-    if (isLocked && lockoutTime > 0) {
-      const timer = setInterval(() => {
-        setLockoutTime(prev => {
-          if (prev <= 1) {
-            setIsLocked(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [isLocked, lockoutTime]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (isLocked) {
+    if (!selectedRole) {
+      setError("Please select a role to continue.");
       return;
     }
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    setIsLoading(true);
-    setErrors({});
-    
+    setLoading(true);
+    setError(null);
+
     try {
-      // Sign in with Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        setErrors({ general: error.message });
-        setLoginAttempts(prev => prev + 1);
-        
-        // Handle lockout after multiple failed attempts
-        if (loginAttempts >= 2) {
-          setIsLocked(true);
-          setLockoutTime(30);
-        }
-        return;
+      if (authError) throw authError;
+
+      if (!authData?.user) throw new Error("Could not log in");
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('portal_users')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      if (profileData.role !== selectedRole) {
+        await supabase.auth.signOut();
+        throw new Error('Invalid role selected for this account.');
       }
 
-      if (data.user) {
-        // Update user metadata with role
-        const { error: updateError } = await supabase.auth.updateUser({
-          data: { role: userType }
-        });
-
-        if (updateError) {
-          console.error('Error updating user metadata:', updateError);
-        }
-
-        // Refresh profile to get updated role
-        await refreshProfile();
-        
-        toast.success('Login successful!');
-        
-        // Redirect to dashboard
-        router.push('/dashboard');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      setErrors({ general: 'An unexpected error occurred. Please try again.' });
+      const redirectTo = searchParams?.get('redirectedFrom') || '/dashboard';
+      router.push(redirectTo);
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during sign in');
+      console.error('Login error:', err);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const selectedType = userTypes.find(type => type.id === userType);
+  const handleRoleSelect = (role: "student" | "teacher" | "admin") => {
+    setSelectedRole(role);
+    setError(null);
+    // Clear the form so users enter their real credentials
+    setEmail('');
+    setPassword('');
+    setResetSent(false);
+  };
 
-  const securityTips = [
-    'Use a strong, unique password',
-    'Enable two-factor authentication',
-    'Never share your login credentials',
-    'Log out from shared devices',
-    'Keep your browser updated'
-  ];
+  const handleForgotPassword = useCallback(async () => {
+    if (!email.trim()) {
+      setError('Enter your email address first, then click Forgot Password.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (resetErr) setError(resetErr.message);
+    else setResetSent(true);
+  }, [email, supabase]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 relative overflow-hidden">
-      {/* Enhanced Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-400/20 dark:from-blue-900/20 dark:to-purple-900/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-400/20 to-pink-400/20 dark:from-purple-900/20 dark:to-pink-900/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-cyan-400/10 to-blue-400/10 dark:from-cyan-900/10 dark:to-blue-900/10 rounded-full blur-3xl animate-pulse delay-500"></div>
-        <div className="absolute top-1/4 right-1/4 w-32 h-32 bg-gradient-to-br from-yellow-400/10 to-orange-400/10 dark:from-yellow-900/10 dark:to-orange-900/10 rounded-full blur-2xl animate-pulse delay-1500"></div>
-        <div className="absolute bottom-1/4 left-1/4 w-24 h-24 bg-gradient-to-br from-green-400/10 to-teal-400/10 dark:from-green-900/10 dark:to-teal-900/10 rounded-full blur-xl animate-pulse delay-2000"></div>
-      </div>
+    <div className="min-h-screen bg-[#0A0A0B] flex overflow-hidden relative selection:bg-indigo-500/30">
+      {/* Background Orbs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
-        <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-          
-          {/* Left Side - User Type Selection */}
-          <div className="space-y-8">
-            <div className="text-center lg:text-left">
-              <div className="inline-flex items-center space-x-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
-                <Sparkles className="w-5 h-5 text-yellow-500" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Welcome to RILLCOD Academy</span>
-              </div>
-              <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-                Choose Your <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Portal</span>
-              </h1>
-              <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
-                Access your personalized learning environment
-              </p>
-            </div>
+      <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+        <div className="max-w-[1200px] mx-auto w-full">
+          <div className="flex flex-col lg:flex-row gap-12 lg:gap-24 items-center">
 
-            {/* User Type Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {userTypes.map((type) => {
-                const Icon = type.icon;
-                const isSelected = userType === type.id;
-                const darkBg = type.bgColor.replace('-50', '-900/30');
-                const darkBorder = type.borderColor.replace('-200', '-700');
-                return (
-                  <button
-                    key={type.id}
-                    onClick={() => setUserType(type.id)}
-                    className={`relative p-6 rounded-2xl border-2 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900
-                      ${isSelected
-                        ? `border-transparent bg-gradient-to-br ${type.color} text-white shadow-xl scale-105`
-                        : `${type.bgColor} dark:${darkBg} ${type.borderColor} dark:${darkBorder} hover:shadow-lg hover:scale-102`}
-                    `}
-                  >
-                    <div className="text-center space-y-3">
-                      <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${
-                        isSelected ? 'bg-white/20 dark:bg-gray-900/30' : 'bg-white dark:bg-gray-900 shadow-md'
-                      }`}>
-                        <Icon className={`w-8 h-8 ${isSelected ? 'text-white' : 'text-gray-700 dark:text-gray-200'}`} />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg dark:text-white">{type.label}</h3>
-                        <p className={`text-sm ${isSelected ? 'text-white/90' : 'text-gray-600 dark:text-gray-300'}`}>
-                          {type.description}
-                        </p>
-                      </div>
-                      {isSelected && (
-                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-white dark:bg-green-600 rounded-full flex items-center justify-center">
-                          <CheckCircle className="w-4 h-4 text-green-600 dark:text-white" />
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Features for Selected Type */}
-            {selectedType && (
-              <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-                <div className="flex items-center space-x-3 mb-4">
-                  <span className="text-2xl">{selectedType.emoji}</span>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedType.label} Features</h3>
+            {/* Left side - Roles */}
+            <div className="w-full lg:w-1/2 flex flex-col">
+              <div className="mb-12">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-indigo-300 text-sm font-medium mb-6 backdrop-blur-md">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                  </span>
+                  Welcome to RillCod Academy
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {selectedType.features.map((feature, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <CheckCircle className="w-4 h-4 text-green-500 dark:text-green-400" />
-                      <span className="text-sm text-gray-700 dark:text-gray-200">{feature}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right Side - Login Form */}
-          <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 lg:p-12">
-            <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Shield className="w-10 h-10 text-white" />
-              </div>
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h2>
-              <p className="text-gray-600 dark:text-gray-300">Sign in to your {selectedType?.label.toLowerCase()} account</p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email Field */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-4 transition-all duration-200 bg-white dark:bg-gray-900 text-gray-900 dark:text-white
-                      ${errors.email 
-                        ? 'border-red-300 dark:border-red-500 focus:border-red-500 focus:ring-red-500/10' 
-                        : 'border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-blue-500/10'}
-                    `}
-                    placeholder="Enter your email"
-                    disabled={isLocked}
-                  />
-                </div>
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {errors.email}
-                  </p>
-                )}
-              </div>
-
-              {/* Password Field */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className={`w-full pl-10 pr-12 py-3 border-2 rounded-xl focus:outline-none focus:ring-4 transition-all duration-200 bg-white dark:bg-gray-900 text-gray-900 dark:text-white
-                      ${errors.password 
-                        ? 'border-red-300 dark:border-red-500 focus:border-red-500 focus:ring-red-500/10' 
-                        : 'border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-blue-500/10'}
-                    `}
-                    placeholder="Enter your password"
-                    disabled={isLocked}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {errors.password}
-                  </p>
-                )}
-              </div>
-
-              {/* General Error */}
-              {errors.general && (
-                <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl p-4">
-                  <div className="flex items-center">
-                    <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 mr-2" />
-                    <p className="text-sm text-red-700 dark:text-red-300">{errors.general}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Lockout Message */}
-              {isLocked && (
-                <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-xl p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <Clock className="w-5 h-5 text-yellow-500 dark:text-yellow-400 mr-2" />
-                      <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                        Account temporarily locked. Please try again in {lockoutTime} seconds.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Login Button */}
-              <button
-                type="submit"
-                disabled={isLoading || isLocked}
-                className={`w-full py-4 px-6 rounded-xl font-semibold text-white transition-all duration-300 flex items-center justify-center
-                  ${isLoading || isLocked
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 hover:shadow-lg transform hover:scale-105'}
-                `}
-              >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Signing in...
-                  </>
-                ) : (
-                  <>
-                    Sign In
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </>
-                )}
-              </button>
-
-              {/* Security Tips Toggle */}
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => setShowSecurityTips(!showSecurityTips)}
-                  className="text-sm text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white flex items-center mx-auto"
-                >
-                  <SecurityShield className="w-4 h-4 mr-1" />
-                  Security Tips
-                  <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${showSecurityTips ? 'rotate-180' : ''}`} />
-                </button>
-              </div>
-
-              {/* Security Tips */}
-              {showSecurityTips && (
-                <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
-                  <h4 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">Security Tips</h4>
-                  <ul className="space-y-1">
-                    {securityTips.map((tip, index) => (
-                      <li key={index} className="text-sm text-blue-700 dark:text-blue-200 flex items-center">
-                        <CheckCircle className="w-3 h-3 mr-2 text-blue-500 dark:text-blue-400" />
-                        {tip}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Sign Up Link */}
-              <div className="text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Don't have an account?{' '}
-                  <Link href="/auth/register" className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
-                    Sign up here
-                  </Link>
+                <h2 className="text-5xl lg:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-white/70 tracking-tight leading-tight mb-4">
+                  Choose Your <br className="hidden lg:block" /> Path.
+                </h2>
+                <p className="text-lg text-gray-400 font-light max-w-md">
+                  Select your role to embark on an exceptional learning journey. Experience education reimagined.
                 </p>
               </div>
-            </form>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { id: "student", icon: GraduationCap, title: "Student", desc: "Start learning", gradient: "from-blue-500/10 to-indigo-500/10", border: "border-indigo-500/20", hover: "hover:border-indigo-500/50 hover:bg-indigo-500/10", active: "border-indigo-500 bg-indigo-500/20 ring-1 ring-indigo-500/50 shadow-[0_0_30px_-5px_rgba(99,102,241,0.3)]", iconColor: "text-indigo-400" },
+                  { id: "teacher", icon: User, title: "Teacher", desc: "Guide students", gradient: "from-emerald-500/10 to-teal-500/10", border: "border-teal-500/20", hover: "hover:border-teal-500/50 hover:bg-teal-500/10", active: "border-teal-500 bg-teal-500/20 ring-1 ring-teal-500/50 shadow-[0_0_30px_-5px_rgba(20,184,166,0.3)]", iconColor: "text-teal-400" },
+                  { id: "admin", icon: Shield, title: "Admin", desc: "Manage academy", gradient: "from-purple-500/10 to-pink-500/10", border: "border-purple-500/20", hover: "hover:border-purple-500/50 hover:bg-purple-500/10", active: "border-purple-500 bg-purple-500/20 ring-1 ring-purple-500/50 shadow-[0_0_30px_-5px_rgba(168,85,247,0.3)]", iconColor: "text-purple-400" }
+                ].map((role) => (
+                  <button
+                    key={role.id}
+                    onClick={() => handleRoleSelect(role.id as any)}
+                    className={`relative p-6 rounded-2xl border transition-all duration-300 ease-out flex flex-col items-start gap-4 text-left group overflow-hidden bg-white/[0.02] backdrop-blur-xl ${selectedRole === role.id ? role.active : `${role.border} ${role.hover}`
+                      }`}
+                  >
+                    <div className={`absolute inset-0 bg-gradient-to-br ${role.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+                    <div className={`p-3 rounded-xl bg-white/5 border border-white/10 ${role.iconColor} group-hover:scale-110 transition-transform duration-300`}>
+                      <role.icon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white mb-1">{role.title}</h3>
+                      <p className="text-sm text-gray-500">{role.desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Right side - Login Form */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center">
+              <div className="w-full max-w-md relative">
+                {/* Form glow behind */}
+                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 rounded-[2rem] blur-xl opacity-20" />
+
+                <div className="relative bg-[#111113]/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 lg:p-10 shadow-2xl">
+
+
+                  <div className="mb-8">
+                    <h2 className="text-2xl font-bold text-white mb-2">Sign In</h2>
+                    <p className="text-sm text-gray-400">Enter your credentials to access the portal.</p>
+                  </div>
+
+                  {error && (
+                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
+                      <div className="text-red-400 mt-0.5">
+                        <Shield className="w-5 h-5" />
+                      </div>
+                      <p className="text-sm text-red-200">{error}</p>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleLogin} className="space-y-5">
+                    <div className="space-y-1.5">
+                      <label htmlFor="email" className="text-sm font-medium text-gray-300">Email</label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <Mail className="h-5 w-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
+                        </div>
+                        <input
+                          id="email"
+                          type="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-white placeholder-gray-500 transition-all outline-none"
+                          placeholder="name@example.com"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label htmlFor="password" className="text-sm font-medium text-gray-300">Password</label>
+                        <a
+                          href="#"
+                          onClick={(e) => { e.preventDefault(); handleForgotPassword(); }}
+                          className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+                          Forgot password?
+                        </a>
+                      </div>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <Lock className="h-5 w-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
+                        </div>
+                        <input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full pl-12 pr-12 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-white placeholder-gray-500 transition-all outline-none"
+                          placeholder="••••••••"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-gray-300 transition-colors outline-none"
+                        >
+                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading || !selectedRole}
+                      className="w-full relative flex items-center justify-center gap-2 py-4 px-4 bg-white text-black rounded-xl font-bold text-sm tracking-wide hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#111113] focus:ring-white transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden group"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Authenticating...
+                        </>
+                      ) : (
+                        <>
+                          Sign In to Portal
+                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+
+                  {resetSent && (
+                    <div className="mt-5 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-start gap-3">
+                      <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-emerald-300">Password reset email sent! Check your inbox.</p>
+                    </div>
+                  )}
+
+                  {selectedRole && !resetSent && (
+                    <p className="mt-4 text-center text-xs text-gray-500">
+                      Signing in as{' '}
+                      <span className="text-gray-300 font-semibold capitalize">{selectedRole}</span>
+                      {' · '}
+                      <a href="/student-registration" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+                        New? Register here →
+                      </a>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
     </div>
   );
-} 
+}
+

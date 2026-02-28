@@ -1,435 +1,325 @@
 'use client';
 
-import { useState } from 'react';
-import { 
-  ChartBarIcon,
-  PlusIcon,
-  MagnifyingGlassIcon,
-  EyeIcon,
-  PencilIcon,
-  TrashIcon,
-  UserGroupIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  StarIcon,
-  ArrowUpIcon,
-  BookOpenIcon,
-  AcademicCapIcon
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { createClient } from '@/lib/supabase/client';
+import {
+  ChartBarIcon, AcademicCapIcon, CheckCircleIcon, ClockIcon,
+  TrophyIcon, BookOpenIcon, ClipboardDocumentCheckIcon,
+  ArrowTrendingUpIcon, StarIcon, ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 
-// Mock progress data
-const mockProgressData = {
-  overview: {
-    totalStudents: 1247,
-    activeStudents: 1189,
-    avgProgress: 78.5,
-    completionRate: 85.2,
-    avgRating: 4.6,
-    totalCourses: 12,
-    totalLessons: 156
-  },
-  trends: {
-    weekly: [
-      { week: 'Week 1', progress: 65, students: 1200 },
-      { week: 'Week 2', progress: 68, students: 1210 },
-      { week: 'Week 3', progress: 72, students: 1220 },
-      { week: 'Week 4', progress: 75, students: 1230 },
-      { week: 'Week 5', progress: 78, students: 1240 },
-      { week: 'Week 6', progress: 80, students: 1247 }
-    ],
-    monthly: [
-      { month: 'Jan', progress: 60, students: 850 },
-      { month: 'Feb', progress: 65, students: 920 },
-      { month: 'Mar', progress: 78, students: 1247 }
-    ]
-  },
-  topPerformers: [
-    {
-      name: 'Lagos State Model College',
-      students: 450,
-      progress: 82,
-      improvement: 12,
-      rating: 4.8
-    },
-    {
-      name: 'Abuja International School',
-      students: 320,
-      progress: 79,
-      improvement: 8,
-      rating: 4.6
-    },
-    {
-      name: 'Port Harcourt Academy',
-      students: 280,
-      progress: 76,
-      improvement: 15,
-      rating: 4.5
-    }
-  ],
-  courseProgress: [
-    {
-      course: 'Python Programming',
-      students: 280,
-      progress: 85,
-      completion: 78,
-      rating: 4.7
-    },
-    {
-      course: 'Web Development',
-      students: 245,
-      progress: 72,
-      completion: 65,
-      rating: 4.5
-    },
-    {
-      course: 'Scratch Programming',
-      students: 320,
-      progress: 90,
-      completion: 88,
-      rating: 4.8
-    },
-    {
-      course: 'UI/UX Design',
-      students: 180,
-      progress: 68,
-      completion: 62,
-      rating: 4.4
-    }
-  ]
-};
+// ── Radial progress ring ──────────────────────────────────────
+function RingProgress({ pct, size = 80, stroke = 8, color = '#8b5cf6' }: {
+  pct: number; size?: number; stroke?: number; color?: string;
+}) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+  return (
+    <svg width={size} height={size} className="-rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color}
+        strokeWidth={stroke} strokeLinecap="round"
+        strokeDasharray={circ} strokeDashoffset={offset}
+        style={{ transition: 'stroke-dashoffset 0.8s ease' }} />
+    </svg>
+  );
+}
 
 export default function ProgressPage() {
-  const [timeRange, setTimeRange] = useState('month');
-  const [data, _setData] = useState(mockProgressData);
+  const { profile, loading: authLoading } = useAuth();
 
-  const getTrendIcon = (value: number) => {
-    return value > 0 ? (
-      <ArrowTrendingUpIcon className="h-5 w-5 text-green-500" />
-    ) : (
-      <ArrowTrendingDownIcon className="h-5 w-5 text-red-500" />
-    );
-  };
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const getProgressColor = (progress: number) => {
-    if (progress >= 80) return 'text-green-600 dark:text-green-400';
-    if (progress >= 60) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
-  };
+  const role = profile?.role ?? '';
+  const isStaff = role === 'admin' || role === 'teacher';
 
-  const getProgressBarColor = (progress: number) => {
-    if (progress >= 80) return 'bg-green-500';
-    if (progress >= 60) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
+  useEffect(() => {
+    if (authLoading || !profile) return;
+    let cancelled = false;
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Progress Tracking</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Monitor student and course progress</p>
-        </div>
-        <div className="mt-4 sm:mt-0">
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-            <option value="quarter">This Quarter</option>
-            <option value="year">This Year</option>
-          </select>
-        </div>
-      </div>
+    async function load() {
+      setLoading(true);
+      setError(null);
+      const supabase = createClient();
+      try {
+        if (isStaff) {
+          // Teacher/admin: all graded submissions + per-course totals
+          const [subsRes, enrRes] = await Promise.allSettled([
+            supabase.from('assignment_submissions')
+              .select(`id, grade, status, portal_user_id,
+                assignments ( id, title, max_points, course_id,
+                  courses ( id, title, programs ( name ) ) ),
+                portal_users ( id, full_name, email )`)
+              .order('graded_at', { ascending: false }),
+            supabase.from('enrollments')
+              .select(`id, status, grade, progress_pct, enrollment_date,
+                programs ( id, name, difficulty_level, duration_weeks ),
+                portal_users ( id, full_name, email )`)
+              .order('enrollment_date', { ascending: false }),
+          ]);
+          if (!cancelled) {
+            setSubmissions(subsRes.status === 'fulfilled' ? (subsRes.value.data ?? []) : []);
+            setEnrollments(enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : []);
+          }
+        } else {
+          // Student: own submissions + enrollments
+          const [subsRes, enrRes] = await Promise.allSettled([
+            supabase.from('assignment_submissions')
+              .select(`id, grade, status, submitted_at, graded_at, feedback,
+                assignments ( id, title, max_points,
+                  courses ( id, title, programs ( name ) ) )`)
+              .eq('portal_user_id', profile!.id)
+              .order('submitted_at', { ascending: false }),
+            supabase.from('enrollments')
+              .select(`id, status, grade, progress_pct, enrollment_date,
+                programs ( id, name, difficulty_level, duration_weeks )`)
+              .eq('user_id', profile!.id),
+          ]);
+          if (!cancelled) {
+            setSubmissions(subsRes.status === 'fulfilled' ? (subsRes.value.data ?? []) : []);
+            setEnrollments(enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : []);
+          }
+        }
+      } catch (e: any) {
+        if (!cancelled) setError(e.message ?? 'Failed to load progress');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [profile?.id, isStaff, authLoading]); // eslint-disable-line
 
-      {/* Overview Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                <UserGroupIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Students</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.overview.totalStudents.toLocaleString()}</p>
-              </div>
-            </div>
-            <div className="flex items-center text-green-500">
-              {getTrendIcon(12)}
-              <span className="text-sm font-medium ml-1">+12%</span>
-            </div>
-          </div>
-        </div>
+  // ── Stats ─────────────────────────────────────────────────
+  const graded = submissions.filter(s => s.status === 'graded' && s.grade != null);
+  const avgScore = graded.length
+    ? Math.round(graded.reduce((a, s) => a + (s.grade / (s.assignments?.max_points ?? 100)) * 100, 0) / graded.length)
+    : null;
+  const best = graded.length
+    ? Math.round(Math.max(...graded.map(s => (s.grade / (s.assignments?.max_points ?? 100)) * 100)))
+    : null;
+  const completed = submissions.filter(s => s.status === 'graded').length;
+  const pending = submissions.filter(s => s.status === 'submitted').length;
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
-                <ChartBarIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Avg Progress</p>
-                <p className={`text-2xl font-bold ${getProgressColor(data.overview.avgProgress)}`}>
-                  {data.overview.avgProgress}%
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center text-green-500">
-              {getTrendIcon(5)}
-              <span className="text-sm font-medium ml-1">+5%</span>
-            </div>
-          </div>
-        </div>
+  // ── Color helpers ─────────────────────────────────────────
+  const pctColor = (p: number) => p >= 70 ? '#10b981' : p >= 50 ? '#f59e0b' : '#ef4444';
+  const letter = (p: number) => p >= 90 ? 'A' : p >= 80 ? 'B' : p >= 70 ? 'C' : p >= 60 ? 'D' : 'F';
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-                <CheckCircleIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completion Rate</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.overview.completionRate}%</p>
-              </div>
-            </div>
-            <div className="flex items-center text-green-500">
-              {getTrendIcon(8)}
-              <span className="text-sm font-medium ml-1">+8%</span>
-            </div>
-          </div>
+  if (authLoading || loading) return (
+    <div className="min-h-screen bg-[#0f0f1a] text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="animate-pulse space-y-2">
+          <div className="h-4 bg-white/10 rounded w-32" />
+          <div className="h-8 bg-white/10 rounded w-64" />
         </div>
-
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl">
-                <StarIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Avg Rating</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.overview.avgRating}</p>
-              </div>
-            </div>
-            <div className="flex items-center text-green-500">
-              {getTrendIcon(2)}
-              <span className="text-sm font-medium ml-1">+2%</span>
-            </div>
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => <div key={i} className="bg-white/5 border border-white/10 rounded-2xl h-32 animate-pulse" />)}
         </div>
-      </div>
-
-      {/* Progress Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Weekly Progress Trend */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Weekly Progress Trend</h3>
-          <div className="space-y-4">
-            {data.trends.weekly.map((item, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400 w-16">{item.week}</span>
-                <div className="flex-1 mx-4">
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-300 ${getProgressBarColor(item.progress)}`}
-                      style={{ width: `${item.progress}%` }}
-                    ></div>
-                  </div>
-                </div>
-                <span className="text-sm font-medium text-gray-900 dark:text-white w-12 text-right">
-                  {item.progress}%
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Monthly Progress Trend */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Monthly Progress Trend</h3>
-          <div className="space-y-4">
-            {data.trends.monthly.map((item, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400 w-16">{item.month}</span>
-                <div className="flex-1 mx-4">
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-300 ${getProgressBarColor(item.progress)}`}
-                      style={{ width: `${item.progress}%` }}
-                    ></div>
-                  </div>
-                </div>
-                <span className="text-sm font-medium text-gray-900 dark:text-white w-12 text-right">
-                  {item.progress}%
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Top Performers */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top Performing Schools</h3>
-        </div>
-        <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {data.topPerformers.map((school, index) => (
-            <div key={index} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-bold">{index + 1}</span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900 dark:text-white">{school.name}</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{school.students} students</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="flex items-center space-x-4">
-                    <div>
-                      <p className={`text-lg font-bold ${getProgressColor(school.progress)}`}>{school.progress}%</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Progress</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">{school.rating}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Rating</p>
-                    </div>
-                    <div className="flex items-center text-green-500">
-                      <ArrowUpIcon className="h-4 w-4 mr-1" />
-                      <span className="text-sm font-medium">+{school.improvement}%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Course Progress */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Course Progress Overview</h3>
-        </div>
-        <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {data.courseProgress.map((course, index) => (
-            <div key={index} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
-                    <BookOpenIcon className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900 dark:text-white">{course.course}</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{course.students} students enrolled</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-6">
-                  <div className="text-center">
-                    <p className={`text-lg font-bold ${getProgressColor(course.progress)}`}>{course.progress}%</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Progress</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{course.completion}%</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Completion</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{course.rating}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Rating</p>
-                  </div>
-                  <div className="w-32">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600 dark:text-gray-400">Progress</span>
-                      <span className={`font-medium ${getProgressColor(course.progress)}`}>{course.progress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all duration-300 ${getProgressBarColor(course.progress)}`}
-                        style={{ width: `${course.progress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Key Insights</h3>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                <CheckCircleIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">Strong Performance</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">85% of students are on track</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                <ArrowTrendingUpIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">Growth Trend</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">12% increase in enrollment</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
-                <ExclamationTriangleIcon className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">Areas for Improvement</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Focus on advanced courses</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h3>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
-                <UserGroupIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">New Students</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">47 students joined this week</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                <AcademicCapIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">Course Completions</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">23 students completed courses</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                <StarIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900 dark:text-white">High Ratings</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Average rating increased to 4.6</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        {[1, 2].map(i => <div key={i} className="bg-white/5 border border-white/10 rounded-2xl h-40 animate-pulse" />)}
       </div>
     </div>
   );
-} 
+
+  if (!profile) return null;
+
+  return (
+    <div className="min-h-screen bg-[#0f0f1a] text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        {/* Header */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <ChartBarIcon className="w-5 h-5 text-violet-400" />
+            <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">
+              {isStaff ? 'Student Analytics' : 'My Progress'} · {role}
+            </span>
+          </div>
+          <h1 className="text-3xl font-extrabold">
+            {isStaff ? 'Progress & Analytics' : 'My Learning Progress'}
+          </h1>
+          <p className="text-white/40 text-sm mt-1">
+            {isStaff ? 'Track student performance across all assignments' : 'Track your academic journey and performance'}
+          </p>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
+            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
+            <p className="text-rose-400 text-sm">{error}</p>
+          </div>
+        )}
+
+        {/* Score ring + stats (student) */}
+        {!isStaff && (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Ring */}
+            <div className="lg:col-span-1 bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center gap-3">
+              <div className="relative">
+                <RingProgress pct={avgScore ?? 0} size={120} stroke={10}
+                  color={avgScore ? pctColor(avgScore) : '#374151'} />
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-2xl font-black text-white leading-none">
+                    {avgScore != null ? `${avgScore}%` : '—'}
+                  </span>
+                  {avgScore != null && (
+                    <span className="text-sm font-bold" style={{ color: pctColor(avgScore) }}>
+                      {letter(avgScore)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-white/40 text-center">Average Score</p>
+            </div>
+
+            {/* Stats grid */}
+            <div className="lg:col-span-3 grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {[
+                { label: 'Submitted', value: submissions.length, icon: ClipboardDocumentCheckIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+                { label: 'Graded', value: completed, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+                { label: 'Pending', value: pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+                { label: 'Best Score', value: best != null ? `${best}%` : '—', icon: TrophyIcon, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+                { label: 'Enrolled', value: enrollments.length, icon: BookOpenIcon, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+                { label: 'Average', value: avgScore != null ? `${avgScore}%` : '—', icon: ChartBarIcon, color: avgScore ? (avgScore >= 70 ? 'text-emerald-400' : 'text-amber-400') : 'text-white/20', bg: 'bg-white/5' },
+              ].map(s => (
+                <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                  <div className={`w-8 h-8 ${s.bg} rounded-xl flex items-center justify-center mb-2`}>
+                    <s.icon className={`w-4 h-4 ${s.color}`} />
+                  </div>
+                  <p className={`text-xl font-extrabold ${s.color}`}>{s.value}</p>
+                  <p className="text-xs text-white/40 mt-0.5">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Staff stats */}
+        {isStaff && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Submissions', value: submissions.length, icon: ClipboardDocumentCheckIcon, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+              { label: 'Graded', value: completed, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+              { label: 'Awaiting Grade', value: pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+              {
+                label: 'Class Average', value: avgScore != null ? `${avgScore}%` : '—', icon: ChartBarIcon,
+                color: avgScore ? (avgScore >= 70 ? 'text-emerald-400' : 'text-amber-400') : 'text-white/20', bg: 'bg-blue-500/10'
+              },
+            ].map(s => (
+              <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
+                  <s.icon className={`w-5 h-5 ${s.color}`} />
+                </div>
+                <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
+                <p className="text-xs text-white/40 mt-1">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Enrollments */}
+        {enrollments.length > 0 && (
+          <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+            <div className="p-5 border-b border-white/10">
+              <h3 className="font-bold text-white flex items-center gap-2">
+                <BookOpenIcon className="w-5 h-5 text-violet-400" />
+                {isStaff ? 'Program Enrollments' : 'My Enrolled Programs'}
+              </h3>
+            </div>
+            <div className="divide-y divide-white/5">
+              {enrollments.slice(0, 8).map((e: any) => {
+                const prog = e.programs;
+                const pct = e.progress_pct ?? 0;
+                return (
+                  <div key={e.id} className="p-5 flex items-center gap-4 hover:bg-white/5 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-white text-sm">{prog?.name ?? 'Program'}</p>
+                      {isStaff && e.portal_users && (
+                        <p className="text-xs text-white/40">{e.portal_users.full_name}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                          <div style={{ width: `${pct}%` }} className="h-2 bg-violet-500 rounded-full transition-all duration-500" />
+                        </div>
+                        <span className="text-xs text-white/40 w-8 text-right">{pct}%</span>
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize
+                        ${e.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                          e.status === 'completed' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                            'bg-white/10 text-white/40 border-white/10'}`}>
+                        {e.status}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Recent submissions */}
+        {submissions.length > 0 && (
+          <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+            <div className="p-5 border-b border-white/10">
+              <h3 className="font-bold text-white flex items-center gap-2">
+                <ClipboardDocumentCheckIcon className="w-5 h-5 text-emerald-400" />
+                {isStaff ? 'Recent Submissions' : 'Assignment Results'}
+              </h3>
+            </div>
+            <div className="divide-y divide-white/5">
+              {submissions.slice(0, 10).map((s: any) => {
+                const max = s.assignments?.max_points ?? 100;
+                const pct = s.grade != null ? Math.round((s.grade / max) * 100) : null;
+                return (
+                  <div key={s.id} className="p-4 flex items-center gap-4 hover:bg-white/5 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-white text-sm truncate">{s.assignments?.title ?? '—'}</p>
+                      {isStaff && s.portal_users && (
+                        <p className="text-xs text-white/40">{s.portal_users.full_name}</p>
+                      )}
+                      <p className="text-xs text-white/30 mt-0.5">
+                        {s.assignments?.courses?.title}
+                        {s.assignments?.courses?.programs?.name ? ` · ${s.assignments.courses.programs.name}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      {pct != null ? (
+                        <>
+                          <span className="font-extrabold text-lg" style={{ color: pctColor(pct) }}>
+                            {letter(pct)}
+                          </span>
+                          <p className="text-xs text-white/30">{s.grade}/{max}</p>
+                        </>
+                      ) : (
+                        <span className="text-xs text-white/20">
+                          {s.status === 'submitted' ? 'Awaiting grade' : '—'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {submissions.length === 0 && enrollments.length === 0 && !error && (
+          <div className="text-center py-20 bg-white/5 border border-white/10 rounded-2xl">
+            <ChartBarIcon className="w-14 h-14 mx-auto text-white/10 mb-4" />
+            <p className="text-lg font-semibold text-white/30">No progress data yet</p>
+            <p className="text-sm text-white/20 mt-1">
+              {isStaff ? 'Students will appear here once they submit assignments.' : 'Submit assignments to start tracking your progress.'}
+            </p>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}

@@ -1,69 +1,52 @@
 // User Roles and Authentication Types
-export type UserRole = 'super_admin' | 'school_admin' | 'teacher' | 'student' | 'parent';
+export type UserRole = 'admin' | 'teacher' | 'student';
 
 export interface User {
   id: string;
   email: string;
-  name: string;
+  full_name: string;
   role: UserRole;
-  schoolId?: string; // For school-specific users
-  isActive: boolean;
-  createdAt: Date;
-  lastLogin?: Date;
-  profileImage?: string;
+  avatar_url?: string;
+  is_active: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  last_sign_in_at?: string;
+  metadata?: Record<string, any>;
 }
 
-export interface SuperAdmin extends User {
-  role: 'super_admin';
+export interface Admin extends User {
+  role: 'admin';
   permissions: {
-    manageSchools: boolean;
-    manageUsers: boolean;
-    viewAnalytics: boolean;
-    systemSettings: boolean;
-  };
-}
-
-export interface SchoolAdmin extends User {
-  role: 'school_admin';
-  schoolId: string;
-  permissions: {
-    manageTeachers: boolean;
-    manageStudents: boolean;
-    manageClasses: boolean;
-    viewReports: boolean;
-    manageFinance: boolean;
+    manage_users: boolean;
+    manage_teachers: boolean;
+    manage_students: boolean;
+    manage_courses: boolean;
+    manage_assignments: boolean;
+    view_analytics: boolean;
+    manage_settings: boolean;
   };
 }
 
 export interface Teacher extends User {
   role: 'teacher';
-  schoolId: string;
   subjects: string[];
   classes: string[];
   permissions: {
-    manageStudents: boolean;
-    createAssignments: boolean;
-    gradeAssignments: boolean;
-    viewReports: boolean;
-    communicateWithParents: boolean;
+    manage_students: boolean;
+    create_assignments: boolean;
+    grade_assignments: boolean;
+    view_reports: boolean;
+    communicate_with_students: boolean;
   };
 }
 
 export interface Student extends User {
   role: 'student';
-  schoolId: string;
-  classId: string;
+  class_id: string;
   grade: string;
-  parentId?: string;
-  enrollmentDate: Date;
-  academicStatus: 'active' | 'suspended' | 'graduated' | 'transferred';
-}
-
-export interface Parent extends User {
-  role: 'parent';
-  children: string[]; // Array of student IDs
-  phoneNumber: string;
-  address: string;
+  enrollment_date: string;
+  academic_status: 'active' | 'suspended' | 'graduated' | 'transferred';
 }
 
 // School Management Types
@@ -77,97 +60,113 @@ export interface School {
   phone: string;
   email: string;
   website?: string;
-  logo?: string;
-  isActive: boolean;
-  subscriptionPlan: 'basic' | 'premium' | 'enterprise';
-  maxStudents: number;
-  maxTeachers: number;
-  createdAt: Date;
-  adminId: string;
+  logo_url?: string;
+  is_active: boolean;
+  is_deleted: boolean;
+  subscription_plan: 'basic' | 'premium' | 'enterprise';
+  max_students: number;
+  max_teachers: number;
+  created_at: string;
+  updated_at: string;
+  admin_id: string;
 }
 
 export interface Class {
   id: string;
   name: string;
-  schoolId: string;
+  school_id: string;
   grade: string;
   section: string;
-  teacherId: string;
-  academicYear: string;
-  isActive: boolean;
+  teacher_id: string;
+  academic_year: string;
+  is_active: boolean;
+  is_deleted: boolean;
   subjects: string[];
   schedule: ClassSchedule[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ClassSchedule {
   day: string;
-  startTime: string;
-  endTime: string;
+  start_time: string;
+  end_time: string;
   subject: string;
-  teacherId: string;
+  teacher_id: string;
 }
 
 export interface Subject {
   id: string;
   name: string;
   code: string;
-  schoolId: string;
+  school_id: string;
   description: string;
-  isActive: boolean;
+  is_active: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // Academic Management Types
 export interface Enrollment {
   id: string;
-  studentId: string;
-  schoolId: string;
-  classId: string;
-  academicYear: string;
-  enrollmentDate: Date;
+  student_id: string;
+  school_id: string;
+  class_id: string;
+  academic_year: string;
+  enrollment_date: string;
   status: 'active' | 'withdrawn' | 'graduated';
-  previousSchool?: string;
+  previous_school?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Attendance {
   id: string;
-  studentId: string;
-  classId: string;
-  subjectId: string;
-  date: Date;
+  student_id: string;
+  class_id: string;
+  subject_id: string;
+  date: string;
   status: 'present' | 'absent' | 'late' | 'excused';
-  markedBy: string;
+  marked_by: string;
   remarks?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface BehaviorRecord {
   id: string;
-  studentId: string;
-  teacherId: string;
-  date: Date;
+  student_id: string;
+  teacher_id: string;
+  date: string;
   type: 'positive' | 'negative' | 'neutral';
   description: string;
   points: number;
   category: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PerformanceReport {
   id: string;
-  studentId: string;
-  classId: string;
-  academicYear: string;
+  student_id: string;
+  class_id: string;
+  academic_year: string;
   term: string;
   subjects: SubjectPerformance[];
-  totalScore: number;
-  averageScore: number;
+  total_score: number;
+  average_score: number;
   grade: string;
   remarks: string;
-  generatedBy: string;
-  generatedAt: Date;
+  generated_by: string;
+  generated_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SubjectPerformance {
-  subjectId: string;
-  subjectName: string;
+  subject_id: string;
+  subject_name: string;
   score: number;
   grade: string;
   remarks: string;
@@ -178,273 +177,181 @@ export interface CBTTest {
   id: string;
   title: string;
   description: string;
-  schoolId: string;
-  classId: string;
-  subjectId: string;
+  school_id: string;
+  class_id: string;
+  subject_id: string;
   duration: number; // in minutes
-  totalQuestions: number;
-  passingScore: number;
-  isActive: boolean;
-  startDate: Date;
-  endDate: Date;
-  createdBy: string;
-  createdAt: Date;
+  total_questions: number;
+  passing_score: number;
+  is_active: boolean;
+  is_deleted: boolean;
+  start_date: string;
+  end_date: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
   questions: CBTQuestion[];
 }
 
 export interface CBTQuestion {
   id: string;
-  testId: string;
+  test_id: string;
   question: string;
   type: 'multiple_choice' | 'true_false' | 'essay' | 'diagram';
   options?: string[];
-  correctAnswer: string | string[];
+  correct_answer: string;
   marks: number;
   diagram?: string; // Base64 encoded diagram
   explanation?: string;
   difficulty: 'easy' | 'medium' | 'hard';
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CBTResult {
   id: string;
-  testId: string;
-  studentId: string;
+  test_id: string;
+  student_id: string;
   score: number;
-  totalMarks: number;
+  total_marks: number;
   percentage: number;
   grade: string;
-  timeTaken: number; // in minutes
-  submittedAt: Date;
+  time_taken: number; // in minutes
+  submitted_at: string;
+  created_at: string;
+  updated_at: string;
   answers: CBTAnswer[];
 }
 
 export interface CBTAnswer {
-  questionId: string;
-  studentAnswer: string;
-  isCorrect: boolean;
-  marksObtained: number;
+  question_id: string;
+  student_answer: string;
+  is_correct: boolean;
+  marks_obtained: number;
 }
 
-// Learning Management Types
+// Course Management Types
 export interface Lesson {
   id: string;
   title: string;
   description: string;
-  subjectId: string;
-  classId: string;
-  teacherId: string;
+  subject_id: string;
+  class_id: string;
+  teacher_id: string;
   content: string;
-  videoUrl?: string;
+  video_url?: string;
   attachments: string[];
   objectives: string[];
   duration: number; // in minutes
-  isPublished: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  is_published: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Assignment {
   id: string;
   title: string;
   description: string;
-  subjectId: string;
-  classId: string;
-  teacherId: string;
-  dueDate: Date;
-  totalMarks: number;
+  subject_id: string;
+  class_id: string;
+  teacher_id: string;
+  due_date: string;
+  total_marks: number;
   attachments: string[];
-  isPublished: boolean;
-  createdAt: Date;
+  is_published: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
   submissions: AssignmentSubmission[];
 }
 
 export interface AssignmentSubmission {
   id: string;
-  assignmentId: string;
-  studentId: string;
+  assignment_id: string;
+  student_id: string;
   content: string;
   attachments: string[];
-  submittedAt: Date;
-  gradedAt?: Date;
-  marksObtained?: number;
+  submitted_at: string;
+  graded_at?: string;
+  marks_obtained?: number;
   feedback?: string;
-  gradedBy?: string;
-}
-
-export interface Quiz {
-  id: string;
-  title: string;
-  description: string;
-  subjectId: string;
-  classId: string;
-  teacherId: string;
-  duration: number;
-  totalQuestions: number;
-  isActive: boolean;
-  startDate: Date;
-  endDate: Date;
-  questions: QuizQuestion[];
-}
-
-export interface QuizQuestion {
-  id: string;
-  quizId: string;
-  question: string;
-  type: 'multiple_choice' | 'true_false' | 'short_answer';
-  options?: string[];
-  correctAnswer: string;
-  marks: number;
-}
-
-// Financial System Types
-export interface FeeStructure {
-  id: string;
-  schoolId: string;
-  name: string;
-  description: string;
-  academicYear: string;
-  items: FeeItem[];
-  isActive: boolean;
-  createdAt: Date;
-}
-
-export interface FeeItem {
-  id: string;
-  name: string;
-  amount: number;
-  frequency: 'one_time' | 'monthly' | 'quarterly' | 'annually';
-  dueDate?: Date;
-  isOptional: boolean;
-}
-
-export interface Invoice {
-  id: string;
-  studentId: string;
-  schoolId: string;
-  academicYear: string;
-  term: string;
-  items: InvoiceItem[];
-  totalAmount: number;
-  paidAmount: number;
-  balance: number;
-  dueDate: Date;
-  status: 'pending' | 'partial' | 'paid' | 'overdue';
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface InvoiceItem {
-  id: string;
-  name: string;
-  amount: number;
-  paidAmount: number;
-  balance: number;
-}
-
-export interface Payment {
-  id: string;
-  invoiceId: string;
-  studentId: string;
-  amount: number;
-  method: 'cash' | 'bank_transfer' | 'card' | 'online';
-  reference: string;
-  status: 'pending' | 'completed' | 'failed';
-  processedAt: Date;
-  processedBy: string;
+  graded_by?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // Communication Types
 export interface Message {
   id: string;
-  senderId: string;
-  senderRole: UserRole;
-  recipientId: string;
-  recipientRole: UserRole;
+  sender_id: string;
+  sender_role: UserRole;
+  recipient_id: string;
+  recipient_role: UserRole;
   subject: string;
   content: string;
   attachments: string[];
-  isRead: boolean;
-  isImportant: boolean;
-  sentAt: Date;
-  readAt?: Date;
+  is_read: boolean;
+  is_important: boolean;
+  sent_at: string;
+  read_at?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Announcement {
   id: string;
-  schoolId: string;
+  school_id: string;
   title: string;
   content: string;
-  targetAudience: UserRole[];
-  isImportant: boolean;
-  isPublished: boolean;
-  publishedAt: Date;
-  expiresAt?: Date;
-  createdBy: string;
-  createdAt: Date;
+  target_audience: UserRole[];
+  is_important: boolean;
+  is_published: boolean;
+  is_deleted: boolean;
+  published_at: string;
+  expires_at?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface CommunicationBook {
-  id: string;
-  studentId: string;
-  teacherId: string;
-  parentId: string;
-  date: Date;
-  type: 'general' | 'academic' | 'behavior' | 'attendance';
-  message: string;
-  response?: string;
-  isRead: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Event {
-  id: string;
-  schoolId: string;
-  title: string;
-  description: string;
-  startDate: Date;
-  endDate: Date;
-  location: string;
-  targetAudience: UserRole[];
-  isActive: boolean;
-  createdAt: Date;
-  createdBy: string;
-}
-
-// Notification Types
 export interface Notification {
   id: string;
-  userId: string;
+  user_id: string;
   title: string;
   message: string;
   type: 'info' | 'success' | 'warning' | 'error';
-  isRead: boolean;
-  actionUrl?: string;
-  createdAt: Date;
-  readAt?: Date;
+  is_read: boolean;
+  action_url?: string;
+  created_at: string;
+  read_at?: string;
 }
 
-// Analytics and Reporting Types
+// Analytics Types
 export interface SchoolAnalytics {
-  schoolId: string;
-  totalStudents: number;
-  totalTeachers: number;
-  totalClasses: number;
-  attendanceRate: number;
-  averagePerformance: number;
+  school_id: string;
+  total_students: number;
+  total_teachers: number;
+  total_classes: number;
+  attendance_rate: number;
+  average_performance: number;
   revenue: number;
   expenses: number;
   period: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  date: Date;
+  date: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface StudentAnalytics {
-  studentId: string;
-  attendanceRate: number;
-  averageScore: number;
-  behaviorScore: number;
-  assignmentsCompleted: number;
-  assignmentsPending: number;
+  student_id: string;
+  attendance_rate: number;
+  average_score: number;
+  behavior_score: number;
+  assignments_completed: number;
+  assignments_pending: number;
   period: 'weekly' | 'monthly' | 'term' | 'yearly';
-  date: Date;
+  date: string;
+  created_at: string;
+  updated_at: string;
 } 

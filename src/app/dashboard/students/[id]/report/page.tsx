@@ -1,276 +1,366 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
-import { 
-  CheckIcon,
-  XMarkIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
-  AcademicCapIcon,
-  BookOpenIcon,
-  ChartBarIcon,
-  UserGroupIcon,
-  LightBulbIcon,
-  SparklesIcon,
-  ClipboardDocumentCheckIcon,
-  ClipboardDocumentListIcon,
-  PrinterIcon
+import { useParams } from 'next/navigation';
+import { useAuth } from '@/contexts/auth-context';
+import { createClient } from '@/lib/supabase/client';
+import {
+  AcademicCapIcon, ChartBarIcon, CheckCircleIcon, ClipboardDocumentListIcon,
+  ClockIcon, ExclamationTriangleIcon, PrinterIcon, StarIcon,
+  UserIcon, BuildingOfficeIcon, BookOpenIcon, TrophyIcon,
+  ArrowLeftIcon, SparklesIcon, LightBulbIcon,
 } from '@heroicons/react/24/outline';
-import Chart from '@/components/ui/Chart';
+import Link from 'next/link';
 
-// Mock data for a single student's progress report
-const mockStudentReport = {
-  studentInfo: {
-    name: 'Angelo Osasere Eguavoen',
-    sectionClass: 'BASIC 2',
-    school: 'Franej Montessori School',
-    course: 'Scratch 3.0 Programming',
-    currentModule: 'Sprites and Motion',
-    instructor: 'RillCod Technologies',
-    reportDate: 'April 10, 2025',
-    duration: 'Termly',
-  },
-  courseProgress: [
-    { title: 'Sprite Creation', description: 'Creating and customizing sprites with various costumes' },
-    { title: 'Backdrops', description: 'Using and switching between multiple backdrops' },
-    { title: 'Looks Blocks', description: 'Changing sprite appearances and effects' },
-    { title: 'Next Module', description: 'Events and Control Structures' }
-  ],
-  performanceAssessment: {
-    theoryTest: { score: 85, grade: 'A' },
-    practicalTest: { score: 100, grade: 'A' },
-    attendance: { score: 83, grade: 'B' },
-    participation: { score: 'Very Good', grade: 'A' },
-    projectCompletion: { score: 'Completed all', grade: 'A' },
-    homeworkCompletion: { score: 'Completed most', grade: 'B' },
-  },
-  overallPerformance: 'A',
-  instructorEvaluation: {
-    strengths: [
-      'Exceptional creativity in Scratch sprite design and storytelling',
-    ],
-    areasForGrowth: [
-      'Needs to work on optimizing Scratch scripts for performance',
-      'Focus on using variables and lists more effectively to track game states and player information',
-    ],
-    comment: 'Angelo Osasere Eguavoen has made good progress with Scratch programming. They show particular strength in creating interactive stories and animations. To advance further, they should focus on using variables and lists more effectively to track game states and player information.'
-  },
-  certificate: {
-    text: 'This certifies that Angelo Osasere Eguavoen has successfully completed the Scratch 3.0 Programming course, covering the Sprites and Motion module at Rillcod Technologies.',
-    qrCode: '/images/qrcode.png',
-    instructorSignature: '/images/signature.png'
-  }
-};
+function letterGrade(pct: number) {
+  if (pct >= 90) return { letter: 'A', color: 'text-emerald-400', bg: 'bg-emerald-500/20 border-emerald-500/30' };
+  if (pct >= 80) return { letter: 'B', color: 'text-blue-400', bg: 'bg-blue-500/20    border-blue-500/30' };
+  if (pct >= 70) return { letter: 'C', color: 'text-amber-400', bg: 'bg-amber-500/20   border-amber-500/30' };
+  if (pct >= 60) return { letter: 'D', color: 'text-orange-400', bg: 'bg-orange-500/20  border-orange-500/30' };
+  return { letter: 'F', color: 'text-rose-400', bg: 'bg-rose-500/20    border-rose-500/30' };
+}
 
-export default function StudentProgressReportPage({ params }: { params: Promise<{ id: string }> }) {
-  const [studentReport, setStudentReport] = useState(mockStudentReport);
-  const [id, setId] = useState<string>('');
-
-  // Handle async params
-  useEffect(() => {
-    const getParams = async () => {
-      const resolvedParams = await params;
-      setId(resolvedParams.id);
-      // In a real application, you would fetch data based on the student ID
-      // fetchStudentReport(resolvedParams.id).then(data => setStudentReport(data));
-    };
-    getParams();
-  }, [params]);
-
-  const performanceChartData = [
-    { label: 'Theory Test', value: studentReport.performanceAssessment.theoryTest.score },
-    { label: 'Practical Test', value: studentReport.performanceAssessment.practicalTest.score },
-    { label: 'Attendance', value: studentReport.performanceAssessment.attendance.score as number },
-  ];
-
+function RingProgress({ pct, size = 88, stroke = 9, color = '#8b5cf6' }: {
+  pct: number; size?: number; stroke?: number; color?: string;
+}) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white p-4 sm:p-6 lg:p-8 print:p-0 print:bg-white">
-      <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden print:shadow-none print:rounded-none">
-        {/* Header */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between print:hidden">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Student Progress Report</h1>
-          <button 
-            onClick={() => window.print()}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <PrinterIcon className="h-5 w-5 mr-2" />
-            Print Report
-          </button>
-        </div>
+    <svg width={size} height={size} className="-rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color}
+        strokeWidth={stroke} strokeLinecap="round"
+        strokeDasharray={circ} strokeDashoffset={offset}
+        style={{ transition: 'stroke-dashoffset 0.8s ease' }} />
+    </svg>
+  );
+}
 
-        {/* Report Content */}
-        <div className="p-6 sm:p-8 lg:p-10 space-y-8 print:space-y-4">
-          {/* Company Header */}
-          <div className="text-center mb-8 print:mb-4">
-            <Image 
-              src="/logo.png" 
-              alt="RILLCOD Technologies Logo" 
-              width={80} 
-              height={80} 
-              className="mx-auto mb-2"
-            />
-            <h2 className="text-2xl font-extrabold text-blue-700 dark:text-blue-400">RILLCOD TECHNOLOGIES</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Coding Today, Innovating Tomorrow</p>
-            <div className="text-xs text-gray-500 dark:text-gray-500 mt-4 flex flex-wrap justify-center items-center gap-x-4 gap-y-1">
-              <span>📍 26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City</span>
-              <span>📞 08116600091</span>
-              <span>📧 rillcod@gmail.com</span>
-              <span>🌐 www.rillcod.com</span>
-            </div>
-          </div>
+export default function StudentProgressReportPage() {
+  const params = useParams();
+  const studentId = params?.id as string;
+  const { profile, loading: authLoading } = useAuth();
 
-          <h3 className="text-xl font-bold text-center text-blue-600 dark:text-blue-400 uppercase mb-6 print:mb-3">Student Progress Report</h3>
+  const [student, setStudent] = useState<any>(null);
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-          {/* Student Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md">
-              <p><span className="font-semibold">Student Name:</span> {studentReport.studentInfo.name}</p>
-              <p><span className="font-semibold">Section/Class:</span> {studentReport.studentInfo.sectionClass}</p>
-              <p><span className="font-semibold">Current Module:</span> {studentReport.studentInfo.currentModule}</p>
-              <p><span className="font-semibold">Instructor:</span> {studentReport.studentInfo.instructor}</p>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md">
-              <p><span className="font-semibold">School:</span> {studentReport.studentInfo.school}</p>
-              <p><span className="font-semibold">Course:</span> {studentReport.studentInfo.course}</p>
-              <p><span className="font-semibold">Report Date:</span> {studentReport.studentInfo.reportDate}</p>
-              <p><span className="font-semibold">Duration:</span> {studentReport.studentInfo.duration}</p>
-            </div>
-          </div>
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
-          {/* Course Progress */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 space-y-4 print:p-4 print:space-y-2">
-            <h4 className="text-lg font-bold text-blue-600 dark:text-blue-400 mb-2">COURSE PROGRESS</h4>
-            <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
-              {studentReport.courseProgress.map((item, index) => (
-                <li key={index}><span className="font-semibold">{item.title}:</span> {item.description}</li>
-              ))}
-            </ul>
-          </div>
+  useEffect(() => {
+    if (authLoading || !profile || !studentId) return;
+    let cancelled = false;
+    async function load() {
+      setLoading(true); setError(null);
+      try {
+        const supabase = createClient();
+        const [studRes, subRes, enrRes] = await Promise.allSettled([
+          supabase.from('students')
+            .select('id, full_name, school_name, current_class, parent_name, parent_email, status, created_at, city, state')
+            .eq('id', studentId).single(),
+          supabase.from('assignment_submissions')
+            .select(`id, grade, status, submitted_at, graded_at, feedback,
+              assignments ( id, title, max_points, due_date, assignment_type,
+                courses ( id, title, programs ( name ) ) )`)
+            .eq('student_id', studentId)
+            .order('submitted_at', { ascending: false }),
+          supabase.from('student_enrollments')
+            .select(`id, status, enrollment_date, completion_date, grade,
+              programs ( id, name )`)
+            .eq('student_id', studentId),
+        ]);
+        if (!cancelled) {
+          setStudent(studRes.status === 'fulfilled' ? studRes.value.data : null);
+          setSubmissions(subRes.status === 'fulfilled' ? (subRes.value.data ?? []) : []);
+          setEnrollments(enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : []);
+        }
+      } catch (e: any) {
+        if (!cancelled) setError(e.message ?? 'Failed to load report');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [studentId, profile?.id, authLoading]); // eslint-disable-line
 
-          {/* Performance Assessment */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 print:p-4">
-            <h4 className="text-lg font-bold text-blue-600 dark:text-blue-400 mb-4">PERFORMANCE ASSESSMENT</h4>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-blue-600 dark:bg-blue-800">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Assessment</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Score</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Grade</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">Theory Test</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{studentReport.performanceAssessment.theoryTest.score}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{studentReport.performanceAssessment.theoryTest.grade}</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">Practical Test</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{studentReport.performanceAssessment.practicalTest.score}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{studentReport.performanceAssessment.practicalTest.grade}</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">Attendance</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{studentReport.performanceAssessment.attendance.score}%</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{studentReport.performanceAssessment.attendance.grade}</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">Participation</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{studentReport.performanceAssessment.participation.score}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{studentReport.performanceAssessment.participation.grade}</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">Project Completion</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{studentReport.performanceAssessment.projectCompletion.score}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{studentReport.performanceAssessment.projectCompletion.grade}</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">Homework Completion</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{studentReport.performanceAssessment.homeworkCompletion.score}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{studentReport.performanceAssessment.homeworkCompletion.grade}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+  // ── Derived stats ──────────────────────────────────────────────
+  const graded = submissions.filter(s => s.grade != null);
+  const totalPoints = graded.reduce((sum, s) => sum + (s.assignments?.max_points ?? 100), 0);
+  const earnedPoints = graded.reduce((sum, s) => sum + (s.grade ?? 0), 0);
+  const avgPct = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
+  const grade = letterGrade(avgPct);
+  const submitted = submissions.filter(s => s.status === 'submitted').length;
+  const missing = submissions.filter(s => s.status === 'missing').length;
+  const late = submissions.filter(s => s.status === 'late').length;
 
-          {/* Overall Performance */}
-          <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800 print:py-2">
-            <p className="text-lg font-bold text-yellow-800 dark:text-yellow-200">Overall Performance:</p>
-            <span className="text-2xl font-extrabold text-yellow-800 dark:text-yellow-200 bg-yellow-200 dark:bg-yellow-700 px-4 py-2 rounded-full">
-              {studentReport.overallPerformance}
-            </span>
-          </div>
-
-          {/* Performance Chart & Instructor's Evaluation */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 print:gap-4">
-            {/* Performance Chart */}
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 print:p-4">
-              <h4 className="text-lg font-bold text-blue-600 dark:text-blue-400 mb-4">PERFORMANCE CHART</h4>
-              <Chart 
-                title="Performance Metrics"
-                data={performanceChartData}
-                type="bar"
-                height={200}
-                showValues={true}
-              />
-            </div>
-
-            {/* Instructor's Evaluation */}
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 space-y-4 print:p-4 print:space-y-2">
-              <h4 className="text-lg font-bold text-pink-600 dark:text-pink-400">INSTRUCTOR'S EVALUATION</h4>
-              <div className="space-y-2 text-gray-700 dark:text-gray-300">
-                <p className="italic">{studentReport.instructorEvaluation.comment}</p>
-                <div>
-                  <p className="font-semibold mb-1 flex items-center text-green-700 dark:text-green-300"><CheckIcon className="h-5 w-5 mr-2" /> Key Strengths:</p>
-                  <ul className="list-inside space-y-1 pl-4">
-                    {studentReport.instructorEvaluation.strengths.map((strength, index) => (
-                      <li key={index} className="flex items-center text-sm"><SparklesIcon className="h-4 w-4 mr-2 text-green-500" /> {strength}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <p className="font-semibold mb-1 flex items-center text-red-700 dark:text-red-300"><XMarkIcon className="h-5 w-5 mr-2" /> Areas for Growth:</p>
-                  <ul className="list-inside space-y-1 pl-4">
-                    {studentReport.instructorEvaluation.areasForGrowth.map((area, index) => (
-                      <li key={index} className="flex items-center text-sm"><LightBulbIcon className="h-4 w-4 mr-2 text-red-500" /> {area}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Certificate of Completion */}
-          <div className="border-2 border-orange-400 dark:border-orange-600 rounded-xl p-8 text-center space-y-6 bg-yellow-50 dark:bg-yellow-900/10 print:p-6 print:space-y-4">
-            <h4 className="text-xl font-bold text-orange-600 dark:text-orange-400">CERTIFICATE OF COMPLETION</h4>
-            <p className="text-lg font-medium text-gray-800 dark:text-gray-200 leading-relaxed print:text-base">
-              {studentReport.certificate.text}
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-8 mt-6">
-              <div className="flex flex-col items-center">
-                <Image 
-                  src="/images/signature.png" 
-                  alt="Instructor Signature" 
-                  width={150} 
-                  height={75} 
-                  className="border-b pb-2 mb-2 border-gray-400 dark:border-gray-600"
-                />
-                <p className="text-sm text-gray-700 dark:text-gray-300">Instructor's Signature</p>
-              </div>
-              <Image 
-                src="/images/qrcode.png" 
-                alt="QR Code" 
-                width={100} 
-                height={100} 
-                className="rounded-md"
-              />
-            </div>
-          </div>
-        </div>
+  if (authLoading || loading) return (
+    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-white/40 text-sm">Loading student report…</p>
       </div>
     </div>
   );
-} 
+
+  if (!isStaff) return (
+    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+      <p className="text-white/40">Staff access required to view student reports.</p>
+    </div>
+  );
+
+  if (error || !student) return (
+    <div className="min-h-screen bg-[#0f0f1a] flex flex-col items-center justify-center gap-4">
+      <ExclamationTriangleIcon className="w-12 h-12 text-rose-400" />
+      <p className="text-rose-400">{error ?? 'Student not found'}</p>
+      <Link href="/dashboard/students" className="text-violet-400 hover:text-violet-300 text-sm flex items-center gap-1">
+        <ArrowLeftIcon className="w-4 h-4" /> Back to Students
+      </Link>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#0f0f1a] text-white print:bg-white print:text-black">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        {/* ── Header bar ── */}
+        <div className="flex items-center justify-between print:hidden">
+          <div>
+            <Link href="/dashboard/students"
+              className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 transition-colors mb-1">
+              <ArrowLeftIcon className="w-4 h-4" /> Students
+            </Link>
+            <div className="flex items-center gap-2">
+              <ClipboardDocumentListIcon className="w-5 h-5 text-violet-400" />
+              <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Progress Report</span>
+            </div>
+            <h1 className="text-3xl font-extrabold mt-0.5">{student.full_name}</h1>
+          </div>
+          <button onClick={() => window.print()}
+            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all">
+            <PrinterIcon className="w-4 h-4" /> Print / Save PDF
+          </button>
+        </div>
+
+        {/* ── Rillcod header (print-only) ── */}
+        <div className="hidden print:block text-center border-b pb-6 mb-6">
+          <h2 className="text-2xl font-extrabold text-blue-700">RILLCOD TECHNOLOGIES</h2>
+          <p className="text-sm text-gray-500 mt-1">Coding Today, Innovating Tomorrow</p>
+          <p className="text-xs text-gray-400 mt-1">26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City · 08116600091 · rillcod@gmail.com</p>
+          <h3 className="text-lg font-bold text-center text-blue-600 uppercase mt-4">Student Progress Report</h3>
+        </div>
+
+        {/* ── Student info card ── */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 print:border-gray-200 print:bg-white">
+          <div className="flex items-start gap-5 flex-wrap">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-2xl font-black text-white flex-shrink-0">
+              {(student.full_name ?? 'S')[0]}
+            </div>
+            <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-3 text-sm">
+              {[
+                { label: 'Full Name', value: student.full_name, icon: UserIcon },
+                { label: 'School', value: student.school_name, icon: BuildingOfficeIcon },
+                { label: 'Class / Grade', value: student.current_class, icon: AcademicCapIcon },
+                { label: 'Parent', value: student.parent_name, icon: UserIcon },
+                { label: 'Parent Email', value: student.parent_email, icon: null },
+                { label: 'Location', value: [student.city, student.state].filter(Boolean).join(', '), icon: null },
+                { label: 'Registered', value: student.created_at ? new Date(student.created_at).toLocaleDateString() : '—', icon: null },
+                { label: 'Status', value: student.status, icon: null },
+              ].map(({ label, value, icon: Icon }) => value ? (
+                <div key={label}>
+                  <p className="text-white/30 text-xs uppercase tracking-widest mb-0.5">{label}</p>
+                  <p className="text-white font-semibold text-sm print:text-black">{value}</p>
+                </div>
+              ) : null)}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Performance summary ── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {/* Overall ring */}
+          <div className="col-span-2 sm:col-span-1 bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col items-center justify-center print:border-gray-200">
+            <div className="relative">
+              <RingProgress pct={avgPct} color={avgPct >= 70 ? '#10b981' : avgPct >= 50 ? '#f59e0b' : '#f43f5e'} />
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className={`text-xl font-black ${grade.color}`}>{grade.letter}</span>
+                <span className="text-white/40 text-xs">{avgPct}%</span>
+              </div>
+            </div>
+            <p className="text-xs text-white/40 text-center mt-2">Overall Score</p>
+          </div>
+          {[
+            { label: 'Graded', value: graded.length, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+            { label: 'Pending', value: submitted, icon: ClockIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            { label: 'Missing', value: missing + late, icon: ExclamationTriangleIcon, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+          ].map(s => (
+            <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-5 print:border-gray-200">
+              <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
+                <s.icon className={`w-5 h-5 ${s.color}`} />
+              </div>
+              <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
+              <p className="text-xs text-white/40 mt-1">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Enrollments ── */}
+        {enrollments.length > 0 && (
+          <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden print:border-gray-200">
+            <div className="p-5 border-b border-white/10 print:border-gray-200 flex items-center gap-2">
+              <BookOpenIcon className="w-4 h-4 text-blue-400" />
+              <h3 className="font-bold text-white print:text-black">Programme Enrolments</h3>
+            </div>
+            <div className="divide-y divide-white/5 print:divide-gray-200">
+              {enrollments.map((e: any) => (
+                <div key={e.id} className="p-4 flex items-center gap-4 text-sm">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-white print:text-black">{e.programs?.name ?? '—'}</p>
+                    <p className="text-white/40 text-xs mt-0.5 print:text-gray-500">
+                      Enrolled: {e.enrollment_date ? new Date(e.enrollment_date).toLocaleDateString() : '—'}
+                      {e.completion_date ? ` · Completed: ${new Date(e.completion_date).toLocaleDateString()}` : ''}
+                    </p>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${e.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                      e.status === 'completed' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                        'bg-white/10 text-white/40 border-white/10'
+                    }`}>{e.status}</span>
+                  {e.grade && <span className="font-black text-lg text-white print:text-black">{e.grade}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Assignment submissions ── */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden print:border-gray-200">
+          <div className="p-5 border-b border-white/10 print:border-gray-200 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ChartBarIcon className="w-4 h-4 text-violet-400" />
+              <h3 className="font-bold text-white print:text-black">Assignment Performance</h3>
+            </div>
+            <span className="text-xs text-white/30">{submissions.length} total</span>
+          </div>
+          {submissions.length === 0 ? (
+            <div className="p-10 text-center">
+              <ClipboardDocumentListIcon className="w-12 h-12 mx-auto text-white/10 mb-3" />
+              <p className="text-white/30">No assignment submissions yet</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 print:border-gray-200 text-xs text-white/40 uppercase tracking-wider">
+                    <th className="text-left px-5 py-3 print:text-gray-500">Assignment</th>
+                    <th className="text-left px-5 py-3 print:text-gray-500">Course</th>
+                    <th className="text-center px-4 py-3 print:text-gray-500">Score</th>
+                    <th className="text-center px-4 py-3 print:text-gray-500">Grade</th>
+                    <th className="text-left px-4 py-3 print:text-gray-500">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 print:divide-gray-100">
+                  {submissions.map((s: any) => {
+                    const maxPts = s.assignments?.max_points ?? 100;
+                    const pct = s.grade != null ? Math.round((s.grade / maxPts) * 100) : null;
+                    const lg = pct != null ? letterGrade(pct) : null;
+                    return (
+                      <tr key={s.id} className="hover:bg-white/5 transition-colors print:hover:bg-transparent">
+                        <td className="px-5 py-3 font-semibold text-white print:text-black truncate max-w-[200px]">
+                          {s.assignments?.title ?? '—'}
+                        </td>
+                        <td className="px-5 py-3 text-white/50 print:text-gray-500 truncate max-w-[160px]">
+                          {s.assignments?.courses?.title ?? '—'}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {s.grade != null
+                            ? <span className="font-bold text-white print:text-black">{s.grade}<span className="text-white/30 print:text-gray-400">/{maxPts}</span></span>
+                            : <span className="text-white/20">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {lg
+                            ? <span className={`px-2 py-0.5 rounded-full text-xs font-black border ${lg.bg} ${lg.color}`}>{lg.letter}</span>
+                            : <span className="text-white/20">—</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                              s.status === 'submitted' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                                s.status === 'late' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                                  'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                            }`}>{s.status}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {/* Footer summary row */}
+          {graded.length > 0 && (
+            <div className={`p-4 border-t border-white/10 print:border-gray-200 flex items-center justify-between ${grade.bg} print:border print:rounded-none`}>
+              <div className="flex items-center gap-2">
+                <TrophyIcon className={`w-5 h-5 ${grade.color}`} />
+                <p className={`font-bold text-sm ${grade.color} print:text-black`}>
+                  Overall: {earnedPoints} / {totalPoints} pts ({avgPct}%)
+                </p>
+              </div>
+              <span className={`text-2xl font-black ${grade.color} print:text-black`}>{grade.letter}</span>
+            </div>
+          )}
+        </div>
+
+        {/* ── Instructor notes (placeholder — editable later) ── */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 print:border-gray-200 space-y-4">
+          <div className="flex items-center gap-2 mb-1">
+            <SparklesIcon className="w-4 h-4 text-amber-400" />
+            <h3 className="font-bold text-white print:text-black">Instructor's Evaluation</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 print:border-green-200">
+              <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2 print:text-green-700">Key Strengths</p>
+              <p className="text-white/50 text-sm print:text-gray-500 italic">
+                {avgPct >= 80 ? 'Demonstrates consistent excellence across assignments.' :
+                  avgPct >= 60 ? 'Shows command of core concepts with room for growth.' :
+                    'Shows effort; needs more practice to reach target level.'}
+              </p>
+            </div>
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 print:border-amber-200">
+              <div className="flex items-center gap-1.5 mb-2">
+                <LightBulbIcon className="w-3.5 h-3.5 text-amber-400 print:text-amber-600" />
+                <p className="text-xs font-bold text-amber-400 uppercase tracking-widest print:text-amber-700">Areas for Growth</p>
+              </div>
+              <p className="text-white/50 text-sm print:text-gray-500 italic">
+                {missing > 0 ? `${missing} missing assignment${missing > 1 ? 's' : ''} should be completed.` : ''}
+                {late > 0 ? ` ${late} late submission${late > 1 ? 's' : ''} — work on time management.` : ''}
+                {missing === 0 && late === 0 ? 'Maintain current performance level and challenge with advanced topics.' : ''}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Certificate footer (for print) ── */}
+        <div className="hidden print:block border-2 border-orange-400 rounded-xl p-8 text-center mt-8">
+          <h4 className="text-xl font-bold text-orange-600">CERTIFICATE OF PROGRESS</h4>
+          <p className="text-gray-700 mt-2 leading-relaxed">
+            This certifies that <strong>{student.full_name}</strong> has completed the progress review
+            for the current term at Rillcod Technologies.
+          </p>
+          <div className="flex justify-center gap-16 mt-8">
+            <div className="text-center">
+              <div className="w-32 border-b border-gray-400 mb-1" />
+              <p className="text-xs text-gray-500">Instructor's Signature</p>
+            </div>
+            <div className="text-center">
+              <div className="w-32 border-b border-gray-400 mb-1" />
+              <p className="text-xs text-gray-500">Date</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}

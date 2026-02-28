@@ -1,620 +1,466 @@
 'use client';
 
-import { useState } from 'react';
-import { 
-  UserIcon,
-  BellIcon,
-  ShieldCheckIcon,
-  CogIcon,
-  EyeIcon,
-  EyeSlashIcon,
-  CameraIcon,
-  PencilIcon,
-  CheckIcon,
-  XMarkIcon,
-  KeyIcon,
-  DevicePhoneMobileIcon,
-  EnvelopeIcon,
-  GlobeAltIcon,
-  ClipboardDocumentListIcon
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { createClient } from '@/lib/supabase/client';
+import {
+  UserIcon, BellIcon, ShieldCheckIcon, CogIcon,
+  EyeIcon, EyeSlashIcon, CameraIcon, PencilIcon,
+  CheckIcon, KeyIcon, EnvelopeIcon, PhoneIcon,
+  ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon,
+  BuildingOfficeIcon, MapPinIcon, StarIcon,
 } from '@heroicons/react/24/outline';
-import { Input, Button, Checkbox, Select, Textarea } from '@/components/ui/Form';
+
+const BASE_TABS = [
+  { id: 'profile', label: 'Profile', icon: UserIcon },
+  { id: 'security', label: 'Security', icon: ShieldCheckIcon },
+  { id: 'notifications', label: 'Notifications', icon: BellIcon },
+];
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('profile');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const { profile, refreshProfile, loading: authLoading } = useAuth();
+  const [tab, setTab] = useState('profile');
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [schools, setSchools] = useState<any[]>([]);
+  const [schoolsLoading, setSchoolsLoading] = useState(false);
+
+  // Teacher sees a Schools tab too
+  const TABS = profile?.role === 'teacher'
+    ? [...BASE_TABS, { id: 'schools', label: 'My Schools', icon: BuildingOfficeIcon }]
+    : BASE_TABS;
 
   const [profileData, setProfileData] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@rillcodacademy.com',
-    phone: '+234 811 660 0091',
-    role: 'Teacher',
-    school: 'Lagos State Model College',
-    bio: 'Passionate educator with 5+ years of experience in technology education.',
-    avatar: '/api/placeholder/150/150'
+    full_name: '', email: '', phone: '', bio: '',
   });
 
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    pushNotifications: true,
-    smsNotifications: false,
-    weeklyReports: true,
-    assignmentReminders: true,
-    courseUpdates: true,
-    systemAlerts: false
+  const [pwData, setPwData] = useState({
+    current: '', newPw: '', confirm: '',
   });
 
-  const [securitySettings, setSecuritySettings] = useState({
-    twoFactorAuth: false,
-    loginAlerts: true,
-    sessionTimeout: 30,
-    passwordExpiry: 90
+  const [notifs, setNotifs] = useState({
+    assignments: true, grades: true, announcements: true, newsletters: false,
   });
 
-  const [preferences, setPreferences] = useState({
-    language: 'English',
-    timezone: 'Africa/Lagos',
-    dateFormat: 'DD/MM/YYYY',
-    theme: 'system',
-    compactMode: false,
-    autoSave: true
-  });
+  // Populate from profile
+  useEffect(() => {
+    if (profile) {
+      setProfileData({
+        full_name: profile.full_name ?? '',
+        email: profile.email ?? '',
+        phone: (profile as any).phone ?? '',
+        bio: (profile as any).bio ?? '',
+      });
+    }
+  }, [profile]);
 
-  const [evaluationReportSettings, setEvaluationReportSettings] = useState({
-    enableAttendanceEvaluation: true,
-    enableParticipationEvaluation: true,
-    enableProjectCompletionEvaluation: true,
-    reportFrequency: 'Termly',
-    includeChartsInReports: true,
-    includeInstructorComments: true,
-    autoSendReportsToParents: false,
-    autoSendReportsToSchoolPartners: false,
-    gradingScaleA: '90-100',
-    gradingScaleB: '80-89',
-    gradingScaleC: '70-79',
-    gradingScaleD: '60-69',
-    gradingScaleF: 'Below 60',
-  });
+  // Fetch teacher's assigned schools
+  useEffect(() => {
+    if (!profile || profile.role !== 'teacher') return;
+    let cancelled = false;
+    setSchoolsLoading(true);
+    createClient()
+      .from('teacher_schools')
+      .select('id, is_primary, assigned_at, notes, schools(id, name, city, state, phone, email, is_active)')
+      .eq('teacher_id', profile.id)
+      .order('is_primary', { ascending: false })
+      .then(({ data }) => {
+        if (!cancelled) setSchools(data ?? []);
+        setSchoolsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [profile?.id]);
 
-  const tabs = [
-    { id: 'profile', name: 'Profile', icon: UserIcon },
-    { id: 'notifications', name: 'Notifications', icon: BellIcon },
-    { id: 'security', name: 'Security', icon: ShieldCheckIcon },
-    { id: 'preferences', name: 'Preferences', icon: CogIcon },
-    { id: 'evaluationReports', name: 'Evaluation & Reports', icon: ClipboardDocumentListIcon }
-  ];
-
-  const handleSaveProfile = async () => {
-    setLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsEditing(false);
-    setLoading(false);
+  const showToast = (msg: string, ok = true) => {
+    setToast({ msg, ok });
+    setTimeout(() => setToast(null), 3500);
   };
 
-  const handleNotificationChange = (key: string, value: boolean) => {
-    setNotificationSettings(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
-
-  const handleSecurityChange = (key: string, value: any) => {
-    setSecuritySettings(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
-
-  const handlePreferenceChange = (key: string, value: any) => {
-    setPreferences(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
-
-  const handleEvaluationReportChange = (key: string, value: any) => {
-    setEvaluationReportSettings(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
-
-  const renderProfileTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Profile Information</h3>
-          <Button
-            onClick={() => setIsEditing(!isEditing)}
-            variant="secondary"
-            size="sm"
-            leftIcon={<PencilIcon className="h-4 w-4" />}
-          >
-            {isEditing ? 'Cancel' : 'Edit Profile'}
-          </Button>
-        </div>
-
-        <div className="flex items-start space-x-6">
-          <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
-              <img
-                src={profileData.avatar}
-                alt="Profile"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            {isEditing && (
-              <button className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
-                <CameraIcon className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
-          <div className="flex-1 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="First Name"
-                value={profileData.firstName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
-                disabled={!isEditing}
-              />
-              <Input
-                label="Last Name"
-                value={profileData.lastName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
-                disabled={!isEditing}
-              />
-            </div>
-
-            <Input
-              label="Email"
-              type="email"
-              value={profileData.email}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
-              disabled={!isEditing}
-              leftIcon={<EnvelopeIcon className="h-4 w-4" />}
-            />
-
-            <Input
-              label="Phone Number"
-              value={profileData.phone}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
-              disabled={!isEditing}
-              leftIcon={<DevicePhoneMobileIcon className="h-4 w-4" />}
-            />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Role"
-                value={profileData.role}
-                disabled
-              />
-              <Input
-                label="School"
-                value={profileData.school}
-                disabled
-              />
-            </div>
-
-            <Textarea
-              label="Bio"
-              value={profileData.bio}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setProfileData(prev => ({ ...prev, bio: e.target.value }))}
-              disabled={!isEditing}
-              rows={3}
-            />
-
-            {isEditing && (
-              <div className="flex items-center space-x-3 pt-4">
-                <Button
-                  onClick={handleSaveProfile}
-                  loading={loading}
-                  leftIcon={<CheckIcon className="h-4 w-4" />}
-                >
-                  Save Changes
-                </Button>
-                <Button
-                  onClick={() => setIsEditing(false)}
-                  variant="secondary"
-                  leftIcon={<XMarkIcon className="h-4 w-4" />}
-                >
-                  Cancel
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderNotificationsTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Notification Preferences</h3>
-        
-        <div className="space-y-6">
-          <div>
-            <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Communication Channels</h4>
-            <div className="space-y-3">
-              <Checkbox
-                label="Email Notifications"
-                checked={notificationSettings.emailNotifications}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleNotificationChange('emailNotifications', e.target.checked)}
-              />
-              <Checkbox
-                label="Push Notifications"
-                checked={notificationSettings.pushNotifications}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleNotificationChange('pushNotifications', e.target.checked)}
-              />
-              <Checkbox
-                label="SMS Notifications"
-                checked={notificationSettings.smsNotifications}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleNotificationChange('smsNotifications', e.target.checked)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Notification Types</h4>
-            <div className="space-y-3">
-              <Checkbox
-                label="Weekly Progress Reports"
-                checked={notificationSettings.weeklyReports}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleNotificationChange('weeklyReports', e.target.checked)}
-              />
-              <Checkbox
-                label="Assignment Reminders"
-                checked={notificationSettings.assignmentReminders}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleNotificationChange('assignmentReminders', e.target.checked)}
-              />
-              <Checkbox
-                label="Course Updates"
-                checked={notificationSettings.courseUpdates}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleNotificationChange('courseUpdates', e.target.checked)}
-              />
-              <Checkbox
-                label="System Alerts"
-                checked={notificationSettings.systemAlerts}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleNotificationChange('systemAlerts', e.target.checked)}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderSecurityTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Security Settings</h3>
-        
-        <div className="space-y-6">
-          <div>
-            <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Authentication</h4>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Two-Factor Authentication</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Add an extra layer of security to your account</p>
-                </div>
-                <Checkbox
-                  checked={securitySettings.twoFactorAuth}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSecurityChange('twoFactorAuth', e.target.checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Login Alerts</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Get notified of new login attempts</p>
-                </div>
-                <Checkbox
-                  checked={securitySettings.loginAlerts}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSecurityChange('loginAlerts', e.target.checked)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Session Management</h4>
-            <div className="space-y-4">
-              <Select
-                label="Session Timeout (minutes)"
-                value={String(securitySettings.sessionTimeout)}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleSecurityChange('sessionTimeout', parseInt(e.target.value))}
-                options={[
-                  { value: '15', label: '15 minutes' },
-                  { value: '30', label: '30 minutes' },
-                  { value: '60', label: '1 hour' },
-                  { value: '120', label: '2 hours' }
-                ]}
-              />
-
-              <Select
-                label="Password Expiry (days)"
-                value={String(securitySettings.passwordExpiry)}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleSecurityChange('passwordExpiry', parseInt(e.target.value))}
-                options={[
-                  { value: '30', label: '30 days' },
-                  { value: '60', label: '60 days' },
-                  { value: '90', label: '90 days' },
-                  { value: '180', label: '180 days' }
-                ]}
-              />
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Password</h4>
-            <div className="space-y-4">
-              <Input
-                label="Current Password"
-                type={showPassword ? 'text' : 'password'}
-                leftIcon={<KeyIcon className="h-4 w-4" />}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  >
-                    {showPassword ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-                  </button>
-                }
-              />
-              <Input
-                label="New Password"
-                type={showPassword ? 'text' : 'password'}
-                leftIcon={<KeyIcon className="h-4 w-4" />}
-              />
-              <Input
-                label="Confirm New Password"
-                type={showPassword ? 'text' : 'password'}
-                leftIcon={<KeyIcon className="h-4 w-4" />}
-              />
-              <Button variant="primary">
-                Update Password
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderPreferencesTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Application Preferences</h3>
-        
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Select
-              label="Language"
-              value={preferences.language}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handlePreferenceChange('language', e.target.value)}
-              options={[
-                { value: 'English', label: 'English' },
-                { value: 'French', label: 'French' },
-                { value: 'Spanish', label: 'Spanish' },
-                { value: 'Arabic', label: 'Arabic' }
-              ]}
-            />
-
-            <Select
-              label="Timezone"
-              value={preferences.timezone}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handlePreferenceChange('timezone', e.target.value)}
-              options={[
-                { value: 'Africa/Lagos', label: 'Africa/Lagos (GMT+1)' },
-                { value: 'UTC', label: 'UTC (GMT+0)' },
-                { value: 'America/New_York', label: 'America/New_York (GMT-5)' },
-                { value: 'Europe/London', label: 'Europe/London (GMT+0)' }
-              ]}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Select
-              label="Date Format"
-              value={preferences.dateFormat}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handlePreferenceChange('dateFormat', e.target.value)}
-              options={[
-                { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
-                { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
-                { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' }
-              ]}
-            />
-
-            <Select
-              label="Theme"
-              value={preferences.theme}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handlePreferenceChange('theme', e.target.value)}
-              options={[
-                { value: 'light', label: 'Light' },
-                { value: 'dark', label: 'Dark' },
-                { value: 'system', label: 'System' }
-              ]}
-            />
-          </div>
-
-          <div className="space-y-3">
-            <Checkbox
-              label="Compact Mode"
-              checked={preferences.compactMode}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePreferenceChange('compactMode', e.target.checked)}
-            />
-            <Checkbox
-              label="Auto-save Changes"
-              checked={preferences.autoSave}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePreferenceChange('autoSave', e.target.checked)}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderEvaluationReportsTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Evaluation & Report Settings</h3>
-        
-        <div className="space-y-6">
-          <div>
-            <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Evaluation Criteria</h4>
-            <div className="space-y-3">
-              <Checkbox
-                label="Enable Attendance Evaluation"
-                checked={evaluationReportSettings.enableAttendanceEvaluation}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleEvaluationReportChange('enableAttendanceEvaluation', e.target.checked)}
-              />
-              <Checkbox
-                label="Enable Participation Evaluation"
-                checked={evaluationReportSettings.enableParticipationEvaluation}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleEvaluationReportChange('enableParticipationEvaluation', e.target.checked)}
-              />
-              <Checkbox
-                label="Enable Project Completion Evaluation"
-                checked={evaluationReportSettings.enableProjectCompletionEvaluation}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleEvaluationReportChange('enableProjectCompletionEvaluation', e.target.checked)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Report Generation</h4>
-            <div className="space-y-4">
-              <Select
-                label="Report Frequency"
-                value={evaluationReportSettings.reportFrequency}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleEvaluationReportChange('reportFrequency', e.target.value)}
-                options={[
-                  { value: 'Weekly', label: 'Weekly' },
-                  { value: 'Monthly', label: 'Monthly' },
-                  { value: 'Termly', label: 'Termly' },
-                  { value: 'Annually', label: 'Annually' }
-                ]}
-              />
-              <Checkbox
-                label="Include Charts in Reports"
-                checked={evaluationReportSettings.includeChartsInReports}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleEvaluationReportChange('includeChartsInReports', e.target.checked)}
-              />
-              <Checkbox
-                label="Include Instructor Comments"
-                checked={evaluationReportSettings.includeInstructorComments}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleEvaluationReportChange('includeInstructorComments', e.target.checked)}
-              />
-              <Checkbox
-                label="Auto-send Reports to Parents"
-                checked={evaluationReportSettings.autoSendReportsToParents}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleEvaluationReportChange('autoSendReportsToParents', e.target.checked)}
-              />
-              <Checkbox
-                label="Auto-send Reports to School Partners"
-                checked={evaluationReportSettings.autoSendReportsToSchoolPartners}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleEvaluationReportChange('autoSendReportsToSchoolPartners', e.target.checked)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Grading Scale</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Grade A"
-                value={evaluationReportSettings.gradingScaleA}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleEvaluationReportChange('gradingScaleA', e.target.value)}
-              />
-              <Input
-                label="Grade B"
-                value={evaluationReportSettings.gradingScaleB}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleEvaluationReportChange('gradingScaleB', e.target.value)}
-              />
-              <Input
-                label="Grade C"
-                value={evaluationReportSettings.gradingScaleC}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleEvaluationReportChange('gradingScaleC', e.target.value)}
-              />
-              <Input
-                label="Grade D"
-                value={evaluationReportSettings.gradingScaleD}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleEvaluationReportChange('gradingScaleD', e.target.value)}
-              />
-              <Input
-                label="Grade F"
-                value={evaluationReportSettings.gradingScaleF}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleEvaluationReportChange('gradingScaleF', e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'profile':
-        return renderProfileTab();
-      case 'notifications':
-        return renderNotificationsTab();
-      case 'security':
-        return renderSecurityTab();
-      case 'preferences':
-        return renderPreferencesTab();
-      case 'evaluationReports':
-        return renderEvaluationReportsTab();
-      default:
-        return renderProfileTab();
+  const saveProfile = async () => {
+    setSaving(true);
+    try {
+      const { error } = await createClient()
+        .from('portal_users')
+        .update({
+          full_name: profileData.full_name,
+          phone: profileData.phone,
+          bio: profileData.bio,
+        })
+        .eq('id', profile!.id);
+      if (error) throw error;
+      await refreshProfile();
+      setEditing(false);
+      showToast('Profile updated successfully');
+    } catch (e: any) {
+      showToast(e.message ?? 'Failed to save profile', false);
+    } finally {
+      setSaving(false);
     }
   };
 
+  const changePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pwData.newPw !== pwData.confirm) { showToast('New passwords do not match', false); return; }
+    if (pwData.newPw.length < 8) { showToast('Password must be at least 8 characters', false); return; }
+    setSaving(true);
+    try {
+      const { error } = await createClient().auth.updateUser({ password: pwData.newPw });
+      if (error) throw error;
+      setPwData({ current: '', newPw: '', confirm: '' });
+      showToast('Password changed successfully');
+    } catch (e: any) {
+      showToast(e.message ?? 'Failed to change password', false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const roleColor: Record<string, string> = {
+    admin: 'bg-red-500/20 text-red-400 border-red-500/30',
+    teacher: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    student: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  };
+
+  if (authLoading) return (
+    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-white/10 border-t-violet-500 rounded-full animate-spin" />
+    </div>
+  );
+  if (!profile) return null;
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+    <div className="min-h-screen bg-[#0f0f1a] text-white">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your account preferences and security</p>
+          <div className="flex items-center gap-2 mb-1">
+            <CogIcon className="w-5 h-5 text-violet-400" />
+            <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Account Settings</span>
+          </div>
+          <h1 className="text-3xl font-extrabold">Settings</h1>
+          <p className="text-white/40 text-sm mt-1">Manage your account preferences and security</p>
         </div>
-      </div>
 
-      {/* Tab Navigation */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex space-x-8 px-6">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <tab.icon className="h-5 w-5" />
-                  <span>{tab.name}</span>
+        {/* Toast */}
+        {toast && (
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-semibold
+            ${toast.ok
+              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+              : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+            {toast.ok
+              ? <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
+              : <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />}
+            {toast.msg}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+          {/* ── Sidebar ── */}
+          <div className="lg:col-span-1 space-y-4">
+
+            {/* Avatar card */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center">
+              <div className="relative inline-block mb-4">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-2xl font-black text-white mx-auto">
+                  {(profile.full_name ?? 'U')[0].toUpperCase()}
                 </div>
-              </button>
-            ))}
-          </nav>
-        </div>
+                <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-[#0f0f1a] border border-white/10 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors">
+                  <CameraIcon className="w-3.5 h-3.5 text-white/50" />
+                </button>
+              </div>
+              <p className="font-bold text-white text-sm truncate">{profile.full_name}</p>
+              <p className="text-xs text-white/40 mt-0.5 truncate">{profile.email}</p>
+              <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize
+                ${roleColor[profile.role] ?? 'bg-white/10 text-white/40 border-white/10'}`}>
+                {profile.role}
+              </span>
+            </div>
 
-        {/* Tab Content */}
-        <div className="p-6">
-          {renderTabContent()}
+            {/* Tabs */}
+            <nav className="bg-white/5 border border-white/10 rounded-2xl p-2 space-y-1">
+              {TABS.map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all
+                    ${tab === t.id ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20' : 'text-white/50 hover:bg-white/5 hover:text-white'}`}>
+                  <t.icon className="w-4 h-4" />
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          {/* ── Content ── */}
+          <div className="lg:col-span-3">
+
+            {/* Profile tab */}
+            {tab === 'profile' && (
+              <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                <div className="flex items-center justify-between p-6 border-b border-white/10">
+                  <div>
+                    <h2 className="font-bold text-white">Profile Information</h2>
+                    <p className="text-xs text-white/40 mt-0.5">Update your personal details</p>
+                  </div>
+                  {!editing ? (
+                    <button onClick={() => setEditing(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 rounded-xl text-sm font-bold transition-colors">
+                      <PencilIcon className="w-3.5 h-3.5" /> Edit
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button onClick={() => { setEditing(false); }}
+                        className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-sm font-bold text-white/50 transition-colors">
+                        Cancel
+                      </button>
+                      <button onClick={saveProfile} disabled={saving}
+                        className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-bold transition-colors disabled:opacity-50">
+                        {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
+                        Save
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-6 space-y-5">
+                  {/* Full name */}
+                  <div>
+                    <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Full Name</label>
+                    {editing ? (
+                      <input type="text" value={profileData.full_name}
+                        onChange={e => setProfileData(p => ({ ...p, full_name: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors" />
+                    ) : (
+                      <p className="text-white font-semibold">{profileData.full_name || '—'}</p>
+                    )}
+                  </div>
+
+                  {/* Email - always read-only */}
+                  <div>
+                    <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Email Address</label>
+                    <div className="flex items-center gap-2">
+                      <EnvelopeIcon className="w-4 h-4 text-white/20" />
+                      <p className="text-white/60 text-sm">{profileData.email}</p>
+                      <span className="text-[10px] font-bold px-2 py-0.5 bg-white/5 border border-white/10 rounded-full text-white/30">Cannot edit</span>
+                    </div>
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Phone Number</label>
+                    {editing ? (
+                      <div className="relative">
+                        <PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                        <input type="tel" value={profileData.phone}
+                          onChange={e => setProfileData(p => ({ ...p, phone: e.target.value }))}
+                          placeholder="+234 800 000 0000"
+                          className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20" />
+                      </div>
+                    ) : (
+                      <p className="text-white font-semibold">{profileData.phone || <span className="text-white/30">Not set</span>}</p>
+                    )}
+                  </div>
+
+                  {/* Bio */}
+                  <div>
+                    <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Bio</label>
+                    {editing ? (
+                      <textarea value={profileData.bio} rows={3}
+                        onChange={e => setProfileData(p => ({ ...p, bio: e.target.value }))}
+                        placeholder="Tell us a little about yourself…"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors resize-none placeholder-white/20" />
+                    ) : (
+                      <p className="text-white/60 text-sm leading-relaxed">{profileData.bio || <span className="text-white/20">No bio yet</span>}</p>
+                    )}
+                  </div>
+
+                  {/* Role (read-only) */}
+                  <div className="pt-4 border-t border-white/10">
+                    <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Account Role</label>
+                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold border capitalize
+                      ${roleColor[profile.role] ?? 'bg-white/10 text-white/40 border-white/10'}`}>
+                      {profile.role}
+                    </span>
+                    <p className="text-xs text-white/20 mt-1.5">Contact an admin to change your role.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Security tab */}
+            {tab === 'security' && (
+              <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                <div className="p-6 border-b border-white/10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-violet-500/20 rounded-xl flex items-center justify-center">
+                      <KeyIcon className="w-5 h-5 text-violet-400" />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-white">Change Password</h2>
+                      <p className="text-xs text-white/40 mt-0.5">Use a strong password — at least 8 characters</p>
+                    </div>
+                  </div>
+                </div>
+                <form onSubmit={changePassword} className="p-6 space-y-4">
+                  {(['current', 'newPw', 'confirm'] as const).map((field) => (
+                    <div key={field}>
+                      <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                        {field === 'current' ? 'Current Password' : field === 'newPw' ? 'New Password' : 'Confirm New Password'}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPw ? 'text' : 'password'}
+                          value={pwData[field]}
+                          onChange={e => setPwData(p => ({ ...p, [field]: e.target.value }))}
+                          required
+                          className="w-full pl-4 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors"
+                        />
+                        <button type="button" onClick={() => setShowPw(v => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
+                          {showPw ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-400">
+                    For your security, you will be signed out of other devices after changing your password.
+                  </div>
+
+                  <button type="submit" disabled={saving}
+                    className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-bold transition-all disabled:opacity-50">
+                    {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ShieldCheckIcon className="w-4 h-4" />}
+                    Update Password
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* Notifications tab */}
+            {tab === 'notifications' && (
+              <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                <div className="p-6 border-b border-white/10">
+                  <h2 className="font-bold text-white">Notification Preferences</h2>
+                  <p className="text-xs text-white/40 mt-0.5">Choose what you want to be notified about</p>
+                </div>
+                <div className="p-6 space-y-4">
+                  {(Object.entries(notifs) as [keyof typeof notifs, boolean][]).map(([key, val]) => (
+                    <div key={key} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
+                      <div>
+                        <p className="font-semibold text-white capitalize text-sm">{key}</p>
+                        <p className="text-xs text-white/30 mt-0.5">
+                          {key === 'assignments' && 'New assignments and due date reminders'}
+                          {key === 'grades' && 'When your submissions are graded'}
+                          {key === 'announcements' && 'Important school announcements'}
+                          {key === 'newsletters' && 'Monthly newsletters and updates'}
+                        </p>
+                      </div>
+                      <button onClick={() => setNotifs(p => ({ ...p, [key]: !val }))}
+                        className={`relative w-11 h-6 rounded-full transition-all ${val ? 'bg-violet-600' : 'bg-white/10'}`}>
+                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${val ? 'left-5.5 translate-x-0.5' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-bold transition-all mt-4">
+                    <CheckIcon className="w-4 h-4" /> Save Preferences
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Schools tab (teacher only) ── */}
+            {tab === 'schools' && profile?.role === 'teacher' && (
+              <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <BuildingOfficeIcon className="w-4 h-4 text-blue-400" />
+                      <h2 className="font-bold text-white">Assigned Schools</h2>
+                    </div>
+                    <p className="text-xs text-white/40">Partner schools you currently teach at</p>
+                  </div>
+                  <span className="text-xs font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full">
+                    {schools.length} school{schools.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                {schoolsLoading ? (
+                  <div className="p-8 flex items-center justify-center">
+                    <div className="w-7 h-7 border-4 border-white/10 border-t-blue-400 rounded-full animate-spin" />
+                  </div>
+                ) : schools.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <BuildingOfficeIcon className="w-12 h-12 mx-auto text-white/10 mb-3" />
+                    <p className="text-white/30 font-semibold">No schools assigned yet</p>
+                    <p className="text-white/20 text-xs mt-1">Ask an admin to assign you to a partner school.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-white/5">
+                    {schools.map((ts: any) => {
+                      const s = ts.schools ?? {};
+                      return (
+                        <div key={ts.id} className="p-5 hover:bg-white/5 transition-colors">
+                          <div className="flex items-start gap-4">
+                            <div className="w-11 h-11 rounded-xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
+                              <BuildingOfficeIcon className="w-5 h-5 text-blue-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <p className="font-bold text-white">{s.name}</p>
+                                {ts.is_primary && (
+                                  <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs font-bold rounded-full border border-amber-500/30">
+                                    <StarIcon className="w-3 h-3" /> Primary
+                                  </span>
+                                )}
+                                <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${s.is_active
+                                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                    : 'bg-white/10 text-white/30 border-white/10'
+                                  }`}>
+                                  {s.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/40">
+                                {(s.city || s.state) && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPinIcon className="w-3.5 h-3.5" />
+                                    {[s.city, s.state].filter(Boolean).join(', ')}
+                                  </span>
+                                )}
+                                {s.phone && (
+                                  <span>{s.phone}</span>
+                                )}
+                                {s.email && (
+                                  <span>{s.email}</span>
+                                )}
+                              </div>
+                              {ts.notes && (
+                                <p className="text-xs text-white/30 mt-1.5 italic">{ts.notes}</p>
+                              )}
+                              <p className="text-xs text-white/20 mt-1">
+                                Assigned {ts.assigned_at ? new Date(ts.assigned_at).toLocaleDateString() : '—'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="p-4 border-t border-white/10 bg-white/[0.02]">
+                  <p className="text-xs text-white/20 text-center">
+                    Contact an admin to update your school assignments.
+                  </p>
+                </div>
+              </div>
+            )}
+
+          </div>
         </div>
       </div>
     </div>
   );
-} 
+}

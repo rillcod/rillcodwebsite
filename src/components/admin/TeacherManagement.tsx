@@ -1,15 +1,15 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { 
-  User, 
-  Search, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  CheckCircle, 
-  XCircle, 
+import {
+  User,
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  CheckCircle,
+  XCircle,
   Clock,
   GraduationCap,
   Mail,
@@ -18,7 +18,7 @@ import {
   BookOpen,
   Users
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/auth-context';
 
 interface Teacher {
@@ -37,6 +37,7 @@ interface Teacher {
 }
 
 export default function TeacherManagement() {
+  const supabase = createClient();
   const { profile } = useAuth();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +89,7 @@ export default function TeacherManagement() {
 
   const handleAddTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const teacherData = {
         ...formData,
@@ -118,7 +119,7 @@ export default function TeacherManagement() {
 
   const handleUpdateTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedTeacher) return;
 
     try {
@@ -172,27 +173,19 @@ export default function TeacherManagement() {
     }
   };
 
-  const handleToggleStatus = async (teacherId: string, isActive: boolean) => {
+  const handleToggleStatus = async (teacher_id: string, is_active: boolean) => {
     try {
       const { error } = await supabase
-        .from('teachers')
-        .update({ 
-          is_active: isActive,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', teacherId);
+        .from('portal_users')
+        .update({ is_active })
+        .eq('id', teacher_id);
 
-      if (error) {
-        console.error('Error updating status:', error);
-        toast.error('Failed to update status');
-        return;
-      }
+      if (error) throw error;
 
-      toast.success(`Teacher ${isActive ? 'activated' : 'deactivated'} successfully`);
-      fetchTeachers();
+      toast.success(`Teacher ${is_active ? 'activated' : 'deactivated'} successfully`);
     } catch (error) {
-      console.error('Error updating status:', error);
-      toast.error('Failed to update status');
+      console.error('Error updating teacher status:', error);
+      toast.error('Failed to update teacher status');
     }
   };
 
@@ -231,21 +224,21 @@ export default function TeacherManagement() {
 
   const filteredTeachers = teachers.filter(teacher => {
     const matchesSearch = teacher.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         teacher.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || 
-                         (statusFilter === 'active' && teacher.is_active) ||
-                         (statusFilter === 'inactive' && !teacher.is_active);
-    
+      teacher.email.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus = statusFilter === 'all' ||
+      (statusFilter === 'active' && teacher.is_active) ||
+      (statusFilter === 'inactive' && !teacher.is_active);
+
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusColor = (isActive: boolean) => {
-    return isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+  const getStatusColor = (is_active: boolean) => {
+    return is_active ? 'bg-[#b6e3f4] text-black border-2 border-black' : 'bg-[#ffc9c9] text-black border-2 border-black';
   };
 
-  const getStatusIcon = (isActive: boolean) => {
-    return isActive ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />;
+  const getStatusIcon = (is_active: boolean) => {
+    return is_active ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />;
   };
 
   const subjects = [
@@ -257,22 +250,23 @@ export default function TeacherManagement() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="w-16 h-16 bg-[#fff9c4] border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] animate-spin flex items-center justify-center">
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-4 font-sans">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#f8f9fa] p-6 border-4 border-black shadow-[8px_8px_0_0_rgba(0,0,0,1)]">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Teacher Management</h1>
-          <p className="text-gray-600">Manage teachers and their profiles</p>
+          <h1 className="text-3xl font-black text-black uppercase tracking-tight">Teacher Management</h1>
+          <p className="text-black font-medium mt-1">Manage teachers and their profiles</p>
         </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center px-4 py-3 bg-[#e8f5e9] text-black font-bold border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)] transition-all uppercase tracking-wider"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Teacher
@@ -280,7 +274,7 @@ export default function TeacherManagement() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="bg-white border-4 border-black p-4 shadow-[8px_8px_0_0_rgba(0,0,0,1)]">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -289,117 +283,117 @@ export default function TeacherManagement() {
               placeholder="Search teachers..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 border-2 border-black bg-[#fffde7] focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] font-medium text-black placeholder-gray-600 transition-all"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-3 border-2 border-black bg-[#fffde7] focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] font-bold text-black appearance-none transition-all"
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">Total: {filteredTeachers.length}</span>
+          <div className="flex items-center space-x-2 bg-black text-white px-4 py-2 border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+            <span className="text-sm font-bold uppercase tracking-wider">Total: {filteredTeachers.length}</span>
           </div>
         </div>
       </div>
 
       {/* Teachers Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white border-4 border-black shadow-[8px_8px_0_0_rgba(0,0,0,1)] overflow-x-auto">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y-4 divide-black">
+            <thead className="bg-[#b3e5fc]">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-sm font-black text-black uppercase tracking-wider border-b-4 border-black border-r-2">
                   Teacher
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-sm font-black text-black uppercase tracking-wider border-b-4 border-black border-r-2">
                   Contact
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-sm font-black text-black uppercase tracking-wider border-b-4 border-black border-r-2">
                   Subjects
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-sm font-black text-black uppercase tracking-wider border-b-4 border-black border-r-2">
                   Experience
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-sm font-black text-black uppercase tracking-wider border-b-4 border-black border-r-2">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-sm font-black text-black uppercase tracking-wider border-b-4 border-black">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y-2 divide-black">
               {filteredTeachers.map((teacher) => (
-                <tr key={teacher.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                <tr key={teacher.id} className="hover:bg-[#e1f5fe] transition-colors bg-white">
+                  <td className="px-6 py-4 whitespace-nowrap border-r-2 border-black">
                     <div className="flex items-center">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                      <div className="w-12 h-12 bg-[#c8e6c9] border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
                         <User className="w-5 h-5 text-green-600" />
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{teacher.full_name}</div>
-                        <div className="text-sm text-gray-500">{teacher.education}</div>
+                        <div className="text-md font-black text-black">{teacher.full_name}</div>
+                        <div className="text-sm font-bold text-gray-700">{teacher.education}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{teacher.email}</div>
-                    <div className="text-sm text-gray-500">{teacher.phone}</div>
+                  <td className="px-6 py-4 whitespace-nowrap border-r-2 border-black">
+                    <div className="text-sm font-bold text-black">{teacher.email}</div>
+                    <div className="text-sm font-bold text-gray-700 mt-1">{teacher.phone}</div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 border-r-2 border-black">
                     <div className="flex flex-wrap gap-1">
                       {teacher.subjects.slice(0, 2).map((subject, index) => (
-                        <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                        <span key={index} className="inline-flex items-center px-3 py-1 border-2 border-black text-xs font-bold bg-[#e1bee7] text-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
                           {subject}
                         </span>
                       ))}
                       {teacher.subjects.length > 2 && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
+                        <span className="inline-flex items-center px-3 py-1 border-2 border-black text-xs font-bold bg-white text-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
                           +{teacher.subjects.length - 2} more
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{teacher.experience_years} years</div>
+                  <td className="px-6 py-4 whitespace-nowrap border-r-2 border-black">
+                    <div className="text-sm font-black text-black">{teacher.experience_years} yrs</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(teacher.is_active)}`}>
+                  <td className="px-6 py-4 whitespace-nowrap border-r-2 border-black">
+                    <span className={`inline-flex items-center px-3 py-1 text-xs font-bold uppercase tracking-wider ${getStatusColor(teacher.is_active)} shadow-[2px_2px_0_0_rgba(0,0,0,1)]`}>
                       {getStatusIcon(teacher.is_active)}
-                      <span className="ml-1">{teacher.is_active ? 'Active' : 'Inactive'}</span>
+                      <span className="ml-1.5">{teacher.is_active ? 'Active' : 'Inactive'}</span>
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium border-l-[0px]">
+                    <div className="flex items-center space-x-2 bg-black text-white px-4 py-2 border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
                       <button
                         onClick={() => openDetails(teacher)}
-                        className="text-blue-600 hover:text-blue-900"
+                        className="p-2 border-2 border-black bg-[#e3f2fd] text-black hover:bg-blue-200 hover:-translate-y-0.5 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all"
                         title="View Details"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => openEditForm(teacher)}
-                        className="text-green-600 hover:text-green-900"
+                        className="p-2 border-2 border-black bg-[#fff9c4] text-black hover:bg-yellow-200 hover:-translate-y-0.5 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all"
                         title="Edit"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleToggleStatus(teacher.id, !teacher.is_active)}
-                        className={`${teacher.is_active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}`}
+                        className={`p-2 border-2 border-black text-black hover:-translate-y-0.5 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all ${teacher.is_active ? 'bg-[#ffcdd2] hover:bg-red-200' : 'bg-[#c8e6c9] hover:bg-green-200'}`}
                         title={teacher.is_active ? 'Deactivate' : 'Activate'}
                       >
                         {teacher.is_active ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                       </button>
                       <button
                         onClick={() => handleDeleteTeacher(teacher.id)}
-                        className="text-red-600 hover:text-red-900"
+                        className="p-2 border-2 border-black bg-[#ffccbc] text-black hover:bg-orange-200 hover:-translate-y-0.5 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all"
                         title="Delete"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -416,64 +410,64 @@ export default function TeacherManagement() {
       {/* Add Teacher Modal */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Add New Teacher</h2>
+          <div className="bg-white border-4 border-black p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-[12px_12px_0_0_rgba(0,0,0,1)]">
+            <h2 className="text-2xl font-black mb-6 uppercase border-b-4 border-black pb-2">Add New Teacher</h2>
             <form onSubmit={handleAddTeacher} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Full Name</label>
                   <input
                     type="text"
                     required
                     value={formData.full_name}
-                    onChange={(e) => setFormData({...formData, full_name: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    className="mt-2 block w-full border-2 border-black bg-[#fffde7] px-4 py-3 focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-shadow font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Email</label>
                   <input
                     type="email"
                     required
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="mt-2 block w-full border-2 border-black bg-[#fffde7] px-4 py-3 focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-shadow font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Phone</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Phone</label>
                   <input
                     type="tel"
                     required
                     value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="mt-2 block w-full border-2 border-black bg-[#fffde7] px-4 py-3 focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-shadow font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Experience (Years)</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Experience (Years)</label>
                   <input
                     type="number"
                     min="0"
                     required
                     value={formData.experience_years}
-                    onChange={(e) => setFormData({...formData, experience_years: parseInt(e.target.value)})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, experience_years: parseInt(e.target.value) })}
+                    className="mt-2 block w-full border-2 border-black bg-[#fffde7] px-4 py-3 focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-shadow font-medium"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">Education</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Education</label>
                   <input
                     type="text"
                     required
                     value={formData.education}
-                    onChange={(e) => setFormData({...formData, education: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, education: e.target.value })}
+                    className="mt-2 block w-full border-2 border-black bg-[#fffde7] px-4 py-3 focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-shadow font-medium"
                     placeholder="e.g., B.Sc Computer Science, M.Ed"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">Subjects</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Subjects</label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
                     {subjects.map(subject => (
                       <label key={subject} className="flex items-center">
@@ -483,9 +477,9 @@ export default function TeacherManagement() {
                           checked={formData.subjects.includes(subject)}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setFormData({...formData, subjects: [...formData.subjects, subject]});
+                              setFormData({ ...formData, subjects: [...formData.subjects, subject] });
                             } else {
-                              setFormData({...formData, subjects: formData.subjects.filter(s => s !== subject)});
+                              setFormData({ ...formData, subjects: formData.subjects.filter(s => s !== subject) });
                             }
                           }}
                           className="mr-2"
@@ -496,17 +490,17 @@ export default function TeacherManagement() {
                   </div>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">Bio</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Bio</label>
                   <textarea
                     rows={3}
                     value={formData.bio}
-                    onChange={(e) => setFormData({...formData, bio: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                    className="mt-2 block w-full border-2 border-black bg-[#fffde7] px-4 py-3 focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-shadow font-medium"
                     placeholder="Brief description about the teacher..."
                   />
                 </div>
               </div>
-              
+
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -514,13 +508,13 @@ export default function TeacherManagement() {
                     setShowAddForm(false);
                     resetForm();
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  className="px-6 py-2 border-2 border-black font-bold text-black bg-white hover:-translate-y-1 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="px-6 py-2 bg-[#b3e5fc] text-black font-bold border-2 border-black hover:-translate-y-1 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all"
                 >
                   Add Teacher
                 </button>
@@ -533,63 +527,63 @@ export default function TeacherManagement() {
       {/* Edit Teacher Modal */}
       {showEditForm && selectedTeacher && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Edit Teacher</h2>
+          <div className="bg-white border-4 border-black p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-[12px_12px_0_0_rgba(0,0,0,1)]">
+            <h2 className="text-2xl font-black mb-6 uppercase border-b-4 border-black pb-2">Edit Teacher</h2>
             <form onSubmit={handleUpdateTeacher} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Full Name</label>
                   <input
                     type="text"
                     required
                     value={formData.full_name}
-                    onChange={(e) => setFormData({...formData, full_name: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    className="mt-2 block w-full border-2 border-black bg-[#fffde7] px-4 py-3 focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-shadow font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Email</label>
                   <input
                     type="email"
                     required
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="mt-2 block w-full border-2 border-black bg-[#fffde7] px-4 py-3 focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-shadow font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Phone</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Phone</label>
                   <input
                     type="tel"
                     required
                     value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="mt-2 block w-full border-2 border-black bg-[#fffde7] px-4 py-3 focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-shadow font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Experience (Years)</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Experience (Years)</label>
                   <input
                     type="number"
                     min="0"
                     required
                     value={formData.experience_years}
-                    onChange={(e) => setFormData({...formData, experience_years: parseInt(e.target.value)})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, experience_years: parseInt(e.target.value) })}
+                    className="mt-2 block w-full border-2 border-black bg-[#fffde7] px-4 py-3 focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-shadow font-medium"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">Education</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Education</label>
                   <input
                     type="text"
                     required
                     value={formData.education}
-                    onChange={(e) => setFormData({...formData, education: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, education: e.target.value })}
+                    className="mt-2 block w-full border-2 border-black bg-[#fffde7] px-4 py-3 focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-shadow font-medium"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">Subjects</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Subjects</label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
                     {subjects.map(subject => (
                       <label key={subject} className="flex items-center">
@@ -599,9 +593,9 @@ export default function TeacherManagement() {
                           checked={formData.subjects.includes(subject)}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setFormData({...formData, subjects: [...formData.subjects, subject]});
+                              setFormData({ ...formData, subjects: [...formData.subjects, subject] });
                             } else {
-                              setFormData({...formData, subjects: formData.subjects.filter(s => s !== subject)});
+                              setFormData({ ...formData, subjects: formData.subjects.filter(s => s !== subject) });
                             }
                           }}
                           className="mr-2"
@@ -612,16 +606,16 @@ export default function TeacherManagement() {
                   </div>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">Bio</label>
+                  <label className="block text-sm font-black text-black uppercase tracking-wider">Bio</label>
                   <textarea
                     rows={3}
                     value={formData.bio}
-                    onChange={(e) => setFormData({...formData, bio: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                    className="mt-2 block w-full border-2 border-black bg-[#fffde7] px-4 py-3 focus:outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-shadow font-medium"
                   />
                 </div>
               </div>
-              
+
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -630,13 +624,13 @@ export default function TeacherManagement() {
                     setSelectedTeacher(null);
                     resetForm();
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  className="px-6 py-2 border-2 border-black font-bold text-black bg-white hover:-translate-y-1 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="px-6 py-2 bg-[#b3e5fc] text-black font-bold border-2 border-black hover:-translate-y-1 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all"
                 >
                   Update Teacher
                 </button>
@@ -649,20 +643,20 @@ export default function TeacherManagement() {
       {/* Teacher Details Modal */}
       {showDetails && selectedTeacher && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border-4 border-black p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-[12px_12px_0_0_rgba(0,0,0,1)]">
             <div className="flex justify-between items-start mb-4">
-              <h2 className="text-xl font-bold">Teacher Details</h2>
+              <h2 className="text-2xl font-black uppercase text-black border-b-4 border-black pb-2">Teacher Details</h2>
               <button
                 onClick={() => setShowDetails(false)}
-                className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+                className="px-4 py-2 bg-red-100 text-black font-bold border-2 border-black hover:-translate-y-1 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all"
               >
                 Close
               </button>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-semibold mb-3">Personal Information</h3>
+                <h3 className="text-lg font-black uppercase text-black border-b-2 border-black pb-1 mb-3">Personal Information</h3>
                 <div className="space-y-2">
                   <div><strong>Name:</strong> {selectedTeacher.full_name}</div>
                   <div><strong>Email:</strong> {selectedTeacher.email}</div>
@@ -671,14 +665,14 @@ export default function TeacherManagement() {
                   <div><strong>Experience:</strong> {selectedTeacher.experience_years} years</div>
                 </div>
               </div>
-              
+
               <div>
-                <h3 className="text-lg font-semibold mb-3">Subjects & Bio</h3>
+                <h3 className="text-lg font-black uppercase text-black border-b-2 border-black pb-1 mb-3">Subjects & Bio</h3>
                 <div className="space-y-2">
                   <div><strong>Subjects:</strong></div>
                   <div className="flex flex-wrap gap-1">
                     {selectedTeacher.subjects.map((subject, index) => (
-                      <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                      <span key={index} className="inline-flex items-center px-3 py-1 border-2 border-black text-xs font-bold bg-[#e1bee7] text-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
                         {subject}
                       </span>
                     ))}

@@ -18,7 +18,7 @@ const Line = dynamic(() => import('react-chartjs-2').then(mod => mod.Line), { ss
 const Radar = dynamic(() => import('react-chartjs-2').then(mod => mod.Radar), { ssr: false })
 
 interface ClassPerformanceComparisonProps {
-  schoolId: string
+  school_id: string
 }
 
 // Mock data for class performance comparison
@@ -117,7 +117,7 @@ const classData = [
 
 const subjectNames = ['Scratch', 'Python', 'Web Dev', 'UI/UX', 'Flutter']
 
-export default function ClassPerformanceComparison({ schoolId }: ClassPerformanceComparisonProps) {
+export default function ClassPerformanceComparison({ school_id }: ClassPerformanceComparisonProps) {
   const [selectedClass, setSelectedClass] = useState('all')
   const [selectedSubject, setSelectedSubject] = useState('all')
   const [viewMode, setViewMode] = useState<'bar' | 'line' | 'radar'>('bar')

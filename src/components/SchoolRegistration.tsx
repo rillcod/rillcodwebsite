@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { School, Check } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+
+const supabase = createClient();
 
 const SchoolRegistration: React.FC = () => {
   const [formSubmitted, setFormSubmitted] = useState(false);

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { User, Check, ArrowRight, ArrowLeft } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+
+const supabase = createClient();
 
 const StudentRegistration: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -53,75 +55,35 @@ const StudentRegistration: React.FC = () => {
 
     setLoading(true);
     try {
-      console.log('Submitting student registration with data:', formData);
-      console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-      console.log('Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-      
-      // Try with all the important fields, but keep the working structure
-      const essentialData = {
-        name: formData.fullName,                    // Student's full name
-        age: parseInt(formData.age) || 0,           // Student's age
-        email: formData.parentEmail,                // Parent's email
-        phone: formData.parentPhone,                // Parent's phone
-        school: formData.currentSchool,             // Current school
-        grade: formData.grade,                      // Grade/Class
-        gender: formData.gender,                    // Gender
-        parent_name: formData.parentName,           // Parent's name
-        course_interest: formData.courseInterest,   // Course interest
-        preferred_schedule: formData.preferredSchedule, // Preferred schedule
-        hear_about_us: formData.hearAboutUs         // How they heard about us
-      };
-
-      console.log('Trying with essential data:', essentialData);
-
-      const { data, error } = await supabase
-        .from('students')
-        .insert([essentialData])
-        .select();
-
-      console.log('Supabase response:', { 
-        data: data, 
-        error: error,
-        errorMessage: error?.message,
-        errorDetails: error?.details,
-        errorCode: error?.code
+      const response = await fetch('/api/students', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          full_name: formData.fullName,
+          parent_name: formData.parentName,
+          parent_email: formData.parentEmail,
+          parent_phone: formData.parentPhone,
+          school_name: formData.currentSchool,
+          current_class: formData.grade,
+          gender: formData.gender.toLowerCase(),
+          date_of_birth: new Date().toISOString(), // You might want to add a date of birth field
+          interests: formData.courseInterest,
+          goals: formData.preferredSchedule,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }),
       });
 
-      if (error) {
-        console.error('Registration error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          fullError: JSON.stringify(error, null, 2)
-        });
-        
-        // If the first attempt fails, try with even simpler data
-        console.log('First attempt failed, trying with minimal data...');
-        const minimalData = {
-          name: formData.fullName,
-          email: formData.parentEmail
-        };
-        
-        const { data: retryData, error: retryError } = await supabase
-          .from('students')
-          .insert([minimalData])
-          .select();
-          
-        if (retryError) {
-          console.error('Retry also failed:', retryError);
-          toast.error(`Registration failed: ${retryError.message || 'Database schema issue'}`);
-          return;
-        }
-        
-        console.log('Retry successful:', retryData);
-        setFormSubmitted(true);
-        toast.success('Registration successful! We\'ll contact you soon.');
-      } else {
-        console.log('Registration successful:', data);
-        setFormSubmitted(true);
-        toast.success('Registration successful! We\'ll contact you soon.');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to register student');
       }
+
+      setFormSubmitted(true);
+      toast.success('Registration successful! We\'ll contact you soon.');
       
       // Reset form
       setFormData({
@@ -139,13 +101,8 @@ const StudentRegistration: React.FC = () => {
         termsAgreement: false
       });
     } catch (err) {
-      console.error('Registration error:', {
-        error: err,
-        message: err instanceof Error ? err.message : 'Unknown error',
-        stack: err instanceof Error ? err.stack : undefined,
-        fullError: JSON.stringify(err, null, 2)
-      });
-      toast.error(`Registration failed: ${err instanceof Error ? err.message : 'Unknown error occurred'}`);
+      console.error('Registration error:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to register student');
     } finally {
       setLoading(false);
     }

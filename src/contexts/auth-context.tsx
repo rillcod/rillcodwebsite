@@ -1,204 +1,145 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
-
-// User profile interface
-interface UserProfile {
-  id: string;
-  email: string;
-  full_name: string;
-  role: 'admin' | 'teacher' | 'student';
-  school_id?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  profile: UserProfile | null;
-  session: Session | null;
-  loading: boolean;
-  login: (email: string, password: string, role: string) => Promise<boolean>;
-  signOut: () => Promise<void>;
-  hasPermission: (permission: string) => boolean;
-  isRole: (role: string) => boolean;
-  refreshProfile: () => Promise<void>;
-}
+import { createClient } from '@/lib/supabase/client';
+import type { UserProfile, AuthContextType } from '@/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Singleton client — created once for the entire app, not per render
+const supabase = createClient();
+
+// ─── Provider ──────────────────────────────────────────────────
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch user profile
-  const fetchProfile = async (userId: string) => {
+  // ── Lean profile fetch — only the columns we actually need ────
+  const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
     try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
+      const { data } = await supabase
+        .from('portal_users')
+        .select('id, email, full_name, role, is_active, phone, profile_image_url, created_at, updated_at')
         .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching profile:', error);
-        return null;
-      }
-
-      return data as UserProfile;
-    } catch (error) {
-      console.error('Error fetching profile:', error);
+        .maybeSingle();
+      return (data as unknown as UserProfile) ?? null;
+    } catch {
       return null;
     }
-  };
-
-  // Refresh profile
-  const refreshProfile = async () => {
-    if (user) {
-      const userProfile = await fetchProfile(user.id);
-      setProfile(userProfile);
-    }
-  };
-
-  // Login function
-  const login = async (email: string, password: string, role: string): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error('Login error:', error);
-        return false;
-      }
-
-      if (data.user) {
-        const userProfile = await fetchProfile(data.user.id);
-        if (userProfile && userProfile.role === role) {
-          setProfile(userProfile);
-          return true;
-        } else {
-          // Sign out if role doesn't match
-          await supabase.auth.signOut();
-          return false;
-        }
-      }
-
-      return false;
-    } catch (error) {
-      console.error('Login error:', error);
-      return false;
-    }
-  };
-
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        const userProfile = await fetchProfile(session.user.id);
-        setProfile(userProfile);
-      }
-      
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        const userProfile = await fetchProfile(session.user.id);
-        setProfile(userProfile);
-      } else {
-        setProfile(null);
-      }
-      
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
-  const signOut = async () => {
+  // ── Public refresh ────────────────────────────────────────────
+  const refreshProfile = useCallback(async () => {
     try {
-      await supabase.auth.signOut();
+      const { data: { user: u } } = await supabase.auth.getUser();
+      if (!u) { setProfile(null); return; }
+      const p = await fetchProfile(u.id);
+      setProfile(p);
+    } catch {
       setProfile(null);
-    } catch (error) {
-      console.error('Error signing out:', error);
     }
-  };
+  }, [fetchProfile]);
 
-  // Permission checking
-  const hasPermission = (permission: string): boolean => {
-    if (!profile) return false;
+  // ── Sign out ──────────────────────────────────────────────────
+  const signOut = useCallback(async () => {
+    try { await supabase.auth.signOut(); } catch { /* ignore */ }
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+  }, []);
 
-    switch (profile.role) {
-      case 'admin':
-        // Admins have all permissions
-        return true;
-      
-      case 'teacher':
-        // Teachers can manage students, create assignments, etc.
-        const teacherPermissions = [
-          'manage_students',
-          'create_assignments',
-          'grade_assignments',
-          'view_reports',
-          'communicate_with_parents'
-        ];
-        return teacherPermissions.includes(permission);
-      
-      case 'student':
-        // Students have limited permissions
-        const studentPermissions = [
-          'view_assignments',
-          'submit_assignments',
-          'view_grades',
-          'view_schedule'
-        ];
-        return studentPermissions.includes(permission);
-      
-      default:
-        return false;
-    }
-  };
+  // ── Main init effect ──────────────────────────────────────────
+  useEffect(() => {
+    let mounted = true;
 
-  // Role checking
-  const isRole = (role: string): boolean => {
-    return profile?.role === role;
-  };
+    // ── GUARANTEE: loading clears after 1.5 s no matter what ───
+    const hardStop = setTimeout(() => {
+      if (mounted) setIsLoading(false);
+    }, 1500);
 
-  const value = {
-    user,
-    profile,
-    session,
-    loading,
-    signOut,
-    hasPermission,
-    isRole,
-    refreshProfile,
-    login,
-  };
+    const finish = () => {
+      clearTimeout(hardStop);
+      if (mounted) setIsLoading(false);
+    };
+
+    // ── Step 1: Initial session check ─────────────────────────
+    const init = async () => {
+      try {
+        // getUser() validates the token — no stale session risk
+        const { data: { user: u } } = await supabase.auth.getUser();
+        if (!mounted) return;
+        setUser(u);
+        if (u) {
+          // Fetch profile in parallel while we set user state
+          const p = await fetchProfile(u.id);
+          if (mounted) setProfile(p);
+        }
+      } catch {
+        // silent — will fall through to hardStop
+      } finally {
+        finish();
+      }
+    };
+
+    init();
+
+    // ── Step 2: Listen for future auth state changes ───────────
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, s) => {
+        if (!mounted) return;
+
+        // Skip events that happen during init (handled above)
+        if (event === 'INITIAL_SESSION') return;
+
+        setSession(s);
+        setUser(s?.user ?? null);
+
+        try {
+          if (s?.user) {
+            const p = await fetchProfile(s.user.id);
+            if (mounted) setProfile(p);
+          } else {
+            setProfile(null);
+          }
+        } catch {
+          if (mounted) setProfile(null);
+        }
+
+        // Ensure loading is off after any auth event
+        if (mounted) setIsLoading(false);
+      }
+    );
+
+    return () => {
+      mounted = false;
+      clearTimeout(hardStop);
+      subscription.unsubscribe();
+    };
+  }, [fetchProfile]);
+
+  const value = useMemo<AuthContextType>(
+    () => ({
+      user,
+      session,
+      profile,
+      isLoading,
+      loading: isLoading,
+      signOut,
+      refreshProfile,
+      login: async () => { },
+    } as any),
+    [user, session, profile, isLoading, signOut, refreshProfile],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-} 
+// ─── Hook ─────────────────────────────────────────────────────
+export function useAuth(): AuthContextType {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
+  return ctx;
+}

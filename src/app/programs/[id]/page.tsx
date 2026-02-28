@@ -154,7 +154,7 @@ const programs = [
 
 export default function ProgramPage() {
   const params = useParams();
-  const programId = params.id as string;
+  const programId = params?.id as string;
   const program = programs.find(p => p.id === programId);
 
   if (!program) {
@@ -182,24 +182,23 @@ export default function ProgramPage() {
               Back to Programs
             </Link>
           </div>
-          
+
           <div className="flex flex-col lg:flex-row items-center gap-8">
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-4">
-                <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                  program.level === 'Beginner' ? 'bg-green-500' :
-                  program.level === 'Intermediate' ? 'bg-blue-500' : 'bg-purple-500'
-                }`}>
+                <span className={`px-3 py-1 rounded-full text-sm font-bold ${program.level === 'Beginner' ? 'bg-green-500' :
+                    program.level === 'Intermediate' ? 'bg-blue-500' : 'bg-purple-500'
+                  }`}>
                   {program.level}
                 </span>
                 <span className="bg-white/20 px-3 py-1 rounded-full text-sm">
                   {program.ageGroup}
                 </span>
               </div>
-              
+
               <h1 className="text-4xl md:text-5xl font-bold mb-4">{program.title}</h1>
               <p className="text-xl mb-6 opacity-90">{program.description}</p>
-              
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div className="text-center">
                   <div className="text-2xl font-bold">{program.duration}</div>
@@ -218,7 +217,7 @@ export default function ProgramPage() {
                   <div className="text-sm opacity-80">Max Students</div>
                 </div>
               </div>
-              
+
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link
                   href="/student-registration"
@@ -234,7 +233,7 @@ export default function ProgramPage() {
                 </Link>
               </div>
             </div>
-            
+
             <div className="flex-shrink-0">
               <div className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
                 {program.icon}

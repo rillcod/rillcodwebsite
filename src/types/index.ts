@@ -1,39 +1,21 @@
-export enum UserRole {
-  STUDENT = 'student',
-  TEACHER = 'teacher',
-  PARENT = 'parent',
-  ADMIN = 'admin'
-}
+// ─── Central Type Barrel ──────────────────────────────────────────────────────
+// Import all types from one place: import type { Student, Teacher } from '@/types'
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  avatar?: string;
-}
+export type { UserRole, UserProfile, AuthContextType } from './auth.types';
+export type { Student, ProspectiveStudent, StudentFormData } from './student.types';
+export type { School, SchoolFormData } from './school.types';
+export type { Teacher, TeacherFormData } from './teacher.types';
 
-export interface School {
-  id: string;
-  name: string;
-  address: string;
-  contactPerson: string;
-  contactEmail: string;
-  contactPhone: string;
-  partnershipLevel: 'premium' | 'enterprise' | 'basic';
-  studentCount: number;
-  activeSince: Date;
-  status: 'active' | 'pending' | 'inactive';
-}
+// ─── Shared utility types ─────────────────────────────────────────────────────
+export type ApiResponse<T> = {
+  data: T | null;
+  error: string | null;
+};
 
-export interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-}
+export type PaginatedResponse<T> = ApiResponse<T> & {
+  count: number;
+  page: number;
+  pageSize: number;
+};
 
-export interface LoginCredentials {
-  email: string;
-  password: string;
-  role: UserRole;
-} 
+export type LoadingState = 'idle' | 'loading' | 'success' | 'error';

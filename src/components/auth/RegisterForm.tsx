@@ -13,99 +13,51 @@ import {
   CheckIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/auth-context';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 
 const roles = [
-  {
-    role: 'admin',
-    title: 'Administrator',
-    description: 'Manage academy operations and partnerships',
-    icon: AcademicCapIcon,
-    color: 'bg-blue-600 hover:bg-blue-700'
-  },
-  {
-    role: 'teacher',
-    title: 'Teacher',
-    description: 'Access lesson plans and student progress',
-    icon: UserGroupIcon,
-    color: 'bg-green-600 hover:bg-green-700'
-  },
-  {
-    role: 'student',
-    title: 'Student',
-    description: 'Access courses and track learning progress',
-    icon: ComputerDesktopIcon,
-    color: 'bg-purple-600 hover:bg-purple-700'
-  }
+  { role: 'admin', label: 'Administrator', demoEmail: 'admin@school.com' },
+  { role: 'teacher', label: 'Teacher', demoEmail: 'teacher@school.com' },
+  { role: 'student', label: 'Student', demoEmail: 'student@school.com' }
 ];
 
 export default function RegisterForm() {
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
   const { refreshProfile } = useAuth();
   const router = useRouter();
+  const supabase = createClient();
 
   const handleRoleSelect = (role: string) => {
     setSelectedRole(role);
     setError('');
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const validateForm = () => {
-    if (!selectedRole) {
-      setError('Please select your role');
-      return false;
+    const roleData = roles.find(r => r.role === role);
+    if (roleData) {
+      setEmail(roleData.demoEmail);
     }
-
-    if (!formData.fullName.trim()) {
-      setError('Full name is required');
-      return false;
-    }
-
-    if (!formData.email.trim()) {
-      setError('Email is required');
-      return false;
-    }
-
-    if (!formData.password) {
-      setError('Password is required');
-      return false;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return false;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return false;
-    }
-
-    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
+    if (!selectedRole) {
+      setError('Please select your role');
+      return;
+    }
+
+    if (!email || !password || !confirmPassword) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
 
@@ -115,11 +67,10 @@ export default function RegisterForm() {
     try {
       // Sign up with Supabase
       const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
+        email,
+        password,
         options: {
           data: {
-            full_name: formData.fullName,
             role: selectedRole
           }
         }
@@ -131,23 +82,28 @@ export default function RegisterForm() {
       }
 
       if (data.user) {
-        // Update user profile with role
+        // Create user profile
         const { error: profileError } = await supabase
-          .from('user_profiles')
-          .update({ 
-            full_name: formData.fullName,
-            role: selectedRole
-          })
-          .eq('id', data.user.id);
+          .from('portal_users')
+          .insert([
+            {
+              id: data.user.id,
+              email: data.user.email,
+              role: selectedRole,
+              is_active: true
+            }
+          ]);
 
         if (profileError) {
-          console.error('Error updating profile:', profileError);
+          console.error('Error creating user profile:', profileError);
+          setError('Error creating user profile');
+          return;
         }
 
         // Refresh profile to get updated role
         await refreshProfile();
         
-        toast.success('Registration successful! Welcome to Rillcod Academy!');
+        toast.success('Registration successful!');
         router.push('/dashboard');
       }
     } catch (error) {
@@ -173,59 +129,26 @@ export default function RegisterForm() {
         {/* Role Selection */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900">Select Your Role</h3>
-          <div className="grid grid-cols-1 gap-3">
-            {roles.map((roleData) => {
-              const Icon = roleData.icon;
-              const isSelected = selectedRole === roleData.role;
-              
-              return (
-                <button
-                  key={roleData.role}
-                  onClick={() => handleRoleSelect(roleData.role)}
-                  className={`relative p-4 rounded-xl border-2 transition-all duration-300 ${
-                    isSelected
-                      ? 'border-blue-500 bg-blue-50 shadow-lg scale-105'
-                      : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg ${roleData.color} text-white`}>
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <h4 className="font-semibold text-gray-900">{roleData.title}</h4>
-                      <p className="text-sm text-gray-600">{roleData.description}</p>
-                    </div>
-                  </div>
-                  {isSelected && (
-                    <div className="absolute top-2 right-2 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                      <CheckIcon className="w-2 h-2 text-white" />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+          <div className="grid grid-cols-3 gap-4">
+            {roles.map((role) => (
+              <button
+                key={role.role}
+                type="button"
+                onClick={() => handleRoleSelect(role.role)}
+                className={`p-3 text-center rounded-lg border ${
+                  selectedRole === role.role
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-300 hover:border-blue-300'
+                }`}
+              >
+                {role.label}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Registration Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
-              Full Name
-            </label>
-            <input
-              id="fullName"
-              name="fullName"
-              type="text"
-              value={formData.fullName}
-              onChange={handleInputChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              placeholder="Enter your full name"
-              required
-            />
-          </div>
-
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               Email Address
@@ -234,8 +157,8 @@ export default function RegisterForm() {
               id="email"
               name="email"
               type="email"
-              value={formData.email}
-              onChange={handleInputChange}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               placeholder="Enter your email"
               required
@@ -251,8 +174,8 @@ export default function RegisterForm() {
                 id="password"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
-                value={formData.password}
-                onChange={handleInputChange}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12"
                 placeholder="Create a password"
                 required
@@ -279,19 +202,19 @@ export default function RegisterForm() {
               <input
                 id="confirmPassword"
                 name="confirmPassword"
-                type={showConfirmPassword ? 'text' : 'password'}
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
+                type={showPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12"
                 placeholder="Confirm your password"
                 required
               />
               <button
                 type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                onClick={() => setShowPassword(!showPassword)}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
               >
-                {showConfirmPassword ? (
+                {showPassword ? (
                   <EyeSlashIcon className="h-5 w-5 text-gray-400" />
                 ) : (
                   <EyeIcon className="h-5 w-5 text-gray-400" />
@@ -309,9 +232,9 @@ export default function RegisterForm() {
 
           <button
             type="submit"
-            disabled={isLoading || !selectedRole}
+            disabled={isLoading}
             className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-all duration-300 ${
-              isLoading || !selectedRole
+              isLoading
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 hover:shadow-lg transform hover:scale-105'
             }`}

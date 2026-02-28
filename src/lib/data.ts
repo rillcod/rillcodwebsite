@@ -1,7 +1,7 @@
-import { 
-  AcademicCapIcon, 
-  UserGroupIcon, 
-  BuildingOfficeIcon, 
+import {
+  AcademicCapIcon,
+  UserGroupIcon,
+  BuildingOfficeIcon,
   ComputerDesktopIcon,
   CodeBracketIcon,
   DevicePhoneMobileIcon,
@@ -51,7 +51,7 @@ export const stats = [
 // User roles for portal access
 export const roles: { role: UserRole; title: string; description: string; icon: any; href: string; color: string }[] = [
   {
-    role: UserRole.ADMIN,
+    role: 'admin',
     title: 'Administrator Portal',
     description: 'Manage academy operations, schools, teachers, and curriculum',
     icon: AcademicCapIcon,
@@ -59,7 +59,7 @@ export const roles: { role: UserRole; title: string; description: string; icon: 
     color: 'bg-blue-600 hover:bg-blue-700'
   },
   {
-    role: UserRole.TEACHER,
+    role: 'teacher',
     title: 'Teacher Portal',
     description: 'Access lesson plans, student progress, and teaching resources',
     icon: UserGroupIcon,
@@ -67,7 +67,7 @@ export const roles: { role: UserRole; title: string; description: string; icon: 
     color: 'bg-green-600 hover:bg-green-700'
   },
   {
-    role: UserRole.STUDENT,
+    role: 'student',
     title: 'Student Portal',
     description: 'Access courses, lessons, and track your learning progress',
     icon: ComputerDesktopIcon,
@@ -147,7 +147,7 @@ export const programs = [
     color: "from-blue-400 to-blue-600",
     features: [
       "Computer Hardware & Software Basics",
-      "Operating System Navigation", 
+      "Operating System Navigation",
       "File Management & Organization",
       "Internet Safety & Digital Citizenship",
       "Basic Troubleshooting",
