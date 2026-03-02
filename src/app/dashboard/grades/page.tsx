@@ -122,11 +122,11 @@ function GradeModal({ sub, onClose, onSaved }: {
                                 <div className="w-full h-3 bg-white/5 rounded-full mb-1 overflow-hidden">
                                     <div style={{ width: `${Math.min(info?.pct ?? 0, 100)}%` }}
                                         className={`h-3 rounded-full transition-all duration-300 ${info?.color === 'emerald' ? 'bg-emerald-500' :
-                                                info?.color === 'amber' ? 'bg-amber-500' : 'bg-rose-500'
+                                            info?.color === 'amber' ? 'bg-amber-500' : 'bg-rose-500'
                                             }`} />
                                 </div>
                                 {info && (
-                                    <div className={`flex items-center gap-2 text-${info.color}-400`}>
+                                    <div className={`flex items-center gap-2 ${info.color === 'emerald' ? 'text-emerald-400' : info.color === 'amber' ? 'text-amber-400' : 'text-rose-400'}`}>
                                         <span className="text-2xl font-black">{info.letter}</span>
                                         <span className="text-sm font-semibold">{info.pct}%</span>
                                     </div>
@@ -178,7 +178,8 @@ export default function GradesPage() {
     const [grading, setGrading] = useState<any | null>(null);
 
     const role = profile?.role ?? '';
-    const isStaff = role === 'admin' || role === 'teacher';
+    const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
+    const canGrade = role === 'admin' || role === 'teacher';
 
     // ── Fetch ─────────────────────────────────────────────────
     useEffect(() => {
@@ -190,7 +191,10 @@ export default function GradesPage() {
             setError(null);
             try {
                 const data = isStaff
-                    ? await fetchSubmissionsForGrading(role === 'teacher' ? profile!.id : undefined)
+                    ? await fetchSubmissionsForGrading({
+                        teacherId: role === 'teacher' ? profile!.id : undefined,
+                        schoolId: role === 'school' ? profile!.school_id : undefined
+                    })
                     : await fetchStudentGrades(profile!.id);
                 if (!cancelled) setItems(data);
             } catch (e: any) {
@@ -403,8 +407,8 @@ export default function GradesPage() {
                                         <div className="flex-shrink-0 text-right mr-2">
                                             {info ? (
                                                 <>
-                                                    <span className={`text-lg font-black text-${info.color}-400`}>{info.letter}</span>
-                                                    <p className={`text-xs text-${info.color}-400 opacity-70`}>{s.grade}/{max}</p>
+                                                    <span className={`text-lg font-black ${info.color === 'emerald' ? 'text-emerald-400' : info.color === 'amber' ? 'text-amber-400' : 'text-rose-400'}`}>{info.letter}</span>
+                                                    <p className={`text-xs opacity-70 ${info.color === 'emerald' ? 'text-emerald-400' : info.color === 'amber' ? 'text-amber-400' : 'text-rose-400'}`}>{s.grade}/{max}</p>
                                                 </>
                                             ) : (
                                                 <span className="text-white/20 text-sm">Not graded</span>
@@ -412,15 +416,19 @@ export default function GradesPage() {
                                         </div>
 
                                         {/* Grade button */}
-                                        <button
-                                            onClick={() => setGrading(s)}
-                                            className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${s.status === 'submitted'
+                                        {canGrade ? (
+                                            <button
+                                                onClick={() => setGrading(s)}
+                                                className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${s.status === 'submitted'
                                                     ? 'bg-emerald-600 hover:bg-emerald-500 text-white opacity-100'
                                                     : 'bg-white/5 hover:bg-white/10 text-white/30 opacity-0 group-hover:opacity-100'
-                                                }`}
-                                            title={s.status === 'graded' ? 'Edit grade' : 'Grade now'}>
-                                            <PencilSquareIcon className="w-4 h-4" />
-                                        </button>
+                                                    }`}
+                                                title={s.status === 'graded' ? 'Edit grade' : 'Grade now'}>
+                                                <PencilSquareIcon className="w-4 h-4" />
+                                            </button>
+                                        ) : (
+                                            <div className="w-9"></div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -442,7 +450,7 @@ export default function GradesPage() {
                                     {info && (
                                         <div className="h-1.5 bg-white/5">
                                             <div style={{ width: `${info.pct}%` }}
-                                                className={`h-1.5 bg-${info.color}-500 transition-all duration-500`} />
+                                                className={`h-1.5 transition-all duration-500 ${info.color === 'emerald' ? 'bg-emerald-500' : info.color === 'amber' ? 'bg-amber-500' : 'bg-rose-500'}`} />
                                         </div>
                                     )}
 
@@ -478,8 +486,8 @@ export default function GradesPage() {
                                         <div className="flex-shrink-0 text-right">
                                             {info ? (
                                                 <>
-                                                    <div className={`text-5xl font-black text-${info.color}-400 leading-none`}>{info.letter}</div>
-                                                    <div className={`text-sm font-bold text-${info.color}-400 mt-1`}>{info.pct}%</div>
+                                                    <div className={`text-5xl font-black leading-none ${info.color === 'emerald' ? 'text-emerald-400' : info.color === 'amber' ? 'text-amber-400' : 'text-rose-400'}`}>{info.letter}</div>
+                                                    <div className={`text-sm font-bold mt-1 ${info.color === 'emerald' ? 'text-emerald-400' : info.color === 'amber' ? 'text-amber-400' : 'text-rose-400'}`}>{info.pct}%</div>
                                                     <div className="text-xs text-white/30 mt-0.5">{s.grade}/{max} pts</div>
                                                 </>
                                             ) : (

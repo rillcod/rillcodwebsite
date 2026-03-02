@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: Request) {
     try {
-        const { email, password, fullName, role } = await request.json();
+        const { email, password, fullName, role, school_id } = await request.json();
 
         if (!email || !password || !role) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -43,6 +43,7 @@ export async function POST(request: Request) {
                 email,
                 full_name: fullName || '',
                 role: role,
+                school_id: school_id || null,
                 is_active: true,
                 created_at: new Date().toISOString(),
             });

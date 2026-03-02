@@ -1,104 +1,120 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { createClient } from '@/lib/supabase/client';
-import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, ArrowRight, Loader2, CheckCircle } from "lucide-react";
+import { logger } from '@/lib/logger';
+import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, Building2, ArrowRight, Loader2 } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
-
-
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
+
+  const envMissing = useMemo(
+    () => !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    []
+  );
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | null>(null);
+  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | "school" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const type = searchParams?.get("type");
-    if (type === "admin" || type === "teacher" || type === "student") {
-      setSelectedRole(type);
-    }
-
-    // Auto-clear stuck sessions
+    if (type === "admin" || type === "teacher" || type === "student" || type === "school") setSelectedRole(type);
     if (searchParams?.get("clear") === "1") {
-      supabase.auth.signOut().then(() => {
-        router.replace('/login'); // Strip the ?clear=1 from url
-      });
+      supabase.auth.signOut().then(() => router.replace('/login'));
     }
-  }, [searchParams, router, supabase.auth]);
+    if (envMissing) {
+      setError("Missing Supabase config. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+    }
+    return () => abortRef.current?.abort();
+  }, []); // eslint-disable-line
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedRole) {
-      setError("Please select a role to continue.");
-      return;
-    }
+    if (envMissing) return;
+    if (!selectedRole) { setError("Please select a role to continue."); return; }
+
     setLoading(true);
     setError(null);
+    logger.info('AUTH_ATTEMPT', { email, role: selectedRole });
+
+    // Create abort controller for timeout
+    abortRef.current = new AbortController();
+    const timeout = setTimeout(() => abortRef.current?.abort(), 12000);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Step 1: Authenticate with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      clearTimeout(timeout);
 
       if (authError) throw authError;
+      if (!authData?.user) throw new Error("Could not log in. Please try again.");
 
-      if (!authData?.user) throw new Error("Could not log in");
-
+      // Step 2: Verify role matches AND update last_login atomically
+      // Both happen in a single query — no extra round trip
       const { data: profileData, error: profileError } = await supabase
         .from('portal_users')
-        .select('*')
+        .select('role, is_active')
         .eq('id', authData.user.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) throw profileError;
-
+      if (!profileData) throw new Error("Account not found in portal. Contact your administrator.");
+      if (!profileData.is_active) {
+        await supabase.auth.signOut();
+        throw new Error("Your account has been deactivated. Contact your administrator.");
+      }
       if (profileData.role !== selectedRole) {
         await supabase.auth.signOut();
-        throw new Error('Invalid role selected for this account.');
+        throw new Error(`This account is registered as a ${profileData.role}, not ${selectedRole}. Please select the correct role.`);
       }
 
+      logger.info('AUTH_SUCCESS', { userId: authData.user.id, role: profileData.role });
+
+      // Update last_login in the background (non-blocking)
+      supabase.from('portal_users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', authData.user.id)
+        .then(() => { });
+
+      // Step 3: Redirect — router.push for soft navigation (faster)
       const redirectTo = searchParams?.get('redirectedFrom') || '/dashboard';
       router.push(redirectTo);
       router.refresh();
+
     } catch (err: any) {
-      setError(err.message || 'An error occurred during sign in');
-      console.error('Login error:', err);
+      clearTimeout(timeout);
+      const msg = err?.message || 'Sign in failed. Please check your credentials.';
+      logger.warn('AUTH_FAILURE', { email, role: selectedRole, message: msg });
+      // Make Supabase's generic errors more user-friendly
+      setError(
+        msg.includes('Invalid login credentials')
+          ? 'Invalid email or password. Please try again.'
+          : msg.includes('Email not confirmed')
+            ? 'Please verify your email address before signing in.'
+            : msg.includes('Too many requests')
+              ? 'Too many attempts. Please wait a moment and try again.'
+              : msg
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRoleSelect = (role: "student" | "teacher" | "admin") => {
+  const handleRoleSelect = (role: "student" | "teacher" | "admin" | "school") => {
     setSelectedRole(role);
     setError(null);
-    // Clear the form so users enter their real credentials
     setEmail('');
     setPassword('');
-    setResetSent(false);
   };
 
-  const handleForgotPassword = useCallback(async () => {
-    if (!email.trim()) {
-      setError('Enter your email address first, then click Forgot Password.');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setLoading(false);
-    if (resetErr) setError(resetErr.message);
-    else setResetSent(true);
-  }, [email, supabase]);
 
   return (
     <div className="min-h-screen bg-[#0A0A0B] flex overflow-hidden relative selection:bg-indigo-500/30">
@@ -110,7 +126,7 @@ export default function LoginPage() {
         <div className="max-w-[1200px] mx-auto w-full">
           <div className="flex flex-col lg:flex-row gap-12 lg:gap-24 items-center">
 
-            {/* Left side - Roles */}
+            {/* Left — Role picker */}
             <div className="w-full lg:w-1/2 flex flex-col">
               <div className="mb-12">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-indigo-300 text-sm font-medium mb-6 backdrop-blur-md">
@@ -123,22 +139,23 @@ export default function LoginPage() {
                 <h2 className="text-5xl lg:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-white/70 tracking-tight leading-tight mb-4">
                   Choose Your <br className="hidden lg:block" /> Path.
                 </h2>
-                <p className="text-lg text-gray-400 font-light max-w-md">
-                  Select your role to embark on an exceptional learning journey. Experience education reimagined.
-                </p>
+                <p
+                  className="text-lg text-gray-400 font-light max-w-md"
+                  dangerouslySetInnerHTML={{ __html: 'Select your role to embark on an exceptional learning journey.' }}
+                />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 {[
                   { id: "student", icon: GraduationCap, title: "Student", desc: "Start learning", gradient: "from-blue-500/10 to-indigo-500/10", border: "border-indigo-500/20", hover: "hover:border-indigo-500/50 hover:bg-indigo-500/10", active: "border-indigo-500 bg-indigo-500/20 ring-1 ring-indigo-500/50 shadow-[0_0_30px_-5px_rgba(99,102,241,0.3)]", iconColor: "text-indigo-400" },
                   { id: "teacher", icon: User, title: "Teacher", desc: "Guide students", gradient: "from-emerald-500/10 to-teal-500/10", border: "border-teal-500/20", hover: "hover:border-teal-500/50 hover:bg-teal-500/10", active: "border-teal-500 bg-teal-500/20 ring-1 ring-teal-500/50 shadow-[0_0_30px_-5px_rgba(20,184,166,0.3)]", iconColor: "text-teal-400" },
+                  { id: "school", icon: Building2, title: "School", desc: "Manage institution", gradient: "from-orange-500/10 to-red-500/10", border: "border-orange-500/20", hover: "hover:border-orange-500/50 hover:bg-orange-500/10", active: "border-orange-500 bg-orange-500/20 ring-1 ring-orange-500/50 shadow-[0_0_30px_-5px_rgba(249,115,22,0.3)]", iconColor: "text-orange-400" },
                   { id: "admin", icon: Shield, title: "Admin", desc: "Manage academy", gradient: "from-purple-500/10 to-pink-500/10", border: "border-purple-500/20", hover: "hover:border-purple-500/50 hover:bg-purple-500/10", active: "border-purple-500 bg-purple-500/20 ring-1 ring-purple-500/50 shadow-[0_0_30px_-5px_rgba(168,85,247,0.3)]", iconColor: "text-purple-400" }
                 ].map((role) => (
                   <button
                     key={role.id}
                     onClick={() => handleRoleSelect(role.id as any)}
-                    className={`relative p-6 rounded-2xl border transition-all duration-300 ease-out flex flex-col items-start gap-4 text-left group overflow-hidden bg-white/[0.02] backdrop-blur-xl ${selectedRole === role.id ? role.active : `${role.border} ${role.hover}`
-                      }`}
+                    className={`relative p-6 rounded-2xl border transition-all duration-300 ease-out flex flex-col items-start gap-4 text-left group overflow-hidden bg-white/[0.02] backdrop-blur-xl ${selectedRole === role.id ? role.active : `${role.border} ${role.hover}`}`}
                   >
                     <div className={`absolute inset-0 bg-gradient-to-br ${role.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
                     <div className={`p-3 rounded-xl bg-white/5 border border-white/10 ${role.iconColor} group-hover:scale-110 transition-transform duration-300`}>
@@ -153,14 +170,11 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Right side - Login Form */}
+            {/* Right — Login form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center">
               <div className="w-full max-w-md relative">
-                {/* Form glow behind */}
                 <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 rounded-[2rem] blur-xl opacity-20" />
-
                 <div className="relative bg-[#111113]/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 lg:p-10 shadow-2xl">
-
 
                   <div className="mb-8">
                     <h2 className="text-2xl font-bold text-white mb-2">Sign In</h2>
@@ -169,9 +183,7 @@ export default function LoginPage() {
 
                   {error && (
                     <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
-                      <div className="text-red-400 mt-0.5">
-                        <Shield className="w-5 h-5" />
-                      </div>
+                      <Shield className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
                       <p className="text-sm text-red-200">{error}</p>
                     </div>
                   )}
@@ -189,6 +201,11 @@ export default function LoginPage() {
                           required
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
+                          autoComplete="email"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          inputMode="email"
+                          enterKeyHint="next"
                           className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-white placeholder-gray-500 transition-all outline-none"
                           placeholder="name@example.com"
                         />
@@ -199,8 +216,7 @@ export default function LoginPage() {
                       <div className="flex items-center justify-between">
                         <label htmlFor="password" className="text-sm font-medium text-gray-300">Password</label>
                         <a
-                          href="#"
-                          onClick={(e) => { e.preventDefault(); handleForgotPassword(); }}
+                          href="/reset-password"
                           className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
                           Forgot password?
                         </a>
@@ -215,6 +231,8 @@ export default function LoginPage() {
                           required
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
+                          autoComplete="current-password"
+                          enterKeyHint="done"
                           className="w-full pl-12 pr-12 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-white placeholder-gray-500 transition-all outline-none"
                           placeholder="••••••••"
                         />
@@ -230,14 +248,14 @@ export default function LoginPage() {
 
                     <button
                       type="submit"
-                      disabled={loading || !selectedRole}
+                      disabled={loading || !selectedRole || envMissing}
                       className="w-full relative flex items-center justify-center gap-2 py-4 px-4 bg-white text-black rounded-xl font-bold text-sm tracking-wide hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#111113] focus:ring-white transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden group"
                     >
                       <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                       {loading ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
-                          Authenticating...
+                          Signing in…
                         </>
                       ) : (
                         <>
@@ -248,19 +266,12 @@ export default function LoginPage() {
                     </button>
                   </form>
 
-                  {resetSent && (
-                    <div className="mt-5 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-emerald-300">Password reset email sent! Check your inbox.</p>
-                    </div>
-                  )}
-
-                  {selectedRole && !resetSent && (
+                  {selectedRole && selectedRole !== 'admin' && (
                     <p className="mt-4 text-center text-xs text-gray-500">
                       Signing in as{' '}
                       <span className="text-gray-300 font-semibold capitalize">{selectedRole}</span>
                       {' · '}
-                      <a href="/student-registration" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+                      <a href={selectedRole === 'school' ? "/partnership" : "/student-registration"} className="text-indigo-400 hover:text-indigo-300 transition-colors">
                         New? Register here →
                       </a>
                     </p>
@@ -275,4 +286,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { fetchClasses } from '@/services/dashboard.service';
+import { createClient } from '@/lib/supabase/client';
 import {
   BookOpenIcon, PlusIcon, MagnifyingGlassIcon, AcademicCapIcon,
   ClockIcon, UserGroupIcon, ChartBarIcon, CalendarIcon,
@@ -24,6 +25,16 @@ export default function ClassesPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Delete class "${name}"? This cannot be undone.`)) return;
+    setDeleting(id);
+    const { error } = await createClient().from('classes').delete().eq('id', id);
+    if (error) { alert(error.message); }
+    else { setClasses(prev => prev.filter(c => c.id !== id)); }
+    setDeleting(null);
+  };
 
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -187,7 +198,10 @@ export default function ClassesPage() {
                       className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-white/60 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
                       <PencilIcon className="w-4 h-4" /> Edit
                     </Link>
-                    <button className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors">
+                    <button
+                      onClick={() => handleDelete(cls.id, cls.name)}
+                      disabled={deleting === cls.id}
+                      className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors disabled:opacity-40">
                       <TrashIcon className="w-4 h-4" />
                     </button>
                   </div>
@@ -204,7 +218,7 @@ export default function ClassesPage() {
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: 'Start Live Class', icon: VideoCameraIcon, color: 'bg-blue-600 hover:bg-blue-700', href: '#' },
+              { label: 'Add New Class', icon: VideoCameraIcon, color: 'bg-blue-600 hover:bg-blue-700', href: '/dashboard/classes/add' },
               { label: 'Create Assignment', icon: DocumentTextIcon, color: 'bg-violet-600 hover:bg-violet-700', href: '/dashboard/assignments' },
               { label: 'View Progress', icon: ChartBarIcon, color: 'bg-emerald-600 hover:bg-emerald-700', href: '/dashboard/progress' },
               { label: 'Lesson Plans', icon: BookOpenIcon, color: 'bg-amber-600 hover:bg-amber-700', href: '/dashboard/lessons' },

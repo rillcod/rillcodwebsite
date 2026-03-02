@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import Image from "next/image";
 import { Camera, Image as ImageIcon, Users, Award, Code, Filter, Search, Calendar, MapPin, Star, Heart, Share2, Download, Eye } from "lucide-react";
 import Link from "next/link";
 import { 
@@ -162,6 +163,8 @@ const categories = [
 ];
 
 export default function Gallery() {
+  const touchStartY = useRef<number | null>(null);
+  const touchDeltaY = useRef<number>(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
@@ -418,12 +421,32 @@ export default function Gallery() {
         {/* Image Modal */}
         {isModalOpen && selectedImage && (
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="relative">
-                <img
-                  src={galleryData.find(img => img.id === selectedImage)?.image}
-                  alt={galleryData.find(img => img.id === selectedImage)?.title}
-                  className="w-full h-64 md:h-96 object-cover rounded-t-xl"
+            <div
+              className="bg-white dark:bg-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              onTouchStart={(e) => {
+                touchStartY.current = e.touches[0].clientY;
+                touchDeltaY.current = 0;
+              }}
+              onTouchMove={(e) => {
+                if (touchStartY.current === null) return;
+                touchDeltaY.current = e.touches[0].clientY - touchStartY.current;
+              }}
+              onTouchEnd={() => {
+                if (touchDeltaY.current > 120) {
+                  closeModal();
+                }
+                touchStartY.current = null;
+                touchDeltaY.current = 0;
+              }}
+            >
+              <div className="relative h-64 md:h-96">
+                <Image
+                  src={galleryData.find(img => img.id === selectedImage)?.image || ""}
+                  alt={galleryData.find(img => img.id === selectedImage)?.title || "Gallery image"}
+                  fill
+                  unoptimized
+                  sizes="(max-width: 768px) 100vw, 70vw"
+                  className="object-cover rounded-t-xl"
                 />
                 <button
                   onClick={closeModal}

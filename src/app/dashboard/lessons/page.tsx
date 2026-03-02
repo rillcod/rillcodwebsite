@@ -28,6 +28,16 @@ export default function LessonsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const handleDelete = async (id: string, title: string) => {
+    if (!confirm(`Delete lesson "${title}"? This cannot be undone.`)) return;
+    setDeleting(id);
+    const { error } = await createClient().from('lessons').delete().eq('id', id);
+    if (error) { alert(error.message); }
+    else { setLessons(prev => prev.filter(l => l.id !== id)); }
+    setDeleting(null);
+  };
 
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -84,7 +94,7 @@ export default function LessonsPage() {
   if (authLoading || loading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
         <p className="text-white/40 text-sm">Loading lessons…</p>
       </div>
     </div>
@@ -225,7 +235,10 @@ export default function LessonsPage() {
                             className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white/50 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
                             <PencilIcon className="w-4 h-4" /> Edit
                           </Link>
-                          <button className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors">
+                          <button
+                            onClick={() => handleDelete(lesson.id, lesson.title)}
+                            disabled={deleting === lesson.id}
+                            className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors disabled:opacity-40">
                             <TrashIcon className="w-4 h-4" />
                           </button>
                         </>
@@ -246,10 +259,10 @@ export default function LessonsPage() {
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'Record Lesson', icon: VideoCameraIcon, color: 'bg-blue-600 hover:bg-blue-700', href: '#' },
+                { label: 'Add New Lesson', icon: VideoCameraIcon, color: 'bg-blue-600 hover:bg-blue-700', href: '/dashboard/lessons/add' },
                 { label: 'Create Quiz', icon: DocumentTextIcon, color: 'bg-violet-600 hover:bg-violet-700', href: '/dashboard/assignments/new' },
-                { label: 'Interactive Demo', icon: PlayIcon, color: 'bg-emerald-600 hover:bg-emerald-700', href: '#' },
-                { label: 'Group Activity', icon: UserGroupIcon, color: 'bg-amber-600 hover:bg-amber-700', href: '#' },
+                { label: 'CBT Exams', icon: PlayIcon, color: 'bg-emerald-600 hover:bg-emerald-700', href: '/dashboard/cbt' },
+                { label: 'Class Sessions', icon: UserGroupIcon, color: 'bg-amber-600 hover:bg-amber-700', href: '/dashboard/classes' },
               ].map((a) => (
                 <Link key={a.label} href={a.href}
                   className={`flex items-center gap-2 px-4 py-3 ${a.color} text-white font-semibold text-sm rounded-xl transition-all hover:scale-[1.02]`}>

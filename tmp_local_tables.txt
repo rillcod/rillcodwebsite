@@ -1,0 +1,39 @@
+activity_logs
+announcements
+assignment_submissions
+assignments
+attendance
+audit_logs
+badges
+cbt_exams
+cbt_questions
+cbt_sessions
+certificates
+class_sessions
+classes
+course_materials
+courses
+create table if not exists grade_reports (
+create table if not exists lessons (
+create table if not exists student_progress (
+create table if not exists teacher_schools (
+enrollments
+flagged_content
+generated_reports
+leaderboards
+messages
+notifications
+payments
+point_transactions
+portal_users
+programs
+report_templates
+schools
+student_enrollments
+students
+system_settings
+teachers
+topic_subscriptions
+user_badges
+user_points
+user_profiles

@@ -57,23 +57,36 @@ export default function StudentProgressReportPage() {
       setLoading(true); setError(null);
       try {
         const supabase = createClient();
-        const [studRes, subRes, enrRes] = await Promise.allSettled([
-          supabase.from('students')
-            .select('id, full_name, school_name, current_class, parent_name, parent_email, status, created_at, city, state')
-            .eq('id', studentId).single(),
-          supabase.from('assignment_submissions')
-            .select(`id, grade, status, submitted_at, graded_at, feedback,
-              assignments ( id, title, max_points, due_date, assignment_type,
-                courses ( id, title, programs ( name ) ) )`)
-            .eq('student_id', studentId)
-            .order('submitted_at', { ascending: false }),
-          supabase.from('student_enrollments')
-            .select(`id, status, enrollment_date, completion_date, grade,
-              programs ( id, name )`)
-            .eq('student_id', studentId),
+        // Step 1: Load student (including user_id link to portal_users)
+        const { data: studentData, error: studErr } = await supabase
+          .from('students')
+          .select('id, full_name, school_name, current_class, parent_name, parent_email, status, created_at, city, state, user_id, enrollment_type, preferred_schedule, course_interest')
+          .eq('id', studentId)
+          .single();
+        if (!cancelled) setStudent(studentData ?? null);
+        if (studErr) throw studErr;
+
+        // Step 2: Use portal user_id for submission/enrollment queries
+        const portalUserId = studentData?.user_id;
+        const [subRes, enrRes] = await Promise.allSettled([
+          portalUserId
+            ? supabase.from('assignment_submissions')
+                .select(`id, grade, status, submitted_at, graded_at, feedback,
+                  assignments ( id, title, max_points, due_date, assignment_type,
+                    courses ( id, title, programs ( name ) ) )`)
+                .eq('portal_user_id', portalUserId)
+                .order('submitted_at', { ascending: false })
+            : Promise.resolve({ data: [] as any[], error: null }),
+          portalUserId
+            ? supabase.from('enrollments')
+                .select(`id, status, enrollment_date, completion_date, grade, programs ( id, name )`)
+                .eq('user_id', portalUserId)
+                .eq('role', 'student')
+            : supabase.from('student_enrollments')
+                .select(`id, status, enrollment_date, completion_date, grade, programs ( id, name )`)
+                .eq('student_id', studentId),
         ]);
         if (!cancelled) {
-          setStudent(studRes.status === 'fulfilled' ? studRes.value.data : null);
           setSubmissions(subRes.status === 'fulfilled' ? (subRes.value.data ?? []) : []);
           setEnrollments(enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : []);
         }
@@ -167,6 +180,9 @@ export default function StudentProgressReportPage() {
                 { label: 'Parent', value: student.parent_name, icon: UserIcon },
                 { label: 'Parent Email', value: student.parent_email, icon: null },
                 { label: 'Location', value: [student.city, student.state].filter(Boolean).join(', '), icon: null },
+                { label: 'Enrollment Type', value: student.enrollment_type, icon: null },
+                { label: 'Preferred Schedule', value: student.preferred_schedule, icon: null },
+                { label: 'Course Interest', value: student.course_interest, icon: null },
                 { label: 'Registered', value: student.created_at ? new Date(student.created_at).toLocaleDateString() : '—', icon: null },
                 { label: 'Status', value: student.status, icon: null },
               ].map(({ label, value, icon: Icon }) => value ? (

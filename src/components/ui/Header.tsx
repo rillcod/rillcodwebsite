@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { 
   Bars3Icon, 
@@ -71,9 +72,12 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 group">
-            <img 
+            <Image
               src="https://res.cloudinary.com/dpigtwit0/image/upload/v1747032682/PhotoRoom-20250512_074926_zgudyt.png"
               alt="Rillcod Academy"
+              width={160}
+              height={40}
+              unoptimized
               className="h-10 w-auto transition-transform duration-300 group-hover:scale-105"
             />
             <span className="text-xl md:text-2xl font-bold text-[#FF914D] transition-colors duration-300">

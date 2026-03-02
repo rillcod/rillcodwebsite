@@ -48,7 +48,7 @@ async function loadAdminStats(supabase: ReturnType<typeof createClient>) {
 async function loadAdminActivity(supabase: ReturnType<typeof createClient>): Promise<Activity[]> {
   const { data } = await supabase
     .from('assignment_submissions')
-    .select('id, status, submitted_at, portal_users(full_name), assignments(title)')
+    .select('id, status, submitted_at, portal_users!assignment_submissions_portal_user_id_fkey(full_name), assignments(title)')
     .order('submitted_at', { ascending: false })
     .limit(5);
   return (data ?? []).map((s: any) => ({
@@ -64,12 +64,14 @@ async function loadAdminActivity(supabase: ReturnType<typeof createClient>): Pro
 async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userId: string) {
   const [classes, pending, subs] = await Promise.allSettled([
     supabase.from('classes').select('id', { count: 'exact', head: true }).eq('teacher_id', userId),
-    supabase.from('assignment_submissions').select('id', { count: 'exact', head: true })
+    supabase.from('assignment_submissions')
+      .select('id, assignments!inner(created_by)', { count: 'exact', head: true })
       .eq('status', 'submitted')
-      .in('assignments.created_by', [userId]),
-    supabase.from('assignment_submissions').select('grade')
+      .eq('assignments.created_by', userId),
+    supabase.from('assignment_submissions')
+      .select('grade, assignments!inner(created_by)')
+      .eq('assignments.created_by', userId)
       .not('grade', 'is', null)
-      .in('assignments.created_by', [userId])
       .limit(100),
   ]);
   const myClasses = classes.status === 'fulfilled' ? (classes.value.count ?? 0) : 0;
@@ -89,7 +91,7 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
 async function loadTeacherActivity(supabase: ReturnType<typeof createClient>, userId: string): Promise<Activity[]> {
   const { data } = await supabase
     .from('assignment_submissions')
-    .select('id, status, submitted_at, portal_users(full_name), assignments!inner(title, created_by)')
+    .select('id, status, submitted_at, portal_users!assignment_submissions_portal_user_id_fkey(full_name), assignments!inner(title, created_by)')
     .eq('assignments.created_by', userId)
     .order('submitted_at', { ascending: false })
     .limit(5);
@@ -105,7 +107,7 @@ async function loadTeacherActivity(supabase: ReturnType<typeof createClient>, us
 
 async function loadStudentStats(supabase: ReturnType<typeof createClient>, userId: string) {
   const [enr, subs, graded] = await Promise.allSettled([
-    supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('portal_user_id', userId),
+    supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('user_id', userId),
     supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('portal_user_id', userId),
     supabase.from('assignment_submissions').select('grade, assignments(max_points)')
       .eq('portal_user_id', userId).not('grade', 'is', null).limit(50),
@@ -172,14 +174,15 @@ const QUICK_ACTIONS = {
 export default function DashboardPage() {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
   const [authHardStop, setAuthHardStop] = useState(false);
   const [stats, setStats] = useState<DashStats[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
-  // Live clock
+  // Live clock — set only on client to avoid SSR hydration mismatch
   useEffect(() => {
+    setNow(new Date());
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
@@ -190,12 +193,13 @@ export default function DashboardPage() {
     return () => clearTimeout(t);
   }, []);
 
-  // Redirect when auth resolves without a session
+  // Only redirect after the hard stop fires (2s), giving onAuthStateChange time to propagate.
+  // NEVER use ?clear=1 here — that destroys a valid server-side session and creates a loop.
   useEffect(() => {
-    if (!loading && (!user || !profile)) {
-      router.replace('/login?clear=1');
+    if (authHardStop && !user) {
+      router.replace('/login');
     }
-  }, [loading, user, profile, router]);
+  }, [authHardStop, user, router]);
 
   // Fetch live stats once we know the role
   const fetchDashData = useCallback(async () => {
@@ -222,7 +226,9 @@ export default function DashboardPage() {
   useEffect(() => { fetchDashData(); }, [fetchDashData]);
 
   // ── Loading / guard screens ────────────────────────────────────
-  if (loading && !authHardStop) return (
+  // Show spinner while: auth is loading, OR auth resolved with no user but hard-stop hasn't fired yet
+  // (the 2s window gives onAuthStateChange time to propagate a SIGNED_IN event)
+  if (loading || (!user && !authHardStop)) return (
     <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-white/10 border-t-violet-500 rounded-full animate-spin" />
@@ -234,16 +240,46 @@ export default function DashboardPage() {
     </div>
   );
 
-  if (!user || !profile) return (
+  // Auth fully resolved with no user — redirect is queued in useEffect above
+  if (!user) return (
     <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4 text-center px-4">
         <div className="w-10 h-10 border-4 border-rose-500/20 border-t-rose-500 rounded-full animate-spin" />
         <p className="text-white font-semibold">Redirecting to login…</p>
-        <a href="/api/auth/signout"
+        <a href="/login"
           className="mt-2 px-6 py-2 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 text-sm font-bold rounded-xl border border-rose-600/30 transition-colors">
-          Force Sign Out
+          Go to Login
         </a>
       </div>
+    </div>
+  );
+
+  // Session exists but profile hasn't resolved yet (or doesn't exist in portal_users)
+  if (!profile) return (
+    <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
+      {authHardStop ? (
+        /* Hard stop reached — profile genuinely not found (auth account exists but no portal entry) */
+        <div className="flex flex-col items-center gap-4 text-center px-4">
+          <div className="w-14 h-14 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-center">
+            <ExclamationTriangleIcon className="w-7 h-7 text-rose-400" />
+          </div>
+          <div>
+            <p className="text-white font-bold text-lg">Portal account not found</p>
+            <p className="text-white/40 text-sm mt-1 max-w-xs">
+              Your login was successful but no portal profile was found. Contact your administrator.
+            </p>
+          </div>
+          <a href="/login?clear=1"
+            className="mt-1 px-6 py-2.5 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 text-sm font-bold rounded-xl border border-rose-600/30 transition-colors">
+            Sign Out &amp; Try Again
+          </a>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-white/10 border-t-violet-500 rounded-full animate-spin" />
+          <p className="text-white/40 text-sm">Loading profile…</p>
+        </div>
+      )}
     </div>
   );
 
@@ -268,13 +304,13 @@ export default function DashboardPage() {
             Welcome back, {profile.full_name?.split(' ')?.[0] || 'User'}!
           </h1>
           <p className="text-blue-200 text-sm mt-2 font-medium">
-            {now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            {now ? now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
           </p>
         </div>
 
         <div className="relative z-10 flex-shrink-0 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-6 py-4 flex flex-col items-center">
           <div className="text-3xl font-mono font-bold text-white tracking-widest">
-            {now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
+            {now ? now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '--:--'}
           </div>
           <div className="flex items-center gap-2 mt-2 bg-white/10 px-3 py-1 rounded-full">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]" />

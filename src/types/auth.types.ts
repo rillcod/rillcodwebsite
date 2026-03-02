@@ -1,6 +1,6 @@
 // ─── Auth Types ───────────────────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'teacher' | 'student';
+export type UserRole = 'admin' | 'teacher' | 'student' | 'school';
 
 export interface UserProfile {
     id: string;
@@ -8,10 +8,14 @@ export interface UserProfile {
     full_name: string;
     role: UserRole;
     is_active: boolean;
-    is_deleted: boolean;
+    is_deleted?: boolean;
     created_at: string;
     updated_at: string;
     metadata?: Record<string, unknown>;
+    school_id?: string;
+    phone?: string;
+    bio?: string;
+    profile_image_url?: string;
 }
 
 export interface AuthContextType {

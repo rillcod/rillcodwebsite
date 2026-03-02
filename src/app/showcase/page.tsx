@@ -1,5 +1,7 @@
 'use client'
 
+import Image from 'next/image'
+
 const projects = [
   {
     title: 'Smart Home Automation',
@@ -32,7 +34,16 @@ export default function ShowcasePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {projects.map((project, idx) => (
             <div key={idx} className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
-              <img src={project.image} alt={project.title} className="h-40 w-full object-cover" />
+              <div className="relative h-40 w-full">
+                <Image
+                  src={project.image}
+                  alt={project.title}
+                  fill
+                  unoptimized
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  className="object-cover"
+                />
+              </div>
               <div className="p-6 flex flex-col flex-grow">
                 <h2 className="text-lg font-bold text-gray-800 mb-1">{project.title}</h2>
                 <div className="text-sm text-[#FF914D] font-semibold mb-2">By {project.student}</div>

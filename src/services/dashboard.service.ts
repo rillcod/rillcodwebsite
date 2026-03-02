@@ -25,12 +25,15 @@ export async function fetchAssignments(teacherId?: string) {
     return data ?? [];
 }
 
-// For students: their submissions with assignment details
+// For students: their submissions + any unsubmitted assignments for enrolled courses
 export async function fetchStudentAssignments(portalUserId: string) {
-    const { data, error } = await db()
+    const client = db();
+
+    // 1. Get existing submissions
+    const { data: subs, error } = await client
         .from('assignment_submissions')
         .select(`
-      id, status, grade, feedback, submitted_at, graded_at, file_url,
+      id, status, grade, feedback, submitted_at, graded_at, file_url, assignment_id,
       assignments (
         id, title, description, due_date, max_points, assignment_type,
         courses ( title, programs ( name ) )
@@ -39,12 +42,51 @@ export async function fetchStudentAssignments(portalUserId: string) {
         .eq('portal_user_id', portalUserId)
         .order('submitted_at', { ascending: false });
     if (error) throw error;
-    return data ?? [];
+
+    // 2. Find enrolled program IDs
+    const { data: enr } = await client
+        .from('enrollments').select('program_id').eq('user_id', portalUserId);
+    const programIds = (enr ?? []).map((e: any) => e.program_id).filter(Boolean);
+    if (!programIds.length) return subs ?? [];
+
+    // 3. Find course IDs for those programs
+    const { data: courseRows } = await client
+        .from('courses').select('id').in('program_id', programIds);
+    const courseIds = (courseRows ?? []).map((c: any) => c.id);
+    if (!courseIds.length) return subs ?? [];
+
+    // 4. Fetch all active assignments for enrolled courses
+    const { data: allAsgns } = await client
+        .from('assignments')
+        .select(`id, title, description, due_date, max_points, assignment_type,
+          courses ( title, programs ( name ) )`)
+        .in('course_id', courseIds)
+        .eq('is_active', true)
+        .order('due_date', { ascending: true });
+
+    // 5. Add assignments not yet submitted as synthetic "missing" records
+    const submittedIds = new Set((subs ?? []).map((s: any) => s.assignment_id ?? s.assignments?.id));
+    const unsubmitted = (allAsgns ?? [])
+        .filter((a: any) => !submittedIds.has(a.id))
+        .map((a: any) => ({
+            id: `pending-${a.id}`,
+            assignment_id: a.id,
+            status: 'missing',
+            grade: null,
+            feedback: null,
+            submitted_at: null,
+            graded_at: null,
+            file_url: null,
+            assignments: a,
+        }));
+
+    return [...(subs ?? []), ...unsubmitted];
 }
 
 // ── GRADES ────────────────────────────────────────────────────
 // All submissions for grading (teachers/admins)
-export async function fetchSubmissionsForGrading(teacherId?: string) {
+// All submissions for grading (teachers/admins)
+export async function fetchSubmissionsForGrading(opts: { teacherId?: string, schoolId?: string } = {}) {
     let q = db()
         .from('assignment_submissions')
         .select(`
@@ -54,23 +96,22 @@ export async function fetchSubmissionsForGrading(teacherId?: string) {
         id, title, max_points, due_date, created_by,
         courses ( title, teacher_id, programs ( name ) )
       ),
-      portal_users ( id, full_name, email )
+      portal_users!assignment_submissions_portal_user_id_fkey!inner ( id, full_name, email, school_id )
     `)
         .order('submitted_at', { ascending: false });
 
-    // Teachers only see their assigned courses' submissions
-    if (teacherId) {
-        // Can't filter nested easily — filter in app
+    if (opts.schoolId) {
+        q = (q as any).eq('portal_users.school_id', opts.schoolId);
     }
 
     const { data, error } = await q;
     if (error) throw error;
 
     // If teacher, filter to their assignments
-    if (teacherId && data) {
+    if (opts.teacherId && data) {
         return data.filter((s: any) =>
-            s.assignments?.created_by === teacherId ||
-            s.assignments?.courses?.teacher_id === teacherId
+            s.assignments?.created_by === opts.teacherId ||
+            s.assignments?.courses?.teacher_id === opts.teacherId
         );
     }
     return data ?? [];
@@ -216,6 +257,28 @@ export async function fetchAnalyticsOverview() {
         totalPrograms: programCount,
         avgProgress,
     };
+}
+
+export async function fetchAtRiskStudents(schoolId?: string) {
+    const url = `/api/analytics/at-risk${schoolId ? `?schoolId=${schoolId}` : ''}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch at-risk students');
+    const { data } = await res.json();
+    return data;
+}
+
+export async function fetchCoursePerformance(courseId: string) {
+    const res = await fetch(`/api/analytics/performance/${courseId}`);
+    if (!res.ok) throw new Error('Failed to fetch course performance');
+    const { data } = await res.json();
+    return data;
+}
+
+export async function fetchStudentReport(studentId: string) {
+    const res = await fetch(`/api/analytics/student/${studentId}/report`);
+    if (!res.ok) throw new Error('Failed to fetch student report');
+    const { data } = await res.json();
+    return data;
 }
 
 // ── HELPERS ───────────────────────────────────────────────────

@@ -9,7 +9,7 @@ import {
     EnvelopeIcon, PhoneIcon, UserGroupIcon, ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 
-function Badge({ status }: { status: string }) {
+function StatusBadge({ status }: { status: string }) {
     const map: Record<string, string> = {
         approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
         pending: 'bg-amber-500/20  text-amber-400  border-amber-500/30',
@@ -18,6 +18,23 @@ function Badge({ status }: { status: string }) {
     return (
         <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${map[status] ?? 'bg-white/10 text-white/40'}`}>
             {status}
+        </span>
+    );
+}
+
+function EnrollTypeBadge({ type }: { type?: string }) {
+    const map: Record<string, string> = {
+        school:   'bg-violet-500/20 text-violet-400 border-violet-500/30',
+        bootcamp: 'bg-[#FF914D]/20 text-[#FF914D] border-[#FF914D]/30',
+        online:   'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    };
+    const label: Record<string, string> = {
+        school: 'Partner School', bootcamp: 'Bootcamp', online: 'Online School',
+    };
+    if (!type) return null;
+    return (
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${map[type] ?? 'bg-white/10 text-white/30 border-white/10'}`}>
+            {label[type] ?? type}
         </span>
     );
 }
@@ -127,7 +144,7 @@ export default function ApprovalsPage() {
                 )}
 
                 {/* Summary */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
                         <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center mb-3">
                             <UserGroupIcon className="w-5 h-5 text-amber-400" />
@@ -135,16 +152,30 @@ export default function ApprovalsPage() {
                         <p className="text-2xl font-extrabold text-amber-400">{students.length}</p>
                         <p className="text-xs text-white/40 mt-1">Pending Students</p>
                     </div>
-                    {profile?.role === 'admin' && (
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-                            <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center mb-3">
-                                <BuildingOfficeIcon className="w-5 h-5 text-blue-400" />
-                            </div>
-                            <p className="text-2xl font-extrabold text-blue-400">{schools.length}</p>
-                            <p className="text-xs text-white/40 mt-1">Pending Schools</p>
-                        </div>
-                    )}
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                        <p className="text-2xl font-extrabold text-violet-400">{students.filter(s => s.enrollment_type === 'school' || !s.enrollment_type).length}</p>
+                        <p className="text-xs text-white/40 mt-1">Partner School</p>
+                    </div>
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                        <p className="text-2xl font-extrabold text-[#FF914D]">{students.filter(s => s.enrollment_type === 'bootcamp').length}</p>
+                        <p className="text-xs text-white/40 mt-1">Bootcamp</p>
+                    </div>
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                        <p className="text-2xl font-extrabold text-emerald-400">{students.filter(s => s.enrollment_type === 'online').length}</p>
+                        <p className="text-xs text-white/40 mt-1">Online School</p>
+                    </div>
                 </div>
+                {profile?.role === 'admin' && schools.length > 0 && (
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex items-center gap-4">
+                        <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <BuildingOfficeIcon className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-extrabold text-blue-400">{schools.length}</p>
+                            <p className="text-xs text-white/40 mt-0.5">Pending School Applications</p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Tabs */}
                 <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/10 w-fit">
@@ -183,7 +214,10 @@ export default function ApprovalsPage() {
                                             {(s.full_name ?? '?')[0]}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-white">{s.full_name}</p>
+                                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                                <p className="font-bold text-white">{s.full_name}</p>
+                                                <EnrollTypeBadge type={s.enrollment_type} />
+                                            </div>
                                             <div className="flex flex-wrap gap-3 mt-1 text-xs text-white/40">
                                                 {s.parent_email && <span className="flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" />{s.parent_email}</span>}
                                                 {s.parent_phone && <span className="flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{s.parent_phone}</span>}

@@ -56,39 +56,43 @@ const Contact: React.FC = () => {
   };
 
   return (
-    <section id="contact" className="py-24 bg-[#0a0a0f] border-t-4 border-[#FF914D]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="contact" className="py-24 bg-[#0a0a0f] relative overflow-hidden">
+      {/* Background glow */}
+      <div className="absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-orange-600/5 blur-[120px] rounded-full pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-16 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-16 gap-6">
           <div>
-            <span className="inline-block text-xs font-black uppercase tracking-widest text-[#FF914D] border-2 border-[#FF914D] px-3 py-1 mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF914D]/10 border border-[#FF914D]/20 text-[#FF914D] text-[10px] font-black uppercase tracking-widest mb-4">
+              <Mail className="w-3 h-3" />
               Contact
-            </span>
-            <h2 className="text-4xl md:text-5xl font-extrabold text-white leading-tight">
+            </div>
+            <h2 className="text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight">
               Get In Touch
             </h2>
           </div>
-          <p className="text-white/50 max-w-xs text-sm leading-relaxed">
-            Have questions about our programs? Reach out and we'll get back to you within one business day.
+          <p className="text-white/50 max-w-sm text-sm leading-relaxed">
+            Have questions about our programs? Reach out and we&apos;ll get back to you within one business day.
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-10">
+        <div className="grid lg:grid-cols-2 gap-12">
           {/* Contact Cards */}
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
             {contactCards.map(({ icon: Icon, title, lines, accent }) => (
               <div
                 key={title}
-                className="flex items-start gap-5 border-2 border-white/10 p-6 hover:border-[#FF914D]/50 transition-colors"
+                className="group flex items-center gap-8 bg-white/[0.03] backdrop-blur-md border border-white/10 p-8 rounded-[2rem] hover:bg-white/[0.06] hover:border-[#FF914D]/30 transition-all duration-300 shadow-2xl"
               >
-                <div className={`w-10 h-10 flex items-center justify-center flex-shrink-0 ${accent}`}>
-                  <Icon className="w-5 h-5 text-white" />
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${accent} bg-opacity-20 group-hover:scale-110 transition-transform`}>
+                  <Icon className={`w-7 h-7 ${accent.includes('bg-black') ? 'text-white/40' : accent.replace('bg-', 'text-')}`} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-[#FF914D] mb-1">{title}</h3>
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FF914D] mb-2">{title}</h3>
                   {lines.map((line) => (
-                    <p key={line} className="text-white/70 text-sm">{line}</p>
+                    <p key={line} className="text-white text-lg font-bold tracking-tight">{line}</p>
                   ))}
                 </div>
               </div>
@@ -96,13 +100,17 @@ const Contact: React.FC = () => {
           </div>
 
           {/* Contact Form */}
-          <div className="border-2 border-white/10 shadow-[6px_6px_0_0_rgba(255,145,77,0.4)] p-8">
-            <h3 className="text-xl font-black text-white uppercase tracking-tight mb-6">Send a Message</h3>
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid sm:grid-cols-2 gap-5">
+          <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-10 md:p-14 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity">
+              <Mail className="w-32 h-32 text-white" />
+            </div>
+
+            <h3 className="text-3xl font-black text-white uppercase tracking-tighter mb-10 relative z-10">Send a Message</h3>
+            <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
+              <div className="grid sm:grid-cols-2 gap-8">
                 <div>
-                  <label htmlFor="name" className="block text-xs font-black uppercase tracking-widest text-white/50 mb-2">
-                    Name
+                  <label htmlFor="name" className="block text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3 ml-1">
+                    Full Name
                   </label>
                   <input
                     type="text"
@@ -112,12 +120,12 @@ const Contact: React.FC = () => {
                     onChange={handleChange}
                     required
                     placeholder="Your name"
-                    className="w-full px-4 py-3 bg-white/5 border-2 border-white/20 text-white placeholder-white/20 focus:outline-none focus:border-[#FF914D] text-sm font-bold transition-colors"
+                    className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/20 focus:outline-none focus:border-[#FF914D] focus:bg-white/10 transition-all text-sm font-bold shadow-inner"
                   />
                 </div>
                 <div>
-                  <label htmlFor="email" className="block text-xs font-black uppercase tracking-widest text-white/50 mb-2">
-                    Email
+                  <label htmlFor="email" className="block text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3 ml-1">
+                    Email Address
                   </label>
                   <input
                     type="email"
@@ -127,13 +135,13 @@ const Contact: React.FC = () => {
                     onChange={handleChange}
                     required
                     placeholder="your@email.com"
-                    className="w-full px-4 py-3 bg-white/5 border-2 border-white/20 text-white placeholder-white/20 focus:outline-none focus:border-[#FF914D] text-sm font-bold transition-colors"
+                    className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/20 focus:outline-none focus:border-[#FF914D] focus:bg-white/10 transition-all text-sm font-bold shadow-inner"
                   />
                 </div>
               </div>
               <div>
-                <label htmlFor="message" className="block text-xs font-black uppercase tracking-widest text-white/50 mb-2">
-                  Message
+                <label htmlFor="message" className="block text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3 ml-1">
+                  Your Message
                 </label>
                 <textarea
                   id="message"
@@ -142,17 +150,17 @@ const Contact: React.FC = () => {
                   onChange={handleChange}
                   rows={5}
                   required
-                  placeholder="How can we help you?"
-                  className="w-full px-4 py-3 bg-white/5 border-2 border-white/20 text-white placeholder-white/20 focus:outline-none focus:border-[#FF914D] text-sm font-bold transition-colors resize-none"
+                  placeholder="How can we help your school?"
+                  className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/20 focus:outline-none focus:border-[#FF914D] focus:bg-white/10 transition-all text-sm font-bold resize-none shadow-inner"
                 />
               </div>
               <button
                 type="submit"
                 disabled={sending}
-                className="flex items-center gap-2 px-7 py-4 bg-[#FF914D] text-black font-black text-sm border-2 border-[#FF914D] shadow-[3px_3px_0_0_rgba(255,255,255,0.3)] hover:shadow-[5px_5px_0_0_rgba(255,255,255,0.3)] hover:-translate-x-[2px] hover:-translate-y-[2px] transition-all uppercase tracking-wide disabled:opacity-60"
+                className="w-full flex items-center justify-center gap-4 px-10 py-6 bg-gradient-to-r from-[#FF914D] to-orange-600 text-white font-black text-sm rounded-2xl shadow-2xl shadow-orange-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all uppercase tracking-widest disabled:opacity-50"
               >
-                {sending ? 'Sending...' : 'Send Message'}
-                {!sending && <ArrowRight className="w-4 h-4" />}
+                {sending ? 'Processing...' : 'Send Message'}
+                {!sending && <ArrowRight className="w-5 h-5" />}
               </button>
             </form>
           </div>

@@ -1,8 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST() {
+async function handleSignOut(req: NextRequest) {
     const cookieStore = await cookies();
 
     const supabase = createServerClient(
@@ -23,16 +23,19 @@ export async function POST() {
         }
     );
 
-    // Sign out on the server — this clears the session cookie
+    // Sign out on the server — clears session cookies
     await supabase.auth.signOut();
 
-    // Redirect to login with a hard 302
-    return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'), {
-        status: 302,
-    });
+    // Use the request's own origin so this works in any environment
+    const loginUrl = new URL('/login', req.nextUrl.origin);
+    return NextResponse.redirect(loginUrl, { status: 302 });
 }
 
-// Also support GET so a simple <a href="/api/auth/signout"> works
-export async function GET() {
-    return POST();
+export async function POST(req: NextRequest) {
+    return handleSignOut(req);
+}
+
+// GET support for direct link navigation (escape bar fallback)
+export async function GET(req: NextRequest) {
+    return handleSignOut(req);
 }

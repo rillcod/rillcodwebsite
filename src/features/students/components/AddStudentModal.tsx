@@ -15,6 +15,7 @@ interface AddStudentModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
+    initialData?: any;
 }
 
 const DEFAULT_FORM = {
@@ -22,7 +23,7 @@ const DEFAULT_FORM = {
     school_name: '', grade_level: '', city: '', state: '',
 };
 
-export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalProps) {
+export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: AddStudentModalProps) {
     const [form, setForm] = useState(DEFAULT_FORM);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -36,8 +37,23 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
             .select('id, name')
             .eq('status', 'approved')
             .order('name')
-            .then(({ data }) => setSchools(data ?? []));
-    }, [isOpen]);
+            .then(({ data }: any) => setSchools(data ?? []));
+
+        if (initialData) {
+            setForm({
+                full_name: initialData.full_name || '',
+                parent_email: initialData.parent_email || '',
+                parent_name: initialData.parent_name || '',
+                parent_phone: initialData.parent_phone || '',
+                school_name: initialData.school_name || '',
+                grade_level: initialData.grade_level || '',
+                city: initialData.city || '',
+                state: initialData.state || '',
+            });
+        } else {
+            setForm(DEFAULT_FORM);
+        }
+    }, [isOpen, initialData]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
         setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -51,10 +67,19 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
         setLoading(true);
         setError('');
         try {
-            const { error: insertError } = await createClient()
-                .from('students')
-                .insert([{ ...form, status: 'pending' }]);
-            if (insertError) throw insertError;
+            const client = createClient();
+            if (initialData) {
+                const { error: updateError } = await client
+                    .from('students')
+                    .update(form)
+                    .eq('id', initialData.id);
+                if (updateError) throw updateError;
+            } else {
+                const { error: insertError } = await client
+                    .from('students')
+                    .insert([{ ...form, status: 'pending' }]);
+                if (insertError) throw insertError;
+            }
             setForm(DEFAULT_FORM);
             onSuccess();
             onClose();
@@ -82,7 +107,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
                             <UserIcon className="w-4 h-4 text-blue-400" />
                             <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Students</span>
                         </div>
-                        <h2 className="text-lg font-extrabold text-white">Add New Student</h2>
+                        <h2 className="text-lg font-extrabold text-white">{initialData ? 'Edit Student' : 'Add New Student'}</h2>
                     </div>
                     <button onClick={onClose}
                         className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-colors"
@@ -188,7 +213,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
                             className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
                             {loading
                                 ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</>
-                                : <><CheckIcon className="w-4 h-4" /> Add Student</>}
+                                : <><CheckIcon className="w-4 h-4" /> {initialData ? 'Update Student' : 'Add Student'}</>}
                         </button>
                     </div>
                 </form>

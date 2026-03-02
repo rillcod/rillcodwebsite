@@ -37,68 +37,83 @@ const stats = [
 
 const About: React.FC = () => {
   return (
-    <section id="about" className="py-24 bg-white border-t-4 border-black">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="about" className="py-24 bg-[#0a0a0f] relative overflow-hidden">
+      {/* Decorative background glow */}
+      <div className="absolute top-1/2 left-0 -translate-y-1/2 w-64 h-64 bg-violet-600/10 blur-[100px] rounded-full pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
 
         {/* Section header */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-16 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-16 gap-6">
           <div>
-            <span className="inline-block text-xs font-black uppercase tracking-widest text-[#FF914D] border-2 border-[#FF914D] px-3 py-1 mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF914D]/10 border border-[#FF914D]/20 text-[#FF914D] text-[10px] font-black uppercase tracking-widest mb-4">
+              <Code className="w-3 h-3" />
               About Us
-            </span>
-            <h2 className="text-4xl md:text-5xl font-extrabold text-black leading-tight">
-              Empowering Nigerian Kids<br />Through STEM
+            </div>
+            <h2 className="text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight">
+              Empowering Nigeria&apos;s<br />Future Through STEM
             </h2>
           </div>
-          <p className="text-gray-500 max-w-xs text-sm leading-relaxed">
-            We&apos;re on a mission to transform Nigeria&apos;s future by equipping young minds with cutting-edge technology skills — inside their own schools.
+          <p className="text-white/50 max-w-sm text-sm leading-relaxed font-medium">
+            We&apos;re on a mission to transform Nigeria&apos;s future by equipping young minds with cutting-edge technology skills — directly integrated into their schools.
           </p>
         </div>
 
         {/* Two-column: story + pillars */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-16">
-          {/* Story */}
-          <div className="border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,1)] p-8 md:p-10 bg-[#fafafa]">
-            <h3 className="text-2xl font-extrabold text-black mb-4 uppercase tracking-tight">Our Story</h3>
-            <p className="text-gray-700 mb-6 leading-relaxed">
-              Rillcod Academy is a subsidiary of Rillcod Technologies, founded by young Nigerian professionals passionate about bridging the digital divide. We believe every Nigerian child deserves access to world-class STEM education that prepares them for the future.
-            </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
+          {/* Story Card */}
+          <div className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-[2.5rem] p-10 md:p-14 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+              <Brain className="w-24 h-24 text-white" />
+            </div>
+            <div className="space-y-10 relative z-10">
+              <div>
+                <h3 className="text-[10px] font-black text-[#FF914D] mb-4 uppercase tracking-[0.2em]">Our Story</h3>
+                <p className="text-white/60 leading-relaxed text-sm font-medium">
+                  Rillcod Academy is a subsidiary of Rillcod Technologies, founded by young Nigerian professionals passionate about bridging the digital divide. We believe every Nigerian child deserves access to world-class STEM education that prepares them for the global stage.
+                </p>
+              </div>
 
-            <h3 className="text-2xl font-extrabold text-black mb-4 uppercase tracking-tight">Our Mission</h3>
-            <p className="text-gray-700 mb-6 leading-relaxed">
-              To transform Nigeria&apos;s educational landscape — moving from traditional memory-based learning to innovative, creativity-stimulating education. We empower children with 21st-century skills through engaging, hands-on STEM experiences that make learning fun and relevant.
-            </p>
+              <div>
+                <h3 className="text-[10px] font-black text-blue-400 mb-4 uppercase tracking-[0.2em]">Our Mission</h3>
+                <p className="text-white/60 leading-relaxed text-sm font-medium">
+                  To transform Nigeria&apos;s educational landscape — moving from traditional memory-based learning to innovative, creativity-stimulating education. We empower children with 21st-century skills through engaging, hands-on STEM experiences.
+                </p>
+              </div>
 
-            <h3 className="text-2xl font-extrabold text-black mb-4 uppercase tracking-tight">Our Vision</h3>
-            <p className="text-gray-700 leading-relaxed">
-              To create a generation of Nigerian tech leaders, innovators, and problem-solvers who will drive Africa&apos;s digital transformation and compete globally in the technology sector.
-            </p>
+              <div>
+                <h3 className="text-[10px] font-black text-emerald-400 mb-4 uppercase tracking-[0.2em]">Our Vision</h3>
+                <p className="text-white/60 leading-relaxed text-sm font-medium">
+                  To create a generation of Nigerian tech leaders, innovators, and problem-solvers who will drive Africa&apos;s digital transformation and lead the global technology sector.
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Pillars */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Pillars Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {pillars.map(({ icon: Icon, title, desc, accent }) => (
               <div
                 key={title}
-                className="border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] p-6 bg-white hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)] hover:-translate-x-[2px] hover:-translate-y-[2px] transition-all"
+                className="group bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-3xl p-8 hover:bg-white/[0.06] hover:border-white/20 transition-all duration-300 shadow-xl"
               >
-                <div className={`w-10 h-10 flex items-center justify-center ${accent} mb-4`}>
-                  <Icon className="w-5 h-5 text-white" />
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${accent} bg-opacity-20 mb-6 group-hover:scale-110 transition-transform`}>
+                  <Icon className={`w-6 h-6 ${accent.replace('bg-', 'text-')}`} />
                 </div>
-                <h4 className="text-base font-extrabold text-black mb-2 uppercase tracking-tight">{title}</h4>
-                <p className="text-sm text-gray-600 leading-relaxed">{desc}</p>
+                <h4 className="text-lg font-bold text-white mb-3 tracking-tight">{title}</h4>
+                <p className="text-sm text-white/40 leading-relaxed font-medium">{desc}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Impact Stats Bar */}
-        <div className="border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,1)] bg-black text-white">
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-white/20">
+        <div className="bg-white/[0.02] border-y border-white/5 backdrop-blur-sm -mx-4 sm:mx-0 px-4 sm:px-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/5">
             {stats.map(({ value, label }) => (
-              <div key={label} className="p-8 text-center">
-                <p className="text-4xl md:text-5xl font-extrabold text-[#FF914D] mb-1">{value}</p>
-                <p className="text-xs uppercase tracking-widest font-bold text-white/60">{label}</p>
+              <div key={label} className="p-12 text-center group">
+                <p className="text-4xl md:text-5xl font-black text-[#FF914D] mb-2 tracking-tighter group-hover:scale-110 transition-transform cursor-default">{value}</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/30">{label}</p>
               </div>
             ))}
           </div>

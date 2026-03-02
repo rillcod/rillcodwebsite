@@ -20,7 +20,7 @@ export default function PrivacyPolicy() {
             At Rillcod Academy, we are committed to protecting your privacy and ensuring the security of your personal information.
           </p>
           <div className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-            <p>Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <p suppressHydrationWarning>Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
         </div>
 

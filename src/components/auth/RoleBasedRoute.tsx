@@ -23,50 +23,35 @@ export default function RoleBasedRoute({
 
   useEffect(() => {
     if (!loading) {
-      // If not authenticated, redirect to login
-      if (!user || !profile) {
-        router.push('/auth/login');
+      // No auth session — redirect to login
+      if (!user) {
+        router.push('/login');
         return;
       }
+      // Profile still loading after auth resolved — wait, don't redirect prematurely
+      if (!profile) return;
 
-      // If user doesn't have required role, redirect
+      // Wrong role — redirect to shared dashboard (not login)
       if (!allowedRoles.includes(profile.role)) {
-        if (redirectTo) {
-          router.push(redirectTo);
-        } else {
-          // Redirect to role-appropriate dashboard
-          switch (profile.role) {
-            case 'admin':
-              router.push('/admin');
-              break;
-            case 'teacher':
-              router.push('/teacher/dashboard');
-              break;
-            case 'student':
-              router.push('/student/dashboard');
-              break;
-            default:
-              router.push('/auth/login');
-          }
-        }
+        router.push(redirectTo ?? '/dashboard');
         return;
       }
 
-      // Check if user is active
+      // Deactivated account
       if (!profile.is_active) {
-        router.push('/auth/login?message=Account is deactivated. Please contact administrator.');
+        router.push('/login');
         return;
       }
     }
   }, [user, profile, loading, allowedRoles, redirectTo, router]);
 
-  // Show loading state
-  if (loading) {
+  // Show loading state — while auth is loading OR user exists but profile is still fetching
+  if (loading || (user && !profile)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600 dark:text-blue-400" />
-          <p className="text-gray-600 dark:text-gray-400">Verifying permissions...</p>
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-violet-400" />
+          <p className="text-white/50">Verifying permissions...</p>
         </div>
       </div>
     );
@@ -75,13 +60,13 @@ export default function RoleBasedRoute({
   // Show unauthorized state
   if (!user || !profile) {
     return fallback || (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
         <div className="text-center">
           <Shield className="w-12 h-12 mx-auto mb-4 text-red-500" />
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-xl font-semibold text-white mb-2">
             Authentication Required
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-white/50">
             Please log in to access this page.
           </p>
         </div>
@@ -92,19 +77,19 @@ export default function RoleBasedRoute({
   // Show insufficient permissions state
   if (!allowedRoles.includes(profile.role)) {
     return fallback || (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
         <div className="text-center">
           <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-yellow-500" />
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-xl font-semibold text-white mb-2">
             Insufficient Permissions
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <p className="text-white/50 mb-4">
             You don't have permission to access this page.
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-500">
+          <p className="text-sm text-white/40">
             Your role: <span className="font-medium capitalize">{profile.role}</span>
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-500">
+          <p className="text-sm text-white/40">
             Required roles: {allowedRoles.map(role => role.charAt(0).toUpperCase() + role.slice(1)).join(', ')}
           </p>
         </div>
@@ -115,13 +100,13 @@ export default function RoleBasedRoute({
   // Show deactivated account state
   if (!profile.is_active) {
     return fallback || (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
         <div className="text-center">
           <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-red-500" />
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-xl font-semibold text-white mb-2">
             Account Deactivated
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-white/50">
             Your account has been deactivated. Please contact the administrator.
           </p>
         </div>

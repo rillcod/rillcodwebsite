@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { fetchAssignments, fetchStudentAssignments } from '@/services/dashboard.service';
+import { createClient } from '@/lib/supabase/client';
 import {
   ClipboardDocumentListIcon, PlusIcon, MagnifyingGlassIcon,
   ClockIcon, CheckCircleIcon, EyeIcon, PencilIcon, TrashIcon,
@@ -54,8 +55,18 @@ export default function AssignmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const role = profile?.role ?? 'student';
+
+  const handleDelete = async (id: string, title: string) => {
+    if (!confirm(`Delete assignment "${title}"? This cannot be undone.`)) return;
+    setDeleting(id);
+    const { error } = await createClient().from('assignments').delete().eq('id', id);
+    if (error) { alert(error.message); }
+    else { setItems(prev => prev.filter((a: any) => a.id !== id)); }
+    setDeleting(null);
+  };
   const isStaff = role === 'admin' || role === 'teacher';
 
   // Only fetch after auth has resolved and we have a profile
@@ -287,7 +298,10 @@ export default function AssignmentsPage() {
                           className="p-2 text-white/40 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
                           <PencilIcon className="w-4 h-4" />
                         </Link>
-                        <button className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors">
+                        <button
+                          onClick={() => handleDelete(a.id, a.title)}
+                          disabled={deleting === a.id}
+                          className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors disabled:opacity-40">
                           <TrashIcon className="w-4 h-4" />
                         </button>
                       </div>

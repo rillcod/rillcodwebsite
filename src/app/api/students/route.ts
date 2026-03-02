@@ -29,15 +29,50 @@ export async function POST(request: Request) {
       );
     }
 
+    // Map the incoming frontend fields cleanly to DB schema columns
+    const fullName = body.full_name || body.fullName;
+    const newStudentData: Record<string, any> = {
+      name: fullName,
+      full_name: fullName,
+      date_of_birth: body.date_of_birth,
+      gender: body.gender,
+      parent_name: body.parent_name,
+      parent_email: parentEmail,
+      parent_phone: body.parent_phone,
+      school_name: body.school_name ?? null,
+      current_class: body.grade_level || body.current_class,
+      grade_level: body.grade_level || body.current_class,
+      city: body.city,
+      state: body.state,
+      interests: body.interests,
+      goals: body.goals,
+      course_interest: body.course_interest || body.interests || null,
+      preferred_schedule: body.preferred_schedule || body.goals || null,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Optional fields that may not exist in older DB schemas — add only if provided
+    if (body.enrollment_type) newStudentData.enrollment_type = body.enrollment_type;
+    if (body.student_email) newStudentData.student_email = body.student_email;
+    if (body.heard_about_us) newStudentData.heard_about_us = body.heard_about_us;
+    if (body.parent_relationship) newStudentData.parent_relationship = body.parent_relationship;
+
+    // For partner school students: try to link to the schools table record
+    if (body.enrollment_type === 'school' && body.school_name) {
+      const { data: schoolMatch } = await supabase
+        .from('schools')
+        .select('id')
+        .ilike('name', body.school_name.trim())
+        .maybeSingle();
+      if (schoolMatch?.id) newStudentData.school_id = schoolMatch.id;
+    }
+
     // Create new student registration
     const { data: newStudent, error: insertError } = await supabase
       .from('students')
-      .insert([{
-        ...body,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
+      .insert([newStudentData])
       .select()
       .single();
 

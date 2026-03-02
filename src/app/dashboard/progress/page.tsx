@@ -36,7 +36,7 @@ export default function ProgressPage() {
   const [error, setError] = useState<string | null>(null);
 
   const role = profile?.role ?? '';
-  const isStaff = role === 'admin' || role === 'teacher';
+  const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
 
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -48,20 +48,26 @@ export default function ProgressPage() {
       const supabase = createClient();
       try {
         if (isStaff) {
-          // Teacher/admin: all graded submissions + per-course totals
-          const [subsRes, enrRes] = await Promise.allSettled([
-            supabase.from('assignment_submissions')
-              .select(`id, grade, status, portal_user_id,
+          // Teacher/admin/school: submissions and enrollments
+          let subsQuery = supabase.from('assignment_submissions')
+            .select(`id, grade, status, portal_user_id,
                 assignments ( id, title, max_points, course_id,
                   courses ( id, title, programs ( name ) ) ),
-                portal_users ( id, full_name, email )`)
-              .order('graded_at', { ascending: false }),
-            supabase.from('enrollments')
-              .select(`id, status, grade, progress_pct, enrollment_date,
+                portal_users!assignment_submissions_portal_user_id_fkey!inner ( id, full_name, email, school_id )`)
+            .order('graded_at', { ascending: false });
+
+          let enrQuery = supabase.from('enrollments')
+            .select(`id, status, grade, progress_pct, enrollment_date,
                 programs ( id, name, difficulty_level, duration_weeks ),
-                portal_users ( id, full_name, email )`)
-              .order('enrollment_date', { ascending: false }),
-          ]);
+                portal_users!inner ( id, full_name, email, school_id )`)
+            .order('enrollment_date', { ascending: false });
+
+          if (role === 'school' && profile?.school_id) {
+            subsQuery = subsQuery.eq('portal_users.school_id', profile.school_id);
+            enrQuery = enrQuery.eq('portal_users.school_id', profile.school_id);
+          }
+
+          const [subsRes, enrRes] = await Promise.allSettled([subsQuery, enrQuery]);
           if (!cancelled) {
             setSubmissions(subsRes.status === 'fulfilled' ? (subsRes.value.data ?? []) : []);
             setEnrollments(enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : []);

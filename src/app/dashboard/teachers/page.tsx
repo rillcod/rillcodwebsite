@@ -50,9 +50,10 @@ export default function TeacherDashboardPage() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [perfData, setPerfData] = useState<{ label: string; value: number; color: string }[]>([]);
   const [loading, setLoading] = useState(false);
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    setNow(new Date());
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
@@ -71,7 +72,7 @@ export default function TeacherDashboardPage() {
           supabase.from('classes').select('current_students').eq('teacher_id', profile!.id),
           supabase.from('assignment_submissions').select('grade, assignments!inner(created_by)').eq('assignments.created_by', profile!.id).eq('status', 'graded'),
           supabase.from('assignment_submissions')
-            .select('id, status, submitted_at, portal_users(full_name), assignments(title)')
+            .select('id, status, submitted_at, portal_users!assignment_submissions_portal_user_id_fkey(full_name), assignments(title)')
             .order('submitted_at', { ascending: false })
             .limit(5),
         ]);
@@ -84,7 +85,7 @@ export default function TeacherDashboardPage() {
 
         const totalStudents = studentRows.reduce((s: number, c: any) => s + (c.current_students ?? 0), 0);
         const grades = gradeRows.map((g: any) => Number(g.grade)).filter(Boolean);
-        const avgPerf = grades.length ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length) : 0;
+        const avgPerf = grades.length ? Math.round(grades.reduce((a: number, b: number) => a + b, 0) / grades.length) : 0;
 
         if (!cancelled) {
           setStats({ myClasses: classesRes.status === 'fulfilled' ? (classesRes.value.count ?? 0) : 0, totalStudents, pendingGrades: pendingCnt, avgPerformance: avgPerf });
@@ -181,13 +182,13 @@ export default function TeacherDashboardPage() {
               <h1 className="text-3xl sm:text-4xl font-extrabold leading-tight">
                 Welcome back, <span className="text-violet-400">{profile?.full_name?.split(' ')[0] ?? 'Teacher'}!</span>
               </h1>
-              <p className="text-white/50 mt-1 text-sm">
-                {now.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              <p className="text-white/50 mt-1 text-sm" suppressHydrationWarning>
+                {now ? now.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
               </p>
             </div>
             <div className="text-right bg-black/30 border border-white/10 rounded-xl px-6 py-4 backdrop-blur-sm">
               <div className="text-4xl font-mono font-black text-violet-400 tabular-nums">
-                {now.toLocaleTimeString('en-NG', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                {now ? now.toLocaleTimeString('en-NG', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
               </div>
               <div className="text-white/40 text-xs mt-1 font-medium uppercase tracking-wider">WAT — Nigeria</div>
             </div>
@@ -366,6 +367,12 @@ function AdminTeacherView() {
   const [inviteErr, setInviteErr] = useState('');
   const [inviteOk, setInviteOk] = useState('');
   const [toggling, setToggling] = useState<string | null>(null);
+  const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
+  const [resetPw, setResetPw] = useState('');
+  const [resetting, setResetting] = useState(false);
+  const [resetMsg, setResetMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [editingTeacher, setEditingTeacher] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -394,22 +401,90 @@ function AdminTeacherView() {
     }
     setInviting(true); setInviteErr(''); setInviteOk('');
     try {
-      // Insert into portal_users as inactive teacher — they'll set their own password via invite email
-      const { error } = await createClient().from('portal_users').insert([{
+      const db = createClient();
+      const payload = {
         full_name: inviteForm.full_name,
         email: inviteForm.email,
         phone: inviteForm.phone || null,
         role: 'teacher',
         is_active: true,
-      }]);
-      if (error) throw error;
-      setInviteOk(`Teacher profile created for ${inviteForm.full_name}. They can now sign up with ${inviteForm.email}.`);
+      };
+
+      if (editingTeacher) {
+        const { error } = await db
+          .from('portal_users')
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', editingTeacher.id);
+        if (error) throw error;
+        setInviteOk(`Teacher ${inviteForm.full_name} updated successfully.`);
+        setEditingTeacher(null);
+      } else {
+        const { error } = await db.from('portal_users').insert([{
+          ...payload,
+          is_deleted: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }]);
+        if (error) throw error;
+        setInviteOk(`Teacher profile created for ${inviteForm.full_name}.`);
+      }
+
       setInviteForm({ full_name: '', email: '', phone: '' });
+      setShowInvite(false);
       load();
     } catch (err: any) {
-      setInviteErr(err?.message ?? 'Failed to create teacher.');
+      setInviteErr(err?.message ?? 'Failed to save teacher.');
     } finally {
       setInviting(false);
+    }
+  };
+
+  const handleDeleteTeacher = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this teacher? This will soft-delete the profile.')) return;
+    setDeleting(id);
+    try {
+      const { error } = await createClient()
+        .from('portal_users')
+        .update({ is_deleted: true, is_active: false, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+      setTeachers(prev => prev.filter(t => t.id !== id));
+    } catch (err: any) {
+      alert(err.message ?? 'Failed to delete teacher');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const startEdit = (t: any) => {
+    setEditingTeacher(t);
+    setInviteForm({
+      full_name: t.full_name || '',
+      email: t.email || '',
+      phone: t.phone || '',
+    });
+    setShowInvite(true);
+  };
+
+  const handleResetPw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetTarget || resetPw.length < 8) return;
+    setResetting(true); setResetMsg(null);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: resetTarget.id, newPassword: resetPw }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Failed');
+      setResetMsg({ ok: true, text: `Password updated for ${resetTarget.name}` });
+      setResetPw('');
+      setTimeout(() => { setResetTarget(null); setResetMsg(null); }, 2000);
+    } catch (err: any) {
+      setResetMsg({ ok: false, text: err.message });
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -432,7 +507,7 @@ function AdminTeacherView() {
             <h1 className="text-3xl font-extrabold">Teachers</h1>
             <p className="text-white/40 text-sm mt-1">{teachers.length} teacher{teachers.length !== 1 ? 's' : ''} registered</p>
           </div>
-          <button onClick={() => setShowInvite(true)}
+          <button onClick={() => { setEditingTeacher(null); setShowInvite(true); }}
             className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-violet-600/20">
             <PlusIcon className="w-4 h-4" /> Add Teacher
           </button>
@@ -485,7 +560,7 @@ function AdminTeacherView() {
                       {t.phone && <span>{t.phone}</span>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${t.is_active
                       ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                       : 'bg-rose-500/20 text-rose-400 border-rose-500/30'}`}>
@@ -496,6 +571,18 @@ function AdminTeacherView() {
                       className="px-3 py-1.5 text-xs font-bold rounded-lg border border-white/10 hover:border-white/30 text-white/40 hover:text-white transition-all disabled:opacity-50">
                       {toggling === t.id ? '…' : t.is_active ? 'Deactivate' : 'Activate'}
                     </button>
+                    <button onClick={() => startEdit(t)}
+                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-white/10 hover:border-white/30 text-white/40 hover:text-white transition-all">
+                      Edit
+                    </button>
+                    <button onClick={() => handleDeleteTeacher(t.id)} disabled={deleting === t.id}
+                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
+                      {deleting === t.id ? '…' : 'Delete'}
+                    </button>
+                    <button onClick={() => { setResetTarget({ id: t.id, name: t.full_name }); setResetPw(''); setResetMsg(null); }}
+                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-amber-500/20 hover:border-amber-500/40 text-amber-400/60 hover:text-amber-400 transition-all">
+                      Reset PW
+                    </button>
                   </div>
                 </div>
               ))}
@@ -503,6 +590,50 @@ function AdminTeacherView() {
           </div>
         )}
       </div>
+
+      {/* Reset Password Modal */}
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setResetTarget(null)} />
+          <div className="relative w-full max-w-md bg-[#0f0f1a] border border-white/10 rounded-3xl shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <div>
+                <p className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-0.5">Admin Action</p>
+                <h2 className="text-lg font-extrabold text-white">Reset Password</h2>
+                <p className="text-sm text-white/40 mt-0.5">For: <span className="text-white/70 font-semibold">{resetTarget.name}</span></p>
+              </div>
+              <button onClick={() => setResetTarget(null)} className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleResetPw} className="p-6 space-y-4">
+              {resetMsg && (
+                <div className={`rounded-xl px-4 py-3 text-sm border ${resetMsg.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                  {resetMsg.text}
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">New Password</label>
+                <input type="password" required minLength={8} value={resetPw} onChange={e => setResetPw(e.target.value)}
+                  placeholder="Minimum 8 characters"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500 transition-colors placeholder-white/25" />
+                <p className="text-xs text-white/25 mt-1.5">Share this new password with the teacher via phone or in person.</p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setResetTarget(null)}
+                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/60 text-sm font-bold rounded-xl border border-white/10 transition-all">
+                  Cancel
+                </button>
+                <button type="submit" disabled={resetting || resetPw.length < 8}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
+                  {resetting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
+                  {resetting ? 'Updating…' : 'Set Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Invite Modal */}
       {showInvite && (
@@ -515,9 +646,9 @@ function AdminTeacherView() {
                   <AcademicCapIcon className="w-4 h-4 text-violet-400" />
                   <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Staff</span>
                 </div>
-                <h2 className="text-lg font-extrabold text-white">Add Teacher</h2>
+                <h2 className="text-lg font-extrabold text-white">{editingTeacher ? 'Edit Teacher' : 'Add Teacher'}</h2>
               </div>
-              <button onClick={() => { setShowInvite(false); setInviteErr(''); setInviteOk(''); }}
+              <button onClick={() => { setShowInvite(false); setEditingTeacher(null); setInviteErr(''); setInviteOk(''); }}
                 className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-colors">
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -545,7 +676,7 @@ function AdminTeacherView() {
                 </button>
                 <button type="submit" disabled={inviting}
                   className="flex-1 flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
-                  {inviting ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Creating…</> : <><CheckCircleIcon className="w-4 h-4" /> Create Teacher</>}
+                  {inviting ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</> : <><CheckCircleIcon className="w-4 h-4" /> {editingTeacher ? 'Update Teacher' : 'Create Teacher'}</>}
                 </button>
               </div>
             </form>

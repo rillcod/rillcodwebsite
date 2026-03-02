@@ -6,6 +6,7 @@ import {
   PlusIcon, 
   AcademicCapIcon, 
   BuildingOfficeIcon,
+  BookOpenIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline'
 
@@ -39,6 +40,16 @@ export default function FloatingRegistrationButton() {
           >
             <BuildingOfficeIcon className="w-5 h-5 mr-2" />
             <span className="text-sm font-semibold whitespace-nowrap">School Registration</span>
+          </Link>
+
+          {/* Online School Registration */}
+          <Link
+            href="/online-registration"
+            className="group flex items-center bg-emerald-600 text-white px-4 py-3 rounded-full shadow-lg hover:bg-emerald-700 transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
+            onClick={() => setIsOpen(false)}
+          >
+            <BookOpenIcon className="w-5 h-5 mr-2" />
+            <span className="text-sm font-semibold whitespace-nowrap">Online School Sign Up</span>
           </Link>
         </div>
       )}

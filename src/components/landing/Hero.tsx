@@ -36,8 +36,8 @@ const Hero: React.FC = () => {
           {/* LEFT: Copy */}
           <div className="flex-1 text-center lg:text-left">
             {/* Pill tag */}
-            <div className="inline-flex items-center gap-2 border border-white/20 bg-white/5 text-white/70 text-xs font-bold uppercase tracking-widest px-4 py-1.5 mb-8">
-              <Zap className="w-3 h-3 text-[#FF914D]" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF914D]/10 border border-[#FF914D]/20 text-[#FF914D] text-[10px] font-black uppercase tracking-widest mb-8">
+              <Zap className="w-3 h-3" />
               Nigeria&apos;s Leading STEM Academy
             </div>
 
@@ -47,7 +47,7 @@ const Hero: React.FC = () => {
               Next Generation<br className="hidden sm:block" /> of Tech Leaders
             </h1>
 
-            <p className="text-lg text-white/60 max-w-xl mx-auto lg:mx-0 mb-10 leading-relaxed">
+            <p className="text-lg text-white/50 max-w-xl mx-auto lg:mx-0 mb-10 leading-relaxed font-medium">
               Rillcod Academy empowers Nigerian kids from JSS1 to SS3 with hands-on coding,
               robotics, and STEM skills — inside their own schools, taught by expert tutors.
             </p>
@@ -56,26 +56,24 @@ const Hero: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-14">
               <Link
                 href="/school-registration"
-                className="group inline-flex items-center justify-center gap-2 px-7 py-4 bg-[#FF914D] text-black font-bold text-base border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)] hover:-translate-x-[2px] hover:-translate-y-[2px] transition-all"
+                className="group inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-[#FF914D] to-orange-600 text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-xl shadow-orange-500/20 hover:scale-105 active:scale-95 transition-all"
               >
                 <School className="w-5 h-5" />
-                Register My School
+                Partner My School
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
-
               <Link
                 href="/student-registration"
-                className="inline-flex items-center justify-center gap-2 px-7 py-4 bg-white text-black font-bold text-base border-2 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)] hover:-translate-x-[2px] hover:-translate-y-[2px] transition-all"
+                className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-white/[0.05] backdrop-blur-md text-white font-black text-sm uppercase tracking-widest rounded-2xl border border-white/10 hover:bg-white/10 hover:scale-105 active:scale-95 transition-all"
               >
                 <Users className="w-5 h-5" />
-                Start Coding Journey
+                Join as Student
               </Link>
-
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center gap-2 px-7 py-4 bg-transparent text-white/80 font-bold text-base border-2 border-white/30 hover:border-white hover:text-white transition-all"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 text-white/40 font-bold text-xs uppercase tracking-widest hover:text-white transition-all hover:underline underline-offset-4"
               >
-                <LogIn className="w-5 h-5" />
+                <LogIn className="w-4 h-4" />
                 Portal Login
               </Link>
             </div>
@@ -83,9 +81,9 @@ const Hero: React.FC = () => {
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {stats.map((s) => (
-                <div key={s.label} className="border border-white/10 bg-white/5 p-4 text-center">
-                  <p className="text-2xl sm:text-3xl font-extrabold text-white">{s.value}</p>
-                  <p className="text-xs text-white/50 mt-1 font-medium uppercase tracking-wider">{s.label}</p>
+                <div key={s.label} className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-3xl p-6 text-center shadow-xl">
+                  <p className="text-3xl font-black text-white tracking-tighter">{s.value}</p>
+                  <p className="text-[10px] text-white/40 mt-1 font-black uppercase tracking-widest">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -101,12 +99,12 @@ const Hero: React.FC = () => {
             ].map(({ icon: Icon, label, bg }) => (
               <div
                 key={label}
-                className="border-2 border-white/10 bg-white/5 p-6 flex flex-col items-start gap-3 hover:bg-white/10 transition-colors"
+                className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-3xl p-8 flex flex-col items-start gap-4 hover:bg-white/[0.06] hover:border-white/20 transition-all duration-300 shadow-2xl group"
               >
-                <div className={`w-10 h-10 flex items-center justify-center ${bg}`}>
-                  <Icon className="w-5 h-5 text-white" />
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${bg} bg-opacity-20 group-hover:scale-110 transition-transform`}>
+                  <Icon className={`w-6 h-6 ${bg.replace('bg-', 'text-')}`} />
                 </div>
-                <p className="text-white font-bold text-sm">{label}</p>
+                <p className="text-white font-bold text-sm tracking-tight leading-tight">{label}</p>
               </div>
             ))}
           </div>

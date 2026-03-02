@@ -37,11 +37,15 @@ export default function SettingsPage() {
   });
 
   const [pwData, setPwData] = useState({
-    current: '', newPw: '', confirm: '',
+    newPw: '', confirm: '',
   });
 
-  const [notifs, setNotifs] = useState({
-    assignments: true, grades: true, announcements: true, newsletters: false,
+  const [notifs, setNotifs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('rillcod_notif_prefs');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { assignments: true, grades: true, announcements: true, newsletters: false };
   });
 
   // Populate from profile
@@ -50,8 +54,8 @@ export default function SettingsPage() {
       setProfileData({
         full_name: profile.full_name ?? '',
         email: profile.email ?? '',
-        phone: (profile as any).phone ?? '',
-        bio: (profile as any).bio ?? '',
+        phone: profile.phone ?? '',
+        bio: profile.bio ?? '',
       });
     }
   }, [profile]);
@@ -108,7 +112,7 @@ export default function SettingsPage() {
     try {
       const { error } = await createClient().auth.updateUser({ password: pwData.newPw });
       if (error) throw error;
-      setPwData({ current: '', newPw: '', confirm: '' });
+      setPwData({ newPw: '', confirm: '' });
       showToast('Password changed successfully');
     } catch (e: any) {
       showToast(e.message ?? 'Failed to change password', false);
@@ -291,50 +295,87 @@ export default function SettingsPage() {
 
             {/* Security tab */}
             {tab === 'security' && (
-              <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-                <div className="p-6 border-b border-white/10">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-violet-500/20 rounded-xl flex items-center justify-center">
-                      <KeyIcon className="w-5 h-5 text-violet-400" />
-                    </div>
-                    <div>
-                      <h2 className="font-bold text-white">Change Password</h2>
-                      <p className="text-xs text-white/40 mt-0.5">Use a strong password — at least 8 characters</p>
-                    </div>
-                  </div>
-                </div>
-                <form onSubmit={changePassword} className="p-6 space-y-4">
-                  {(['current', 'newPw', 'confirm'] as const).map((field) => (
-                    <div key={field}>
-                      <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
-                        {field === 'current' ? 'Current Password' : field === 'newPw' ? 'New Password' : 'Confirm New Password'}
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showPw ? 'text' : 'password'}
-                          value={pwData[field]}
-                          onChange={e => setPwData(p => ({ ...p, [field]: e.target.value }))}
-                          required
-                          className="w-full pl-4 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors"
-                        />
-                        <button type="button" onClick={() => setShowPw(v => !v)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
-                          {showPw ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
-                        </button>
+              <div className="space-y-4">
+                <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                  <div className="p-6 border-b border-white/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-violet-500/20 rounded-xl flex items-center justify-center">
+                        <KeyIcon className="w-5 h-5 text-violet-400" />
+                      </div>
+                      <div>
+                        <h2 className="font-bold text-white">Change Password</h2>
+                        <p className="text-xs text-white/40 mt-0.5">You are already signed in — no current password needed</p>
                       </div>
                     </div>
-                  ))}
-
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-400">
-                    For your security, you will be signed out of other devices after changing your password.
                   </div>
+                  <form onSubmit={changePassword} className="p-6 space-y-4">
+                    {(['newPw', 'confirm'] as const).map((field) => (
+                      <div key={field}>
+                        <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                          {field === 'newPw' ? 'New Password' : 'Confirm New Password'}
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showPw ? 'text' : 'password'}
+                            value={pwData[field]}
+                            onChange={e => setPwData(p => ({ ...p, [field]: e.target.value }))}
+                            required
+                            minLength={8}
+                            placeholder="Minimum 8 characters"
+                            className="w-full pl-4 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20"
+                          />
+                          <button type="button" onClick={() => setShowPw(v => !v)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
+                            {showPw ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
 
-                  <button type="submit" disabled={saving}
-                    className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-bold transition-all disabled:opacity-50">
-                    {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ShieldCheckIcon className="w-4 h-4" />}
-                    Update Password
-                  </button>
-                </form>
+                    {pwData.newPw && pwData.confirm && (
+                      <p className={`text-xs font-semibold flex items-center gap-1.5 ${pwData.newPw === pwData.confirm ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {pwData.newPw === pwData.confirm ? <CheckIcon className="w-3.5 h-3.5" /> : '✗'}
+                        {pwData.newPw === pwData.confirm ? 'Passwords match' : 'Passwords do not match'}
+                      </p>
+                    )}
+
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-400">
+                      For security, you will be signed out of other devices after changing your password.
+                    </div>
+
+                    <button type="submit" disabled={saving || pwData.newPw !== pwData.confirm || pwData.newPw.length < 8}
+                      className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-bold transition-all disabled:opacity-50">
+                      {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ShieldCheckIcon className="w-4 h-4" />}
+                      Update Password
+                    </button>
+                  </form>
+                </div>
+
+                {/* Active Sessions Info */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-3">
+                  <h3 className="font-bold text-white flex items-center gap-2">
+                    <ShieldCheckIcon className="w-4 h-4 text-blue-400" /> Account Security
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between py-2 border-b border-white/5">
+                      <span className="text-white/50">Email</span>
+                      <span className="text-white/80 font-medium">{profile.email}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-white/5">
+                      <span className="text-white/50">Role</span>
+                      <span className="capitalize font-bold text-violet-400">{profile.role}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-white/50">Account Status</span>
+                      <span className="text-emerald-400 font-bold flex items-center gap-1">
+                        <CheckIcon className="w-3.5 h-3.5" /> Active
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-white/20 pt-1">
+                    Contact an admin if you suspect unauthorised access to your account.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -364,6 +405,14 @@ export default function SettingsPage() {
                     </div>
                   ))}
                   <button
+                    onClick={() => {
+                      try {
+                        localStorage.setItem('rillcod_notif_prefs', JSON.stringify(notifs));
+                        showToast('Notification preferences saved');
+                      } catch {
+                        showToast('Failed to save preferences', false);
+                      }
+                    }}
                     className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-bold transition-all mt-4">
                     <CheckIcon className="w-4 h-4" /> Save Preferences
                   </button>

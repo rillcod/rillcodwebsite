@@ -1,84 +1,113 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import type { UserProfile, AuthContextType } from '@/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Singleton client — created once for the entire app, not per render
+// Singleton — one client for the entire browser session
 const supabase = createClient();
 
-// ─── Provider ──────────────────────────────────────────────────
+// Simple in-memory profile cache to avoid redundant DB fetches
+const profileCache = new Map<string, { data: UserProfile; ts: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const mountedRef = useRef(true);
 
-  // ── Lean profile fetch — only the columns we actually need ────
+  // ── Profile fetch with cache ───────────────────────────────
   const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
+    const cached = profileCache.get(userId);
+    if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('portal_users')
-        .select('id, email, full_name, role, is_active, phone, profile_image_url, created_at, updated_at')
+        .select('id, email, full_name, role, is_active, phone, bio, profile_image_url, school_id, created_at, updated_at')
         .eq('id', userId)
+        .eq('is_active', true)
         .maybeSingle();
-      return (data as unknown as UserProfile) ?? null;
+
+      if (error || !data) return null;
+      const p = data as unknown as UserProfile;
+      profileCache.set(userId, { data: p, ts: Date.now() });
+      return p;
     } catch {
       return null;
     }
   }, []);
 
-  // ── Public refresh ────────────────────────────────────────────
+  const invalidateCache = useCallback((userId?: string) => {
+    if (userId) profileCache.delete(userId);
+    else profileCache.clear();
+  }, []);
+
+  // ── Public refresh ─────────────────────────────────────────
   const refreshProfile = useCallback(async () => {
     try {
       const { data: { user: u } } = await supabase.auth.getUser();
       if (!u) { setProfile(null); return; }
+      invalidateCache(u.id);
       const p = await fetchProfile(u.id);
-      setProfile(p);
+      if (mountedRef.current) setProfile(p);
     } catch {
-      setProfile(null);
+      if (mountedRef.current) setProfile(null);
     }
-  }, [fetchProfile]);
+  }, [fetchProfile, invalidateCache]);
 
-  // ── Sign out ──────────────────────────────────────────────────
+  // ── Sign out — clear everything, then navigate ────────────
   const signOut = useCallback(async () => {
-    try { await supabase.auth.signOut(); } catch { /* ignore */ }
+    // Clear local state first for instant UI response
     setUser(null);
     setSession(null);
     setProfile(null);
-  }, []);
+    invalidateCache();
+    // Await signOut so the session cookie is cleared BEFORE the
+    // browser navigates. Without this the middleware sees a still-valid
+    // cookie on the /login page and redirects back to /dashboard.
+    try { await supabase.auth.signOut(); } catch { /* ignore */ }
+    window.location.href = '/login';
+  }, [invalidateCache]);
 
-  // ── Main init effect ──────────────────────────────────────────
+  // ── Main init ─────────────────────────────────────────────
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
 
-    // ── GUARANTEE: loading clears after 1.5 s no matter what ───
+    // Hard upper bound: never stay loading more than 4s (handles slow networks / token refresh)
     const hardStop = setTimeout(() => {
-      if (mounted) setIsLoading(false);
-    }, 1500);
+      if (mountedRef.current) setIsLoading(false);
+    }, 4000);
 
     const finish = () => {
       clearTimeout(hardStop);
-      if (mounted) setIsLoading(false);
+      if (mountedRef.current) setIsLoading(false);
     };
 
-    // ── Step 1: Initial session check ─────────────────────────
     const init = async () => {
       try {
-        // getUser() validates the token — no stale session risk
-        const { data: { user: u } } = await supabase.auth.getUser();
-        if (!mounted) return;
-        setUser(u);
-        if (u) {
-          // Fetch profile in parallel while we set user state
-          const p = await fetchProfile(u.id);
-          if (mounted) setProfile(p);
+        // getSession() is synchronous from cache — no network round trip
+        // when a valid session exists locally. Falls back to network only
+        // if tokens are expired. Middleware already validates server-side.
+        const { data: { session: s } } = await supabase.auth.getSession();
+
+        if (!mountedRef.current) return;
+
+        if (s?.user) {
+          setSession(s);
+          setUser(s.user);
+          // Await profile so loading stays true until we know the role.
+          // The 4s hardStop acts as the timeout safety net.
+          const p = await fetchProfile(s.user.id);
+          if (mountedRef.current) setProfile(p);
         }
       } catch {
-        // silent — will fall through to hardStop
+        // silent
       } finally {
         finish();
       }
@@ -86,39 +115,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     init();
 
-    // ── Step 2: Listen for future auth state changes ───────────
+    // Listen for future auth state changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
-        if (!mounted) return;
-
-        // Skip events that happen during init (handled above)
-        if (event === 'INITIAL_SESSION') return;
+        if (!mountedRef.current) return;
+        if (event === 'INITIAL_SESSION') return; // handled by init()
 
         setSession(s);
         setUser(s?.user ?? null);
 
-        try {
-          if (s?.user) {
-            const p = await fetchProfile(s.user.id);
-            if (mounted) setProfile(p);
-          } else {
-            setProfile(null);
+        if (s?.user) {
+          // Invalidate cache on sign-in/token-refresh so we get fresh profile
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            invalidateCache(s.user.id);
           }
-        } catch {
-          if (mounted) setProfile(null);
+          const p = await fetchProfile(s.user.id);
+          if (mountedRef.current) setProfile(p);
+        } else {
+          setProfile(null);
+          invalidateCache();
         }
 
-        // Ensure loading is off after any auth event
-        if (mounted) setIsLoading(false);
+        if (mountedRef.current) setIsLoading(false);
       }
     );
 
+    const handleStorage = () => {
+      // Supabase syncs session via storage; refresh local profile on changes.
+      refreshProfile();
+    };
+    window.addEventListener('storage', handleStorage);
+
     return () => {
-      mounted = false;
+      mountedRef.current = false;
       clearTimeout(hardStop);
       subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorage);
     };
-  }, [fetchProfile]);
+  }, [fetchProfile, invalidateCache, refreshProfile]);
 
   const value = useMemo<AuthContextType>(
     () => ({
@@ -129,15 +163,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading: isLoading,
       signOut,
       refreshProfile,
-      login: async () => { },
+      login: async (email: string, password: string) => {
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error || !data?.user) return false;
+          setSession(data.session ?? null);
+          setUser(data.user);
+          invalidateCache(data.user.id);
+          const p = await fetchProfile(data.user.id);
+          setProfile(p);
+          return true;
+        } catch {
+          return false;
+        }
+      },
     } as any),
-    [user, session, profile, isLoading, signOut, refreshProfile],
+    [user, session, profile, isLoading, signOut, refreshProfile, fetchProfile, invalidateCache],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// ─── Hook ─────────────────────────────────────────────────────
 export function useAuth(): AuthContextType {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within an AuthProvider');

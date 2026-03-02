@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import {
   HomeIcon,
   UserGroupIcon,
@@ -17,9 +18,11 @@ import {
   ClipboardDocumentCheckIcon,
   UserIcon,
   BellIcon,
+  EnvelopeIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
+  SignalIcon,
 } from '@heroicons/react/24/outline';
 
 type NavItem = { name: string; href: string; icon: any };
@@ -28,6 +31,15 @@ export default function DashboardNavigation() {
   const { profile, signOut } = useAuth();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!profile) return;
+    createClient()
+      .from('messages').select('id', { count: 'exact', head: true })
+      .eq('recipient_id', profile.id).eq('is_read', false)
+      .then(({ count }) => setUnreadCount(count ?? 0));
+  }, [profile?.id]); // eslint-disable-line
 
   // Show minimal escape bar when profile not yet loaded
   if (!profile) return (
@@ -38,10 +50,11 @@ export default function DashboardNavigation() {
           className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors underline underline-offset-2">
           Sign In
         </a>
-        <a href="/api/auth/signout"
+        <button
+          onClick={signOut}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 text-xs font-bold rounded-xl border border-rose-600/20 transition-all">
           <ArrowRightOnRectangleIcon className="w-3.5 h-3.5" /> Sign Out
-        </a>
+        </button>
       </div>
     </div>
   );
@@ -58,7 +71,11 @@ export default function DashboardNavigation() {
           { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
+          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
+          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
+          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
           { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
+          { name: 'IoT Monitor', href: '/dashboard/iot', icon: SignalIcon },
           { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
         ];
       case 'teacher':
@@ -66,9 +83,13 @@ export default function DashboardNavigation() {
           ...base,
           { name: 'My Classes', href: '/dashboard/classes', icon: BookOpenIcon },
           { name: 'Lessons', href: '/dashboard/lessons', icon: PresentationChartLineIcon },
+          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
+          { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
+          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
           { name: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon },
           { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
         ];
@@ -77,9 +98,24 @@ export default function DashboardNavigation() {
           ...base,
           { name: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon },
           { name: 'Lessons', href: '/dashboard/lessons', icon: PresentationChartLineIcon },
+          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
+          { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
           { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
+          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
           { name: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon },
+          { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
+        ];
+      case 'school':
+        return [
+          ...base,
+          { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Grades & Reports', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'Activity', href: '/dashboard/progress', icon: ChartBarIcon },
+          { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
+          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
+          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
           { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
         ];
       default:
@@ -88,10 +124,13 @@ export default function DashboardNavigation() {
   };
 
   const navItems = getNavItems();
+  const bottomNavNames = new Set(['Dashboard', 'Courses', 'My Courses', 'Library', 'Messages', 'Settings']);
+  const bottomNavItems = navItems.filter((item) => bottomNavNames.has(item.name)).slice(0, 5);
 
   const handleLogout = () => {
-    // Use server-side route to properly clear SSR session cookies
-    window.location.href = '/api/auth/signout';
+    // signOut() from auth context: clears state instantly, fires server
+    // signout in the background, then navigates to /login — one step, no flicker
+    signOut();
   };
 
   return (
@@ -171,6 +210,22 @@ export default function DashboardNavigation() {
         {/* Bottom Actions */}
         <div className="p-4 border-t border-gray-800 bg-[#060c1d] space-y-2">
           <Link
+            href="/dashboard/messages"
+            onClick={() => setMobileOpen(false)}
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-bold uppercase text-gray-400 hover:bg-[#1a2b54] hover:text-white transition-colors"
+          >
+            <div className="relative">
+              <BellIcon className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </div>
+            Notifications
+            {unreadCount > 0 && <span className="ml-auto text-[10px] bg-rose-500/20 text-rose-400 px-1.5 py-0.5 rounded-full">{unreadCount}</span>}
+          </Link>
+          <Link
             href="/dashboard/profile"
             onClick={() => setMobileOpen(false)}
             className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-bold uppercase text-gray-400 hover:bg-[#1a2b54] hover:text-white transition-colors"
@@ -193,6 +248,24 @@ export default function DashboardNavigation() {
           className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm transition-opacity"
         />
       )}
+
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0B132B] border-t border-[#7a0606] px-4 py-2 flex items-center justify-between">
+        {bottomNavItems.map(({ name, href, icon: Icon }) => {
+          const active = pathname === href || pathname?.startsWith(href + '/');
+          return (
+            <Link
+              key={`mobile-${name}`}
+              href={href}
+              onClick={() => setMobileOpen(false)}
+              className={`flex flex-col items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${active ? 'text-white' : 'text-gray-400'}`}
+            >
+              <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-gray-400'}`} />
+              {name}
+            </Link>
+          );
+        })}
+      </div>
     </>
   );
 }

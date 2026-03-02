@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import Image from 'next/image';
 import { 
   CodeBracketIcon,
   GlobeAltIcon,
@@ -211,11 +212,14 @@ export default function StudentProjectsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {projects.map((project) => (
               <div key={project.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
-                <div className="relative">
-                  <img 
-                    src={project.image} 
+                <div className="relative h-48 w-full">
+                  <Image
+                    src={project.image}
                     alt={project.title}
-                    className="w-full h-48 object-cover"
+                    fill
+                    unoptimized
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                    className="object-cover"
                   />
                   <div className="absolute top-4 left-4 bg-[#FF914D] text-white px-3 py-1 rounded-full text-sm font-medium">
                     {project.type}

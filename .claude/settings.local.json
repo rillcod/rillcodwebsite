@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npx supabase:*)",
+      "Bash(curl:*)",
+      "Bash(node:*)",
+      "Bash(wc:*)"
+    ]
+  }
+}

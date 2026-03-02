@@ -54,7 +54,7 @@ export default function OverviewPage() {
             supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('status', 'submitted'),
           ]);
           const recSubs = await supabase.from('assignment_submissions')
-            .select(`id, status, submitted_at, portal_users ( full_name ), assignments ( title )`)
+            .select(`id, status, submitted_at, portal_users!assignment_submissions_portal_user_id_fkey ( full_name ), assignments ( title )`)
             .order('submitted_at', { ascending: false }).limit(5);
           if (!cancelled) {
             setCounts({
@@ -161,7 +161,7 @@ export default function OverviewPage() {
             <h1 className="text-3xl font-extrabold mt-1">
               Welcome back, {profile.full_name?.split(' ')[0] ?? 'User'}!
             </h1>
-            <p className="text-white/40 text-sm mt-1">
+            <p className="text-white/40 text-sm mt-1" suppressHydrationWarning>
               {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>

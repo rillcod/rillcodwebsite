@@ -6,8 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 import {
   BuildingOfficeIcon, MagnifyingGlassIcon, PlusIcon,
   PhoneIcon, EnvelopeIcon, MapPinIcon, UsersIcon,
-  CheckCircleIcon, ClockIcon, XCircleIcon,
-  ExclamationTriangleIcon, EyeIcon, ChevronDownIcon,
+  ExclamationTriangleIcon, EyeIcon, ChevronDownIcon, CheckIcon, KeyIcon,
+  CheckCircleIcon, ClockIcon, XCircleIcon, PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 
 function StatusBadge({ status }: { status: string }) {
@@ -34,12 +34,36 @@ export default function SchoolsPage() {
   const [filter, setFilter] = useState('all');
   const [acting, setActing] = useState<string | null>(null);
   const [detail, setDetail] = useState<any | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [creatingSchool, setCreatingSchool] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    schoolType: '',
+    contactPerson: '',
+    address: '',
+    lga: '',
+    city: '',
+    state: '',
+    phone: '',
+    email: '',
+    studentCount: '',
+    programInterest: '',
+    status: 'approved',
+    enrollmentTypes: ['school'] as string[],
+  });
 
   const isAdmin = profile?.role === 'admin';
   const [allTeachers, setAllTeachers] = useState<any[]>([]);
   const [assignedTeachers, setAssignedTeachers] = useState<any[]>([]);
-  const [assignTab, setAssignTab] = useState<'info' | 'teachers'>('info');
+  const [assignTab, setAssignTab] = useState<'info' | 'teachers' | 'account'>('info');
   const [assigning, setAssigning] = useState<string | null>(null);
+
+  const [accEmail, setAccEmail] = useState('');
+  const [accPassword, setAccPassword] = useState('');
+  const [creatingAcc, setCreatingAcc] = useState(false);
+  const [accCreated, setAccCreated] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   // Load all teachers once (for assigning)
   useEffect(() => {
@@ -50,7 +74,7 @@ export default function SchoolsPage() {
       .eq('role', 'teacher')
       .eq('is_active', true)
       .order('full_name')
-      .then(({ data }) => setAllTeachers(data ?? []));
+      .then(({ data }: any) => setAllTeachers(data ?? []));
   }, [isAdmin]);
 
   // Load teachers assigned to the currently open school
@@ -60,7 +84,7 @@ export default function SchoolsPage() {
       .from('teacher_schools')
       .select('id, teacher_id, is_primary, portal_users(id, full_name, email)')
       .eq('school_id', detail.id)
-      .then(({ data }) => setAssignedTeachers(data ?? []));
+      .then(({ data }: any) => setAssignedTeachers(data ?? []));
   }, [detail?.id]);
 
   useEffect(() => {
@@ -91,8 +115,135 @@ export default function SchoolsPage() {
       await createClient().from('schools').update({ status }).eq('id', id);
       setSchools(prev => prev.map(s => s.id === id ? { ...s, status } : s));
       if (detail?.id === id) setDetail((d: any) => ({ ...d, status }));
+      const target = schools.find(s => s.id === id);
+      if (target?.email) {
+        fetch('/api/schools/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: target.email,
+            status,
+            schoolName: target.name,
+          })
+        }).catch(() => null);
+      }
     } catch { /* ignore */ }
     setActing(null);
+  };
+
+  const toggleEnrollmentType = (value: string) => {
+    setCreateForm(prev => ({
+      ...prev,
+      enrollmentTypes: prev.enrollmentTypes.includes(value)
+        ? prev.enrollmentTypes.filter(t => t !== value)
+        : [...prev.enrollmentTypes, value]
+    }));
+  };
+
+  const handleCreateSchool = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createForm.name.trim()) return;
+    setCreatingSchool(true);
+    setError(null);
+    try {
+      const db = createClient();
+      const payload = {
+        name: createForm.name.trim(),
+        school_type: createForm.schoolType || null,
+        contact_person: createForm.contactPerson || null,
+        address: createForm.address || null,
+        lga: createForm.lga || null,
+        city: createForm.city || null,
+        state: createForm.state || null,
+        phone: createForm.phone || null,
+        email: createForm.email || null,
+        student_count: createForm.studentCount ? parseInt(createForm.studentCount, 10) : null,
+        program_interest: createForm.programInterest
+          ? createForm.programInterest.split(',').map(p => p.trim()).filter(Boolean)
+          : [],
+        status: createForm.status || 'approved',
+        enrollment_types: createForm.enrollmentTypes.length ? createForm.enrollmentTypes : ['school'],
+        is_active: true,
+      };
+
+      if (editingSchool) {
+        const { data, error }: { data: any; error: any } = await db
+          .from('schools')
+          .update(payload)
+          .eq('id', editingSchool.id)
+          .select()
+          .single();
+        if (error) throw error;
+        setSchools(prev => prev.map(s => s.id === data.id ? data : s));
+        setEditingSchool(null);
+      } else {
+        const { data, error }: { data: any; error: any } = await db
+          .from('schools')
+          .insert([payload])
+          .select()
+          .single();
+        if (error) throw error;
+        setSchools(prev => [data, ...prev]);
+      }
+
+      setShowCreate(false);
+      setCreateForm({
+        name: '',
+        schoolType: '',
+        contactPerson: '',
+        address: '',
+        lga: '',
+        city: '',
+        state: '',
+        phone: '',
+        email: '',
+        studentCount: '',
+        programInterest: '',
+        status: 'approved',
+        enrollmentTypes: ['school'],
+      });
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to save school');
+    } finally {
+      setCreatingSchool(false);
+    }
+  };
+
+  const handleDeleteSchool = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this school? This will soft-delete the record.')) return;
+    setDeleting(id);
+    try {
+      const { error } = await createClient()
+        .from('schools')
+        .update({ is_deleted: true })
+        .eq('id', id);
+      if (error) throw error;
+      setSchools(prev => prev.filter(s => s.id !== id));
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to delete school');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const startEdit = (school: any) => {
+    setEditingSchool(school);
+    setCreateForm({
+      name: school.name || '',
+      schoolType: school.school_type || '',
+      contactPerson: school.contact_person || '',
+      address: school.address || '',
+      lga: school.lga || '',
+      city: school.city || '',
+      state: school.state || '',
+      phone: school.phone || '',
+      email: school.email || '',
+      studentCount: school.student_count?.toString() || '',
+      programInterest: school.program_interest?.join(', ') || '',
+      status: school.status || 'approved',
+      enrollmentTypes: school.enrollment_types || ['school'],
+    });
+    setShowCreate(true);
   };
 
   const assignTeacher = async (teacherId: string) => {
@@ -116,6 +267,34 @@ export default function SchoolsPage() {
       setAssignedTeachers(prev => prev.filter(t => t.id !== assignmentId));
     } catch { /* ignore */ }
     setAssigning(null);
+  };
+
+  const createSchoolAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!detail?.id || !accEmail || !accPassword) return;
+    setCreatingAcc(true); setError(null);
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: accEmail,
+          password: accPassword,
+          fullName: detail.name,
+          role: 'school',
+          school_id: detail.id
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create account');
+      setAccCreated(true);
+      setAccEmail('');
+      setAccPassword('');
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setCreatingAcc(false);
+    }
   };
 
   const filtered = schools.filter(s => {
@@ -168,6 +347,12 @@ export default function SchoolsPage() {
             <h1 className="text-3xl font-extrabold">Partner Schools</h1>
             <p className="text-white/40 text-sm mt-1">Manage all partner school registrations and approvals</p>
           </div>
+          <button
+            onClick={() => { setEditingSchool(null); setShowCreate(true); }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-colors"
+          >
+            <PlusIcon className="w-4 h-4" /> Add School
+          </button>
         </div>
 
         {error && (
@@ -286,15 +471,19 @@ export default function SchoolsPage() {
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-xs font-bold rounded-xl transition-all">
                         <EyeIcon className="w-3.5 h-3.5" /> View
                       </button>
+                      <button onClick={() => startEdit(s)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-xs font-bold rounded-xl transition-all">
+                        <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+                      </button>
+                      <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-xs font-bold rounded-xl transition-all disabled:opacity-50">
+                        <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Delete'}
+                      </button>
                       {(s.status === 'pending' || !s.status) && (
                         <>
                           <button onClick={() => updateStatus(s.id, 'approved')} disabled={acting === s.id}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                             <CheckCircleIcon className="w-3.5 h-3.5" /> Approve
-                          </button>
-                          <button onClick={() => updateStatus(s.id, 'rejected')} disabled={acting === s.id}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50">
-                            <XCircleIcon className="w-3.5 h-3.5" /> Reject
                           </button>
                         </>
                       )}
@@ -322,11 +511,11 @@ export default function SchoolsPage() {
 
               {/* Modal tabs */}
               <div className="flex gap-1 p-3 border-b border-white/10 bg-white/[0.02] flex-shrink-0">
-                {(['info', 'teachers'] as const).map(t => (
+                {(['info', 'teachers', 'account'] as const).map(t => (
                   <button key={t} onClick={() => setAssignTab(t)}
                     className={`flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all ${assignTab === t ? 'bg-violet-600 text-white' : 'text-white/40 hover:bg-white/5 hover:text-white'
                       }`}>
-                    {t === 'teachers' ? `Assigned Teachers (${assignedTeachers.length})` : 'School Info'}
+                    {t === 'teachers' ? `Teachers (${assignedTeachers.length})` : t === 'account' ? 'Portal Account' : 'School Info'}
                   </button>
                 ))}
               </div>
@@ -412,6 +601,40 @@ export default function SchoolsPage() {
                     </div>
                   </div>
                 )}
+
+                {assignTab === 'account' && (
+                  <div className="p-6">
+                    <p className="text-sm text-white/40 mb-6">Create a portal account so this school can log in and view their students.</p>
+
+                    {accCreated ? (
+                      <div className="text-center py-6 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                        <CheckIcon className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
+                        <h4 className="font-bold text-white">Account Created</h4>
+                        <p className="text-sm text-white/50 mt-1">The school can now log in using the credentials provided.</p>
+                        <button onClick={() => setAccCreated(false)} className="mt-4 px-4 py-1.5 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-xl">
+                          Create another
+                        </button>
+                      </div>
+                    ) : (
+                      <form onSubmit={createSchoolAccount} className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">Account Email</label>
+                          <input type="email" required value={accEmail} onChange={e => setAccEmail(e.target.value)}
+                            placeholder="admin@school.com" className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">Initial Password</label>
+                          <input type="text" required value={accPassword} onChange={e => setAccPassword(e.target.value)}
+                            placeholder="At least 8 characters" className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500" />
+                        </div>
+                        <button type="submit" disabled={creatingAcc}
+                          className="w-full flex justify-center items-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all disabled:opacity-50">
+                          {creatingAcc ? 'Creating…' : <><KeyIcon className="w-4 h-4" /> Create Account</>}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
               </div>
 
               {assignTab === 'info' && (detail.status === 'pending' || !detail.status) && (
@@ -426,6 +649,173 @@ export default function SchoolsPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {showCreate && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-[#0f0f1a] border border-white/10 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden">
+              <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <div>
+                  <h3 className="font-bold text-white text-lg">{editingSchool ? 'Edit School' : 'Add Partner School'}</h3>
+                  <p className="text-xs text-white/40">{editingSchool ? `Modifying ${editingSchool.name}` : 'Create a school directly from the admin dashboard'}</p>
+                </div>
+                <button onClick={() => { setShowCreate(false); setEditingSchool(null); }} className="p-1.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+                  <XCircleIcon className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleCreateSchool} className="p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">School Name *</label>
+                    <input
+                      value={createForm.name}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+                      placeholder="School name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">School Type</label>
+                    <input
+                      value={createForm.schoolType}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, schoolType: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+                      placeholder="Primary / Secondary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">Contact Person</label>
+                    <input
+                      value={createForm.contactPerson}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, contactPerson: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+                      placeholder="Principal / Admin"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">Status</label>
+                    <select
+                      value={createForm.status}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, status: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 appearance-none"
+                    >
+                      <option value="approved">Approved</option>
+                      <option value="pending">Pending</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">Address</label>
+                  <input
+                    value={createForm.address}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, address: e.target.value }))}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+                    placeholder="School address"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">LGA</label>
+                    <input
+                      value={createForm.lga}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, lga: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+                      placeholder="LGA"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">City</label>
+                    <input
+                      value={createForm.city}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, city: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+                      placeholder="City"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">State</label>
+                    <input
+                      value={createForm.state}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, state: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+                      placeholder="State"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">Phone</label>
+                    <input
+                      value={createForm.phone}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, phone: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+                      placeholder="+234..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">Email</label>
+                    <input
+                      type="email"
+                      value={createForm.email}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+                      placeholder="email@school.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">Student Count</label>
+                    <input
+                      type="number"
+                      value={createForm.studentCount}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, studentCount: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+                      placeholder="e.g. 500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">Program Interests (comma separated)</label>
+                  <input
+                    value={createForm.programInterest}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, programInterest: e.target.value }))}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
+                    placeholder="Coding Fundamentals, Robotics"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-2">Enrollment Types</label>
+                  <div className="flex flex-wrap gap-3 text-xs text-white/40">
+                    {['school', 'bootcamp', 'online'].map((type) => (
+                      <label key={type} className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={createForm.enrollmentTypes.includes(type)}
+                          onChange={() => toggleEnrollmentType(type)}
+                          className="h-4 w-4 rounded border-white/20 bg-white/10"
+                        />
+                        <span className="capitalize">{type}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={creatingSchool}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all disabled:opacity-50"
+                >
+                  {creatingSchool ? 'Saving…' : <>{editingSchool ? <PencilSquareIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />} {editingSchool ? 'Update School' : 'Create School'}</>}
+                </button>
+              </form>
             </div>
           </div>
         )}

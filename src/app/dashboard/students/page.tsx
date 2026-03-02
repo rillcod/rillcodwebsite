@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -9,7 +10,8 @@ import {
   BuildingOfficeIcon, EnvelopeIcon, PhoneIcon, MapPinIcon,
   ChevronDownIcon, ChevronUpIcon, ArrowPathIcon, ArrowDownTrayIcon,
   CalendarIcon, UserIcon, ExclamationTriangleIcon, StarIcon,
-  BookOpenIcon,
+  BookOpenIcon, ClipboardDocumentListIcon, KeyIcon, ShieldCheckIcon,
+  XMarkIcon, ClipboardIcon, PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 
@@ -49,24 +51,35 @@ export default function StudentsPage() {
   const [acting, setActing] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [activating, setActivating] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<{ email: string; tempPassword: string; name: string } | null>(null);
+  const [editingStudent, setEditingStudent] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
   // ── Fetch ──────────────────────────────────────────────────
   const load = useCallback(async () => {
     if (!profile || !isStaff) return;
     setLoading(true); setError(null);
     try {
-      const { data, error: err } = await createClient()
+      let query = createClient()
         .from('students')
         .select(`
-          id, full_name, school_name, school_id,
+          id, full_name, school_name, school_id, user_id,
+          student_email, enrollment_type,
           parent_name, parent_email, parent_phone, parent_relationship,
           grade_level, gender, date_of_birth, city, state,
           interests, goals, heard_about_us,
+          course_interest, preferred_schedule,
           status, created_at, approved_at, approved_by
-        `)
-        .order('created_at', { ascending: false });
+        `);
+
+      if (profile.role === 'school' && profile.school_id) {
+        query = query.eq('school_id', profile.school_id);
+      }
+
+      const { data, error: err } = await query.order('created_at', { ascending: false });
       if (err) throw err;
       setStudents(data ?? []);
     } catch (e: any) {
@@ -107,11 +120,58 @@ export default function StudentsPage() {
     setActing(null);
   };
 
+  // ── Activate portal account ─────────────────────────────────
+  const activatePortalAccount = async (studentId: string, studentName: string) => {
+    setActivating(studentId);
+    try {
+      const res = await fetch('/api/students/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Activation failed');
+      if (json.alreadyActivated) {
+        alert(`${studentName} already has a portal account (${json.email}).`);
+      } else {
+        // Show credentials modal
+        setCredentials({ email: json.email, tempPassword: json.tempPassword, name: studentName });
+        // Update local state to reflect user_id is now set
+        setStudents(prev => prev.map(s => s.id === studentId
+          ? { ...s, user_id: json.portalUserId, status: 'approved' } : s));
+      }
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to activate portal account');
+    } finally {
+      setActivating(null);
+    }
+  };
+
+  // ── DELETE ────────────────────────────────────────────────
+  const handleDeleteStudent = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this student record?')) return;
+    setDeleting(id);
+    try {
+      const { error } = await createClient().from('students').delete().eq('id', id);
+      if (error) throw error;
+      setStudents(prev => prev.filter(s => s.id !== id));
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to delete student');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const startEdit = (s: any) => {
+    setEditingStudent(s);
+    setShowAdd(true);
+  };
+
   // ── CSV export ─────────────────────────────────────────────
   const exportCSV = () => {
-    const header = ['Name', 'Status', 'Grade', 'School', 'Gender', 'Parent', 'Parent Phone', 'Parent Email', 'City', 'State', 'Registered'];
+    const header = ['Name', 'Status', 'Enrollment Type', 'Grade', 'School', 'Gender', 'Parent', 'Parent Phone', 'Parent Email', 'City', 'State', 'Registered'];
     const rows = students.map(s => [
-      s.full_name, s.status, s.grade_level, s.school_name, s.gender,
+      s.full_name, s.status, s.enrollment_type, s.grade_level, s.school_name, s.gender,
       s.parent_name, s.parent_phone, s.parent_email, s.city, s.state,
       new Date(s.created_at).toLocaleDateString(),
     ]);
@@ -171,6 +231,64 @@ export default function StudentsPage() {
 
   return (
     <>
+      {/* ── Credentials Modal ─────────────────────────────── */}
+      {credentials && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setCredentials(null)}>
+          <div className="bg-[#161628] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center justify-center">
+                  <ShieldCheckIcon className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white">Portal Account Created</h3>
+                  <p className="text-xs text-white/40">Share these credentials with {credentials.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setCredentials(null)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                <XMarkIcon className="w-5 h-5 text-white/40" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300 flex items-start gap-2">
+                <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>Copy these credentials now — the password will not be shown again. The student should change it on first login via Settings.</span>
+              </div>
+              {[
+                { label: 'Login Email', value: credentials.email },
+                { label: 'Temporary Password', value: credentials.tempPassword },
+              ].map(({ label, value }) => (
+                <div key={label}>
+                  <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">{label}</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-mono text-sm select-all">
+                      {value}
+                    </code>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(value)}
+                      className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/40 hover:text-white transition-colors"
+                      title="Copy">
+                      <ClipboardIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `Email: ${credentials.email}\nPassword: ${credentials.tempPassword}`
+                  );
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all mt-2">
+                <ClipboardIcon className="w-4 h-4" /> Copy Both to Clipboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="min-h-screen bg-[#0f0f1a] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
@@ -198,7 +316,7 @@ export default function StudentsPage() {
                 <ArrowDownTrayIcon className="w-4 h-4" /> Export
               </button>
               {profile?.role !== 'student' && (
-                <button onClick={() => setShowAdd(true)}
+                <button onClick={() => { setEditingStudent(null); setShowAdd(true); }}
                   className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20">
                   <PlusIcon className="w-4 h-4" /> Add Student
                 </button>
@@ -320,6 +438,7 @@ export default function StudentsPage() {
                             <Chip icon={BuildingOfficeIcon} text={s.school_name} />
                             <Chip icon={AcademicCapIcon} text={s.grade_level} />
                             <Chip icon={MapPinIcon} text={[s.city, s.state].filter(Boolean).join(', ')} />
+                            <Chip icon={BookOpenIcon} text={s.enrollment_type ? `${s.enrollment_type} enrolment` : ''} />
                             <Chip icon={CalendarIcon} text={s.created_at ? `Registered ${new Date(s.created_at).toLocaleDateString()}` : ''} />
                           </div>
 
@@ -354,6 +473,17 @@ export default function StudentsPage() {
                               </button>
                             </>
                           )}
+                          <button
+                            onClick={e => { e.stopPropagation(); startEdit(s); }}
+                            className="p-1.5 rounded-lg border border-white/10 hover:border-white/30 text-white/40 hover:text-white transition-all">
+                            <PencilSquareIcon className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={e => { e.stopPropagation(); handleDeleteStudent(s.id); }}
+                            disabled={deleting === s.id}
+                            className="p-1.5 rounded-lg border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
+                            <XMarkIcon className="w-3.5 h-3.5" />
+                          </button>
                           {isExpanded
                             ? <ChevronUpIcon className="w-4 h-4 text-white/30 group-hover:text-white/60 transition-colors" />
                             : <ChevronDownIcon className="w-4 h-4 text-white/30 group-hover:text-white/60 transition-colors" />}
@@ -400,8 +530,11 @@ export default function StudentsPage() {
                               </p>
                               <div className="space-y-2.5">
                                 <InfoRow label="Interests" value={s.interests} />
+                                <InfoRow label="Course Interest" value={s.course_interest} />
+                                <InfoRow label="Preferred Schedule" value={s.preferred_schedule} />
                                 <InfoRow label="Goals" value={s.goals} />
                                 <InfoRow label="Heard About" value={s.heard_about_us} />
+                                <InfoRow label="Enrollment Type" value={s.enrollment_type} />
                                 <InfoRow label="Status" value={s.status} />
                                 {s.approved_at && (
                                   <InfoRow label="Approved On" value={new Date(s.approved_at).toLocaleDateString()} />
@@ -429,10 +562,26 @@ export default function StudentsPage() {
                               </>
                             )}
                             {s.status === 'approved' && (
-                              <div className="flex items-center gap-2 text-emerald-400 text-sm">
-                                <StarIcon className="w-4 h-4" />
-                                <span className="font-semibold">Approved student</span>
-                                {s.approved_at && <span className="text-white/30 text-xs">· {new Date(s.approved_at).toLocaleDateString()}</span>}
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <div className="flex items-center gap-2 text-emerald-400 text-sm">
+                                  <StarIcon className="w-4 h-4" />
+                                  <span className="font-semibold">Approved student</span>
+                                  {s.approved_at && <span className="text-white/30 text-xs">· {new Date(s.approved_at).toLocaleDateString()}</span>}
+                                </div>
+                                {/* Show portal status */}
+                                {s.user_id ? (
+                                  <span className="flex items-center gap-1.5 text-xs text-violet-400 font-semibold">
+                                    <ShieldCheckIcon className="w-3.5 h-3.5" /> Portal Active
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => activatePortalAccount(s.id, s.full_name)}
+                                    disabled={activating === s.id}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all">
+                                    <KeyIcon className="w-3.5 h-3.5" />
+                                    {activating === s.id ? 'Creating…' : 'Activate Portal'}
+                                  </button>
+                                )}
                               </div>
                             )}
                             {s.status === 'rejected' && (
@@ -441,12 +590,18 @@ export default function StudentsPage() {
                                 <span className="font-semibold">Application rejected</span>
                               </div>
                             )}
-                            {s.parent_email && (
-                              <a href={`mailto:${s.parent_email}`}
-                                className="ml-auto flex items-center gap-1.5 text-xs text-white/30 hover:text-white transition-colors">
-                                <EnvelopeIcon className="w-3.5 h-3.5" /> Email parent
-                              </a>
-                            )}
+                            <div className="ml-auto flex items-center gap-3">
+                              <Link href={`/dashboard/students/${s.id}/report`}
+                                className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 transition-colors">
+                                <ClipboardDocumentListIcon className="w-3.5 h-3.5" /> View Report
+                              </Link>
+                              {s.parent_email && (
+                                <a href={`mailto:${s.parent_email}`}
+                                  className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white transition-colors">
+                                  <EnvelopeIcon className="w-3.5 h-3.5" /> Email parent
+                                </a>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -462,8 +617,9 @@ export default function StudentsPage() {
 
       <AddStudentModal
         isOpen={showAdd}
-        onClose={() => setShowAdd(false)}
-        onSuccess={() => { setShowAdd(false); load(); }}
+        onClose={() => { setShowAdd(false); setEditingStudent(null); }}
+        onSuccess={() => { setShowAdd(false); setEditingStudent(null); load(); }}
+        initialData={editingStudent}
       />
     </>
   );

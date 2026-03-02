@@ -83,7 +83,7 @@ export default function IoTPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [isDemo, setIsDemo] = useState(false);
   const [dbLoading, setDbLoading] = useState(true);
 
@@ -144,6 +144,7 @@ export default function IoTPage() {
       setAlerts(SEED_ALERTS);
     } finally {
       setDbLoading(false);
+      setLastRefresh(new Date());
     }
   }, []);
 
@@ -221,7 +222,7 @@ export default function IoTPage() {
             </div>
             <h1 className="text-3xl font-extrabold">IoT Device Dashboard</h1>
             <p className="text-white/40 text-sm mt-1">
-              Last updated {ago(lastRefresh)}
+              Last updated {lastRefresh ? ago(lastRefresh) : '—'}
               {!isDemo && <span className="ml-2 text-emerald-400 text-xs font-semibold">● Live</span>}
             </p>
           </div>
