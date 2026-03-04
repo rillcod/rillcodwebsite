@@ -79,7 +79,7 @@ export class AnalyticsService {
     async getAtRiskStudents(schoolId?: string) {
         const supabase = await createClient();
         const { data, error } = await supabase.rpc('get_at_risk_students', {
-            p_school_id: schoolId || null,
+            p_school_id: schoolId ?? '',
             p_days_inactive: 7
         });
 
