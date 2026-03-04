@@ -83,6 +83,13 @@ export default function ResetPasswordPage() {
           </p>
         </div>
 
+        <div className="absolute top-4 left-4 z-50">
+          <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/70 hover:text-white transition-all backdrop-blur-md">
+            <ArrowLeft className="w-4 h-4" />
+            <span className="text-sm font-medium">Back to Home</span>
+          </Link>
+        </div>
+
         {/* Card */}
         <div className="bg-white/5 border border-white/10 rounded-3xl p-7 shadow-2xl backdrop-blur-md">
 

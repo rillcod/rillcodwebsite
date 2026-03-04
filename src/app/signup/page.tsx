@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, ArrowRight, Loader2, CheckCircle, Building2 } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, ArrowRight, Loader2, CheckCircle, Building2, ArrowLeft } from "lucide-react";
 
 type UserRole = 'admin' | 'teacher' | 'student';
 
@@ -110,6 +110,13 @@ export default function SignUpPage() {
       <div className="absolute bottom-[-15%] right-[-10%] w-[45%] h-[45%] bg-blue-700/15 rounded-full blur-[140px] pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10">
+
+        <div className="absolute top-4 left-4 z-50">
+          <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/70 hover:text-white transition-all backdrop-blur-md">
+            <ArrowLeft className="w-4 h-4" />
+            <span className="text-sm font-medium">Back to Home</span>
+          </Link>
+        </div>
 
         {/* Logo */}
         <div className="text-center mb-8">

@@ -3,8 +3,9 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { createClient } from '@/lib/supabase/client';
 import { logger } from '@/lib/logger';
-import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, Building2, ArrowRight, Loader2 } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, Building2, ArrowRight, Loader2, ArrowLeft } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -129,28 +130,34 @@ export default function LoginPage() {
             {/* Left — Role picker */}
             <div className="w-full lg:w-1/2 flex flex-col">
               <div className="mb-12">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-indigo-300 text-sm font-medium mb-6 backdrop-blur-md">
+                <div className="absolute top-4 left-4 z-50">
+                  <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/70 hover:text-white transition-all backdrop-blur-md">
+                    <ArrowLeft className="w-4 h-4" />
+                    <span className="text-sm font-medium">Back to Home</span>
+                  </Link>
+                </div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-violet-300 text-sm font-bold mb-6 backdrop-blur-md">
                   <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
                   </span>
                   Welcome to RillCod Academy
                 </div>
-                <h2 className="text-5xl lg:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-white/70 tracking-tight leading-tight mb-4">
+                <h2 className="text-5xl lg:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-violet-100 to-white/70 tracking-tight leading-tight mb-4">
                   Choose Your <br className="hidden lg:block" /> Path.
                 </h2>
                 <p
-                  className="text-lg text-gray-400 font-light max-w-md"
+                  className="text-lg text-white/50 font-medium max-w-md"
                   dangerouslySetInnerHTML={{ __html: 'Select your role to embark on an exceptional learning journey.' }}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { id: "student", icon: GraduationCap, title: "Student", desc: "Start learning", gradient: "from-blue-500/10 to-indigo-500/10", border: "border-indigo-500/20", hover: "hover:border-indigo-500/50 hover:bg-indigo-500/10", active: "border-indigo-500 bg-indigo-500/20 ring-1 ring-indigo-500/50 shadow-[0_0_30px_-5px_rgba(99,102,241,0.3)]", iconColor: "text-indigo-400" },
-                  { id: "teacher", icon: User, title: "Teacher", desc: "Guide students", gradient: "from-emerald-500/10 to-teal-500/10", border: "border-teal-500/20", hover: "hover:border-teal-500/50 hover:bg-teal-500/10", active: "border-teal-500 bg-teal-500/20 ring-1 ring-teal-500/50 shadow-[0_0_30px_-5px_rgba(20,184,166,0.3)]", iconColor: "text-teal-400" },
-                  { id: "school", icon: Building2, title: "School", desc: "Manage institution", gradient: "from-orange-500/10 to-red-500/10", border: "border-orange-500/20", hover: "hover:border-orange-500/50 hover:bg-orange-500/10", active: "border-orange-500 bg-orange-500/20 ring-1 ring-orange-500/50 shadow-[0_0_30px_-5px_rgba(249,115,22,0.3)]", iconColor: "text-orange-400" },
-                  { id: "admin", icon: Shield, title: "Admin", desc: "Manage academy", gradient: "from-purple-500/10 to-pink-500/10", border: "border-purple-500/20", hover: "hover:border-purple-500/50 hover:bg-purple-500/10", active: "border-purple-500 bg-purple-500/20 ring-1 ring-purple-500/50 shadow-[0_0_30px_-5px_rgba(168,85,247,0.3)]", iconColor: "text-purple-400" }
+                  { id: "student", icon: GraduationCap, title: "Student", desc: "Start learning", gradient: "from-blue-600/20 to-indigo-600/20", border: "border-indigo-500/30", hover: "hover:border-indigo-500/60 hover:bg-indigo-500/10", active: "border-indigo-500 bg-gradient-to-br from-blue-600/30 to-indigo-600/30 ring-1 ring-indigo-500/50 shadow-[0_0_30px_-5px_rgba(99,102,241,0.4)]", iconColor: "text-indigo-400" },
+                  { id: "teacher", icon: User, title: "Teacher", desc: "Guide students", gradient: "from-emerald-600/20 to-teal-600/20", border: "border-teal-500/30", hover: "hover:border-teal-500/60 hover:bg-teal-500/10", active: "border-teal-500 bg-gradient-to-br from-emerald-600/30 to-teal-600/30 ring-1 ring-teal-500/50 shadow-[0_0_30px_-5px_rgba(20,184,166,0.4)]", iconColor: "text-teal-400" },
+                  { id: "school", icon: Building2, title: "School", desc: "Manage institution", gradient: "from-orange-600/20 to-red-600/20", border: "border-orange-500/30", hover: "hover:border-orange-500/60 hover:bg-orange-500/10", active: "border-orange-500 bg-gradient-to-br from-orange-600/30 to-red-600/30 ring-1 ring-orange-500/50 shadow-[0_0_30px_-5px_rgba(249,115,22,0.4)]", iconColor: "text-orange-400" },
+                  { id: "admin", icon: Shield, title: "Admin", desc: "Manage academy", gradient: "from-purple-600/20 to-pink-600/20", border: "border-purple-500/30", hover: "hover:border-purple-500/60 hover:bg-purple-500/10", active: "border-purple-500 bg-gradient-to-br from-purple-600/30 to-pink-600/30 ring-1 ring-purple-500/50 shadow-[0_0_30px_-5px_rgba(168,85,247,0.4)]", iconColor: "text-purple-400" }
                 ].map((role) => (
                   <button
                     key={role.id}
@@ -173,12 +180,12 @@ export default function LoginPage() {
             {/* Right — Login form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center">
               <div className="w-full max-w-md relative">
-                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 rounded-[2rem] blur-xl opacity-20" />
-                <div className="relative bg-[#111113]/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 lg:p-10 shadow-2xl">
+                <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 rounded-[2rem] blur-xl opacity-20" />
+                <div className="relative bg-[#0a0a14]/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 lg:p-10 shadow-2xl">
 
                   <div className="mb-8">
                     <h2 className="text-2xl font-bold text-white mb-2">Sign In</h2>
-                    <p className="text-sm text-gray-400">Enter your credentials to access the portal.</p>
+                    <p className="text-sm text-white/50">Enter your credentials to access the portal.</p>
                   </div>
 
                   {error && (
@@ -206,7 +213,7 @@ export default function LoginPage() {
                           autoCorrect="off"
                           inputMode="email"
                           enterKeyHint="next"
-                          className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-white placeholder-gray-500 transition-all outline-none"
+                          className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 text-white placeholder-white/20 transition-all outline-none"
                           placeholder="name@example.com"
                         />
                       </div>
@@ -233,7 +240,7 @@ export default function LoginPage() {
                           onChange={(e) => setPassword(e.target.value)}
                           autoComplete="current-password"
                           enterKeyHint="done"
-                          className="w-full pl-12 pr-12 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-white placeholder-gray-500 transition-all outline-none"
+                          className="w-full pl-12 pr-12 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 text-white placeholder-white/20 transition-all outline-none"
                           placeholder="••••••••"
                         />
                         <button
@@ -249,9 +256,9 @@ export default function LoginPage() {
                     <button
                       type="submit"
                       disabled={loading || !selectedRole || envMissing}
-                      className="w-full relative flex items-center justify-center gap-2 py-4 px-4 bg-white text-black rounded-xl font-bold text-sm tracking-wide hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#111113] focus:ring-white transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden group"
+                      className="w-full relative flex items-center justify-center gap-2 py-4 px-4 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white rounded-xl font-bold text-sm tracking-wide shadow-lg shadow-violet-500/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0a0a14] focus:ring-violet-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden group"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/10 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                       {loading ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
@@ -271,7 +278,7 @@ export default function LoginPage() {
                       Signing in as{' '}
                       <span className="text-gray-300 font-semibold capitalize">{selectedRole}</span>
                       {' · '}
-                      <a href={selectedRole === 'school' ? "/partnership" : "/student-registration"} className="text-indigo-400 hover:text-indigo-300 transition-colors">
+                      <a href={selectedRole === 'school' ? "/partnership" : "/student-registration"} className="text-violet-400 hover:text-violet-300 transition-colors">
                         New? Register here →
                       </a>
                     </p>

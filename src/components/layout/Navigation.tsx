@@ -232,12 +232,11 @@ const Navigation = () => {
               </div>
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </nav>
   );
 };
-
-export default Navigation;
 
 export default Navigation;

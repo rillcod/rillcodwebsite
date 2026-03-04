@@ -15,7 +15,7 @@ const programs = [
     level: "Beginner",
     students: "10-15 students",
     features: ["Computer basics", "File management", "Internet safety", "Digital citizenship"],
-    price: "₦15,000",
+    price: "₦35,000",
     category: "Foundation",
     ageRange: "6-8 years",
     skills: ["Digital Literacy", "Computer Basics", "Internet Safety", "File Management"],
@@ -34,7 +34,7 @@ const programs = [
     level: "Beginner",
     students: "8-12 students",
     features: ["Block-based coding", "Game development", "Animation creation", "Storytelling"],
-    price: "₦18,000",
+    price: "₦45,000",
     category: "Programming",
     ageRange: "7-10 years",
     skills: ["Visual Programming", "Game Design", "Animation", "Creative Thinking"],
@@ -53,7 +53,7 @@ const programs = [
     level: "Intermediate",
     students: "8-12 students",
     features: ["HTML structure", "CSS styling", "Responsive design", "Web publishing"],
-    price: "₦20,000",
+    price: "₦55,000",
     category: "Web Development",
     ageRange: "10-12 years",
     skills: ["HTML", "CSS", "Web Design", "Responsive Layout"],
@@ -72,7 +72,7 @@ const programs = [
     level: "Intermediate",
     students: "6-10 students",
     features: ["Python syntax", "Data types", "Functions", "Simple projects"],
-    price: "₦25,000",
+    price: "₦65,000",
     category: "Programming",
     ageRange: "11-14 years",
     skills: ["Python", "Problem Solving", "Data Types", "Functions"],
@@ -91,7 +91,7 @@ const programs = [
     level: "Intermediate",
     students: "8-12 students",
     features: ["UI/UX principles", "Color theory", "Typography", "Design tools"],
-    price: "₦22,000",
+    price: "₦55,000",
     category: "Design",
     ageRange: "12-15 years",
     skills: ["UI/UX Design", "Color Theory", "Typography", "Design Tools"],
@@ -110,7 +110,7 @@ const programs = [
     level: "Advanced",
     students: "6-8 students",
     features: ["Hardware basics", "Circuit design", "Programming robots", "Problem solving"],
-    price: "₦30,000",
+    price: "₦80,000",
     category: "Robotics",
     ageRange: "13-16 years",
     skills: ["Robotics", "Circuit Design", "Hardware Programming", "Problem Solving"],
@@ -129,7 +129,7 @@ const programs = [
     level: "All Levels",
     students: "4-8 students",
     features: ["Live online sessions", "Interactive learning", "Real-time feedback", "Flexible scheduling"],
-    price: "₦12,000",
+    price: "₦40,000",
     category: "Virtual Learning",
     ageRange: "6-16 years",
     skills: ["Online Learning", "Virtual Collaboration", "Digital Communication", "Self-Discipline"],
@@ -148,7 +148,7 @@ const programs = [
     level: "Beginner",
     students: "8-15 students",
     features: ["Fun coding activities", "Birthday-themed projects", "Take-home creations", "Party decorations"],
-    price: "₦25,000",
+    price: "₦45,000",
     category: "Special Events",
     ageRange: "6-14 years",
     skills: ["Creative Coding", "Party Planning", "Collaboration", "Celebration"],
@@ -167,7 +167,7 @@ const programs = [
     level: "All Levels",
     students: "6-12 students",
     features: ["Extended learning time", "Advanced projects", "Homework support", "Skill development"],
-    price: "₦18,000",
+    price: "₦55,000",
     category: "Extended Learning",
     ageRange: "8-16 years",
     skills: ["Advanced Programming", "Project Management", "Time Management", "Independent Learning"],
@@ -179,7 +179,7 @@ const programs = [
   {
     id: 'summer-school',
     icon: <Sun className="w-12 h-12 text-yellow-600" />,
-    title: "Summer School 2025",
+    title: "Summer School 2026",
     description: "Intensive summer program for students to accelerate their tech skills",
     color: "from-yellow-400 to-orange-500",
     duration: "4-6 weeks",
@@ -192,7 +192,7 @@ const programs = [
       "Career guidance",
       "Certificate of completion"
     ],
-    price: "₦50,000 - ₦75,000",
+    price: "₦65,000 - ₦85,000",
     category: "Summer Programs",
     ageRange: "11-16 years",
     skills: ["Advanced Programming", "Project Development", "Career Preparation", "Intensive Learning"],
@@ -200,7 +200,7 @@ const programs = [
     nigerianContext: "Prepare Nigerian students for academic excellence and future tech careers",
     successStory: "Students gain competitive advantage for JSS3 and beyond",
     careerPath: "Tech Leader, Academic Excellence, Future Innovator",
-    schedule: "June - August 2025",
+    schedule: "June - August 2026",
     mode: "Online & Onsite",
     badge: "New",
     badgeColor: "bg-gradient-to-r from-yellow-400 to-orange-500",
@@ -312,7 +312,7 @@ export default function Programs() {
               <div className="flex-1 text-white mb-6 lg:mb-0">
                 <div className="flex items-center space-x-2 mb-4">
                   <Sun className="w-8 h-8" />
-                  <span className="text-2xl font-bold">Summer School 2025</span>
+                  <span className="text-2xl font-bold">Summer School 2026</span>
                   <div className="bg-white/20 px-3 py-1 rounded-full text-sm font-semibold">
                     Limited Time
                   </div>
@@ -321,17 +321,17 @@ export default function Programs() {
                   Accelerate Your Tech Journey This Summer!
                 </h2>
                 <p className="text-lg mb-6 opacity-90">
-                  Intensive programs for JSS3 students starting <strong>June 15th</strong> and other classes from <strong>July 25th</strong>.
+                  Intensive programs for JSS3 students starting <strong>June 15th, 2026</strong> and other classes from <strong>July 25th, 2026</strong>.
                   Both online and onsite options available.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-5 h-5" />
-                    <span>JSS3: June 15th - 6 weeks intensive</span>
+                    <span>JSS3: June 15th 2026 - 6 weeks intensive</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-5 h-5" />
-                    <span>Others: July 25th - 4 weeks</span>
+                    <span>Others: July 25th 2026 - 4 weeks</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <MapPin className="w-5 h-5" />

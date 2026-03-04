@@ -16,6 +16,8 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
     email: "",
     school: "",
     currentClass: "",
+    age: "",
+    gender: "",
     preferredMode: "",
     additionalInfo: ""
   });
@@ -25,14 +27,29 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Simulate form submission
-    setTimeout(() => {
-      setLoading(false);
-      toast.success("Registration submitted successfully! We'll contact you soon.");
+    try {
+      const res = await fetch('/api/summer-school', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_name: form.studentName,
+          parent_name: form.parentName,
+          parent_phone: form.phone,
+          parent_email: form.email || undefined,
+          school: form.school || undefined,
+          current_class: form.currentClass || undefined,
+          age: form.age ? parseInt(form.age, 10) : undefined,
+          gender: form.gender || undefined,
+          preferred_mode: form.preferredMode || undefined,
+          additional_info: form.additionalInfo || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Registration failed');
+      toast.success("Registration submitted successfully! We'll contact you soon. You can track your application in the admin dashboard.");
       setForm({
         studentName: "",
         parentName: "",
@@ -40,11 +57,17 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
         email: "",
         school: "",
         currentClass: "",
+        age: "",
+        gender: "",
         preferredMode: "",
         additionalInfo: ""
       });
       onClose();
-    }, 2000);
+    } catch (err: any) {
+      toast.error(err.message || "Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -69,14 +92,14 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                 <GraduationCap className="w-8 h-8" />
               </div>
             </div>
-            <h2 className="text-3xl font-bold text-center mb-2">JSS3 Summer School</h2>
+            <h2 className="text-3xl font-bold text-center mb-2">JSS3 Summer School 2026</h2>
             <p className="text-center text-blue-100 mb-6">Accelerate Your Tech Journey This Summer!</p>
-            
+
             {/* Key Features */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
                 <Calendar className="w-6 h-6 mx-auto mb-2" />
-                <div className="text-sm font-semibold">Starts June 15th</div>
+                <div className="text-sm font-semibold">Starts June 15th, 2026</div>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
                 <MapPin className="w-6 h-6 mx-auto mb-2" />
@@ -133,7 +156,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                   </h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
-                      <span>Starts: June 15th, 2025</span>
+                      <span>Starts: June 15th, 2026</span>
                       <span>Duration: 6 weeks</span>
                     </div>
                     <div className="flex items-center">
@@ -149,7 +172,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                   </h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
-                      <span>Starts: July 25th, 2025</span>
+                      <span>Starts: July 25th, 2026</span>
                       <span>Duration: 4 weeks</span>
                     </div>
                     <div className="flex items-center">
@@ -254,6 +277,37 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Student Age *</label>
+                  <input
+                    type="number"
+                    name="age"
+                    required
+                    min={5}
+                    max={25}
+                    value={form.age}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                    placeholder="Enter student's age"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Student Gender *</label>
+                  <select
+                    name="gender"
+                    required
+                    value={form.gender}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Preferred Mode *</label>
                 <select
@@ -285,11 +339,10 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full py-4 px-6 rounded-xl font-semibold text-white transition-all duration-300 ${
-                  loading
+                className={`w-full py-4 px-6 rounded-xl font-semibold text-white transition-all duration-300 ${loading
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 hover:scale-105 hover:shadow-lg'
-                }`}
+                  }`}
               >
                 {loading ? (
                   <div className="flex items-center justify-center">
@@ -299,7 +352,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                 ) : (
                   <div className="flex items-center justify-center">
                     <CheckCircle className="w-5 h-5 mr-2" />
-                    Register for Summer School
+                    Register for Summer School 2026
                   </div>
                 )}
               </button>

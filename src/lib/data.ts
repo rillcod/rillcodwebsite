@@ -175,7 +175,7 @@ export const programs = [
     ageGroup: "8-12 years",
     classSize: "Maximum 12 students",
     schedule: "2 sessions per week, 1.5 hours each",
-    price: "₦25,000",
+    price: "₦35,000",
     certification: "ICT Fundamentals Certificate",
     tools: ["Windows/Mac OS", "Microsoft Office", "Internet Browser", "File Explorer"]
   },
@@ -216,7 +216,7 @@ export const programs = [
     ageGroup: "9-14 years",
     classSize: "Maximum 12 students",
     schedule: "2 sessions per week, 1.5 hours each",
-    price: "₦30,000",
+    price: "₦45,000",
     certification: "Scratch Programming Certificate",
     tools: ["MIT Scratch", "Online Collaboration Tools", "Project Sharing Platform"]
   },
@@ -259,7 +259,7 @@ export const programs = [
     ageGroup: "12-16 years",
     classSize: "Maximum 10 students",
     schedule: "2 sessions per week, 2 hours each",
-    price: "₦40,000",
+    price: "₦65,000",
     certification: "Python Programming Certificate",
     tools: ["Python 3.x", "PyCharm/VS Code", "Jupyter Notebooks", "Git for version control"]
   },
@@ -302,7 +302,7 @@ export const programs = [
     ageGroup: "13-17 years",
     classSize: "Maximum 10 students",
     schedule: "2 sessions per week, 2 hours each",
-    price: "₦45,000",
+    price: "₦55,000",
     certification: "Web Development Certificate",
     tools: ["VS Code", "GitHub", "Netlify/Vercel", "Chrome DevTools", "Figma for design"]
   },
@@ -345,7 +345,7 @@ export const programs = [
     ageGroup: "12-16 years",
     classSize: "Maximum 8 students",
     schedule: "2 sessions per week, 2 hours each",
-    price: "₦35,000",
+    price: "₦50,000",
     certification: "UI/UX Design Certificate",
     tools: ["Figma", "Adobe XD", "Sketch", "InVision", "Miro for collaboration"]
   },
@@ -388,7 +388,7 @@ export const programs = [
     ageGroup: "14-18 years",
     classSize: "Maximum 8 students",
     schedule: "2 sessions per week, 2.5 hours each",
-    price: "₦60,000",
+    price: "₦80,000",
     certification: "Flutter Development Certificate",
     tools: ["Flutter SDK", "Android Studio", "VS Code", "Firebase", "Git for version control"]
   }

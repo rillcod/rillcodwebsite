@@ -13,7 +13,7 @@ const programs = [
     features: ["Computer basics & operations", "Microsoft Office skills", "Internet safety & research", "Digital file management"],
     ageGroup: "Primary 4 - JSS2",
     duration: "8 weeks",
-    price: "₦25,000",
+    price: "₦35,000",
     level: "Beginner",
     outcomes: ["Confident computer usage", "Basic office skills", "Safe internet practices", "Digital literacy foundation"],
     curriculum: [
@@ -37,7 +37,7 @@ const programs = [
     features: ["Visual programming blocks", "Game development", "Animation creation", "Interactive storytelling"],
     ageGroup: "Primary 5 - JSS3",
     duration: "10 weeks",
-    price: "₦35,000",
+    price: "₦45,000",
     level: "Beginner",
     outcomes: ["Programming logic", "Creative problem-solving", "Game design skills", "Digital storytelling"],
     curriculum: [
@@ -62,7 +62,7 @@ const programs = [
     features: ["HTML structure", "CSS styling", "Responsive design", "Web publishing"],
     ageGroup: "JSS1 - SS2",
     duration: "12 weeks",
-    price: "₦45,000",
+    price: "₦55,000",
     level: "Intermediate",
     outcomes: ["Web development skills", "Design principles", "Portfolio website", "Digital publishing"],
     curriculum: [
@@ -86,7 +86,7 @@ const programs = [
     features: ["Python syntax", "Data structures", "Problem solving", "Project development"],
     ageGroup: "JSS2 - SS3",
     duration: "14 weeks",
-    price: "₦55,000",
+    price: "₦65,000",
     level: "Advanced",
     outcomes: ["Programming fundamentals", "Algorithmic thinking", "Real-world applications", "Career preparation"],
     curriculum: [
@@ -111,7 +111,7 @@ const programs = [
     features: ["UI/UX design", "Responsive layouts", "Color theory", "Design tools"],
     ageGroup: "JSS2 - SS3",
     duration: "12 weeks",
-    price: "₦50,000",
+    price: "₦55,000",
     level: "Intermediate",
     outcomes: ["Design thinking", "Visual communication", "Portfolio projects", "Creative skills"],
     curriculum: [
@@ -135,7 +135,7 @@ const programs = [
     features: ["Hardware programming", "Sensor integration", "Automation logic", "Physical computing"],
     ageGroup: "JSS2 - SS3",
     duration: "16 weeks",
-    price: "₦75,000",
+    price: "₦80,000",
     level: "Advanced",
     outcomes: ["Electronics understanding", "Automation skills", "Engineering concepts", "Innovation mindset"],
     curriculum: [
