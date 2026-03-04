@@ -1,13 +1,15 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
-  Menu, X, ChevronDown, School, BookOpen,
+  Menu, X, ChevronDown, BookOpen,
   MessageSquare, LogOut, User, Building2, Home, Info,
   Phone, GraduationCap, LayoutDashboard,
+  type LucideIcon,
 } from 'lucide-react';
 
 /* ─── Nav data ─────────────────────────────────────────────── */
@@ -29,7 +31,7 @@ const LOGIN_HREF = '/login';
 
 /* ─── Dropdown ───────────────────────────────────────────────── */
 function Dropdown({ label, icon: Icon, isScrolled, children }: {
-  label: string; icon: any; isScrolled: boolean; children: React.ReactNode;
+  label: string; icon: LucideIcon; isScrolled: boolean; children: React.ReactNode;
 }) {
   return (
     <div className="relative group">
@@ -48,10 +50,13 @@ function Dropdown({ label, icon: Icon, isScrolled, children }: {
 
 /* ─── Main component ──────────────────────────────────────────── */
 const Navigation = () => {
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 10);
@@ -90,7 +95,7 @@ const Navigation = () => {
     }`;
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
+    <nav suppressHydrationWarning className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
       ? 'bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm'
       : 'bg-gray-950/80 backdrop-blur-md border-b border-white/5'
       }`}>
@@ -181,55 +186,58 @@ const Navigation = () => {
         </div>
       </div>
 
-      {/* ── Mobile menu ── */}
-      {isOpen && (
+      {/* ── Mobile menu (portal so it appears above page content) ── */}
+      {isOpen && mounted && typeof document !== 'undefined' && createPortal(
         <>
-          <div className="lg:hidden fixed inset-0 top-16 bg-black/50 z-50" onClick={() => setIsOpen(false)} />
-          <div id="mobile-menu" className="lg:hidden fixed inset-0 top-16 bg-white z-[60] overflow-y-auto animate-fade-in">
+          <div className="lg:hidden fixed inset-0 top-16 bg-black/60 backdrop-blur-sm z-[9998]" onClick={() => setIsOpen(false)} aria-hidden="true" />
+          <div id="mobile-menu" role="dialog" aria-modal="true" aria-label="Mobile menu" className="lg:hidden fixed inset-x-0 top-16 bottom-0 bg-[#0f0f1a] text-white border-t border-white/5 z-[9999] overflow-y-auto animate-fade-in shadow-2xl">
             <div className="p-6 space-y-8">
-            <div className="grid gap-2">
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2">Main Menu</p>
-              {[...mainLinks, ...secondaryLinks].map(({ href, label, icon: Icon }) => (
-                <Link key={href} href={href}
-                  className={`flex items-center gap-4 px-5 py-4 rounded-2xl text-base font-bold transition-all
-                    ${isActive(href) ? 'bg-orange-50 text-[#FF914D]' : 'text-gray-800 active:bg-gray-50'}`}>
-                  <Icon className={`w-5 h-5 ${isActive(href) ? 'text-[#FF914D]' : 'text-gray-400'}`} />
-                  {label}
-                </Link>
-              ))}
-            </div>
+              <div className="grid gap-2">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Main Menu</p>
+                {[...mainLinks, ...secondaryLinks].map(({ href, label, icon: Icon }) => (
+                  <Link key={href} href={href}
+                    className={`flex items-center gap-4 px-5 py-4 rounded-2xl text-base font-bold transition-all
+                    ${isActive(href) ? 'bg-[#FF914D]/10 text-[#FF914D]' : 'text-white/80 hover:bg-white/5 active:bg-white/10'}`}>
+                    <Icon className={`w-5 h-5 ${isActive(href) ? 'text-[#FF914D]' : 'text-white/40'}`} />
+                    {label}
+                  </Link>
+                ))}
+              </div>
 
-            <div className="pt-6 border-t border-gray-100">
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Account & Access</p>
-              {user ? (
-                <div className="space-y-3">
-                  <Link href="/dashboard"
-                    className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold bg-[#FF914D] text-white shadow-xl shadow-orange-500/20">
-                    <LayoutDashboard className="w-5 h-5" /> Open My Dashboard
-                  </Link>
-                  <button onClick={handleLogout}
-                    className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold text-gray-500 hover:text-rose-500 transition-colors">
-                    <LogOut className="w-5 h-5" /> Sign Out
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <Link href="/student-registration"
-                    className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold bg-[#FF914D] text-white shadow-xl shadow-orange-500/20">
-                    Student Registration
-                  </Link>
-                  <Link href={LOGIN_HREF}
-                    className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold text-gray-700 bg-gray-100 border border-gray-200">
-                    <User className="w-5 h-5" /> Portal Login
-                  </Link>
-                </div>
-              )}
+              <div className="pt-6 border-t border-white/10">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40 mb-4">Account & Access</p>
+                {user ? (
+                  <div className="space-y-3">
+                    <Link href="/dashboard"
+                      className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold bg-[#FF914D] text-white shadow-xl shadow-orange-500/20">
+                      <LayoutDashboard className="w-5 h-5" /> Open My Dashboard
+                    </Link>
+                    <button onClick={handleLogout}
+                      className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold text-white/60 hover:text-rose-500 transition-colors">
+                      <LogOut className="w-5 h-5" /> Sign Out
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <Link href="/student-registration"
+                      className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold bg-[#FF914D] text-white shadow-xl shadow-orange-500/20">
+                      Student Registration
+                    </Link>
+                    <Link href={LOGIN_HREF}
+                      className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold text-gray-300 bg-white/5 border border-white/10 hover:bg-white/10">
+                      <User className="w-5 h-5" /> Portal Login
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </nav>
   );
 };
+
+export default Navigation;
 
 export default Navigation;
