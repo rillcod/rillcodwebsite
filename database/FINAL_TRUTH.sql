@@ -3995,3 +3995,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 
 
 
+
+-- ============================================================
+-- prospective_students  (summer school / public registrations)
+-- ============================================================
