@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request: Request) {
-  const supabase = createClient();
+  const supabase = await createClient();
   try {
     const body = await request.json();
 
@@ -19,7 +19,6 @@ export async function POST(request: Request) {
       student_count: body.student_count ?? (body.studentCount ? parseInt(body.studentCount, 10) : null),
       program_interest: body.program_interest || (body.programInterest ? [body.programInterest] : []),
       status: body.status || 'pending',
-      enrollment_types: body.enrollment_types || ['school'],
       is_active: true,
     };
 
@@ -42,7 +41,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const supabase = createClient();
+  const supabase = await createClient();
   try {
     const { searchParams } = new URL(request.url);
     const email = searchParams.get('email');

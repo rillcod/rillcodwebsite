@@ -145,8 +145,7 @@ export function SchoolRegistration() {
                     schoolPhone: form.schoolPhone,
                     schoolEmail: form.schoolEmail,
                     studentCount: form.studentCount,
-                    programInterest: form.programInterest,
-                    enrollment_types: ['school']
+                    programInterest: form.programInterest
                 })
             });
             const data = await res.json();
@@ -247,8 +246,8 @@ export function SchoolRegistration() {
                     {statusResult && (
                         <div className="mt-3 text-xs text-white/60 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${statusResult.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                                    statusResult.status === 'rejected' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
-                                        'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                statusResult.status === 'rejected' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
+                                    'bg-amber-500/20 text-amber-400 border-amber-500/30'
                                 }`}>
                                 {statusResult.status || 'pending'}
                             </span>

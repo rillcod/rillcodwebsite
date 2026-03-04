@@ -120,6 +120,8 @@ export default function RootLayout({
         <OrganizationJsonLd />
         <WebSiteJsonLd />
         <link rel="canonical" href="https://rillcod.com" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="/favicon.png" />
       </head>
       <body className={`${inter.className} bg-[#0f0f1a] text-white`}>
         <AppProviders>{children}</AppProviders>
