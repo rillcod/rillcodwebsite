@@ -1,5 +1,15 @@
+import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+
+// Public-facing API — use service role to bypass RLS for inserts
+function getAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  );
+}
 
 export async function POST(req: Request) {
   try {
@@ -24,16 +34,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = getAdminClient();
 
     // Get first school as default for direct registrations
-    const { data: schoolRows } = await (supabase as any)
+    const { data: schoolRows } = await supabase
       .from('schools')
       .select('id')
       .limit(1);
     const schoolId = Array.isArray(schoolRows) && schoolRows[0]?.id ? schoolRows[0].id : null;
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('prospective_students')
       .insert({
         full_name: student_name,
