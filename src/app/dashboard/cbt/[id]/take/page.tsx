@@ -22,6 +22,7 @@ export default function TakeExamPage() {
   const [result, setResult] = useState<{ score: number; passed: boolean; correct: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const startTimeRef = useRef<Date>(new Date());
+  const submitRef = useRef<any>(null);
 
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -44,16 +45,6 @@ export default function TakeExamPage() {
         });
       });
   }, [profile?.id, authLoading]); // eslint-disable-line
-
-  // Countdown timer
-  useEffect(() => {
-    if (loading || submitted || timeLeft <= 0) return;
-    const t = setInterval(() => setTimeLeft(s => {
-      if (s <= 1) { clearInterval(t); handleSubmit(true); return 0; }
-      return s - 1;
-    }), 1000);
-    return () => clearInterval(t);
-  }, [loading, submitted, timeLeft]); // eslint-disable-line
 
   const handleSubmit = useCallback(async (auto = false) => {
     if (submitting || submitted) return;
@@ -94,11 +85,36 @@ export default function TakeExamPage() {
     }
   }, [submitting, submitted, questions, answers, exam, profile]);
 
+  useEffect(() => {
+    submitRef.current = handleSubmit;
+  }, [handleSubmit]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (loading || submitted || questions.length === 0) return;
+    const t = setInterval(() => setTimeLeft(s => {
+      if (s <= 1) { clearInterval(t); submitRef.current?.(true); return 0; }
+      return s - 1;
+    }), 1000);
+    return () => clearInterval(t);
+  }, [loading, submitted, questions.length]);
+
   const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (!loading && questions.length === 0) return (
+    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center text-white">
+      <div className="text-center pb-12">
+        <XCircleIcon className="w-16 h-16 mx-auto text-amber-400 mb-4" />
+        <h1 className="text-2xl font-bold">No Questions Yet</h1>
+        <p className="text-white/40 mt-2">This exam hasn't been configured with any questions.</p>
+        <button onClick={() => router.push('/dashboard/cbt')} className="mt-6 px-6 py-2.5 bg-white/10 hover:bg-white/20 text-sm font-bold rounded-xl transition-colors">Return to CBT Centre</button>
+      </div>
     </div>
   );
 

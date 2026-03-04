@@ -9,8 +9,10 @@ import {
   CalendarIcon, CheckCircleIcon, ClockIcon, BellIcon, AcademicCapIcon,
   PlusIcon, ArrowRightIcon, StarIcon, FireIcon, TrophyIcon,
   PencilSquareIcon, DocumentTextIcon, EnvelopeIcon, MagnifyingGlassIcon,
-  XMarkIcon, ArrowPathIcon,
+  XMarkIcon, ArrowPathIcon, KeyIcon, ShieldCheckIcon,
+  ClipboardIcon, ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
+import { generateTempPassword } from '@/app/api/students/activate/route';
 
 interface TeacherStats {
   myClasses: number;
@@ -371,6 +373,7 @@ function AdminTeacherView() {
   const [resetPw, setResetPw] = useState('');
   const [resetting, setResetting] = useState(false);
   const [resetMsg, setResetMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [credentials, setCredentials] = useState<{ email: string; tempPassword: string; name: string } | null>(null);
   const [editingTeacher, setEditingTeacher] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -419,14 +422,27 @@ function AdminTeacherView() {
         setInviteOk(`Teacher ${inviteForm.full_name} updated successfully.`);
         setEditingTeacher(null);
       } else {
-        const { error } = await db.from('portal_users').insert([{
-          ...payload,
-          is_deleted: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }]);
-        if (error) throw error;
-        setInviteOk(`Teacher profile created for ${inviteForm.full_name}.`);
+        const tempPassword = generateTempPassword();
+        const res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: inviteForm.email,
+            password: tempPassword,
+            fullName: inviteForm.full_name,
+            role: 'teacher',
+          }),
+        });
+
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? 'Failed to create teacher account');
+
+        setCredentials({
+          email: inviteForm.email,
+          tempPassword,
+          name: inviteForm.full_name,
+        });
+        setInviteOk(`Teacher account created for ${inviteForm.full_name}.`);
       }
 
       setInviteForm({ full_name: '', email: '', phone: '' });
@@ -495,6 +511,60 @@ function AdminTeacherView() {
 
   return (
     <div className="min-h-screen bg-[#0f0f1a] text-white">
+      {/* Credentials Modal */}
+      {credentials && (
+        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#161628] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center justify-center">
+                  <ShieldCheckIcon className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white">Teacher Account Created</h3>
+                  <p className="text-xs text-white/40">Credentials for {credentials.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setCredentials(null)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                <XMarkIcon className="w-5 h-5 text-white/40" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300 flex items-start gap-2">
+                <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>Copy these now. The teacher should change their password on first login.</span>
+              </div>
+              {[
+                { label: 'Login Email', value: credentials.email },
+                { label: 'Temporary Password', value: credentials.tempPassword },
+              ].map(({ label, value }) => (
+                <div key={label}>
+                  <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">{label}</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-mono text-sm select-all">
+                      {value}
+                    </code>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(value)}
+                      className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/40 hover:text-white transition-colors">
+                      <ClipboardIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`Email: ${credentials.email}\nPassword: ${credentials.tempPassword}`);
+                  setCredentials(null);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all">
+                <ClipboardIcon className="w-4 h-4" /> Copy & Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Header */}

@@ -25,6 +25,7 @@ const SUB_BADGE: Record<string, string> = {
   submitted: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   late: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   missing: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  pending: 'bg-white/10 text-white/40 border-white/20',
 };
 
 function isOverdue(due?: string | null) {
@@ -96,7 +97,7 @@ export default function AssignmentsPage() {
   const filtered = items.filter((a: any) => {
     const title = isStaff ? (a.title ?? '') : (a.assignments?.title ?? '');
     const ms = title.toLowerCase().includes(search.toLowerCase());
-    const status = isStaff ? 'active' : (a.status ?? '');
+    const status = isStaff ? 'active' : (a.status ?? 'pending');
     const mf = filter === 'all' || status === filter;
     return ms && mf;
   });
@@ -212,6 +213,7 @@ export default function AssignmentsPage() {
               className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500 cursor-pointer"
             >
               <option value="all">All Status</option>
+              <option value="pending">Pending</option>
               <option value="submitted">Submitted</option>
               <option value="graded">Graded</option>
               <option value="late">Late</option>
@@ -328,11 +330,9 @@ export default function AssignmentsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <h4 className="font-bold text-white">{a.title ?? 'Assignment'}</h4>
-                        {sub.status && (
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${SUB_BADGE[sub.status] ?? 'bg-white/10 text-white/40'}`}>
-                            {sub.status}
-                          </span>
-                        )}
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${SUB_BADGE[sub.status ?? 'pending'] ?? 'bg-white/10 text-white/40'}`}>
+                          {sub.status ?? 'Pending'}
+                        </span>
                         {a.assignment_type && (
                           <span className={`px-2 py-0.5 rounded-full text-xs border ${TYPE_BADGE[a.assignment_type] ?? 'bg-white/10 text-white/40'}`}>
                             {a.assignment_type}

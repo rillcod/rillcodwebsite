@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/contexts/auth-context';
 import {
     XMarkIcon, UserIcon, EnvelopeIcon, PhoneIcon,
     BuildingOfficeIcon, BookOpenIcon, CheckIcon, ArrowPathIcon,
@@ -24,6 +25,7 @@ const DEFAULT_FORM = {
 };
 
 export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: AddStudentModalProps) {
+    const { profile } = useAuth();
     const [form, setForm] = useState(DEFAULT_FORM);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -32,12 +34,37 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: Add
     // Fetch partner schools for dropdown
     useEffect(() => {
         if (!isOpen) return;
-        createClient()
+
+        const client = createClient();
+
+        // 1. Fetch schools
+        client
             .from('schools')
             .select('id, name')
             .eq('status', 'approved')
             .order('name')
-            .then(({ data }: any) => setSchools(data ?? []));
+            .then(({ data }: any) => {
+                setSchools(data ?? []);
+                // If school user, auto-select their school
+                if (profile?.role === 'school' && profile.school_id) {
+                    const mySchool = data?.find((s: any) => s.id === profile.school_id);
+                    if (mySchool) setForm(prev => ({ ...prev, school_name: mySchool.name }));
+                }
+            });
+
+        // 2. If teacher, see if they are linked to one school
+        if (profile?.role === 'teacher') {
+            client
+                .from('teacher_schools')
+                .select('schools(id, name)')
+                .eq('teacher_id', profile.id)
+                .then(({ data }: any) => {
+                    if (data && data.length === 1) {
+                        const s = data[0].schools;
+                        setForm(prev => ({ ...prev, school_name: s.name }));
+                    }
+                });
+        }
 
         if (initialData) {
             setForm({
@@ -53,7 +80,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: Add
         } else {
             setForm(DEFAULT_FORM);
         }
-    }, [isOpen, initialData]);
+    }, [isOpen, initialData, profile]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
         setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -75,9 +102,16 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: Add
                     .eq('id', initialData.id);
                 if (updateError) throw updateError;
             } else {
+                const schoolId = schools.find(s => s.name === form.school_name)?.id;
                 const { error: insertError } = await client
                     .from('students')
-                    .insert([{ ...form, name: form.full_name, status: 'pending' }]);
+                    .insert([{
+                        ...form,
+                        name: form.full_name,
+                        status: 'pending',
+                        school_id: schoolId || null,
+                        created_by: profile?.id
+                    }]);
                 if (insertError) throw insertError;
             }
             setForm(DEFAULT_FORM);

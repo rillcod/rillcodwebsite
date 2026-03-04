@@ -8,7 +8,7 @@ const supabaseAdmin = createAdminClient(
 );
 
 // Generates a readable random temp password: Word + 4 digits + symbol
-function generateTempPassword(): string {
+export function generateTempPassword(): string {
   const words = ['Rillcod', 'Portal', 'Learn', 'Smart', 'Stem', 'Code', 'Robot'];
   const word = words[Math.floor(Math.random() * words.length)];
   const num = Math.floor(1000 + Math.random() * 9000);
@@ -78,9 +78,11 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if this email already has an auth account
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const alreadyExists = existingUsers?.users?.find(u => u.email === loginEmail);
+    // Check if this email already has an auth account (Query specifically by email)
+    const { data: { users: matchingUsers }, error: listErr } = await supabaseAdmin.auth.admin.listUsers();
+    // listUsers doesn't support direct email filter in simple JS client, but we can do a better check:
+    const alreadyExists = matchingUsers?.find(u => u.email?.toLowerCase() === loginEmail.toLowerCase());
+
     if (alreadyExists) {
       return NextResponse.json({
         error: `An account with email ${loginEmail} already exists. If this is the student, update their user_id link manually.`,

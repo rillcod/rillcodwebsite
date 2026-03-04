@@ -29,7 +29,7 @@ export default function ExamDetailPage() {
 
     let sessionsPromise;
     if (isStaff) {
-      let q = db.from('cbt_sessions').select('*, portal_users!inner(full_name, email, school_id)').eq('exam_id', id).order('created_at', { ascending: false });
+      let q = db.from('cbt_sessions').select('*, portal_users(full_name, email, school_id)').eq('exam_id', id).order('created_at', { ascending: false });
       if (role === 'school' && profile.school_id) {
         q = q.eq('portal_users.school_id', profile.school_id);
       }

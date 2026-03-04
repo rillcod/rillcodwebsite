@@ -77,6 +77,18 @@ export default function StudentsPage() {
 
       if (profile.role === 'school' && profile.school_id) {
         query = query.eq('school_id', profile.school_id);
+      } else if (profile.role === 'teacher') {
+        const { data: assignments } = await createClient()
+          .from('teacher_schools')
+          .select('school_id')
+          .eq('teacher_id', profile.id);
+        const ids = assignments?.map((a: any) => a.school_id).filter(Boolean) || [];
+        if (ids.length > 0) {
+          query = query.in('school_id', ids);
+        } else {
+          // Fallback: only students they registered
+          query = query.eq('created_by', profile.id);
+        }
       }
 
       const { data, error: err } = await query.order('created_at', { ascending: false });

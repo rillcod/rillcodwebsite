@@ -7,8 +7,10 @@ import {
   BuildingOfficeIcon, MagnifyingGlassIcon, PlusIcon,
   PhoneIcon, EnvelopeIcon, MapPinIcon, UsersIcon,
   ExclamationTriangleIcon, EyeIcon, ChevronDownIcon, CheckIcon, KeyIcon,
-  CheckCircleIcon, ClockIcon, XCircleIcon, PencilSquareIcon,
+  CheckCircleIcon, ClockIcon, XCircleIcon, PencilSquareIcon, ShieldCheckIcon,
+  XMarkIcon, ClipboardIcon,
 } from '@heroicons/react/24/outline';
+import { generateTempPassword } from '@/app/api/students/activate/route';
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -61,7 +63,7 @@ export default function SchoolsPage() {
   const [accEmail, setAccEmail] = useState('');
   const [accPassword, setAccPassword] = useState('');
   const [creatingAcc, setCreatingAcc] = useState(false);
-  const [accCreated, setAccCreated] = useState(false);
+  const [accCreated, setAccCreated] = useState<{ email: string; pw: string } | null>(null);
   const [editingSchool, setEditingSchool] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -274,12 +276,13 @@ export default function SchoolsPage() {
     if (!detail?.id || !accEmail || !accPassword) return;
     setCreatingAcc(true); setError(null);
     try {
+      const tempPassword = accPassword || generateTempPassword();
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: accEmail,
-          password: accPassword,
+          password: tempPassword,
           fullName: detail.name,
           role: 'school',
           school_id: detail.id
@@ -287,7 +290,7 @@ export default function SchoolsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create account');
-      setAccCreated(true);
+      setAccCreated({ email: accEmail, pw: tempPassword });
       setAccEmail('');
       setAccPassword('');
     } catch (e: any) {
@@ -607,12 +610,40 @@ export default function SchoolsPage() {
                     <p className="text-sm text-white/40 mb-6">Create a portal account so this school can log in and view their students.</p>
 
                     {accCreated ? (
-                      <div className="text-center py-6 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                        <CheckIcon className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
-                        <h4 className="font-bold text-white">Account Created</h4>
-                        <p className="text-sm text-white/50 mt-1">The school can now log in using the credentials provided.</p>
-                        <button onClick={() => setAccCreated(false)} className="mt-4 px-4 py-1.5 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-xl">
-                          Create another
+                      <div className="space-y-4">
+                        <div className="text-center py-6 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+                          <ShieldCheckIcon className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
+                          <h4 className="font-bold text-white">Portal Account Created</h4>
+                          <p className="text-sm text-white/50 mt-1">Copy these credentials for the school administrator.</p>
+                        </div>
+
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300 flex items-start gap-2">
+                          <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                          <span>The school administrator should change this password on first login.</span>
+                        </div>
+
+                        {[
+                          { label: 'Login Email', value: accCreated.email },
+                          { label: 'Temporary Password', value: accCreated.pw },
+                        ].map(({ label, value }) => (
+                          <div key={label}>
+                            <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">{label}</p>
+                            <div className="flex items-center gap-2">
+                              <code className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-mono text-sm select-all">
+                                {value}
+                              </code>
+                              <button
+                                onClick={() => navigator.clipboard.writeText(value)}
+                                className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/40 hover:text-white transition-colors">
+                                <ClipboardIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+
+                        <button onClick={() => setAccCreated(null)}
+                          className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all">
+                          Done
                         </button>
                       </div>
                     ) : (

@@ -7,6 +7,7 @@ import {
     ClipboardDocumentCheckIcon, CheckCircleIcon, XCircleIcon,
     ClockIcon, BuildingOfficeIcon, AcademicCapIcon,
     EnvelopeIcon, PhoneIcon, UserGroupIcon, ExclamationTriangleIcon,
+    SunIcon,
 } from '@heroicons/react/24/outline';
 
 function StatusBadge({ status }: { status: string }) {
@@ -24,9 +25,9 @@ function StatusBadge({ status }: { status: string }) {
 
 function EnrollTypeBadge({ type }: { type?: string }) {
     const map: Record<string, string> = {
-        school:   'bg-violet-500/20 text-violet-400 border-violet-500/30',
+        school: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
         bootcamp: 'bg-[#FF914D]/20 text-[#FF914D] border-[#FF914D]/30',
-        online:   'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+        online: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
     };
     const label: Record<string, string> = {
         school: 'Partner School', bootcamp: 'Bootcamp', online: 'Online School',
@@ -41,9 +42,10 @@ function EnrollTypeBadge({ type }: { type?: string }) {
 
 export default function ApprovalsPage() {
     const { profile, loading: authLoading } = useAuth();
-    const [tab, setTab] = useState<'students' | 'schools'>('students');
+    const [tab, setTab] = useState<'students' | 'schools' | 'prospective'>('students');
     const [students, setStudents] = useState<any[]>([]);
     const [schools, setSchools] = useState<any[]>([]);
+    const [prospective, setProspective] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [acting, setActing] = useState<string | null>(null);
@@ -59,13 +61,15 @@ export default function ApprovalsPage() {
             setError(null);
             try {
                 const supabase = createClient();
-                const [studRes, schRes] = await Promise.allSettled([
+                const [studRes, schRes, prosRes] = await Promise.allSettled([
                     supabase.from('students').select('*').eq('status', 'pending').order('created_at', { ascending: true }),
                     supabase.from('schools').select('*').eq('status', 'pending').order('created_at', { ascending: true }),
+                    supabase.from('prospective_students').select('*').eq('is_deleted', false).eq('is_active', false).order('created_at', { ascending: true }),
                 ]);
                 if (!cancelled) {
                     setStudents(studRes.status === 'fulfilled' ? (studRes.value.data ?? []) : []);
                     setSchools(schRes.status === 'fulfilled' ? (schRes.value.data ?? []) : []);
+                    setProspective(prosRes.status === 'fulfilled' ? (prosRes.value.data ?? []) : []);
                 }
             } catch (e: any) {
                 if (!cancelled) setError(e.message ?? 'Failed to load');
@@ -101,6 +105,20 @@ export default function ApprovalsPage() {
         setActing(null);
     };
 
+    const handleProspective = async (id: string, action: 'approved' | 'rejected') => {
+        setActing(id);
+        try {
+            const supabase = createClient();
+            if (action === 'rejected') {
+                await supabase.from('prospective_students').update({ is_deleted: true, is_active: false }).eq('id', id);
+            } else {
+                await supabase.from('prospective_students').update({ is_active: true }).eq('id', id);
+            }
+            setProspective(prev => prev.filter(s => s.id !== id));
+        } catch { /* ignore */ }
+        setActing(null);
+    };
+
     // Loading
     if (authLoading || loading) return (
         <div className="min-h-screen bg-[#0f0f1a] text-white">
@@ -120,7 +138,7 @@ export default function ApprovalsPage() {
         </div>
     );
 
-    const currentList = tab === 'students' ? students : schools;
+    const currentList = tab === 'students' ? students : tab === 'schools' ? schools : prospective;
 
     return (
         <div className="min-h-screen bg-[#0f0f1a] text-white">
@@ -182,6 +200,10 @@ export default function ApprovalsPage() {
                     <button onClick={() => setTab('students')}
                         className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'students' ? 'bg-violet-600 text-white' : 'text-white/40 hover:text-white'}`}>
                         Students ({students.length})
+                    </button>
+                    <button onClick={() => setTab('prospective')}
+                        className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'prospective' ? 'bg-[#FF914D] text-white' : 'text-white/40 hover:text-white'}`}>
+                        Summer School ({prospective.length})
                     </button>
                     {profile?.role === 'admin' && (
                         <button onClick={() => setTab('schools')}
@@ -272,6 +294,56 @@ export default function ApprovalsPage() {
                                                 <CheckCircleIcon className="w-4 h-4" /> Approve
                                             </button>
                                             <button onClick={() => handleSchool(s.id, 'rejected')} disabled={acting === s.id}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50">
+                                                <XCircleIcon className="w-4 h-4" /> Reject
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Prospective list */}
+                {tab === 'prospective' && prospective.length > 0 && (
+                    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                        <div className="p-5 border-b border-white/10 flex items-center justify-between">
+                            <h3 className="font-bold text-white">Prospective Student Queue (Summer School)</h3>
+                            <div className="flex items-center gap-2">
+                                <SunIcon className="w-4 h-4 text-[#FF914D]" />
+                                <span className="text-[10px] uppercase font-black text-[#FF914D] tracking-widest">Summer School 2026</span>
+                            </div>
+                        </div>
+                        <div className="divide-y divide-white/5">
+                            {prospective.map(s => (
+                                <div key={s.id} className="p-5 hover:bg-white/5 transition-colors">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF914D] to-amber-500 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
+                                            {(s.full_name ?? '?')[0]}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                                <p className="font-bold text-white">{s.full_name}</p>
+                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/20 text-amber-400 border-amber-500/30">
+                                                    Summer Applicant
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-3 mt-1 text-xs text-white/40">
+                                                {s.parent_email && <span className="flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" />{s.parent_email}</span>}
+                                                {s.parent_phone && <span className="flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{s.parent_phone}</span>}
+                                                {s.school_name && <span className="flex items-center gap-1"><BuildingOfficeIcon className="w-3.5 h-3.5" />{s.school_name}</span>}
+                                                {s.grade && <span className="flex items-center gap-1"><AcademicCapIcon className="w-3.5 h-3.5" />Grade: {s.grade}</span>}
+                                            </div>
+                                            {s.course_interest && <p className="text-xs text-white/30 mt-2 line-clamp-1">Interest: {s.course_interest}</p>}
+                                            <p className="text-xs text-white/20 mt-1">Applied {new Date(s.created_at).toLocaleDateString()}</p>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+                                            <button onClick={() => handleProspective(s.id, 'approved')} disabled={acting === s.id}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50">
+                                                <CheckCircleIcon className="w-4 h-4" /> Approve
+                                            </button>
+                                            <button onClick={() => handleProspective(s.id, 'rejected')} disabled={acting === s.id}
                                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                                                 <XCircleIcon className="w-4 h-4" /> Reject
                                             </button>

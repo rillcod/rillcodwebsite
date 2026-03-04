@@ -5,12 +5,151 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import { submitAssignment } from '@/services/dashboard.service';
+import { submitAssignment, gradeSubmission } from '@/services/dashboard.service';
 import {
     ArrowLeftIcon, CalendarIcon, ClockIcon, DocumentTextIcon,
     CheckCircleIcon, ExclamationTriangleIcon, ArrowUpTrayIcon,
-    PaperClipIcon, AcademicCapIcon, StarIcon,
+    PaperClipIcon, AcademicCapIcon, StarIcon, XMarkIcon, ArrowPathIcon, CheckIcon
 } from '@heroicons/react/24/outline';
+
+function pctInfo(grade: number, max: number) {
+    const pct = Math.round((grade / max) * 100);
+    const letter = pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
+    const color = pct >= 70 ? 'emerald' : pct >= 50 ? 'amber' : 'rose';
+    return { pct, letter, color };
+}
+
+function GradeModal({ sub, maxPoints, assignmentTitle, onClose, onSaved }: {
+    sub: any;
+    maxPoints: number;
+    assignmentTitle: string;
+    onClose: () => void;
+    onSaved: (id: string, grade: number, feedback: string) => void;
+}) {
+    const { profile } = useAuth();
+    const max = maxPoints ?? 100;
+    const [grade, setGrade] = useState<string>(sub.grade?.toString() ?? '');
+    const [feedback, setFb] = useState<string>(sub.feedback ?? '');
+    const [saving, setSaving] = useState(false);
+    const [err, setErr] = useState('');
+
+    const info = grade ? pctInfo(Number(grade), max) : null;
+
+    const save = async () => {
+        const g = Number(grade);
+        if (isNaN(g) || g < 0 || g > max) { setErr(`Enter a score between 0 and ${max}`); return; }
+        setSaving(true); setErr('');
+        try {
+            await gradeSubmission(sub.id, g, feedback, profile!.id);
+            onSaved(sub.id, g, feedback);
+            onClose();
+        } catch (e: any) {
+            setErr(e.message ?? 'Failed to save grade');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-[#161628] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl"
+                onClick={(e) => e.stopPropagation()}>
+
+                {/* Modal header */}
+                <div className="p-6 border-b border-white/10 flex items-start justify-between">
+                    <div>
+                        <h3 className="font-bold text-white text-lg">Grade Submission</h3>
+                        <p className="text-sm text-white/40 mt-0.5">{assignmentTitle}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs font-black text-white">
+                                {(sub.portal_users?.full_name ?? '?')[0]}
+                            </div>
+                            <span className="text-sm text-white/70">{sub.portal_users?.full_name ?? 'Student'}</span>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                        <XMarkIcon className="w-5 h-5 text-white/40" />
+                    </button>
+                </div>
+
+                <div className="p-6 space-y-5">
+                    {/* Submission content */}
+                    {sub.submission_text && (
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 max-h-40 overflow-y-auto">
+                            <p className="text-xs text-white/30 uppercase tracking-wider mb-2">Student Submission</p>
+                            <p className="text-sm text-white/70 whitespace-pre-wrap">{sub.submission_text}</p>
+                        </div>
+                    )}
+                    {sub.file_url && (
+                        <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 underline">
+                            📎 View attached file
+                        </a>
+                    )}
+                    {!sub.submission_text && !sub.file_url && sub.status !== 'missing' && (
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-sm text-amber-400">
+                            No text or file submitted — grade based on verbal/in-person work if applicable.
+                        </div>
+                    )}
+
+                    {/* Score input */}
+                    <div>
+                        <label className="block text-sm font-semibold text-white/70 mb-2">
+                            Score <span className="text-white/30 font-normal">(0–{max} points)</span>
+                        </label>
+                        <div className="flex items-center gap-4">
+                            <input type="number" min={0} max={max} value={grade}
+                                onChange={(e) => { setGrade(e.target.value); setErr(''); }}
+                                className="w-28 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-xl font-bold text-center focus:outline-none focus:border-violet-500 transition-colors"
+                                placeholder="0"
+                            />
+                            <div className="flex-1">
+                                <div className="w-full h-3 bg-white/5 rounded-full mb-1 overflow-hidden">
+                                    <div style={{ width: `${Math.min(info?.pct ?? 0, 100)}%` }}
+                                        className={`h-3 rounded-full transition-all duration-300 ${info?.color === 'emerald' ? 'bg-emerald-500' :
+                                            info?.color === 'amber' ? 'bg-amber-500' : 'bg-rose-500'
+                                            }`} />
+                                </div>
+                                {info && (
+                                    <div className={`flex items-center gap-2 ${info.color === 'emerald' ? 'text-emerald-400' : info.color === 'amber' ? 'text-amber-400' : 'text-rose-400'}`}>
+                                        <span className="text-2xl font-black">{info.letter}</span>
+                                        <span className="text-sm font-semibold">{info.pct}%</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Feedback */}
+                    <div>
+                        <label className="block text-sm font-semibold text-white/70 mb-2">
+                            Feedback <span className="text-white/30 font-normal">(shown to student)</span>
+                        </label>
+                        <textarea value={feedback} rows={3}
+                            onChange={(e) => setFb(e.target.value)}
+                            placeholder="Write specific, constructive feedback for the student…"
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500 transition-colors resize-none"
+                        />
+                    </div>
+
+                    {err && <p className="text-sm text-rose-400 flex items-center gap-1"><ExclamationTriangleIcon className="w-4 h-4" />{err}</p>}
+                </div>
+
+                <div className="p-6 border-t border-white/10 flex gap-3">
+                    <button onClick={onClose}
+                        className="flex-1 py-2.5 text-sm font-semibold text-white/50 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button onClick={save} disabled={saving}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all disabled:opacity-60">
+                        {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                        {saving ? 'Saving…' : 'Submit Grade'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 function Badge({ status }: { status: string }) {
     const map: Record<string, string> = {
@@ -39,8 +178,21 @@ export default function AssignmentDetailPage() {
     const [text, setText] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [submitDone, setSubmitDone] = useState(false);
+    const [grading, setGrading] = useState<any | null>(null);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+
+    const handleGraded = (id: string, grade: number, feedback: string) => {
+        setAssignment((prev: any) => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                assignment_submissions: prev.assignment_submissions.map((s: any) =>
+                    s.id === id ? { ...s, grade, feedback, status: 'graded', graded_at: new Date().toISOString() } : s
+                )
+            };
+        });
+    };
 
     useEffect(() => {
         if (authLoading || !profile || !id) return;
@@ -58,7 +210,7 @@ export default function AssignmentDetailPage() {
             id, title, description, instructions, due_date, max_points,
             assignment_type, is_active, created_at,
             courses ( id, title, programs ( name ) ),
-            assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, portal_user_id )
+            assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, portal_user_id, submission_text, file_url, portal_users ( full_name, email ) )
           `)
                     .eq('id', id)
                     .single();
@@ -141,6 +293,15 @@ export default function AssignmentDetailPage() {
 
     return (
         <div className="min-h-screen bg-[#0f0f1a] text-white">
+            {grading && (
+                <GradeModal
+                    sub={grading}
+                    maxPoints={assignment.max_points}
+                    assignmentTitle={assignment.title}
+                    onClose={() => setGrading(null)}
+                    onSaved={handleGraded}
+                />
+            )}
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
                 {/* Back */}
@@ -265,9 +426,11 @@ export default function AssignmentDetailPage() {
                             </div>
                         )}
 
-                        {submission?.status === 'graded' ? (
+                        {submission?.status === 'graded' || submission?.status === 'submitted' ? (
                             <div className="text-center py-6 text-white/30 text-sm">
-                                This assignment has been graded. No further submissions accepted.
+                                {submission.status === 'graded'
+                                    ? 'This assignment has been graded. No further submissions accepted.'
+                                    : 'Your assignment has been submitted and is pending review. You cannot resubmit.'}
                             </div>
                         ) : (
                             <form onSubmit={handleSubmit} className="space-y-4">
@@ -326,10 +489,10 @@ export default function AssignmentDetailPage() {
                                     {s.grade != null && (
                                         <span className="text-emerald-400 font-bold text-sm">{s.grade}/{assignment.max_points} pts</span>
                                     )}
-                                    <Link href="/dashboard/grades"
+                                    <button onClick={() => setGrading(s)}
                                         className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 text-xs font-bold rounded-xl transition-colors">
                                         Grade
-                                    </Link>
+                                    </button>
                                 </div>
                             ))}
                         </div>
