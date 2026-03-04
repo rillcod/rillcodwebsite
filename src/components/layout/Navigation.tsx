@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -58,6 +59,13 @@ const Navigation = () => {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (isOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
+
   // Close mobile menu on route change
   useEffect(() => { setIsOpen(false); }, [pathname]);
 
@@ -90,11 +98,9 @@ const Navigation = () => {
         <div className="flex items-center justify-between h-16 lg:h-[72px]">
 
           {/* ── Logo ── */}
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#FF914D] flex items-center justify-center transition-transform hover:rotate-3">
-              <School className="w-5 h-5 text-white" />
-            </div>
-            <div>
+          <Link href="/" className="flex items-center gap-3">
+            <Image src="/images/logo.png" alt="Rillcod Academy" width={48} height={48} className="object-contain rounded-md" />
+            <div className="hidden sm:block">
               <span className={`text-base font-extrabold uppercase tracking-tight leading-none block
                 ${isScrolled ? 'text-gray-900' : 'text-white'}`}>
                 Rillcod Academy
@@ -166,6 +172,8 @@ const Navigation = () => {
 
           {/* ── Mobile burger ── */}
           <button onClick={() => setIsOpen(!isOpen)}
+            aria-expanded={isOpen}
+            aria-controls="mobile-menu"
             className={`lg:hidden p-2 rounded-xl transition-all
               ${isScrolled ? 'text-gray-700 hover:bg-gray-100' : 'text-white hover:bg-white/10'}`}>
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -175,8 +183,10 @@ const Navigation = () => {
 
       {/* ── Mobile menu ── */}
       {isOpen && (
-        <div className="lg:hidden fixed inset-0 top-16 bg-white z-[60] overflow-y-auto animate-fade-in">
-          <div className="p-6 space-y-8">
+        <>
+          <div className="lg:hidden fixed inset-0 top-16 bg-black/50 z-50" onClick={() => setIsOpen(false)} />
+          <div id="mobile-menu" className="lg:hidden fixed inset-0 top-16 bg-white z-[60] overflow-y-auto animate-fade-in">
+            <div className="p-6 space-y-8">
             <div className="grid gap-2">
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2">Main Menu</p>
               {[...mainLinks, ...secondaryLinks].map(({ href, label, icon: Icon }) => (

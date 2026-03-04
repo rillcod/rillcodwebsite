@@ -73,12 +73,12 @@ export default function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 group">
             <Image
-              src="https://res.cloudinary.com/dpigtwit0/image/upload/v1747032682/PhotoRoom-20250512_074926_zgudyt.png"
+              src="/images/logo.png"
               alt="Rillcod Academy"
-              width={160}
+              width={140}
               height={40}
               unoptimized
-              className="h-10 w-auto transition-transform duration-300 group-hover:scale-105"
+              className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105 mix-blend-multiply"
             />
             <span className="text-xl md:text-2xl font-bold text-[#FF914D] transition-colors duration-300">
               Rillcod Academy
@@ -163,17 +163,20 @@ export default function Header() {
               </button>
               {activeDropdown === 'portals' && (
                 <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
-                  {navigation.portals.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className="flex items-center space-x-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-[#FF914D] transition-colors duration-200"
-                      onClick={() => setActiveDropdown(null)}
-                    >
-                      <link.icon className="w-5 h-5" />
-                      <span>{link.label}</span>
-                    </Link>
-                  ))}
+                  {navigation.portals.map((link) => {
+                    const Icon = link.icon;
+                    return (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className="flex items-center space-x-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-[#FF914D] transition-colors duration-200"
+                        onClick={() => setActiveDropdown(null)}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span>{link.label}</span>
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -258,17 +261,20 @@ export default function Header() {
 
                 <div>
                   <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Portal Access</h3>
-                  {navigation.portals.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className="flex items-center space-x-3 text-gray-700 dark:text-gray-300 hover:text-[#FF914D] font-medium text-lg transition-all duration-200 py-2"
-                      onClick={closeMenu}
-                    >
-                      <link.icon className="w-5 h-5" />
-                      <span>{link.label}</span>
-                    </Link>
-                  ))}
+                  {navigation.portals.map((link) => {
+                    const Icon = link.icon;
+                    return (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className="flex items-center space-x-3 text-gray-700 dark:text-gray-300 hover:text-[#FF914D] font-medium text-lg transition-all duration-200 py-2"
+                        onClick={closeMenu}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span>{link.label}</span>
+                      </Link>
+                    );
+                  })}
                 </div>
               </nav>
             </div>
