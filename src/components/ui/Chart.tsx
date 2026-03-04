@@ -3,7 +3,7 @@
 import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 import { useState } from 'react';
-import { 
+import {
   ChartBarIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
@@ -94,13 +94,13 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
             ([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
-  })
-  .join("\n")}
+                .map(([key, itemConfig]) => {
+                  const color =
+                    itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+                    itemConfig.color
+                  return color ? `  --color-${key}: ${color};` : null
+                })
+                .join("\n")}
 }
 `
           )
@@ -133,6 +133,8 @@ function ChartTooltipContent({
     indicator?: "line" | "dot" | "dashed"
     nameKey?: string
     labelKey?: string
+    payload?: any[]
+    label?: any
   }) {
   const { config } = useChart()
 
@@ -264,11 +266,12 @@ function ChartLegendContent({
   payload,
   verticalAlign = "bottom",
   nameKey,
-}: React.ComponentProps<"div"> &
-  Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
-    hideIcon?: boolean
-    nameKey?: string
-  }) {
+}: React.ComponentProps<"div"> & {
+  hideIcon?: boolean
+  nameKey?: string
+  payload?: any[]
+  verticalAlign?: "top" | "bottom"
+}) {
   const { config } = useChart()
 
   if (!payload?.length) {
@@ -324,8 +327,8 @@ function getPayloadConfigFromPayload(
 
   const payloadPayload =
     "payload" in payload &&
-    typeof payload.payload === "object" &&
-    payload.payload !== null
+      typeof payload.payload === "object" &&
+      payload.payload !== null
       ? payload.payload
       : undefined
 
@@ -384,7 +387,7 @@ export default function Chart({
 
   const getBarColor = (index: number, defaultColor?: string) => {
     if (defaultColor) return defaultColor;
-    
+
     const colors = [
       'bg-blue-500',
       'bg-green-500',
@@ -395,7 +398,7 @@ export default function Chart({
       'bg-indigo-500',
       'bg-teal-500'
     ];
-    
+
     return colors[index % colors.length];
   };
 
@@ -417,7 +420,7 @@ export default function Chart({
     <div className="flex items-end justify-between h-full space-x-2">
       {data.map((point, index) => {
         const heightPercentage = maxValue > 0 ? (point.value / maxValue) * 100 : 0;
-        
+
         return (
           <div
             key={index}
@@ -427,9 +430,8 @@ export default function Chart({
           >
             <div className="relative w-full">
               <div
-                className={`${getBarColor(index, point.color)} rounded-t transition-all duration-300 ${
-                  hoveredIndex === index ? 'opacity-80' : 'opacity-100'
-                }`}
+                className={`${getBarColor(index, point.color)} rounded-t transition-all duration-300 ${hoveredIndex === index ? 'opacity-80' : 'opacity-100'
+                  }`}
                 style={{ height: `${heightPercentage}%` }}
               >
                 {showValues && hoveredIndex === index && (
@@ -465,7 +467,7 @@ export default function Chart({
         {data.map((point, index) => {
           const x = (index / (data.length - 1)) * (data.length * 100);
           const y = height - ((point.value - minValue) / (maxValue - minValue)) * height;
-          
+
           return (
             <circle
               key={index}
@@ -518,7 +520,7 @@ export default function Chart({
   const renderPieChart = () => {
     const total = data.reduce((sum, point) => sum + point.value, 0);
     let currentAngle = 0;
-    
+
     return (
       <div className="relative w-full h-full flex items-center justify-center">
         <svg className="w-full h-full" viewBox="0 0 100 100">
@@ -527,23 +529,23 @@ export default function Chart({
             const angle = (percentage / 100) * 360;
             const startAngle = currentAngle;
             const endAngle = currentAngle + angle;
-            
+
             const x1 = 50 + 40 * Math.cos((startAngle * Math.PI) / 180);
             const y1 = 50 + 40 * Math.sin((startAngle * Math.PI) / 180);
             const x2 = 50 + 40 * Math.cos((endAngle * Math.PI) / 180);
             const y2 = 50 + 40 * Math.sin((endAngle * Math.PI) / 180);
-            
+
             const largeArcFlag = angle > 180 ? 1 : 0;
-            
+
             const pathData = [
               `M 50 50`,
               `L ${x1} ${y1}`,
               `A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2}`,
               'Z'
             ].join(' ');
-            
+
             currentAngle = endAngle;
-            
+
             return (
               <path
                 key={index}
@@ -592,11 +594,11 @@ export default function Chart({
           {type === 'line' && <ArrowTrendingUpIcon className="h-5 w-5 text-gray-400" />}
         </div>
       </div>
-      
+
       <div style={{ height: `${height}px` }} className="relative">
         {renderChart()}
       </div>
-      
+
       {type !== 'progress' && type !== 'pie' && (
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           {data.map((point, index) => (

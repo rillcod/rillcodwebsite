@@ -16,6 +16,12 @@ export default function Logo({ size = 'md', showText = true, className = '', tex
     lg: 'w-12 h-12'
   };
 
+  const imgSizes = {
+    sm: 32,
+    md: 40,
+    lg: 48
+  };
+
   const textSizes = {
     sm: 'text-sm',
     md: 'text-lg',
@@ -28,22 +34,26 @@ export default function Logo({ size = 'md', showText = true, className = '', tex
         <Image 
           src={brandAssets.logo}
           alt="Rillcod Academy Logo" 
-          width={48}
-          height={48}
+          width={imgSizes[size]}
+          height={imgSizes[size]}
           className="w-full h-full object-contain"
           priority
-          unoptimized
           onError={(e) => {
-            // Fallback to a simple div with brand colors if image fails to load
+            // Fallback to Cloudinary URL if local logo fails
             const target = e.target as HTMLImageElement;
-            target.style.display = 'none';
-            const parent = target.parentElement;
-            if (parent) {
-              parent.innerHTML = `
-                <div class="w-full h-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
-                  <span class="text-white font-bold text-xs">RA</span>
-                </div>
-              `;
+            if (target.src !== brandAssets.logoCloudinary) {
+              target.src = brandAssets.logoCloudinary;
+            } else {
+              // Final fallback: brand colors with initials
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                parent.innerHTML = `
+                  <div class="w-full h-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+                    <span class="text-white font-bold text-xs">RA</span>
+                  </div>
+                `;
+              }
             }
           }}
         />
@@ -55,4 +65,4 @@ export default function Logo({ size = 'md', showText = true, className = '', tex
       )}
     </div>
   );
-} 
+}

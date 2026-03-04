@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   Menu, X, ChevronDown, School, BookOpen,
   MessageSquare, LogOut, User, Building2, Home, Info,
-  Phone, GraduationCap, Shield, LayoutDashboard,
+  Phone, GraduationCap, LayoutDashboard,
 } from 'lucide-react';
 
 /* ─── Nav data ─────────────────────────────────────────────── */

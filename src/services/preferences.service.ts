@@ -37,7 +37,18 @@ export class PreferencesService {
             throw new AppError(`Failed to fetch preferences: ${error.message}`, 500);
         }
 
-        return data || DEFAULTS;
+        if (!data) return DEFAULTS;
+
+        return {
+            email_enabled: data.email_enabled ?? DEFAULTS.email_enabled,
+            sms_enabled: data.sms_enabled ?? DEFAULTS.sms_enabled,
+            push_enabled: data.push_enabled ?? DEFAULTS.push_enabled,
+            assignment_reminders: data.assignment_reminders ?? DEFAULTS.assignment_reminders,
+            grade_notifications: data.grade_notifications ?? DEFAULTS.grade_notifications,
+            announcement_notifications: data.announcement_notifications ?? DEFAULTS.announcement_notifications,
+            discussion_replies: data.discussion_replies ?? DEFAULTS.discussion_replies,
+            marketing_emails: data.marketing_emails ?? DEFAULTS.marketing_emails,
+        };
     }
 
     async updatePreferences(userId: string, prefs: Partial<UserPreferences>) {

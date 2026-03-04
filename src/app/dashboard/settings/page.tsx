@@ -40,11 +40,11 @@ export default function SettingsPage() {
     newPw: '', confirm: '',
   });
 
-  const [notifs, setNotifs] = useState(() => {
+  const [notifs, setNotifs] = useState<Record<string, boolean>>(() => {
     try {
       const saved = localStorage.getItem('rillcod_notif_prefs');
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return { assignments: true, grades: true, announcements: true, newsletters: false };
   });
 
@@ -387,7 +387,7 @@ export default function SettingsPage() {
                   <p className="text-xs text-white/40 mt-0.5">Choose what you want to be notified about</p>
                 </div>
                 <div className="p-6 space-y-4">
-                  {(Object.entries(notifs) as [keyof typeof notifs, boolean][]).map(([key, val]) => (
+                  {(Object.entries(notifs)).map(([key, val]) => (
                     <div key={key} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
                       <div>
                         <p className="font-semibold text-white capitalize text-sm">{key}</p>
@@ -465,8 +465,8 @@ export default function SettingsPage() {
                                   </span>
                                 )}
                                 <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${s.is_active
-                                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                                    : 'bg-white/10 text-white/30 border-white/10'
+                                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                  : 'bg-white/10 text-white/30 border-white/10'
                                   }`}>
                                   {s.is_active ? 'Active' : 'Inactive'}
                                 </span>

@@ -252,6 +252,7 @@ export class NotificationsService {
 
         if (assignments) {
             for (const assignment of assignments) {
+                if (!assignment.course_id) continue;
                 // Find students in the course/program
                 // For simplicity, find all students enrolled in the program of this course
                 const { data: course } = await supabase.from('courses').select('program_id').eq('id', assignment.course_id).single();
@@ -268,15 +269,16 @@ export class NotificationsService {
                         const template = await templatesService.getTemplate('Assignment Reminder', 'email');
 
                         for (const enrollment of enrollments) {
+                            if (!enrollment.user_id) continue;
                             const user = enrollment.portal_users as any;
                             if (user?.email) {
                                 await queueService.queueNotification(enrollment.user_id, 'email', {
                                     to: user.email,
-                                    subject: templatesService.render(template.subject, { assignment_name: assignment.title }),
+                                    subject: templatesService.render(template.subject || 'Assignment Reminder', { assignment_name: assignment.title }),
                                     html: templatesService.render(template.content, {
                                         user_name: user.full_name,
                                         assignment_name: assignment.title,
-                                        due_date: new Date(assignment.due_date).toLocaleString()
+                                        due_date: new Date(assignment.due_date || '').toLocaleString()
                                     })
                                 });
                             }

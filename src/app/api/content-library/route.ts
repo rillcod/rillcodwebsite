@@ -27,7 +27,9 @@ async function listHandler(req: Request, ctx: ApiContext) {
     const sort = searchParams.get('sort') as any;
     const order = searchParams.get('order') as any;
 
-    const items = await libraryService.listContent(ctx.user!.tenantId!, {
+    const tenantId = ctx.user?.tenantId;
+
+    const items = await libraryService.listContent(tenantId, {
         type,
         tag,
         query,
@@ -48,5 +50,5 @@ async function postHandler(req: Request, ctx: ApiContext) {
     return NextResponse.json({ success: true, data: item }, { status: 201 });
 }
 
-export const GET = (req: any, ctx: any) => withApiProxy(listHandler, { requireTenant: true })(req, ctx);
+export const GET = (req: any, ctx: any) => withApiProxy(listHandler, { requireAuth: true, requireTenant: false })(req, ctx);
 export const POST = (req: any, ctx: any) => withApiProxy(postHandler, { requireTenant: true })(req, ctx);

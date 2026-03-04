@@ -65,9 +65,12 @@ export default function AssignmentDetailPage() {
                 if (aErr) throw aErr;
                 if (!cancelled) setAssignment(aData);
 
-                // For student, find their submission
-                if (!isStaff && aData?.assignment_submissions) {
-                    const mySub = aData.assignment_submissions.find(
+                // For student, find their submission (guard against select error type)
+                if (!isStaff) {
+                    const submissions = Array.isArray(aData?.assignment_submissions)
+                        ? aData.assignment_submissions
+                        : [];
+                    const mySub = submissions.find(
                         (s: any) => s.portal_user_id === profile!.id
                     );
                     if (!cancelled) setSubmission(mySub ?? null);
@@ -103,7 +106,9 @@ export default function AssignmentDetailPage() {
     };
 
     const isOverdue = assignment?.due_date && new Date(assignment.due_date) < new Date();
-    const allSubs = assignment?.assignment_submissions ?? [];
+    const allSubs = Array.isArray(assignment?.assignment_submissions)
+        ? assignment.assignment_submissions
+        : [];
     const submitted = allSubs.filter((s: any) => s.status === 'submitted').length;
     const graded = allSubs.filter((s: any) => s.status === 'graded').length;
     const pct = submission?.grade != null

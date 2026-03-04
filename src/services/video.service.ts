@@ -15,6 +15,10 @@ export class VideoService {
         const meetingUrl = `https://zoom.us/j/${Math.floor(Math.random() * 1000000000)}`;
 
         const supabase = await createClient();
+        // Calculate scheduled_end from startTime + duration
+        const startDate = new Date(startTime);
+        const endDate = new Date(startDate.getTime() + duration * 60 * 1000);
+
         const { data: session, error } = await supabase
             .from('live_sessions')
             .insert([{
@@ -22,7 +26,7 @@ export class VideoService {
                 title: topic,
                 meeting_url: meetingUrl,
                 scheduled_start: startTime,
-                duration_minutes: duration,
+                scheduled_end: endDate.toISOString(),
                 status: 'scheduled'
             }])
             .select()

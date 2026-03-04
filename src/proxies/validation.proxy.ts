@@ -19,7 +19,7 @@ export async function withValidation<T>(
                     {
                         success: false,
                         error: 'Validation Error',
-                        errors: result.error.errors.map(err => ({
+                        errors: result.error.issues.map(err => ({
                             path: err.path.join('.'),
                             message: err.message
                         }))

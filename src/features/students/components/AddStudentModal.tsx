@@ -71,13 +71,13 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: Add
             if (initialData) {
                 const { error: updateError } = await client
                     .from('students')
-                    .update(form)
+                    .update({ ...form, name: form.full_name })
                     .eq('id', initialData.id);
                 if (updateError) throw updateError;
             } else {
                 const { error: insertError } = await client
                     .from('students')
-                    .insert([{ ...form, status: 'pending' }]);
+                    .insert([{ ...form, name: form.full_name, status: 'pending' }]);
                 if (insertError) throw insertError;
             }
             setForm(DEFAULT_FORM);

@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { usePresence } from '@/hooks/use-presence';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Circle, Search, Users as UsersIcon } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Search, Users as UsersIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function PresenceSidebar() {

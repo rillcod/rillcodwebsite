@@ -11,7 +11,7 @@ async function getAtRiskHandler(req: Request, ctx: ApiContext) {
     const schoolId = searchParams.get('schoolId');
 
     // School admins can only see their own school
-    const effectiveSchoolId = ctx.user?.role === 'school' ? ctx.user?.id : (schoolId || undefined);
+    const effectiveSchoolId = ctx.user?.role === 'school' ? ctx.user?.tenantId : (schoolId || undefined);
 
     const students = await analyticsService.getAtRiskStudents(effectiveSchoolId);
     return NextResponse.json({ success: true, data: students });

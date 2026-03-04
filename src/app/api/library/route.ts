@@ -14,7 +14,7 @@ async function listHandler(req: Request, ctx: ApiContext) {
     const order = searchParams.get('order') as any;
 
     const items = await libraryService.listContent(ctx.user!.tenantId!, {
-        type,
+        type: type as any,
         tag,
         query,
         subject,

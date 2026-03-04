@@ -71,20 +71,23 @@ export class LiveSessionService {
 
         // 4. Send notifications to all enrolled students
         const programId = course.program_id;
-        const { data: enrollments } = await supabase
-            .from('enrollments')
-            .select('user_id')
-            .eq('program_id', programId)
-            .eq('status', 'active');
+        if (programId) {
+            const { data: enrollments } = await supabase
+                .from('enrollments')
+                .select('user_id')
+                .eq('program_id', programId)
+                .eq('status', 'active');
 
-        if (enrollments) {
-            for (const { user_id } of enrollments) {
-                await notificationsService.logNotification(
-                    user_id,
-                    'New Live Session Scheduled',
-                    `A new live session covering "${params.title}" has been scheduled for your course.`,
-                    'info'
-                );
+            if (enrollments) {
+                for (const { user_id } of enrollments) {
+                    if (!user_id) continue;
+                    await notificationsService.logNotification(
+                        user_id,
+                        'New Live Session Scheduled',
+                        `A new live session covering "${params.title}" has been scheduled for your course.`,
+                        'info'
+                    );
+                }
             }
         }
 
@@ -179,7 +182,7 @@ export class LiveSessionService {
             throw new AppError('This session is no longer active', 400);
         }
 
-        return session.meeting_url;
+        return session.meeting_url || '';
     }
 
     async leaveSession(sessionId: string, userId: string) {
@@ -368,6 +371,7 @@ export class LiveSessionService {
         if (error) throw new AppError(error.message, 500);
 
         for (const session of sessions ?? []) {
+            if (!session.course_id) continue;
             const { data: course } = await supabase
                 .from('courses')
                 .select('program_id')
@@ -383,6 +387,7 @@ export class LiveSessionService {
                 .eq('status', 'active');
 
             for (const enrollment of enrollments ?? []) {
+                if (!enrollment.user_id) continue;
                 await notificationsService.logNotification(
                     enrollment.user_id,
                     'Live Session Reminder',

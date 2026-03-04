@@ -2,13 +2,13 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -115,24 +115,24 @@ export function AnalyticsDashboard() {
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="students" 
-                  stroke="#3b82f6" 
+                <Line
+                  type="monotone"
+                  dataKey="students"
+                  stroke="#3b82f6"
                   strokeWidth={2}
                   name="Active Students"
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="assignments" 
-                  stroke="#10b981" 
+                <Line
+                  type="monotone"
+                  dataKey="assignments"
+                  stroke="#10b981"
                   strokeWidth={2}
                   name="Assignments"
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="attendance" 
-                  stroke="#f59e0b" 
+                <Line
+                  type="monotone"
+                  dataKey="attendance"
+                  stroke="#f59e0b"
                   strokeWidth={2}
                   name="Attendance %"
                 />
@@ -175,7 +175,7 @@ export function AnalyticsDashboard() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"

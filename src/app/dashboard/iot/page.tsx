@@ -91,7 +91,7 @@ export default function IoTPage() {
   const loadFromDB = useCallback(async () => {
     setDbLoading(true);
     try {
-      const supabase = createClient();
+      const supabase = createClient() as any;
       const { data, error } = await supabase
         .from('iot_devices')
         .select('*')

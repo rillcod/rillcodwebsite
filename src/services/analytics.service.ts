@@ -39,11 +39,27 @@ export class AnalyticsService {
     async getCoursePerformance(courseId: string) {
         const supabase = await createClient();
 
-        // 1. Completion rate
+        // 1. Completion rate - first get the program_id for this course
+        const { data: courseData } = await supabase
+            .from('courses')
+            .select('program_id')
+            .eq('id', courseId)
+            .single();
+
+        const programId = courseData?.program_id;
+        if (!programId) {
+            return {
+                totalStudents: 0,
+                completionRate: 0,
+                avgExamScore: 0,
+                avgAssignmentGrade: 0
+            };
+        }
+
         const { data: students } = await supabase
             .from('enrollments')
             .select('user_id, status')
-            .eq('program_id', (await supabase.from('courses').select('program_id').eq('id', courseId).single()).data?.program_id);
+            .eq('program_id', programId);
 
         const total = students?.length || 0;
         const completed = students?.filter(s => s.status === 'completed').length || 0;

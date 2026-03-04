@@ -50,7 +50,7 @@ export default function StudentApproval() {
       setLoading(true)
       setError(null)
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('prospective_students')
         .select(`
           *,
@@ -62,12 +62,12 @@ export default function StudentApproval() {
         .order('created_at', { ascending: false })
 
       if (error) {
-        setError(`Error fetching students: ${error.message}`)
+        setError(`Error fetching students: ${(error as any).message}`)
         return
       }
 
       // Transform the data to include school_name
-      const transformedData = data?.map(student => ({
+      const transformedData = (data as any[])?.map((student: any) => ({
         ...student,
         school_name: student.schools?.name || 'Unknown School'
       })) || []
@@ -122,7 +122,7 @@ export default function StudentApproval() {
       }
 
       // Update prospective student status
-      const { error: updateError } = await supabase
+      const { error: updateError } = await (supabase as any)
         .from('prospective_students')
         .update({
           is_active: true,
@@ -149,7 +149,7 @@ export default function StudentApproval() {
       setApproving(studentId)
       setError(null)
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('prospective_students')
         .update({
           is_active: false,

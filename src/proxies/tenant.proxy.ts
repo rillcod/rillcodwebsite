@@ -16,7 +16,19 @@ export async function tenantproxy(req: NextRequest, res: NextResponse) {
         }
     });
 
-    const { data: { user } } = await supabase.auth.getUser();
+    let user = null;
+    try {
+        const { data } = await supabase.auth.getUser();
+        user = data?.user ?? null;
+    } catch (err: any) {
+        // Handle Supabase SSR lock contention (AbortError / "Lock broken by another request")
+        // Treat as unauthenticated — the request will be retried or handled by auth checks downstream
+        if (err?.name === 'AbortError' || err?.message?.includes('Lock broken')) {
+            return res;
+        }
+        // Re-throw unexpected errors
+        throw err;
+    }
 
     if (user) {
         // Inject user_id into headers

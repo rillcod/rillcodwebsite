@@ -25,15 +25,15 @@ interface Teacher {
   id: string;
   email: string;
   full_name: string;
-  phone: string;
-  subjects: string[];
-  experience_years: number;
-  education: string;
-  bio: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  created_by?: string;
+  phone: string | null;
+  subjects: string[] | null;
+  experience_years: number | null;
+  education: string | null;
+  bio: string | null;
+  is_active: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
+  created_by?: string | null;
 }
 
 export default function TeacherManagement() {
@@ -207,12 +207,12 @@ export default function TeacherManagement() {
     setFormData({
       email: teacher.email,
       full_name: teacher.full_name,
-      phone: teacher.phone,
+      phone: teacher.phone || '',
       subjects: teacher.subjects || [],
-      experience_years: teacher.experience_years,
-      education: teacher.education,
-      bio: teacher.bio,
-      is_active: teacher.is_active
+      experience_years: teacher.experience_years || 0,
+      education: teacher.education || '',
+      bio: teacher.bio || '',
+      is_active: teacher.is_active ?? true
     });
     setShowEditForm(true);
   };
@@ -347,14 +347,14 @@ export default function TeacherManagement() {
                   </td>
                   <td className="px-6 py-4 border-r-2 border-black">
                     <div className="flex flex-wrap gap-1">
-                      {teacher.subjects.slice(0, 2).map((subject, index) => (
+                      {(teacher.subjects || []).slice(0, 2).map((subject, index) => (
                         <span key={index} className="inline-flex items-center px-3 py-1 border-2 border-black text-xs font-bold bg-[#e1bee7] text-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
                           {subject}
                         </span>
                       ))}
-                      {teacher.subjects.length > 2 && (
+                      {(teacher.subjects || []).length > 2 && (
                         <span className="inline-flex items-center px-3 py-1 border-2 border-black text-xs font-bold bg-white text-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
-                          +{teacher.subjects.length - 2} more
+                          +{(teacher.subjects || []).length - 2} more
                         </span>
                       )}
                     </div>
@@ -363,8 +363,8 @@ export default function TeacherManagement() {
                     <div className="text-sm font-black text-black">{teacher.experience_years} yrs</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap border-r-2 border-black">
-                    <span className={`inline-flex items-center px-3 py-1 text-xs font-bold uppercase tracking-wider ${getStatusColor(teacher.is_active)} shadow-[2px_2px_0_0_rgba(0,0,0,1)]`}>
-                      {getStatusIcon(teacher.is_active)}
+                    <span className={`inline-flex items-center px-3 py-1 text-xs font-bold uppercase tracking-wider ${getStatusColor(teacher.is_active ?? false)} shadow-[2px_2px_0_0_rgba(0,0,0,1)]`}>
+                      {getStatusIcon(teacher.is_active ?? false)}
                       <span className="ml-1.5">{teacher.is_active ? 'Active' : 'Inactive'}</span>
                     </span>
                   </td>
@@ -671,7 +671,7 @@ export default function TeacherManagement() {
                 <div className="space-y-2">
                   <div><strong>Subjects:</strong></div>
                   <div className="flex flex-wrap gap-1">
-                    {selectedTeacher.subjects.map((subject, index) => (
+                    {(selectedTeacher.subjects || []).map((subject, index) => (
                       <span key={index} className="inline-flex items-center px-3 py-1 border-2 border-black text-xs font-bold bg-[#e1bee7] text-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
                         {subject}
                       </span>

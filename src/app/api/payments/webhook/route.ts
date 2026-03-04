@@ -118,22 +118,24 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 .eq('status', 'pending'); // only touch if still pending, not already approved/rejected
         }
     } else {
-        // Course enrollment payment — enroll portal user in the program
-        const { data: course } = await supabase
-            .from('courses')
-            .select('program_id')
-            .eq('id', transaction.course_id)
-            .single();
+        if (transaction.course_id && transaction.portal_user_id) {
+            // Course enrollment payment — enroll portal user in the program
+            const { data: course } = await supabase
+                .from('courses')
+                .select('program_id')
+                .eq('id', transaction.course_id)
+                .single();
 
-        if (course?.program_id) {
-            // UNIQUE constraint on enrollments is (user_id, program_id, role)
-            await supabase.from('enrollments').upsert({
-                user_id: transaction.portal_user_id,
-                program_id: course.program_id,
-                role: 'student',
-                enrollment_date: new Date().toISOString().split('T')[0],
-                status: 'active'
-            }, { onConflict: 'user_id,program_id,role' });
+            if (course?.program_id) {
+                // UNIQUE constraint on enrollments is (user_id, program_id, role)
+                await supabase.from('enrollments').upsert({
+                    user_id: transaction.portal_user_id,
+                    program_id: course.program_id,
+                    role: 'student',
+                    enrollment_date: new Date().toISOString().split('T')[0],
+                    status: 'active'
+                }, { onConflict: 'user_id,program_id,role' });
+            }
         }
     }
 }

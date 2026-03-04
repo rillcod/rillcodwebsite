@@ -60,12 +60,16 @@ export class LibraryService {
         return item;
     }
 
-    async listContent(tenantId: string, filters: ListFilters = {}) {
+    async listContent(tenantId: string | undefined, filters: ListFilters = {}) {
         const supabase = await createClient();
         let query = supabase
             .from('content_library')
-            .select('*, files(public_url, file_type, thumbnail_url, file_size, mime_type)')
-            .eq('school_id', tenantId);
+            .select('*, files(public_url, file_type, thumbnail_url, file_size, mime_type)');
+
+        // If tenantId is provided, scope to that school; otherwise return all content (e.g. for admins)
+        if (tenantId) {
+            query = query.eq('school_id', tenantId);
+        }
 
         if (filters.type) query = query.eq('content_type', filters.type);
         if (filters.tag) query = query.contains('tags', [filters.tag]);

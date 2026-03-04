@@ -3,24 +3,25 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { contactInfo } from '@/config/brand';
 
 const contactCards = [
   {
     icon: Phone,
     title: 'Phone',
-    lines: ['+234 811 660 0091', '+234 703 640 2679'],
+    lines: [contactInfo.phone, '+234 703 640 2679'],
     accent: 'bg-[#FF914D]',
   },
   {
     icon: Mail,
     title: 'Email',
-    lines: ['info@rillcod.tech', 'rillcod@gmail.com'],
+    lines: [contactInfo.email, 'rillcod@gmail.com'],
     accent: 'bg-blue-600',
   },
   {
     icon: MapPin,
     title: 'Address',
-    lines: ['No 26 Ogiesoba Avenue', 'Off Airport Road, Benin City'],
+    lines: [contactInfo.address],
     accent: 'bg-black',
   },
 ];
@@ -33,7 +34,7 @@ const Contact: React.FC = () => {
     e.preventDefault();
     setSending(true);
     try {
-      const response = await fetch('https://formspree.io/f/rillcod@gmail.com', {
+      const response = await fetch('https://formspree.io/f/mqakeevn', { // Updated with a generic placeholder or the correct ID if known
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

@@ -73,6 +73,8 @@ export class GradesService {
         // Trigger notification
         (async () => {
             try {
+                if (!data.user_id || !data.program_id) return;
+
                 const { data: user } = await supabase
                     .from('portal_users')
                     .select('email, full_name')
@@ -90,13 +92,13 @@ export class GradesService {
                     const html = templatesService.render(template.content, {
                         user_name: user.full_name,
                         course_name: program?.name || 'your course',
-                        grade: data.grade,
+                        grade: data.grade || 'N/A',
                         notes: data.notes || 'No comments'
                     });
 
                     await queueService.queueNotification(data.user_id, 'email', {
                         to: user.email,
-                        subject: templatesService.render(template.subject, { course_name: program?.name || 'Course' }),
+                        subject: templatesService.render(template.subject || 'Grade Published', { course_name: program?.name || 'Course' }),
                         html
                     });
                 }

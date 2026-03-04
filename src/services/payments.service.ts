@@ -178,21 +178,27 @@ export class PaymentsService {
         // Invoke gateway APIs... (mocked)
         // if (transaction.payment_method === 'stripe') { await stripe.refunds.create({ charge: ... }) }
 
+        const existingResponse = (transaction.payment_gateway_response && typeof transaction.payment_gateway_response === 'object' && !Array.isArray(transaction.payment_gateway_response))
+            ? transaction.payment_gateway_response as Record<string, unknown>
+            : {};
+
         await supabase.from('payment_transactions').update({
             payment_status: 'refunded',
             updated_at: new Date().toISOString(),
-            payment_gateway_response: { ...transaction.payment_gateway_response, refund_reason: reason }
+            payment_gateway_response: { ...existingResponse, refund_reason: reason }
         }).eq('id', transactionId);
 
         // Revoke Immediate Access (Task 22.1)
         // Let's assume courses are within programs, we need to find the program and suspend enrollment
-        const { data: course } = await supabase.from('courses').select('program_id').eq('id', transaction.course_id).single();
+        if (transaction.course_id) {
+            const { data: course } = await supabase.from('courses').select('program_id').eq('id', transaction.course_id).single();
 
-        if (course?.program_id) {
-            await supabase.from('enrollments').update({
-                status: 'suspended'
-            }).eq('user_id', transaction.portal_user_id)
-                .eq('program_id', course.program_id);
+            if (course?.program_id && transaction.portal_user_id) {
+                await supabase.from('enrollments').update({
+                    status: 'suspended'
+                }).eq('user_id', transaction.portal_user_id)
+                    .eq('program_id', course.program_id);
+            }
         }
 
         return true;
@@ -226,19 +232,23 @@ export class PaymentsService {
         };
 
         const printer = new PdfPrinter(fonts);
+        const schools = transaction.schools as any;
+        const courses = transaction.courses as any;
+        const portalUsers = transaction.portal_users as any;
+
         const docDefinition = {
             content: [
-                { text: transaction.schools?.name || 'Rillcod Academy', style: 'header' },
-                { text: `Receipt for ${transaction.courses?.title || 'Course'}`, style: 'subheader' },
+                { text: schools?.name || 'Rillcod Academy', style: 'header' },
+                { text: `Receipt for ${courses?.title || 'Course'}`, style: 'subheader' },
                 '\n',
                 `Transaction Ref: ${transaction.transaction_reference}`,
-                `Date: ${new Date(transaction.paid_at || transaction.created_at).toLocaleDateString()}`,
+                `Date: ${new Date(transaction.paid_at || transaction.created_at || '').toLocaleDateString()}`,
                 `Amount: ${transaction.currency} ${transaction.amount}`,
                 '\n',
-                `Student: ${transaction.portal_users?.full_name}`,
-                `Email: ${transaction.portal_users?.email}`,
+                `Student: ${portalUsers?.full_name || 'N/A'}`,
+                `Email: ${portalUsers?.email || 'N/A'}`,
                 '\n\n',
-                `Payment Method: ${transaction.payment_method.toUpperCase()}`,
+                `Payment Method: ${(transaction.payment_method || 'unknown').toUpperCase()}`,
             ],
             styles: {
                 header: { fontSize: 22, bold: true },
@@ -269,7 +279,7 @@ export class PaymentsService {
                 const { data: publicData } = supabase.storage.from('lms-files').getPublicUrl(storagePath);
 
                 await supabase.from('payment_transactions')
-                    .update({ receipt_url: publicData.publicUrl })
+                    .update({ payment_gateway_response: { receipt_url: publicData.publicUrl } } as any)
                     .eq('id', transaction.id);
 
                 resolve(publicData.publicUrl);

@@ -96,6 +96,7 @@ export class GamificationService {
             const { data: courseData, error: courseError } = await supabase.from('courses').select('program_id').eq('id', courseId).single();
             if (courseError) throw new AppError(courseError.message, 500);
             if (!courseData) throw new AppError('Course not found', 404);
+            if (!courseData.program_id) throw new AppError('Course does not have an associated program', 400);
 
             query = supabase
                 .from('enrollments')

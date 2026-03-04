@@ -10,10 +10,10 @@ import {
 } from '@heroicons/react/24/outline';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-  present:  { label: 'Present',  color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: CheckCircleIcon },
-  absent:   { label: 'Absent',   color: 'bg-rose-500/20 text-rose-400 border-rose-500/30',         icon: XCircleIcon },
-  late:     { label: 'Late',     color: 'bg-amber-500/20 text-amber-400 border-amber-500/30',      icon: ClockIcon },
-  excused:  { label: 'Excused',  color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',         icon: ExclamationCircleIcon },
+  present: { label: 'Present', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: CheckCircleIcon },
+  absent: { label: 'Absent', color: 'bg-rose-500/20 text-rose-400 border-rose-500/30', icon: XCircleIcon },
+  late: { label: 'Late', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30', icon: ClockIcon },
+  excused: { label: 'Excused', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30', icon: ExclamationCircleIcon },
 };
 
 export default function AttendancePage() {
@@ -81,7 +81,7 @@ export default function AttendancePage() {
     // Get enrolled students in this class's program
     db.from('classes').select('program_id').eq('id', selectedClass).single()
       .then(({ data: cls }) => {
-        if (!cls) return;
+        if (!cls || !cls.program_id) return;
         return Promise.all([
           db.from('enrollments').select('portal_users(id, full_name, email)').eq('program_id', cls.program_id),
           db.from('attendance').select('*').eq('session_id', selectedSession),

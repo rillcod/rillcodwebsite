@@ -20,7 +20,7 @@ export async function getStudents(schoolId?: string): Promise<ApiResponse<Studen
 
     const { data, error } = await query;
     return {
-        data: (data as Student[]) ?? null,
+        data: (data as unknown as Student[]) ?? null,
         error: error?.message ?? null,
     };
 }
@@ -34,7 +34,7 @@ export async function getStudentById(id: string): Promise<ApiResponse<Student>> 
         .eq('role', 'student')
         .single();
 
-    return { data: (data as Student) ?? null, error: error?.message ?? null };
+    return { data: (data as unknown as Student) ?? null, error: error?.message ?? null };
 }
 
 /** Fetch all pending students from the frontend registration */
@@ -107,7 +107,7 @@ export async function createStudent(formData: StudentFormData): Promise<ApiRespo
         .select()
         .single();
 
-    return { data: (data as Student) ?? null, error: error?.message ?? null };
+    return { data: (data as unknown as Student) ?? null, error: error?.message ?? null };
 }
 
 /** Soft-delete a student */

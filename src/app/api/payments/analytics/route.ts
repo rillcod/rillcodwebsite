@@ -32,13 +32,15 @@ async function getHandler(req: Request, ctx: ApiContext) {
 
     transactions.forEach(tx => {
         if (tx.payment_status === 'completed') {
-            totalRevenue += parseFloat(tx.amount);
+            totalRevenue += tx.amount;
             successCount++;
 
-            if (!revenueByCourse[tx.course_id]) {
-                revenueByCourse[tx.course_id] = 0;
+            if (tx.course_id) {
+                if (!revenueByCourse[tx.course_id]) {
+                    revenueByCourse[tx.course_id] = 0;
+                }
+                revenueByCourse[tx.course_id] += tx.amount;
             }
-            revenueByCourse[tx.course_id] += parseFloat(tx.amount);
 
         } else if (tx.payment_status === 'failed') {
             failureCount++;

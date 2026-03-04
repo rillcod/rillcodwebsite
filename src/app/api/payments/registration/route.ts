@@ -52,6 +52,7 @@ export async function POST(req: Request) {
         const { data: student, error: studentErr } = await supabase
             .from('students')
             .insert([{
+                name: full_name,
                 full_name,
                 date_of_birth: date_of_birth || null,
                 gender: gender?.toLowerCase() || null,

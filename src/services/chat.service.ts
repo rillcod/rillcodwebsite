@@ -11,7 +11,7 @@ export class ChatService {
             .insert([{
                 sender_id: senderId,
                 recipient_id: recipientId,
-                content,
+                message: content,
                 subject,
                 created_at: new Date().toISOString()
             }])

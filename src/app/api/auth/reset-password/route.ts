@@ -19,11 +19,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: caller } = await supabase
+    const { data: callerData } = await supabase
       .from('portal_users')
       .select('role')
       .eq('id', user.id)
       .single();
+
+    const caller = callerData as { role: string } | null;
 
     if (caller?.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });

@@ -22,7 +22,7 @@ export class BadgeService {
 
         // 2. Filter badges that match the criteria
         for (const badge of badges) {
-            const criteria = badge.criteria as BadgeCriteria;
+            const criteria = badge.criteria as unknown as BadgeCriteria;
             if (criteria.type !== criteriaType) continue;
 
             // Check if already earned

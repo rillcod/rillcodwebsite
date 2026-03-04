@@ -180,16 +180,22 @@ export class CoursesService {
         const supabase = await createClient();
         const course = await this.getCourse(courseId, tenantId);
 
-        // Note: Enrollments exist on the Program level in the schema originally! 
+        // Note: Enrollments exist on the Program level in the schema originally!
         // `enrollments` table: id, user_id, program_id, status, enrollment_date.
         // So enrolling into a course inherently means enrolling into its parent program if not already enrolled.
         // We will enroll them in the program.
+
+        if (!course.program_id) {
+            throw new AppError('Course does not have an associated program', 400);
+        }
+
+        const programId: string = course.program_id;
 
         const { data: existingEnrollment } = await supabase
             .from('enrollments')
             .select('id')
             .eq('user_id', userId)
-            .eq('program_id', course.program_id)
+            .eq('program_id', programId)
             .maybeSingle();
 
         if (existingEnrollment) {
@@ -203,7 +209,8 @@ export class CoursesService {
             .insert([
                 {
                     user_id: userId,
-                    program_id: course.program_id,
+                    program_id: programId,
+                    role: 'student',
                     status: 'active',
                     enrollment_date: new Date().toISOString()
                 }
@@ -221,11 +228,15 @@ export class CoursesService {
         const supabase = await createClient();
         const course = await this.getCourse(courseId, tenantId);
 
+        if (!course.program_id) {
+            throw new AppError('Course does not have an associated program', 400);
+        }
+
         const { error } = await supabase
             .from('enrollments')
             .delete()
             .eq('user_id', userId)
-            .eq('program_id', course.program_id);
+            .eq('program_id', course.program_id as string);
 
         if (error) {
             throw new AppError(`Failed to unenroll: ${error.message}`, 500);

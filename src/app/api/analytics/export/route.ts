@@ -21,7 +21,7 @@ async function exportDataHandler(req: Request, ctx: ApiContext) {
     const headers = Object.keys(data[0]);
     const csvRows = [
         headers.join(','),
-        ...data.map(row => headers.map(header => JSON.stringify(row[header])).join(','))
+        ...data.map((row: any) => headers.map(header => JSON.stringify(row[header])).join(','))
     ];
     const csvString = csvRows.join('\n');
 

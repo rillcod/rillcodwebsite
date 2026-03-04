@@ -5,18 +5,20 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Loader2, Shield, AlertTriangle } from 'lucide-react';
 
+import { UserRole } from '@/types';
+
 interface RoleBasedRouteProps {
   children: React.ReactNode;
-  allowedRoles: ('admin' | 'teacher' | 'student')[];
+  allowedRoles: UserRole[];
   fallback?: React.ReactNode;
   redirectTo?: string;
 }
 
-export default function RoleBasedRoute({ 
-  children, 
-  allowedRoles, 
+export default function RoleBasedRoute({
+  children,
+  allowedRoles,
   fallback,
-  redirectTo 
+  redirectTo
 }: RoleBasedRouteProps) {
   const { user, profile, loading } = useAuth();
   const router = useRouter();

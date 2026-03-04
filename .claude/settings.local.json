@@ -6,7 +6,10 @@
       "Bash(npx supabase:*)",
       "Bash(curl:*)",
       "Bash(node:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(npm run:*)",
+      "Bash(taskkill:*)",
+      "Bash(grep:*)"
     ]
   }
 }

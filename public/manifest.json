@@ -1,31 +1,21 @@
 {
-  "name": "Rillcod Academy",
-  "short_name": "Rillcod",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#0f0f1a",
-  "theme_color": "#0f0f1a",
-  "icons": [
-    {
-      "src": "/favicon.ico",
-      "sizes": "48x48",
-      "type": "image/x-icon"
-    }
-  ]
-}
-{
   "name": "RILLCOD Academy - Technology Education for Children",
   "short_name": "RILLCOD Academy",
   "description": "Transform Nigeria's educational system with cutting-edge technology education. Learn coding, robotics, web development, and more through fun, hands-on projects.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#0f0f1a",
   "theme_color": "#FF914D",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "en",
   "categories": ["education", "technology", "learning"],
   "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    },
     {
       "src": "/icon-192x192.png",
       "sizes": "192x192",
@@ -96,4 +86,4 @@
       "form_factor": "narrow"
     }
   ]
-} 
+}

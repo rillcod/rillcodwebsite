@@ -18,6 +18,11 @@ const envSchema = z.object({
     SENDPULSE_API_ID: z.string().optional(),
     SENDPULSE_API_SECRET: z.string().optional(),
 
+    // Zoom (Video Conferencing)
+    ZOOM_ACCOUNT_ID: z.string().optional(),
+    ZOOM_CLIENT_ID: z.string().optional(),
+    ZOOM_CLIENT_SECRET: z.string().optional(),
+
     // Features
     ENABLE_PAYMENTS: z.string().optional().default('false'),
     ENABLE_VIDEO_CONFERENCING: z.string().optional().default('false'),

@@ -125,7 +125,7 @@ export class DiscussionService {
             updates.is_resolved = true;
             // Reward author with reputation?
             const { data: topic } = await supabase.from('discussion_topics').select('created_by').eq('id', topicId).single();
-            if (topic) await this.updateReputation(topic.created_by, 10);
+            if (topic && topic.created_by) await this.updateReputation(topic.created_by, 10);
         }
 
         const { error } = await supabase.from('discussion_topics').update(updates).eq('id', topicId);
@@ -235,15 +235,20 @@ export class DiscussionService {
 
     private async notifyCourseParticipants(courseId: string, topic: any) {
         const supabase = await createClient();
+
+        const { data: courseData } = await supabase.from('courses').select('program_id').eq('id', courseId).single();
+        const programId = courseData?.program_id;
+        if (!programId) return;
+
         const { data: enrollments } = await supabase
             .from('student_enrollments')
             .select('student_id, portal_users(email, first_name)')
-            .eq('program_id', (await supabase.from('courses').select('program_id').eq('id', courseId).single()).data?.program_id)
+            .eq('program_id', programId)
             .eq('status', 'active');
 
         if (enrollments) {
             for (const enrollment of enrollments) {
-                if (enrollment.student_id === topic.created_by) continue;
+                if (!enrollment.student_id || enrollment.student_id === topic.created_by) continue;
                 const user = enrollment.portal_users as any;
                 if (user?.email) {
                     await queueService.queueNotification(enrollment.student_id, 'email', {
@@ -263,7 +268,7 @@ export class DiscussionService {
         const { data: subs } = await supabase.from('topic_subscriptions').select('user_id').eq('topic_id', topicId);
         if (subs) {
             for (const sub of subs) {
-                if (sub.user_id === reply.created_by) continue;
+                if (!sub.user_id || sub.user_id === reply.created_by) continue;
                 await notificationsService.logNotification(
                     sub.user_id,
                     'New reply to subscribed topic',

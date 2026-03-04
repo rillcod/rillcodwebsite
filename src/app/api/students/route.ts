@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
     // Map the incoming frontend fields cleanly to DB schema columns
     const fullName = body.full_name || body.fullName;
-    const newStudentData: Record<string, any> = {
+    const newStudentData: any = {
       name: fullName,
       full_name: fullName,
       date_of_birth: body.date_of_birth,

@@ -22,6 +22,7 @@ export class GradingService {
         if (attempt.status !== 'in_progress') throw new AppError('Exam already submitted', 400);
 
         const exam = attempt.exams;
+        if (!exam) throw new AppError('Exam not found for this attempt', 404);
         const questions = await questionService.listQuestions(exam.id);
 
         // 2. Automated Grading for objective questions
@@ -30,18 +31,19 @@ export class GradingService {
         let needsManualGrading = false;
 
         const gradedAnswers = questions.map(q => {
-            totalPoints += q.points;
+            const qPoints = q.points || 0;
+            totalPoints += qPoints;
             const userAnswer = finalAnswers[q.id];
             let questionScore = 0;
 
-            if (['essay', 'short_answer'].includes(q.question_type)) {
+            if (['essay', 'short_answer'].includes(q.question_type || '')) {
                 needsManualGrading = true;
                 // Partial credit or placeholder if we have it, otherwise wait for teacher
             } else {
                 // Simple string/json matching for objective
                 if (JSON.stringify(userAnswer) === JSON.stringify(q.correct_answer)) {
-                    questionScore = q.points;
-                    score += q.points;
+                    questionScore = qPoints;
+                    score += qPoints;
                 }
             }
 
@@ -76,14 +78,14 @@ export class GradingService {
 
         // 4. Trigger Notifications if already graded
         if (status === 'graded') {
-            this.notifyStudent(userId, exam.title, percentage);
+            this.notifyStudent(userId, exam?.title || 'Exam', percentage);
 
             // Trigger Gamification points if passing
-            if (percentage >= (exam.passing_score || 50)) {
+            if (percentage >= (exam?.passing_score || 50)) {
                 const { gamificationService } = await import('./gamification.service');
                 const { badgeService } = await import('./badge.service');
 
-                const result = await gamificationService.awardPoints(userId, 'quiz_pass', exam.id, `Passed exam: ${exam.title}`);
+                const result = await gamificationService.awardPoints(userId, 'quiz_pass', exam?.id || attemptId, `Passed exam: ${exam?.title || 'Exam'}`);
                 await badgeService.awardBadgeIfEligible(userId, 'points_milestone', { totalPoints: result.totalPoints });
             }
         }
@@ -142,7 +144,10 @@ export class GradingService {
             })
             .eq('id', attemptId);
 
-        this.notifyStudent(attempt.portal_user_id, attempt.exams.title, newPercentage);
+        if (attempt.portal_user_id) {
+            const examData = attempt.exams as any;
+            this.notifyStudent(attempt.portal_user_id, examData?.title || 'Exam', newPercentage);
+        }
         return true;
     }
 }
