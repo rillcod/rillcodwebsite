@@ -148,8 +148,8 @@ export default function DashboardNavigation() {
   };
 
   const navItems = getNavItems();
-  const bottomNavNames = new Set(['Dashboard', 'Courses', 'My Courses', 'Library', 'Messages', 'Settings']);
-  const bottomNavItems = navItems.filter((item) => bottomNavNames.has(item.name)).slice(0, 5);
+  const bottomNavNames = new Set(['Dashboard', 'Courses', 'My Courses', 'Library', 'Messages']);
+  const bottomNavItems = navItems.filter((item) => bottomNavNames.has(item.name)).slice(0, 4);
 
   const handleLogout = () => {
     signOut();
@@ -317,6 +317,19 @@ export default function DashboardNavigation() {
             </Link>
           );
         })}
+
+        {/* Sign Out Button in Bottom Nav */}
+        <button
+          onClick={handleLogout}
+          className="flex flex-col items-center gap-1 px-2 py-1 rounded-xl min-w-[3.5rem] transition-all duration-200 text-red-500 hover:text-red-400 group"
+        >
+          <div className="relative p-1.5 rounded-lg transition-all duration-200 group-active:bg-red-500/20">
+            <ArrowRightOnRectangleIcon className="w-5 h-5" />
+          </div>
+          <span className="text-[9px] font-bold uppercase tracking-wide leading-none">
+            Sign Out
+          </span>
+        </button>
       </div>
     </>
   );
