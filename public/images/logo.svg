@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#0B132B"/>
+  
+  <!-- Circuit traces decorative -->
+  <line x1="80" y1="180" x2="140" y2="180" stroke="#1a2b54" stroke-width="6" stroke-linecap="round"/>
+  <line x1="140" y1="180" x2="140" y2="140" stroke="#1a2b54" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="80" cy="180" r="8" fill="#1a2b54"/>
+  <circle cx="140" cy="140" r="8" fill="#1a2b54"/>
+  
+  <line x1="432" y1="332" x2="372" y2="332" stroke="#1a2b54" stroke-width="6" stroke-linecap="round"/>
+  <line x1="372" y1="332" x2="372" y2="372" stroke="#1a2b54" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="432" cy="332" r="8" fill="#1a2b54"/>
+  <circle cx="372" cy="372" r="8" fill="#1a2b54"/>
+
+  <line x1="100" y1="380" x2="160" y2="380" stroke="#1a2b54" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="100" cy="380" r="6" fill="#1a2b54"/>
+  
+  <line x1="400" y1="140" x2="350" y2="140" stroke="#1a2b54" stroke-width="4" stroke-linecap="round"/>
+  <line x1="350" y1="140" x2="350" y2="110" stroke="#1a2b54" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="350" cy="110" r="6" fill="#1a2b54"/>
+
+  <!-- Orange glow behind R -->
+  <ellipse cx="256" cy="256" rx="130" ry="130" fill="#FF914D" fill-opacity="0.12"/>
+  <ellipse cx="256" cy="256" rx="100" ry="100" fill="#FF914D" fill-opacity="0.08"/>
+  
+  <!-- Letter R — bold, geometric -->
+  <!-- Vertical stem -->
+  <rect x="158" y="148" width="52" height="216" rx="10" fill="white"/>
+  <!-- Top bowl horizontal -->
+  <rect x="158" y="148" width="130" height="52" rx="26" fill="white"/>
+  <!-- Bowl right vertical -->
+  <rect x="236" y="148" width="52" height="120" rx="10" fill="white"/>
+  <!-- Bowl bottom horizontal -->
+  <rect x="158" y="216" width="130" height="52" rx="26" fill="white"/>
+  <!-- Diagonal leg -->
+  <path d="M242 268 L350 364" stroke="white" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Orange accent dot — circuit node on R -->
+  <circle cx="288" cy="192" r="20" fill="#FF914D"/>
+  <circle cx="288" cy="192" r="10" fill="#0B132B"/>
+  
+  <!-- Small orange dots at corners of R -->
+  <circle cx="288" cy="242" r="10" fill="#FF914D" fill-opacity="0.8"/>
+</svg>

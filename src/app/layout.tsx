@@ -122,6 +122,8 @@ export default function RootLayout({
         <link rel="canonical" href="https://rillcod.com" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="shortcut icon" href="/favicon.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png" />
       </head>
       <body className={`${inter.className} bg-[#0f0f1a] text-white`}>
         <AppProviders>{children}</AppProviders>

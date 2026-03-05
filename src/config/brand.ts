@@ -7,14 +7,14 @@ export const brandColors = {
     gradient: 'from-blue-600 to-purple-600',
     gradientHover: 'from-blue-700 to-purple-700'
   },
-  
+
   // Secondary colors
   secondary: {
     orange: '#FF914D', // Original theme color
     green: '#10b981', // Success/CTA color
     red: '#ef4444' // Error/alert color
   },
-  
+
   // Text colors
   text: {
     primary: '#111827', // Gray-900
@@ -22,7 +22,7 @@ export const brandColors = {
     light: '#f9fafb', // Gray-50
     white: '#ffffff'
   },
-  
+
   // Background colors
   background: {
     primary: '#ffffff',
@@ -35,8 +35,9 @@ export const brandColors = {
 // Brand assets
 export const brandAssets = {
   logo: '/images/logo.png',
+  logoSvg: '/images/logo.svg',
   logoCloudinary: 'https://res.cloudinary.com/dpigtwit0/image/upload/v1747032682/PhotoRoom-20250512_074926_zgudyt.png',
-  favicon: '/favicon.ico',
+  favicon: '/favicon.png',
   ogImage: '/images/logo.png'
 };
 

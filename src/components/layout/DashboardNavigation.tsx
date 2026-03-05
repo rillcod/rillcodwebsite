@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -149,12 +150,10 @@ export default function DashboardNavigation() {
   return (
     <>
       {/* ── Mobile Top Header (hidden on md+) ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#0B132B] px-4 py-3 text-white border-b-2 border-[#7a0606] shadow-lg">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <AcademicCapIcon className="w-6 h-6 text-white" />
-          <span className="font-extrabold uppercase tracking-widest text-lg">
-            Rillcod
-          </span>
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#0B132B] px-4 py-2.5 text-white border-b-2 border-[#7a0606] shadow-lg">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <Image src="/images/logo.png" alt="Rillcod" width={32} height={32} className="rounded-lg" priority />
+          <span className="font-extrabold uppercase tracking-widest text-lg">Rillcod</span>
         </Link>
         <div className="flex items-center gap-2">
           {/* Unread badge in topbar */}
@@ -202,16 +201,10 @@ export default function DashboardNavigation() {
         aria-label="Dashboard navigation"
       >
         {/* Logo Section (desktop only) */}
-        <div className="hidden md:flex flex-col items-center justify-center py-8 border-b border-gray-800">
-          <div className="w-16 h-16 bg-[#7a0606] border-2 border-white rounded-full flex items-center justify-center mb-4 shadow-lg shadow-black/50">
-            <AcademicCapIcon className="w-8 h-8 text-white" />
-          </div>
-          <span className="text-xl font-extrabold uppercase tracking-[0.2em] text-white">
-            Rillcod
-          </span>
-          <span className="text-[10px] font-bold tracking-widest text-gray-400 mt-1 uppercase">
-            Academy Portal
-          </span>
+        <div className="hidden md:flex flex-col items-center justify-center py-6 border-b border-gray-800">
+          <Image src="/images/logo.png" alt="Rillcod Academy" width={64} height={64} className="rounded-2xl shadow-lg shadow-black/50 mb-3" priority />
+          <span className="text-xl font-extrabold uppercase tracking-[0.2em] text-white">Rillcod</span>
+          <span className="text-[10px] font-bold tracking-widest text-gray-400 mt-1 uppercase">Academy Portal</span>
         </div>
 
         {/* User Badge */}

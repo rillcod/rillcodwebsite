@@ -3,57 +3,49 @@ import Image from 'next/image';
 import { brandAssets } from '../config/brand';
 
 interface LogoProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   showText?: boolean;
   className?: string;
   textColor?: string;
+  useSvg?: boolean;
 }
 
-export default function Logo({ size = 'md', showText = true, className = '', textColor = 'text-gray-900 dark:text-white' }: LogoProps) {
+export default function Logo({ size = 'md', showText = true, className = '', textColor = 'text-gray-900 dark:text-white', useSvg = false }: LogoProps) {
   const sizeClasses = {
     sm: 'w-8 h-8',
     md: 'w-10 h-10',
-    lg: 'w-12 h-12'
+    lg: 'w-12 h-12',
+    xl: 'w-16 h-16',
   };
 
-  const imgSizes = {
-    sm: 32,
-    md: 40,
-    lg: 48
-  };
+  const imgSizes = { sm: 32, md: 40, lg: 48, xl: 64 };
 
   const textSizes = {
     sm: 'text-sm',
     md: 'text-lg',
-    lg: 'text-xl'
+    lg: 'text-xl',
+    xl: 'text-2xl',
   };
+
+  const src = useSvg ? brandAssets.logoSvg : brandAssets.logo;
 
   return (
     <div className={`flex items-center space-x-3 ${className}`}>
-      <div className={`${sizeClasses[size]} rounded-lg overflow-hidden shadow-lg flex-shrink-0`}>
-        <Image 
-          src={brandAssets.logo}
-          alt="Rillcod Academy Logo" 
+      <div className={`${sizeClasses[size]} rounded-xl overflow-hidden shadow-lg flex-shrink-0`}>
+        <Image
+          src={src}
+          alt="Rillcod Academy Logo"
           width={imgSizes[size]}
           height={imgSizes[size]}
           className="w-full h-full object-contain"
           priority
           onError={(e) => {
-            // Fallback to Cloudinary URL if local logo fails
             const target = e.target as HTMLImageElement;
-            if (target.src !== brandAssets.logoCloudinary) {
+            // Try PNG fallback if SVG fails
+            if (target.src.includes('.svg')) {
+              target.src = brandAssets.logo;
+            } else if (target.src !== brandAssets.logoCloudinary) {
               target.src = brandAssets.logoCloudinary;
-            } else {
-              // Final fallback: brand colors with initials
-              target.style.display = 'none';
-              const parent = target.parentElement;
-              if (parent) {
-                parent.innerHTML = `
-                  <div class="w-full h-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
-                    <span class="text-white font-bold text-xs">RA</span>
-                  </div>
-                `;
-              }
             }
           }}
         />
