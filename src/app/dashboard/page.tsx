@@ -168,6 +168,12 @@ const QUICK_ACTIONS = {
     { name: 'My Progress', href: '/dashboard/progress', icon: ChartBarIcon, desc: 'Track your progress' },
     { name: 'Grades', href: '/dashboard/grades', icon: TrophyIcon, desc: 'See your grades' },
   ],
+  school: [
+    { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View enrolled students' },
+    { name: 'Grades & Reports', href: '/dashboard/grades', icon: TrophyIcon, desc: 'View student grades' },
+    { name: 'Activity', href: '/dashboard/progress', icon: ChartBarIcon, desc: 'Track student progress' },
+    { name: 'Messages', href: '/dashboard/messages', icon: ClipboardDocumentListIcon, desc: 'Contact teachers & admin' },
+  ],
 };
 
 /* ── Main Component ───────────────────────────────────── */
@@ -283,7 +289,7 @@ export default function DashboardPage() {
     </div>
   );
 
-  const role = profile.role as 'admin' | 'teacher' | 'student';
+  const role = profile.role as 'admin' | 'teacher' | 'student' | 'school';
   const quickActions = QUICK_ACTIONS[role] ?? QUICK_ACTIONS.student;
 
   return (
@@ -427,8 +433,8 @@ export default function DashboardPage() {
               </div>
             </div>
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border capitalize ${role === 'admin' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                role === 'teacher' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
-                  'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+              role === 'teacher' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
               }`}>{role}</span>
             <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2">
               <Link href="/dashboard/settings"

@@ -1,21 +1,12 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { generateTempPassword } from '@/lib/utils/password';
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
-
-// Generates a readable random temp password: Word + 4 digits + symbol
-export function generateTempPassword(): string {
-  const words = ['Rillcod', 'Portal', 'Learn', 'Smart', 'Stem', 'Code', 'Robot'];
-  const word = words[Math.floor(Math.random() * words.length)];
-  const num = Math.floor(1000 + Math.random() * 9000);
-  const syms = ['#', '@', '!', '$'];
-  const sym = syms[Math.floor(Math.random() * syms.length)];
-  return `${word}${num}${sym}`;
-}
 
 // POST /api/students/activate
 // Body: { studentId: string }

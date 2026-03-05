@@ -1,6 +1,16 @@
-const CACHE_NAME = "rillcod-cache-v1";
+const CACHE_NAME = "rillcod-cache-v2";
 const OFFLINE_URL = "/offline.html";
 const CORE_ASSETS = ["/", "/manifest.json", OFFLINE_URL];
+
+// Never cache these origins — auth/API calls must always go to the network
+const BYPASS_ORIGINS = [
+  "supabase.co",
+  "supabase.in",
+];
+
+function shouldBypass(url) {
+  return BYPASS_ORIGINS.some((origin) => url.hostname.endsWith(origin));
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -21,6 +31,11 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
+  const url = new URL(event.request.url);
+
+  // Always bypass Supabase and any external API
+  if (shouldBypass(url)) return;
+
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
@@ -34,12 +49,16 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // For static assets: cache-first, then network
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const fetchPromise = fetch(event.request)
         .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          // Only cache same-origin responses
+          if (response.ok && url.origin === self.location.origin) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
           return response;
         })
         .catch(() => cached);
@@ -54,6 +73,7 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body || "You have a new notification.",
     icon: "/favicon.ico",
+    badge: "/favicon.ico",
     data: { url: data.url || "/" }
   };
   event.waitUntil(self.registration.showNotification(title, options));

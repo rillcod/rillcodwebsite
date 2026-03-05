@@ -12,7 +12,7 @@ import {
   XMarkIcon, ArrowPathIcon, KeyIcon, ShieldCheckIcon,
   ClipboardIcon, ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { generateTempPassword } from '@/app/api/students/activate/route';
+import { generateTempPassword } from '@/lib/utils/password';
 
 interface TeacherStats {
   myClasses: number;

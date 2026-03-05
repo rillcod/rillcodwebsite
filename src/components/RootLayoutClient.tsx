@@ -12,9 +12,15 @@ export default function RootLayoutClient({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isDashboardRoute = pathname?.startsWith('/admin') ||
+  const isDashboardRoute =
+    pathname?.startsWith('/dashboard') ||
+    pathname?.startsWith('/admin') ||
     pathname?.startsWith('/teacher') ||
-    pathname?.startsWith('/student');
+    pathname?.startsWith('/student') ||
+    pathname?.startsWith('/login') ||
+    pathname?.startsWith('/signup') ||
+    pathname?.startsWith('/reset-password') ||
+    pathname?.startsWith('/verify');
 
   return (
     <>
