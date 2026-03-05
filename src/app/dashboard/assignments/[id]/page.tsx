@@ -9,7 +9,7 @@ import { submitAssignment, gradeSubmission } from '@/services/dashboard.service'
 import {
     ArrowLeftIcon, CalendarIcon, ClockIcon, DocumentTextIcon,
     CheckCircleIcon, ExclamationTriangleIcon, ArrowUpTrayIcon,
-    PaperClipIcon, AcademicCapIcon, StarIcon, XMarkIcon, ArrowPathIcon, CheckIcon
+    PaperClipIcon, AcademicCapIcon, StarIcon, XMarkIcon, ArrowPathIcon, CheckIcon, PencilIcon
 } from '@heroicons/react/24/outline';
 
 function pctInfo(grade: number, max: number) {
@@ -19,10 +19,11 @@ function pctInfo(grade: number, max: number) {
     return { pct, letter, color };
 }
 
-function GradeModal({ sub, maxPoints, assignmentTitle, onClose, onSaved }: {
+function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSaved }: {
     sub: any;
     maxPoints: number;
     assignmentTitle: string;
+    questions?: any[];
     onClose: () => void;
     onSaved: (id: string, grade: number, feedback: string) => void;
 }) {
@@ -80,15 +81,34 @@ function GradeModal({ sub, maxPoints, assignmentTitle, onClose, onSaved }: {
                             <p className="text-sm text-white/70 whitespace-pre-wrap">{sub.submission_text}</p>
                         </div>
                     )}
+                    {questions && questions.length > 0 && sub.answers && (
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 max-h-60 overflow-y-auto space-y-4">
+                            <p className="text-xs text-white/30 uppercase tracking-wider mb-2">Student Answers</p>
+                            {questions.map((q: any, idx: number) => (
+                                <div key={idx} className="bg-white/3 rounded-lg p-3 border border-white/5">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <p className="text-sm font-semibold text-white/90">{q.question_text}</p>
+                                        <span className="text-[10px] text-white/40">{q.points} pt{q.points !== 1 && 's'}</span>
+                                    </div>
+                                    <div className="text-sm text-white/70 bg-black/20 p-2 rounded">
+                                        <span className="text-white font-medium">{sub.answers[idx] || <span className="text-white/30 italic">No answer provided</span>}</span>
+                                    </div>
+                                    {q.question_type === 'multiple_choice' && q.correct_answer && (
+                                        <p className="text-xs text-emerald-400 mt-2 font-semibold">Correct Answer: {q.correct_answer}</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     {sub.file_url && (
                         <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
                             className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 underline">
                             📎 View attached file
                         </a>
                     )}
-                    {!sub.submission_text && !sub.file_url && sub.status !== 'missing' && (
+                    {!sub.submission_text && !sub.file_url && (!sub.answers || Object.keys(sub.answers).length === 0) && sub.status !== 'missing' && (
                         <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-sm text-amber-400">
-                            No text or file submitted — grade based on verbal/in-person work if applicable.
+                            No text, file, or answers submitted — grade based on verbal/in-person work if applicable.
                         </div>
                     )}
 
@@ -176,6 +196,7 @@ export default function AssignmentDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [text, setText] = useState('');
+    const [answers, setAnswers] = useState<Record<number, string>>({});
     const [submitting, setSubmitting] = useState(false);
     const [submitDone, setSubmitDone] = useState(false);
     const [grading, setGrading] = useState<any | null>(null);
@@ -208,9 +229,9 @@ export default function AssignmentDetailPage() {
                     .from('assignments')
                     .select(`
             id, title, description, instructions, due_date, max_points,
-            assignment_type, is_active, created_at,
+            assignment_type, is_active, created_at, questions,
             courses ( id, title, programs ( name ) ),
-            assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, portal_user_id, submission_text, file_url, portal_users ( full_name, email ) )
+            assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, portal_user_id, submission_text, file_url, answers, portal_users ( full_name, email ) )
           `)
                     .eq('id', id)
                     .single();
@@ -246,6 +267,7 @@ export default function AssignmentDetailPage() {
                 assignment_id: assignment.id,
                 portal_user_id: profile.id,
                 submission_text: text,
+                answers: Object.keys(answers).length > 0 ? answers : null,
             });
             setSubmission(result);
             setSubmitDone(true);
@@ -298,6 +320,7 @@ export default function AssignmentDetailPage() {
                     sub={grading}
                     maxPoints={assignment.max_points}
                     assignmentTitle={assignment.title}
+                    questions={assignment.questions}
                     onClose={() => setGrading(null)}
                     onSaved={handleGraded}
                 />
@@ -332,7 +355,13 @@ export default function AssignmentDetailPage() {
                             </p>
                         </div>
 
-                        {/* Student result badge */}
+                        {/* Staff edit button */}
+                        {isStaff && (
+                            <Link href={`/dashboard/assignments/${id}/edit`}
+                                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition-colors">
+                                <PencilIcon className="w-3.5 h-3.5" /> Edit
+                            </Link>
+                        )}
                         {!isStaff && submission?.status && (
                             <div className="flex-shrink-0 text-right">
                                 <Badge status={submission.status} />
@@ -433,22 +462,57 @@ export default function AssignmentDetailPage() {
                                     : 'Your assignment has been submitted and is pending review. You cannot resubmit.'}
                             </div>
                         ) : (
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                {submission?.submission_text && (
-                                    <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                                        <p className="text-xs text-white/30 uppercase tracking-wider mb-2">Previous Submission</p>
-                                        <p className="text-sm text-white/60 whitespace-pre-wrap">{submission.submission_text}</p>
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                {assignment.questions && Array.isArray(assignment.questions) && assignment.questions.length > 0 && (
+                                    <div className="space-y-6">
+                                        {assignment.questions.map((q: any, i: number) => (
+                                            <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3">
+                                                <div className="flex justify-between items-start">
+                                                    <h3 className="text-sm font-bold text-white/80">Question {i + 1}</h3>
+                                                    <span className="text-[10px] text-white/30 uppercase font-black">{q.points} pts</span>
+                                                </div>
+                                                <p className="text-sm text-white/70 whitespace-pre-wrap">{q.question_text}</p>
+
+                                                {q.question_type === 'multiple_choice' && (
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                                                        {q.options?.map((opt: string, oi: number) => (
+                                                            <label key={oi} className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${answers[i] === opt ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'}`}>
+                                                                <input type="radio" value={opt} checked={answers[i] === opt} onChange={e => setAnswers({ ...answers, [i]: e.target.value })} className="hidden" />
+                                                                <span className="text-xs font-bold">{String.fromCharCode(65 + oi)}.</span>
+                                                                <span className="text-xs">{opt}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {q.question_type === 'true_false' && (
+                                                    <div className="flex gap-4 mt-2">
+                                                        {['True', 'False'].map(opt => (
+                                                            <label key={opt} className={`flex-1 flex justify-center p-3 rounded-xl border transition-all cursor-pointer ${answers[i] === opt ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'}`}>
+                                                                <input type="radio" value={opt} checked={answers[i] === opt} onChange={e => setAnswers({ ...answers, [i]: e.target.value })} className="hidden" />
+                                                                <span className="text-xs font-bold tracking-widest uppercase">{opt}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {(q.question_type === 'essay' || q.question_type === 'fill_blank') && (
+                                                    <input type="text" value={answers[i] || ''} onChange={e => setAnswers({ ...answers, [i]: e.target.value })} placeholder="Type your answer here…" className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500 transition-colors" />
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
+
                                 <div>
                                     <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
-                                        Your Answer / Work
+                                        {assignment.questions?.length > 0 ? 'Additional Comments / Notes' : 'Your Answer / Work'}
                                     </label>
                                     <textarea
-                                        rows={6}
+                                        rows={assignment.questions?.length > 0 ? 3 : 6}
                                         value={text}
                                         onChange={e => setText(e.target.value)}
-                                        placeholder="Write your answer, explanation, or paste your link here…"
+                                        placeholder={assignment.questions?.length > 0 ? "Any additional notes about your submission…" : "Write your answer, explanation, or paste your link here…"}
                                         className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500 transition-colors resize-none"
                                     />
                                 </div>
@@ -457,7 +521,7 @@ export default function AssignmentDetailPage() {
                                         <ExclamationTriangleIcon className="w-4 h-4" /> {error}
                                     </div>
                                 )}
-                                <button type="submit" disabled={submitting || !text.trim()}
+                                <button type="submit" disabled={submitting || (assignment.questions?.length > 0 ? Object.keys(answers).length === 0 : !text.trim())}
                                     className="flex items-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-bold rounded-xl transition-all">
                                     {submitting
                                         ? <><ClockIcon className="w-4 h-4 animate-spin" /> Submitting…</>
@@ -478,20 +542,27 @@ export default function AssignmentDetailPage() {
                         <div className="divide-y divide-white/5">
                             {allSubs.map((s: any) => (
                                 <div key={s.id} className="flex items-center gap-4 p-4 hover:bg-white/5 transition-colors">
+                                    {/* Avatar + name */}
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
+                                        {(s.portal_users?.full_name ?? '?')[0]}
+                                    </div>
                                     <div className="flex-1 min-w-0">
-                                        <Badge status={s.status} />
-                                        {s.submitted_at && (
-                                            <p className="text-xs text-white/30 mt-1">
-                                                Submitted {new Date(s.submitted_at).toLocaleString()}
-                                            </p>
-                                        )}
+                                        <p className="text-sm font-semibold text-white truncate">{s.portal_users?.full_name ?? 'Student'}</p>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <Badge status={s.status} />
+                                            {s.submitted_at && (
+                                                <p className="text-xs text-white/30">
+                                                    Submitted {new Date(s.submitted_at).toLocaleString()}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
                                     {s.grade != null && (
-                                        <span className="text-emerald-400 font-bold text-sm">{s.grade}/{assignment.max_points} pts</span>
+                                        <span className="text-emerald-400 font-bold text-sm flex-shrink-0">{s.grade}/{assignment.max_points} pts</span>
                                     )}
                                     <button onClick={() => setGrading(s)}
-                                        className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 text-xs font-bold rounded-xl transition-colors">
-                                        Grade
+                                        className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 text-xs font-bold rounded-xl transition-colors flex-shrink-0">
+                                        {s.status === 'graded' ? 'Re-grade' : 'Grade'}
                                     </button>
                                 </div>
                             ))}

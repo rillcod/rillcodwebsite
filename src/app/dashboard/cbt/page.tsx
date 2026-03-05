@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   AcademicCapIcon, PlusIcon, ClockIcon, CheckCircleIcon,
   ExclamationTriangleIcon, EyeIcon, TrashIcon, PlayIcon,
-  MagnifyingGlassIcon, DocumentCheckIcon, ChartBarIcon,
+  MagnifyingGlassIcon, DocumentCheckIcon, ChartBarIcon, PencilIcon,
 } from '@heroicons/react/24/outline';
 
 export default function CBTPage() {
@@ -177,6 +177,10 @@ export default function CBTPage() {
                           <Link href={`/dashboard/cbt/${exam.id}`}
                             className="p-2 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors">
                             <EyeIcon className="w-4 h-4" />
+                          </Link>
+                          <Link href={`/dashboard/cbt/${exam.id}/edit`}
+                            className="p-2 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors">
+                            <PencilIcon className="w-4 h-4" />
                           </Link>
                           <button
                             onClick={() => handleDelete(exam.id, exam.title)}

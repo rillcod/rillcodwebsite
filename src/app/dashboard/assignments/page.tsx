@@ -56,6 +56,7 @@ export default function AssignmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const role = profile?.role ?? 'student';
@@ -99,7 +100,9 @@ export default function AssignmentsPage() {
     const ms = title.toLowerCase().includes(search.toLowerCase());
     const status = isStaff ? 'active' : (a.status ?? 'pending');
     const mf = filter === 'all' || status === filter;
-    return ms && mf;
+    const type = isStaff ? (a.assignment_type ?? '') : (a.assignments?.assignment_type ?? '');
+    const mt = typeFilter === 'all' || type === typeFilter;
+    return ms && mf && mt;
   });
 
   // Stats derived from real data
@@ -220,6 +223,18 @@ export default function AssignmentsPage() {
               <option value="missing">Missing</option>
             </select>
           )}
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500 cursor-pointer"
+          >
+            <option value="all">All Types</option>
+            <option value="homework">📚 Homework</option>
+            <option value="project">🛠 Project</option>
+            <option value="quiz">📝 Quiz</option>
+            <option value="exam">🎯 Exam</option>
+            <option value="presentation">🎤 Presentation</option>
+          </select>
         </div>
 
         {/* Empty state */}

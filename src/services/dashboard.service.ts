@@ -353,6 +353,7 @@ export async function submitAssignment(payload: {
     portal_user_id: string;
     submission_text?: string;
     file_url?: string;
+    answers?: any;
 }) {
     // Upsert — student can resubmit
     const { data, error } = await db()

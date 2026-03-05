@@ -7,8 +7,25 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeftIcon, ClipboardDocumentListIcon, CalendarIcon,
-  CheckIcon, ExclamationTriangleIcon, ArrowPathIcon,
+  CheckIcon, ExclamationTriangleIcon, ArrowPathIcon, PlusIcon, TrashIcon,
+  ChevronUpIcon, ChevronDownIcon, AcademicCapIcon,
 } from '@heroicons/react/24/outline';
+
+interface Question {
+  question_text: string;
+  question_type: string;
+  options: string[];
+  correct_answer: string;
+  points: number;
+}
+
+const emptyQuestion = (): Question => ({
+  question_text: '',
+  question_type: 'multiple_choice',
+  options: ['', '', '', ''],
+  correct_answer: '',
+  points: 5,
+});
 
 export default function NewAssignmentPage() {
   const router = useRouter();
@@ -26,6 +43,7 @@ export default function NewAssignmentPage() {
     max_points: '100',
     assignment_type: 'homework',
   });
+  const [questions, setQuestions] = useState<Question[]>([]);
 
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -36,6 +54,22 @@ export default function NewAssignmentPage() {
       .order('title')
       .then(({ data }) => setCourses(data ?? []));
   }, [profile?.id, authLoading]);
+
+  const addQuestion = () => setQuestions(q => [...q, emptyQuestion()]);
+  const removeQuestion = (i: number) => setQuestions(q => q.filter((_, idx) => idx !== i));
+  const updateQuestion = (i: number, patch: Partial<Question>) =>
+    setQuestions(q => q.map((item, idx) => idx === i ? { ...item, ...patch } : item));
+  const updateOption = (qi: number, oi: number, val: string) =>
+    setQuestions(q => q.map((item, idx) => idx === qi ? { ...item, options: item.options.map((o, j) => j === oi ? val : o) } : item));
+  const moveQuestion = (i: number, dir: -1 | 1) => {
+    setQuestions(prev => {
+      const next = [...prev];
+      const target = i + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[i], next[target]] = [next[target], next[i]];
+      return next;
+    });
+  };
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -57,6 +91,7 @@ export default function NewAssignmentPage() {
         assignment_type: form.assignment_type,
         is_active: true,
         created_by: profile!.id,
+        questions: questions.length > 0 ? questions.filter(q => q.question_text.trim()) : null,
       };
       if (form.due_date) payload.due_date = new Date(form.due_date).toISOString();
 
@@ -185,6 +220,102 @@ export default function NewAssignmentPage() {
               onChange={e => setForm(f => ({ ...f, instructions: e.target.value }))}
               placeholder="Step-by-step instructions for students…"
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500 transition-colors resize-none" />
+          </div>
+
+          {/* ── Question Canvas ── */}
+          <div className="space-y-4 pt-4 border-t border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-white/60 uppercase tracking-widest flex items-center gap-2">
+                  <AcademicCapIcon className="w-4 h-4 text-amber-400" />
+                  Questions ({questions.length})
+                </h2>
+                <p className="text-[10px] text-white/30 mt-0.5">Optional: Add questions for an interactive homework experience</p>
+              </div>
+              <button type="button" onClick={addQuestion}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition-colors">
+                <PlusIcon className="w-3.5 h-3.5" /> Add Question
+              </button>
+            </div>
+
+            {questions.map((q, qi) => (
+              <div key={qi} className="bg-white/3 border border-white/10 rounded-2xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/10">
+                  <span className="text-[10px] font-black text-white/30 uppercase tracking-tighter">Q{qi + 1}</span>
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => moveQuestion(qi, -1)} disabled={qi === 0}
+                      className="p-1 text-white/20 hover:text-white/60 disabled:opacity-0 transition-colors">
+                      <ChevronUpIcon className="w-3.5 h-3.5" />
+                    </button>
+                    <button type="button" onClick={() => moveQuestion(qi, 1)} disabled={qi === questions.length - 1}
+                      className="p-1 text-white/20 hover:text-white/60 disabled:opacity-0 transition-colors">
+                      <ChevronDownIcon className="w-3.5 h-3.5" />
+                    </button>
+                    <button type="button" onClick={() => removeQuestion(qi)}
+                      className="p-1 text-rose-400/60 hover:text-rose-400 transition-colors">
+                      <TrashIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-4 space-y-4">
+                  <textarea rows={2} value={q.question_text}
+                    onChange={e => updateQuestion(qi, { question_text: e.target.value })}
+                    placeholder="Enter question text…"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500 transition-colors resize-none" />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Type</label>
+                      <select value={q.question_type}
+                        onChange={e => updateQuestion(qi, { question_type: e.target.value, options: ['', '', '', ''], correct_answer: '' })}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none cursor-pointer">
+                        <option value="multiple_choice">Multiple Choice</option>
+                        <option value="true_false">True / False</option>
+                        <option value="fill_blank">Fill in Blank</option>
+                        <option value="essay">Essay</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Points</label>
+                      <input type="number" min="1" value={q.points}
+                        onChange={e => updateQuestion(qi, { points: parseInt(e.target.value) || 1 })}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Correct Answer</label>
+                      {q.question_type === 'true_false' ? (
+                        <select value={q.correct_answer}
+                          onChange={e => updateQuestion(qi, { correct_answer: e.target.value })}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none cursor-pointer">
+                          <option value="">Select…</option>
+                          <option value="True">True</option>
+                          <option value="False">False</option>
+                        </select>
+                      ) : (
+                        <input type="text" value={q.correct_answer}
+                          onChange={e => updateQuestion(qi, { correct_answer: e.target.value })}
+                          placeholder="Correct answer…"
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none" />
+                      )}
+                    </div>
+                  </div>
+
+                  {q.question_type === 'multiple_choice' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {q.options.map((opt, oi) => (
+                        <div key={oi} className="flex items-center gap-2">
+                          <span className="text-[10px] text-white/30 w-4">{String.fromCharCode(65 + oi)}.</span>
+                          <input type="text" value={opt}
+                            onChange={e => updateOption(qi, oi, e.target.value)}
+                            placeholder={`Option ${String.fromCharCode(65 + oi)}`}
+                            className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="flex items-center gap-3 pt-2">

@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeftIcon, AcademicCapIcon, ClockIcon, CheckCircleIcon,
-  XCircleIcon, UserGroupIcon, ChartBarIcon,
+  XCircleIcon, UserGroupIcon, ChartBarIcon, PencilIcon,
 } from '@heroicons/react/24/outline';
 
 export default function ExamDetailPage() {
@@ -82,9 +82,17 @@ export default function ExamDetailPage() {
               <h1 className="text-2xl font-extrabold mb-2">{exam.title}</h1>
               {exam.description && <p className="text-white/40 text-sm">{exam.description}</p>}
             </div>
-            <span className={`px-3 py-1 rounded-full text-xs font-bold border flex-shrink-0 ${exam.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-white/10 text-white/40 border-white/10'}`}>
-              {exam.is_active ? 'Active' : 'Inactive'}
-            </span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className={`px-3 py-1 rounded-full text-xs font-bold border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-white/10 text-white/40 border-white/10'}`}>
+                {exam.is_active ? 'Active' : 'Inactive'}
+              </span>
+              {isStaff && (
+                <Link href={`/dashboard/cbt/${exam.id}/edit`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-xl transition-colors">
+                  <PencilIcon className="w-3.5 h-3.5" /> Edit Exam
+                </Link>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap gap-4 mt-4 text-sm text-white/40">
             {exam.duration_minutes && <span className="flex items-center gap-1.5"><ClockIcon className="w-4 h-4" />{exam.duration_minutes} minutes</span>}
