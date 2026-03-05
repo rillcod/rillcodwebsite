@@ -33,6 +33,21 @@ export default function DashboardNavigation() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Close sidebar on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Lock body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
+
   useEffect(() => {
     if (!profile) return;
     createClient()
@@ -43,7 +58,7 @@ export default function DashboardNavigation() {
 
   // Show minimal escape bar when profile not yet loaded
   if (!profile) return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-[#0b0b18] border-b border-white/10 h-14 flex items-center justify-between px-6">
+    <div className="fixed top-0 left-0 right-0 z-50 bg-[#0b0b18] border-b border-white/10 h-14 flex items-center justify-between px-4 sm:px-6">
       <span className="text-white/30 text-sm font-semibold">Rillcod Academy</span>
       <div className="flex items-center gap-3">
         <a href="/login"
@@ -128,35 +143,65 @@ export default function DashboardNavigation() {
   const bottomNavItems = navItems.filter((item) => bottomNavNames.has(item.name)).slice(0, 5);
 
   const handleLogout = () => {
-    // signOut() from auth context: clears state instantly, fires server
-    // signout in the background, then navigates to /login — one step, no flicker
     signOut();
   };
 
   return (
     <>
-      {/* Mobile Top Header (Visible only on small screens) */}
-      <div className="md:hidden flex items-center justify-between bg-[#0B132B] px-4 py-3 text-white border-b-2 border-[#7a0606]">
+      {/* ── Mobile Top Header (hidden on md+) ── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#0B132B] px-4 py-3 text-white border-b-2 border-[#7a0606] shadow-lg">
         <Link href="/dashboard" className="flex items-center gap-2">
           <AcademicCapIcon className="w-6 h-6 text-white" />
           <span className="font-extrabold uppercase tracking-widest text-lg">
             Rillcod
           </span>
         </Link>
-        <button
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="text-white hover:text-[#FF914D] transition-colors"
-        >
-          {mobileOpen ? <XMarkIcon className="w-7 h-7" /> : <Bars3Icon className="w-7 h-7" />}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Unread badge in topbar */}
+          {unreadCount > 0 && (
+            <Link href="/dashboard/messages" className="relative p-1.5">
+              <BellIcon className="w-5 h-5 text-gray-300" />
+              <span className="absolute top-0 right-0 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            </Link>
+          )}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            className="p-1.5 text-white hover:text-[#FF914D] transition-colors rounded-lg hover:bg-white/10"
+          >
+            {mobileOpen ? <XMarkIcon className="w-7 h-7" /> : <Bars3Icon className="w-7 h-7" />}
+          </button>
+        </div>
       </div>
 
-      {/* Main Sidebar Navigation */}
+      {/* ── Backdrop (mobile only) ── */}
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ── Sidebar ── */}
+      {/* On mobile: fixed overlay, slides in from left below the top header (top-[53px])
+          On md+: static sidebar that sits in the flex layout */}
       <nav
-        className={`fixed md:relative z-40 inset-y-0 left-0 flex flex-col w-64 bg-[#0B132B] text-gray-200 transform transition-transform duration-300 ease-in-out font-sans border-r-4 border-[#7a0606] shadow-2xl ${mobileOpen ? 'translate-x-[0%]' : '-translate-x-[100%] md:translate-x-[0%]'
-          }`}
+        className={`
+          fixed top-[53px] left-0 bottom-0 z-40
+          md:static md:top-auto md:bottom-auto md:z-auto
+          flex flex-col w-[280px] md:w-64
+          bg-[#0B132B] text-gray-200
+          border-r-4 border-[#7a0606] shadow-2xl
+          transform transition-transform duration-300 ease-in-out
+          md:translate-x-0 md:h-screen md:flex-shrink-0
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        `}
+        aria-label="Dashboard navigation"
       >
-        {/* Logo Section */}
+        {/* Logo Section (desktop only) */}
         <div className="hidden md:flex flex-col items-center justify-center py-8 border-b border-gray-800">
           <div className="w-16 h-16 bg-[#7a0606] border-2 border-white rounded-full flex items-center justify-center mb-4 shadow-lg shadow-black/50">
             <AcademicCapIcon className="w-8 h-8 text-white" />
@@ -170,7 +215,7 @@ export default function DashboardNavigation() {
         </div>
 
         {/* User Badge */}
-        <div className="px-6 py-4 flex items-center gap-3 border-b border-gray-800 bg-[#060c1d]">
+        <div className="px-4 md:px-6 py-4 flex items-center gap-3 border-b border-gray-800 bg-[#060c1d]">
           <div className="w-10 h-10 bg-[#7a0606] border border-gray-600 rounded flex items-center justify-center flex-shrink-0">
             <span className="text-white text-lg font-black uppercase">
               {profile.full_name?.charAt(0) ?? 'U'}
@@ -187,7 +232,7 @@ export default function DashboardNavigation() {
         </div>
 
         {/* Links Navigation */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-1 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto px-3 md:px-4 py-4 space-y-0.5">
           {navItems.map(({ name, href, icon: Icon }) => {
             const active = pathname === href || pathname?.startsWith(href + '/');
             return (
@@ -195,26 +240,31 @@ export default function DashboardNavigation() {
                 key={name}
                 href={href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3.5 rounded-lg text-sm font-bold tracking-wider uppercase transition-all duration-200 ${active
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold tracking-wider uppercase transition-all duration-200 ${active
                   ? 'bg-[#7a0606] text-white shadow-md'
                   : 'text-gray-400 hover:bg-[#1a2b54] hover:text-white'
                   }`}
               >
-                <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-gray-400'}`} />
-                {name}
+                <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-white' : 'text-gray-400'}`} />
+                <span className="truncate">{name}</span>
+                {name === 'Messages' && unreadCount > 0 && (
+                  <span className="ml-auto text-[10px] bg-rose-500 text-white px-1.5 py-0.5 rounded-full font-black min-w-[1.25rem] text-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </Link>
             );
           })}
         </div>
 
         {/* Bottom Actions */}
-        <div className="p-4 border-t border-gray-800 bg-[#060c1d] space-y-2">
+        <div className="p-3 md:p-4 border-t border-gray-800 bg-[#060c1d] space-y-1">
           <Link
             href="/dashboard/messages"
             onClick={() => setMobileOpen(false)}
             className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-bold uppercase text-gray-400 hover:bg-[#1a2b54] hover:text-white transition-colors"
           >
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               <BellIcon className="w-5 h-5" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
@@ -230,27 +280,19 @@ export default function DashboardNavigation() {
             onClick={() => setMobileOpen(false)}
             className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-bold uppercase text-gray-400 hover:bg-[#1a2b54] hover:text-white transition-colors"
           >
-            <UserIcon className="w-5 h-5" /> Profile
+            <UserIcon className="w-5 h-5 flex-shrink-0" /> Profile
           </Link>
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-bold uppercase text-red-500 hover:bg-red-500/10 transition-colors"
           >
-            <ArrowRightOnRectangleIcon className="w-5 h-5" /> Sign Out
+            <ArrowRightOnRectangleIcon className="w-5 h-5 flex-shrink-0" /> Sign Out
           </button>
         </div>
       </nav>
 
-      {/* Mobile Backdrop Overlay */}
-      {mobileOpen && (
-        <div
-          onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm transition-opacity"
-        />
-      )}
-
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0B132B] border-t border-[#7a0606] px-4 py-2 flex items-center justify-between">
+      {/* ── Mobile Bottom Navigation (visible on mobile only) ── */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0B132B] border-t-2 border-[#7a0606] px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
         {bottomNavItems.map(({ name, href, icon: Icon }) => {
           const active = pathname === href || pathname?.startsWith(href + '/');
           return (
@@ -258,10 +300,19 @@ export default function DashboardNavigation() {
               key={`mobile-${name}`}
               href={href}
               onClick={() => setMobileOpen(false)}
-              className={`flex flex-col items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${active ? 'text-white' : 'text-gray-400'}`}
+              className={`flex flex-col items-center gap-1 px-2 py-1 rounded-xl min-w-[3.5rem] transition-all duration-200 ${active ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
             >
-              <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-gray-400'}`} />
-              {name}
+              <div className={`relative p-1.5 rounded-lg transition-all duration-200 ${active ? 'bg-[#7a0606] shadow-md shadow-black/40' : ''}`}>
+                <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-gray-400'}`} />
+                {name === 'Messages' && unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[9px] font-bold uppercase tracking-wide leading-none ${active ? 'text-white' : 'text-gray-500'}`}>
+                {name === 'My Courses' ? 'Courses' : name}
+              </span>
             </Link>
           );
         })}
