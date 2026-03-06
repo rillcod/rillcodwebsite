@@ -208,7 +208,7 @@ export default function AnalyticsPage() {
                 <h3 className="text-lg font-bold text-rose-400">At-Risk Learners</h3>
               </div>
               <p className="text-white/40 text-xs mb-4">Flagged based on performance and last login date (7+ days inactive).</p>
-              <AtRiskList schoolId={profile?.role === 'school' ? profile.id : undefined} />
+              <AtRiskList schoolId={undefined} />
             </div>
 
             {/* Quick Metrics */}

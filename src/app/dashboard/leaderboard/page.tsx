@@ -126,7 +126,7 @@ export default function LeaderboardPage() {
   }
 
   const filtered = filter === 'school' && profile?.school_id
-    ? entries.filter(e => e.school_name === (profile as any).school_name)
+    ? entries.filter(e => e.school_name === profile?.school_name)
     : entries;
 
   const myEntry = entries.find(e => e.id === profile?.id);

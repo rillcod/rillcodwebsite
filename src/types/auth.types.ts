@@ -13,6 +13,10 @@ export interface UserProfile {
     updated_at: string;
     metadata?: Record<string, unknown>;
     school_id?: string;
+    school_name?: string;
+    section_class?: string;
+    current_module?: string;
+    date_of_birth?: string;
     phone?: string;
     bio?: string;
     profile_image_url?: string;

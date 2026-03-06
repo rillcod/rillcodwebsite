@@ -103,7 +103,7 @@ export default function SchoolOverviewPage() {
       .select('user_id, status')
       .in('user_id', ids);
 
-    const rows: StudentRow[] = (portalStudents as any[]).map(s => {
+    const rows: StudentRow[] = portalStudents.map(s => {
       const mySubs = (subs ?? []).filter(x => x.portal_user_id === s.id && x.grade != null);
       const avgGrade = mySubs.length
         ? mySubs.reduce((acc, x) => acc + Number(x.grade), 0) / mySubs.length
@@ -118,7 +118,7 @@ export default function SchoolOverviewPage() {
         full_name: s.full_name,
         email: s.email,
         section_class: s.section_class,
-        is_active: s.is_active,
+        is_active: s.is_active ?? false,
         avgGrade,
         attendance,
         submissions: mySubs.length,
@@ -187,7 +187,7 @@ export default function SchoolOverviewPage() {
         <div>
           <h1 className="text-2xl font-black text-white">School Overview</h1>
           <p className="text-white/40 text-sm mt-1">
-            {(profile as any)?.school_name ?? 'Your School'} · Partner Dashboard
+            {profile?.school_name ?? 'Your School'} · Partner Dashboard
           </p>
         </div>
         <div className="flex gap-3">
