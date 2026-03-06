@@ -24,6 +24,22 @@ import { Sparkles, Layout } from 'lucide-react';
 const GRADE_OPTIONS = ['Excellent', 'Very Good', 'Good', 'Fair', 'Poor', 'Not Specified'];
 const TERM_OPTIONS = ['Termly', 'Mid-Term', 'First Term', 'Second Term', 'Third Term', 'Annual'];
 const PROFICIENCY_OPTIONS = ['beginner', 'intermediate', 'advanced'];
+const DURATION_OPTIONS = ['Termly', '4 weeks', '6 weeks', '8 weeks', '10 weeks', '12 weeks', '3 months', '6 months', 'Full Year'];
+const PERIOD_PRESETS = ['2024/2025 First Term', '2024/2025 Second Term', '2024/2025 Third Term', '2025/2026 First Term', '2025/2026 Second Term', '2025/2026 Third Term'];
+
+// Fields that are shared across all students in a grading session
+interface SessionConfig {
+    instructor_name: string;
+    report_date: string;
+    report_term: string;
+    report_period: string;
+    course_id: string;
+    course_name: string;
+    current_module: string;
+    next_module: string;
+    course_duration: string;
+    learning_milestones: string[];
+}
 
 export default function ReportBuilderPage() {
     return (
@@ -51,9 +67,24 @@ function ReportBuilderInner() {
     const [generating, setGenerating] = useState<string | null>(null);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    const [step, setStep] = useState<'pick' | 'edit'>('pick');
+    const [step, setStep] = useState<'session' | 'pick' | 'edit'>('session');
     const [search, setSearch] = useState('');
     const [showSettings, setShowSettings] = useState(false);
+    const [sessionConfig, setSessionConfig] = useState<SessionConfig>({
+        instructor_name: '',
+        report_date: new Date().toISOString().split('T')[0],
+        report_term: 'First Term',
+        report_period: '',
+        course_id: '',
+        course_name: '',
+        current_module: '',
+        next_module: '',
+        course_duration: 'Termly',
+        learning_milestones: [],
+    });
+    const [sessionMilestoneInput, setSessionMilestoneInput] = useState('');
+    const [currentStudentIdx, setCurrentStudentIdx] = useState<number>(-1);
+    const [editSessionOpen, setEditSessionOpen] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const pdfRef = useRef<HTMLDivElement>(null);
@@ -127,6 +158,8 @@ function ReportBuilderInner() {
                     logo_url: bRes.data.logo_url ?? '',
                 });
             }
+            // Pre-fill instructor name from profile
+            setSessionConfig(sc => ({ ...sc, instructor_name: sc.instructor_name || profile?.full_name || '' }));
 
             if (prefStudentId) {
                 const s = (sRes.data ?? []).find(x => x.id === prefStudentId);
@@ -135,8 +168,9 @@ function ReportBuilderInner() {
         });
     }, [profile?.id, authLoading, prefStudentId]); // eslint-disable-line
 
-    async function selectStudent(s: PortalUser, courseList?: Course[]) {
+    async function selectStudent(s: PortalUser, courseList?: Course[], idx?: number) {
         setSelectedStudent(s);
+        if (idx !== undefined) setCurrentStudentIdx(idx);
         const db = createClient();
         const { data: report } = await db
             .from('student_progress_reports')
@@ -146,40 +180,57 @@ function ReportBuilderInner() {
             .limit(1)
             .maybeSingle();
 
-        const cl = courseList ?? courses;
         setExistingReport(report);
+        // Shared fields come from sessionConfig (teacher sets once).
+        // Per-student report data overrides only student-specific fields.
         setForm({
             student_name: s.full_name ?? '',
-            school_name: s.school_name ?? '',
-            section_class: s.section_class ?? '',
-            course_name: report?.course_name ?? '',
-            course_id: report?.course_id ?? '',
-            report_date: report?.report_date ?? new Date().toISOString().split('T')[0],
-            report_term: report?.report_term ?? '',
-            report_period: report?.report_period ?? '',
-            instructor_name: report?.instructor_name ?? profile?.full_name ?? '',
-            current_module: report?.current_module ?? '',
-            next_module: report?.next_module ?? '',
-            learning_milestones: (report?.learning_milestones as string[]) ?? [],
-            course_duration: report?.course_duration ?? '',
+            school_name: (s as any).school_name ?? '',
+            section_class: (s as any).section_class ?? '',
+            // Session fields — always from sessionConfig (report overrides preserved for existing)
+            course_name: report?.course_name ?? sessionConfig.course_name,
+            course_id: report?.course_id ?? sessionConfig.course_id,
+            report_date: sessionConfig.report_date,
+            report_term: sessionConfig.report_term,
+            report_period: sessionConfig.report_period,
+            instructor_name: sessionConfig.instructor_name,
+            current_module: sessionConfig.current_module,
+            next_module: sessionConfig.next_module,
+            learning_milestones: sessionConfig.learning_milestones,
+            course_duration: sessionConfig.course_duration,
+            // Student-specific scores & evaluations — from report or defaults
             theory_score: String(report?.theory_score ?? 0),
             practical_score: String(report?.practical_score ?? 0),
             attendance_score: String(report?.attendance_score ?? 0),
             participation_grade: report?.participation_grade ?? 'Good',
-            projects_grade: report?.projects_grade ?? 'Exceeded Expectations',
-            homework_grade: report?.homework_grade ?? 'Satisfactory',
-            assignments_grade: report?.assignments_grade ?? 'Satisfactory',
+            projects_grade: report?.projects_grade ?? 'Good',
+            homework_grade: report?.homework_grade ?? 'Good',
+            assignments_grade: report?.assignments_grade ?? 'Good',
             key_strengths: report?.key_strengths ?? '',
             areas_for_growth: report?.areas_for_growth ?? '',
             instructor_assessment: report?.instructor_assessment ?? '',
             has_certificate: report?.has_certificate ?? false,
             certificate_text: report?.certificate_text ?? '',
             course_completed: report?.course_completed ?? '',
-            proficiency_level: report?.proficiency_level ?? 'advanced',
+            proficiency_level: report?.proficiency_level ?? 'intermediate',
             is_published: report?.is_published ?? false,
-            photo_url: report?.photo_url ?? s.photo_url ?? '',
+            photo_url: report?.photo_url ?? (s as any).photo_url ?? '',
         });
         setStep('edit');
+    }
+
+    const filteredStudents = students.filter(s =>
+        !search || s.full_name?.toLowerCase().includes(search.toLowerCase()) || s.email?.toLowerCase().includes(search.toLowerCase())
+    );
+
+    async function saveAndNext(publish = false) {
+        await handleSave(publish);
+        const nextIdx = currentStudentIdx + 1;
+        if (nextIdx < filteredStudents.length) {
+            await selectStudent(filteredStudents[nextIdx] as PortalUser, courses, nextIdx);
+        } else {
+            setStep('pick');
+        }
     }
 
     const addMilestone = () => {
@@ -424,54 +475,322 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                     </div>
                 </div>
 
-                {/* Step 1: Pick Student */}
-                {step === 'pick' && (
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                        <h2 className="font-bold text-white mb-4 flex items-center gap-2">
-                            <UserGroupIcon className="w-5 h-5 text-violet-400" /> Select Student
-                        </h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {students.map(s => (
-                                <button key={s.id} onClick={() => selectStudent(s)}
-                                    className="text-left p-4 bg-white/5 border border-white/10 hover:border-violet-500/50 hover:bg-violet-600/10 rounded-xl transition-all group">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
-                                            {s.full_name ? s.full_name[0] : '?'}
+                {/* ── Step 0: Session Setup ── */}
+                {step === 'session' && (
+                    <div className="space-y-4">
+                        <div className="bg-violet-600/10 border border-violet-500/20 rounded-2xl p-4 flex items-start gap-3">
+                            <Cog6ToothIcon className="w-5 h-5 text-violet-400 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-violet-300 font-bold text-sm">Session Setup</p>
+                                <p className="text-violet-300/60 text-xs mt-0.5">Set these fields once — they will apply to every student you grade in this session. You can always edit them later.</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                            <div className="flex items-center gap-2 px-5 py-3 bg-white/3 border-b border-white/10">
+                                <span>📋</span>
+                                <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">Report Period & Instructor</h3>
+                            </div>
+                            <div className="p-5 space-y-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <Field label="Instructor Name">
+                                        <input value={sessionConfig.instructor_name}
+                                            onChange={e => setSessionConfig(s => ({ ...s, instructor_name: e.target.value }))}
+                                            className={INPUT} placeholder="Your full name" />
+                                    </Field>
+                                    <Field label="Report Date">
+                                        <input type="date" value={sessionConfig.report_date}
+                                            onChange={e => setSessionConfig(s => ({ ...s, report_date: e.target.value }))}
+                                            className={INPUT} />
+                                    </Field>
+                                    <Field label="Term / Period">
+                                        <select value={sessionConfig.report_term}
+                                            onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
+                                            className={INPUT}>
+                                            {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                                        </select>
+                                    </Field>
+                                    <Field label="Report Period">
+                                        <div className="space-y-2">
+                                            <select value={sessionConfig.report_period}
+                                                onChange={e => setSessionConfig(s => ({ ...s, report_period: e.target.value }))}
+                                                className={INPUT}>
+                                                <option value="">Select or type below…</option>
+                                                {PERIOD_PRESETS.map(p => <option key={p} value={p}>{p}</option>)}
+                                            </select>
+                                            <input value={sessionConfig.report_period}
+                                                onChange={e => setSessionConfig(s => ({ ...s, report_period: e.target.value }))}
+                                                className={INPUT} placeholder="e.g. 2025/2026 First Term" />
                                         </div>
-                                        <div className="min-w-0">
-                                            <p className="font-semibold text-white text-sm truncate">{s.full_name ?? 'Unnamed'}</p>
-                                            <p className="text-xs text-white/40 truncate">{s.section_class ?? s.email}</p>
-                                        </div>
+                                    </Field>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                            <div className="flex items-center gap-2 px-5 py-3 bg-white/3 border-b border-white/10">
+                                <span>📖</span>
+                                <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">Course Details</h3>
+                            </div>
+                            <div className="p-5 space-y-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <Field label="Course">
+                                        <select value={sessionConfig.course_id}
+                                            onChange={e => {
+                                                const c = courses.find(x => x.id === e.target.value);
+                                                setSessionConfig(s => ({ ...s, course_id: e.target.value, course_name: c?.title ?? s.course_name }));
+                                            }}
+                                            className={INPUT}>
+                                            <option value="">Select course…</option>
+                                            {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                                        </select>
+                                    </Field>
+                                    <Field label="Course Name (override)">
+                                        <input value={sessionConfig.course_name}
+                                            onChange={e => setSessionConfig(s => ({ ...s, course_name: e.target.value }))}
+                                            className={INPUT} placeholder="Python Programming" />
+                                    </Field>
+                                    <Field label="Current Module">
+                                        <input value={sessionConfig.current_module}
+                                            onChange={e => setSessionConfig(s => ({ ...s, current_module: e.target.value }))}
+                                            className={INPUT} placeholder="e.g. Control Statements" />
+                                    </Field>
+                                    <Field label="Next Module">
+                                        <input value={sessionConfig.next_module}
+                                            onChange={e => setSessionConfig(s => ({ ...s, next_module: e.target.value }))}
+                                            className={INPUT} placeholder="e.g. Loops and Automation" />
+                                    </Field>
+                                    <Field label="Duration">
+                                        <select value={sessionConfig.course_duration}
+                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
+                                            className={INPUT}>
+                                            {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                    </Field>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                            <div className="flex items-center gap-2 px-5 py-3 bg-white/3 border-b border-white/10">
+                                <span>📚</span>
+                                <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">Learning Milestones <span className="text-violet-400">(shared for all students)</span></h3>
+                            </div>
+                            <div className="p-5 space-y-3">
+                                {sessionConfig.learning_milestones.map((m, i) => (
+                                    <div key={i} className="flex items-center gap-2 px-3 py-2.5 bg-white/5 rounded-xl border border-white/10">
+                                        <span className="text-violet-400 text-xs">✓</span>
+                                        <p className="text-sm text-white/70 flex-1">{m}</p>
+                                        <button onClick={() => setSessionConfig(s => ({ ...s, learning_milestones: s.learning_milestones.filter((_, idx) => idx !== i) }))}
+                                            className="text-rose-400/60 hover:text-rose-400">
+                                            <TrashIcon className="w-3.5 h-3.5" />
+                                        </button>
                                     </div>
-                                </button>
-                            ))}
-                            {students.length === 0 && (
-                                <p className="text-white/30 text-sm col-span-3 py-8 text-center">No students found.</p>
-                            )}
+                                ))}
+                                <div className="flex gap-2">
+                                    <input value={sessionMilestoneInput}
+                                        onChange={e => setSessionMilestoneInput(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter' && sessionMilestoneInput.trim()) {
+                                                e.preventDefault();
+                                                setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, sessionMilestoneInput.trim()] }));
+                                                setSessionMilestoneInput('');
+                                            }
+                                        }}
+                                        className={`${INPUT} flex-1`}
+                                        placeholder="Type a milestone and press Enter…" />
+                                    <button onClick={() => {
+                                        if (!sessionMilestoneInput.trim()) return;
+                                        setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, sessionMilestoneInput.trim()] }));
+                                        setSessionMilestoneInput('');
+                                    }} className="px-3 py-2 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 rounded-xl transition-colors">
+                                        <PlusIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                <p className="text-white/20 text-[10px]">These milestones will appear on every student's report card in this session.</p>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setStep('pick')}
+                            className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white font-black text-base rounded-2xl transition-all shadow-lg shadow-violet-900/30 flex items-center justify-center gap-2">
+                            <UserGroupIcon className="w-5 h-5" /> Start Grading Students →
+                        </button>
+                    </div>
+                )}
+
+                {/* ── Step 1: Pick Student ── */}
+                {step === 'pick' && (
+                    <div className="space-y-4">
+                        {/* Session summary bar */}
+                        <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
+                            <div className="flex items-center gap-4 flex-1 flex-wrap text-xs text-white/50 gap-y-1">
+                                <span>📋 <span className="text-white/70 font-semibold">{sessionConfig.report_term}</span></span>
+                                {sessionConfig.report_period && <span>· {sessionConfig.report_period}</span>}
+                                {sessionConfig.course_name && <span>· 📖 <span className="text-white/70 font-semibold">{sessionConfig.course_name}</span></span>}
+                                {sessionConfig.current_module && <span>· Module: <span className="text-white/70">{sessionConfig.current_module}</span></span>}
+                                <span>· 👤 {sessionConfig.instructor_name}</span>
+                            </div>
+                            <button onClick={() => setStep('session')}
+                                className="text-xs text-violet-400 hover:text-violet-300 font-bold flex items-center gap-1 flex-shrink-0">
+                                <PencilSquareIcon className="w-3.5 h-3.5" /> Edit Session
+                            </button>
+                        </div>
+
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                            <div className="flex items-center gap-3 mb-4 flex-wrap">
+                                <h2 className="font-bold text-white flex items-center gap-2">
+                                    <UserGroupIcon className="w-5 h-5 text-violet-400" /> Select Student
+                                </h2>
+                                <span className="text-xs text-white/30 bg-white/5 px-2 py-0.5 rounded-full">{filteredStudents.length} students</span>
+                                <input
+                                    type="search" placeholder="Search student…"
+                                    value={search} onChange={e => setSearch(e.target.value)}
+                                    className="ml-auto bg-white/5 border border-white/10 text-white text-sm px-3 py-1.5 rounded-xl placeholder:text-white/30 focus:outline-none focus:border-violet-500 w-48"
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {filteredStudents.map((s, idx) => (
+                                    <button key={s.id} onClick={() => selectStudent(s as PortalUser, courses, idx)}
+                                        className="text-left p-4 bg-white/5 border border-white/10 hover:border-violet-500/50 hover:bg-violet-600/10 rounded-xl transition-all group">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
+                                                {s.full_name ? s.full_name[0] : '?'}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-semibold text-white text-sm truncate">{s.full_name ?? 'Unnamed'}</p>
+                                                <p className="text-xs text-white/40 truncate">{(s as any).section_class ?? s.email}</p>
+                                            </div>
+                                            <span className="ml-auto text-[10px] text-white/20 font-mono flex-shrink-0">#{idx + 1}</span>
+                                        </div>
+                                    </button>
+                                ))}
+                                {filteredStudents.length === 0 && (
+                                    <p className="text-white/30 text-sm col-span-3 py-8 text-center">No students found.</p>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
 
-                {/* Step 2: Edit report */}
+                {/* ── Step 2: Edit report ── */}
                 {step === 'edit' && selectedStudent && (
                     <>
-                        {/* Back + Student info bar */}
-                        <div className="flex items-center gap-3">
+                        {/* Student navigator bar */}
+                        <div className="flex items-center gap-2 flex-wrap">
                             <button onClick={() => setStep('pick')} className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white transition-colors">
-                                <ArrowLeftIcon className="w-4 h-4" /> Back
+                                <ArrowLeftIcon className="w-4 h-4" /> All Students
                             </button>
-                            <div className="flex items-center gap-3 ml-2 px-4 py-2 bg-violet-600/10 border border-violet-500/20 rounded-xl">
-                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs font-black text-white">
-                                    {selectedStudent.full_name ? selectedStudent.full_name[0] : '?'}
+
+                            {/* Prev / current / next */}
+                            <div className="flex items-center gap-2 ml-2 flex-1 flex-wrap">
+                                <button
+                                    disabled={currentStudentIdx <= 0}
+                                    onClick={async () => {
+                                        const idx = currentStudentIdx - 1;
+                                        if (idx >= 0) await selectStudent(filteredStudents[idx] as PortalUser, courses, idx);
+                                    }}
+                                    className="p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-white disabled:opacity-20 transition-colors">
+                                    <ArrowLeftIcon className="w-3.5 h-3.5" />
+                                </button>
+
+                                <div className="flex items-center gap-3 px-4 py-2 bg-violet-600/10 border border-violet-500/20 rounded-xl">
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
+                                        {selectedStudent.full_name ? selectedStudent.full_name[0] : '?'}
+                                    </div>
+                                    <span className="font-bold text-violet-300 text-sm">{selectedStudent.full_name}</span>
+                                    {currentStudentIdx >= 0 && (
+                                        <span className="text-[10px] text-white/30 font-mono">
+                                            {currentStudentIdx + 1} / {filteredStudents.length}
+                                        </span>
+                                    )}
+                                    {existingReport && (
+                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${form.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                            {form.is_published ? 'Published' : 'Draft'}
+                                        </span>
+                                    )}
                                 </div>
-                                <span className="font-bold text-violet-300 text-sm">{selectedStudent.full_name}</span>
-                                {existingReport && (
-                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${form.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                                        {form.is_published ? 'Published' : 'Draft'}
-                                    </span>
-                                )}
+
+                                <button
+                                    disabled={currentStudentIdx >= filteredStudents.length - 1}
+                                    onClick={async () => {
+                                        const idx = currentStudentIdx + 1;
+                                        if (idx < filteredStudents.length) await selectStudent(filteredStudents[idx] as PortalUser, courses, idx);
+                                    }}
+                                    className="p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-white disabled:opacity-20 transition-colors">
+                                    <ArrowLeftIcon className="w-3.5 h-3.5 rotate-180" />
+                                </button>
                             </div>
+
+                            {/* Edit session button */}
+                            <button onClick={() => setEditSessionOpen(!editSessionOpen)}
+                                className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/70 border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg transition-colors ml-auto">
+                                <Cog6ToothIcon className="w-3.5 h-3.5" /> Session
+                            </button>
                         </div>
+
+                        {/* Session config inline edit (collapsible) */}
+                        {editSessionOpen && (
+                            <div className="bg-[#0d1526] border border-violet-500/20 rounded-2xl p-4 space-y-3">
+                                <p className="text-xs font-bold text-violet-400 uppercase tracking-widest">Session Settings (affects all students)</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    <Field label="Instructor">
+                                        <input value={sessionConfig.instructor_name}
+                                            onChange={e => setSessionConfig(s => ({ ...s, instructor_name: e.target.value }))}
+                                            className={INPUT} />
+                                    </Field>
+                                    <Field label="Term">
+                                        <select value={sessionConfig.report_term}
+                                            onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
+                                            className={INPUT}>
+                                            {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                                        </select>
+                                    </Field>
+                                    <Field label="Period">
+                                        <select value={sessionConfig.report_period}
+                                            onChange={e => setSessionConfig(s => ({ ...s, report_period: e.target.value }))}
+                                            className={INPUT}>
+                                            <option value="">Custom…</option>
+                                            {PERIOD_PRESETS.map(p => <option key={p} value={p}>{p}</option>)}
+                                        </select>
+                                    </Field>
+                                    <Field label="Current Module">
+                                        <input value={sessionConfig.current_module}
+                                            onChange={e => setSessionConfig(s => ({ ...s, current_module: e.target.value }))}
+                                            className={INPUT} />
+                                    </Field>
+                                    <Field label="Duration">
+                                        <select value={sessionConfig.course_duration}
+                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
+                                            className={INPUT}>
+                                            {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                    </Field>
+                                    <Field label="Report Date">
+                                        <input type="date" value={sessionConfig.report_date}
+                                            onChange={e => setSessionConfig(s => ({ ...s, report_date: e.target.value }))}
+                                            className={INPUT} />
+                                    </Field>
+                                </div>
+                                <button onClick={() => {
+                                    // Apply updated session config to current form
+                                    setForm(f => ({
+                                        ...f,
+                                        instructor_name: sessionConfig.instructor_name,
+                                        report_term: sessionConfig.report_term,
+                                        report_period: sessionConfig.report_period,
+                                        report_date: sessionConfig.report_date,
+                                        current_module: sessionConfig.current_module,
+                                        course_duration: sessionConfig.course_duration,
+                                        learning_milestones: sessionConfig.learning_milestones,
+                                    }));
+                                    setEditSessionOpen(false);
+                                }} className="text-xs bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-xl font-bold transition-colors">
+                                    Apply to Current Student
+                                </button>
+                            </div>
+                        )}
+
 
                         {error && (
                             <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
@@ -560,53 +879,45 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                                     </div>
                                 </div>
 
-                                {/* Report Meta */}
-                                <Section title="Report Details" icon="📋">
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <Field label="Report Date">
-                                            <input type="date" value={form.report_date} onChange={e => setForm(f => ({ ...f, report_date: e.target.value }))} className={INPUT} />
-                                        </Field>
-                                        <Field label="Term / Period">
-                                            <select value={form.report_term} onChange={e => setForm(f => ({ ...f, report_term: e.target.value }))} className={INPUT}>
-                                                {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                                            </select>
-                                        </Field>
+                                {/* Report Meta — session fields shown as locked read-only */}
+                                <div className="bg-white/3 border border-white/10 rounded-2xl overflow-hidden">
+                                    <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-white/10">
+                                        <div className="flex items-center gap-2">
+                                            <span>📋</span>
+                                            <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">Report Details</h3>
+                                            <span className="text-[10px] bg-violet-500/20 text-violet-400 px-2 py-0.5 rounded-full font-bold">From Session</span>
+                                        </div>
+                                        <button onClick={() => setEditSessionOpen(true)}
+                                            className="text-[10px] text-violet-400 hover:text-violet-300 font-bold flex items-center gap-1">
+                                            <PencilSquareIcon className="w-3 h-3" /> Edit
+                                        </button>
                                     </div>
-                                    <Field label="Report Period (e.g. 2025/2026 First Term)">
-                                        <input value={form.report_period} onChange={e => setForm(f => ({ ...f, report_period: e.target.value }))} className={INPUT} placeholder="2025/2026 First Term" />
-                                    </Field>
-                                    <Field label="Instructor Name">
-                                        <input value={form.instructor_name} onChange={e => setForm(f => ({ ...f, instructor_name: e.target.value }))} className={INPUT} />
-                                    </Field>
-                                    <Field label="Duration">
-                                        <input value={form.course_duration} onChange={e => setForm(f => ({ ...f, course_duration: e.target.value }))} className={INPUT} placeholder="Termly / 12 weeks" />
-                                    </Field>
-                                </Section>
-
-                                {/* Course Progress */}
-                                <Section title="Learning Milestones" icon="📚">
-                                    <Field label="Learning Milestones">
-                                        <div className="space-y-2">
-                                            {form.learning_milestones.map((m, i) => (
-                                                <div key={i} className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-xl border border-white/10">
-                                                    <span className="text-violet-400 text-xs flex-shrink-0">•</span>
-                                                    <p className="text-sm text-white/70 flex-1">{m}</p>
-                                                    <button onClick={() => removeMilestone(i)} className="text-rose-400/60 hover:text-rose-400">
-                                                        <TrashIcon className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            <div className="flex gap-2">
-                                                <input value={milestoneInput} onChange={e => setMilestoneInput(e.target.value)}
-                                                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addMilestone())}
-                                                    className={`${INPUT} flex-1`} placeholder="Add milestone and press Enter…" />
-                                                <button onClick={addMilestone} className="px-3 py-2 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 rounded-xl transition-colors">
-                                                    <PlusIcon className="w-4 h-4" />
-                                                </button>
+                                    <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                                        {[
+                                            { label: 'Instructor', val: form.instructor_name },
+                                            { label: 'Term', val: form.report_term },
+                                            { label: 'Period', val: form.report_period || '—' },
+                                            { label: 'Date', val: form.report_date },
+                                            { label: 'Duration', val: form.course_duration },
+                                            { label: 'Module', val: form.current_module || '—' },
+                                        ].map(({ label, val }) => (
+                                            <div key={label} className="bg-white/3 rounded-xl px-3 py-2">
+                                                <p className="text-white/30 text-[10px] uppercase tracking-wider mb-0.5">{label}</p>
+                                                <p className="text-white/70 font-semibold truncate">{val}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {form.learning_milestones.length > 0 && (
+                                        <div className="px-4 pb-4">
+                                            <p className="text-[10px] text-white/30 uppercase tracking-wider mb-2">Learning Milestones</p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {form.learning_milestones.map((m, i) => (
+                                                    <span key={i} className="text-[10px] bg-violet-500/10 text-violet-400 px-2 py-1 rounded-full border border-violet-500/20">✓ {m}</span>
+                                                ))}
                                             </div>
                                         </div>
-                                    </Field>
-                                </Section>
+                                    )}
+                                </div>
                             </div>
 
                             {/* ── Right column ── */}
@@ -733,18 +1044,30 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                             </div>
                         </div>
 
-                        {/* Save / Publish */}
-                        <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+                        {/* Save / Publish / Next */}
+                        <div className="sticky bottom-0 bg-[#0f0f1a]/95 backdrop-blur border-t border-white/10 pt-4 pb-2 flex items-center gap-2 flex-wrap">
                             <button onClick={() => handleSave(false)} disabled={saving || publishing}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
+                                className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
                                 {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                                 {saving ? 'Saving…' : 'Save Draft'}
                             </button>
                             <button onClick={() => handleSave(true)} disabled={saving || publishing}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-violet-900/30">
+                                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
                                 {publishing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <EyeIcon className="w-4 h-4" />}
-                                {publishing ? 'Publishing…' : 'Publish to Student'}
+                                {publishing ? 'Publishing…' : 'Publish'}
                             </button>
+                            {currentStudentIdx < filteredStudents.length - 1 ? (
+                                <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-violet-900/30 ml-auto">
+                                    {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : null}
+                                    Save & Next Student →
+                                </button>
+                            ) : (
+                                <button onClick={() => { handleSave(false); setStep('pick'); }} disabled={saving || publishing}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 ml-auto">
+                                    Save & Done ✓
+                                </button>
+                            )}
                         </div>
                     </>
                 )}
