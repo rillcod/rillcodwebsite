@@ -76,13 +76,16 @@ function MobileMenu({
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Main Menu</p>
             {[...mainLinks, ...secondaryLinks].map(({ href, label, icon: Icon }) => (
               <Link
+                suppressHydrationWarning
                 key={href}
                 href={href}
                 onClick={onClose}
                 className={`flex items-center gap-4 px-5 py-4 rounded-2xl text-base font-bold transition-all
                   ${isActive(href) ? 'bg-[#FF914D]/10 text-[#FF914D]' : 'text-white/80 hover:bg-white/5 active:bg-white/10'}`}
               >
-                <Icon className={`w-5 h-5 ${isActive(href) ? 'text-[#FF914D]' : 'text-white/40'}`} />
+                <span suppressHydrationWarning className="flex items-center justify-center">
+                  <Icon className={`w-5 h-5 ${isActive(href) ? 'text-[#FF914D]' : 'text-white/40'}`} />
+                </span>
                 {label}
               </Link>
             ))}
@@ -193,12 +196,10 @@ const Navigation = () => {
                 <Image src="/images/logo.png" alt="Rillcod Academy" width={40} height={40} className="w-full h-full object-contain" />
               </div>
               <div className="hidden sm:block">
-                <span suppressHydrationWarning className={`text-base font-extrabold uppercase tracking-tight leading-none block
-                  ${isScrolled ? 'text-gray-900' : 'text-white'}`}>
+                <span className={`text-base font-extrabold uppercase tracking-tight leading-none block ${isScrolled ? 'text-gray-900' : 'text-white'}`}>
                   Rillcod Academy
                 </span>
-                <p suppressHydrationWarning className={`text-[10px] font-semibold uppercase tracking-widest leading-none mt-0.5
-                  ${isScrolled ? 'text-gray-400' : 'text-white/50'}`}>
+                <p className={`text-[10px] font-semibold uppercase tracking-widest leading-none mt-0.5 ${isScrolled ? 'text-gray-400' : 'text-white/50'}`}>
                   STEM Education
                 </p>
               </div>
