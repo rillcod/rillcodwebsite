@@ -197,7 +197,7 @@ export default function DashboardNavigation() {
           On md+: static sidebar that sits in the flex layout */}
       <nav
         className={`
-          fixed top-[53px] left-0 bottom-0 z-40
+          fixed top-[53px] left-0 bottom-16 z-40 md:bottom-0
           md:static md:top-auto md:bottom-auto md:z-auto
           flex flex-col w-[280px] md:w-64
           bg-[#0B132B] text-gray-200

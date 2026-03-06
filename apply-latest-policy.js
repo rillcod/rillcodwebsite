@@ -2,7 +2,7 @@ const postgres = require('postgres');
 const fs = require('fs');
 const path = require('path');
 
-const DB_URL = 'postgres://postgres.akaorqukdoawacvxsdij:rillcod12345%2E@aws-0-eu-central-1.pooler.supabase.com:5432/postgres';
+const DB_URL = 'postgres://postgres.akaorqukdoawacvxsdij:rillcod12345%2E@aws-0-eu-central-1.pooler.supabase.com:6543/postgres';
 
 const sql = postgres(DB_URL, {
     ssl: 'require',

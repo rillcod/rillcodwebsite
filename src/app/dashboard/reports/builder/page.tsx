@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { Database } from '@/types/supabase';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import ReportCard from '@/components/reports/ReportCard';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -51,6 +54,9 @@ function ReportBuilderInner() {
     const [step, setStep] = useState<'pick' | 'edit'>('pick');
     const [search, setSearch] = useState('');
     const [showSettings, setShowSettings] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const pdfRef = useRef<HTMLDivElement>(null);
     const [branding, setBranding] = useState({
         org_name: '',
         org_tagline: '',
@@ -100,7 +106,7 @@ function ReportBuilderInner() {
         const db = createClient();
 
         // Load students scoped to teacher's school
-        const q = db.from('portal_users').select('*').eq('role', 'student').eq('is_active', true);
+        const q = db.from('portal_users').select('*').eq('role', 'student');
         const query = (profile.role === 'teacher' && profile.school_id) ? q.eq('school_id', profile.school_id) : q;
 
         Promise.all([
@@ -328,6 +334,49 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
         }
     };
 
+    async function downloadPDF() {
+        const element = pdfRef.current;
+        if (!element) return;
+
+        setIsGeneratingPdf(true);
+        try {
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                windowWidth: 794,
+                windowHeight: 1123
+            });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Draft_Report_${form.student_name.replace(/\s+/g, '_')}.pdf`);
+        } catch (err) {
+            console.error('PDF generation failed:', err);
+            alert('Failed to generate PDF draft.');
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    }
+
+    const previewData = {
+        ...form,
+        id: existingReport?.id || 'Preview Mode',
+        theory_score: parseFloat(form.theory_score),
+        practical_score: parseFloat(form.practical_score),
+        attendance_score: parseFloat(form.attendance_score),
+        overall_score: overallScore,
+    };
+
     if (authLoading) return (
         <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
             <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
@@ -360,11 +409,17 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                             <Cog6ToothIcon className="w-4 h-4" /> Branding Settings
                         </button>
                         {step === 'edit' && selectedStudent && (
-                            <Link
-                                href={`/dashboard/results?student=${selectedStudent.id}`}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 text-sm font-bold rounded-xl transition-colors">
-                                <EyeIcon className="w-4 h-4" /> Preview Report
-                            </Link>
+                            <div className="flex gap-2">
+                                <button onClick={() => setShowPreview(true)}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-sm font-bold rounded-xl transition-colors">
+                                    <Sparkles className="w-4 h-4 text-amber-500" /> Quick Live Preview
+                                </button>
+                                <Link
+                                    href={`/dashboard/results?student=${selectedStudent.id}`}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 text-sm font-bold rounded-xl transition-colors">
+                                    <EyeIcon className="w-4 h-4" /> View Full Centre
+                                </Link>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -808,6 +863,48 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                     </div>
                 </div>
             )}
+
+            {/* ── LIVE PREVIEW MODAL ── */}
+            {showPreview && selectedStudent && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                    <div className="bg-[#0f0f1a] border border-white/10 rounded-[32px] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col h-[95vh]">
+                        <div className="px-8 py-4 border-b border-white/10 flex items-center justify-between bg-white/5">
+                            <div className="flex items-center gap-4">
+                                <Sparkles className="w-6 h-6 text-amber-500" />
+                                <div>
+                                    <h3 className="text-xl font-black text-white">Live Document Preview</h3>
+                                    <p className="text-white/40 text-xs">Seeing exactly what {form.student_name} will see</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4">
+                                <button onClick={downloadPDF} disabled={isGeneratingPdf}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm rounded-xl transition-all disabled:opacity-50">
+                                    {isGeneratingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <EyeIcon className="w-4 h-4" />}
+                                    {isGeneratingPdf ? 'Generating...' : 'Download PDF Draft'}
+                                </button>
+                                <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                                    <PlusIcon className="w-8 h-8 text-white/40 rotate-45" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-auto bg-[#1a1a2e]/50 p-12">
+                            <div className="mx-auto" style={{ transform: 'scale(0.85)', transformOrigin: 'top center' }}>
+                                <div className="bg-white shadow-[0_0_100px_rgba(0,0,0,0.5)]">
+                                    <ReportCard report={previewData} orgSettings={branding as any} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── HIDDEN PDF CAPTURE DIV ── */}
+            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                <div ref={pdfRef}>
+                    <ReportCard report={previewData} orgSettings={branding as any} />
+                </div>
+            </div>
         </div>
     );
 }

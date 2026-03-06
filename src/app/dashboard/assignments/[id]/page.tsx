@@ -231,7 +231,7 @@ export default function AssignmentDetailPage() {
             id, title, description, instructions, due_date, max_points,
             assignment_type, is_active, created_at, questions,
             courses ( id, title, programs ( name ) ),
-            assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, portal_user_id, submission_text, file_url, answers, portal_users ( full_name, email ) )
+            assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, portal_user_id, submission_text, file_url, answers, portal_users!assignment_submissions_portal_user_id_fkey ( full_name, email ) )
           `)
                     .eq('id', id)
                     .single();

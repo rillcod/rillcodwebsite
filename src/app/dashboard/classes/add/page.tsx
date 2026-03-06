@@ -15,6 +15,7 @@ export default function AddClassPage() {
   const { profile, loading: authLoading } = useAuth();
   const [programs, setPrograms] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [schools, setSchools] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,6 +24,7 @@ export default function AddClassPage() {
     description: '',
     program_id: '',
     teacher_id: '',
+    school_id: '',
     max_students: '20',
     start_date: '',
     end_date: '',
@@ -36,9 +38,11 @@ export default function AddClassPage() {
     Promise.all([
       db.from('programs').select('id, name').eq('is_active', true).order('name'),
       db.from('portal_users').select('id, full_name').eq('role', 'teacher').eq('is_active', true).order('full_name'),
-    ]).then(([{ data: pData }, { data: tData }]) => {
+      db.from('schools').select('id, name').eq('status', 'approved').order('name'),
+    ]).then(([{ data: pData }, { data: tData }, { data: sData }]) => {
       setPrograms(pData ?? []);
       setTeachers(tData ?? []);
+      setSchools(sData ?? []);
     });
   }, [profile?.id, authLoading]);
 
@@ -58,6 +62,7 @@ export default function AddClassPage() {
         description: form.description.trim() || null,
         program_id: form.program_id,
         teacher_id: form.teacher_id || profile!.id,
+        school_id: form.school_id || null,
         max_students: parseInt(form.max_students) || 20,
         status: form.status,
         schedule: form.schedule.trim() || null,
@@ -150,6 +155,21 @@ export default function AddClassPage() {
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Partner School */}
+          <div>
+            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+              Partner School <span className="text-white/25 font-normal normal-case">(optional — leave blank for bootcamp/online)</span>
+            </label>
+            <select value={form.school_id}
+              onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
+              <option value="">— No specific school —</option>
+              {schools.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -79,7 +79,7 @@ export class AnalyticsService {
     async getAtRiskStudents(schoolId?: string) {
         const supabase = await createClient();
         const { data, error } = await supabase.rpc('get_at_risk_students', {
-            p_school_id: schoolId ?? '',
+            p_school_id: (schoolId || null) as unknown as string,
             p_days_inactive: 7
         });
 
@@ -133,7 +133,7 @@ export class AnalyticsService {
 
         // Calculate completion rates
         const { data: enrollments } = await supabase
-            .from('student_enrollments')
+            .from('enrollments')
             .select('status')
             .eq('program_id', programId);
 

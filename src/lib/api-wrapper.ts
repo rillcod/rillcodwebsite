@@ -87,12 +87,12 @@ export function withApiProxy(
 
             // Copy over rate limit headers or any other headers
             // Since it's Next.js App Router, we just return the final response
-            withLogging(req, startTime, status);
+            withLogging(req, startTime, status, ctx.user?.id, ctx.user?.tenantId);
             return response;
 
         } catch (error: any) {
             const errResponse = errorHandler(error) as NextResponse;
-            withLogging(req, startTime, errResponse.status);
+            withLogging(req, startTime, errResponse.status, ctx.user?.id, ctx.user?.tenantId);
             return errResponse;
         }
     };

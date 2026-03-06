@@ -8,26 +8,19 @@ import Link from 'next/link';
 import {
     PrinterIcon, AcademicCapIcon, MagnifyingGlassIcon,
     TrophyIcon, DocumentTextIcon, UserGroupIcon, PencilSquareIcon, StarIcon,
-    CheckIcon,
+    CheckIcon, ArrowDownTrayIcon
 } from '@heroicons/react/24/solid';
-import { Crown, Target, Sparkles, User, UserCheck } from 'lucide-react';
+import { Crown, Target, Sparkles, User, UserCheck, FileDown } from 'lucide-react';
 import QRCode from 'react-qr-code';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { Database } from '@/types/supabase';
+import ReportCard from '@/components/reports/ReportCard';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
 type Course = Database['public']['Tables']['courses']['Row'];
 type ReportSettings = Database['public']['Tables']['report_settings']['Row'];
-
-// ─── helpers ──────────────────────────────────────────────────
-function letterGrade(pct: number) {
-    if (pct >= 90) return { g: 'A+', label: 'Distinction', color: '#1a6b3c' };
-    if (pct >= 80) return { g: 'A', label: 'Excellent', color: '#1a6b3c' };
-    if (pct >= 70) return { g: 'B', label: 'Very Good', color: '#1a4d8c' };
-    if (pct >= 60) return { g: 'C', label: 'Good', color: '#7c6b15' };
-    if (pct >= 50) return { g: 'D', label: 'Pass', color: '#8c3a14' };
-    return { g: 'F', label: 'Fail', color: '#8c1414' };
-}
 
 function BarChart({ theory, practical, attendance }: { theory: number; practical: number; attendance: number }) {
     const bars = [
@@ -66,272 +59,21 @@ function BarChart({ theory, practical, attendance }: { theory: number; practical
     );
 }
 
-// ─── The report card component (both screen + print) ──────────
-function ReportCard({ report, orgSettings }: { report: StudentReport; orgSettings: ReportSettings | null }) {
-    const today = new Date(report.report_date ?? Date.now()).toLocaleDateString('en-GB', {
-        day: '2-digit', month: 'long', year: 'numeric',
-    });
-
-    const theory = report.theory_score ?? 0;
-    const practical = report.practical_score ?? 0;
-    const attendance = report.attendance_score ?? 0;
-    const overall = report.overall_score ?? Math.round(theory * 0.4 + practical * 0.4 + attendance * 0.2);
-    const grade = letterGrade(overall);
-
-    const org = orgSettings || {
-        org_name: 'Rillcod Technologies',
-        org_tagline: 'Excellence in Educational Technology',
-        org_address: '26 Ogiesoba Avenue, GRA, Benin City',
-        org_phone: '08116600091',
-        org_email: 'rillcod@gmail.com',
-        logo_url: null,
-    };
-
-    const milestones = Array.isArray(report.learning_milestones) ? report.learning_milestones : [];
-
-    return (
-        <div
-            id="report-card"
-            className="bg-white text-gray-900 font-sans shadow-2xl relative overflow-hidden"
-            style={{ width: '210mm', minHeight: '297mm', margin: '0 auto', fontSize: 11, border: '16px solid #1a1a2e' }}
-        >
-            {/* Background Sophistication */}
-            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-50/50 rounded-full blur-3xl -z-10 -mr-40 -mt-40" />
-            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-violet-50/50 rounded-full blur-3xl -z-10 -ml-40 -mb-40" />
-            <div className="absolute inset-0 border-[1px] border-gray-100 m-4 pointer-events-none" />
-
-            {/* ── HEADER ── */}
-            <div className="relative pt-12 pb-8 px-12 bg-[#1a1a2e] text-white">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 skew-x-12 -mr-16" />
-                <div className="flex items-center justify-between relative z-10">
-                    <div className="flex items-center gap-6">
-                        {org.logo_url ? (
-                            <img src={org.logo_url} alt="Logo" className="w-20 h-20 object-contain brightness-0 invert" />
-                        ) : (
-                            <div className="w-16 h-16 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-2xl flex items-center justify-center font-black text-3xl italic shadow-2xl shadow-violet-500/20">
-                                R
-                            </div>
-                        )}
-                        <div>
-                            <h1 className="text-2xl font-black tracking-tighter uppercase leading-none mb-1">
-                                {org.org_name || 'Rillcod Academy'}
-                            </h1>
-                            <p className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.3em] opacity-80">
-                                {org.org_tagline || 'Pioneering Technical Excellence'}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <div className="inline-block px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full mb-2">
-                            <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Official Record</span>
-                        </div>
-                        <h2 className="text-3xl font-black text-white/90 uppercase tracking-tighter">Progress Report</h2>
-                    </div>
-                </div>
-            </div>
-
-            {/* ── STATS BAR ── */}
-            <div className="bg-gray-50 border-y border-gray-100 px-12 py-3 flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                <div className="flex gap-6">
-                    <span>ID: <span className="text-gray-900">{report.id?.slice(0, 8).toUpperCase()}</span></span>
-                    <span>Date: <span className="text-gray-900">{today}</span></span>
-                </div>
-                <div className="flex gap-6">
-                    <span>Verify: <span className="text-gray-900">rillcod.com/verify</span></span>
-                </div>
-            </div>
-
-            <div className="p-12 space-y-10">
-                {/* ── PROFILE & PERFORMANCE ── */}
-                <div className="grid grid-cols-12 gap-10">
-                    {/* Left: Identity */}
-                    <div className="col-span-4 space-y-6">
-                        <div className="relative group">
-                            <div className="w-full aspect-[4/5] bg-gray-50 border-4 border-white rounded-3xl shadow-xl overflow-hidden relative">
-                                {report.photo_url ? (
-                                    <img src={report.photo_url} alt="Student" className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center h-full text-gray-200">
-                                        <UserCheck className="w-16 h-16" />
-                                        <span className="text-[8px] font-black uppercase mt-2">No Photo Provided</span>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="absolute -bottom-3 -right-3 w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center border border-gray-50">
-                                <Crown className="w-6 h-6 text-amber-500" />
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <ReportField label="Student Participant" value={report.student_name ?? '—'} bold />
-                            <ReportField label="Enrolled Programme" value={report.course_name ?? '—'} />
-                            <ReportField label="Section / Class" value={report.section_class ?? '—'} />
-                            <ReportField label="Academic Term" value={report.report_term ?? '—'} />
-                        </div>
-                    </div>
-
-                    {/* Right: Academic Metrics */}
-                    <div className="col-span-8 flex flex-col">
-                        <SectionHeaderPremium title="Final Performance Assessment" />
-                        <div className="flex-1 mt-6 grid grid-cols-2 gap-8">
-                            <div className="space-y-6">
-                                <MetricBar label="Theory (40%)" value={theory} color="#6366f1" />
-                                <MetricBar label="Practical (40%)" value={practical} color="#10b981" />
-                                <MetricBar label="Attendance (20%)" value={attendance} color="#f59e0b" />
-
-                                <div className="grid grid-cols-2 gap-4 mt-8">
-                                    <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                                        <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Participation</p>
-                                        <p className="text-xs font-bold text-gray-900">{report.participation_grade ?? '—'}</p>
-                                    </div>
-                                    <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                                        <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Project Output</p>
-                                        <p className="text-xs font-bold text-gray-900">{report.projects_grade ?? '—'}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col items-center justify-center bg-[#1a1a2e] rounded-[32px] p-6 text-white relative overflow-hidden group">
-                                <div className="absolute inset-0 bg-gradient-to-br from-violet-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <div className="relative z-10 text-center">
-                                    <Sparkles className="w-10 h-10 text-amber-400 mx-auto mb-2 animate-pulse" />
-                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">Final Weighted Grade</p>
-                                    <h3 className="text-8xl font-black text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">{grade.g}</h3>
-                                    <div className="mt-4 px-4 py-1.5 bg-white/10 rounded-full border border-white/10">
-                                        <span className="text-xs font-black uppercase tracking-widest text-white/80">{grade.label}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── MILESTONES ── */}
-                {milestones.length > 0 && (
-                    <div className="relative">
-                        <SectionHeaderPremium title="Learning Milestones & Objectives" />
-                        <div className="mt-6 grid grid-cols-2 gap-x-12 gap-y-4">
-                            {milestones.map((m, i) => (
-                                <div key={i} className="flex gap-4 group">
-                                    <div className="w-6 h-6 rounded-full bg-violet-600/10 flex items-center justify-center flex-shrink-0 group-hover:bg-violet-600 transition-colors">
-                                        <CheckIcon className="w-3.5 h-3.5 text-violet-600 group-hover:text-white transition-colors" />
-                                    </div>
-                                    <p className="text-[11.5px] leading-relaxed text-gray-600 font-medium">{m}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* ── EVALUATION ── */}
-                <div className="grid grid-cols-2 gap-10">
-                    <div className="space-y-4">
-                        <SectionHeaderPremium title="Core Strengths" />
-                        <div className="p-5 bg-emerald-50/50 border border-emerald-100 rounded-3xl min-h-[120px]">
-                            <p className="text-[11.5px] leading-relaxed text-emerald-900/80 italic font-medium">
-                                "{report.key_strengths || 'The student shows consistent effort and a dedicated approach to theoretical concepts, displaying high focus during complex sessions.'}"
-                            </p>
-                        </div>
-                    </div>
-                    <div className="space-y-4">
-                        <SectionHeaderPremium title="Growth Focus" />
-                        <div className="p-5 bg-amber-50/50 border border-amber-100 rounded-3xl min-h-[120px]">
-                            <p className="text-[11.5px] leading-relaxed text-amber-900/80 italic font-medium">
-                                "{report.areas_for_growth || 'Further immersion in practical projects will help build implementation confidence and speed in real-world environments.'}"
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── CERTIFICATE CALLOUT ── */}
-                {report.has_certificate && (
-                    <div className="bg-gradient-to-r from-[#1a1a2e] to-[#252545] rounded-[40px] p-8 text-white relative overflow-hidden text-center shadow-2xl">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 -mr-12 -mt-12 rounded-full" />
-                        <Crown className="w-10 h-10 text-amber-400 mx-auto mb-4" />
-                        <h4 className="text-xl font-black uppercase tracking-[0.2em] mb-3">Academic Excellence Award</h4>
-                        <p className="text-sm text-white/60 leading-relaxed max-w-2xl mx-auto italic font-medium">
-                            {report.certificate_text || `This document officially recognizes that ${report.student_name} has successfully completed with merit the intensive study programme in ${report.course_name}.`}
-                        </p>
-                    </div>
-                )}
-
-                {/* ── SIGNATURES & QR ── */}
-                <div className="pt-10 flex items-end justify-between border-t-2 border-gray-100">
-                    <div className="space-y-8">
-                        <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-10">Signatory Authority</p>
-                            <div className="space-y-2">
-                                <div className="w-48 h-[1px] bg-gray-900" />
-                                <p className="text-xs font-black text-gray-900">{report.instructor_name || 'Class Instructor'}</p>
-                                <p className="text-[9px] font-bold text-gray-400 uppercase">Head of Academics, Rillcod</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col items-center">
-                        <div className="p-3 bg-white border-4 border-gray-50 rounded-[32px] shadow-sm mb-4">
-                            <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8)}`} size={80} />
-                        </div>
-                        <p className="text-[10px] font-black text-gray-900 tracking-[0.3em] uppercase">
-                            VERIFY {report.id?.slice(0, 8).toUpperCase()}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Footer Design */}
-            <div className="absolute bottom-0 inset-x-0 h-2 bg-gradient-to-r from-violet-600 via-indigo-600 to-emerald-500" />
-        </div>
-    );
-}
-
-function SectionHeaderPremium({ title }: { title: string }) {
-    return (
-        <div className="flex items-center gap-4">
-            <h3 className="text-[11px] font-black text-gray-900 uppercase tracking-[0.15em] shrink-0">{title}</h3>
-            <div className="h-[2px] w-full bg-gray-50 flex items-center">
-                <div className="h-[2px] w-8 bg-violet-600/30" />
-            </div>
-        </div>
-    );
-}
-
-function ReportField({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-    return (
-        <div>
-            <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">{label}</p>
-            <p className={`text-[12px] ${bold ? 'font-black' : 'font-bold'} text-gray-900`}>{value}</p>
-        </div>
-    );
-}
-
-function MetricBar({ label, value, color }: { label: string; value: number; color: string }) {
-    return (
-        <div className="space-y-1.5">
-            <div className="flex justify-between items-end">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
-                <span className="text-xs font-black" style={{ color }}>{value}%</span>
-            </div>
-            <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100">
-                <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${value}%`, backgroundColor: color }} />
-            </div>
-        </div>
-    );
-}
-
 // ─── Student list sidebar ─────────────────────────────────────
 function ResultsPageInner() {
     const searchParams = useSearchParams();
     const prefStudentId = searchParams.get('student');
     const { profile, loading: authLoading } = useAuth();
-    const [students, setStudents] = useState<PortalUser[]>([]);
+    const [students, setStudents] = useState<any[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
-    const [reportsMap, setReportsMap] = useState<Record<string, StudentReport>>({});
+    const [reportsMap, setReportsMap] = useState<Record<string, any>>({});
     const [orgSettings, setOrgSettings] = useState<ReportSettings | null>(null);
-    const [selectedStudent, setSelectedStudent] = useState<PortalUser | null>(null);
+    const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
     const [selectedReport, setSelectedReport] = useState<StudentReport | null>(null);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const pdfRef = useRef<HTMLDivElement>(null);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
@@ -353,19 +95,21 @@ function ResultsPageInner() {
         }
 
         // Staff: load students + their reports
-        const q = db.from('portal_users').select('id, full_name, email, school_name, section_class, school_id, photo_url').eq('role', 'student').eq('is_active', true);
+        const q = db.from('portal_users').select('id, full_name, email, school_name, section_class, school_id, photo_url').eq('role', 'student');
         const query = (profile.role === 'school' && profile.school_id) ? q.eq('school_id', profile.school_id) : q;
 
         Promise.all([
             query.order('full_name').limit(200),
-            db.from('student_progress_reports').select('student_id, overall_grade, is_published, updated_at').order('updated_at', { ascending: false }),
+            db.from('student_progress_reports').select('student_id, overall_grade, is_published, updated_at'),
             db.from('report_settings').select('*').limit(1).maybeSingle(),
             db.from('courses').select('*'),
         ]).then(([sRes, rRes, orgRes, cRes]) => {
-            setStudents((sRes.data as any as PortalUser[]) ?? []);
+            setStudents(sRes.data ?? []);
             setCourses(cRes.data ?? []);
-            const rMap: Record<string, StudentReport> = {};
-            (rRes.data ?? []).forEach((r) => { if (r.student_id && !rMap[r.student_id]) rMap[r.student_id] = r as any as StudentReport; });
+            const rMap: Record<string, any> = {};
+            (rRes.data ?? []).forEach((r) => {
+                if (r.student_id && !rMap[r.student_id]) rMap[r.student_id] = r;
+            });
             setReportsMap(rMap);
             setOrgSettings(orgRes.data);
 
@@ -386,13 +130,47 @@ function ResultsPageInner() {
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
-        setSelectedReport(data);
+        setSelectedReport(data as StudentReport | null);
     }
 
     const filtered = students.filter(s =>
         (s.full_name ?? '').toLowerCase().includes((search ?? '').toLowerCase()) ||
         (s.email ?? '').toLowerCase().includes((search ?? '').toLowerCase())
     );
+
+    async function downloadPDF() {
+        const element = pdfRef.current;
+        if (!element) return;
+
+        setIsGeneratingPdf(true);
+        try {
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                windowWidth: 794, // 210mm at 96dpi
+                windowHeight: 1123 // 297mm at 96dpi
+            });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Report_${selectedReport?.student_name?.replace(/\s+/g, '_')}_${new Date().toLocaleDateString()}.pdf`);
+        } catch (err) {
+            console.error('PDF generation failed:', err);
+            alert('Failed to generate PDF. Please try using the Print option.');
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    }
 
     if (authLoading || loading) return (
         <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
@@ -425,10 +203,21 @@ function ResultsPageInner() {
                             </Link>
                         )}
                         {selectedReport && (
-                            <button onClick={() => window.print()}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-violet-900/30">
-                                <PrinterIcon className="w-4 h-4" /> Print / Save PDF
-                            </button>
+                            <div className="flex gap-2">
+                                <button onClick={() => window.print()}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold text-sm rounded-xl transition-all">
+                                    <PrinterIcon className="w-4 h-4" /> Print
+                                </button>
+                                <button onClick={downloadPDF} disabled={isGeneratingPdf}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-violet-900/30">
+                                    {isGeneratingPdf ? (
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <FileDown className="w-4 h-4" />
+                                    )}
+                                    {isGeneratingPdf ? 'Generating...' : 'Download PDF'}
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -530,6 +319,13 @@ function ResultsPageInner() {
                     <ReportCard report={selectedReport} orgSettings={orgSettings} />
                 </div>
             )}
+
+            {/* ── HIDDEN PDF CAPTURE DIV ── */}
+            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                <div ref={pdfRef}>
+                    {selectedReport && <ReportCard report={selectedReport} orgSettings={orgSettings} />}
+                </div>
+            </div>
         </div>
     );
 }

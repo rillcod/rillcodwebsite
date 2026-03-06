@@ -80,10 +80,13 @@ export class LibraryService {
             query = query.or(`title.ilike.${q},description.ilike.${q}`);
         }
 
+        // Only return active, approved content
+        query = query.eq('is_active', true).eq('is_approved', true);
+
         const sortColumn = filters.sort ?? 'created_at';
         const ascending = (filters.order ?? 'desc') === 'asc';
 
-        const { data, error } = await query.order(sortColumn, { ascending });
+        const { data, error } = await query.order(sortColumn, { ascending }).limit(200);
         if (error) throw new AppError(error.message, 500);
         return data ?? [];
     }

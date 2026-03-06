@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { logger } from '@/lib/logger';
 
-export function withLogging(req: NextRequest, startTime: number, status: number = 200) {
+export function withLogging(req: NextRequest, startTime: number, status: number = 200, userId?: string, tenantId?: string) {
     const duration = Date.now() - startTime;
 
     // Basic structured logging
@@ -12,8 +12,8 @@ export function withLogging(req: NextRequest, startTime: number, status: number 
         status,
         durationMs: duration,
         ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
-        userId: req.headers.get('x-user-id') || 'unauthenticated',
-        tenantId: req.headers.get('x-tenant-id') || 'none',
+        userId: userId || req.headers.get('x-user-id') || 'unauthenticated',
+        tenantId: tenantId || req.headers.get('x-tenant-id') || 'none',
     };
 
     logger.info('REQUEST', logData);

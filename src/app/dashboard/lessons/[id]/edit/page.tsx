@@ -1,0 +1,356 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '@/contexts/auth-context';
+import { createClient } from '@/lib/supabase/client';
+import {
+    ArrowLeft, BookOpen, Check,
+    Trash2, Plus, Paperclip,
+    GraduationCap, Sparkles, Save,
+    Layout, FileText, Settings2
+} from 'lucide-react';
+import CanvaEditor from '@/features/lessons/components/CanvaEditor';
+
+export default function EditLessonPage() {
+    const params = useParams();
+    const id = params?.id as string;
+    const router = useRouter();
+    const { profile, loading: authLoading } = useAuth();
+
+    const [lesson, setLesson] = useState<any>(null);
+    const [courses, setCourses] = useState<any[]>([]);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'settings' | 'content' | 'plan' | 'materials'>('settings');
+
+    // Lesson Form State
+    const [form, setForm] = useState({
+        title: '',
+        description: '',
+        course_id: '',
+        lesson_type: 'hands-on',
+        duration_minutes: '60',
+        session_date: '',
+        video_url: '',
+        status: 'draft',
+        order_index: '',
+        content_layout: [] as any[]
+    });
+
+    // Plan State
+    const [plan, setPlan] = useState({
+        objectives: '',
+        activities: '',
+        assessment_methods: '',
+        staff_notes: ''
+    });
+
+    // Materials State
+    const [materials, setMaterials] = useState<any[]>([]);
+    const [newMaterial, setNewMaterial] = useState({ title: '', file_url: '', file_type: 'pdf' });
+
+    const fetchData = useCallback(async () => {
+        if (!profile || !id) return;
+        const db = createClient();
+        try {
+            const [lessonRes, coursesRes, planRes, materialsRes] = await Promise.all([
+                db.from('lessons').select('*').eq('id', id).single(),
+                db.from('courses').select('id, title').eq('is_active', true).order('title'),
+                db.from('lesson_plans').select('*').eq('lesson_id', id).maybeSingle(),
+                db.from('lesson_materials').select('*').eq('lesson_id', id).order('created_at', { ascending: true })
+            ]);
+
+            if (lessonRes.error) throw lessonRes.error;
+            const l = lessonRes.data;
+            setLesson(l);
+            setCourses(coursesRes.data ?? []);
+            setMaterials(materialsRes.data ?? []);
+
+            setForm({
+                title: l.title,
+                description: l.description || '',
+                course_id: l.course_id || '',
+                lesson_type: l.lesson_type || 'hands-on',
+                duration_minutes: String(l.duration_minutes || 60),
+                session_date: l.session_date ? new Date(l.session_date).toISOString().slice(0, 16) : '',
+                video_url: l.video_url || '',
+                status: l.status || 'draft',
+                order_index: String(l.order_index || ''),
+                content_layout: (l.content_layout as any[]) || []
+            });
+
+            if (planRes.data) {
+                setPlan({
+                    objectives: planRes.data.objectives || '',
+                    activities: planRes.data.activities || '',
+                    assessment_methods: planRes.data.assessment_methods || '',
+                    staff_notes: planRes.data.staff_notes || ''
+                });
+            }
+        } catch (err: any) {
+            setError(err.message);
+        }
+    }, [id, profile]);
+
+    useEffect(() => {
+        if (!authLoading && profile) fetchData();
+    }, [authLoading, profile, fetchData]);
+
+    const handleSave = async () => {
+        if (!id || !profile) return;
+        setSaving(true);
+        setError(null);
+        const db = createClient();
+        try {
+            // 1. Update Lesson
+            const { error: lErr } = await db.from('lessons').update({
+                title: form.title,
+                description: form.description,
+                course_id: form.course_id,
+                lesson_type: form.lesson_type,
+                status: form.status,
+                duration_minutes: parseInt(form.duration_minutes),
+                order_index: form.order_index ? parseInt(form.order_index) : null,
+                session_date: form.session_date ? new Date(form.session_date).toISOString() : null,
+                video_url: form.video_url,
+                content_layout: form.content_layout
+            }).eq('id', id);
+            if (lErr) throw lErr;
+
+            // 2. Upsert Plan
+            const { error: pErr } = await db.from('lesson_plans').upsert({
+                lesson_id: id,
+                ...plan,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'lesson_id' });
+            if (pErr) throw pErr;
+
+            alert('Lesson updated successfully!');
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const addMaterial = async () => {
+        if (!newMaterial.title || !newMaterial.file_url) return;
+        const db = createClient();
+        const { data, error } = await db.from('lesson_materials').insert({
+            lesson_id: id,
+            ...newMaterial
+        }).select().single();
+        if (error) { alert(error.message); return; }
+        setMaterials([...materials, data]);
+        setNewMaterial({ title: '', file_url: '', file_type: 'pdf' });
+    };
+
+    const deleteMaterial = async (mid: string) => {
+        const db = createClient();
+        const { error } = await db.from('lesson_materials').delete().eq('id', mid);
+        if (error) { alert(error.message); return; }
+        setMaterials(materials.filter(m => m.id !== mid));
+    };
+
+    if (authLoading || !lesson) return (
+        <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+            <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
+
+    return (
+        <div className="min-h-screen bg-[#0f0f1a] text-white">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => router.back()} className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10">
+                            <ArrowLeft className="w-5 h-5 text-white/40" />
+                        </button>
+                        <div>
+                            <p className="text-[10px] font-black tracking-[0.2em] text-cyan-400 uppercase mb-1">Editing Lesson</p>
+                            <h1 className="text-3xl font-black">{form.title || 'Lesson Title'}</h1>
+                        </div>
+                    </div>
+                    <div className="flex gap-3">
+                        <Link href={`/dashboard/lessons/${id}`} className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl font-bold text-sm hover:bg-white/10 transition-all">
+                            View Live
+                        </Link>
+                        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm rounded-xl shadow-xl shadow-cyan-900/40 transition-all disabled:opacity-50">
+                            {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
+                            {saving ? 'SAVING...' : 'SAVE CHANGES'}
+                        </button>
+                    </div>
+                </div>
+
+                {error && (
+                    <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 text-sm font-medium">
+                        {error}
+                    </div>
+                )}
+
+                {/* Unified Tabs */}
+                <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl w-fit">
+                    <TabBtn active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings2} label="Settings" />
+                    <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={Layout} label="Visual Builder" />
+                    <TabBtn active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={GraduationCap} label="Lesson Plan" />
+                    <TabBtn active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} icon={Paperclip} label="Materials" />
+                </div>
+
+                <div className="grid grid-cols-1 gap-8">
+                    {activeTab === 'settings' && (
+                        <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-6 animate-in fade-in duration-500">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <Field label="Lesson Title" value={form.title} onChange={v => setForm({ ...form, title: v })} />
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Linked Course</label>
+                                    <select value={form.course_id} onChange={e => setForm({ ...form, course_id: e.target.value })}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none">
+                                        <option value="">Select Course</option>
+                                        {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                <SelectField label="Type" value={form.lesson_type} options={['hands-on', 'video', 'interactive', 'workshop', 'coding']} onChange={v => setForm({ ...form, lesson_type: v })} />
+                                <Field label="Duration (min)" value={form.duration_minutes} type="number" onChange={v => setForm({ ...form, duration_minutes: v })} />
+                                <Field label="Order index" value={form.order_index} type="number" onChange={v => setForm({ ...form, order_index: v })} />
+                                <SelectField label="Status" value={form.status} options={['draft', 'scheduled', 'active']} onChange={v => setForm({ ...form, status: v })} />
+                            </div>
+
+                            <Field label="Description" value={form.description} textarea onChange={v => setForm({ ...form, description: v })} />
+                            <Field label="Video URL / Media Link" value={form.video_url} onChange={v => setForm({ ...form, video_url: v })} />
+                        </div>
+                    )}
+
+                    {activeTab === 'content' && (
+                        <div className="bg-white/5 border border-white/10 rounded-3xl p-8 animate-in fade-in duration-500">
+                            <CanvaEditor layout={form.content_layout} onChange={l => setForm({ ...form, content_layout: l })} />
+                        </div>
+                    )}
+
+                    {activeTab === 'plan' && (
+                        <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-8 animate-in fade-in duration-500">
+                            <div className="flex items-center gap-3 mb-4">
+                                <Sparkles className="w-6 h-6 text-amber-400" />
+                                <h2 className="text-xl font-black uppercase tracking-tight">Instructor Guidelines</h2>
+                            </div>
+                            <Field label="Learning Objectives" value={plan.objectives} textarea rows={4} onChange={v => setPlan({ ...plan, objectives: v })} />
+                            <Field label="Activities Sequence" value={plan.activities} textarea rows={6} onChange={v => setPlan({ ...plan, activities: v })} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <Field label="Assessment Methods" value={plan.assessment_methods} textarea rows={4} onChange={v => setPlan({ ...plan, assessment_methods: v })} />
+                                <Field label="Confidential Staff Notes" value={plan.staff_notes} textarea rows={4} onChange={v => setPlan({ ...plan, staff_notes: v })} />
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'materials' && (
+                        <div className="space-y-6 animate-in fade-in duration-500">
+                            <div className="bg-white/5 border border-white/10 rounded-3xl p-8">
+                                <h3 className="text-sm font-black uppercase tracking-widest text-white/40 mb-6">Add New Resource</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <input type="text" placeholder="Title (e.g. Starter Code)" value={newMaterial.title} onChange={e => setNewMaterial({ ...newMaterial, title: e.target.value })}
+                                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:border-cyan-500 outline-none" />
+                                    <input type="text" placeholder="URL (S3, Drive, Link...)" value={newMaterial.file_url} onChange={e => setNewMaterial({ ...newMaterial, file_url: e.target.value })}
+                                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:border-cyan-500 outline-none" />
+                                    <div className="flex gap-2">
+                                        <select value={newMaterial.file_type} onChange={e => setNewMaterial({ ...newMaterial, file_type: e.target.value })}
+                                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:border-cyan-500 outline-none">
+                                            <option value="pdf">PDF</option>
+                                            <option value="video">Video</option>
+                                            <option value="image">Image</option>
+                                            <option value="link">External Link</option>
+                                        </select>
+                                        <button onClick={addMaterial} className="p-2.5 bg-cyan-600 hover:bg-cyan-700 rounded-xl text-white">
+                                            <Plus className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {materials.map((m) => (
+                                    <div key={m.id} className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-2xl group">
+                                        <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400">
+                                            <Paperclip className="w-5 h-5" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-sm truncate">{m.title}</p>
+                                            <p className="text-[10px] text-white/20 uppercase font-black">{m.file_type}</p>
+                                        </div>
+                                        <button onClick={() => deleteMaterial(m.id)} className="p-2 text-white/20 hover:text-rose-400 transition-colors">
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+interface TabBtnProps {
+    active: boolean;
+    onClick: () => void;
+    icon: any;
+    label: string;
+}
+
+function TabBtn({ active, onClick, icon: Icon, label }: TabBtnProps) {
+    return (
+        <button type="button" onClick={onClick} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${active ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/40' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
+            <Icon className="w-4 h-4" />
+            {label}
+        </button>
+    );
+}
+
+interface FieldProps {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    textarea?: boolean;
+    rows?: number;
+    type?: string;
+}
+
+function Field({ label, value, onChange, textarea, rows = 3, type = 'text' }: FieldProps) {
+    return (
+        <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-white/40">{label}</label>
+            {textarea ? (
+                <textarea value={value} rows={rows} onChange={e => onChange(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none" />
+            ) : (
+                <input type={type} value={value} onChange={e => onChange(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none" />
+            )}
+        </div>
+    );
+}
+
+interface SelectFieldProps {
+    label: string;
+    value: string;
+    options: string[];
+    onChange: (v: string) => void;
+}
+
+function SelectField({ label, value, options, onChange }: SelectFieldProps) {
+    return (
+        <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-white/40">{label}</label>
+            <select value={value} onChange={e => onChange(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none cursor-pointer">
+                {options.map((o: string) => <option key={o} value={o}>{o.replace(/[-_]/g, ' ').toUpperCase()}</option>)}
+            </select>
+        </div>
+    );
+}

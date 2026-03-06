@@ -50,6 +50,7 @@ export default function TeacherDashboardPage() {
   });
   const [upcomingClasses, setUpcomingClasses] = useState<UpcomingClass[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [recentStudents, setRecentStudents] = useState<any[]>([]);
   const [perfData, setPerfData] = useState<{ label: string; value: number; color: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
@@ -68,15 +69,17 @@ export default function TeacherDashboardPage() {
     async function loadStats() {
       setLoading(true);
       try {
-        const [classesRes, pendingRes, studentsRes, gradesRes, recentSubsRes] = await Promise.allSettled([
+        const [classesRes, pendingRes, studentsRes, gradesRes, recentSubsRes, recentStudentsRes] = await Promise.allSettled([
           supabase.from('classes').select('id, name, max_students, current_students, schedule, status', { count: 'exact' }).eq('teacher_id', profile!.id),
-          supabase.from('assignment_submissions').select('id', { count: 'exact' }).eq('status', 'submitted'),
+          supabase.from('assignment_submissions').select('id, assignments!inner(created_by)', { count: 'exact' }).eq('status', 'submitted').eq('assignments.created_by', profile!.id),
           supabase.from('classes').select('current_students').eq('teacher_id', profile!.id),
           supabase.from('assignment_submissions').select('grade, assignments!inner(created_by)').eq('assignments.created_by', profile!.id).eq('status', 'graded'),
           supabase.from('assignment_submissions')
-            .select('id, status, submitted_at, portal_users!assignment_submissions_portal_user_id_fkey(full_name), assignments(title)')
+            .select('id, status, submitted_at, portal_users!assignment_submissions_portal_user_id_fkey(full_name), assignments!inner(title, created_by)')
+            .eq('assignments.created_by', profile!.id)
             .order('submitted_at', { ascending: false })
             .limit(5),
+          supabase.from('students').select('*').eq('created_by', profile!.id).order('created_at', { ascending: false }).limit(5),
         ]);
 
         const classRows = classesRes.status === 'fulfilled' ? (classesRes.value.data ?? []) : [];
@@ -84,6 +87,7 @@ export default function TeacherDashboardPage() {
         const studentRows = studentsRes.status === 'fulfilled' ? (studentsRes.value.data ?? []) : [];
         const gradeRows = gradesRes.status === 'fulfilled' ? (gradesRes.value.data ?? []) : [];
         const recentSubs = recentSubsRes.status === 'fulfilled' ? (recentSubsRes.value.data ?? []) : [];
+        const registeredStudents = recentStudentsRes.status === 'fulfilled' ? (recentStudentsRes.value.data ?? []) : [];
 
         const totalStudents = studentRows.reduce((s: number, c: any) => s + (c.current_students ?? 0), 0);
         const grades = gradeRows.map((g: any) => Number(g.grade)).filter(Boolean);
@@ -111,6 +115,8 @@ export default function TeacherDashboardPage() {
             time: s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : '—',
             color: s.status === 'submitted' ? 'text-amber-400' : 'text-emerald-400',
           })));
+
+          setRecentStudents(registeredStudents);
 
           // Performance bars from real classes
           const COLORS_PERF = ['bg-violet-500', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500'];
@@ -286,6 +292,32 @@ export default function TeacherDashboardPage() {
                     <p className="text-xs text-white/25 mt-1">{act.time}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Recent Students Added */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+              <div className="p-5 border-b border-white/10 flex items-center justify-between">
+                <h3 className="font-bold text-white flex items-center gap-2">
+                  <UserGroupIcon className="w-4 h-4 text-emerald-400" /> New Registrations
+                </h3>
+              </div>
+              <div className="divide-y divide-white/5">
+                {recentStudents.length === 0 ? (
+                  <div className="p-6 text-center text-white/20 text-xs">No students registered yet.</div>
+                ) : (
+                  recentStudents.map((s) => (
+                    <div key={s.id} className="p-4 hover:bg-white/5 transition-colors flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">{s.name || s.full_name}</p>
+                        <p className="text-[10px] text-white/40 uppercase tracking-widest">{s.grade_level || 'No Class'}</p>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${s.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}`}>
+                        {s.status}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 

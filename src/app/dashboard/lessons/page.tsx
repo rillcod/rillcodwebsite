@@ -17,8 +17,12 @@ const STATUS_BADGE: Record<string, string> = {
   draft: 'bg-white/10 text-white/40',
 };
 const TYPE_COLORS: Record<string, string> = {
-  video: 'text-blue-400', interactive: 'text-violet-400',
-  'hands-on': 'text-cyan-400', workshop: 'text-emerald-400', coding: 'text-amber-400',
+  video: 'text-rose-400',
+  'hands-on': 'text-cyan-400',
+  hands_on: 'text-cyan-400',
+  interactive: 'text-amber-400',
+  workshop: 'text-violet-400',
+  coding: 'text-emerald-400',
 };
 
 export default function LessonsPage() {
@@ -190,9 +194,9 @@ export default function LessonsPage() {
                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${STATUS_BADGE[lesson.status] ?? 'bg-white/10 text-white/40'}`}>
                               {lesson.status}
                             </span>
-                            {lesson.lesson_type && (
-                              <span className="px-2 py-0.5 text-xs text-white/40">{lesson.lesson_type}</span>
-                            )}
+                            <span className="px-2 py-0.5 text-xs text-white/40 uppercase tracking-widest font-black">
+                              {lesson.lesson_type?.replace(/[-_]/g, ' ')}
+                            </span>
                           </div>
                           <p className="text-sm text-white/40">{lesson.courses?.title} — {lesson.courses?.programs?.name}</p>
                         </div>
