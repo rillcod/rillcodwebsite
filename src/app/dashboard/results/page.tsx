@@ -290,9 +290,9 @@ function ResultsPageInner() {
                                         </Link>
                                     )}
                                 </div>
-                                {/* Report preview — scales down on screen */}
-                                <div className="overflow-auto bg-white" style={{ maxHeight: '75vh' }}>
-                                    <div style={{ transform: 'scale(0.72)', transformOrigin: 'top left', width: '138.9%' }}>
+                                {/* Report preview — horizontally scrollable on small screens */}
+                                <div className="overflow-auto bg-gray-100 p-2 sm:p-6 lg:p-8" style={{ maxHeight: '70vh' }}>
+                                    <div className="flex justify-center min-w-max">
                                         <ReportCard report={selectedReport} orgSettings={orgSettings} />
                                     </div>
                                 </div>
@@ -323,14 +323,14 @@ function ResultsPageInner() {
 
             {/* ── PRINT VIEW — full page, no navbar ── */}
             {selectedReport && (
-                <div className="hidden print:block">
+                <div className="hidden print:block print:w-[794px] print:mx-auto">
                     <ReportCard report={selectedReport} orgSettings={orgSettings} />
                 </div>
             )}
 
             {/* ── HIDDEN PDF CAPTURE DIV ── */}
-            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-                <div ref={pdfRef}>
+            <div className="fixed top-0 left-0 w-0 h-0 overflow-hidden pointer-events-none opacity-0">
+                <div ref={pdfRef} className="w-[794px] h-[1123px] bg-white text-black">
                     {selectedReport && <ReportCard report={selectedReport} orgSettings={orgSettings} />}
                 </div>
             </div>

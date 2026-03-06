@@ -107,12 +107,12 @@ export default function ReportCard({ report, orgSettings }: {
     return (
         <div
             id="report-card"
-            className="bg-white text-gray-900 font-sans relative overflow-hidden"
-            style={{ width: 794, minHeight: 1123, margin: '0 auto', fontSize: 11, border: '16px solid #1a1a2e' }}
+            className="bg-white text-gray-900 font-sans relative overflow-hidden shrink-0"
+            style={{ width: 794, height: 1123, margin: '0 auto', fontSize: 11, border: '16px solid #1a1a2e', position: 'relative', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
         >
             {/* Background */}
-            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-50/50 rounded-full blur-3xl -z-10 -mr-40 -mt-40" />
-            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-violet-50/50 rounded-full blur-3xl -z-10 -ml-40 -mb-40" />
+            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-50/50 rounded-full blur-3xl -z-10 -mr-40 -mt-40 print:opacity-100" />
+            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-violet-50/50 rounded-full blur-3xl -z-10 -ml-40 -mb-40 print:opacity-100" />
             <div className="absolute inset-0 border-[1px] border-gray-100 m-4 pointer-events-none" />
 
             {/* HEADER */}
