@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -20,6 +20,34 @@ import {
     Cog6ToothIcon, GlobeAltIcon, PhoneIcon, EnvelopeIcon, MapPinIcon, ArrowUpTrayIcon
 } from '@heroicons/react/24/outline';
 import { Sparkles, Layout } from 'lucide-react';
+
+// Scales the 794px-wide ReportCard to fit any container width
+function ScaledReportCard({ report, orgSettings }: { report: any; orgSettings: any }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [scale, setScale] = useState(1);
+    const CARD_W = 794;
+
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const update = () => {
+            const w = el.clientWidth;
+            setScale(w < CARD_W ? w / CARD_W : 1);
+        };
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+
+    return (
+        <div ref={containerRef} style={{ width: '100%', overflow: 'hidden', height: scale < 1 ? `calc(${scale} * 1123px)` : 'auto' }}>
+            <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left', width: CARD_W }}>
+                <ReportCard report={report} orgSettings={orgSettings} />
+            </div>
+        </div>
+    );
+}
 
 const GRADE_OPTIONS = ['Excellent', 'Very Good', 'Good', 'Fair', 'Poor', 'Not Specified'];
 const TERM_OPTIONS = ['Termly', 'Mid-Term', 'First Term', 'Second Term', 'Third Term', 'Annual'];
@@ -455,35 +483,35 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
 
     return (
         <div className="min-h-screen bg-[#0f0f1a] text-white">
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+            <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
 
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div>
                         <div className="flex items-center gap-2 mb-1">
-                            <DocumentTextIcon className="w-5 h-5 text-violet-400" />
+                            <DocumentTextIcon className="w-4 h-4 text-violet-400" />
                             <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Report Builder</span>
                         </div>
-                        <h1 className="text-3xl font-extrabold">Student Progress Report</h1>
-                        <p className="text-white/40 text-sm mt-1">Create and publish branded progress reports for students</p>
+                        <h1 className="text-xl sm:text-3xl font-extrabold">Progress Reports</h1>
+                        <p className="text-white/40 text-xs sm:text-sm mt-0.5">Create and publish branded progress reports</p>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-2">
                         <button onClick={() => setShowSettings(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white/60 text-sm font-bold rounded-xl transition-colors">
-                            <Cog6ToothIcon className="w-4 h-4" /> Branding Settings
+                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white/60 text-xs font-bold rounded-xl transition-colors">
+                            <Cog6ToothIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Branding</span> Settings
                         </button>
                         {step === 'edit' && selectedStudent && (
-                            <div className="flex gap-2">
+                            <>
                                 <button onClick={() => setShowPreview(true)}
-                                    className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 text-sm font-bold rounded-xl transition-colors">
-                                    <Sparkles className="w-4 h-4 text-amber-500" /> Quick Live Preview
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition-colors">
+                                    <Sparkles className="w-3.5 h-3.5" /> Preview
                                 </button>
                                 <Link
                                     href={`/dashboard/results?student=${selectedStudent.id}`}
-                                    className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 text-sm font-bold rounded-xl transition-colors">
-                                    <EyeIcon className="w-4 h-4" /> View Full Centre
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 text-xs font-bold rounded-xl transition-colors">
+                                    <EyeIcon className="w-3.5 h-3.5" /> Results
                                 </Link>
-                            </div>
+                            </>
                         )}
                     </div>
                 </div>
@@ -717,55 +745,56 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                 {step === 'edit' && selectedStudent && (
                     <>
                         {/* Student navigator bar */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <button onClick={() => setStep('pick')} className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white transition-colors">
-                                <ArrowLeftIcon className="w-4 h-4" /> All Students
+                        <div className="bg-[#0d1526] border border-white/10 rounded-2xl p-3 flex items-center gap-2">
+                            <button onClick={() => setStep('pick')}
+                                className="flex items-center gap-1 text-xs text-white/40 hover:text-white transition-colors flex-shrink-0">
+                                <ArrowLeftIcon className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">All</span>
                             </button>
 
-                            {/* Prev / current / next */}
-                            <div className="flex items-center gap-2 ml-2 flex-1 flex-wrap">
-                                <button
-                                    disabled={currentStudentIdx <= 0}
-                                    onClick={async () => {
-                                        const idx = currentStudentIdx - 1;
-                                        if (idx >= 0) await selectStudent(filteredStudents[idx] as PortalUser, courses, idx);
-                                    }}
-                                    className="p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-white disabled:opacity-20 transition-colors">
-                                    <ArrowLeftIcon className="w-3.5 h-3.5" />
-                                </button>
+                            <button
+                                disabled={currentStudentIdx <= 0}
+                                onClick={async () => {
+                                    const idx = currentStudentIdx - 1;
+                                    if (idx >= 0) await selectStudent(filteredStudents[idx] as PortalUser, courses, idx);
+                                }}
+                                className="p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-white disabled:opacity-20 transition-colors flex-shrink-0">
+                                <ArrowLeftIcon className="w-3.5 h-3.5" />
+                            </button>
 
-                                <div className="flex items-center gap-3 px-4 py-2 bg-violet-600/10 border border-violet-500/20 rounded-xl">
-                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
-                                        {selectedStudent.full_name ? selectedStudent.full_name[0] : '?'}
-                                    </div>
-                                    <span className="font-bold text-violet-300 text-sm">{selectedStudent.full_name}</span>
-                                    {currentStudentIdx >= 0 && (
-                                        <span className="text-[10px] text-white/30 font-mono">
-                                            {currentStudentIdx + 1} / {filteredStudents.length}
-                                        </span>
-                                    )}
-                                    {existingReport && (
-                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${form.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                                            {form.is_published ? 'Published' : 'Draft'}
-                                        </span>
-                                    )}
+                            <div className="flex-1 flex items-center gap-2 min-w-0">
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
+                                    {selectedStudent.full_name ? selectedStudent.full_name[0] : '?'}
                                 </div>
-
-                                <button
-                                    disabled={currentStudentIdx >= filteredStudents.length - 1}
-                                    onClick={async () => {
-                                        const idx = currentStudentIdx + 1;
-                                        if (idx < filteredStudents.length) await selectStudent(filteredStudents[idx] as PortalUser, courses, idx);
-                                    }}
-                                    className="p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-white disabled:opacity-20 transition-colors">
-                                    <ArrowLeftIcon className="w-3.5 h-3.5 rotate-180" />
-                                </button>
+                                <div className="min-w-0">
+                                    <p className="font-bold text-white text-sm truncate">{selectedStudent.full_name}</p>
+                                    <div className="flex items-center gap-2">
+                                        {currentStudentIdx >= 0 && (
+                                            <span className="text-[10px] text-white/30 font-mono">{currentStudentIdx + 1}/{filteredStudents.length}</span>
+                                        )}
+                                        {existingReport && (
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${form.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                                {form.is_published ? '✓ Published' : 'Draft'}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Edit session button */}
+                            <button
+                                disabled={currentStudentIdx >= filteredStudents.length - 1}
+                                onClick={async () => {
+                                    const idx = currentStudentIdx + 1;
+                                    if (idx < filteredStudents.length) await selectStudent(filteredStudents[idx] as PortalUser, courses, idx);
+                                }}
+                                className="p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-white disabled:opacity-20 transition-colors flex-shrink-0">
+                                <ArrowLeftIcon className="w-3.5 h-3.5 rotate-180" />
+                            </button>
+
                             <button onClick={() => setEditSessionOpen(!editSessionOpen)}
-                                className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/70 border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg transition-colors ml-auto">
-                                <Cog6ToothIcon className="w-3.5 h-3.5" /> Session
+                                className="flex items-center gap-1 text-xs text-white/30 hover:text-white/70 border border-white/10 px-2 py-1.5 rounded-lg transition-colors flex-shrink-0">
+                                <Cog6ToothIcon className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Session</span>
                             </button>
                         </div>
 
@@ -773,7 +802,7 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                         {editSessionOpen && (
                             <div className="bg-[#0d1526] border border-violet-500/20 rounded-2xl p-4 space-y-3">
                                 <p className="text-xs font-bold text-violet-400 uppercase tracking-widest">Session Settings (affects all students)</p>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                     <Field label="Instructor">
                                         <input value={sessionConfig.instructor_name}
                                             onChange={e => setSessionConfig(s => ({ ...s, instructor_name: e.target.value }))}
@@ -845,7 +874,7 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
 
                             {/* ── Left column ── */}
                             <div className="space-y-5">
@@ -883,7 +912,7 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                                                         </Field>
                                                     </div>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-4">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     <Field label="Class/Section">
                                                         <input value={form.section_class} onChange={e => setForm(f => ({ ...f, section_class: e.target.value }))} className={INPUT} />
                                                     </Field>
@@ -1084,28 +1113,32 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                             </div>
                         </div>
 
-                        {/* Save / Publish / Next */}
-                        <div className="sticky bottom-0 bg-[#0f0f1a]/95 backdrop-blur border-t border-white/10 pt-4 pb-2 flex items-center gap-2 flex-wrap">
+                        {/* Save / Publish / Next — sticky, mobile-safe */}
+                        <div className="sticky bottom-0 bg-[#0f0f1a]/97 backdrop-blur-md border-t border-white/10 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center gap-2 flex-wrap">
                             <button onClick={() => handleSave(false)} disabled={saving || publishing}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
-                                {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-                                {saving ? 'Saving…' : 'Save Draft'}
+                                className="flex items-center gap-1.5 px-3 py-2.5 bg-white/10 hover:bg-white/15 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50">
+                                {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
+                                {saving ? 'Saving…' : 'Save'}
                             </button>
                             <button onClick={() => handleSave(true)} disabled={saving || publishing}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
-                                {publishing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <EyeIcon className="w-4 h-4" />}
+                                className="flex items-center gap-1.5 px-3 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50">
+                                {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <EyeIcon className="w-3.5 h-3.5" />}
                                 {publishing ? 'Publishing…' : 'Publish'}
+                            </button>
+                            <button onClick={() => setShowPreview(true)}
+                                className="flex items-center gap-1.5 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition-all">
+                                <Sparkles className="w-3.5 h-3.5" /> Preview
                             </button>
                             {currentStudentIdx < filteredStudents.length - 1 ? (
                                 <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-violet-900/30 ml-auto">
-                                    {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : null}
-                                    Save & Next Student →
+                                    className="flex items-center gap-1.5 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-violet-900/30 ml-auto">
+                                    {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : null}
+                                    Next →
                                 </button>
                             ) : (
                                 <button onClick={() => { handleSave(false); setStep('pick'); }} disabled={saving || publishing}
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-black rounded-xl transition-all disabled:opacity-50 ml-auto">
-                                    Save & Done ✓
+                                    className="flex items-center gap-1.5 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-xl transition-all disabled:opacity-50 ml-auto">
+                                    Done ✓
                                 </button>
                             )}
                         </div>
@@ -1115,20 +1148,20 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
 
             {/* ── Branding Settings Modal ── */}
             {showSettings && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-[#0f0f1a] border border-white/10 rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                        <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between bg-white/3">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="bg-[#0f0f1a] border border-white/10 rounded-t-[32px] sm:rounded-[32px] w-full sm:max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+                        <div className="px-5 sm:px-8 py-4 sm:py-6 border-b border-white/10 flex items-center justify-between bg-white/3">
                             <div>
-                                <h3 className="text-xl font-extrabold text-white">Branding Settings</h3>
-                                <p className="text-white/40 text-xs mt-0.5">Configure report headers and organization details</p>
+                                <h3 className="text-lg sm:text-xl font-extrabold text-white">Branding Settings</h3>
+                                <p className="text-white/40 text-xs mt-0.5">Configure report header & organization details</p>
                             </div>
                             <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
-                                <PlusIcon className="w-6 h-6 text-white/40 rotate-45" />
+                                <PlusIcon className="w-5 h-5 text-white/40 rotate-45" />
                             </button>
                         </div>
 
-                        <div className="p-8 overflow-y-auto space-y-6">
-                            <div className="flex items-center gap-6 p-6 bg-white/5 border border-white/10 rounded-2xl">
+                        <div className="p-5 sm:p-8 overflow-y-auto space-y-5 sm:space-y-6">
+                            <div className="flex items-center gap-4 p-4 sm:p-6 bg-white/5 border border-white/10 rounded-2xl">
                                 <div className="relative group">
                                     <div className="w-20 h-20 rounded-2xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden">
                                         {branding.logo_url ? (
@@ -1169,7 +1202,7 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
                                 <Field label="Organization Name">
                                     <input value={branding.org_name} onChange={e => setBranding(b => ({ ...b, org_name: e.target.value }))}
                                         className={INPUT} placeholder="e.g. Rillcod Academy" />
@@ -1197,7 +1230,7 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                             </div>
                         </div>
 
-                        <div className="p-8 bg-white/3 border-t border-white/10 flex justify-end gap-3">
+                        <div className="p-5 sm:p-8 bg-white/3 border-t border-white/10 flex justify-end gap-3">
                             <button onClick={() => setShowSettings(false)} className="px-5 py-2.5 text-sm font-bold text-white/40 hover:text-white transition-colors">
                                 Cancel
                             </button>
@@ -1228,33 +1261,30 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
             )}
 
             {/* ── LIVE PREVIEW MODAL ── */}
-            {showPreview && selectedStudent && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-                    <div className="bg-[#0f0f1a] border border-white/10 rounded-[32px] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col h-[95vh]">
-                        <div className="px-8 py-4 border-b border-white/10 flex items-center justify-between bg-white/5">
-                            <div className="flex items-center gap-4">
-                                <Sparkles className="w-6 h-6 text-amber-500" />
-                                <div>
-                                    <h3 className="text-xl font-black text-white">Live Document Preview</h3>
-                                    <p className="text-white/40 text-xs">Seeing exactly what {form.student_name} will see</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-4">
-                                <button onClick={downloadPDF} disabled={isGeneratingPdf}
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm rounded-xl transition-all disabled:opacity-50">
-                                    {isGeneratingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <EyeIcon className="w-4 h-4" />}
-                                    {isGeneratingPdf ? 'Generating...' : 'Download PDF Draft'}
-                                </button>
-                                <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
-                                    <PlusIcon className="w-8 h-8 text-white/40 rotate-45" />
-                                </button>
-                            </div>
+            {showPreview && (
+                <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a14]">
+                    {/* Toolbar */}
+                    <div className="flex items-center gap-2 px-3 sm:px-6 py-3 border-b border-white/10 bg-white/5 flex-shrink-0 flex-wrap">
+                        <button onClick={() => setShowPreview(false)}
+                            className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                            <ArrowLeftIcon className="w-5 h-5 text-white/60" />
+                        </button>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-white font-black text-sm truncate">{form.student_name || 'Preview'}</p>
+                            <p className="text-white/30 text-[10px]">Report Preview</p>
                         </div>
-
-                        <div className="flex-1 overflow-auto bg-[#1a1a2e]/50 p-6 md:p-12">
-                            <div className="mx-auto overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)]" style={{ width: 794, maxWidth: '100%' }}>
-                                <ReportCard report={previewData} orgSettings={branding as any} />
-                            </div>
+                        <button onClick={downloadPDF} disabled={isGeneratingPdf}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex-shrink-0">
+                            {isGeneratingPdf
+                                ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                                : <ArrowUpTrayIcon className="w-3.5 h-3.5" />}
+                            {isGeneratingPdf ? 'Generating…' : 'Download PDF'}
+                        </button>
+                    </div>
+                    {/* Scrollable report */}
+                    <div className="flex-1 overflow-auto bg-[#1a1a2e]/40 p-3 sm:p-8">
+                        <div className="mx-auto shadow-2xl" style={{ maxWidth: 794 }}>
+                            <ScaledReportCard report={previewData} orgSettings={branding as any} />
                         </div>
                     </div>
                 </div>
