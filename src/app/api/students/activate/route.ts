@@ -69,9 +69,13 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if this email already has an auth account using email filter (avoids loading all users)
-    const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(loginEmail);
-    if (existingUser?.user) {
+    // Check if this email already has a portal account
+    const { data: existingPortal } = await supabaseAdmin
+      .from('portal_users')
+      .select('id')
+      .eq('email', loginEmail)
+      .maybeSingle();
+    if (existingPortal) {
       return NextResponse.json({
         error: `An account with email ${loginEmail} already exists. If this is the student, update their user_id link manually.`,
       }, { status: 409 });

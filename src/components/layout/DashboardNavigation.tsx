@@ -27,6 +27,9 @@ import {
   SignalIcon,
   TrophyIcon,
   ShieldCheckIcon,
+  CodeBracketIcon,
+  PaintBrushIcon,
+  RocketLaunchIcon,
 } from '@heroicons/react/24/outline';
 
 type NavItem = { name: string; href: string; icon: any };
@@ -93,6 +96,7 @@ export default function DashboardNavigation() {
           { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
           { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
           { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
+          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
           { name: 'Results', href: '/dashboard/results', icon: TrophyIcon },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
@@ -111,6 +115,8 @@ export default function DashboardNavigation() {
           { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
           { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
+          { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
           { name: 'Results', href: '/dashboard/results', icon: TrophyIcon },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
@@ -127,6 +133,9 @@ export default function DashboardNavigation() {
           { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
           { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
+          { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
+          { name: 'My Portfolio', href: '/dashboard/portfolio', icon: RocketLaunchIcon },
           { name: 'Results', href: '/dashboard/results', icon: TrophyIcon },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
           { name: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon },
@@ -135,8 +144,11 @@ export default function DashboardNavigation() {
       case 'school':
         return [
           ...base,
+          { name: 'School Overview', href: '/dashboard/school-overview', icon: BuildingOfficeIcon },
           { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Import Students', href: '/dashboard/students/import', icon: UserGroupIcon },
           { name: 'Grades & Reports', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
           { name: 'Results', href: '/dashboard/results', icon: TrophyIcon },
           { name: 'Activity', href: '/dashboard/progress', icon: ChartBarIcon },
           { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
@@ -150,7 +162,7 @@ export default function DashboardNavigation() {
   };
 
   const navItems = getNavItems();
-  const bottomNavNames = new Set(['Dashboard', 'Courses', 'My Courses', 'My Classes', 'Library', 'Messages']);
+  const bottomNavNames = new Set(['Dashboard', 'Courses', 'My Courses', 'My Classes', 'Library', 'Messages', 'Leaderboard', 'Code Playground', 'School Overview']);
   const bottomNavItems = navItems.filter((item) => bottomNavNames.has(item.name)).slice(0, 4);
 
   const handleLogout = () => {
