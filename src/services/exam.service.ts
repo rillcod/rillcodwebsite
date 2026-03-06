@@ -41,12 +41,26 @@ export class ExamService {
         const supabase = await createClient();
         const { data, error } = await supabase
             .from('exams')
-            .select('*, courses(school_id)')
+            .select('*')
             .eq('id', id)
             .single();
 
         if (error || !data) throw new NotFoundError('Exam not found');
-        return data;
+
+        let courseData = null;
+        if (data.course_id) {
+            const { data: cData } = await supabase
+                .from('courses')
+                .select('school_id')
+                .eq('id', data.course_id)
+                .single();
+            courseData = cData;
+        }
+
+        return {
+            ...data,
+            courses: courseData
+        };
     }
 
     async createExam(input: ExamInput, creatorId: string) {

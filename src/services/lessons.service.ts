@@ -43,7 +43,7 @@ export class LessonsService {
 
         const { data, error } = await supabase
             .from('lessons')
-            .select('*, courses!inner(school_id)')
+            .select('*')
             .eq('id', id)
             .single();
 
@@ -51,8 +51,16 @@ export class LessonsService {
             throw new NotFoundError('Lesson not found');
         }
 
-        if (tenantId && data.courses.school_id !== tenantId) {
-            throw new NotFoundError('Lesson not found');
+        if (tenantId && data.course_id) {
+            const { data: courseData, error: courseErr } = await supabase
+                .from('courses')
+                .select('school_id')
+                .eq('id', data.course_id)
+                .single();
+
+            if (courseErr || !courseData || courseData.school_id !== tenantId) {
+                throw new NotFoundError('Lesson not found');
+            }
         }
 
         return data;

@@ -13,7 +13,7 @@ export class GradingService {
         // 1. Get attempt and exam details
         const { data: attempt, error: attemptErr } = await supabase
             .from('exam_attempts')
-            .select('*, exams(*)')
+            .select('*')
             .eq('id', attemptId)
             .eq('portal_user_id', userId)
             .single();
@@ -21,9 +21,14 @@ export class GradingService {
         if (attemptErr || !attempt) throw new NotFoundError('Attempt not found');
         if (attempt.status !== 'in_progress') throw new AppError('Exam already submitted', 400);
 
-        const exam = attempt.exams;
-        if (!exam) throw new AppError('Exam not found for this attempt', 404);
-        const questions = await questionService.listQuestions(exam.id);
+        const { data: exam, error: examErr } = await supabase
+            .from('exams')
+            .select('*')
+            .eq('id', attempt.exam_id as string)
+            .single();
+        if (examErr || !exam || !exam.id) throw new AppError('Exam not found for this attempt', 404);
+
+        const questions = await questionService.listQuestions(exam.id as string);
 
         // 2. Automated Grading for objective questions
         let score = 0;
