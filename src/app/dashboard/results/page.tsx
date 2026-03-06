@@ -104,6 +104,11 @@ function ResultsPageInner() {
             db.from('report_settings').select('*').limit(1).maybeSingle(),
             db.from('courses').select('*'),
         ]).then(([sRes, rRes, orgRes, cRes]) => {
+            if (sRes.error) console.error("Students fetch error:", sRes.error);
+            if (rRes.error) console.error("Reports fetch error:", rRes.error);
+            if (orgRes.error) console.error("Org fetch error:", orgRes.error);
+            if (cRes.error) console.error("Courses fetch error:", cRes.error);
+
             setStudents(sRes.data ?? []);
             setCourses(cRes.data ?? []);
             const rMap: Record<string, any> = {};
@@ -113,13 +118,16 @@ function ResultsPageInner() {
             setReportsMap(rMap);
             setOrgSettings(orgRes.data);
 
-            if (prefStudentId) {
-                const s = (sRes.data ?? []).find(x => x.id === prefStudentId);
+            if (prefStudentId && sRes.data) {
+                const s = sRes.data.find((x: any) => x.id === prefStudentId);
                 if (s) selectStudent(s as PortalUser);
             }
+        }).catch(err => {
+            console.error("Results module Promise.all error:", err);
+        }).finally(() => {
             setLoading(false);
         });
-    }, [profile?.id, authLoading, isStaff, profile?.role, profile?.school_id]);
+    }, [profile?.id, authLoading, isStaff, profile?.role, profile?.school_id, prefStudentId]);
 
     async function selectStudent(s: PortalUser) {
         setSelectedStudent(s);
