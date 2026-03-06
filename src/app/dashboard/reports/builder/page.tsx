@@ -85,6 +85,7 @@ function ReportBuilderInner() {
     const [sessionMilestoneInput, setSessionMilestoneInput] = useState('');
     const [currentStudentIdx, setCurrentStudentIdx] = useState<number>(-1);
     const [editSessionOpen, setEditSessionOpen] = useState(false);
+    const [sessionCollapsed, setSessionCollapsed] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const pdfRef = useRef<HTMLDivElement>(null);
@@ -478,15 +479,42 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                 {/* ── Step 0: Session Setup ── */}
                 {step === 'session' && (
                     <div className="space-y-4">
-                        <div className="bg-violet-600/10 border border-violet-500/20 rounded-2xl p-4 flex items-start gap-3">
-                            <Cog6ToothIcon className="w-5 h-5 text-violet-400 flex-shrink-0 mt-0.5" />
-                            <div>
-                                <p className="text-violet-300 font-bold text-sm">Session Setup</p>
-                                <p className="text-violet-300/60 text-xs mt-0.5">Set these fields once — they will apply to every student you grade in this session. You can always edit them later.</p>
+                        {/* Collapsed summary bar */}
+                        {sessionCollapsed ? (
+                            <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 flex items-center gap-3 flex-wrap">
+                                <Cog6ToothIcon className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                                <div className="flex items-center gap-3 flex-1 flex-wrap text-xs text-white/50 gap-y-1">
+                                    <span className="text-white/70 font-semibold">{sessionConfig.report_term}</span>
+                                    {sessionConfig.report_period && <span>· {sessionConfig.report_period}</span>}
+                                    {sessionConfig.course_name && <span>· 📖 <span className="text-white/70 font-semibold">{sessionConfig.course_name}</span></span>}
+                                    {sessionConfig.current_module && <span>· {sessionConfig.current_module}</span>}
+                                    <span>· 👤 {sessionConfig.instructor_name}</span>
+                                    <span>· {sessionConfig.learning_milestones.length} milestones</span>
+                                </div>
+                                <button onClick={() => setSessionCollapsed(false)}
+                                    className="text-xs text-violet-400 hover:text-violet-300 font-bold flex items-center gap-1 flex-shrink-0">
+                                    <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+                                </button>
                             </div>
+                        ) : (
+                        <div className="bg-violet-600/10 border border-violet-500/20 rounded-2xl p-4 flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                                <Cog6ToothIcon className="w-5 h-5 text-violet-400 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-violet-300 font-bold text-sm">Session Setup</p>
+                                    <p className="text-violet-300/60 text-xs mt-0.5">Set these fields once — they apply to every student you grade. Collapse when done.</p>
+                                </div>
+                            </div>
+                            {(sessionConfig.instructor_name || sessionConfig.course_name) && (
+                                <button onClick={() => setSessionCollapsed(true)}
+                                    className="text-xs text-white/30 hover:text-white border border-white/10 px-2 py-1 rounded-lg transition-colors flex-shrink-0">
+                                    Collapse ↑
+                                </button>
+                            )}
                         </div>
+                        )}
 
-                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                        {!sessionCollapsed && <><div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
                             <div className="flex items-center gap-2 px-5 py-3 bg-white/3 border-b border-white/10">
                                 <span>📋</span>
                                 <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">Report Period & Instructor</h3>
@@ -609,10 +637,10 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                                 </div>
                                 <p className="text-white/20 text-[10px]">These milestones will appear on every student's report card in this session.</p>
                             </div>
-                        </div>
+                        </div></> }
 
                         <button
-                            onClick={() => setStep('pick')}
+                            onClick={() => { setSessionCollapsed(true); setStep('pick'); }}
                             className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white font-black text-base rounded-2xl transition-all shadow-lg shadow-violet-900/30 flex items-center justify-center gap-2">
                             <UserGroupIcon className="w-5 h-5" /> Start Grading Students →
                         </button>
