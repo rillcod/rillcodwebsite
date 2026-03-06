@@ -9,7 +9,11 @@
       "Bash(wc:*)",
       "Bash(npm run:*)",
       "Bash(taskkill:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(supabase:*)",
+      "Bash(python:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
