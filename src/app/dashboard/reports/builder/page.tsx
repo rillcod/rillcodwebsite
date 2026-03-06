@@ -388,33 +388,45 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
 
     async function downloadPDF() {
         const element = pdfRef.current;
-        if (!element) return;
+        if (!element) { setError('Report not ready — open Live Preview first.'); return; }
 
         setIsGeneratingPdf(true);
+        setError('');
         try {
+            // Wait a tick so React renders the latest previewData into the capture div
+            await new Promise(r => setTimeout(r, 120));
+
+            // Pre-load all images in the element so html2canvas can capture them
+            const imgs = element.querySelectorAll('img');
+            await Promise.allSettled(
+                Array.from(imgs).map(img =>
+                    img.complete ? Promise.resolve() : new Promise(res => {
+                        img.onload = res; img.onerror = res;
+                    })
+                )
+            );
+
             const canvas = await html2canvas(element, {
                 scale: 2,
                 useCORS: true,
+                allowTaint: false,
                 logging: false,
                 backgroundColor: '#ffffff',
+                width: 794,
+                height: element.scrollHeight,
                 windowWidth: 794,
-                windowHeight: 1123
-            });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
+                windowHeight: element.scrollHeight,
+                x: 0,
+                y: 0,
             });
 
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`Draft_Report_${form.student_name.replace(/\s+/g, '_')}.pdf`);
-        } catch (err) {
+            const imgData = canvas.toDataURL('image/png', 1.0);
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [794, canvas.height / 2] });
+            pdf.addImage(imgData, 'PNG', 0, 0, 794, canvas.height / 2);
+            pdf.save(`Report_${form.student_name.replace(/\s+/g, '_')}_${form.report_term || 'Term'}.pdf`);
+        } catch (err: any) {
             console.error('PDF generation failed:', err);
-            alert('Failed to generate PDF draft.');
+            setError('PDF generation failed: ' + (err?.message ?? 'Unknown error. Try opening Live Preview first.'));
         } finally {
             setIsGeneratingPdf(false);
         }
@@ -1239,19 +1251,17 @@ Generate a professional, insightful 2-3 sentence evaluation for the ${field.repl
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-auto bg-[#1a1a2e]/50 p-12">
-                            <div className="mx-auto" style={{ transform: 'scale(0.85)', transformOrigin: 'top center' }}>
-                                <div className="bg-white shadow-[0_0_100px_rgba(0,0,0,0.5)]">
-                                    <ReportCard report={previewData} orgSettings={branding as any} />
-                                </div>
+                        <div className="flex-1 overflow-auto bg-[#1a1a2e]/50 p-6 md:p-12">
+                            <div className="mx-auto overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)]" style={{ width: 794, maxWidth: '100%' }}>
+                                <ReportCard report={previewData} orgSettings={branding as any} />
                             </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* ── HIDDEN PDF CAPTURE DIV ── */}
-            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+            {/* ── PDF CAPTURE DIV — fixed off-screen but still renderable ── */}
+            <div style={{ position: 'fixed', top: 0, left: 0, width: 794, zIndex: -1, opacity: 0, pointerEvents: 'none' }}>
                 <div ref={pdfRef}>
                     <ReportCard report={previewData} orgSettings={branding as any} />
                 </div>

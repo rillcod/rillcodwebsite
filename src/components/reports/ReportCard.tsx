@@ -93,13 +93,13 @@ export default function ReportCard({ report, orgSettings }: {
     const overall = report.overall_score ?? Math.round(theory * 0.4 + practical * 0.4 + attendance * 0.2);
     const grade = letterGrade(overall);
 
-    const org: OrgSettings = orgSettings || {
-        org_name: 'Rillcod Technologies',
-        org_tagline: 'Excellence in Educational Technology',
-        org_address: '26 Ogiesoba Avenue, GRA, Benin City',
-        org_phone: '08116600091',
-        org_email: 'rillcod@gmail.com',
-        logo_url: null,
+    const org: OrgSettings = {
+        org_name: orgSettings?.org_name || 'Rillcod Technologies',
+        org_tagline: orgSettings?.org_tagline || 'Excellence in Educational Technology',
+        org_address: orgSettings?.org_address || '26 Ogiesoba Avenue, GRA, Benin City',
+        org_phone: orgSettings?.org_phone || '08116600091',
+        org_email: orgSettings?.org_email || 'rillcod@gmail.com',
+        logo_url: orgSettings?.logo_url || '/images/logo.png',
     };
 
     const milestones = Array.isArray(report.learning_milestones) ? report.learning_milestones : [];
@@ -107,8 +107,8 @@ export default function ReportCard({ report, orgSettings }: {
     return (
         <div
             id="report-card"
-            className="bg-white text-gray-900 font-sans shadow-2xl relative overflow-hidden"
-            style={{ width: '210mm', minHeight: '297mm', margin: '0 auto', fontSize: 11, border: '16px solid #1a1a2e' }}
+            className="bg-white text-gray-900 font-sans relative overflow-hidden"
+            style={{ width: 794, minHeight: 1123, margin: '0 auto', fontSize: 11, border: '16px solid #1a1a2e' }}
         >
             {/* Background */}
             <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-50/50 rounded-full blur-3xl -z-10 -mr-40 -mt-40" />
@@ -120,13 +120,13 @@ export default function ReportCard({ report, orgSettings }: {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 skew-x-12 -mr-16" />
                 <div className="flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-6">
-                        {org.logo_url ? (
-                            <img src={org.logo_url} alt="Logo" className="w-20 h-20 object-contain brightness-0 invert" />
-                        ) : (
-                            <div className="w-16 h-16 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-2xl flex items-center justify-center font-black text-3xl italic shadow-2xl shadow-violet-500/20">
-                                R
-                            </div>
-                        )}
+                        <img
+                            src={org.logo_url!}
+                            alt="Logo"
+                            crossOrigin="anonymous"
+                            className="w-20 h-20 object-contain"
+                            onError={e => { (e.target as HTMLImageElement).src = '/images/logo.png'; }}
+                        />
                         <div>
                             <h1 className="text-2xl font-black tracking-tighter uppercase leading-none mb-1">
                                 {org.org_name || 'Rillcod Academy'}
