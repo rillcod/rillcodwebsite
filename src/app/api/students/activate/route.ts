@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     // Fetch the student record
     const { data: student, error: studErr } = await supabaseAdmin
       .from('students')
-      .select('id, full_name, student_email, parent_email, user_id, status, school_id, enrollment_type')
+      .select('id, name, full_name, student_email, parent_email, user_id, status, school_id, enrollment_type')
       .eq('id', studentId)
       .single();
 
@@ -69,12 +69,9 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if this email already has an auth account (Query specifically by email)
-    const { data: { users: matchingUsers }, error: listErr } = await supabaseAdmin.auth.admin.listUsers();
-    // listUsers doesn't support direct email filter in simple JS client, but we can do a better check:
-    const alreadyExists = matchingUsers?.find(u => u.email?.toLowerCase() === loginEmail.toLowerCase());
-
-    if (alreadyExists) {
+    // Check if this email already has an auth account using email filter (avoids loading all users)
+    const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(loginEmail);
+    if (existingUser?.user) {
       return NextResponse.json({
         error: `An account with email ${loginEmail} already exists. If this is the student, update their user_id link manually.`,
       }, { status: 409 });
@@ -100,7 +97,7 @@ export async function POST(req: NextRequest) {
     const { error: profileErr } = await supabaseAdmin.from('portal_users').insert({
       id: portalUserId,
       email: loginEmail,
-      full_name: student.full_name,
+      full_name: student.full_name || student.name || '',
       role: 'student',
       is_active: true,
       school_id: student.school_id ?? null,

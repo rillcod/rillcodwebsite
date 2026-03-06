@@ -1,5 +1,5 @@
 // User Roles and Authentication Types
-export type UserRole = 'admin' | 'teacher' | 'student';
+export type UserRole = 'admin' | 'teacher' | 'student' | 'school';
 
 export interface User {
   id: string;

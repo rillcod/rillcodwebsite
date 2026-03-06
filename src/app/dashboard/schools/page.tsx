@@ -97,7 +97,7 @@ export default function SchoolsPage() {
       try {
         const { data, error: err } = await createClient()
           .from('schools')
-          .select('*')
+          .select('*, portal_users(id, email, full_name)')
           .order('created_at', { ascending: false });
         if (err) throw err;
         if (!cancelled) setSchools(data ?? []);
@@ -448,6 +448,11 @@ export default function SchoolsPage() {
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="font-bold text-white">{s.name}</span>
                         <StatusBadge status={s.status ?? 'pending'} />
+                        {s.portal_users?.length > 0 && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-violet-500/10 text-violet-400 text-[10px] font-black uppercase tracking-tighter rounded-full border border-violet-500/20">
+                            <ShieldCheckIcon className="w-3 h-3" /> Account
+                          </span>
+                        )}
                         {s.school_type && (
                           <span className="text-xs text-white/30 bg-white/5 px-2 py-0.5 rounded-full">{s.school_type}</span>
                         )}

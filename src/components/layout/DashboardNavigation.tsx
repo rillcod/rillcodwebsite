@@ -26,6 +26,7 @@ import {
   XMarkIcon,
   SignalIcon,
   TrophyIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 
 type NavItem = { name: string; href: string; icon: any };
@@ -86,6 +87,7 @@ export default function DashboardNavigation() {
           ...base,
           { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
           { name: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
+          { name: 'Users Management', href: '/dashboard/users', icon: ShieldCheckIcon },
           { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
@@ -148,7 +150,7 @@ export default function DashboardNavigation() {
   };
 
   const navItems = getNavItems();
-  const bottomNavNames = new Set(['Dashboard', 'Courses', 'My Courses', 'Library', 'Messages']);
+  const bottomNavNames = new Set(['Dashboard', 'Courses', 'My Courses', 'My Classes', 'Library', 'Messages']);
   const bottomNavItems = navItems.filter((item) => bottomNavNames.has(item.name)).slice(0, 4);
 
   const handleLogout = () => {

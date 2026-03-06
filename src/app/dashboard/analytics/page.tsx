@@ -66,6 +66,16 @@ export default function AnalyticsPage() {
     </div>
   );
 
+  if (profile?.role !== 'admin') return (
+    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+      <div className="text-center">
+        <ChartBarIcon className="w-12 h-12 mx-auto mb-4 text-white/20" />
+        <h2 className="text-xl font-bold text-white mb-2">Access Restricted</h2>
+        <p className="text-white/40 text-sm">Analytics is only available to administrators.</p>
+      </div>
+    </div>
+  );
+
   const maxEnrollment = Math.max(...programs.map((p: any) => p.enrollments?.length ?? 0), 1);
 
   return (

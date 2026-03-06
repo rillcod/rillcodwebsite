@@ -4337,6 +4337,7 @@ export type Database = {
       }
     }
     Functions: {
+      current_user_role: { Args: never; Returns: string }
       get_at_risk_students: {
         Args: { p_days_inactive?: number; p_school_id?: string }
         Returns: {
@@ -4360,6 +4361,7 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: never; Returns: boolean }
+      is_staff: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

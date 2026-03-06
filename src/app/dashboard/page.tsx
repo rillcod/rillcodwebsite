@@ -5,7 +5,7 @@ import {
   UserGroupIcon, AcademicCapIcon, BookOpenIcon, ChartBarIcon, CogIcon,
   BuildingOfficeIcon, ClipboardDocumentListIcon, PresentationChartLineIcon,
   ClockIcon, CheckCircleIcon, BellIcon, ArrowRightIcon, TrophyIcon,
-  ArrowPathIcon, ExclamationTriangleIcon,
+  ArrowPathIcon, ExclamationTriangleIcon, ShieldCheckIcon, DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -28,17 +28,21 @@ function timeAgo(iso: string | null): string {
 
 /* ── Real-data hooks per role ─────────────────────────── */
 async function loadAdminStats(supabase: ReturnType<typeof createClient>) {
-  const [schools, teachers, students, submissions] = await Promise.allSettled([
+  const [schools, teachers, students, partnerships, submissions] = await Promise.allSettled([
     supabase.from('schools').select('id, status', { count: 'exact', head: true }),
     supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'teacher').eq('is_active', true),
     supabase.from('students').select('id', { count: 'exact', head: true }),
+    supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'school').eq('is_active', true),
     supabase.from('assignment_submissions').select('id, grade', { count: 'exact', head: false }).not('grade', 'is', null),
   ]);
   const totalSchools = schools.status === 'fulfilled' ? (schools.value.count ?? 0) : 0;
   const totalTeachers = teachers.status === 'fulfilled' ? (teachers.value.count ?? 0) : 0;
   const totalStudents = students.status === 'fulfilled' ? (students.value.count ?? 0) : 0;
+  const totalPartners = partnerships.status === 'fulfilled' ? (partnerships.value.count ?? 0) : 0;
+
   return [
     { label: 'Partner Schools', value: totalSchools, icon: BuildingOfficeIcon, gradient: 'from-blue-600 to-blue-400' },
+    { label: 'Partner Accounts', value: totalPartners, icon: ShieldCheckIcon, gradient: 'from-cyan-600 to-cyan-400' },
     { label: 'Active Teachers', value: totalTeachers, icon: AcademicCapIcon, gradient: 'from-violet-600 to-violet-400' },
     { label: 'Total Students', value: totalStudents, icon: UserGroupIcon, gradient: 'from-emerald-600 to-emerald-400' },
     { label: 'Submissions Graded', value: submissions.status === 'fulfilled' ? (submissions.value.count ?? 0) : 0, icon: ChartBarIcon, gradient: 'from-amber-600 to-amber-400' },
@@ -148,6 +152,48 @@ async function loadStudentActivity(supabase: ReturnType<typeof createClient>, us
   }));
 }
 
+async function loadSchoolStats(supabase: ReturnType<typeof createClient>, schoolId: string) {
+  const [students, teachers, graded] = await Promise.allSettled([
+    supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
+    supabase.from('teacher_schools').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
+    supabase.from('assignment_submissions')
+      .select('grade, portal_users!inner(school_id)')
+      .eq('portal_users.school_id', schoolId)
+      .not('grade', 'is', null)
+      .limit(200),
+  ]);
+  const totalStudents = students.status === 'fulfilled' ? (students.value.count ?? 0) : 0;
+  const totalTeachers = teachers.status === 'fulfilled' ? (teachers.value.count ?? 0) : 0;
+  const grades = graded.status === 'fulfilled' ? (graded.value.data ?? []) : [];
+  const avg = grades.length > 0
+    ? Math.round(grades.reduce((s: number, g: any) => s + (Number(g.grade) || 0), 0) / grades.length)
+    : 0;
+
+  return [
+    { label: 'Registered Students', value: totalStudents, icon: UserGroupIcon, gradient: 'from-blue-600 to-blue-400' },
+    { label: 'Assigned Teachers', value: totalTeachers, icon: AcademicCapIcon, gradient: 'from-violet-600 to-violet-400' },
+    { label: 'Student Perf. Avg', value: `${avg}%`, icon: ChartBarIcon, gradient: 'from-emerald-600 to-emerald-400' },
+    { label: 'Submissions Count', value: grades.length, icon: ClipboardDocumentListIcon, gradient: 'from-amber-600 to-amber-400' },
+  ] as DashStats[];
+}
+
+async function loadSchoolActivity(supabase: ReturnType<typeof createClient>, schoolId: string): Promise<Activity[]> {
+  const { data } = await supabase
+    .from('assignment_submissions')
+    .select('id, status, submitted_at, portal_users!inner(full_name, school_id), assignments(title)')
+    .eq('portal_users.school_id', schoolId)
+    .order('submitted_at', { ascending: false })
+    .limit(5);
+  return (data ?? []).map((s: any) => ({
+    id: s.id,
+    title: `${s.portal_users?.full_name ?? 'Student'} submitted`,
+    desc: s.assignments?.title ?? '—',
+    time: timeAgo(s.submitted_at),
+    icon: ClipboardDocumentListIcon,
+    color: 'bg-emerald-500/20 text-emerald-400',
+  }));
+}
+
 /* ── Quick actions by role ────────────────────────────── */
 const QUICK_ACTIONS = {
   admin: [
@@ -217,10 +263,12 @@ export default function DashboardPage() {
       const [s, a] = await Promise.all([
         role === 'admin' ? loadAdminStats(supabase) :
           role === 'teacher' ? loadTeacherStats(supabase, profile.id) :
-            loadStudentStats(supabase, profile.id),
+            role === 'school' ? loadSchoolStats(supabase, profile.school_id!) :
+              loadStudentStats(supabase, profile.id),
         role === 'admin' ? loadAdminActivity(supabase) :
           role === 'teacher' ? loadTeacherActivity(supabase, profile.id) :
-            loadStudentActivity(supabase, profile.id),
+            role === 'school' ? loadSchoolActivity(supabase, profile.school_id!) :
+              loadStudentActivity(supabase, profile.id),
       ]);
       setStats(s);
       setActivities(a);
@@ -260,30 +308,42 @@ export default function DashboardPage() {
     </div>
   );
 
-  // Session exists but profile hasn't resolved yet (or doesn't exist in portal_users)
+  // ── Session exists but profile hasn't resolved yet ────────────────
   if (!profile) return (
-    <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
+    <div className="min-h-screen bg-[#050a17] flex flex-col items-center justify-center p-6 text-center">
       {authHardStop ? (
-        /* Hard stop reached — profile genuinely not found (auth account exists but no portal entry) */
-        <div className="flex flex-col items-center gap-4 text-center px-4">
-          <div className="w-14 h-14 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-center">
-            <ExclamationTriangleIcon className="w-7 h-7 text-rose-400" />
+        <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-500">
+          <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-rose-500/10 mb-2">
+            <ExclamationTriangleIcon className="w-10 h-10 text-rose-400" />
           </div>
-          <div>
-            <p className="text-white font-bold text-lg">Portal account not found</p>
-            <p className="text-white/40 text-sm mt-1 max-w-xs">
-              Your login was successful but no portal profile was found. Contact your administrator.
+          <div className="space-y-2">
+            <h2 className="text-white font-black text-2xl tracking-tight">Portal Insight Required</h2>
+            <p className="text-white/40 text-sm max-w-sm leading-relaxed">
+              Your authentication was successful, but we couldn't resolve your portal privileges in time. This could be a slow connection or a missing profile.
             </p>
           </div>
-          <a href="/login?clear=1"
-            className="mt-1 px-6 py-2.5 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 text-sm font-bold rounded-xl border border-rose-600/30 transition-colors">
-            Sign Out &amp; Try Again
-          </a>
+          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
+            <button onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white text-sm font-bold rounded-2xl border border-white/10 transition-all">
+              Reload Page
+            </button>
+            <a href="/login?clear=1"
+              className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold rounded-2xl transition-all shadow-lg shadow-rose-900/40">
+              Sign Out &amp; Retry
+            </a>
+          </div>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-white/10 border-t-violet-500 rounded-full animate-spin" />
-          <p className="text-white/40 text-sm">Loading profile…</p>
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-white/5 border-t-violet-500 rounded-full animate-spin" />
+            <div className="absolute inset-x-0 -bottom-8 flex justify-center">
+              <span className="text-[10px] font-black text-violet-400 uppercase tracking-[0.2em] animate-pulse">Initializing</span>
+            </div>
+          </div>
+          <div className="mt-4">
+            <p className="text-white/20 text-xs font-medium italic">Fetching secure portal session...</p>
+          </div>
         </div>
       )}
     </div>
@@ -434,7 +494,8 @@ export default function DashboardPage() {
             </div>
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border capitalize ${role === 'admin' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
               role === 'teacher' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
-                'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                role === 'school' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' :
+                  'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
               }`}>{role}</span>
             <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2">
               <Link href="/dashboard/settings"
@@ -487,6 +548,19 @@ export default function DashboardPage() {
                 <Link key={label} href={href}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:bg-white/5 hover:text-white transition-all group">
                   <Icon className="w-4 h-4 group-hover:text-emerald-400 transition-colors" />
+                  {label}
+                  <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+                </Link>
+              ))}
+              {role === 'school' && [
+                { label: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
+                { label: 'Grades', href: '/dashboard/grades', icon: TrophyIcon },
+                { label: 'Reports', href: '/dashboard/results', icon: DocumentTextIcon },
+                { label: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
+              ].map(({ label, href, icon: Icon }) => (
+                <Link key={label} href={href}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:bg-white/5 hover:text-white transition-all group">
+                  <Icon className="w-4 h-4 group-hover:text-violet-400 transition-colors" />
                   {label}
                   <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
                 </Link>

@@ -8,7 +8,7 @@ import {
   ChartBarIcon, UserGroupIcon, AcademicCapIcon, BookOpenIcon,
   ClipboardDocumentListIcon, BuildingOfficeIcon, ArrowTrendingUpIcon,
   ClockIcon, CheckCircleIcon, BellIcon, ArrowRightIcon,
-  TrophyIcon, CalendarIcon,
+  TrophyIcon, CalendarIcon, ShieldCheckIcon, DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 
 export default function OverviewPage() {
@@ -28,10 +28,11 @@ export default function OverviewPage() {
       const supabase = createClient();
       try {
         if (role === 'admin') {
-          const [schools, students, teachers, programs] = await Promise.allSettled([
+          const [schools, students, teachers, partnerships, programs] = await Promise.allSettled([
             supabase.from('schools').select('id', { count: 'exact', head: true }),
             supabase.from('students').select('id', { count: 'exact', head: true }),
             supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'teacher'),
+            supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'school'),
             supabase.from('programs').select('id', { count: 'exact', head: true }),
           ]);
           const [recStudents] = await Promise.allSettled([
@@ -43,6 +44,7 @@ export default function OverviewPage() {
               schools: schools.status === 'fulfilled' ? (schools.value.count ?? 0) : 0,
               students: students.status === 'fulfilled' ? (students.value.count ?? 0) : 0,
               teachers: teachers.status === 'fulfilled' ? (teachers.value.count ?? 0) : 0,
+              partners: partnerships.status === 'fulfilled' ? (partnerships.value.count ?? 0) : 0,
               programs: programs.status === 'fulfilled' ? (programs.value.count ?? 0) : 0,
             });
             setRecentStudents(recStudents.status === 'fulfilled' ? (recStudents.value.data ?? []) : []);
@@ -63,6 +65,28 @@ export default function OverviewPage() {
               pending: pending.status === 'fulfilled' ? (pending.value.count ?? 0) : 0,
             });
             setRecentSubmissions(recSubs.data ?? []);
+          }
+        } else if (role === 'school') {
+          const [sStudents, sTeachers, sGraded] = await Promise.allSettled([
+            supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', profile!.school_id!),
+            supabase.from('teacher_schools').select('id', { count: 'exact', head: true }).eq('school_id', profile!.school_id!),
+            supabase.from('assignment_submissions')
+              .select('id, portal_users!inner(school_id)', { count: 'exact', head: true })
+              .eq('portal_users.school_id', profile!.school_id!)
+              .not('grade', 'is', null),
+          ]);
+          const recent = await supabase.from('assignment_submissions')
+            .select(`id, status, submitted_at, portal_users!inner(full_name, school_id), assignments(title, max_points)`)
+            .eq('portal_users.school_id', profile!.school_id!)
+            .order('submitted_at', { ascending: false }).limit(5);
+
+          if (!cancelled) {
+            setCounts({
+              students: sStudents.status === 'fulfilled' ? (sStudents.value.count ?? 0) : 0,
+              teachers: sTeachers.status === 'fulfilled' ? (sTeachers.value.count ?? 0) : 0,
+              graded: sGraded.status === 'fulfilled' ? (sGraded.value.count ?? 0) : 0,
+            });
+            setRecentSubmissions(recent.data ?? []);
           }
         } else {
           // student
@@ -109,9 +133,9 @@ export default function OverviewPage() {
 
   const adminStats = [
     { label: 'Partner Schools', value: counts.schools ?? 0, icon: BuildingOfficeIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/schools' },
+    { label: 'Partner Accounts', value: counts.partners ?? 0, icon: ShieldCheckIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10', href: '/dashboard/schools' },
     { label: 'Total Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-violet-400', bg: 'bg-violet-500/10', href: '/dashboard/students' },
     { label: 'Teachers', value: counts.teachers ?? 0, icon: AcademicCapIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/teachers' },
-    { label: 'Programmes', value: counts.programs ?? 0, icon: BookOpenIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/courses' },
   ];
 
   const teacherStats = [
@@ -128,7 +152,14 @@ export default function OverviewPage() {
     { label: 'Progress', value: 0, icon: TrophyIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/progress' },
   ];
 
-  const stats = role === 'admin' ? adminStats : role === 'teacher' ? teacherStats : studentStats;
+  const schoolStats = [
+    { label: 'My Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/students' },
+    { label: 'Active Teachers', value: counts.teachers ?? 0, icon: AcademicCapIcon, color: 'text-violet-400', bg: 'bg-violet-500/10', href: '/dashboard/teachers' },
+    { label: 'Graded Results', value: counts.graded ?? 0, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/results' },
+    { label: 'Analytics', value: 0, icon: ChartBarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/analytics' },
+  ];
+
+  const stats = role === 'admin' ? adminStats : role === 'teacher' ? teacherStats : role === 'school' ? schoolStats : studentStats;
 
   const quickLinks = role === 'admin' ? [
     { label: 'Approvals Queue', href: '/dashboard/approvals', icon: ClipboardDocumentListIcon, color: 'bg-violet-600' },
@@ -140,6 +171,11 @@ export default function OverviewPage() {
     { label: 'Assignments', href: '/dashboard/assignments', icon: CalendarIcon, color: 'bg-blue-600' },
     { label: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, color: 'bg-emerald-600' },
     { label: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon, color: 'bg-amber-600' },
+  ] : role === 'school' ? [
+    { label: 'School Registry', href: '/dashboard/schools', icon: BuildingOfficeIcon, color: 'bg-violet-600' },
+    { label: 'Student Roster', href: '/dashboard/students', icon: UserGroupIcon, color: 'bg-blue-600' },
+    { label: 'Exam Results', href: '/dashboard/results', icon: DocumentTextIcon, color: 'bg-emerald-600' },
+    { label: 'Messages', href: '/dashboard/messages', icon: BellIcon, color: 'bg-amber-600' },
   ] : [
     { label: 'My Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, color: 'bg-violet-600' },
     { label: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon, color: 'bg-blue-600' },

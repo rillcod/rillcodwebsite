@@ -95,7 +95,7 @@ function ResultsPageInner() {
         }
 
         // Staff: load students + their reports
-        const q = db.from('portal_users').select('id, full_name, email, school_name, section_class, school_id, photo_url').eq('role', 'student');
+        const q = db.from('portal_users').select('id, full_name, email, school_name, section_class, school_id, profile_image_url').eq('role', 'student');
         const query = (profile.role === 'school' && profile.school_id) ? q.eq('school_id', profile.school_id) : q;
 
         Promise.all([
