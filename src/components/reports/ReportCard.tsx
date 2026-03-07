@@ -204,7 +204,9 @@ export default function ReportCard({ report, orgSettings }: {
                 {/* PROFILE & PERFORMANCE */}
                 <div className="grid grid-cols-12 gap-8">
                     {/* Identity */}
-                    <div className="col-span-4">
+                    <div className="col-span-4 flex flex-col gap-2">
+
+                        {/* Student Participant panel */}
                         <div className="bg-[#1a1a2e] rounded-3xl px-6 py-5">
                             <p className="text-[9px] font-black uppercase tracking-[0.25em] text-white/30 mb-2">Student Participant</p>
                             <p className="text-base font-black text-white leading-tight mb-1">{report.student_name ?? '—'}</p>
@@ -222,21 +224,23 @@ export default function ReportCard({ report, orgSettings }: {
                                     <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Academic Term</p>
                                     <p className="text-[12px] font-bold text-white/80">{report.report_term ?? '—'}</p>
                                 </div>
-                                {report.current_module && (
-                                    <div>
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Current Module</p>
-                                        <p className="text-[12px] font-bold text-white/80">{report.current_module}</p>
-                                    </div>
-                                )}
-                                {report.next_module && (
-                                    <div>
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-violet-400/60">Upcoming Module</p>
-                                        <p className="text-[12px] font-bold text-violet-300/80">{report.next_module}</p>
-                                    </div>
-                                )}
-
                             </div>
                         </div>
+
+                        {/* Module row — separate section, same row, two columns */}
+                        {(report.current_module || report.next_module) && (
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3">
+                                    <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">Current Module</p>
+                                    <p className="text-[11px] font-bold text-gray-800 leading-tight">{report.current_module || '—'}</p>
+                                </div>
+                                <div className="bg-violet-50/80 border border-violet-100 rounded-2xl px-4 py-3">
+                                    <p className="text-[8px] font-black uppercase tracking-widest text-violet-400 mb-1">Upcoming Module</p>
+                                    <p className="text-[11px] font-bold text-violet-700 leading-tight">{report.next_module || '—'}</p>
+                                </div>
+                            </div>
+                        )}
+
                     </div>
 
                     {/* Academic Metrics */}
