@@ -16,8 +16,8 @@ function MetricBar({ label, value, color }: { label: string; value: number; colo
     return (
         <div className="space-y-1.5">
             <div className="flex justify-between items-end">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
-                <span className="text-xs font-black" style={{ color }}>{value}%</span>
+                <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
+                <span className="text-sm font-black" style={{ color }}>{value}%</span>
             </div>
             <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100">
                 <div className="h-full rounded-full" style={{ width: `${value}%`, backgroundColor: color }} />
@@ -29,8 +29,8 @@ function MetricBar({ label, value, color }: { label: string; value: number; colo
 function GradeRow({ label, value }: { label: string; value: string | null | undefined }) {
     return (
         <div className="flex justify-between items-center gap-2">
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest shrink-0">{label}</span>
-            <span className="text-[9px] font-black text-gray-600 bg-white border border-gray-200 rounded-full px-2 py-0.5 text-right leading-tight">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">{label}</span>
+            <span className="text-[10px] font-black text-gray-600 bg-white border border-gray-200 rounded-full px-2 py-0.5 text-right leading-tight">
                 {value ?? '—'}
             </span>
         </div>
@@ -40,7 +40,7 @@ function GradeRow({ label, value }: { label: string; value: string | null | unde
 function SectionHeaderPremium({ title }: { title: string }) {
     return (
         <div className="flex items-center gap-4">
-            <h3 className="text-[11px] font-black text-gray-900 uppercase tracking-[0.15em] shrink-0">{title}</h3>
+            <h3 className="text-[12px] font-black text-gray-900 uppercase tracking-[0.15em] shrink-0">{title}</h3>
             <div className="h-[2px] w-full bg-gray-50 flex items-center">
                 <div className="h-[2px] w-8 bg-violet-600/30" />
             </div>
@@ -51,8 +51,8 @@ function SectionHeaderPremium({ title }: { title: string }) {
 function ReportField({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
     return (
         <div>
-            <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">{label}</p>
-            <p className={`text-[12px] ${bold ? 'font-black' : 'font-bold'} text-gray-900`}>{value}</p>
+            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-0.5">{label}</p>
+            <p className={`text-[13px] ${bold ? 'font-black' : 'font-bold'} text-gray-900`}>{value}</p>
         </div>
     );
 }
@@ -139,7 +139,7 @@ export default function ReportCard({ report, orgSettings }: {
         <div
             id="report-card"
             className="bg-white text-gray-900 font-sans relative overflow-hidden shrink-0 flex flex-col"
-            style={{ width: 794, height: 1123, margin: '0 auto', fontSize: 11, border: '16px solid #1a1a2e', position: 'relative', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+            style={{ width: 794, height: 1123, margin: '0 auto', fontSize: 12, border: '16px solid #1a1a2e', position: 'relative', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
         >
             {/* Background */}
             <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-50/50 rounded-full blur-3xl -z-10 -mr-40 -mt-40 print:opacity-100" />
@@ -147,7 +147,7 @@ export default function ReportCard({ report, orgSettings }: {
             <div className="absolute inset-0 border-[1px] border-gray-100 m-4 pointer-events-none" />
 
             {/* HEADER */}
-            <div className="relative pt-12 pb-8 px-12 bg-[#1a1a2e] text-white">
+            <div className="relative pt-8 pb-6 px-12 bg-[#1a1a2e] text-white">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 skew-x-12 -mr-16" />
                 <div className="flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-6">
@@ -162,14 +162,14 @@ export default function ReportCard({ report, orgSettings }: {
                             <h1 className="text-2xl font-black tracking-tighter uppercase leading-none mb-1">
                                 {org.org_name || 'Rillcod Academy'}
                             </h1>
-                            <p className="text-[10px] font-bold text-violet-400 uppercase tracking-[0.3em] opacity-80">
+                            <p className="text-[11px] font-bold text-violet-400 uppercase tracking-[0.3em] opacity-80">
                                 {org.org_tagline || 'Pioneering Technical Excellence'}
                             </p>
                         </div>
                     </div>
                     <div className="text-right">
                         <div className="inline-block px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full mb-2">
-                            <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Official Record</span>
+                            <span className="text-[11px] font-black text-amber-400 uppercase tracking-widest">Official Record</span>
                         </div>
                         <h2 className="text-3xl font-black text-white/90 uppercase tracking-tighter">Progress Report</h2>
                     </div>
@@ -177,7 +177,7 @@ export default function ReportCard({ report, orgSettings }: {
             </div>
 
             {/* STATS BAR */}
-            <div className="bg-gray-50 border-y border-gray-100 px-12 py-3 flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            <div className="bg-gray-50 border-y border-gray-100 px-12 py-3 flex justify-between items-center text-[11px] font-bold text-gray-400 uppercase tracking-widest">
                 <div className="flex gap-6">
                     <span>ID: <span className="text-gray-900">{report.id?.slice(0, 8).toUpperCase() ?? 'PREVIEW'}</span></span>
                     <span>Date: <span className="text-gray-900">{today}</span></span>
@@ -190,7 +190,7 @@ export default function ReportCard({ report, orgSettings }: {
                         <span className="flex items-center gap-1.5">
                             {report.fee_label && <span className="text-gray-500">{report.fee_label}:</span>}
                             {report.fee_amount && <span className="text-gray-900">₦{report.fee_amount}</span>}
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black"
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black"
                                 style={{ backgroundColor: feeStyle.bg, color: feeStyle.text }}>
                                 {feeStyle.label}
                             </span>
@@ -200,29 +200,29 @@ export default function ReportCard({ report, orgSettings }: {
                 </div>
             </div>
 
-            <div className="flex-1 px-10 py-7 flex flex-col gap-5" style={{ minHeight: 0 }}>
+            <div className="flex-1 px-10 py-6 flex flex-col gap-4" style={{ minHeight: 0 }}>
                 {/* PROFILE & PERFORMANCE */}
-                <div className="grid grid-cols-12 gap-8">
+                <div className="grid grid-cols-12 gap-6" style={{ alignItems: 'stretch' }}>
                     {/* Identity */}
                     <div className="col-span-4 flex flex-col gap-2">
 
                         {/* Student Participant panel */}
                         <div className="bg-[#1a1a2e] rounded-3xl px-6 py-5">
-                            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-white/30 mb-2">Student Participant</p>
-                            <p className="text-base font-black text-white leading-tight mb-1">{report.student_name ?? '—'}</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/30 mb-2">Student Participant</p>
+                            <p className="text-lg font-black text-white leading-tight mb-1">{report.student_name ?? '—'}</p>
                             <div className="h-px bg-white/10 my-2.5" />
                             <div className="space-y-1.5">
                                 <div>
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Programme</p>
-                                    <p className="text-[12px] font-bold text-white/80">{report.course_name ?? '—'}</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Programme</p>
+                                    <p className="text-[13px] font-bold text-white/80">{report.course_name ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Section / Class</p>
-                                    <p className="text-[12px] font-bold text-white/80">{report.section_class ?? '—'}</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Section / Class</p>
+                                    <p className="text-[13px] font-bold text-white/80">{report.section_class ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Academic Term</p>
-                                    <p className="text-[12px] font-bold text-white/80">{report.report_term ?? '—'}</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Academic Term</p>
+                                    <p className="text-[13px] font-bold text-white/80">{report.report_term ?? '—'}</p>
                                 </div>
                             </div>
                         </div>
@@ -230,12 +230,12 @@ export default function ReportCard({ report, orgSettings }: {
                         {/* Modules — stacked, always visible */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                             <div style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 12, padding: '8px 14px' }}>
-                                <p style={{ fontSize: 8, fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>Current Module</p>
-                                <p style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', lineHeight: 1.3 }}>{report.current_module || '—'}</p>
+                                <p style={{ fontSize: 9, fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>Current Module</p>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', lineHeight: 1.3 }}>{report.current_module || '—'}</p>
                             </div>
                             <div style={{ backgroundColor: '#ede9fe', border: '1px solid #c4b5fd', borderRadius: 12, padding: '8px 14px' }}>
-                                <p style={{ fontSize: 8, fontWeight: 900, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>Upcoming Module</p>
-                                <p style={{ fontSize: 12, fontWeight: 700, color: '#4c1d95', lineHeight: 1.3 }}>{report.next_module || '—'}</p>
+                                <p style={{ fontSize: 9, fontWeight: 900, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>Upcoming Module</p>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: '#4c1d95', lineHeight: 1.3 }}>{report.next_module || '—'}</p>
                             </div>
                         </div>
 
@@ -264,7 +264,7 @@ export default function ReportCard({ report, orgSettings }: {
                             <div className="flex flex-col items-center justify-center bg-[#1a1a2e] rounded-[32px] p-6 text-white relative overflow-hidden">
                                 <div className="relative z-10 text-center">
                                     <Sparkles className="w-10 h-10 text-amber-400 mx-auto mb-2" />
-                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">Final Weighted Grade</p>
+                                    <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">Final Weighted Grade</p>
                                     <h3 className="text-8xl font-black text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">{grade.g}</h3>
                                     <div className="mt-4 px-4 py-1.5 bg-white/10 rounded-full border border-white/10">
                                         <span className="text-xs font-black uppercase tracking-widest text-white/80">{grade.label}</span>
@@ -287,7 +287,7 @@ export default function ReportCard({ report, orgSettings }: {
                                     <div className="w-6 h-6 rounded-full bg-violet-600/10 flex items-center justify-center flex-shrink-0">
                                         <CheckIcon className="w-3.5 h-3.5 text-violet-600" />
                                     </div>
-                                    <p className="text-[11.5px] leading-relaxed text-gray-600 font-medium">{m}</p>
+                                    <p className="text-[13px] leading-relaxed text-gray-600 font-medium">{m}</p>
                                 </div>
                             ))}
                         </div>
@@ -295,19 +295,19 @@ export default function ReportCard({ report, orgSettings }: {
                 )}
 
                 {/* EVALUATION */}
-                <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
+                <div className="flex-1 grid grid-cols-2 gap-6" style={{ minHeight: 0, maxHeight: 200 }}>
+                    <div className="flex flex-col gap-2">
                         <SectionHeaderPremium title="Core Strengths" />
-                        <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-2xl">
-                            <p className="text-[10.5px] leading-relaxed text-emerald-900/80 italic font-medium">
+                        <div className="flex-1 p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl">
+                            <p className="text-[12px] leading-relaxed text-emerald-900/80 italic font-medium">
                                 "{report.key_strengths || 'The student shows consistent effort and a dedicated approach to theoretical concepts, displaying high focus during complex sessions.'}"
                             </p>
                         </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="flex flex-col gap-2">
                         <SectionHeaderPremium title="Growth Focus" />
-                        <div className="p-3 bg-amber-50/50 border border-amber-100 rounded-2xl">
-                            <p className="text-[10.5px] leading-relaxed text-amber-900/80 italic font-medium">
+                        <div className="flex-1 p-4 bg-amber-50/50 border border-amber-100 rounded-2xl">
+                            <p className="text-[12px] leading-relaxed text-amber-900/80 italic font-medium">
                                 "{report.areas_for_growth || 'Further immersion in practical projects will help build implementation confidence and speed in real-world environments.'}"
                             </p>
                         </div>
@@ -327,29 +327,29 @@ export default function ReportCard({ report, orgSettings }: {
                 )}
 
                 {/* SIGNATURES & QR */}
-                <div className="mt-4 pt-4 border-t-2 border-gray-100">
+                <div className="pt-4 border-t-2 border-gray-100">
                     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
 
                         {/* Left — signature */}
                         <div style={{ flexShrink: 0 }}>
-                            <p style={{ fontSize: 9, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Signatory Authority</p>
+                            <p style={{ fontSize: 10, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Signatory Authority</p>
                             <img
                                 src="/images/signature.png"
                                 alt="Official Signature"
                                 style={{ height: 56, width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply' }}
                             />
                             <div style={{ width: 180, height: 1, backgroundColor: '#111827', marginBottom: 2 }} />
-                            <p style={{ fontSize: 11, fontWeight: 900, color: '#111827' }}>{report.instructor_name || 'Class Instructor'}</p>
-                            <p style={{ fontSize: 9, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>Head of Academics, Rillcod</p>
+                            <p style={{ fontSize: 12, fontWeight: 900, color: '#111827' }}>{report.instructor_name || 'Class Instructor'}</p>
+                            <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>Head of Academics, Rillcod</p>
                         </div>
 
                         {/* Centre — payment notice, 3 lines, centred */}
                         {report.show_payment_notice && (
                             <div style={{ flex: 1, backgroundColor: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 12, padding: '10px 14px', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 4 }}>
-                                <p style={{ fontSize: 8, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.14em' }}>Next Term Fee Payment</p>
-                                <p style={{ fontSize: 18, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>₦20,000 &nbsp;·&nbsp; RILLCOD LTD</p>
-                                <p style={{ fontSize: 18, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>Providus Bank · <span style={{ color: '#92400e' }}>7901178957</span></p>
-                                <p style={{ fontSize: 8, fontWeight: 700, color: '#b45309' }}>Use student name as reference · Send proof to admin</p>
+                                <p style={{ fontSize: 9, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.14em' }}>Next Term Fee Payment</p>
+                                <p style={{ fontSize: 20, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>₦20,000 &nbsp;·&nbsp; RILLCOD LTD</p>
+                                <p style={{ fontSize: 20, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>Providus Bank · <span style={{ color: '#92400e' }}>7901178957</span></p>
+                                <p style={{ fontSize: 9, fontWeight: 700, color: '#b45309' }}>Use student name as reference · Send proof to admin</p>
                             </div>
                         )}
 
@@ -358,7 +358,7 @@ export default function ReportCard({ report, orgSettings }: {
                             <div style={{ padding: 10, backgroundColor: '#fff', border: '3px solid #f3f4f6', borderRadius: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 6 }}>
                                 <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) ?? 'preview'}`} size={72} />
                             </div>
-                            <p style={{ fontSize: 9, fontWeight: 900, color: '#111827', letterSpacing: '0.25em', textTransform: 'uppercase' }}>
+                            <p style={{ fontSize: 10, fontWeight: 900, color: '#111827', letterSpacing: '0.25em', textTransform: 'uppercase' }}>
                                 VERIFY {report.id?.slice(0, 8).toUpperCase() ?? 'PREVIEW'}
                             </p>
                         </div>
