@@ -129,7 +129,7 @@ function convertModernColor(val: string): string | null {
     if (val.includes('oklab'))      return convertOklab(val);
     if (val.includes('display-p3')) return convertDisplayP3(val);
     if (val.includes('lch('))       return convertLch(val);
-    if (val.includes(' lab(') || val.startsWith('lab(')) return convertLab(val);
+    if (val.includes('lab('))       return convertLab(val);
     return null;
 }
 
@@ -142,6 +142,20 @@ function hasModernColor(val: string): boolean {
         val.includes('lch(') ||
         val.includes('lab(')
     );
+}
+
+/**
+ * Replaces ALL modern color functions inside a raw CSS string (stylesheet text).
+ * html2canvas parses <style> elements directly — so we must sanitize those too,
+ * not just computed inline styles.
+ */
+function replaceColorsInCssText(css: string): string {
+    return css
+        .replace(/oklch\([^)]+\)/gi,           m => convertOklch(m)      ?? m)
+        .replace(/oklab\([^)]+\)/gi,            m => convertOklab(m)      ?? m)
+        .replace(/color\(\s*display-p3[^)]+\)/gi, m => convertDisplayP3(m) ?? m)
+        .replace(/\blch\([^)]+\)/gi,            m => convertLch(m)        ?? m)
+        .replace(/\blab\([^)]+\)/gi,            m => convertLab(m)        ?? m);
 }
 
 // ─── CSS class overrides — first-pass safety net ──────────────────────────────
@@ -229,7 +243,13 @@ export async function generateReportPDF(element: HTMLElement, filename: string):
         x: 0,
         y: 0,
         onclone: (clonedDoc: Document) => {
-            // Pass 1 — inject class-level overrides
+            // Pass 1 — sanitize all <style> element text so html2canvas never
+            // sees oklch/lab/lch/oklab/display-p3 in raw stylesheet text.
+            clonedDoc.querySelectorAll<HTMLStyleElement>('style').forEach(s => {
+                if (s.textContent) s.textContent = replaceColorsInCssText(s.textContent);
+            });
+
+            // Pass 2 — inject class-level hex overrides (fast, covers known classes)
             const style = clonedDoc.createElement('style');
             style.textContent = OKLCH_HEX_OVERRIDES;
             clonedDoc.head.appendChild(style);
@@ -238,7 +258,8 @@ export async function generateReportPDF(element: HTMLElement, filename: string):
             // reflect the overrides we just injected before we walk the DOM.
             void (clonedDoc.documentElement as HTMLElement).offsetHeight;
 
-            // Pass 2 — walk every element and fix remaining oklch values
+            // Pass 3 — walk every element and fix any remaining modern color in
+            // computed inline styles (catches dynamically applied values).
             const win = clonedDoc.defaultView;
             if (!win) return;
 
