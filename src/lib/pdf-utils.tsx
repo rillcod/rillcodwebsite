@@ -1,14 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 import ReportCard from '@/components/reports/ReportCard';
 
-// ─── Modern CSS color → rgba converters ───────────────────────────────────────
-// Tailwind v4 generates oklch(), oklab(), lab(), lch(), and color(display-p3).
-// html2canvas v1 cannot parse any of them. These pure-math converters handle
-// every format so no unsupported color function survives into the canvas.
+// ─── Legacy color converters (kept for reference, no longer used) ─────────────
+// html-to-image uses the browser's native renderer so no conversion is needed.
 
 const sRgbGamma = (c: number) => {
     const abs = Math.abs(c);
@@ -214,13 +212,10 @@ export const OKLCH_HEX_OVERRIDES = `
 `;
 
 // ─── Shared PDF generation ─────────────────────────────────────────────────────
-// Uses a two-pass approach:
-//   1. Inject CSS class overrides (fast, covers known classes)
-//   2. Walk the entire cloned DOM and convert any remaining oklch computed values
-//      to rgba() inline styles using the mathematical converter above.
-// This means NO oklch color can survive into the canvas — works permanently.
+// Uses html-to-image which renders via the browser's native foreignObject SVG
+// renderer — no custom CSS parser, so oklch/lab/lch/display-p3 all work natively.
 export async function generateReportPDF(element: HTMLElement, filename: string): Promise<void> {
-    // Wait for images
+    // Wait for all images to finish loading
     const imgs = element.querySelectorAll('img');
     await Promise.allSettled(
         Array.from(imgs).map(img =>
@@ -230,88 +225,17 @@ export async function generateReportPDF(element: HTMLElement, filename: string):
         )
     );
 
-    const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        backgroundColor: '#ffffff',
+    const dataUrl = await toPng(element, {
+        pixelRatio: 2,
+        cacheBust: true,
+        skipAutoScale: false,
         width: 794,
         height: element.scrollHeight,
-        windowWidth: 794,
-        windowHeight: element.scrollHeight,
-        x: 0,
-        y: 0,
-        onclone: (clonedDoc: Document) => {
-            // Pass 1a — sanitize all <style> element text
-            clonedDoc.querySelectorAll<HTMLStyleElement>('style').forEach(s => {
-                if (s.textContent) s.textContent = replaceColorsInCssText(s.textContent);
-            });
+    });
 
-            // Pass 1b — convert ALL linked stylesheets via CSSOM to sanitized inline <style>
-            // blocks, then remove the <link> tags. html2canvas fetches <link> stylesheets
-            // via XHR and parses raw CSS text with its own parser — which rejects lab()/oklch().
-            // Removing the links after inlining prevents that re-fetch entirely.
-            Array.from(clonedDoc.styleSheets).forEach(sheet => {
-                try {
-                    const rules = Array.from(sheet.cssRules || []);
-                    if (rules.length === 0) return;
-                    const cssText = rules.map(r => r.cssText).join('\n');
-                    const style = clonedDoc.createElement('style');
-                    style.textContent = replaceColorsInCssText(cssText);
-                    clonedDoc.head.appendChild(style);
-                    if (sheet.ownerNode) (sheet.ownerNode as Element).remove();
-                } catch {
-                    // Cross-origin sheets: can't read cssRules — just remove the link
-                    // so html2canvas cannot fetch and parse the raw CSS itself
-                    if (sheet.ownerNode) (sheet.ownerNode as Element).remove();
-                }
-            });
-            // Belt-and-suspenders: remove any <link rel="stylesheet"> that survived
-            clonedDoc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]').forEach(l => l.remove());
-
-            // Pass 2 — inject class-level hex overrides (fast, covers known classes)
-            const style = clonedDoc.createElement('style');
-            style.textContent = OKLCH_HEX_OVERRIDES;
-            clonedDoc.head.appendChild(style);
-
-            // Force a synchronous style recalculation so computed styles
-            // reflect the overrides we just injected before we walk the DOM.
-            void (clonedDoc.documentElement as HTMLElement).offsetHeight;
-
-            // Pass 3 — walk every element and fix any remaining modern color in
-            // computed inline styles (catches dynamically applied values).
-            const win = clonedDoc.defaultView;
-            if (!win) return;
-
-            const COLOR_PROPS = [
-                'color',
-                'background-color',
-                'border-top-color',
-                'border-right-color',
-                'border-bottom-color',
-                'border-left-color',
-                'fill',
-                'stroke',
-            ] as const;
-
-            clonedDoc.querySelectorAll<HTMLElement>('*').forEach(el => {
-                const cs = win.getComputedStyle(el);
-                for (const prop of COLOR_PROPS) {
-                    const val = cs.getPropertyValue(prop);
-                    if (val && hasModernColor(val)) {
-                        const converted = convertModernColor(val);
-                        if (converted) el.style.setProperty(prop, converted, 'important');
-                    }
-                }
-            });
-        },
-    } as any);
-
-    const imgData = canvas.toDataURL('image/png', 1.0);
-    const pdfH = canvas.height / 2; // scale:2 so divide by 2 to get px
+    const pdfH = element.scrollHeight;
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [794, pdfH] });
-    pdf.addImage(imgData, 'PNG', 0, 0, 794, pdfH);
+    pdf.addImage(dataUrl, 'PNG', 0, 0, 794, pdfH);
     pdf.save(filename);
 }
 
