@@ -322,9 +322,10 @@ export default function TimetablePage() {
             {timetables.length > 0 && (
               <div className="flex flex-wrap gap-3">
                 {timetables.map(tt => (
-                  <button key={tt.id}
+                  <div key={tt.id} role="button" tabIndex={0}
                     onClick={() => handleSelectTT(tt.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTimetable === tt.id ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30' : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}`}>
+                    onKeyDown={e => e.key === 'Enter' && handleSelectTT(tt.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${activeTimetable === tt.id ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30' : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}`}>
                     <BuildingOfficeIcon className="w-4 h-4" />
                     <span>{tt.title}</span>
                     {tt.section && <Badge text={tt.section} color="bg-white/10 text-white/50" />}
@@ -341,7 +342,7 @@ export default function TimetablePage() {
                         </button>
                       </span>
                     )}
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
