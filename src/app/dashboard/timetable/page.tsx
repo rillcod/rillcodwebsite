@@ -199,7 +199,7 @@ export default function TimetablePage() {
         day_of_week: slotForm.day_of_week, start_time: slotForm.start_time,
         end_time: slotForm.end_time, subject: slotForm.subject.trim(),
         teacher_id: slotForm.teacher_id || null,
-        teacher_name: teacher?.full_name ?? slotForm.teacher_name.trim() || null,
+        teacher_name: (teacher?.full_name ?? slotForm.teacher_name.trim()) || null,
         room: slotForm.room.trim() || null, notes: slotForm.notes.trim() || null,
         course_id: slotForm.course_id || null,
       };
@@ -258,8 +258,8 @@ export default function TimetablePage() {
             <h1 className="text-3xl font-extrabold">Timetable</h1>
             <p className="text-white/40 text-sm mt-1">
               {isTeacher ? 'Your teaching schedule across all schools' :
-               isStudent ? 'Your class schedule' :
-               'View and manage school timetables'}
+                isStudent ? 'Your class schedule' :
+                  'View and manage school timetables'}
             </p>
           </div>
           {isAdmin && (
