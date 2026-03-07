@@ -200,7 +200,7 @@ export default function ReportCard({ report, orgSettings }: {
                 </div>
             </div>
 
-            <div className="flex-1 p-8 flex flex-col justify-between" style={{ minHeight: 0 }}>
+            <div className="flex-1 px-10 py-7 flex flex-col justify-between" style={{ minHeight: 0 }}>
                 {/* PROFILE & PERFORMANCE */}
                 <div className="grid grid-cols-12 gap-8">
                     {/* Identity */}
