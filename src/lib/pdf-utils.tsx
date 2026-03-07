@@ -243,10 +243,27 @@ export async function generateReportPDF(element: HTMLElement, filename: string):
         x: 0,
         y: 0,
         onclone: (clonedDoc: Document) => {
-            // Pass 1 — sanitize all <style> element text so html2canvas never
-            // sees oklch/lab/lch/oklab/display-p3 in raw stylesheet text.
+            // Pass 1a — sanitize all <style> element text
             clonedDoc.querySelectorAll<HTMLStyleElement>('style').forEach(s => {
                 if (s.textContent) s.textContent = replaceColorsInCssText(s.textContent);
+            });
+
+            // Pass 1b — convert linked stylesheets via CSSOM (Tailwind uses <link> tags,
+            // not <style> elements, so their lab()/oklch() survive Pass 1a otherwise).
+            Array.from(clonedDoc.styleSheets).forEach(sheet => {
+                try {
+                    const rules = Array.from(sheet.cssRules || []);
+                    if (rules.length === 0) return;
+                    const cssText = rules.map(r => r.cssText).join('\n');
+                    if (!hasModernColor(cssText)) return;
+                    // Replace the sheet with a sanitized inline <style>
+                    const style = clonedDoc.createElement('style');
+                    style.textContent = replaceColorsInCssText(cssText);
+                    clonedDoc.head.appendChild(style);
+                    if (sheet.ownerNode) (sheet.ownerNode as Element).remove();
+                } catch {
+                    // Cross-origin sheets throw SecurityError — skip them
+                }
             });
 
             // Pass 2 — inject class-level hex overrides (fast, covers known classes)

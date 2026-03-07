@@ -26,6 +26,15 @@ function MetricBar({ label, value, color }: { label: string; value: number; colo
     );
 }
 
+function GradeRow({ label, value }: { label: string; value: string | null | undefined }) {
+    return (
+        <div className="flex justify-between items-center">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
+            <span className="text-[10px] font-black text-gray-700">{value ?? '—'}</span>
+        </div>
+    );
+}
+
 function SectionHeaderPremium({ title }: { title: string }) {
     return (
         <div className="flex items-center gap-4">
@@ -189,16 +198,16 @@ export default function ReportCard({ report, orgSettings }: {
                 </div>
             </div>
 
-            <div className="p-12 space-y-10">
+            <div className="p-10 space-y-6">
                 {/* PROFILE & PERFORMANCE */}
-                <div className="grid grid-cols-12 gap-10">
+                <div className="grid grid-cols-12 gap-8">
                     {/* Identity */}
-                    <div className="col-span-4 space-y-4">
-                        <div className="bg-[#1a1a2e] rounded-3xl px-6 py-6">
-                            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-white/30 mb-3">Student Participant</p>
+                    <div className="col-span-4">
+                        <div className="bg-[#1a1a2e] rounded-3xl px-6 py-5">
+                            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-white/30 mb-2">Student Participant</p>
                             <p className="text-base font-black text-white leading-tight mb-1">{report.student_name ?? '—'}</p>
-                            <div className="h-px bg-white/10 my-3" />
-                            <div className="space-y-2">
+                            <div className="h-px bg-white/10 my-2.5" />
+                            <div className="space-y-1.5">
                                 <div>
                                     <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Programme</p>
                                     <p className="text-[12px] font-bold text-white/80">{report.course_name ?? '—'}</p>
@@ -219,35 +228,27 @@ export default function ReportCard({ report, orgSettings }: {
                                 )}
                                 {report.next_module && (
                                     <div>
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-violet-400/60">Next Module</p>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-violet-400/60">Upcoming Module</p>
                                         <p className="text-[12px] font-bold text-violet-300/80">{report.next_module}</p>
                                     </div>
                                 )}
+
                             </div>
                         </div>
                     </div>
 
                     {/* Academic Metrics */}
-                    <div className="col-span-8 flex flex-col">
+                    <div className="col-span-8 flex flex-col gap-4">
                         <SectionHeaderPremium title="Final Performance Assessment" />
-                        <div className="flex-1 mt-6 grid grid-cols-2 gap-8">
-                            <div className="space-y-6">
+                        <div className="flex-1 grid grid-cols-2 gap-6">
+                            <div className="space-y-4">
                                 <MetricBar label="Theory (40%)" value={theory} color="#6366f1" />
                                 <MetricBar label="Practical (40%)" value={practical} color="#10b981" />
                                 <MetricBar label="Attendance (20%)" value={attendance} color="#f59e0b" />
-                                <div className="grid grid-cols-3 gap-3 mt-6">
-                                    <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                                        <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Participation</p>
-                                        <p className="text-xs font-bold text-gray-900">{report.participation_grade ?? '—'}</p>
-                                    </div>
-                                    <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                                        <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Scale Project</p>
-                                        <p className="text-xs font-bold text-gray-900">{report.projects_grade ?? '—'}</p>
-                                    </div>
-                                    <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                                        <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Homework</p>
-                                        <p className="text-xs font-bold text-gray-900">{report.homework_grade ?? '—'}</p>
-                                    </div>
+                                <div className="border-t border-gray-100 pt-3 space-y-2.5">
+                                    <GradeRow label="Participation"  value={report.participation_grade} />
+                                    <GradeRow label="Scale Project"  value={report.projects_grade} />
+                                    <GradeRow label="Homework"       value={report.homework_grade} />
                                 </div>
                             </div>
                             <div className="flex flex-col items-center justify-center bg-[#1a1a2e] rounded-[32px] p-6 text-white relative overflow-hidden">
@@ -262,6 +263,7 @@ export default function ReportCard({ report, orgSettings }: {
                                 </div>
                             </div>
                         </div>
+
                     </div>
                 </div>
 
@@ -269,7 +271,7 @@ export default function ReportCard({ report, orgSettings }: {
                 {milestones.length > 0 && (
                     <div className="relative">
                         <SectionHeaderPremium title="Learning Milestones & Objectives" />
-                        <div className="mt-6 grid grid-cols-2 gap-x-12 gap-y-4">
+                        <div className="mt-4 grid grid-cols-2 gap-x-10 gap-y-3">
                             {milestones.map((m, i) => (
                                 <div key={i} className="flex gap-4 group">
                                     <div className="w-6 h-6 rounded-full bg-violet-600/10 flex items-center justify-center flex-shrink-0">
@@ -283,19 +285,19 @@ export default function ReportCard({ report, orgSettings }: {
                 )}
 
                 {/* EVALUATION */}
-                <div className="grid grid-cols-2 gap-10">
-                    <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-3">
                         <SectionHeaderPremium title="Core Strengths" />
-                        <div className="p-5 bg-emerald-50/50 border border-emerald-100 rounded-3xl min-h-[120px]">
-                            <p className="text-[11.5px] leading-relaxed text-emerald-900/80 italic font-medium">
+                        <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-3xl min-h-[100px]">
+                            <p className="text-[11px] leading-relaxed text-emerald-900/80 italic font-medium">
                                 "{report.key_strengths || 'The student shows consistent effort and a dedicated approach to theoretical concepts, displaying high focus during complex sessions.'}"
                             </p>
                         </div>
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         <SectionHeaderPremium title="Growth Focus" />
-                        <div className="p-5 bg-amber-50/50 border border-amber-100 rounded-3xl min-h-[120px]">
-                            <p className="text-[11.5px] leading-relaxed text-amber-900/80 italic font-medium">
+                        <div className="p-4 bg-amber-50/50 border border-amber-100 rounded-3xl min-h-[100px]">
+                            <p className="text-[11px] leading-relaxed text-amber-900/80 italic font-medium">
                                 "{report.areas_for_growth || 'Further immersion in practical projects will help build implementation confidence and speed in real-world environments.'}"
                             </p>
                         </div>
@@ -314,54 +316,43 @@ export default function ReportCard({ report, orgSettings }: {
                     </div>
                 )}
 
-                {/* SIGNATURES & QR */}
-                <div className="pt-8 border-t-2 border-gray-100 space-y-6">
+                {/* SIGNATURES & QR — payment notice sits in the centre column, no extra vertical space */}
+                <div className="pt-5 border-t-2 border-gray-100">
+                    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
 
-                    {/* Next-term payment notice — shown only when toggled on */}
-                    {report.show_payment_notice && (
-                        <div style={{ backgroundColor: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 16, padding: '12px 20px' }}
-                            className="flex items-center justify-between gap-6">
-                            <div>
-                                <p style={{ fontSize: 9, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 4 }}>
-                                    Next Term Fee Payment
-                                </p>
-                                <p style={{ fontSize: 15, fontWeight: 900, color: '#78350f' }}>₦20,000 — RILLCOD LTD</p>
-                                <p style={{ fontSize: 10, color: '#a16207', marginTop: 2 }}>
-                                    Providus Bank &nbsp;·&nbsp; Account No: <strong>7901178957</strong>
-                                </p>
-                            </div>
-                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                <p style={{ fontSize: 9, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                                    Use student name as reference
-                                </p>
-                                <p style={{ fontSize: 9, color: '#a16207', marginTop: 2 }}>Send proof to school admin</p>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex items-end justify-between">
-                        <div className="space-y-2">
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Signatory Authority</p>
+                        {/* Left — signature */}
+                        <div style={{ flexShrink: 0 }}>
+                            <p style={{ fontSize: 9, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Signatory Authority</p>
                             <img
                                 src="/images/signature.png"
                                 alt="Official Signature"
-                                className="h-16 w-auto object-contain"
-                                style={{ mixBlendMode: 'multiply' }}
+                                style={{ height: 56, width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply' }}
                             />
-                            <div className="space-y-0.5">
-                                <div className="w-48 h-[1px] bg-gray-900" />
-                                <p className="text-xs font-black text-gray-900">{report.instructor_name || 'Class Instructor'}</p>
-                                <p className="text-[9px] font-bold text-gray-400 uppercase">Head of Academics, Rillcod</p>
-                            </div>
+                            <div style={{ width: 180, height: 1, backgroundColor: '#111827', marginBottom: 2 }} />
+                            <p style={{ fontSize: 11, fontWeight: 900, color: '#111827' }}>{report.instructor_name || 'Class Instructor'}</p>
+                            <p style={{ fontSize: 9, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>Head of Academics, Rillcod</p>
                         </div>
-                        <div className="flex flex-col items-center">
-                            <div className="p-3 bg-white border-4 border-gray-50 rounded-[32px] shadow-sm mb-4">
-                                <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) ?? 'preview'}`} size={80} />
+
+                        {/* Centre — compact payment notice (only when enabled, takes no space otherwise) */}
+                        {report.show_payment_notice && (
+                            <div style={{ flex: 1, backgroundColor: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 12, padding: '8px 14px', alignSelf: 'flex-end', marginBottom: 2 }}>
+                                <p style={{ fontSize: 8, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 3 }}>Next Term Fee Payment</p>
+                                <p style={{ fontSize: 13, fontWeight: 900, color: '#78350f', lineHeight: 1.2 }}>₦20,000 · RILLCOD LTD</p>
+                                <p style={{ fontSize: 9, color: '#a16207', marginTop: 2 }}>Providus Bank · Acct: <strong>7901178957</strong></p>
+                                <p style={{ fontSize: 8, color: '#b45309', marginTop: 3 }}>Use student name as reference · Send proof to admin</p>
                             </div>
-                            <p className="text-[10px] font-black text-gray-900 tracking-[0.3em] uppercase">
+                        )}
+
+                        {/* Right — QR */}
+                        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div style={{ padding: 10, backgroundColor: '#fff', border: '3px solid #f3f4f6', borderRadius: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 6 }}>
+                                <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) ?? 'preview'}`} size={72} />
+                            </div>
+                            <p style={{ fontSize: 9, fontWeight: 900, color: '#111827', letterSpacing: '0.25em', textTransform: 'uppercase' }}>
                                 VERIFY {report.id?.slice(0, 8).toUpperCase() ?? 'PREVIEW'}
                             </p>
                         </div>
+
                     </div>
                 </div>
             </div>
