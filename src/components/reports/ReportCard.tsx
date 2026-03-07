@@ -1,8 +1,24 @@
 'use client';
 
 import { CheckIcon } from '@heroicons/react/24/outline';
-import { Crown, Sparkles } from 'lucide-react';
 import QRCode from 'react-qr-code';
+
+function SparklesIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+            <path d="M18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
+        </svg>
+    );
+}
+
+function CrownIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
+        </svg>
+    );
+}
 
 export function letterGrade(pct: number) {
     if (pct >= 85) return { g: 'A', label: 'Excellent', color: '#1a6b3c' };
@@ -263,7 +279,7 @@ export default function ReportCard({ report, orgSettings }: {
                             {/* Right — weighted grade display */}
                             <div className="flex flex-col items-center justify-center bg-[#1a1a2e] rounded-[32px] p-6 text-white relative overflow-hidden">
                                 <div className="relative z-10 text-center">
-                                    <Sparkles className="w-10 h-10 text-amber-400 mx-auto mb-2" />
+                                    <SparklesIcon className="w-10 h-10 text-amber-400 mx-auto mb-2" />
                                     <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">Final Weighted Grade</p>
                                     <h3 className="text-8xl font-black text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">{grade.g}</h3>
                                     <div className="mt-4 px-4 py-1.5 bg-white/10 rounded-full border border-white/10">
@@ -318,7 +334,7 @@ export default function ReportCard({ report, orgSettings }: {
                 {report.has_certificate && (
                     <div className="bg-gradient-to-r from-[#1a1a2e] to-[#252545] rounded-[40px] p-8 text-white relative overflow-hidden text-center shadow-2xl">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 -mr-12 -mt-12 rounded-full" />
-                        <Crown className="w-10 h-10 text-amber-400 mx-auto mb-4" />
+                        <CrownIcon className="w-10 h-10 text-amber-400 mx-auto mb-4" />
                         <h4 className="text-xl font-black uppercase tracking-[0.2em] mb-3">Academic Excellence Award</h4>
                         <p className="text-sm text-white/60 leading-relaxed max-w-2xl mx-auto italic font-medium">
                             {report.certificate_text || `This document officially recognizes that ${report.student_name} has successfully completed the intensive study programme in ${report.course_name}.`}
