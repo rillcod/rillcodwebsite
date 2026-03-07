@@ -1,7 +1,7 @@
 'use client';
 
 import { CheckIcon } from '@heroicons/react/24/outline';
-import { Crown, Sparkles, UserCheck } from 'lucide-react';
+import { Crown, Sparkles } from 'lucide-react';
 import QRCode from 'react-qr-code';
 
 export function letterGrade(pct: number) {
@@ -99,7 +99,6 @@ export default function ReportCard({ report, orgSettings }: {
         ? new Date(report.report_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
         : '—';
 
-    const hasPhoto = !!report.photo_url;
     const hasPayment = !!report.fee_status;
     const feeStyle = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
 
@@ -189,40 +188,25 @@ export default function ReportCard({ report, orgSettings }: {
                 {/* PROFILE & PERFORMANCE */}
                 <div className="grid grid-cols-12 gap-10">
                     {/* Identity */}
-                    <div className="col-span-4 space-y-6">
-                        {/* Photo — only rendered when the student has an actual profile picture */}
-                        {hasPhoto && (
-                            <div className="relative">
-                                <div className="w-full aspect-[4/5] bg-gray-50 border-4 border-white rounded-3xl shadow-xl overflow-hidden">
-                                    <img src={report.photo_url!} alt="Student" className="w-full h-full object-cover" />
+                    <div className="col-span-4 space-y-4">
+                        <div className="bg-[#1a1a2e] rounded-3xl px-6 py-6">
+                            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-white/30 mb-3">Student Participant</p>
+                            <p className="text-base font-black text-white leading-tight mb-1">{report.student_name ?? '—'}</p>
+                            <div className="h-px bg-white/10 my-3" />
+                            <div className="space-y-2">
+                                <div>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Programme</p>
+                                    <p className="text-[12px] font-bold text-white/80">{report.course_name ?? '—'}</p>
                                 </div>
-                                <div className="absolute -bottom-3 -right-3 w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center border border-gray-50">
-                                    <Crown className="w-6 h-6 text-amber-500" />
+                                <div>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Section / Class</p>
+                                    <p className="text-[12px] font-bold text-white/80">{report.section_class ?? '—'}</p>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* When no photo, show a compact identity badge instead */}
-                        {!hasPhoto && (
-                            <div className="relative bg-[#1a1a2e] rounded-3xl px-6 py-8 text-center">
-                                <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-3">
-                                    <UserCheck className="w-8 h-8 text-white/40" />
-                                </div>
-                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/30 mb-1">Student</p>
-                                <p className="text-sm font-black text-white leading-tight">{report.student_name ?? '—'}</p>
-                                <div className="absolute -bottom-3 -right-3 w-10 h-10 bg-white rounded-2xl shadow-lg flex items-center justify-center border border-gray-50">
-                                    <Crown className="w-5 h-5 text-amber-500" />
+                                <div>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Academic Term</p>
+                                    <p className="text-[12px] font-bold text-white/80">{report.report_term ?? '—'}</p>
                                 </div>
                             </div>
-                        )}
-
-                        <div className="space-y-4">
-                            {hasPhoto && (
-                                <ReportField label="Student Participant" value={report.student_name ?? '—'} bold />
-                            )}
-                            <ReportField label="Enrolled Programme" value={report.course_name ?? '—'} />
-                            <ReportField label="Section / Class" value={report.section_class ?? '—'} />
-                            <ReportField label="Academic Term" value={report.report_term ?? '—'} />
                         </div>
                     </div>
 
