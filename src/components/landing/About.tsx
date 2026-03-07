@@ -1,5 +1,5 @@
 import React from 'react';
-import { Code, Brain, Globe, Heart } from 'lucide-react';
+import { Code, Brain, Globe, Heart, TrendingUp } from 'lucide-react';
 
 const pillars = [
   {
@@ -15,10 +15,16 @@ const pillars = [
     accent: 'bg-blue-600',
   },
   {
+    icon: TrendingUp,
+    title: 'Digital Entrepreneurship',
+    desc: 'Equipping students with business thinking, digital skills, and the confidence to build products and start ventures.',
+    accent: 'bg-green-600',
+  },
+  {
     icon: Globe,
     title: 'Global Impact',
     desc: 'Our students win international competitions and build solutions for local community challenges.',
-    accent: 'bg-green-600',
+    accent: 'bg-teal-600',
   },
   {
     icon: Heart,
@@ -55,7 +61,7 @@ const About: React.FC = () => {
             </h2>
           </div>
           <p className="text-white/50 max-w-sm text-sm leading-relaxed font-medium">
-            We&apos;re on a mission to transform Nigeria&apos;s future by equipping young minds with cutting-edge technology skills — directly integrated into their schools.
+            From Basic 1 through SS3 — we equip every Nigerian child with cutting-edge technology, coding, and digital entrepreneurship skills, directly inside their schools.
           </p>
         </div>
 
@@ -70,7 +76,7 @@ const About: React.FC = () => {
               <div>
                 <h3 className="text-[10px] font-black text-[#FF914D] mb-4 uppercase tracking-[0.2em]">Our Story</h3>
                 <p className="text-white/60 leading-relaxed text-sm font-medium">
-                  Rillcod Academy is a subsidiary of Rillcod Technologies, founded by young Nigerian professionals passionate about bridging the digital divide. We believe every Nigerian child deserves access to world-class STEM education that prepares them for the global stage.
+                  Rillcod Academy is a subsidiary of Rillcod Technologies, founded by young Nigerian professionals passionate about bridging the digital divide. We serve students from Basic 1 through SS3 — primary and secondary — offering coding, robotics, AI, and digital entrepreneurship programmes delivered directly inside partner schools by expert tutors.
                 </p>
               </div>
 
@@ -91,7 +97,7 @@ const About: React.FC = () => {
           </div>
 
           {/* Pillars Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 content-start">
             {pillars.map(({ icon: Icon, title, desc, accent }) => (
               <div
                 key={title}

@@ -192,8 +192,8 @@ const Navigation = () => {
 
             {/* ── Logo ── */}
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-10 h-10 flex-shrink-0 overflow-hidden rounded-lg">
-                <Image src="/images/logo.png" alt="Rillcod Academy" width={40} height={40} className="w-full h-full object-contain" />
+              <div suppressHydrationWarning className="w-10 h-10 flex-shrink-0 overflow-hidden rounded-lg">
+                <Image src="/images/logo.png" alt="Rillcod Academy" width={40} height={40} className="w-full h-full object-contain" suppressHydrationWarning />
               </div>
               <div className="hidden sm:block">
                 <span className={`text-base font-extrabold uppercase tracking-tight leading-none block ${isScrolled ? 'text-gray-900' : 'text-white'}`}>

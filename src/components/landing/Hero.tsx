@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { School, Users, ArrowRight, Code2, Cpu, Zap, LogIn } from 'lucide-react';
+import { School, Users, ArrowRight, Code2, Cpu, Zap, LogIn, TrendingUp } from 'lucide-react';
 
 const stats = [
   { value: '500+', label: 'Students Trained' },
@@ -48,8 +48,9 @@ const Hero: React.FC = () => {
             </h1>
 
             <p className="text-lg text-white/50 max-w-xl mx-auto lg:mx-0 mb-10 leading-relaxed font-medium">
-              Rillcod Academy empowers Nigerian kids from JSS1 to SS3 with hands-on coding,
-              robotics, and STEM skills — inside their own schools, taught by expert tutors.
+              Rillcod Academy empowers Nigerian kids from Basic 1 to SS3 with hands-on coding,
+              robotics, digital entrepreneurship, and STEM skills — inside their own schools,
+              taught by expert tutors.
             </p>
 
             {/* CTA Buttons */}
@@ -92,10 +93,10 @@ const Hero: React.FC = () => {
           {/* RIGHT: Feature cards */}
           <div className="flex-1 hidden lg:grid grid-cols-2 gap-4 w-full max-w-md">
             {[
-              { icon: Code2, label: 'Python & JavaScript', bg: 'bg-[#FF914D]' },
-              { icon: Cpu, label: 'Robotics & AI', bg: 'bg-blue-600' },
-              { icon: School, label: 'In-School Classes', bg: 'bg-green-500' },
-              { icon: Zap, label: 'Competitions & Awards', bg: 'bg-purple-600' },
+              { icon: Code2,       label: 'Python & JavaScript',       bg: 'bg-[#FF914D]' },
+              { icon: Cpu,         label: 'Robotics & AI',              bg: 'bg-blue-600'  },
+              { icon: TrendingUp,  label: 'Digital Entrepreneurship',   bg: 'bg-green-500' },
+              { icon: Zap,         label: 'Basic 1 – SS3 Programmes',   bg: 'bg-purple-600' },
             ].map(({ icon: Icon, label, bg }) => (
               <div
                 key={label}
