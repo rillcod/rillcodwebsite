@@ -200,7 +200,7 @@ export default function ReportCard({ report, orgSettings }: {
                 </div>
             </div>
 
-            <div className="p-10 space-y-6">
+            <div className="p-10 flex flex-col justify-between" style={{ height: 'calc(1123px - 32px - 138px - 46px)' }}>
                 {/* PROFILE & PERFORMANCE */}
                 <div className="grid grid-cols-12 gap-8">
                     {/* Identity */}
