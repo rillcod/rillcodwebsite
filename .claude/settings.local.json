@@ -13,7 +13,9 @@
       "Bash(supabase:*)",
       "Bash(python:*)",
       "Bash(npm install:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(ls:*)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }

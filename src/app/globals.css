@@ -108,6 +108,11 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/* ── Signature blend mode — removes white bg on light backgrounds ── */
+img[alt="Official Signature"] {
+  mix-blend-mode: multiply;
+}
+
 /* ── Print / PDF ────────────────────────────────────────────── */
 @media print {
   @page {
@@ -120,7 +125,8 @@
     print-color-adjust: exact !important;
   }
 
-  /* ── Comprehensive oklch → hex fallbacks for Tailwind v4 (window.print) ── */
+  /* ── Comprehensive color-function → hex fallbacks for Tailwind v4 (window.print) ── */
+  /* Covers oklch(), lab(), oklab(), lch(), color(display-p3) — all unsupported by print engines */
   /* Grays */
   .bg-white      { background-color: #ffffff !important; }
   .bg-gray-50    { background-color: #f9fafb !important; }

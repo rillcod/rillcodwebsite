@@ -5,54 +5,143 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import ReportCard from '@/components/reports/ReportCard';
 
-// ─── oklch → rgba converter ────────────────────────────────────────────────────
-// Tailwind v4 generates all colors as oklch(). html2canvas v1 cannot parse them.
-// This pure-math converter handles ANY oklch value so we never miss a color.
-function oklchToRgba(str: string): string | null {
+// ─── Modern CSS color → rgba converters ───────────────────────────────────────
+// Tailwind v4 generates oklch(), oklab(), lab(), lch(), and color(display-p3).
+// html2canvas v1 cannot parse any of them. These pure-math converters handle
+// every format so no unsupported color function survives into the canvas.
+
+const sRgbGamma = (c: number) => {
+    const abs = Math.abs(c);
+    return abs <= 0.0031308
+        ? c * 12.92
+        : Math.sign(c) * (1.055 * abs ** (1 / 2.4) - 0.055);
+};
+const clamp8 = (v: number) => Math.round(Math.max(0, Math.min(255, v * 255)));
+const pctAlpha = (s: string | undefined) => {
+    if (s === undefined) return 1;
+    const n = parseFloat(s);
+    return s.endsWith('%') ? n / 100 : n;
+};
+const toRgbStr = (r: number, g: number, b: number, a: number) =>
+    a < 1 ? `rgba(${r},${g},${b},${+a.toFixed(4)})` : `rgb(${r},${g},${b})`;
+
+/** oklch / oklab shared LMS → linear sRGB matrix */
+function oklabLinear(L: number, a: number, b: number) {
+    const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+    const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+    const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+    const lc = l_ ** 3, mc = m_ ** 3, sc = s_ ** 3;
+    return [
+         4.0767416621 * lc - 3.3077115913 * mc + 0.2309699292 * sc,
+        -1.2684380046 * lc + 2.6097574011 * mc - 0.3413193965 * sc,
+        -0.0041960863 * lc - 0.7034186147 * mc + 1.7076147010 * sc,
+    ];
+}
+
+function convertOklch(str: string): string | null {
     const m = str.match(
         /oklch\(\s*([\d.]+%?)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)/i
     );
     if (!m) return null;
-
-    let L = parseFloat(m[1]);
-    if (m[1].endsWith('%')) L /= 100;
+    let L = parseFloat(m[1]); if (m[1].endsWith('%')) L /= 100;
     const C = parseFloat(m[2]);
     const H = parseFloat(m[3]) * (Math.PI / 180);
-    let alpha = m[4] !== undefined ? parseFloat(m[4]) : 1;
-    if (m[4]?.endsWith('%')) alpha /= 100;
+    const alpha = pctAlpha(m[4]);
+    const [lr, lg, lb] = oklabLinear(L, C * Math.cos(H), C * Math.sin(H));
+    return toRgbStr(clamp8(sRgbGamma(lr)), clamp8(sRgbGamma(lg)), clamp8(sRgbGamma(lb)), alpha);
+}
 
-    // oklch → oklab
-    const a = C * Math.cos(H);
-    const b = C * Math.sin(H);
+function convertOklab(str: string): string | null {
+    const m = str.match(
+        /oklab\(\s*([\d.]+%?)\s+([-\d.]+)\s+([-\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)/i
+    );
+    if (!m) return null;
+    let L = parseFloat(m[1]); if (m[1].endsWith('%')) L /= 100;
+    const alpha = pctAlpha(m[4]);
+    const [lr, lg, lb] = oklabLinear(L, parseFloat(m[2]), parseFloat(m[3]));
+    return toRgbStr(clamp8(sRgbGamma(lr)), clamp8(sRgbGamma(lg)), clamp8(sRgbGamma(lb)), alpha);
+}
 
-    // oklab → LMS cone coords
-    const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
-    const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
-    const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
-    const lc = l_ ** 3;
-    const mc = m_ ** 3;
-    const sc = s_ ** 3;
+/** CIE lab f-function inverse */
+const labF = (t: number) => t > 6 / 29 ? t ** 3 : 3 * (6 / 29) ** 2 * (t - 4 / 29);
+/** D50 reference white in XYZ */
+const D50 = [0.3457 / 0.3585, 1.0, (1 - 0.3457 - 0.3585) / 0.3585];
 
-    // LMS → linear sRGB
-    const lr =  4.0767416621 * lc - 3.3077115913 * mc + 0.2309699292 * sc;
-    const lg = -1.2684380046 * lc + 2.6097574011 * mc - 0.3413193965 * sc;
-    const lb = -0.0041960863 * lc - 0.7034186147 * mc + 1.7076147010 * sc;
+function labToLinearSrgb(L: number, a: number, b: number): [number, number, number] {
+    const fy = (L + 16) / 116;
+    const X = labF(fy + a / 500) * D50[0];
+    const Y = labF(fy) * D50[1];
+    const Z = labF(fy - b / 200) * D50[2];
+    // XYZ D50 → linear sRGB (Bradford D50→D65 + sRGB matrix combined)
+    return [
+         3.1338561 * X - 1.6168667 * Y - 0.4906146 * Z,
+        -0.9787684 * X + 1.9161415 * Y + 0.0334540 * Z,
+         0.0719453 * X - 0.2289914 * Y + 1.4052427 * Z,
+    ];
+}
 
-    // linear → sRGB gamma
-    const gamma = (c: number) => {
-        const abs = Math.abs(c);
-        return abs <= 0.0031308
-            ? c * 12.92
-            : Math.sign(c) * (1.055 * abs ** (1 / 2.4) - 0.055);
-    };
+function convertLab(str: string): string | null {
+    const m = str.match(
+        /\blab\(\s*([\d.]+%?)\s+([-\d.]+%?)\s+([-\d.]+%?)(?:\s*\/\s*([\d.]+%?))?\s*\)/i
+    );
+    if (!m) return null;
+    const L = parseFloat(m[1]);
+    const a = parseFloat(m[2]) * (m[2].endsWith('%') ? 1.25 : 1);
+    const b = parseFloat(m[3]) * (m[3].endsWith('%') ? 1.25 : 1);
+    const alpha = pctAlpha(m[4]);
+    const [lr, lg, lb] = labToLinearSrgb(L, a, b);
+    return toRgbStr(clamp8(sRgbGamma(lr)), clamp8(sRgbGamma(lg)), clamp8(sRgbGamma(lb)), alpha);
+}
 
-    const R = Math.round(Math.max(0, Math.min(255, gamma(lr) * 255)));
-    const G = Math.round(Math.max(0, Math.min(255, gamma(lg) * 255)));
-    const B = Math.round(Math.max(0, Math.min(255, gamma(lb) * 255)));
+function convertLch(str: string): string | null {
+    const m = str.match(
+        /\blch\(\s*([\d.]+%?)\s+([\d.]+%?)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)/i
+    );
+    if (!m) return null;
+    const L = parseFloat(m[1]);
+    const C = parseFloat(m[2]) * (m[2].endsWith('%') ? 1.5 : 1);
+    const H = parseFloat(m[3]) * (Math.PI / 180);
+    const alpha = pctAlpha(m[4]);
+    const [lr, lg, lb] = labToLinearSrgb(L, C * Math.cos(H), C * Math.sin(H));
+    return toRgbStr(clamp8(sRgbGamma(lr)), clamp8(sRgbGamma(lg)), clamp8(sRgbGamma(lb)), alpha);
+}
 
-    return alpha < 1
-        ? `rgba(${R},${G},${B},${+alpha.toFixed(4)})`
-        : `rgb(${R},${G},${B})`;
+function convertDisplayP3(str: string): string | null {
+    const m = str.match(
+        /color\(\s*display-p3\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\s*\)/i
+    );
+    if (!m) return null;
+    const decode = (c: number) => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    const alpha = pctAlpha(m[4]);
+    const lr = decode(parseFloat(m[1]));
+    const lg = decode(parseFloat(m[2]));
+    const lb = decode(parseFloat(m[3]));
+    // P3 → linear sRGB matrix
+    const R =  1.2249401 * lr - 0.2249401 * lg;
+    const G = -0.0420569 * lr + 1.0420569 * lg;
+    const B = -0.0196376 * lr - 0.0786361 * lg + 1.0982735 * lb;
+    return toRgbStr(clamp8(sRgbGamma(R)), clamp8(sRgbGamma(G)), clamp8(sRgbGamma(B)), alpha);
+}
+
+/** Master converter — tries every modern color format, returns null if none match */
+function convertModernColor(val: string): string | null {
+    if (val.includes('oklch'))      return convertOklch(val);
+    if (val.includes('oklab'))      return convertOklab(val);
+    if (val.includes('display-p3')) return convertDisplayP3(val);
+    if (val.includes('lch('))       return convertLch(val);
+    if (val.includes(' lab(') || val.startsWith('lab(')) return convertLab(val);
+    return null;
+}
+
+/** True if the value contains any color function html2canvas v1 cannot parse */
+function hasModernColor(val: string): boolean {
+    return (
+        val.includes('oklch') ||
+        val.includes('oklab') ||
+        val.includes('display-p3') ||
+        val.includes('lch(') ||
+        val.includes('lab(')
+    );
 }
 
 // ─── CSS class overrides — first-pass safety net ──────────────────────────────
@@ -168,8 +257,8 @@ export async function generateReportPDF(element: HTMLElement, filename: string):
                 const cs = win.getComputedStyle(el);
                 for (const prop of COLOR_PROPS) {
                     const val = cs.getPropertyValue(prop);
-                    if (val && val.includes('oklch')) {
-                        const converted = oklchToRgba(val);
+                    if (val && hasModernColor(val)) {
+                        const converted = convertModernColor(val);
                         if (converted) el.style.setProperty(prop, converted, 'important');
                     }
                 }

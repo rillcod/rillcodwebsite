@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
-  ArrowLeft, BookOpen, Check,
-  Sparkles, Save, Layout, Settings2
+  ArrowLeft, BookOpen,
+  Sparkles, Save, Layout, Settings2, Loader2, ChevronDown, ChevronUp
 } from 'lucide-react';
 import CanvaEditor from '@/features/lessons/components/CanvaEditor';
+import LessonAITools from '@/components/ai/LessonAITools';
 
 export default function AddLessonPage() {
   const router = useRouter();
@@ -19,6 +20,14 @@ export default function AddLessonPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'settings' | 'content'>('settings');
+
+  // AI generation state
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiTopic, setAiTopic] = useState('');
+  const [aiGrade, setAiGrade] = useState('JSS1–SS3');
+  const [aiSubject, setAiSubject] = useState('');
 
   const [form, setForm] = useState({
     title: '',
@@ -42,6 +51,42 @@ export default function AddLessonPage() {
     }
     q.then(({ data }) => setCourses(data ?? []));
   }, [profile?.id, authLoading]);
+
+  const handleAiGenerate = async () => {
+    if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
+    setAiGenerating(true);
+    setAiError(null);
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'lesson',
+          topic: aiTopic,
+          gradeLevel: aiGrade,
+          subject: aiSubject || undefined,
+          durationMinutes: form.duration_minutes ? parseInt(form.duration_minutes) : 60,
+          contentType: form.lesson_type,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? 'Generation failed');
+      const d = payload.data;
+      setForm(prev => ({
+        ...prev,
+        title: d.title ?? prev.title,
+        description: d.description ?? prev.description,
+        content_layout: d.content_layout ?? prev.content_layout,
+        video_url: d.video_url ?? prev.video_url,
+      }));
+      setAiOpen(false);
+      setActiveTab('content');
+    } catch (e: any) {
+      setAiError(e.message ?? 'Failed to generate');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +155,76 @@ export default function AddLessonPage() {
           </div>
         )}
 
+        {/* AI Generate Panel */}
+        <div className="bg-gradient-to-br from-violet-500/10 to-cyan-500/5 border border-violet-500/20 rounded-2xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setAiOpen(o => !o)}
+            className="w-full flex items-center justify-between px-5 py-4 text-left"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-violet-400" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">Generate with AI</p>
+                <p className="text-xs text-white/40">Auto-fill lesson content using Claude AI</p>
+              </div>
+            </div>
+            {aiOpen ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
+          </button>
+
+          {aiOpen && (
+            <div className="px-5 pb-5 space-y-4 border-t border-violet-500/20">
+              {aiError && (
+                <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">{aiError}</p>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4">
+                <div className="space-y-1 md:col-span-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Lesson Topic *</label>
+                  <input
+                    value={aiTopic}
+                    onChange={e => setAiTopic(e.target.value)}
+                    placeholder="e.g. Introduction to Python loops"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-violet-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Grade Level</label>
+                  <select
+                    value={aiGrade}
+                    onChange={e => setAiGrade(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500"
+                  >
+                    {['Basic 1–Basic 3','Basic 4–Basic 6','JSS1–JSS3','SS1–SS3','JSS1–SS3','Basic 1–SS3'].map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Subject</label>
+                  <input
+                    value={aiSubject}
+                    onChange={e => setAiSubject(e.target.value)}
+                    placeholder="e.g. Python Programming"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-violet-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAiGenerate}
+                  disabled={aiGenerating}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all self-end"
+                >
+                  {aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  {aiGenerating ? 'Generating...' : 'Generate'}
+                </button>
+              </div>
+              <p className="text-[10px] text-white/30">AI will fill in the lesson title, description, and visual content blocks. You can edit everything after generation.</p>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl w-fit">
           <TabBtn active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings2} label="Settings" />
           <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={Layout} label="Visual Content" />
@@ -148,6 +263,18 @@ export default function AddLessonPage() {
             </div>
           )}
         </div>
+
+        {/* Hugging Face AI Tools */}
+        <LessonAITools
+          lessonTitle={form.title}
+          lessonSubject={aiSubject}
+          lessonGrade={aiGrade}
+          lessonText={form.description}
+          onTranscript={(text) => setForm(prev => ({
+            ...prev,
+            description: prev.description ? `${prev.description}\n\n${text}` : text,
+          }))}
+        />
       </div>
     </div>
   );

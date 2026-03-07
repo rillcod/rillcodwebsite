@@ -8,6 +8,7 @@ import {
   BookOpenIcon, PlusIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon,
   TrashIcon, ClockIcon, UserGroupIcon, CheckCircleIcon,
   VideoCameraIcon, PlayIcon, DocumentTextIcon, BoltIcon,
+  SparklesIcon, ChevronDownIcon, ChevronUpIcon,
 } from '@heroicons/react/24/outline';
 
 const STATUS_BADGE: Record<string, string> = {
@@ -34,6 +35,15 @@ export default function LessonsPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [deleting, setDeleting] = useState<string | null>(null);
 
+  // AI lesson plan generator
+  const [planOpen, setPlanOpen] = useState(false);
+  const [planTopic, setPlanTopic] = useState('');
+  const [planGrade, setPlanGrade] = useState('JSS1–SS3');
+  const [planWeeks, setPlanWeeks] = useState('12');
+  const [planGenerating, setPlanGenerating] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [planResult, setPlanResult] = useState<any | null>(null);
+
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete lesson "${title}"? This cannot be undone.`)) return;
     setDeleting(id);
@@ -41,6 +51,32 @@ export default function LessonsPage() {
     if (error) { alert(error.message); }
     else { setLessons(prev => prev.filter(l => l.id !== id)); }
     setDeleting(null);
+  };
+
+  const handleGeneratePlan = async () => {
+    if (!planTopic.trim()) { setPlanError('Enter a subject/course name.'); return; }
+    setPlanGenerating(true);
+    setPlanError(null);
+    setPlanResult(null);
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'lesson-plan',
+          topic: planTopic,
+          gradeLevel: planGrade,
+          termWeeks: parseInt(planWeeks) || 12,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? 'Generation failed');
+      setPlanResult(payload.data);
+    } catch (e: any) {
+      setPlanError(e.message ?? 'Failed to generate lesson plan');
+    } finally {
+      setPlanGenerating(false);
+    }
   };
 
   useEffect(() => {
@@ -274,6 +310,174 @@ export default function LessonsPage() {
                 </Link>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* AI Lesson Plan Generator */}
+        {(profile?.role === 'admin' || profile?.role === 'teacher') && (
+          <div className="bg-gradient-to-br from-violet-500/10 to-cyan-500/5 border border-violet-500/20 rounded-2xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => { setPlanOpen(o => !o); setPlanResult(null); setPlanError(null); }}
+              className="w-full flex items-center justify-between px-6 py-5 text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                  <SparklesIcon className="w-5 h-5 text-violet-400" />
+                </div>
+                <div>
+                  <p className="font-bold text-white">AI Lesson Plan Generator</p>
+                  <p className="text-xs text-white/40 mt-0.5">Generate a full term-long curriculum plan instantly</p>
+                </div>
+              </div>
+              {planOpen ? <ChevronUpIcon className="w-5 h-5 text-white/40" /> : <ChevronDownIcon className="w-5 h-5 text-white/40" />}
+            </button>
+
+            {planOpen && (
+              <div className="px-6 pb-6 space-y-6 border-t border-violet-500/20">
+                {planError && (
+                  <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 mt-4">{planError}</p>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4">
+                  <div className="space-y-1 md:col-span-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Subject / Course Name *</p>
+                    <input
+                      value={planTopic}
+                      onChange={e => setPlanTopic(e.target.value)}
+                      placeholder="e.g. Python Programming for Beginners"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-violet-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Grade Level</p>
+                    <select
+                      value={planGrade}
+                      onChange={e => setPlanGrade(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500"
+                    >
+                      {['Basic 1–Basic 3','Basic 4–Basic 6','JSS1–JSS3','SS1–SS3','JSS1–SS3','Basic 1–SS3'].map(g => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Term Length (weeks)</p>
+                    <select
+                      value={planWeeks}
+                      onChange={e => setPlanWeeks(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500"
+                    >
+                      {['8','10','12','14','16'].map(w => (
+                        <option key={w} value={w}>{w} weeks</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGeneratePlan}
+                  disabled={planGenerating}
+                  className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white font-black text-sm uppercase tracking-widest rounded-xl transition-all"
+                >
+                  {planGenerating ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <SparklesIcon className="w-4 h-4" />
+                  )}
+                  {planGenerating ? 'Generating plan...' : 'Generate Lesson Plan'}
+                </button>
+
+                {/* Plan Result */}
+                {planResult && (
+                  <div className="space-y-4">
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                      <h4 className="font-extrabold text-lg text-white mb-1">{planResult.course_title}</h4>
+                      <p className="text-sm text-white/50 mb-3">{planResult.description}</p>
+                      <div className="flex flex-wrap gap-3 text-xs text-white/40 mb-4">
+                        <span className="px-2.5 py-1 bg-violet-500/10 border border-violet-500/20 text-violet-300 rounded-lg font-semibold">{planResult.grade_level}</span>
+                        <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg">{planResult.duration}</span>
+                      </div>
+                      {planResult.objectives?.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Term Objectives</p>
+                          <ul className="space-y-1">
+                            {planResult.objectives.map((o: string, i: number) => (
+                              <li key={i} className="text-sm text-white/60 flex items-start gap-2">
+                                <span className="text-violet-400 mt-0.5 flex-shrink-0">✓</span>{o}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Week-by-week table */}
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Week-by-Week Plan</p>
+                      {(planResult.weeks ?? []).map((week: any) => (
+                        <div key={week.week} className="bg-white/[0.03] border border-white/10 rounded-xl p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-8 h-8 rounded-xl bg-violet-500/20 text-violet-400 font-black text-sm flex items-center justify-center flex-shrink-0">{week.week}</span>
+                            <p className="font-bold text-white text-sm">{week.theme}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Topics</p>
+                            <ul className="space-y-0.5">
+                              {(week.topics ?? []).map((t: string, i: number) => (
+                                <li key={i} className="text-xs text-white/50">• {t}</li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Activities</p>
+                            <ul className="space-y-0.5">
+                              {(week.activities ?? []).map((a: string, i: number) => (
+                                <li key={i} className="text-xs text-white/50">• {a}</li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Assessment</p>
+                            <p className="text-xs text-white/50">{week.assessment}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {(planResult.materials?.length > 0 || planResult.assessment_strategy) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {planResult.assessment_strategy && (
+                          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Assessment Strategy</p>
+                            <p className="text-sm text-white/60">{planResult.assessment_strategy}</p>
+                          </div>
+                        )}
+                        {planResult.materials?.length > 0 && (
+                          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Materials & Tools</p>
+                            <ul className="space-y-1">
+                              {planResult.materials.map((m: string, i: number) => (
+                                <li key={i} className="text-xs text-white/50">• {m}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => { setPlanResult(null); setPlanTopic(''); }}
+                      className="text-xs font-bold text-white/40 hover:text-white transition-colors"
+                    >
+                      Clear plan
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

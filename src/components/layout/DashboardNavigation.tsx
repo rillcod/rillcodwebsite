@@ -30,6 +30,7 @@ import {
   ShieldCheckIcon,
   CodeBracketIcon,
   RocketLaunchIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -102,6 +103,7 @@ export default function DashboardNavigation() {
           { name: 'Library',          href: '/dashboard/library',          icon: BookOpenIcon },
           { name: 'CBT Exams',        href: '/dashboard/cbt',              icon: AcademicCapIcon },
           { name: 'Leaderboard',      href: '/dashboard/leaderboard',      icon: TrophyIcon },
+          { name: 'Timetable',         href: '/dashboard/timetable',        icon: CalendarDaysIcon },
           { divider: true, label: 'Reports' },
           { name: 'Report Builder',   href: '/dashboard/reports/builder',  icon: DocumentTextIcon },
           { name: 'Progress Reports', href: '/dashboard/results',          icon: DocumentChartBarIcon },
@@ -125,6 +127,7 @@ export default function DashboardNavigation() {
           { name: 'Grades',           href: '/dashboard/grades',           icon: ClipboardDocumentCheckIcon },
           { name: 'Leaderboard',      href: '/dashboard/leaderboard',      icon: TrophyIcon },
           { name: 'Code Playground',  href: '/dashboard/playground',       icon: CodeBracketIcon },
+          { name: 'Timetable',         href: '/dashboard/timetable',        icon: CalendarDaysIcon },
           { divider: true, label: 'Reports' },
           { name: 'Report Builder',   href: '/dashboard/reports/builder',  icon: DocumentTextIcon },
           { name: 'Progress Reports', href: '/dashboard/results',          icon: DocumentChartBarIcon },
@@ -147,6 +150,7 @@ export default function DashboardNavigation() {
           { name: 'Leaderboard',      href: '/dashboard/leaderboard',      icon: TrophyIcon },
           { name: 'Code Playground',  href: '/dashboard/playground',       icon: CodeBracketIcon },
           { name: 'My Portfolio',     href: '/dashboard/portfolio',        icon: RocketLaunchIcon },
+          { name: 'Timetable',        href: '/dashboard/timetable',        icon: CalendarDaysIcon },
           { divider: true, label: 'My Report' },
           { name: 'My Report Card',   href: '/dashboard/results',          icon: DocumentChartBarIcon },
           { divider: true, label: 'More' },
@@ -163,6 +167,7 @@ export default function DashboardNavigation() {
           { name: 'Import Students',  href: '/dashboard/students/import',  icon: UserGroupIcon },
           { name: 'Grades & Reports', href: '/dashboard/grades',           icon: ClipboardDocumentCheckIcon },
           { name: 'Leaderboard',      href: '/dashboard/leaderboard',      icon: TrophyIcon },
+          { name: 'Timetable',         href: '/dashboard/timetable',        icon: CalendarDaysIcon },
           { divider: true, label: 'Reports' },
           { name: 'Student Reports',  href: '/dashboard/results',          icon: DocumentChartBarIcon },
           { divider: true, label: 'More' },

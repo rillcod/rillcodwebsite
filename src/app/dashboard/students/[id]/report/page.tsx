@@ -81,7 +81,6 @@ export default function StudentProgressReportPage() {
             ? supabase.from('enrollments')
                 .select(`id, status, enrollment_date, completion_date, grade, programs ( id, name )`)
                 .eq('user_id', portalUserId)
-                .eq('role', 'student')
             : supabase.from('student_enrollments')
                 .select(`id, status, enrollment_date, completion_date, grade, programs ( id, name )`)
                 .eq('student_id', studentId),

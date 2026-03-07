@@ -11,6 +11,9 @@ import {
   XCircleIcon,
   ArrowUpRightIcon,
   ArrowDownIcon,
+  SparklesIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
 } from "@heroicons/react/24/outline";
 
 type ContentItem = {
@@ -46,6 +49,14 @@ export default function ContentLibraryPage() {
   const [search, setSearch] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
   const [ratingState, setRatingState] = useState<{ id: string; rating: number; review: string } | null>(null);
+
+  // AI generation state
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiTopic, setAiTopic] = useState('');
+  const [aiGrade, setAiGrade] = useState('JSS1–SS3');
+
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -197,6 +208,44 @@ export default function ContentLibraryPage() {
     }
   };
 
+  const handleAiGenerate = async () => {
+    if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
+    setAiGenerating(true);
+    setAiError(null);
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'library-content',
+          topic: aiTopic,
+          gradeLevel: aiGrade,
+          subject: form.subject || undefined,
+          contentType: form.contentType,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? 'Generation failed');
+      const d = payload.data;
+      setForm(prev => ({
+        ...prev,
+        title: d.title ?? prev.title,
+        description: d.description ?? prev.description,
+        category: d.category ?? prev.category,
+        tags: Array.isArray(d.tags) ? d.tags.join(', ') : prev.tags,
+        subject: d.subject ?? prev.subject,
+        gradeLevel: d.grade_level ?? prev.gradeLevel,
+        licenseType: d.license_type ?? prev.licenseType,
+        attribution: d.attribution ?? prev.attribution,
+      }));
+      setAiOpen(false);
+    } catch (e: any) {
+      setAiError(e.message ?? 'Failed to generate');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   const handlePreview = (item: ContentItem) => {
     const url = item.files?.public_url;
     if (url) {
@@ -255,6 +304,72 @@ export default function ContentLibraryPage() {
         )}
 
         {canUpload && (
+          <>
+          {/* AI Generation Panel */}
+          <div className="bg-gradient-to-br from-violet-500/10 to-cyan-500/5 border border-violet-500/20 rounded-2xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setAiOpen(o => !o)}
+              className="w-full flex items-center justify-between px-5 py-4 text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                  <SparklesIcon className="w-4 h-4 text-violet-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">Generate metadata with AI</p>
+                  <p className="text-xs text-white/40">Auto-fill content fields using Claude AI</p>
+                </div>
+              </div>
+              {aiOpen ? <ChevronUpIcon className="w-4 h-4 text-white/40" /> : <ChevronDownIcon className="w-4 h-4 text-white/40" />}
+            </button>
+
+            {aiOpen && (
+              <div className="px-5 pb-5 space-y-4 border-t border-violet-500/20">
+                {aiError && (
+                  <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2 mt-4">{aiError}</p>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4">
+                  <div className="space-y-1 md:col-span-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Content Topic *</p>
+                    <input
+                      value={aiTopic}
+                      onChange={e => setAiTopic(e.target.value)}
+                      placeholder="e.g. Introduction to Scratch Programming"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-violet-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Grade Level</p>
+                    <select
+                      value={aiGrade}
+                      onChange={e => setAiGrade(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500"
+                    >
+                      {['Basic 1–Basic 3','Basic 4–Basic 6','JSS1–JSS3','SS1–SS3','JSS1–SS3','Basic 1–SS3'].map(g => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAiGenerate}
+                    disabled={aiGenerating}
+                    className="md:col-span-3 flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all"
+                  >
+                    {aiGenerating ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <SparklesIcon className="w-4 h-4" />
+                    )}
+                    {aiGenerating ? 'Generating...' : 'Generate Metadata'}
+                  </button>
+                </div>
+                <p className="text-[10px] text-white/30">AI will fill in the title, description, category, tags, grade level, and license. You can edit everything before saving.</p>
+              </div>
+            )}
+          </div>
+
           <form onSubmit={handleCreate} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
             <div className="flex items-center gap-2">
               <PlusIcon className="w-4 h-4 text-violet-300" />
@@ -337,6 +452,7 @@ export default function ContentLibraryPage() {
               {saving ? "Saving..." : "Add Content"}
             </button>
           </form>
+          </>
         )}
 
         {isStaff && (

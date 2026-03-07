@@ -1,105 +1,271 @@
-import React from 'react';
-import { certificateService } from '@/services/certificate.service';
-import { CheckCircle2, XCircle, Award, Calendar, User, BookOpen, Download } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+'use client';
 
-export const metadata = {
-    title: 'Verify Certificate | Rillcod Academy',
-    description: 'Verify the authenticity of Rillcod Academy certificates.',
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
+import {
+  ShieldCheckIcon, XCircleIcon, ClockIcon, CheckBadgeIcon,
+} from '@heroicons/react/24/outline';
+
+type Report = {
+  id: string;
+  student_name: string | null;
+  course_name: string | null;
+  report_term: string | null;
+  report_date: string | null;
+  overall_grade: string | null;
+  overall_score: number | null;
+  instructor_name: string | null;
+  school_name: string | null;
+  section_class: string | null;
+  school_section: string | null;
+  is_published: boolean | null;
+  has_certificate: boolean | null;
+  proficiency_level: string | null;
+  theory_score: number | null;
+  practical_score: number | null;
+  attendance_score: number | null;
 };
 
-export default async function VerifyPage({ params }: { params: { code: string } }) {
-    let cert = null;
-    let error = null;
+const GRADE_STYLE: Record<string, { bg: string; text: string; border: string; label: string }> = {
+  A: { bg: '#d1fae5', text: '#065f46', border: '#6ee7b7', label: 'Excellent' },
+  B: { bg: '#dbeafe', text: '#1e3a8a', border: '#93c5fd', label: 'Very Good' },
+  C: { bg: '#fef3c7', text: '#78350f', border: '#fcd34d', label: 'Good' },
+  D: { bg: '#ffedd5', text: '#9a3412', border: '#fdba74', label: 'Pass' },
+  E: { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5', label: 'Fail' },
+};
 
-    try {
-        cert = await certificateService.verifyCertificate(params.code);
-    } catch (e) {
-        error = 'Invalid certificate verification code.';
-    }
+export default function VerifyPage() {
+  const { code } = useParams<{ code: string }>();
+  const [report, setReport] = useState<Report | null>(null);
+  const [status, setStatus] = useState<'loading' | 'found' | 'notfound' | 'unpublished'>('loading');
 
-    return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
-            <div className="max-w-2xl w-full bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800">
-                <div className="bg-teal-600 p-8 text-center text-white relative">
-                    <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent)]" />
-                    </div>
-                    <Award className="w-16 h-16 mx-auto mb-4 opacity-90" />
-                    <h1 className="text-3xl font-black tracking-tight">RILLCOD ACADEMY</h1>
-                    <p className="text-teal-100 font-bold uppercase tracking-widest text-sm mt-1">Official Verification Portal</p>
-                </div>
+  useEffect(() => {
+    if (!code) { setStatus('notfound'); return; }
+    const db = createClient();
+    db.from('student_progress_reports')
+      .select('id,student_name,course_name,report_term,report_date,overall_grade,overall_score,instructor_name,school_name,section_class,school_section,is_published,has_certificate,proficiency_level,theory_score,practical_score,attendance_score')
+      .ilike('id', `${code.toLowerCase()}%`)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) { setStatus('notfound'); return; }
+        if (!data.is_published) { setStatus('unpublished'); return; }
+        setReport(data as Report);
+        setStatus('found');
+      });
+  }, [code]);
 
-                <div className="p-8 md:p-12">
-                    {cert ? (
-                        <div className="space-y-8">
-                            <div className="flex items-center gap-4 p-4 bg-green-50 dark:bg-green-500/10 rounded-2xl border border-green-100 dark:border-green-500/20">
-                                <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
-                                <div>
-                                    <h2 className="text-lg font-bold text-green-900 dark:text-green-300">Verified Authentic</h2>
-                                    <p className="text-sm text-green-700 dark:text-green-400/80">This certificate is valid and issued by Rillcod Academy.</p>
-                                </div>
-                            </div>
+  const g = report?.overall_grade ?? '';
+  const gs = GRADE_STYLE[g] ?? GRADE_STYLE['C'];
+  const dateStr = report?.report_date
+    ? new Date(report.report_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+    : '—';
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                        <User className="w-3 h-3" /> Recipient
-                                    </p>
-                                    <p className="text-xl font-bold text-slate-900 dark:text-white">{(cert.portal_users as any)?.full_name}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                        <BookOpen className="w-3 h-3" /> Course
-                                    </p>
-                                    <p className="text-xl font-bold text-slate-900 dark:text-white">{(cert.courses as any)?.title}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                        <Calendar className="w-3 h-3" /> Issue Date
-                                    </p>
-                                    <p className="text-lg font-bold text-slate-700 dark:text-slate-300">{cert.issued_date}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Certificate ID</p>
-                                    <p className="text-lg font-bold text-slate-700 dark:text-slate-300 font-mono">{cert.certificate_number}</p>
-                                </div>
-                            </div>
+  return (
+    <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col">
 
-                            <div className="pt-8 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
-                                <Button className="flex-1 h-12 rounded-xl bg-slate-900 hover:bg-black text-white gap-2 font-bold" asChild>
-                                    <Link href={cert.pdf_url || '#'}>
-                                        <Download className="w-4 h-4" /> Download Original PDF
-                                    </Link>
-                                </Button>
-                                <Button variant="outline" className="flex-1 h-12 rounded-xl border-2 gap-2 font-bold" asChild>
-                                    <Link href="/">Visit Homepage</Link>
-                                </Button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="text-center py-12 space-y-6">
-                            <div className="w-20 h-20 bg-red-50 dark:bg-red-500/10 rounded-full flex items-center justify-center mx-auto">
-                                <XCircle className="w-12 h-12 text-red-600 dark:text-red-400" />
-                            </div>
-                            <div>
-                                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Verification Failed</h2>
-                                <p className="text-slate-500 mt-2 max-w-xs mx-auto">We couldn't find a record matching this verification code. Please check the URL and try again.</p>
-                            </div>
-                            <Button className="h-12 px-8 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold" asChild>
-                                <Link href="/">Back to Home</Link>
-                            </Button>
-                        </div>
-                    )}
-                </div>
-
-                <div className="bg-slate-50 dark:bg-slate-950 p-4 text-center border-t border-slate-100 dark:border-slate-800">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        &copy; {new Date().getFullYear()} Rillcod Academy. All rights reserved.
-                    </p>
-                </div>
-            </div>
+      {/* Top bar */}
+      <header className="sticky top-0 z-10 border-b border-white/10 bg-[#0a0a0f]/90 backdrop-blur-md">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 group">
+            <img src="/images/logo.png" alt="Rillcod" className="w-8 h-8 object-contain"
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <span className="font-extrabold text-white text-base tracking-tight group-hover:text-violet-300 transition-colors">
+              Rillcod Academy
+            </span>
+          </Link>
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/30">
+            <ShieldCheckIcon className="w-3.5 h-3.5" />
+            Certificate Verification
+          </div>
         </div>
-    );
+      </header>
+
+      <main className="flex-1 flex items-center justify-center px-4 py-16">
+        <div className="w-full max-w-2xl">
+
+          {/* Loading */}
+          {status === 'loading' && (
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-white/40 text-sm">Verifying report…</p>
+            </div>
+          )}
+
+          {/* Not found */}
+          {status === 'notfound' && (
+            <div className="text-center space-y-6">
+              <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 rounded-3xl flex items-center justify-center mx-auto">
+                <XCircleIcon className="w-10 h-10 text-rose-400" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-extrabold text-white">Record Not Found</h1>
+                <p className="text-white/40 text-sm mt-2">
+                  No published report matches code <code className="bg-white/10 px-2 py-0.5 rounded text-white font-mono">{code?.toUpperCase()}</code>
+                </p>
+                <p className="text-white/25 text-xs mt-1">Please check the QR code or verification URL and try again.</p>
+              </div>
+              <Link href="/" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-sm rounded-xl transition-colors">
+                Return to Home
+              </Link>
+            </div>
+          )}
+
+          {/* Unpublished */}
+          {status === 'unpublished' && (
+            <div className="text-center space-y-6">
+              <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 rounded-3xl flex items-center justify-center mx-auto">
+                <ClockIcon className="w-10 h-10 text-amber-400" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-extrabold text-white">Report Not Yet Published</h1>
+                <p className="text-white/40 text-sm mt-2 max-w-sm mx-auto">
+                  This report exists but has not been officially released. Please contact your school or instructor.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Found */}
+          {status === 'found' && report && (
+            <div className="space-y-5">
+
+              {/* Verified badge */}
+              <div className="flex items-center gap-3 px-5 py-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+                <ShieldCheckIcon className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+                <div>
+                  <p className="font-black text-emerald-400 text-sm uppercase tracking-widest">Verified — Authentic Record</p>
+                  <p className="text-emerald-400/60 text-xs mt-0.5">Issued by Rillcod Academy · Confirmed valid</p>
+                </div>
+                <div className="ml-auto flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Live</p>
+                </div>
+              </div>
+
+              {/* Report card */}
+              <div className="bg-white rounded-3xl overflow-hidden shadow-2xl shadow-black/40">
+
+                {/* Header */}
+                <div className="bg-[#1a1a2e] px-8 py-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-4">
+                      <img src="/images/logo.png" alt="Rillcod" className="w-14 h-14 object-contain"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      <div>
+                        <h2 className="text-xl font-extrabold text-white uppercase tracking-tight leading-none">Rillcod Academy</h2>
+                        <p className="text-[10px] font-bold text-violet-400/80 uppercase tracking-[0.25em] mt-0.5">Progress Report</p>
+                      </div>
+                    </div>
+                    {/* Grade badge */}
+                    <div className="flex flex-col items-center justify-center w-20 h-20 rounded-2xl border-4"
+                      style={{ backgroundColor: gs.bg, borderColor: gs.border }}>
+                      <span className="text-4xl font-black leading-none" style={{ color: gs.text }}>{g}</span>
+                      <span className="text-[9px] font-black uppercase tracking-wide mt-0.5" style={{ color: gs.text, opacity: 0.7 }}>{gs.label}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats bar */}
+                <div className="bg-gray-50 border-b border-gray-100 px-8 py-2.5 flex items-center gap-6 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  <span>ID: <span className="text-gray-900">{report.id.slice(0, 8).toUpperCase()}</span></span>
+                  <span>Date: <span className="text-gray-900">{dateStr}</span></span>
+                  {report.school_section && <span>Section: <span className="text-gray-900">{report.school_section}</span></span>}
+                </div>
+
+                {/* Details */}
+                <div className="px-8 py-6 grid grid-cols-2 gap-x-10 gap-y-5">
+                  {[
+                    { label: 'Student', value: report.student_name, bold: true },
+                    { label: 'Programme', value: report.course_name },
+                    { label: 'School', value: report.school_name },
+                    { label: 'Class / Section', value: report.section_class },
+                    { label: 'Academic Term', value: report.report_term },
+                    { label: 'Score', value: report.overall_score != null ? `${report.overall_score}%` : null },
+                    { label: 'Proficiency', value: report.proficiency_level },
+                    { label: 'Instructor', value: report.instructor_name },
+                  ].filter(d => d.value).map(({ label, value, bold }) => (
+                    <div key={label}>
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">{label}</p>
+                      <p className={`text-[13px] ${bold ? 'font-extrabold' : 'font-bold'} text-gray-900 capitalize`}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Score bars */}
+                {(report.theory_score != null || report.practical_score != null || report.attendance_score != null) && (
+                  <div className="px-8 pb-6 space-y-3">
+                    <div className="h-px bg-gray-100 mb-4" />
+                    {[
+                      { label: 'Theory (40%)', value: report.theory_score ?? 0, color: '#6366f1' },
+                      { label: 'Practical (40%)', value: report.practical_score ?? 0, color: '#10b981' },
+                      { label: 'Attendance (20%)', value: report.attendance_score ?? 0, color: '#f59e0b' },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="space-y-1">
+                        <div className="flex justify-between text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          <span>{label}</span>
+                          <span style={{ color }}>{value}%</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${value}%`, backgroundColor: color }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Certificate award row */}
+                {report.has_certificate && (
+                  <div className="mx-6 mb-6 bg-[#1a1a2e] rounded-2xl px-5 py-4 flex items-center gap-3">
+                    <CheckBadgeIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                    <p className="text-sm font-bold text-amber-400">Certificate of Completion Awarded</p>
+                  </div>
+                )}
+
+                {/* Signature & footer */}
+                <div className="border-t border-gray-100 px-8 py-6 flex items-end justify-between">
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Signatory Authority</p>
+                    <img
+                      src="/images/signature.png"
+                      alt="Official Signature"
+                      className="h-14 w-auto object-contain"
+                      style={{ mixBlendMode: 'multiply' }}
+                    />
+                    <div className="w-40 h-px bg-gray-900 mt-1" />
+                    <p className="text-[11px] font-black text-gray-900">{report.instructor_name || 'Head of Academics'}</p>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Rillcod Academy</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center gap-2 justify-end mb-1">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Verified Authentic</p>
+                    </div>
+                    <p className="text-[9px] text-gray-400 font-mono">rillcod.com/verify/{report.id.slice(0, 8).toUpperCase()}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Disclaimer */}
+              <p className="text-center text-white/20 text-xs leading-relaxed px-4">
+                This page confirms the authenticity of a report issued by Rillcod Academy.
+                For queries contact{' '}
+                <a href="mailto:rillcod@gmail.com" className="text-white/40 hover:text-white underline underline-offset-2 transition-colors">
+                  rillcod@gmail.com
+                </a>
+              </p>
+            </div>
+          )}
+        </div>
+      </main>
+
+      <footer className="border-t border-white/5 px-6 py-4 text-center">
+        <p className="text-[10px] text-white/20">
+          © {new Date().getFullYear()} Rillcod Technologies · 26 Ogiesoba Avenue, GRA, Benin City
+        </p>
+      </footer>
+    </div>
+  );
 }

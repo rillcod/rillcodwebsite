@@ -5,12 +5,11 @@ import { Crown, Sparkles, UserCheck } from 'lucide-react';
 import QRCode from 'react-qr-code';
 
 export function letterGrade(pct: number) {
-    if (pct >= 90) return { g: 'A+', label: 'Distinction', color: '#1a6b3c' };
-    if (pct >= 80) return { g: 'A', label: 'Excellent', color: '#1a6b3c' };
+    if (pct >= 85) return { g: 'A', label: 'Excellent', color: '#1a6b3c' };
     if (pct >= 70) return { g: 'B', label: 'Very Good', color: '#1a4d8c' };
-    if (pct >= 60) return { g: 'C', label: 'Good', color: '#7c6b15' };
-    if (pct >= 50) return { g: 'D', label: 'Pass', color: '#8c3a14' };
-    return { g: 'F', label: 'Fail', color: '#8c1414' };
+    if (pct >= 55) return { g: 'C', label: 'Good', color: '#7c6b15' };
+    if (pct >= 45) return { g: 'D', label: 'Pass', color: '#8c3a14' };
+    return { g: 'E', label: 'Fail', color: '#8c1414' };
 }
 
 function MetricBar({ label, value, color }: { label: string; value: number; color: string }) {
@@ -68,6 +67,11 @@ export interface ReportCardData {
     projects_grade?: string | null;
     learning_milestones?: string[] | null;
     is_published?: boolean | null;
+    // Payment / fee info (all optional — omitted when not applicable)
+    school_section?: string | null;
+    fee_label?: string | null;
+    fee_amount?: string | null;
+    fee_status?: 'paid' | 'outstanding' | 'partial' | 'sponsored' | 'waived' | '' | null;
 }
 
 export interface OrgSettings {
@@ -79,13 +83,25 @@ export interface OrgSettings {
     logo_url?: string | null;
 }
 
+const FEE_STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
+    paid:        { bg: '#d1fae5', text: '#065f46', label: 'PAID' },
+    outstanding: { bg: '#fee2e2', text: '#991b1b', label: 'OUTSTANDING' },
+    partial:     { bg: '#fef3c7', text: '#92400e', label: 'PARTIAL PAYMENT' },
+    sponsored:   { bg: '#dbeafe', text: '#1e40af', label: 'SPONSORED' },
+    waived:      { bg: '#ede9fe', text: '#5b21b6', label: 'WAIVED' },
+};
+
 export default function ReportCard({ report, orgSettings }: {
     report: ReportCardData;
     orgSettings: OrgSettings | null;
 }) {
-    const today = new Date(report.report_date ?? Date.now()).toLocaleDateString('en-GB', {
-        day: '2-digit', month: 'long', year: 'numeric',
-    });
+    const today = report.report_date
+        ? new Date(report.report_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+        : '—';
+
+    const hasPhoto = !!report.photo_url;
+    const hasPayment = !!(report.fee_status && report.fee_status !== '');
+    const feeStyle = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
 
     const theory = report.theory_score ?? 0;
     const practical = report.practical_score ?? 0;
@@ -150,8 +166,21 @@ export default function ReportCard({ report, orgSettings }: {
                 <div className="flex gap-6">
                     <span>ID: <span className="text-gray-900">{report.id?.slice(0, 8).toUpperCase() ?? 'PREVIEW'}</span></span>
                     <span>Date: <span className="text-gray-900">{today}</span></span>
+                    {report.school_section && (
+                        <span>Section: <span className="text-gray-900">{report.school_section}</span></span>
+                    )}
                 </div>
-                <div className="flex gap-6">
+                <div className="flex items-center gap-6">
+                    {hasPayment && feeStyle && (
+                        <span className="flex items-center gap-1.5">
+                            {report.fee_label && <span className="text-gray-500">{report.fee_label}:</span>}
+                            {report.fee_amount && <span className="text-gray-900">₦{report.fee_amount}</span>}
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black"
+                                style={{ backgroundColor: feeStyle.bg, color: feeStyle.text }}>
+                                {feeStyle.label}
+                            </span>
+                        </span>
+                    )}
                     <span>Verify: <span className="text-gray-900">rillcod.com/verify</span></span>
                 </div>
             </div>
@@ -161,23 +190,36 @@ export default function ReportCard({ report, orgSettings }: {
                 <div className="grid grid-cols-12 gap-10">
                     {/* Identity */}
                     <div className="col-span-4 space-y-6">
-                        <div className="relative group">
-                            <div className="w-full aspect-[4/5] bg-gray-50 border-4 border-white rounded-3xl shadow-xl overflow-hidden relative">
-                                {report.photo_url ? (
-                                    <img src={report.photo_url} alt="Student" className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center h-full text-gray-200">
-                                        <UserCheck className="w-16 h-16" />
-                                        <span className="text-[8px] font-black uppercase mt-2">No Photo Provided</span>
-                                    </div>
-                                )}
+                        {/* Photo — only rendered when the student has an actual profile picture */}
+                        {hasPhoto && (
+                            <div className="relative">
+                                <div className="w-full aspect-[4/5] bg-gray-50 border-4 border-white rounded-3xl shadow-xl overflow-hidden">
+                                    <img src={report.photo_url!} alt="Student" className="w-full h-full object-cover" />
+                                </div>
+                                <div className="absolute -bottom-3 -right-3 w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center border border-gray-50">
+                                    <Crown className="w-6 h-6 text-amber-500" />
+                                </div>
                             </div>
-                            <div className="absolute -bottom-3 -right-3 w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center border border-gray-50">
-                                <Crown className="w-6 h-6 text-amber-500" />
+                        )}
+
+                        {/* When no photo, show a compact identity badge instead */}
+                        {!hasPhoto && (
+                            <div className="relative bg-[#1a1a2e] rounded-3xl px-6 py-8 text-center">
+                                <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-3">
+                                    <UserCheck className="w-8 h-8 text-white/40" />
+                                </div>
+                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/30 mb-1">Student</p>
+                                <p className="text-sm font-black text-white leading-tight">{report.student_name ?? '—'}</p>
+                                <div className="absolute -bottom-3 -right-3 w-10 h-10 bg-white rounded-2xl shadow-lg flex items-center justify-center border border-gray-50">
+                                    <Crown className="w-5 h-5 text-amber-500" />
+                                </div>
                             </div>
-                        </div>
+                        )}
+
                         <div className="space-y-4">
-                            <ReportField label="Student Participant" value={report.student_name ?? '—'} bold />
+                            {hasPhoto && (
+                                <ReportField label="Student Participant" value={report.student_name ?? '—'} bold />
+                            )}
                             <ReportField label="Enrolled Programme" value={report.course_name ?? '—'} />
                             <ReportField label="Section / Class" value={report.section_class ?? '—'} />
                             <ReportField label="Academic Term" value={report.report_term ?? '—'} />
@@ -269,14 +311,19 @@ export default function ReportCard({ report, orgSettings }: {
 
                 {/* SIGNATURES & QR */}
                 <div className="pt-10 flex items-end justify-between border-t-2 border-gray-100">
-                    <div className="space-y-8">
-                        <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-10">Signatory Authority</p>
-                            <div className="space-y-2">
-                                <div className="w-48 h-[1px] bg-gray-900" />
-                                <p className="text-xs font-black text-gray-900">{report.instructor_name || 'Class Instructor'}</p>
-                                <p className="text-[9px] font-bold text-gray-400 uppercase">Head of Academics, Rillcod</p>
-                            </div>
+                    <div className="space-y-2">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Signatory Authority</p>
+                        {/* Official signature */}
+                        <img
+                            src="/images/signature.png"
+                            alt="Official Signature"
+                            className="h-16 w-auto object-contain"
+                            style={{ mixBlendMode: 'multiply' }}
+                        />
+                        <div className="space-y-0.5">
+                            <div className="w-48 h-[1px] bg-gray-900" />
+                            <p className="text-xs font-black text-gray-900">{report.instructor_name || 'Class Instructor'}</p>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase">Head of Academics, Rillcod</p>
                         </div>
                     </div>
                     <div className="flex flex-col items-center">
