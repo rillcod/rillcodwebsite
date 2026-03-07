@@ -200,7 +200,7 @@ export default function ReportCard({ report, orgSettings }: {
                 </div>
             </div>
 
-            <div className="p-10 flex flex-col justify-between" style={{ height: 'calc(1123px - 32px - 138px - 46px)' }}>
+            <div className="p-8 space-y-5">
                 {/* PROFILE & PERFORMANCE */}
                 <div className="grid grid-cols-12 gap-8">
                     {/* Identity */}
@@ -281,7 +281,7 @@ export default function ReportCard({ report, orgSettings }: {
                 {milestones.length > 0 && (
                     <div className="relative">
                         <SectionHeaderPremium title="Learning Milestones & Objectives" />
-                        <div className="mt-4 grid grid-cols-2 gap-x-10 gap-y-3">
+                        <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2">
                             {milestones.map((m, i) => (
                                 <div key={i} className="flex gap-4 group">
                                     <div className="w-6 h-6 rounded-full bg-violet-600/10 flex items-center justify-center flex-shrink-0">
@@ -295,19 +295,19 @@ export default function ReportCard({ report, orgSettings }: {
                 )}
 
                 {/* EVALUATION */}
-                <div className="grid grid-cols-2 gap-8">
-                    <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
                         <SectionHeaderPremium title="Core Strengths" />
-                        <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-3xl min-h-[100px]">
-                            <p className="text-[11px] leading-relaxed text-emerald-900/80 italic font-medium">
+                        <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-2xl">
+                            <p className="text-[10.5px] leading-relaxed text-emerald-900/80 italic font-medium">
                                 "{report.key_strengths || 'The student shows consistent effort and a dedicated approach to theoretical concepts, displaying high focus during complex sessions.'}"
                             </p>
                         </div>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                         <SectionHeaderPremium title="Growth Focus" />
-                        <div className="p-4 bg-amber-50/50 border border-amber-100 rounded-3xl min-h-[100px]">
-                            <p className="text-[11px] leading-relaxed text-amber-900/80 italic font-medium">
+                        <div className="p-3 bg-amber-50/50 border border-amber-100 rounded-2xl">
+                            <p className="text-[10.5px] leading-relaxed text-amber-900/80 italic font-medium">
                                 "{report.areas_for_growth || 'Further immersion in practical projects will help build implementation confidence and speed in real-world environments.'}"
                             </p>
                         </div>
@@ -326,8 +326,8 @@ export default function ReportCard({ report, orgSettings }: {
                     </div>
                 )}
 
-                {/* SIGNATURES & QR — payment notice sits in the centre column, no extra vertical space */}
-                <div className="pt-5 border-t-2 border-gray-100">
+                {/* SIGNATURES & QR */}
+                <div className="pt-4 border-t-2 border-gray-100">
                     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
 
                         {/* Left — signature */}
