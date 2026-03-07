@@ -200,7 +200,7 @@ export default function ReportCard({ report, orgSettings }: {
                 </div>
             </div>
 
-            <div className="flex-1 px-10 py-7 flex flex-col justify-between" style={{ minHeight: 0 }}>
+            <div className="flex-1 px-10 py-7 flex flex-col gap-5" style={{ minHeight: 0 }}>
                 {/* PROFILE & PERFORMANCE */}
                 <div className="grid grid-cols-12 gap-8">
                     {/* Identity */}
@@ -327,7 +327,7 @@ export default function ReportCard({ report, orgSettings }: {
                 )}
 
                 {/* SIGNATURES & QR */}
-                <div className="pt-4 border-t-2 border-gray-100">
+                <div className="mt-auto pt-4 border-t-2 border-gray-100">
                     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
 
                         {/* Left — signature */}
@@ -343,13 +343,13 @@ export default function ReportCard({ report, orgSettings }: {
                             <p style={{ fontSize: 9, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>Head of Academics, Rillcod</p>
                         </div>
 
-                        {/* Centre — compact payment notice (only when enabled, takes no space otherwise) */}
+                        {/* Centre — payment notice, 3 lines, centred */}
                         {report.show_payment_notice && (
-                            <div style={{ flex: 1, backgroundColor: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 12, padding: '8px 14px', alignSelf: 'flex-end', marginBottom: 2 }}>
-                                <p style={{ fontSize: 8, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 3 }}>Next Term Fee Payment</p>
-                                <p style={{ fontSize: 13, fontWeight: 900, color: '#78350f', lineHeight: 1.2 }}>₦20,000 · RILLCOD LTD</p>
-                                <p style={{ fontSize: 9, color: '#a16207', marginTop: 2 }}>Providus Bank · Acct: <strong>7901178957</strong></p>
-                                <p style={{ fontSize: 8, color: '#b45309', marginTop: 3 }}>Use student name as reference · Send proof to admin</p>
+                            <div style={{ flex: 1, backgroundColor: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 12, padding: '10px 14px', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 4 }}>
+                                <p style={{ fontSize: 8, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.14em' }}>Next Term Fee Payment</p>
+                                <p style={{ fontSize: 18, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>₦20,000 &nbsp;·&nbsp; RILLCOD LTD</p>
+                                <p style={{ fontSize: 18, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>Providus Bank · <span style={{ color: '#92400e' }}>7901178957</span></p>
+                                <p style={{ fontSize: 8, fontWeight: 700, color: '#b45309' }}>Use student name as reference · Send proof to admin</p>
                             </div>
                         )}
 
