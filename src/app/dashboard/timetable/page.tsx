@@ -5,15 +5,12 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   CalendarDaysIcon, PlusIcon, PencilIcon, TrashIcon,
-  ChevronDownIcon, ChevronUpIcon, ClockIcon,
-  AcademicCapIcon, BuildingOfficeIcon, XMarkIcon, CheckIcon,
+  ClockIcon, BuildingOfficeIcon, XMarkIcon, CheckIcon,
+  BellAlertIcon, UserGroupIcon,
 } from '@heroicons/react/24/outline';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-const HOURS = Array.from({ length: 12 }, (_, i) => {
-  const h = i + 7; // 07:00 – 18:00
-  return `${String(h).padStart(2, '0')}:00`;
-});
+const TODAY = new Date().toLocaleDateString('en-US', { weekday: 'long' }) as typeof DAYS[number];
 
 type Timetable = {
   id: string; title: string; section: string | null; academic_year: string | null;
@@ -37,11 +34,14 @@ function Badge({ text, color }: { text: string; color: string }) {
   );
 }
 
-function SlotCell({ slot, onEdit, onDelete, isAdmin }: {
-  slot: Slot; onEdit: (s: Slot) => void; onDelete: (id: string) => void; isAdmin: boolean;
+function SlotCell({ slot, onEdit, onDelete, isAdmin, highlight }: {
+  slot: Slot; onEdit: (s: Slot) => void; onDelete: (id: string) => void;
+  isAdmin: boolean; highlight?: boolean;
 }) {
   return (
-    <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-2 group relative">
+    <div className={`border rounded-xl p-2 group relative ${highlight
+      ? 'bg-violet-600/20 border-violet-500/40'
+      : 'bg-violet-500/10 border-violet-500/20'}`}>
       <p className="text-[11px] font-black text-white leading-tight">{slot.subject}</p>
       <p className="text-[10px] text-white/40 mt-0.5">{slot.start_time}–{slot.end_time}</p>
       {slot.teacher_name && <p className="text-[10px] text-violet-300/70 truncate">{slot.teacher_name}</p>}
@@ -77,7 +77,6 @@ export default function TimetablePage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTimetable, setActiveTimetable] = useState<string | null>(null);
 
-  // Admin: create / edit timetable modal
   const [showTTForm, setShowTTForm] = useState(false);
   const [editingTT, setEditingTT] = useState<Timetable | null>(null);
   const [ttForm, setTTForm] = useState({
@@ -85,11 +84,9 @@ export default function TimetablePage() {
     school_id: '', is_active: true,
   });
 
-  // Admin: create / edit slot modal
   const [showSlotForm, setShowSlotForm] = useState(false);
   const [editingSlot, setEditingSlot] = useState<Slot | null>(null);
   const [slotForm, setSlotForm] = useState({ ...BLANK_SLOT });
-
   const [saving, setSaving] = useState(false);
 
   const db = createClient();
@@ -99,12 +96,18 @@ export default function TimetablePage() {
   async function loadTimetables() {
     setLoading(true); setError(null);
     try {
-      const { data, error: err } = await anyDb.from('timetables').select('*, schools(name)').order('created_at', { ascending: false });
+      const { data, error: err } = await anyDb.from('timetables')
+        .select('*, schools(name)')
+        .order('is_active', { ascending: false })
+        .order('created_at', { ascending: false });
       if (err) throw err;
-      setTimetables((data ?? []) as Timetable[]);
-      if (data && data.length > 0 && !activeTimetable) {
-        setActiveTimetable(data[0].id);
-        await loadSlots(data[0].id);
+      const list = (data ?? []) as Timetable[];
+      setTimetables(list);
+      // prefer active timetable; fall back to first
+      const preferred = list.find(t => t.is_active) ?? list[0];
+      if (preferred && !activeTimetable) {
+        setActiveTimetable(preferred.id);
+        await loadSlots(preferred.id);
       }
     } catch (e: any) {
       setError(e.message ?? 'Failed to load timetables');
@@ -114,14 +117,15 @@ export default function TimetablePage() {
   }
 
   async function loadSlots(ttId: string) {
-    const { data, error: err } = await anyDb.from('timetable_slots').select('*').eq('timetable_id', ttId).order('start_time');
+    const { data, error: err } = await anyDb.from('timetable_slots')
+      .select('*').eq('timetable_id', ttId).order('start_time');
     if (err) { setError(err.message); return; }
     setSlots((data ?? []) as Slot[]);
   }
 
   useEffect(() => {
     if (authLoading || !profile) return;
-    loadTimetables();
+    if (!isTeacher) loadTimetables();
     if (isAdmin) {
       db.from('portal_users').select('id, full_name').eq('role', 'teacher').order('full_name')
         .then(({ data }) => setTeachers(data ?? []));
@@ -147,8 +151,8 @@ export default function TimetablePage() {
     setShowTTForm(true);
   };
   const saveTT = async () => {
-    if (!ttForm.title.trim()) return;
-    setSaving(true);
+    if (!ttForm.title.trim() || !ttForm.school_id) { setError('Title and School are required.'); return; }
+    setSaving(true); setError(null);
     try {
       const payload = {
         title: ttForm.title.trim(), section: ttForm.section || null,
@@ -159,8 +163,7 @@ export default function TimetablePage() {
       if (editingTT) {
         await anyDb.from('timetables').update(payload).eq('id', editingTT.id);
       } else {
-        const { data } = await anyDb.from('timetables').insert(payload).select('*, schools(name)').single();
-        if (data) setTimetables(prev => [data as Timetable, ...prev]);
+        await anyDb.from('timetables').insert(payload);
       }
       await loadTimetables();
       setShowTTForm(false);
@@ -177,9 +180,7 @@ export default function TimetablePage() {
   // ── Slot CRUD ─────────────────────────────────────────────────────────────
   const openNewSlot = () => {
     if (!activeTimetable) return;
-    setEditingSlot(null);
-    setSlotForm({ ...BLANK_SLOT });
-    setShowSlotForm(true);
+    setEditingSlot(null); setSlotForm({ ...BLANK_SLOT }); setShowSlotForm(true);
   };
   const openEditSlot = (slot: Slot) => {
     setEditingSlot(slot);
@@ -220,21 +221,30 @@ export default function TimetablePage() {
     setSlots(prev => prev.filter(s => s.id !== id));
   };
 
-  // ── Derived: group slots by day ───────────────────────────────────────────
+  // ── Derived ───────────────────────────────────────────────────────────────
   const slotsByDay: Record<string, Slot[]> = {};
-  DAYS.forEach(d => { slotsByDay[d] = slots.filter(s => s.day_of_week === d).sort((a, b) => a.start_time.localeCompare(b.start_time)); });
-
+  DAYS.forEach(d => {
+    slotsByDay[d] = slots.filter(s => s.day_of_week === d)
+      .sort((a, b) => a.start_time.localeCompare(b.start_time));
+  });
   const active = timetables.find(t => t.id === activeTimetable);
+  const todaySlots = slotsByDay[TODAY] ?? [];
 
   // ── Teacher view: slots across all schools ────────────────────────────────
   const [teacherSlots, setTeacherSlots] = useState<(Slot & { timetable?: Timetable })[]>([]);
   useEffect(() => {
     if (!isTeacher || !profile) return;
-    anyDb.from('timetable_slots').select('*, timetables(*, schools(name))').eq('teacher_id', profile.id).order('start_time')
+    anyDb.from('timetable_slots')
+      .select('*, timetables(*, schools(name))')
+      .eq('teacher_id', profile.id)
+      .order('start_time')
       .then(({ data }: { data: any[] | null }) => {
         setTeacherSlots((data ?? []).map((s: any) => ({ ...s, timetable: s.timetables })));
+        setLoading(false);
       });
   }, [profile?.id, isTeacher]); // eslint-disable-line
+
+  const teacherTodaySlots = teacherSlots.filter(s => s.day_of_week === TODAY);
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
@@ -258,9 +268,10 @@ export default function TimetablePage() {
             </div>
             <h1 className="text-3xl font-extrabold">Timetable</h1>
             <p className="text-white/40 text-sm mt-1">
-              {isTeacher ? 'Your teaching schedule across all schools' :
+              {isTeacher ? 'Your teaching schedule across all partner schools' :
                 isStudent ? 'Your class schedule' :
-                  'View and manage school timetables'}
+                  isSchool ? 'Your school\'s timetable' :
+                    'Create and manage school timetables'}
             </p>
           </div>
           {isAdmin && (
@@ -272,88 +283,185 @@ export default function TimetablePage() {
         </div>
 
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm">{error}</div>
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm flex items-center justify-between">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="text-rose-400/60 hover:text-rose-400"><XMarkIcon className="w-4 h-4" /></button>
+          </div>
         )}
 
-        {/* ── Teacher: multi-school schedule view ── */}
+        {/* ── Teacher: today's alert + full schedule ── */}
         {isTeacher && (
-          <div className="space-y-4">
-            {DAYS.map(day => {
-              const daySlots = teacherSlots.filter(s => s.day_of_week === day);
-              if (daySlots.length === 0) return null;
-              return (
-                <div key={day} className="bg-white/5 border border-white/10 rounded-2xl p-5">
-                  <h3 className="font-black text-white mb-3">{day}</h3>
-                  <div className="space-y-2">
-                    {daySlots.map(slot => (
-                      <div key={slot.id} className="flex items-start gap-4 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3">
-                        <div className="flex-shrink-0 text-center min-w-[70px]">
-                          <p className="text-sm font-black text-violet-400">{slot.start_time}</p>
-                          <p className="text-[10px] text-white/30">to {slot.end_time}</p>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-white">{slot.subject}</p>
-                          {slot.room && <p className="text-xs text-white/40">Room: {slot.room}</p>}
-                          {slot.notes && <p className="text-xs text-white/30 italic mt-0.5">{slot.notes}</p>}
-                        </div>
-                        <div className="flex-shrink-0 text-right">
-                          <p className="text-xs font-bold text-white/50">{(slot.timetable as any)?.schools?.name ?? '—'}</p>
-                          <p className="text-[10px] text-white/30">{(slot.timetable as any)?.section ?? ''}</p>
-                        </div>
-                      </div>
-                    ))}
+          <div className="space-y-5">
+
+            {/* Today's classes callout */}
+            {teacherTodaySlots.length > 0 ? (
+              <div className="bg-violet-600/10 border border-violet-500/30 rounded-2xl p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-9 h-9 bg-violet-600/20 rounded-xl flex items-center justify-center">
+                    <BellAlertIcon className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <div>
+                    <p className="font-black text-white text-sm">You have {teacherTodaySlots.length} class{teacherTodaySlots.length > 1 ? 'es' : ''} today</p>
+                    <p className="text-[11px] text-violet-400/70">{TODAY} · {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
                   </div>
                 </div>
-              );
-            })}
-            {teacherSlots.length === 0 && (
-              <div className="text-center py-24 bg-white/5 border border-white/10 rounded-2xl">
-                <CalendarDaysIcon className="w-16 h-16 mx-auto text-white/10 mb-4" />
-                <p className="text-white/30">No schedule assigned to you yet.</p>
+                <div className="space-y-2">
+                  {teacherTodaySlots.map(slot => (
+                    <div key={slot.id} className="flex items-center gap-4 bg-violet-600/10 border border-violet-500/20 rounded-xl px-4 py-3">
+                      <div className="flex-shrink-0 min-w-[80px]">
+                        <p className="text-sm font-black text-violet-300">{slot.start_time}</p>
+                        <p className="text-[10px] text-white/30">to {slot.end_time}</p>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-white">{slot.subject}</p>
+                        {slot.room && <p className="text-xs text-white/40">Room: {slot.room}</p>}
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-xs font-bold text-white/60">{(slot.timetable as any)?.schools?.name ?? '—'}</p>
+                        {(slot.timetable as any)?.section && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-white/10 rounded text-white/40">
+                            {(slot.timetable as any).section}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4 px-5 py-4 bg-white/[0.03] border border-white/10 rounded-2xl">
+                <ClockIcon className="w-5 h-5 text-white/20 flex-shrink-0" />
+                <p className="text-sm text-white/30">No classes scheduled for you today ({TODAY}).</p>
               </div>
             )}
+
+            {/* Full weekly schedule */}
+            <div className="space-y-3">
+              <p className="text-xs font-black uppercase tracking-widest text-white/30">Full Weekly Schedule</p>
+              {DAYS.map(day => {
+                const daySlots = teacherSlots.filter(s => s.day_of_week === day);
+                if (daySlots.length === 0) return null;
+                return (
+                  <div key={day} className={`border rounded-2xl p-5 ${day === TODAY ? 'bg-violet-600/5 border-violet-500/20' : 'bg-white/5 border-white/10'}`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <h3 className="font-black text-white">{day}</h3>
+                      {day === TODAY && <Badge text="Today" color="bg-violet-600/30 text-violet-300" />}
+                      <span className="text-[11px] text-white/30 ml-auto">{daySlots.length} slot{daySlots.length > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {daySlots.map(slot => (
+                        <div key={slot.id} className="flex items-start gap-4 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3">
+                          <div className="flex-shrink-0 text-center min-w-[70px]">
+                            <p className="text-sm font-black text-violet-400">{slot.start_time}</p>
+                            <p className="text-[10px] text-white/30">to {slot.end_time}</p>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-white">{slot.subject}</p>
+                            {slot.room && <p className="text-xs text-white/40">Room: {slot.room}</p>}
+                            {slot.notes && <p className="text-xs text-white/30 italic mt-0.5">{slot.notes}</p>}
+                          </div>
+                          <div className="flex-shrink-0 text-right">
+                            <p className="text-xs font-bold text-white/50">{(slot.timetable as any)?.schools?.name ?? '—'}</p>
+                            {(slot.timetable as any)?.section && (
+                              <p className="text-[10px] text-white/30">{(slot.timetable as any).section}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {teacherSlots.length === 0 && (
+                <div className="text-center py-20 bg-white/5 border border-white/10 rounded-2xl">
+                  <CalendarDaysIcon className="w-14 h-14 mx-auto text-white/10 mb-3" />
+                  <p className="text-white/30 font-semibold">No schedule assigned to you yet.</p>
+                  <p className="text-white/20 text-xs mt-1">Contact your admin to be assigned to timetable slots.</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {/* ── Admin / School / Student: timetable grid view ── */}
         {!isTeacher && (
           <>
-            {/* Timetable selector */}
+            {/* Today's highlight for student/school */}
+            {(isStudent || isSchool) && timetables.length > 0 && todaySlots.length > 0 && (
+              <div className="bg-violet-600/10 border border-violet-500/30 rounded-2xl p-4 flex items-center gap-4">
+                <BellAlertIcon className="w-5 h-5 text-violet-400 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-black text-white">{todaySlots.length} class{todaySlots.length > 1 ? 'es' : ''} scheduled today</p>
+                  <p className="text-[11px] text-violet-400/70">{TODAY} — {todaySlots.map(s => s.subject).join(', ')}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Timetable tabs */}
             {timetables.length > 0 && (
-              <div className="flex flex-wrap gap-3">
-                {timetables.map(tt => (
-                  <div key={tt.id} role="button" tabIndex={0}
-                    onClick={() => handleSelectTT(tt.id)}
-                    onKeyDown={e => e.key === 'Enter' && handleSelectTT(tt.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${activeTimetable === tt.id ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30' : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}`}>
-                    <BuildingOfficeIcon className="w-4 h-4" />
-                    <span>{tt.title}</span>
-                    {tt.section && <Badge text={tt.section} color="bg-white/10 text-white/50" />}
-                    {!tt.is_active && <Badge text="Inactive" color="bg-rose-500/20 text-rose-400" />}
-                    {isAdmin && (
-                      <span className="flex items-center gap-1 ml-2" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => openEditTT(tt)}
-                          className="p-1 hover:bg-white/10 rounded-lg transition-colors">
-                          <PencilIcon className="w-3 h-3 text-white/40 hover:text-white" />
-                        </button>
-                        <button onClick={() => deleteTT(tt.id)}
-                          className="p-1 hover:bg-rose-500/20 rounded-lg transition-colors">
-                          <TrashIcon className="w-3 h-3 text-rose-400/60 hover:text-rose-400" />
-                        </button>
-                      </span>
-                    )}
-                  </div>
-                ))}
+              <div className="space-y-2">
+                {isAdmin && (
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/30">
+                    Select timetable — each belongs to a specific school &amp; section
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-3">
+                  {timetables.map(tt => (
+                    <div key={tt.id} role="button" tabIndex={0}
+                      onClick={() => handleSelectTT(tt.id)}
+                      onKeyDown={e => e.key === 'Enter' && handleSelectTT(tt.id)}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${activeTimetable === tt.id
+                        ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30'
+                        : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}`}>
+                      <BuildingOfficeIcon className="w-4 h-4 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="truncate">{tt.title}</p>
+                        {(tt as any).schools?.name && (
+                          <p className={`text-[10px] truncate ${activeTimetable === tt.id ? 'text-violet-200' : 'text-white/30'}`}>
+                            {(tt as any).schools.name}
+                          </p>
+                        )}
+                      </div>
+                      {tt.section && <Badge text={tt.section} color={activeTimetable === tt.id ? 'bg-white/20 text-white' : 'bg-white/10 text-white/40'} />}
+                      {!tt.is_active && <Badge text="Inactive" color="bg-rose-500/20 text-rose-400" />}
+                      {isAdmin && (
+                        <span className="flex items-center gap-1 ml-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                          <button onClick={() => openEditTT(tt)}
+                            className="p-1 hover:bg-white/10 rounded-lg transition-colors">
+                            <PencilIcon className="w-3 h-3 text-white/40 hover:text-white" />
+                          </button>
+                          <button onClick={() => deleteTT(tt.id)}
+                            className="p-1 hover:bg-rose-500/20 rounded-lg transition-colors">
+                            <TrashIcon className="w-3 h-3 text-rose-400/60 hover:text-rose-400" />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
             {/* Active timetable info bar */}
             {active && (
               <div className="flex flex-wrap items-center gap-4 px-5 py-3 bg-white/[0.03] border border-white/10 rounded-2xl text-xs text-white/40 font-semibold">
-                <span><span className="text-white/20">School:</span> <span className="text-white/70">{(active as any).schools?.name ?? '—'}</span></span>
-                {active.section && <span><span className="text-white/20">Section:</span> <span className="text-white/70">{active.section}</span></span>}
-                {active.term && <span><span className="text-white/20">Term:</span> <span className="text-white/70">{active.term}</span></span>}
-                {active.academic_year && <span><span className="text-white/20">Year:</span> <span className="text-white/70">{active.academic_year}</span></span>}
+                <span className="flex items-center gap-1.5">
+                  <BuildingOfficeIcon className="w-3.5 h-3.5" />
+                  <span className="text-white/70 font-bold">{(active as any).schools?.name ?? 'All Schools'}</span>
+                </span>
+                {active.section && (
+                  <span><span className="text-white/20">Section:</span> <span className="text-white/70">{active.section}</span></span>
+                )}
+                {active.term && (
+                  <span><span className="text-white/20">Term:</span> <span className="text-white/70">{active.term}</span></span>
+                )}
+                {active.academic_year && (
+                  <span><span className="text-white/20">Year:</span> <span className="text-white/70">{active.academic_year}</span></span>
+                )}
+                <span className="flex items-center gap-1.5">
+                  <UserGroupIcon className="w-3.5 h-3.5" />
+                  <span>{slots.length} slot{slots.length !== 1 ? 's' : ''}</span>
+                </span>
                 {isAdmin && (
                   <button onClick={openNewSlot}
                     className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 rounded-xl transition-colors font-bold">
@@ -369,20 +477,29 @@ export default function TimetablePage() {
                 <div className="min-w-[700px] grid grid-cols-5 gap-3">
                   {DAYS.map(day => (
                     <div key={day} className="space-y-2">
-                      <div className="bg-violet-600/20 border border-violet-500/20 rounded-xl px-3 py-2 text-center">
-                        <p className="text-xs font-black text-violet-300 uppercase tracking-widest">{day}</p>
+                      <div className={`border rounded-xl px-3 py-2 text-center ${day === TODAY
+                        ? 'bg-violet-600/30 border-violet-500/40'
+                        : 'bg-violet-600/10 border-violet-500/10'}`}>
+                        <p className={`text-xs font-black uppercase tracking-widest ${day === TODAY ? 'text-violet-200' : 'text-violet-300/60'}`}>
+                          {day.slice(0, 3)}
+                        </p>
+                        {day === TODAY && <p className="text-[9px] text-violet-300/60">Today</p>}
                       </div>
                       <div className="space-y-2 min-h-[120px]">
                         {slotsByDay[day]?.length === 0 && (
                           <div className="border border-dashed border-white/5 rounded-xl p-4 text-center">
                             {isAdmin && (
-                              <button onClick={() => { setSlotForm({ ...BLANK_SLOT, day_of_week: day }); setEditingSlot(null); setShowSlotForm(true); }}
-                                className="text-[10px] text-white/20 hover:text-violet-400 transition-colors">+ Add</button>
+                              <button
+                                onClick={() => { setSlotForm({ ...BLANK_SLOT, day_of_week: day }); setEditingSlot(null); setShowSlotForm(true); }}
+                                className="text-[10px] text-white/20 hover:text-violet-400 transition-colors">
+                                + Add
+                              </button>
                             )}
                           </div>
                         )}
                         {slotsByDay[day]?.map(slot => (
-                          <SlotCell key={slot.id} slot={slot} onEdit={openEditSlot} onDelete={deleteSlot} isAdmin={isAdmin} />
+                          <SlotCell key={slot.id} slot={slot} onEdit={openEditSlot}
+                            onDelete={deleteSlot} isAdmin={isAdmin} highlight={day === TODAY} />
                         ))}
                       </div>
                     </div>
@@ -394,12 +511,23 @@ export default function TimetablePage() {
             {timetables.length === 0 && (
               <div className="text-center py-24 bg-white/5 border border-white/10 rounded-2xl">
                 <CalendarDaysIcon className="w-16 h-16 mx-auto text-white/10 mb-4" />
-                <p className="text-lg font-semibold text-white/30">No timetables yet</p>
-                {isAdmin && (
-                  <button onClick={openNewTT}
-                    className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm rounded-xl transition-all">
-                    <PlusIcon className="w-4 h-4" /> Create First Timetable
-                  </button>
+                {isAdmin ? (
+                  <>
+                    <p className="text-lg font-semibold text-white/30">No timetables yet</p>
+                    <p className="text-white/20 text-sm mt-1">Create one and assign it to a school, section, and term.</p>
+                    <button onClick={openNewTT}
+                      className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm rounded-xl transition-all">
+                      <PlusIcon className="w-4 h-4" /> Create First Timetable
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg font-semibold text-white/30">No timetable assigned</p>
+                    <p className="text-white/20 text-sm mt-1 max-w-xs mx-auto">
+                      {isSchool ? 'No timetable has been set up for your school yet. Contact your Rillcod admin.' :
+                        'Your school\'s timetable has not been published yet. Check back soon.'}
+                    </p>
+                  </>
                 )}
               </div>
             )}
@@ -417,29 +545,41 @@ export default function TimetablePage() {
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
+
             <div className="space-y-4">
+              {/* School — full width, prominent */}
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Title *</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">
+                  Partner School <span className="text-rose-400">*</span>
+                </label>
+                <select value={ttForm.school_id} onChange={e => setTTForm(s => ({ ...s, school_id: e.target.value }))}
+                  className={`w-full bg-white/5 border rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500 ${!ttForm.school_id ? 'border-rose-500/40' : 'border-white/10'}`}>
+                  <option value="">— Select partner school —</option>
+                  {schools.map(sc => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
+                </select>
+                {!ttForm.school_id && (
+                  <p className="text-[10px] text-rose-400/70">Required — determines which school sees this timetable</p>
+                )}
+              </div>
+
+              {/* Title */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">
+                  Timetable Title <span className="text-rose-400">*</span>
+                </label>
                 <input value={ttForm.title} onChange={e => setTTForm(s => ({ ...s, title: e.target.value }))}
                   placeholder="e.g. 2025/2026 First Term — Primary"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">School</label>
-                  <select value={ttForm.school_id} onChange={e => setTTForm(s => ({ ...s, school_id: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500">
-                    <option value="">All Schools</option>
-                    {schools.map(sc => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
-                  </select>
-                </div>
+
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Section</label>
                   <select value={ttForm.section} onChange={e => setTTForm(s => ({ ...s, section: e.target.value }))}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500">
-                    <option value="">Not specified</option>
-                    <option value="Primary">Primary (Basic 1–6)</option>
-                    <option value="Secondary">Secondary (JSS1–SS3)</option>
+                    <option value="">All</option>
+                    <option value="Primary">Primary</option>
+                    <option value="Secondary">Secondary</option>
                     <option value="Unified">Unified</option>
                   </select>
                 </div>
@@ -458,17 +598,22 @@ export default function TimetablePage() {
                   </select>
                 </div>
               </div>
+
               <label className="flex items-center gap-3 cursor-pointer">
-                <div className={`w-10 h-6 rounded-full transition-colors ${ttForm.is_active ? 'bg-violet-600' : 'bg-white/10'}`}
+                <div className={`w-10 h-6 rounded-full transition-colors flex-shrink-0 ${ttForm.is_active ? 'bg-violet-600' : 'bg-white/10'}`}
                   onClick={() => setTTForm(s => ({ ...s, is_active: !s.is_active }))}>
-                  <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform shadow ${ttForm.is_active ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                  <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform shadow ${ttForm.is_active ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </div>
-                <span className="text-sm text-white/60 font-semibold">Active timetable</span>
+                <div>
+                  <p className="text-sm text-white/70 font-semibold">Active timetable</p>
+                  <p className="text-[10px] text-white/30">Visible to teachers, students, and the school</p>
+                </div>
               </label>
             </div>
+
             <div className="flex justify-end gap-3">
               <button onClick={() => setShowTTForm(false)} className="px-4 py-2 text-sm text-white/40 hover:text-white transition-colors">Cancel</button>
-              <button onClick={saveTT} disabled={saving || !ttForm.title.trim()}
+              <button onClick={saveTT} disabled={saving || !ttForm.title.trim() || !ttForm.school_id}
                 className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-all">
                 {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                 {editingTT ? 'Update' : 'Create'}
@@ -483,14 +628,21 @@ export default function TimetablePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-lg bg-[#0f0f1a] border border-white/10 rounded-3xl p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between">
-              <h2 className="font-extrabold text-white">{editingSlot ? 'Edit Slot' : 'Add Slot'}</h2>
+              <div>
+                <h2 className="font-extrabold text-white">{editingSlot ? 'Edit Slot' : 'Add Slot'}</h2>
+                {active && (
+                  <p className="text-xs text-white/30 mt-0.5">
+                    {(active as any).schools?.name ?? 'Timetable'} · {active.section ?? 'All sections'}
+                  </p>
+                )}
+              </div>
               <button onClick={() => setShowSlotForm(false)} className="p-2 text-white/40 hover:text-white rounded-xl hover:bg-white/10">
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1 col-span-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Subject / Activity *</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Subject / Activity <span className="text-rose-400">*</span></label>
                 <input value={slotForm.subject} onChange={e => setSlotForm(s => ({ ...s, subject: e.target.value }))}
                   placeholder="e.g. Python Programming"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500" />
@@ -503,7 +655,7 @@ export default function TimetablePage() {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Teacher</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Assigned Teacher</label>
                 <select value={slotForm.teacher_id} onChange={e => setSlotForm(s => ({ ...s, teacher_id: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500">
                   <option value="">— Select teacher —</option>
@@ -521,15 +673,15 @@ export default function TimetablePage() {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500" />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Room</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Room / Location</label>
                 <input value={slotForm.room} onChange={e => setSlotForm(s => ({ ...s, room: e.target.value }))}
-                  placeholder="e.g. Lab 2, ICT Room"
+                  placeholder="e.g. ICT Lab 2"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500" />
               </div>
               <div className="space-y-1 col-span-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Notes</label>
                 <input value={slotForm.notes} onChange={e => setSlotForm(s => ({ ...s, notes: e.target.value }))}
-                  placeholder="e.g. Bring laptops"
+                  placeholder="e.g. Bring laptops, practical session"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500" />
               </div>
             </div>
