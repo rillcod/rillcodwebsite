@@ -93,12 +93,13 @@ export default function TimetablePage() {
   const [saving, setSaving] = useState(false);
 
   const db = createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const anyDb = db as any;
 
   async function loadTimetables() {
     setLoading(true); setError(null);
     try {
-      let q = db.from('timetables').select('*, schools(name)').order('created_at', { ascending: false });
-      const { data, error: err } = await q;
+      const { data, error: err } = await anyDb.from('timetables').select('*, schools(name)').order('created_at', { ascending: false });
       if (err) throw err;
       setTimetables((data ?? []) as Timetable[]);
       if (data && data.length > 0 && !activeTimetable) {
@@ -113,7 +114,7 @@ export default function TimetablePage() {
   }
 
   async function loadSlots(ttId: string) {
-    const { data, error: err } = await db.from('timetable_slots').select('*').eq('timetable_id', ttId).order('start_time');
+    const { data, error: err } = await anyDb.from('timetable_slots').select('*').eq('timetable_id', ttId).order('start_time');
     if (err) { setError(err.message); return; }
     setSlots((data ?? []) as Slot[]);
   }
@@ -156,9 +157,9 @@ export default function TimetablePage() {
         created_by: profile!.id,
       };
       if (editingTT) {
-        await db.from('timetables').update(payload).eq('id', editingTT.id);
+        await anyDb.from('timetables').update(payload).eq('id', editingTT.id);
       } else {
-        const { data } = await db.from('timetables').insert(payload).select('*, schools(name)').single();
+        const { data } = await anyDb.from('timetables').insert(payload).select('*, schools(name)').single();
         if (data) setTimetables(prev => [data as Timetable, ...prev]);
       }
       await loadTimetables();
@@ -168,7 +169,7 @@ export default function TimetablePage() {
   };
   const deleteTT = async (id: string) => {
     if (!confirm('Delete this timetable and ALL its slots?')) return;
-    await db.from('timetables').delete().eq('id', id);
+    await anyDb.from('timetables').delete().eq('id', id);
     setTimetables(prev => prev.filter(t => t.id !== id));
     if (activeTimetable === id) { setActiveTimetable(null); setSlots([]); }
   };
@@ -204,9 +205,9 @@ export default function TimetablePage() {
         course_id: slotForm.course_id || null,
       };
       if (editingSlot) {
-        await db.from('timetable_slots').update(payload).eq('id', editingSlot.id);
+        await anyDb.from('timetable_slots').update(payload).eq('id', editingSlot.id);
       } else {
-        await db.from('timetable_slots').insert(payload);
+        await anyDb.from('timetable_slots').insert(payload);
       }
       await loadSlots(activeTimetable);
       setShowSlotForm(false);
@@ -215,7 +216,7 @@ export default function TimetablePage() {
   };
   const deleteSlot = async (id: string) => {
     if (!confirm('Delete this slot?')) return;
-    await db.from('timetable_slots').delete().eq('id', id);
+    await anyDb.from('timetable_slots').delete().eq('id', id);
     setSlots(prev => prev.filter(s => s.id !== id));
   };
 
@@ -229,8 +230,8 @@ export default function TimetablePage() {
   const [teacherSlots, setTeacherSlots] = useState<(Slot & { timetable?: Timetable })[]>([]);
   useEffect(() => {
     if (!isTeacher || !profile) return;
-    db.from('timetable_slots').select('*, timetables(*, schools(name))').eq('teacher_id', profile.id).order('start_time')
-      .then(({ data }) => {
+    anyDb.from('timetable_slots').select('*, timetables(*, schools(name))').eq('teacher_id', profile.id).order('start_time')
+      .then(({ data }: { data: any[] | null }) => {
         setTeacherSlots((data ?? []).map((s: any) => ({ ...s, timetable: s.timetables })));
       });
   }, [profile?.id, isTeacher]); // eslint-disable-line

@@ -45,7 +45,7 @@ export default function VerifyPage() {
     if (!code) { setStatus('notfound'); return; }
     const db = createClient();
     db.from('student_progress_reports')
-      .select('id,student_name,course_name,report_term,report_date,overall_grade,overall_score,instructor_name,school_name,section_class,school_section,is_published,has_certificate,proficiency_level,theory_score,practical_score,attendance_score')
+      .select('id,student_name,course_name,report_term,report_date,overall_grade,overall_score,instructor_name,school_name,section_class,is_published,has_certificate,proficiency_level,theory_score,practical_score,attendance_score')
       .ilike('id', `${code.toLowerCase()}%`)
       .limit(1)
       .maybeSingle()

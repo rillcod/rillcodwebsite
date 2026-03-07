@@ -100,7 +100,7 @@ export default function ReportCard({ report, orgSettings }: {
         : '—';
 
     const hasPhoto = !!report.photo_url;
-    const hasPayment = !!(report.fee_status && report.fee_status !== '');
+    const hasPayment = !!report.fee_status;
     const feeStyle = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
 
     const theory = report.theory_score ?? 0;
