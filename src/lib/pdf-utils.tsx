@@ -248,23 +248,27 @@ export async function generateReportPDF(element: HTMLElement, filename: string):
                 if (s.textContent) s.textContent = replaceColorsInCssText(s.textContent);
             });
 
-            // Pass 1b — convert linked stylesheets via CSSOM (Tailwind uses <link> tags,
-            // not <style> elements, so their lab()/oklch() survive Pass 1a otherwise).
+            // Pass 1b — convert ALL linked stylesheets via CSSOM to sanitized inline <style>
+            // blocks, then remove the <link> tags. html2canvas fetches <link> stylesheets
+            // via XHR and parses raw CSS text with its own parser — which rejects lab()/oklch().
+            // Removing the links after inlining prevents that re-fetch entirely.
             Array.from(clonedDoc.styleSheets).forEach(sheet => {
                 try {
                     const rules = Array.from(sheet.cssRules || []);
                     if (rules.length === 0) return;
                     const cssText = rules.map(r => r.cssText).join('\n');
-                    if (!hasModernColor(cssText)) return;
-                    // Replace the sheet with a sanitized inline <style>
                     const style = clonedDoc.createElement('style');
                     style.textContent = replaceColorsInCssText(cssText);
                     clonedDoc.head.appendChild(style);
                     if (sheet.ownerNode) (sheet.ownerNode as Element).remove();
                 } catch {
-                    // Cross-origin sheets throw SecurityError — skip them
+                    // Cross-origin sheets: can't read cssRules — just remove the link
+                    // so html2canvas cannot fetch and parse the raw CSS itself
+                    if (sheet.ownerNode) (sheet.ownerNode as Element).remove();
                 }
             });
+            // Belt-and-suspenders: remove any <link rel="stylesheet"> that survived
+            clonedDoc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]').forEach(l => l.remove());
 
             // Pass 2 — inject class-level hex overrides (fast, covers known classes)
             const style = clonedDoc.createElement('style');
