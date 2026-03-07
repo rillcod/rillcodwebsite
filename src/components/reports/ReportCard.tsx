@@ -327,7 +327,7 @@ export default function ReportCard({ report, orgSettings }: {
                 )}
 
                 {/* SIGNATURES & QR */}
-                <div className="mt-auto pt-4 border-t-2 border-gray-100">
+                <div className="mt-4 pt-4 border-t-2 border-gray-100">
                     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
 
                         {/* Left — signature */}
