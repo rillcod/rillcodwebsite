@@ -227,19 +227,17 @@ export default function ReportCard({ report, orgSettings }: {
                             </div>
                         </div>
 
-                        {/* Module row — separate section, same row, two columns */}
-                        {(report.current_module || report.next_module) && (
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3">
-                                    <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">Current Module</p>
-                                    <p className="text-[11px] font-bold text-gray-800 leading-tight">{report.current_module || '—'}</p>
-                                </div>
-                                <div className="bg-violet-50/80 border border-violet-100 rounded-2xl px-4 py-3">
-                                    <p className="text-[8px] font-black uppercase tracking-widest text-violet-400 mb-1">Upcoming Module</p>
-                                    <p className="text-[11px] font-bold text-violet-700 leading-tight">{report.next_module || '—'}</p>
-                                </div>
+                        {/* Modules — stacked, always visible */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 12, padding: '8px 14px' }}>
+                                <p style={{ fontSize: 8, fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>Current Module</p>
+                                <p style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', lineHeight: 1.3 }}>{report.current_module || '—'}</p>
                             </div>
-                        )}
+                            <div style={{ backgroundColor: '#ede9fe', border: '1px solid #c4b5fd', borderRadius: 12, padding: '8px 14px' }}>
+                                <p style={{ fontSize: 8, fontWeight: 900, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>Upcoming Module</p>
+                                <p style={{ fontSize: 12, fontWeight: 700, color: '#4c1d95', lineHeight: 1.3 }}>{report.next_module || '—'}</p>
+                            </div>
+                        </div>
 
                     </div>
 
