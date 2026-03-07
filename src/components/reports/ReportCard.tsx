@@ -138,7 +138,7 @@ export default function ReportCard({ report, orgSettings }: {
     return (
         <div
             id="report-card"
-            className="bg-white text-gray-900 font-sans relative overflow-hidden shrink-0"
+            className="bg-white text-gray-900 font-sans relative overflow-hidden shrink-0 flex flex-col"
             style={{ width: 794, height: 1123, margin: '0 auto', fontSize: 11, border: '16px solid #1a1a2e', position: 'relative', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
         >
             {/* Background */}
@@ -200,7 +200,7 @@ export default function ReportCard({ report, orgSettings }: {
                 </div>
             </div>
 
-            <div className="p-8 space-y-5">
+            <div className="flex-1 p-8 flex flex-col justify-between" style={{ minHeight: 0 }}>
                 {/* PROFILE & PERFORMANCE */}
                 <div className="grid grid-cols-12 gap-8">
                     {/* Identity */}
