@@ -108,7 +108,63 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
-/* Animations */
+/* ── Print / PDF ────────────────────────────────────────────── */
+@media print {
+  @page {
+    margin: 0;
+    size: A4 portrait;
+  }
+  html, body {
+    background-color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ── Comprehensive oklch → hex fallbacks for Tailwind v4 (window.print) ── */
+  /* Grays */
+  .bg-white      { background-color: #ffffff !important; }
+  .bg-gray-50    { background-color: #f9fafb !important; }
+  .bg-gray-100   { background-color: #f3f4f6 !important; }
+  .text-gray-900 { color: #111827 !important; }
+  .text-gray-800 { color: #1f2937 !important; }
+  .text-gray-700 { color: #374151 !important; }
+  .text-gray-600 { color: #4b5563 !important; }
+  .text-gray-500 { color: #6b7280 !important; }
+  .text-gray-400 { color: #9ca3af !important; }
+  .text-gray-300 { color: #d1d5db !important; }
+  .text-gray-200 { color: #e5e7eb !important; }
+  .border-gray-50  { border-color: #f9fafb !important; }
+  .border-gray-100 { border-color: #f3f4f6 !important; }
+  .border-gray-200 { border-color: #e5e7eb !important; }
+  /* Violet */
+  .text-violet-600    { color: #7c3aed !important; }
+  .text-violet-400    { color: #a78bfa !important; }
+  /* Emerald */
+  .border-emerald-100 { border-color: #d1fae5 !important; }
+  /* Amber */
+  .text-amber-400     { color: #fbbf24 !important; }
+  .border-amber-100   { border-color: #fef3c7 !important; }
+  /* White with opacity (on dark header / grade card in ReportCard) */
+  .text-white        { color: #ffffff !important; }
+  .text-white\/90    { color: rgba(255,255,255,0.9) !important; }
+  .text-white\/80    { color: rgba(255,255,255,0.8) !important; }
+  .text-white\/60    { color: rgba(255,255,255,0.6) !important; }
+  .text-white\/40    { color: rgba(255,255,255,0.4) !important; }
+  .bg-white\/10      { background-color: rgba(255,255,255,0.1) !important; }
+  .border-white\/10  { border-color: rgba(255,255,255,0.1) !important; }
+  /* Opacity backgrounds */
+  .bg-emerald-50\/50 { background-color: rgba(236,253,245,0.5) !important; }
+  .bg-amber-50\/50   { background-color: rgba(255,251,235,0.5) !important; }
+  .bg-indigo-50\/50  { background-color: rgba(238,242,255,0.5) !important; }
+  .bg-violet-50\/50  { background-color: rgba(245,243,255,0.5) !important; }
+  .bg-violet-600\/10 { background-color: rgba(124,58,237,0.1) !important; }
+  .bg-amber-500\/10  { background-color: rgba(245,158,11,0.1) !important; }
+  .border-amber-500\/20 { border-color: rgba(245,158,11,0.2) !important; }
+  .text-emerald-900\/80 { color: rgba(6,78,59,0.8) !important; }
+  .text-amber-900\/80   { color: rgba(78,49,6,0.8) !important; }
+}
+
+/* ── Animations */
 @keyframes fadeInUp {
   from {
     opacity: 0;

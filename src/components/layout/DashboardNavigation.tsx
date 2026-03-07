@@ -18,6 +18,7 @@ import {
   PresentationChartLineIcon,
   ClipboardDocumentCheckIcon,
   DocumentTextIcon,
+  DocumentChartBarIcon,
   UserIcon,
   BellIcon,
   EnvelopeIcon,
@@ -28,11 +29,17 @@ import {
   TrophyIcon,
   ShieldCheckIcon,
   CodeBracketIcon,
-  PaintBrushIcon,
   RocketLaunchIcon,
 } from '@heroicons/react/24/outline';
 
-type NavItem = { name: string; href: string; icon: any };
+// ── Types ─────────────────────────────────────────────────────────────────────
+type NavItem    = { name: string; href: string; icon: any };
+type NavDivider = { divider: true; label: string };
+type NavEntry   = NavItem | NavDivider;
+
+function isDivider(e: NavEntry): e is NavDivider {
+  return 'divider' in e;
+}
 
 export default function DashboardNavigation() {
   const { profile, signOut } = useAuth();
@@ -40,12 +47,10 @@ export default function DashboardNavigation() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Close sidebar on route change
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
-  // Lock body scroll when mobile sidebar is open
   useEffect(() => {
     if (mobileOpen) {
       document.body.style.overflow = 'hidden';
@@ -63,7 +68,6 @@ export default function DashboardNavigation() {
       .then(({ count }) => setUnreadCount(count ?? 0));
   }, [profile?.id]); // eslint-disable-line
 
-  // Show minimal escape bar when profile not yet loaded
   if (!profile) return (
     <div className="fixed top-0 left-0 right-0 z-50 bg-[#0b0b18] border-b border-white/10 h-14 flex items-center justify-between px-4 sm:px-6">
       <span className="text-white/30 text-sm font-semibold">Rillcod Academy</span>
@@ -81,104 +85,121 @@ export default function DashboardNavigation() {
     </div>
   );
 
-  const getNavItems = (): NavItem[] => {
+  // ── Nav entries per role ────────────────────────────────────────────────────
+  const getNavEntries = (): NavEntry[] => {
     const base: NavItem[] = [{ name: 'Dashboard', href: '/dashboard', icon: HomeIcon }];
 
     switch (profile.role) {
       case 'admin':
         return [
           ...base,
-          { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
-          { name: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
-          { name: 'Users Management', href: '/dashboard/users', icon: ShieldCheckIcon },
-          { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
-          { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
-          { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
-          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
-          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
-          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
-          { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
-          { name: 'Results', href: '/dashboard/results', icon: TrophyIcon },
-          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
-          { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
-          { name: 'IoT Monitor', href: '/dashboard/iot', icon: SignalIcon },
-          { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
+          { name: 'Schools',          href: '/dashboard/schools',          icon: BuildingOfficeIcon },
+          { name: 'Teachers',         href: '/dashboard/teachers',         icon: AcademicCapIcon },
+          { name: 'Users',            href: '/dashboard/users',            icon: ShieldCheckIcon },
+          { name: 'Approvals',        href: '/dashboard/approvals',        icon: ClipboardDocumentCheckIcon },
+          { name: 'Students',         href: '/dashboard/students',         icon: UserGroupIcon },
+          { name: 'Courses',          href: '/dashboard/courses',          icon: BookOpenIcon },
+          { name: 'Library',          href: '/dashboard/library',          icon: BookOpenIcon },
+          { name: 'CBT Exams',        href: '/dashboard/cbt',              icon: AcademicCapIcon },
+          { name: 'Leaderboard',      href: '/dashboard/leaderboard',      icon: TrophyIcon },
+          { divider: true, label: 'Reports' },
+          { name: 'Report Builder',   href: '/dashboard/reports/builder',  icon: DocumentTextIcon },
+          { name: 'Progress Reports', href: '/dashboard/results',          icon: DocumentChartBarIcon },
+          { divider: true, label: 'System' },
+          { name: 'Messages',         href: '/dashboard/messages',         icon: EnvelopeIcon },
+          { name: 'Analytics',        href: '/dashboard/analytics',        icon: ChartBarIcon },
+          { name: 'IoT Monitor',      href: '/dashboard/iot',              icon: SignalIcon },
+          { name: 'Settings',         href: '/dashboard/settings',         icon: CogIcon },
         ];
+
       case 'teacher':
         return [
           ...base,
-          { name: 'My Classes', href: '/dashboard/classes', icon: BookOpenIcon },
-          { name: 'Lessons', href: '/dashboard/lessons', icon: PresentationChartLineIcon },
-          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
-          { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
-          { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
-          { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
-          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
-          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
-          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
-          { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
-          { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
-          { name: 'Results', href: '/dashboard/results', icon: TrophyIcon },
-          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
-          { name: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon },
-          { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
+          { name: 'My Classes',       href: '/dashboard/classes',          icon: BookOpenIcon },
+          { name: 'Lessons',          href: '/dashboard/lessons',          icon: PresentationChartLineIcon },
+          { name: 'Library',          href: '/dashboard/library',          icon: BookOpenIcon },
+          { name: 'Attendance',       href: '/dashboard/attendance',       icon: ClipboardDocumentCheckIcon },
+          { name: 'Students',         href: '/dashboard/students',         icon: UserGroupIcon },
+          { name: 'Assignments',      href: '/dashboard/assignments',      icon: ClipboardDocumentListIcon },
+          { name: 'CBT Exams',        href: '/dashboard/cbt',              icon: AcademicCapIcon },
+          { name: 'Grades',           href: '/dashboard/grades',           icon: ClipboardDocumentCheckIcon },
+          { name: 'Leaderboard',      href: '/dashboard/leaderboard',      icon: TrophyIcon },
+          { name: 'Code Playground',  href: '/dashboard/playground',       icon: CodeBracketIcon },
+          { divider: true, label: 'Reports' },
+          { name: 'Report Builder',   href: '/dashboard/reports/builder',  icon: DocumentTextIcon },
+          { name: 'Progress Reports', href: '/dashboard/results',          icon: DocumentChartBarIcon },
+          { divider: true, label: 'More' },
+          { name: 'Messages',         href: '/dashboard/messages',         icon: EnvelopeIcon },
+          { name: 'Progress',         href: '/dashboard/progress',         icon: ChartBarIcon },
+          { name: 'Settings',         href: '/dashboard/settings',         icon: CogIcon },
         ];
+
       case 'student':
         return [
           ...base,
-          { name: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon },
-          { name: 'Lessons', href: '/dashboard/lessons', icon: PresentationChartLineIcon },
-          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
-          { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
-          { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
-          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
-          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
-          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
-          { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
-          { name: 'My Portfolio', href: '/dashboard/portfolio', icon: RocketLaunchIcon },
-          { name: 'Results', href: '/dashboard/results', icon: TrophyIcon },
-          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
-          { name: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon },
-          { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
+          { name: 'My Courses',       href: '/dashboard/courses',          icon: BookOpenIcon },
+          { name: 'Lessons',          href: '/dashboard/lessons',          icon: PresentationChartLineIcon },
+          { name: 'Library',          href: '/dashboard/library',          icon: BookOpenIcon },
+          { name: 'Attendance',       href: '/dashboard/attendance',       icon: ClipboardDocumentCheckIcon },
+          { name: 'Assignments',      href: '/dashboard/assignments',      icon: ClipboardDocumentListIcon },
+          { name: 'CBT Exams',        href: '/dashboard/cbt',              icon: AcademicCapIcon },
+          { name: 'Grades',           href: '/dashboard/grades',           icon: ClipboardDocumentCheckIcon },
+          { name: 'Leaderboard',      href: '/dashboard/leaderboard',      icon: TrophyIcon },
+          { name: 'Code Playground',  href: '/dashboard/playground',       icon: CodeBracketIcon },
+          { name: 'My Portfolio',     href: '/dashboard/portfolio',        icon: RocketLaunchIcon },
+          { divider: true, label: 'My Report' },
+          { name: 'My Report Card',   href: '/dashboard/results',          icon: DocumentChartBarIcon },
+          { divider: true, label: 'More' },
+          { name: 'Messages',         href: '/dashboard/messages',         icon: EnvelopeIcon },
+          { name: 'Progress',         href: '/dashboard/progress',         icon: ChartBarIcon },
+          { name: 'Settings',         href: '/dashboard/settings',         icon: CogIcon },
         ];
+
       case 'school':
         return [
           ...base,
-          { name: 'School Overview', href: '/dashboard/school-overview', icon: BuildingOfficeIcon },
-          { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon },
-          { name: 'Import Students', href: '/dashboard/students/import', icon: UserGroupIcon },
-          { name: 'Grades & Reports', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
-          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
-          { name: 'Results', href: '/dashboard/results', icon: TrophyIcon },
-          { name: 'Activity', href: '/dashboard/progress', icon: ChartBarIcon },
-          { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
-          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
-          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
-          { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
+          { name: 'School Overview',  href: '/dashboard/school-overview',  icon: BuildingOfficeIcon },
+          { name: 'My Students',      href: '/dashboard/students',         icon: UserGroupIcon },
+          { name: 'Import Students',  href: '/dashboard/students/import',  icon: UserGroupIcon },
+          { name: 'Grades & Reports', href: '/dashboard/grades',           icon: ClipboardDocumentCheckIcon },
+          { name: 'Leaderboard',      href: '/dashboard/leaderboard',      icon: TrophyIcon },
+          { divider: true, label: 'Reports' },
+          { name: 'Student Reports',  href: '/dashboard/results',          icon: DocumentChartBarIcon },
+          { divider: true, label: 'More' },
+          { name: 'Activity',         href: '/dashboard/progress',         icon: ChartBarIcon },
+          { name: 'Courses',          href: '/dashboard/courses',          icon: BookOpenIcon },
+          { name: 'Library',          href: '/dashboard/library',          icon: BookOpenIcon },
+          { name: 'Messages',         href: '/dashboard/messages',         icon: EnvelopeIcon },
+          { name: 'Settings',         href: '/dashboard/settings',         icon: CogIcon },
         ];
+
       default:
         return base;
     }
   };
 
-  const navItems = getNavItems();
-  const bottomNavNames = new Set(['Dashboard', 'Courses', 'My Courses', 'My Classes', 'Library', 'Messages', 'Leaderboard', 'Code Playground', 'School Overview']);
-  const bottomNavItems = navItems.filter((item) => bottomNavNames.has(item.name)).slice(0, 4);
+  const navEntries = getNavEntries();
 
-  const handleLogout = () => {
-    signOut();
-  };
+  // Extract plain nav items for bottom tab bar
+  const navItems = navEntries.filter((e): e is NavItem => !isDivider(e));
+  const BOTTOM_NAV_NAMES = new Set([
+    'Dashboard', 'Courses', 'My Courses', 'My Classes', 'Library',
+    'Messages', 'Leaderboard', 'Code Playground', 'School Overview',
+    'My Report Card', 'Progress Reports', 'Student Reports',
+  ]);
+  const bottomNavItems = navItems.filter(item => BOTTOM_NAV_NAMES.has(item.name)).slice(0, 4);
+
+  const handleLogout = () => signOut();
 
   return (
     <>
-      {/* ── Mobile Top Header (hidden on md+) ── */}
+      {/* ── Mobile Top Header ── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#0B132B] px-4 py-2.5 text-white border-b-2 border-[#7a0606] shadow-lg">
         <Link href="/dashboard" className="flex items-center gap-2.5">
           <Image src="/images/logo.png" alt="Rillcod" width={32} height={32} className="rounded-lg" priority />
           <span className="font-extrabold uppercase tracking-widest text-lg">Rillcod</span>
         </Link>
         <div className="flex items-center gap-2">
-          {/* Unread badge in topbar */}
           {unreadCount > 0 && (
             <Link href="/dashboard/messages" className="relative p-1.5">
               <BellIcon className="w-5 h-5 text-gray-300" />
@@ -207,8 +228,6 @@ export default function DashboardNavigation() {
       )}
 
       {/* ── Sidebar ── */}
-      {/* On mobile: fixed overlay, slides in from left below the top header (top-[53px])
-          On md+: static sidebar that sits in the flex layout */}
       <nav
         className={`
           fixed top-[53px] left-0 bottom-16 z-40 md:bottom-0
@@ -222,14 +241,14 @@ export default function DashboardNavigation() {
         `}
         aria-label="Dashboard navigation"
       >
-        {/* Logo Section (desktop only) */}
+        {/* Logo (desktop only) */}
         <div className="hidden md:flex flex-col items-center justify-center py-6 border-b border-gray-800">
           <Image src="/images/logo.png" alt="Rillcod Academy" width={64} height={64} className="rounded-2xl shadow-lg shadow-black/50 mb-3" priority />
           <span className="text-xl font-extrabold uppercase tracking-[0.2em] text-white">Rillcod</span>
           <span className="text-[10px] font-bold tracking-widest text-gray-400 mt-1 uppercase">Academy Portal</span>
         </div>
 
-        {/* User Badge */}
+        {/* User badge */}
         <div className="px-4 md:px-6 py-4 flex items-center gap-3 border-b border-gray-800 bg-[#060c1d]">
           <div className="w-10 h-10 bg-[#7a0606] border border-gray-600 rounded flex items-center justify-center flex-shrink-0">
             <span className="text-white text-lg font-black uppercase">
@@ -237,28 +256,39 @@ export default function DashboardNavigation() {
             </span>
           </div>
           <div className="flex flex-col overflow-hidden">
-            <span className="text-sm font-bold truncate text-white">
-              {profile.full_name}
-            </span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#FF914D]">
-              {profile.role}
-            </span>
+            <span className="text-sm font-bold truncate text-white">{profile.full_name}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#FF914D]">{profile.role}</span>
           </div>
         </div>
 
-        {/* Links Navigation */}
+        {/* Links */}
         <div className="flex-1 overflow-y-auto px-3 md:px-4 py-4 space-y-0.5">
-          {navItems.map(({ name, href, icon: Icon }) => {
+          {navEntries.map((entry, idx) => {
+            if (isDivider(entry)) {
+              return (
+                <div key={`divider-${idx}`} className="pt-3 pb-1 px-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/25 whitespace-nowrap">
+                      {entry.label}
+                    </span>
+                    <div className="h-px flex-1 bg-white/10" />
+                  </div>
+                </div>
+              );
+            }
+
+            const { name, href, icon: Icon } = entry;
             const active = pathname === href || pathname?.startsWith(href + '/');
             return (
               <Link
                 key={name}
                 href={href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold tracking-wider uppercase transition-all duration-200 ${active
-                  ? 'bg-[#7a0606] text-white shadow-md'
-                  : 'text-gray-400 hover:bg-[#1a2b54] hover:text-white'
-                  }`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold tracking-wider uppercase transition-all duration-200 ${
+                  active
+                    ? 'bg-[#7a0606] text-white shadow-md'
+                    : 'text-gray-400 hover:bg-[#1a2b54] hover:text-white'
+                }`}
               >
                 <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-white' : 'text-gray-400'}`} />
                 <span className="truncate">{name}</span>
@@ -272,7 +302,7 @@ export default function DashboardNavigation() {
           })}
         </div>
 
-        {/* Bottom Actions */}
+        {/* Bottom actions */}
         <div className="p-3 md:p-4 border-t border-gray-800 bg-[#060c1d] space-y-1">
           <Link
             href="/dashboard/messages"
@@ -288,7 +318,9 @@ export default function DashboardNavigation() {
               )}
             </div>
             Notifications
-            {unreadCount > 0 && <span className="ml-auto text-[10px] bg-rose-500/20 text-rose-400 px-1.5 py-0.5 rounded-full">{unreadCount}</span>}
+            {unreadCount > 0 && (
+              <span className="ml-auto text-[10px] bg-rose-500/20 text-rose-400 px-1.5 py-0.5 rounded-full">{unreadCount}</span>
+            )}
           </Link>
           <Link
             href="/dashboard/profile"
@@ -306,7 +338,7 @@ export default function DashboardNavigation() {
         </div>
       </nav>
 
-      {/* ── Mobile Bottom Navigation (visible on mobile only) ── */}
+      {/* ── Mobile Bottom Navigation ── */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0B132B] border-t-2 border-[#7a0606] px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
         {bottomNavItems.map(({ name, href, icon: Icon }) => {
           const active = pathname === href || pathname?.startsWith(href + '/');
@@ -315,7 +347,9 @@ export default function DashboardNavigation() {
               key={`mobile-${name}`}
               href={href}
               onClick={() => setMobileOpen(false)}
-              className={`flex flex-col items-center gap-1 px-2 py-1 rounded-xl min-w-[3.5rem] transition-all duration-200 ${active ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              className={`flex flex-col items-center gap-1 px-2 py-1 rounded-xl min-w-[3.5rem] transition-all duration-200 ${
+                active ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+              }`}
             >
               <div className={`relative p-1.5 rounded-lg transition-all duration-200 ${active ? 'bg-[#7a0606] shadow-md shadow-black/40' : ''}`}>
                 <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-gray-400'}`} />
@@ -326,13 +360,16 @@ export default function DashboardNavigation() {
                 )}
               </div>
               <span className={`text-[9px] font-bold uppercase tracking-wide leading-none ${active ? 'text-white' : 'text-gray-500'}`}>
-                {name === 'My Courses' ? 'Courses' : name}
+                {name === 'My Courses' ? 'Courses' :
+                 name === 'My Report Card' ? 'Report' :
+                 name === 'Progress Reports' ? 'Reports' :
+                 name === 'Student Reports' ? 'Reports' :
+                 name}
               </span>
             </Link>
           );
         })}
 
-        {/* Sign Out Button in Bottom Nav */}
         <button
           onClick={handleLogout}
           className="flex flex-col items-center gap-1 px-2 py-1 rounded-xl min-w-[3.5rem] transition-all duration-200 text-red-500 hover:text-red-400 group"
@@ -340,9 +377,7 @@ export default function DashboardNavigation() {
           <div className="relative p-1.5 rounded-lg transition-all duration-200 group-active:bg-red-500/20">
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
           </div>
-          <span className="text-[9px] font-bold uppercase tracking-wide leading-none">
-            Sign Out
-          </span>
+          <span className="text-[9px] font-bold uppercase tracking-wide leading-none">Sign Out</span>
         </button>
       </div>
     </>

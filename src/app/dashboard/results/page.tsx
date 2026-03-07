@@ -7,130 +7,118 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
     PrinterIcon, AcademicCapIcon, MagnifyingGlassIcon,
-    TrophyIcon, DocumentTextIcon, UserGroupIcon, PencilSquareIcon, StarIcon,
-    CheckIcon, ArrowDownTrayIcon
+    TrophyIcon, DocumentTextIcon, PencilSquareIcon, CheckCircleIcon,
 } from '@heroicons/react/24/solid';
-import { Crown, Target, Sparkles, User, UserCheck, FileDown } from 'lucide-react';
-import QRCode from 'react-qr-code';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import { Database } from '@/types/supabase';
+import {
+    ArrowDownTrayIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon,
+} from '@heroicons/react/24/outline';
 import ReportCard from '@/components/reports/ReportCard';
+import { ScaledReportCard, generateReportPDF } from '@/lib/pdf-utils';
+import { Database } from '@/types/supabase';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
-type PortalUser = Database['public']['Tables']['portal_users']['Row'];
-type Course = Database['public']['Tables']['courses']['Row'];
-type ReportSettings = Database['public']['Tables']['report_settings']['Row'];
+type PortalUser    = Database['public']['Tables']['portal_users']['Row'];
+type OrgSettings   = Database['public']['Tables']['report_settings']['Row'];
 
-function BarChart({ theory, practical, attendance }: { theory: number; practical: number; attendance: number }) {
-    const bars = [
-        { label: 'Theory', value: theory, color: '#4f7ef7', bg: 'bg-blue-500/10' },
-        { label: 'Practical', value: practical, color: '#22c55e', bg: 'bg-emerald-500/10' },
-        { label: 'Attendance', value: attendance, color: '#a855f7', bg: 'bg-purple-500/10' },
-    ];
-    return (
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-            <div className="flex items-end gap-10 justify-center h-[160px] relative">
-                {/* Y-axis lines */}
-                <div className="absolute inset-x-0 top-0 h-full flex flex-col justify-between pointer-events-none">
-                    {[100, 75, 50, 25, 0].map(v => (
-                        <div key={v} className="w-full border-t border-gray-50 flex items-center">
-                            <span className="text-[8px] text-gray-300 absolute -left-6">{v}%</span>
-                        </div>
-                    ))}
-                </div>
-
-                {bars.map(b => (
-                    <div key={b.label} className="flex flex-col items-center gap-3 relative z-10 w-16">
-                        <div className="flex flex-col-reverse w-full items-center">
-                            <div className={`w-full rounded-t-lg transition-all duration-1000 ease-out shadow-lg`}
-                                style={{
-                                    height: `${(b.value / 100) * 120}px`,
-                                    backgroundColor: b.color,
-                                    boxShadow: `0 4px 12px ${b.color}40`
-                                }} />
-                            <span className="text-[12px] font-black mb-1" style={{ color: b.color }}>{b.value}%</span>
-                        </div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{b.label}</span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-// ─── Student list sidebar ─────────────────────────────────────
+// ─── Inner component ───────────────────────────────────────────────────────────
 function ResultsPageInner() {
-    const searchParams = useSearchParams();
+    const searchParams  = useSearchParams();
     const prefStudentId = searchParams.get('student');
     const { profile, loading: authLoading } = useAuth();
-    const [students, setStudents] = useState<any[]>([]);
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [reportsMap, setReportsMap] = useState<Record<string, any>>({});
-    const [orgSettings, setOrgSettings] = useState<ReportSettings | null>(null);
-    const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
-    const [selectedReport, setSelectedReport] = useState<StudentReport | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
-    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-    const pdfRef = useRef<HTMLDivElement>(null);
 
-    const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+    // ── Core data ──────────────────────────────────────────────────────────────
+    const [students, setStudents]       = useState<PortalUser[]>([]);
+    const [reportsMap, setReportsMap]   = useState<Record<string, any>>({});
+    const [orgSettings, setOrgSettings] = useState<OrgSettings | null>(null);
+    const [loading, setLoading]         = useState(true);
 
+    // ── Selection / view ───────────────────────────────────────────────────────
+    const [selectedStudent, setSelectedStudent] = useState<PortalUser | null>(null);
+    const [selectedReport, setSelectedReport]   = useState<StudentReport | null>(null);
+    const [loadingReport, setLoadingReport]     = useState(false);
+
+    // ── Filters ────────────────────────────────────────────────────────────────
+    const [search, setSearch]           = useState('');
+    const [filterClass, setFilterClass] = useState('');
+    const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'none'>('all');
+
+    // ── Multi-select ───────────────────────────────────────────────────────────
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+    // ── PDF state ──────────────────────────────────────────────────────────────
+    const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+    const [isBatchDownloading, setIsBatchDownloading] = useState(false);
+    const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
+    const [captureReport, setCaptureReport] = useState<StudentReport | null>(null);
+
+    const pdfRef         = useRef<HTMLDivElement>(null);  // single-student capture
+    const captureRef     = useRef<HTMLDivElement>(null);  // batch capture
+    const captureQueue   = useRef<StudentReport[]>([]);
+    const captureIdx     = useRef<number>(0);
+
+    const isStaff  = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+    // School partners can VIEW and PRINT but cannot create or edit reports
+    const isEditor = profile?.role === 'admin' || profile?.role === 'teacher';
+
+    // ── Data loading ───────────────────────────────────────────────────────────
     useEffect(() => {
         if (authLoading || !profile) return;
         const db = createClient();
 
         if (!isStaff) {
-            // Student: load own report
+            // Student: load own latest published report
             Promise.all([
-                db.from('student_progress_reports').select('*').eq('student_id', profile.id).eq('is_published', true).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+                db.from('student_progress_reports')
+                    .select('*')
+                    .eq('student_id', profile.id)
+                    .eq('is_published', true)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle(),
                 db.from('report_settings').select('*').limit(1).maybeSingle(),
             ]).then(([rep, org]) => {
-                setSelectedReport(rep.data);
+                setSelectedReport(rep.data as StudentReport | null);
                 setOrgSettings(org.data);
                 setLoading(false);
             });
             return;
         }
 
-        // Staff: load students + their reports
-        const q = db.from('portal_users').select('id, full_name, email, school_name, section_class, school_id, profile_image_url').eq('role', 'student');
-        const query = (profile.role === 'school' && profile.school_id) ? q.eq('school_id', profile.school_id) : q;
+        // Staff: load students + report summaries
+        const q = db.from('portal_users')
+            .select('id, full_name, email, school_name, section_class, school_id, profile_image_url')
+            .eq('role', 'student');
+        const query = (profile.role === 'school' && profile.school_id)
+            ? q.eq('school_id', profile.school_id) : q;
 
         Promise.all([
             query.order('full_name').limit(200),
-            db.from('student_progress_reports').select('student_id, overall_grade, is_published, updated_at'),
+            db.from('student_progress_reports')
+                .select('student_id, overall_grade, is_published, updated_at'),
             db.from('report_settings').select('*').limit(1).maybeSingle(),
-            db.from('courses').select('*'),
-        ]).then(([sRes, rRes, orgRes, cRes]) => {
-            if (sRes.error) console.error("Students fetch error:", sRes.error);
-            if (rRes.error) console.error("Reports fetch error:", rRes.error);
-            if (orgRes.error) console.error("Org fetch error:", orgRes.error);
-            if (cRes.error) console.error("Courses fetch error:", cRes.error);
+        ]).then(([sRes, rRes, orgRes]) => {
+            const studs = (sRes.data ?? []) as PortalUser[];
+            setStudents(studs);
 
-            setStudents(sRes.data ?? []);
-            setCourses(cRes.data ?? []);
             const rMap: Record<string, any> = {};
-            (rRes.data ?? []).forEach((r) => {
+            (rRes.data ?? []).forEach(r => {
                 if (r.student_id && !rMap[r.student_id]) rMap[r.student_id] = r;
             });
             setReportsMap(rMap);
             setOrgSettings(orgRes.data);
 
-            if (prefStudentId && sRes.data) {
-                const s = sRes.data.find((x: any) => x.id === prefStudentId);
-                if (s) selectStudent(s as PortalUser);
+            if (prefStudentId) {
+                const s = studs.find(x => x.id === prefStudentId);
+                if (s) loadStudentReport(s);
             }
-        }).catch(err => {
-            console.error("Results module Promise.all error:", err);
-        }).finally(() => {
-            setLoading(false);
-        });
-    }, [profile?.id, authLoading, isStaff, profile?.role, profile?.school_id, prefStudentId]);
+        }).finally(() => setLoading(false));
+    }, [profile?.id, authLoading]); // eslint-disable-line
 
-    async function selectStudent(s: PortalUser) {
+    // ── Load single student report ─────────────────────────────────────────────
+    async function loadStudentReport(s: PortalUser) {
         setSelectedStudent(s);
+        setLoadingReport(true);
+        setSelectedReport(null);
         const { data } = await createClient()
             .from('student_progress_reports')
             .select('*')
@@ -139,60 +127,168 @@ function ResultsPageInner() {
             .limit(1)
             .maybeSingle();
         setSelectedReport(data as StudentReport | null);
+        setLoadingReport(false);
     }
 
-    const filtered = students.filter(s =>
-        (s.full_name ?? '').toLowerCase().includes((search ?? '').toLowerCase()) ||
-        (s.email ?? '').toLowerCase().includes((search ?? '').toLowerCase())
-    );
+    // ── Derived data ───────────────────────────────────────────────────────────
+    const distinctClasses = [...new Set(
+        students.map(s => (s as any).section_class).filter(Boolean)
+    )].sort() as string[];
 
-    async function downloadPDF() {
-        const element = pdfRef.current;
-        if (!element) return;
+    const filtered = students.filter(s => {
+        const matchSearch = !search
+            || (s.full_name ?? '').toLowerCase().includes(search.toLowerCase())
+            || (s.email ?? '').toLowerCase().includes(search.toLowerCase());
+        const matchClass = !filterClass || (s as any).section_class === filterClass;
+        const r = reportsMap[s.id];
+        const matchStatus =
+            filterStatus === 'all'       ? true :
+            filterStatus === 'published' ? r?.is_published === true :
+            filterStatus === 'draft'     ? (r && r.is_published === false) :
+            /* none */                     !r;
+        return matchSearch && matchClass && matchStatus;
+    });
 
-        setIsGeneratingPdf(true);
-        try {
-            const canvas = await html2canvas(element, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-                windowWidth: 794, // 210mm at 96dpi
-                windowHeight: 1123 // 297mm at 96dpi
-            });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            });
+    const stats = {
+        total:     students.length,
+        published: Object.values(reportsMap).filter(r => r.is_published).length,
+        draft:     Object.values(reportsMap).filter(r => !r.is_published).length,
+        none:      students.length - Object.keys(reportsMap).length,
+    };
 
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
+    const currentIdx = selectedStudent
+        ? filtered.findIndex(s => s.id === selectedStudent.id)
+        : -1;
 
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`Report_${selectedReport?.student_name?.replace(/\s+/g, '_')}_${new Date().toLocaleDateString()}.pdf`);
-        } catch (err) {
-            console.error('PDF generation failed:', err);
-            alert('Failed to generate PDF. Please try using the Print option.');
-        } finally {
-            setIsGeneratingPdf(false);
+    // ── Multi-select ───────────────────────────────────────────────────────────
+    function toggleSelectAll() {
+        if (selectedIds.size === filtered.length && filtered.length > 0) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filtered.map(s => s.id)));
         }
     }
 
+    function toggleSelect(id: string, e: React.MouseEvent) {
+        e.stopPropagation();
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    }
+
+    // ── Single PDF ─────────────────────────────────────────────────────────────
+    async function downloadSinglePDF() {
+        if (!pdfRef.current || !selectedReport) return;
+        setIsDownloadingPdf(true);
+        try {
+            const name = (selectedReport.student_name ?? 'Student').replace(/\s+/g, '_');
+            await generateReportPDF(pdfRef.current, `Report_${name}.pdf`);
+        } catch (err) {
+            console.error('PDF failed:', err);
+            alert('PDF failed. Try Print → Save as PDF instead.');
+        } finally {
+            setIsDownloadingPdf(false);
+        }
+    }
+
+    // ── Batch PDF ──────────────────────────────────────────────────────────────
+    async function startBatchDownload() {
+        const ids = [...selectedIds];
+        if (ids.length === 0) return;
+        setIsBatchDownloading(true);
+
+        const { data: reports } = await createClient()
+            .from('student_progress_reports')
+            .select('*')
+            .in('student_id', ids)
+            .order('updated_at', { ascending: false });
+
+        if (!reports || reports.length === 0) {
+            setIsBatchDownloading(false);
+            alert('No reports found for the selected students.');
+            return;
+        }
+
+        // Dedupe: keep latest per student
+        const seen = new Set<string>();
+        const queue: StudentReport[] = [];
+        for (const r of reports) {
+            if (!seen.has(r.student_id)) {
+                seen.add(r.student_id);
+                queue.push(r as StudentReport);
+            }
+        }
+
+        captureQueue.current = queue;
+        captureIdx.current   = 0;
+        setBatchProgress({ current: 0, total: queue.length });
+        setCaptureReport(queue[0]);
+    }
+
+    // ── Batch capture effect ───────────────────────────────────────────────────
+    // After each setCaptureReport(), React re-renders the capture div,
+    // then this effect fires after paint — we capture and advance the queue.
+    useEffect(() => {
+        if (!captureReport || !captureRef.current) return;
+
+        let cancelled = false;
+        const timer = setTimeout(async () => {
+            if (cancelled || !captureRef.current) return;
+
+            const idx   = captureIdx.current;
+            const total = captureQueue.current.length;
+            setBatchProgress({ current: idx + 1, total });
+
+            try {
+                const name = (captureReport.student_name ?? 'Student').replace(/\s+/g, '_');
+                await generateReportPDF(captureRef.current, `Report_${name}.pdf`);
+            } catch (err) {
+                console.error('PDF failed for:', captureReport.student_name, err);
+            }
+
+            if (cancelled) return;
+
+            const next = idx + 1;
+            captureIdx.current = next;
+
+            if (next < captureQueue.current.length) {
+                setCaptureReport(captureQueue.current[next]);
+            } else {
+                // Batch done
+                setCaptureReport(null);
+                setIsBatchDownloading(false);
+                setBatchProgress(null);
+                setSelectedIds(new Set());
+            }
+        }, 450); // wait for DOM paint
+
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [captureReport]);
+
+    // ── Navigate prev/next ─────────────────────────────────────────────────────
+    async function navigateTo(idx: number) {
+        if (idx < 0 || idx >= filtered.length) return;
+        await loadStudentReport(filtered[idx]);
+    }
+
+    // ── Loading screen ─────────────────────────────────────────────────────────
     if (authLoading || loading) return (
         <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
             <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
+    // ── Render ─────────────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-[#0f0f1a] text-white">
-            {/* Screen UI */}
-            <div className="print:hidden max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="min-h-screen bg-[#0f0f1a] text-white print:bg-white print:text-black print:min-h-0">
 
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* ══ Screen UI ══ */}
+            <div className="print:hidden max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+
+                {/* ── Page header ── */}
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-2 mb-1">
                             <TrophyIcon className="w-5 h-5 text-amber-400" />
@@ -200,120 +296,319 @@ function ResultsPageInner() {
                                 {isStaff ? 'Academic Results Centre' : 'My Progress Report'}
                             </span>
                         </div>
-                        <h1 className="text-3xl font-extrabold">Student Progress Reports</h1>
-                        <p className="text-white/40 text-sm mt-1">Rillcod-branded progress reports with performance charts & certificates</p>
-                    </div>
-                    <div className="flex gap-3">
+                        <h1 className="text-2xl sm:text-3xl font-extrabold">Student Progress Reports</h1>
                         {isStaff && (
-                            <Link href="/dashboard/reports/builder"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600/20 border border-violet-500/30 hover:bg-violet-600/30 text-violet-400 font-bold text-sm rounded-xl transition-all">
+                            <div className="flex items-center gap-4 mt-2 flex-wrap">
+                                <span className="text-xs text-white/40">{stats.total} students</span>
+                                <span className="flex items-center gap-1 text-xs text-emerald-400">
+                                    <CheckCircleIcon className="w-3.5 h-3.5" />
+                                    {stats.published} published
+                                </span>
+                                <span className="text-xs text-amber-400">{stats.draft} drafts</span>
+                                <span className="text-xs text-white/30">{stats.none} no report</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {isEditor && (
+                            <Link
+                                href="/dashboard/reports/builder"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600/20 border border-violet-500/30 hover:bg-violet-600/30 text-violet-400 font-bold text-sm rounded-xl transition-all"
+                            >
                                 <PencilSquareIcon className="w-4 h-4" /> Create / Edit Report
                             </Link>
                         )}
-                        {selectedReport && (
-                            <div className="flex gap-2">
-                                <button onClick={() => window.print()}
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold text-sm rounded-xl transition-all">
-                                    <PrinterIcon className="w-4 h-4" /> Print
-                                </button>
-                                <button onClick={downloadPDF} disabled={isGeneratingPdf}
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-violet-900/30">
-                                    {isGeneratingPdf ? (
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                        <FileDown className="w-4 h-4" />
-                                    )}
-                                    {isGeneratingPdf ? 'Generating...' : 'Download PDF'}
-                                </button>
-                            </div>
+                        {/* Batch download button */}
+                        {isStaff && selectedIds.size > 0 && (
+                            <button
+                                onClick={startBatchDownload}
+                                disabled={isBatchDownloading}
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-900/30"
+                            >
+                                {isBatchDownloading
+                                    ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    : <ArrowDownTrayIcon className="w-4 h-4" />}
+                                {isBatchDownloading && batchProgress
+                                    ? `Downloading ${batchProgress.current}/${batchProgress.total}…`
+                                    : `Download ${selectedIds.size} PDF${selectedIds.size > 1 ? 's' : ''}`}
+                            </button>
                         )}
                     </div>
                 </div>
 
-                <div className={`${isStaff ? 'grid grid-cols-1 lg:grid-cols-4 gap-6' : ''}`}>
+                {/* ── Batch progress bar ── */}
+                {batchProgress && (
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-5 py-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-emerald-300 font-bold text-sm">
+                                Generating PDFs — {batchProgress.current} of {batchProgress.total} complete
+                            </p>
+                            <span className="text-emerald-400 font-black text-sm">
+                                {Math.round((batchProgress.current / batchProgress.total) * 100)}%
+                            </span>
+                        </div>
+                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                                style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                            />
+                        </div>
+                        <p className="text-emerald-300/50 text-xs mt-2">
+                            Files are saved one at a time. Allow each download to complete.
+                        </p>
+                    </div>
+                )}
 
-                    {/* Left: student list */}
+                {/* ── Main layout ── */}
+                <div className={isStaff ? 'grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5 items-start' : ''}>
+
+                    {/* ══ Sidebar — staff only ══ */}
                     {isStaff && (
-                        <div className="lg:col-span-1 space-y-3">
+                        <div className="space-y-3 lg:sticky lg:top-6">
+
+                            {/* Search */}
                             <div className="relative">
                                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                                <input type="text" placeholder="Search students…" value={search} onChange={e => setSearch(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500 transition-colors" />
+                                <input
+                                    type="text"
+                                    placeholder="Search students…"
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500 transition-colors"
+                                />
                             </div>
-                            <div className="space-y-1.5 max-h-[75vh] overflow-y-auto pr-1">
-                                {filtered.length === 0 && <p className="text-white/30 text-sm py-8 text-center">No students found</p>}
-                                {filtered.map((s: any) => {
-                                    const r = reportsMap[s.id];
-                                    const isActive = selectedStudent?.id === s.id;
+
+                            {/* Filters */}
+                            <div className="grid grid-cols-2 gap-2">
+                                <select
+                                    value={filterClass}
+                                    onChange={e => setFilterClass(e.target.value)}
+                                    className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
+                                >
+                                    <option value="">All Classes</option>
+                                    {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                                <select
+                                    value={filterStatus}
+                                    onChange={e => setFilterStatus(e.target.value as any)}
+                                    className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
+                                >
+                                    <option value="all">All Status</option>
+                                    <option value="published">Published</option>
+                                    <option value="draft">Draft</option>
+                                    <option value="none">No Report</option>
+                                </select>
+                            </div>
+
+                            {/* Select-all bar */}
+                            <div className="flex items-center justify-between px-3 py-2 bg-white/[0.03] border border-white/10 rounded-xl">
+                                <button
+                                    onClick={toggleSelectAll}
+                                    className="flex items-center gap-2 text-xs text-white/60 hover:text-white transition-colors"
+                                >
+                                    <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${selectedIds.size === filtered.length && filtered.length > 0 ? 'bg-violet-600 border-violet-500' : 'border-white/30 hover:border-violet-400'}`}>
+                                        {selectedIds.size === filtered.length && filtered.length > 0 && (
+                                            <CheckIcon className="w-3 h-3 text-white" />
+                                        )}
+                                    </span>
+                                    {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all'}
+                                </button>
+                                <span className="text-[10px] text-white/30">{filtered.length} shown</span>
+                            </div>
+
+                            {/* Student list */}
+                            <div className="space-y-1.5 max-h-[calc(100vh-380px)] overflow-y-auto pr-0.5">
+                                {filtered.length === 0 && (
+                                    <p className="text-white/30 text-sm py-8 text-center">No students found</p>
+                                )}
+                                {filtered.map(s => {
+                                    const r        = reportsMap[s.id];
+                                    const isActive  = selectedStudent?.id === s.id;
+                                    const isChecked = selectedIds.has(s.id);
+                                    const cls       = (s as any).section_class as string | undefined;
+                                    const sch       = (s as any).school_name as string | undefined;
+
                                     return (
-                                        <button key={s.id} onClick={() => selectStudent(s)}
-                                            className={`w-full text-left p-3 rounded-xl border transition-all ${isActive ? 'bg-violet-600/20 border-violet-500/40' : 'bg-white/5 border-white/10 hover:border-white/20'}`}>
-                                            <div className="flex items-center gap-2.5">
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
-                                                    {s.full_name ? s.full_name[0] : '?'}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-semibold text-white truncate">{s.full_name}</p>
-                                                    <p className="text-xs text-white/40 truncate">{s.section_class ?? s.email}</p>
-                                                </div>
-                                                <div className="flex-shrink-0 text-right">
-                                                    {r ? (
-                                                        <span className={`text-lg font-black ${r.is_published ? 'text-emerald-400' : 'text-amber-400'}`}>{r.overall_grade ?? '?'}</span>
-                                                    ) : (
-                                                        <span className="text-xs text-white/20">No report</span>
-                                                    )}
-                                                </div>
+                                        <div
+                                            key={s.id}
+                                            onClick={() => loadStudentReport(s)}
+                                            className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${isActive ? 'bg-violet-600/20 border-violet-500/40' : 'bg-white/5 border-white/10 hover:border-white/25 hover:bg-white/[0.07]'}`}
+                                        >
+                                            {/* Checkbox */}
+                                            <button
+                                                onClick={e => toggleSelect(s.id, e)}
+                                                className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isChecked ? 'bg-violet-600 border-violet-500' : 'border-white/25 hover:border-violet-400'}`}
+                                            >
+                                                {isChecked && <CheckIcon className="w-3 h-3 text-white" />}
+                                            </button>
+
+                                            {/* Avatar */}
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
+                                                {s.full_name ? s.full_name[0].toUpperCase() : '?'}
                                             </div>
-                                        </button>
+
+                                            {/* Info */}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-white truncate">{s.full_name ?? 'Unknown'}</p>
+                                                <p className="text-[10px] text-white/40 truncate">
+                                                    {[cls, sch].filter(Boolean).join(' · ') || s.email}
+                                                </p>
+                                            </div>
+
+                                            {/* Grade / status */}
+                                            <div className="flex-shrink-0 text-right">
+                                                {r ? (
+                                                    <div>
+                                                        <p className={`text-base font-black leading-tight ${r.is_published ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                                            {r.overall_grade ?? '?'}
+                                                        </p>
+                                                        <p className={`text-[9px] font-bold ${r.is_published ? 'text-emerald-400/60' : 'text-amber-400/60'}`}>
+                                                            {r.is_published ? 'Published' : 'Draft'}
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-[10px] text-white/20">No report</span>
+                                                )}
+                                            </div>
+                                        </div>
                                     );
                                 })}
                             </div>
                         </div>
                     )}
 
-                    {/* Right: Report preview */}
-                    <div className={`${isStaff ? 'lg:col-span-3' : 'w-full'}`}>
-                        {selectedReport ? (
-                            <div className="border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
-                                <div className="bg-white/5 border-b border-white/10 px-5 py-3 flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <DocumentTextIcon className="w-4 h-4 text-violet-400" />
-                                        <span className="text-sm font-semibold text-white">{selectedReport.student_name ?? 'Student'}</span>
-                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${selectedReport.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                                            {selectedReport.is_published ? 'Published' : 'Draft'}
-                                        </span>
+                    {/* ══ Report panel ══ */}
+                    <div className="min-w-0">
+                        {(selectedStudent || !isStaff) ? (
+
+                            (loadingReport || selectedReport) ? (
+                                <div className="border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
+
+                                    {/* Action bar */}
+                                    <div className="bg-white/5 border-b border-white/10 px-4 py-3 flex items-center gap-2 flex-wrap">
+                                        <DocumentTextIcon className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-bold text-white truncate">
+                                                {selectedReport?.student_name ?? selectedStudent?.full_name ?? 'Student'}
+                                            </p>
+                                            {selectedReport && (
+                                                <p className="text-[10px] text-white/40 truncate">
+                                                    {[selectedReport.course_name, selectedReport.report_term, selectedReport.section_class]
+                                                        .filter(Boolean).join(' · ')}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {selectedReport && (
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 ${selectedReport.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                                {selectedReport.is_published ? '✓ Published' : 'Draft'}
+                                            </span>
+                                        )}
+
+                                        {/* Prev / Next */}
+                                        {isStaff && currentIdx >= 0 && (
+                                            <>
+                                                <button
+                                                    onClick={() => navigateTo(currentIdx - 1)}
+                                                    disabled={currentIdx <= 0 || loadingReport}
+                                                    title="Previous student"
+                                                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white disabled:opacity-20 transition-colors"
+                                                >
+                                                    <ArrowLeftIcon className="w-4 h-4" />
+                                                </button>
+                                                <span className="text-xs text-white/30 font-mono">{currentIdx + 1}/{filtered.length}</span>
+                                                <button
+                                                    onClick={() => navigateTo(currentIdx + 1)}
+                                                    disabled={currentIdx >= filtered.length - 1 || loadingReport}
+                                                    title="Next student"
+                                                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white disabled:opacity-20 transition-colors"
+                                                >
+                                                    <ArrowRightIcon className="w-4 h-4" />
+                                                </button>
+                                            </>
+                                        )}
+
+                                        {/* Edit — admin/teacher only, not school partners */}
+                                        {isEditor && selectedStudent && (
+                                            <Link
+                                                href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-violet-400 bg-violet-600/10 hover:bg-violet-600/20 rounded-lg border border-violet-500/20 transition-colors"
+                                            >
+                                                <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+                                            </Link>
+                                        )}
+
+                                        {/* Print + Download — shown when report loaded */}
+                                        {selectedReport && (
+                                            <>
+                                                <button
+                                                    onClick={() => window.print()}
+                                                    title="Print report"
+                                                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:text-white transition-colors"
+                                                >
+                                                    <PrinterIcon className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={downloadSinglePDF}
+                                                    disabled={isDownloadingPdf}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg transition-all"
+                                                >
+                                                    {isDownloadingPdf
+                                                        ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                        : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
+                                                    {isDownloadingPdf ? 'Generating…' : 'Save PDF'}
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
-                                    {isStaff && selectedStudent && (
-                                        <Link href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
-                                            className="text-xs text-violet-400 hover:text-violet-300 font-semibold underline underline-offset-2">
-                                            Edit Report
+
+                                    {/* Report body */}
+                                    {loadingReport ? (
+                                        <div className="flex items-center justify-center h-72 bg-white/[0.02]">
+                                            <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                                        </div>
+                                    ) : selectedReport ? (
+                                        <div className="overflow-auto bg-gray-100 p-4 sm:p-6 lg:p-8" style={{ maxHeight: '75vh' }}>
+                                            <ScaledReportCard report={selectedReport} orgSettings={orgSettings} />
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                            ) : (
+                                /* Student selected but has no report */
+                                <div className="flex flex-col items-center justify-center min-h-[400px] bg-white/5 border border-white/10 rounded-2xl gap-3">
+                                    <DocumentTextIcon className="w-12 h-12 text-white/10" />
+                                    <p className="text-white/40 text-sm font-semibold">
+                                        No report for {selectedStudent?.full_name}
+                                    </p>
+                                    {isEditor && selectedStudent && (
+                                        <Link
+                                            href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
+                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600/20 text-violet-400 text-sm font-bold rounded-xl border border-violet-500/30 hover:bg-violet-600/30 transition-colors"
+                                        >
+                                            <PencilSquareIcon className="w-4 h-4" /> Create Report
                                         </Link>
                                     )}
+                                    {!isEditor && (
+                                        <p className="text-white/25 text-xs">No report has been published for this student yet.</p>
+                                    )}
                                 </div>
-                                {/* Report preview — horizontally scrollable on small screens */}
-                                <div className="overflow-auto bg-gray-100 p-2 sm:p-6 lg:p-8" style={{ maxHeight: '70vh' }}>
-                                    <div className="flex justify-center min-w-max">
-                                        <ReportCard report={selectedReport} orgSettings={orgSettings} />
-                                    </div>
-                                </div>
-                            </div>
+                            )
+
                         ) : (
-                            <div className="flex flex-col items-center justify-center min-h-[400px] bg-white/5 border border-white/10 rounded-2xl">
-                                {isStaff ? (
-                                    <>
-                                        <AcademicCapIcon className="w-14 h-14 text-white/10 mb-3" />
-                                        <p className="text-white/30 text-sm">Select a student to view their report</p>
-                                        <Link href="/dashboard/reports/builder"
-                                            className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600/20 text-violet-400 text-sm font-bold rounded-xl border border-violet-500/30 hover:bg-violet-600/30 transition-colors">
-                                            <PencilSquareIcon className="w-4 h-4" /> Create First Report
-                                        </Link>
-                                    </>
-                                ) : (
-                                    <>
-                                        <TrophyIcon className="w-14 h-14 text-white/10 mb-3" />
-                                        <p className="text-white/30 text-sm font-semibold">No report available yet</p>
-                                        <p className="text-white/20 text-xs mt-1">Your teacher will publish your progress report here</p>
-                                    </>
+                            /* Staff — no student selected yet */
+                            <div className="flex flex-col items-center justify-center min-h-[500px] bg-white/5 border border-white/10 rounded-2xl gap-3">
+                                <AcademicCapIcon className="w-14 h-14 text-white/10" />
+                                <p className="text-white/30 text-sm font-semibold">Select a student to view their report</p>
+                                <p className="text-white/20 text-xs">Or select multiple students and click Download PDFs</p>
+                                {isEditor && (
+                                    <Link
+                                        href="/dashboard/reports/builder"
+                                        className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600/20 text-violet-400 text-sm font-bold rounded-xl border border-violet-500/30 hover:bg-violet-600/30 transition-colors"
+                                    >
+                                        <PencilSquareIcon className="w-4 h-4" /> Create First Report
+                                    </Link>
                                 )}
                             </div>
                         )}
@@ -321,23 +616,31 @@ function ResultsPageInner() {
                 </div>
             </div>
 
-            {/* ── PRINT VIEW — full page, no navbar ── */}
+            {/* ══ Print view — full page, no chrome ══ */}
             {selectedReport && (
                 <div className="hidden print:block print:w-[794px] print:mx-auto">
                     <ReportCard report={selectedReport} orgSettings={orgSettings} />
                 </div>
             )}
 
-            {/* ── HIDDEN PDF CAPTURE DIV ── */}
-            <div className="fixed top-0 left-0 w-0 h-0 overflow-hidden pointer-events-none opacity-0">
-                <div ref={pdfRef} className="w-[794px] h-[1123px] bg-white text-black">
+            {/* ══ Off-screen div — single PDF capture ══ */}
+            <div style={{ position: 'fixed', left: -9999, top: 0, width: 794, pointerEvents: 'none', zIndex: -1 }}>
+                <div ref={pdfRef}>
                     {selectedReport && <ReportCard report={selectedReport} orgSettings={orgSettings} />}
+                </div>
+            </div>
+
+            {/* ══ Off-screen div — batch PDF capture (one at a time) ══ */}
+            <div style={{ position: 'fixed', left: -9999, top: 0, width: 794, pointerEvents: 'none', zIndex: -1 }}>
+                <div ref={captureRef}>
+                    {captureReport && <ReportCard report={captureReport} orgSettings={orgSettings} />}
                 </div>
             </div>
         </div>
     );
 }
 
+// ── Suspense boundary (useSearchParams requirement) ────────────────────────────
 export default function ResultsPage() {
     return (
         <Suspense fallback={
