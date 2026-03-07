@@ -38,6 +38,7 @@ interface SessionConfig {
     school_section: string;   // '' | 'Primary' | 'Secondary' | 'Unified'
     fee_label: string;        // e.g. 'Coding Club Fee', 'Extra-Curricular Fee'
     fee_amount: string;       // optional numeric string, leave blank to omit
+    show_payment_notice: boolean; // prints next-term Rillcod payment details on report
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -117,6 +118,7 @@ function ReportBuilderInner() {
         school_section: '',
         fee_label: '',
         fee_amount: '',
+        show_payment_notice: false,
     });
     const [sessionMilestoneInput, setSessionMilestoneInput] = useState('');
     const [sessionExpanded, setSessionExpanded] = useState(true); // collapsed after "Start Grading"
@@ -249,6 +251,7 @@ function ReportBuilderInner() {
                 school_section: (report as any).school_section ?? prev.school_section,
                 fee_label: (report as any).fee_label ?? prev.fee_label,
                 fee_amount: (report as any).fee_amount ?? prev.fee_amount,
+                show_payment_notice: (report as any).show_payment_notice ?? prev.show_payment_notice,
             }));
         }
 
@@ -596,6 +599,21 @@ function ReportBuilderInner() {
                         </div>
                     </Field>
 
+                    {/* Next-term payment notice toggle (also accessible from summary bar) */}
+                    <div className="flex items-center gap-4 px-1 pt-1">
+                        <button
+                            type="button"
+                            onClick={() => setSessionConfig(s => ({ ...s, show_payment_notice: !s.show_payment_notice }))}
+                            className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${sessionConfig.show_payment_notice ? 'bg-violet-600' : 'bg-white/10'}`}
+                        >
+                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${sessionConfig.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </button>
+                        <div>
+                            <p className="text-sm text-white/70 font-semibold">Show Next Term Payment Notice</p>
+                            <p className="text-[10px] text-white/30">Prints ₦20,000 Rillcod payment details on each report</p>
+                        </div>
+                    </div>
+
                     <div className="flex justify-end">
                         <button onClick={() => setSessionExpanded(false)}
                             className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-xl transition-colors">
@@ -758,6 +776,21 @@ function ReportBuilderInner() {
                                     </Field>
                                 </div>
                                 <p className="text-[10px] text-white/20">Per-student payment status (Paid / Outstanding / Sponsored) is set individually on each student's form in Step 3.</p>
+
+                                {/* Next-term Rillcod payment notice toggle */}
+                                <div className="flex items-center gap-4 pt-2 border-t border-white/10">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSessionConfig(s => ({ ...s, show_payment_notice: !s.show_payment_notice }))}
+                                        className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${sessionConfig.show_payment_notice ? 'bg-violet-600' : 'bg-white/10'}`}
+                                    >
+                                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${sessionConfig.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
+                                    </button>
+                                    <div>
+                                        <p className="text-sm text-white/70 font-semibold">Show Next Term Payment Notice</p>
+                                        <p className="text-[10px] text-white/30">Prints ₦20,000 Rillcod payment details on each report (Providus Bank · 7901178957)</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

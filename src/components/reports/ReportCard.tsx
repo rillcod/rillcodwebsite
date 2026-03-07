@@ -65,6 +65,9 @@ export interface ReportCardData {
     instructor_name?: string | null;
     participation_grade?: string | null;
     projects_grade?: string | null;
+    homework_grade?: string | null;
+    current_module?: string | null;
+    next_module?: string | null;
     learning_milestones?: string[] | null;
     is_published?: boolean | null;
     // Payment / fee info (all optional — omitted when not applicable)
@@ -72,6 +75,8 @@ export interface ReportCardData {
     fee_label?: string | null;
     fee_amount?: string | null;
     fee_status?: 'paid' | 'outstanding' | 'partial' | 'sponsored' | 'waived' | '' | null;
+    // Next-term payment notice (shown between signature and QR when enabled)
+    show_payment_notice?: boolean | null;
 }
 
 export interface OrgSettings {
@@ -206,6 +211,18 @@ export default function ReportCard({ report, orgSettings }: {
                                     <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Academic Term</p>
                                     <p className="text-[12px] font-bold text-white/80">{report.report_term ?? '—'}</p>
                                 </div>
+                                {report.current_module && (
+                                    <div>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Current Module</p>
+                                        <p className="text-[12px] font-bold text-white/80">{report.current_module}</p>
+                                    </div>
+                                )}
+                                {report.next_module && (
+                                    <div>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-violet-400/60">Next Module</p>
+                                        <p className="text-[12px] font-bold text-violet-300/80">{report.next_module}</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -218,14 +235,18 @@ export default function ReportCard({ report, orgSettings }: {
                                 <MetricBar label="Theory (40%)" value={theory} color="#6366f1" />
                                 <MetricBar label="Practical (40%)" value={practical} color="#10b981" />
                                 <MetricBar label="Attendance (20%)" value={attendance} color="#f59e0b" />
-                                <div className="grid grid-cols-2 gap-4 mt-8">
+                                <div className="grid grid-cols-3 gap-3 mt-6">
                                     <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
                                         <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Participation</p>
                                         <p className="text-xs font-bold text-gray-900">{report.participation_grade ?? '—'}</p>
                                     </div>
                                     <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                                        <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Project Output</p>
+                                        <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Scale Project</p>
                                         <p className="text-xs font-bold text-gray-900">{report.projects_grade ?? '—'}</p>
+                                    </div>
+                                    <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                                        <p className="text-[8px] font-black text-gray-400 uppercase mb-1">Homework</p>
+                                        <p className="text-xs font-bold text-gray-900">{report.homework_grade ?? '—'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -294,29 +315,53 @@ export default function ReportCard({ report, orgSettings }: {
                 )}
 
                 {/* SIGNATURES & QR */}
-                <div className="pt-10 flex items-end justify-between border-t-2 border-gray-100">
-                    <div className="space-y-2">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Signatory Authority</p>
-                        {/* Official signature */}
-                        <img
-                            src="/images/signature.png"
-                            alt="Official Signature"
-                            className="h-16 w-auto object-contain"
-                            style={{ mixBlendMode: 'multiply' }}
-                        />
-                        <div className="space-y-0.5">
-                            <div className="w-48 h-[1px] bg-gray-900" />
-                            <p className="text-xs font-black text-gray-900">{report.instructor_name || 'Class Instructor'}</p>
-                            <p className="text-[9px] font-bold text-gray-400 uppercase">Head of Academics, Rillcod</p>
+                <div className="pt-8 border-t-2 border-gray-100 space-y-6">
+
+                    {/* Next-term payment notice — shown only when toggled on */}
+                    {report.show_payment_notice && (
+                        <div style={{ backgroundColor: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 16, padding: '12px 20px' }}
+                            className="flex items-center justify-between gap-6">
+                            <div>
+                                <p style={{ fontSize: 9, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 4 }}>
+                                    Next Term Fee Payment
+                                </p>
+                                <p style={{ fontSize: 15, fontWeight: 900, color: '#78350f' }}>₦20,000 — RILLCOD LTD</p>
+                                <p style={{ fontSize: 10, color: '#a16207', marginTop: 2 }}>
+                                    Providus Bank &nbsp;·&nbsp; Account No: <strong>7901178957</strong>
+                                </p>
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                <p style={{ fontSize: 9, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                    Use student name as reference
+                                </p>
+                                <p style={{ fontSize: 9, color: '#a16207', marginTop: 2 }}>Send proof to school admin</p>
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex flex-col items-center">
-                        <div className="p-3 bg-white border-4 border-gray-50 rounded-[32px] shadow-sm mb-4">
-                            <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) ?? 'preview'}`} size={80} />
+                    )}
+
+                    <div className="flex items-end justify-between">
+                        <div className="space-y-2">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Signatory Authority</p>
+                            <img
+                                src="/images/signature.png"
+                                alt="Official Signature"
+                                className="h-16 w-auto object-contain"
+                                style={{ mixBlendMode: 'multiply' }}
+                            />
+                            <div className="space-y-0.5">
+                                <div className="w-48 h-[1px] bg-gray-900" />
+                                <p className="text-xs font-black text-gray-900">{report.instructor_name || 'Class Instructor'}</p>
+                                <p className="text-[9px] font-bold text-gray-400 uppercase">Head of Academics, Rillcod</p>
+                            </div>
                         </div>
-                        <p className="text-[10px] font-black text-gray-900 tracking-[0.3em] uppercase">
-                            VERIFY {report.id?.slice(0, 8).toUpperCase() ?? 'PREVIEW'}
-                        </p>
+                        <div className="flex flex-col items-center">
+                            <div className="p-3 bg-white border-4 border-gray-50 rounded-[32px] shadow-sm mb-4">
+                                <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) ?? 'preview'}`} size={80} />
+                            </div>
+                            <p className="text-[10px] font-black text-gray-900 tracking-[0.3em] uppercase">
+                                VERIFY {report.id?.slice(0, 8).toUpperCase() ?? 'PREVIEW'}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
