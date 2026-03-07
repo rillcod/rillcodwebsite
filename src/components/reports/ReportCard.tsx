@@ -28,9 +28,11 @@ function MetricBar({ label, value, color }: { label: string; value: number; colo
 
 function GradeRow({ label, value }: { label: string; value: string | null | undefined }) {
     return (
-        <div className="flex justify-between items-center">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
-            <span className="text-[10px] font-black text-gray-700">{value ?? '—'}</span>
+        <div className="flex justify-between items-center gap-2">
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest shrink-0">{label}</span>
+            <span className="text-[9px] font-black text-gray-600 bg-white border border-gray-200 rounded-full px-2 py-0.5 text-right leading-tight">
+                {value ?? '—'}
+            </span>
         </div>
     );
 }
@@ -238,19 +240,25 @@ export default function ReportCard({ report, orgSettings }: {
                     </div>
 
                     {/* Academic Metrics */}
-                    <div className="col-span-8 flex flex-col gap-4">
+                    <div className="col-span-8 flex flex-col gap-3">
                         <SectionHeaderPremium title="Final Performance Assessment" />
-                        <div className="flex-1 grid grid-cols-2 gap-6">
-                            <div className="space-y-4">
+                        <div className="flex-1 grid grid-cols-2 gap-5">
+
+                            {/* Left — scores + qualitative grades */}
+                            <div className="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 flex flex-col gap-3">
                                 <MetricBar label="Theory (40%)" value={theory} color="#6366f1" />
                                 <MetricBar label="Practical (40%)" value={practical} color="#10b981" />
                                 <MetricBar label="Attendance (20%)" value={attendance} color="#f59e0b" />
-                                <div className="border-t border-gray-100 pt-3 space-y-2.5">
-                                    <GradeRow label="Participation"  value={report.participation_grade} />
-                                    <GradeRow label="Scale Project"  value={report.projects_grade} />
-                                    <GradeRow label="Homework"       value={report.homework_grade} />
+
+                                {/* Qualitative grades — same column, thin rule separator */}
+                                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                                    <GradeRow label="Participation" value={report.participation_grade} />
+                                    <GradeRow label="Scale Project" value={report.projects_grade} />
+                                    <GradeRow label="Homework"      value={report.homework_grade} />
                                 </div>
                             </div>
+
+                            {/* Right — weighted grade display */}
                             <div className="flex flex-col items-center justify-center bg-[#1a1a2e] rounded-[32px] p-6 text-white relative overflow-hidden">
                                 <div className="relative z-10 text-center">
                                     <Sparkles className="w-10 h-10 text-amber-400 mx-auto mb-2" />
@@ -262,8 +270,8 @@ export default function ReportCard({ report, orgSettings }: {
                                     <p className="text-2xl font-black text-white/60 mt-3">{overall}%</p>
                                 </div>
                             </div>
-                        </div>
 
+                        </div>
                     </div>
                 </div>
 
