@@ -119,12 +119,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(s?.user ?? null);
 
         if (s?.user) {
+          // Invalidate cache on fresh sign-in or token refresh
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             invalidateCache(s.user.id);
-            // Re-fetch profile after sign-in or token refresh
-            const p = await fetchProfile(s.user.id);
-            if (mountedRef.current) setProfile(p);
           }
+          // Always fetch profile when a session is present (covers INITIAL_SESSION
+          // when storedUser was null — e.g. token was expired and Supabase refreshed it)
+          const p = await fetchProfile(s.user.id);
+          if (mountedRef.current) setProfile(p);
         } else {
           setProfile(null);
           invalidateCache();

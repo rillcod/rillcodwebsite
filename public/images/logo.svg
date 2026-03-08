@@ -1,45 +1,234 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#152240"/>
+      <stop offset="100%" stop-color="#080f1e"/>
+    </radialGradient>
+
+    <!-- Orange glow behind R -->
+    <radialGradient id="glowCenter" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FF7A1A" stop-opacity="0.22"/>
+      <stop offset="60%" stop-color="#FF6000" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#FF6000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Neon edge glow filter -->
+    <filter id="neon" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="b2"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="20" result="b3"/>
+      <feMerge>
+        <feMergeNode in="b3"/>
+        <feMergeNode in="b2"/>
+        <feMergeNode in="b1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Soft circuit-line glow -->
+    <filter id="lineGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- Icon shadow -->
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="10" stdDeviation="20" flood-color="#000" flood-opacity="0.65"/>
+    </filter>
+
+    <!-- Clip to rounded square -->
+    <clipPath id="roundedClip">
+      <rect x="16" y="16" width="480" height="480" rx="100" ry="100"/>
+    </clipPath>
+  </defs>
+
+  <!-- Card shadow -->
+  <rect x="16" y="16" width="480" height="480" rx="100" ry="100" fill="#060d1a" filter="url(#shadow)"/>
+
   <!-- Background -->
-  <rect width="512" height="512" rx="96" fill="#0B132B"/>
-  
-  <!-- Circuit traces decorative -->
-  <line x1="80" y1="180" x2="140" y2="180" stroke="#1a2b54" stroke-width="6" stroke-linecap="round"/>
-  <line x1="140" y1="180" x2="140" y2="140" stroke="#1a2b54" stroke-width="6" stroke-linecap="round"/>
-  <circle cx="80" cy="180" r="8" fill="#1a2b54"/>
-  <circle cx="140" cy="140" r="8" fill="#1a2b54"/>
-  
-  <line x1="432" y1="332" x2="372" y2="332" stroke="#1a2b54" stroke-width="6" stroke-linecap="round"/>
-  <line x1="372" y1="332" x2="372" y2="372" stroke="#1a2b54" stroke-width="6" stroke-linecap="round"/>
-  <circle cx="432" cy="332" r="8" fill="#1a2b54"/>
-  <circle cx="372" cy="372" r="8" fill="#1a2b54"/>
+  <rect x="16" y="16" width="480" height="480" rx="100" ry="100" fill="url(#bgGrad)"/>
 
-  <line x1="100" y1="380" x2="160" y2="380" stroke="#1a2b54" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="100" cy="380" r="6" fill="#1a2b54"/>
-  
-  <line x1="400" y1="140" x2="350" y2="140" stroke="#1a2b54" stroke-width="4" stroke-linecap="round"/>
-  <line x1="350" y1="140" x2="350" y2="110" stroke="#1a2b54" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="350" cy="110" r="6" fill="#1a2b54"/>
+  <g clip-path="url(#roundedClip)">
 
-  <!-- Orange glow behind R -->
-  <ellipse cx="256" cy="256" rx="130" ry="130" fill="#FF914D" fill-opacity="0.12"/>
-  <ellipse cx="256" cy="256" rx="100" ry="100" fill="#FF914D" fill-opacity="0.08"/>
-  
-  <!-- Letter R — bold, geometric -->
-  <!-- Vertical stem -->
-  <rect x="158" y="148" width="52" height="216" rx="10" fill="white"/>
-  <!-- Top bowl horizontal -->
-  <rect x="158" y="148" width="130" height="52" rx="26" fill="white"/>
-  <!-- Bowl right vertical -->
-  <rect x="236" y="148" width="52" height="120" rx="10" fill="white"/>
-  <!-- Bowl bottom horizontal -->
-  <rect x="158" y="216" width="130" height="52" rx="26" fill="white"/>
-  <!-- Diagonal leg -->
-  <path d="M242 268 L350 364" stroke="white" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Subtle background circuit grid lines -->
+    <g stroke="#1a2d50" stroke-width="1" opacity="0.5">
+      <!-- Corner circuit traces — top-left -->
+      <polyline points="50,130 50,80 110,80" fill="none"/>
+      <circle cx="50" cy="130" r="5" fill="#1a2d50"/>
+      <circle cx="110" cy="80" r="5" fill="#1a2d50"/>
+      <line x1="50" y1="105" x2="85" y2="105" stroke="#1a2d50"/>
+      <circle cx="85" cy="105" r="3.5" fill="#1a2d50"/>
 
-  <!-- Orange accent dot — circuit node on R -->
-  <circle cx="288" cy="192" r="20" fill="#FF914D"/>
-  <circle cx="288" cy="192" r="10" fill="#0B132B"/>
-  
-  <!-- Small orange dots at corners of R -->
-  <circle cx="288" cy="242" r="10" fill="#FF914D" fill-opacity="0.8"/>
+      <!-- Corner traces — top-right -->
+      <polyline points="462,140 462,82 405,82" fill="none"/>
+      <circle cx="462" cy="140" r="5" fill="#1a2d50"/>
+      <circle cx="405" cy="82" r="5" fill="#1a2d50"/>
+      <line x1="462" y1="110" x2="425" y2="110" stroke="#1a2d50"/>
+      <circle cx="425" cy="110" r="3.5" fill="#1a2d50"/>
+
+      <!-- Corner traces — bottom-left -->
+      <polyline points="56,370 56,430 115,430" fill="none"/>
+      <circle cx="56" cy="370" r="5" fill="#1a2d50"/>
+      <circle cx="115" cy="430" r="5" fill="#1a2d50"/>
+
+      <!-- Corner traces — bottom-right -->
+      <polyline points="456,372 456,432 398,432" fill="none"/>
+      <circle cx="456" cy="372" r="5" fill="#1a2d50"/>
+      <circle cx="398" cy="432" r="5" fill="#1a2d50"/>
+    </g>
+
+    <!-- Central orange ambient glow -->
+    <ellipse cx="256" cy="248" rx="155" ry="155" fill="url(#glowCenter)"/>
+
+    <!-- ─────────────────────────────────────────────
+         LETTER R  (white fill with orange neon border)
+         Path: proper geometric R with bowl and leg
+         ───────────────────────────────────────────── -->
+
+    <!-- R definition as a compound path -->
+    <!-- Stem left edge: x=140, Stem right edge: x=196 -->
+    <!-- Top: y=118, Bottom: y=394 -->
+    <!-- Bowl: goes right to x=354, arc back down to mid y=270 -->
+    <!-- Leg: diagonal from (196,270) to (364,394) -->
+    <path id="rShape" d="
+      M 140 118
+      L 140 394
+      L 196 394
+      L 196 280
+      L 252 280
+      L 365 394
+      L 432 394
+      L 315 275
+      Q 372 262 372 208
+      Q 372 158 336 138
+      Q 310 118 260 118
+      Z
+      M 196 172
+      L 258 172
+      Q 302 172 316 186
+      Q 330 200 330 218
+      Q 330 236 316 250
+      Q 302 264 258 264
+      L 196 264
+      Z
+    " fill="white"/>
+
+    <!-- Orange neon outline — drawn on top, no fill -->
+    <path d="
+      M 140 118
+      L 140 394
+      L 196 394
+      L 196 280
+      L 252 280
+      L 365 394
+      L 432 394
+      L 315 275
+      Q 372 262 372 208
+      Q 372 158 336 138
+      Q 310 118 260 118
+      Z
+      M 196 172
+      L 258 172
+      Q 302 172 316 186
+      Q 330 200 330 218
+      Q 330 236 316 250
+      Q 302 264 258 264
+      L 196 264
+      Z
+    " fill="none" stroke="#FF8020" stroke-width="11" stroke-linejoin="round" filter="url(#neon)"/>
+
+    <!-- ─────────────────────────────────────────────
+         CIRCUIT TRACES — white lines on the R
+         ───────────────────────────────────────────── -->
+    <g filter="url(#lineGlow)" stroke="white" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.82">
+
+      <!-- Stem vertical ticks -->
+      <line x1="163" y1="148" x2="163" y2="195" stroke-width="1.6"/>
+      <line x1="163" y1="215" x2="163" y2="262" stroke-width="1.6"/>
+      <line x1="163" y1="283" x2="163" y2="330" stroke-width="1.6"/>
+      <line x1="163" y1="350" x2="163" y2="394" stroke-width="1.6"/>
+
+      <!-- Top horizontal traces on crown of R -->
+      <line x1="196" y1="136" x2="232" y2="136" stroke-width="1.6"/>
+      <line x1="253" y1="136" x2="292" y2="136" stroke-width="1.6"/>
+      <line x1="315" y1="143" x2="342" y2="157" stroke-width="1.6"/>
+
+      <!-- Arc traces (top of bowl) -->
+      <line x1="196" y1="152" x2="226" y2="152" stroke-width="1.5"/>
+      <line x1="246" y1="152" x2="274" y2="152" stroke-width="1.5"/>
+      <line x1="316" y1="166" x2="332" y2="180" stroke-width="1.5"/>
+
+      <!-- Mid-bar horizontal traces -->
+      <line x1="196" y1="272" x2="228" y2="272" stroke-width="1.6"/>
+      <line x1="248" y1="272" x2="276" y2="272" stroke-width="1.6"/>
+
+      <!-- Leg traces -->
+      <line x1="270" y1="300" x2="294" y2="320" stroke-width="1.5"/>
+      <line x1="316" y1="342" x2="340" y2="364" stroke-width="1.5"/>
+      <line x1="210" y1="310" x2="210" y2="355" stroke-width="1.5"/>
+      <line x1="210" y1="367" x2="210" y2="394" stroke-width="1.5"/>
+
+      <!-- Inner bowl traces -->
+      <line x1="214" y1="186" x2="214" y2="250" stroke-width="1.5"/>
+      <line x1="232" y1="178" x2="268" y2="178" stroke-width="1.5"/>
+      <line x1="300" y1="192" x2="316" y2="214" stroke-width="1.5"/>
+      <line x1="316" y1="226" x2="304" y2="248" stroke-width="1.5"/>
+      <line x1="280" y1="258" x2="248" y2="258" stroke-width="1.5"/>
+    </g>
+
+    <!-- Circuit nodes (dots) at trace junctions -->
+    <g fill="white" opacity="0.88">
+      <circle cx="163" cy="195" r="3.8"/>
+      <circle cx="163" cy="215" r="3.8"/>
+      <circle cx="163" cy="262" r="3.8"/>
+      <circle cx="163" cy="283" r="3.8"/>
+      <circle cx="163" cy="330" r="3.8"/>
+      <circle cx="163" cy="350" r="3.8"/>
+      <circle cx="232" cy="136" r="3"/>
+      <circle cx="292" cy="136" r="3"/>
+      <circle cx="228" cy="272" r="3"/>
+      <circle cx="276" cy="272" r="3"/>
+      <circle cx="214" cy="186" r="2.8"/>
+      <circle cx="214" cy="250" r="2.8"/>
+      <circle cx="268" cy="178" r="2.8"/>
+      <circle cx="248" cy="258" r="2.8"/>
+      <circle cx="210" cy="310" r="2.8"/>
+      <circle cx="210" cy="367" r="2.8"/>
+    </g>
+
+    <!-- ─────────────────────────────────────────────
+         TECH LABELS — code/logic symbols on the R
+         ───────────────────────────────────────────── -->
+    <g font-family="'Courier New', Courier, monospace" fill="white" opacity="0.72">
+      <text x="120" y="202" font-size="13">&lt;/&gt;</text>
+      <text x="120" y="238" font-size="13">{ }</text>
+      <text x="122" y="272" font-size="12">&lt;&gt;</text>
+    </g>
+
+    <!-- D flip-flop box (upper right of bowl) -->
+    <g opacity="0.78">
+      <rect x="340" y="196" width="26" height="22" rx="3" fill="none" stroke="white" stroke-width="1.6"/>
+      <text x="344" y="212" font-family="'Courier New', monospace" font-size="11" fill="white">D</text>
+    </g>
+
+    <!-- AND gate box (lower right) -->
+    <g opacity="0.78">
+      <rect x="350" y="295" width="24" height="19" rx="3" fill="none" stroke="white" stroke-width="1.6"/>
+      <text x="354" y="309" font-family="'Courier New', monospace" font-size="10" fill="white">&amp;</text>
+    </g>
+
+    <!-- Orange LED dots -->
+    <circle cx="364" cy="252" r="6" fill="#FF8020" fill-opacity="0.35" stroke="#FF8020" stroke-width="1.5" filter="url(#lineGlow)"/>
+    <circle cx="178" cy="318" r="5" fill="#FF8020" fill-opacity="0.35" stroke="#FF8020" stroke-width="1.5" filter="url(#lineGlow)"/>
+
+  </g><!-- end clip -->
+
+  <!-- Outer border rim -->
+  <rect x="16" y="16" width="480" height="480" rx="100" ry="100"
+    fill="none" stroke="#FF8020" stroke-width="1.5" opacity="0.18"/>
+
+  <!-- Inner subtle bevel -->
+  <rect x="20" y="20" width="472" height="472" rx="97" ry="97"
+    fill="none" stroke="#2a4470" stroke-width="1" opacity="0.5"/>
 </svg>
