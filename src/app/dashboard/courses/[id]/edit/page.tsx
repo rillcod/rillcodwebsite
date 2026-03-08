@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -9,10 +9,14 @@ import {
   ExclamationTriangleIcon, ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 
-export default function NewCoursePage() {
+export default function EditCoursePage() {
   const router = useRouter();
+  const params = useParams();
+  const id = params?.id as string;
   const { profile, loading: authLoading } = useAuth();
+
   const [programs, setPrograms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,18 +25,38 @@ export default function NewCoursePage() {
     description: '',
     program_id: '',
     duration_hours: '',
-    order_index: '',
     content: '',
+    is_published: false,
   });
 
-  useEffect(() => {
-    if (authLoading || !profile) return;
-    fetch('/api/programs')
-      .then(r => r.json())
-      .then(j => setPrograms(j.data ?? []));
-  }, [profile?.id, authLoading]);
-
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+
+  // Load course + programs in parallel
+  useEffect(() => {
+    if (authLoading || !profile || !id) return;
+
+    Promise.all([
+      fetch(`/api/courses/${id}`).then(r => r.json()),
+      fetch('/api/programs').then(r => r.json()),
+    ]).then(([courseJson, programsJson]) => {
+      const c = courseJson.data;
+      if (c) {
+        setForm({
+          title: c.title ?? '',
+          description: c.description ?? '',
+          program_id: c.program_id ?? '',
+          duration_hours: c.duration_hours ? String(c.duration_hours) : '',
+          content: c.content ?? '',
+          is_published: c.is_published ?? false,
+        });
+      }
+      setPrograms(programsJson.data ?? []);
+      setLoading(false);
+    }).catch(e => {
+      setError(e.message ?? 'Failed to load course');
+      setLoading(false);
+    });
+  }, [profile?.id, authLoading, id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,25 +72,26 @@ export default function NewCoursePage() {
         description: form.description.trim() || undefined,
         program_id: form.program_id,
         content: form.content.trim() || undefined,
+        is_published: form.is_published,
       };
       if (form.duration_hours) payload.duration_hours = parseInt(form.duration_hours);
 
-      const res = await fetch('/api/courses', {
-        method: 'POST',
+      const res = await fetch(`/api/courses/${id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || json.error || 'Failed to create course');
+      if (!res.ok) throw new Error(json.message || json.error || 'Failed to update course');
       router.push('/dashboard/courses');
     } catch (e: any) {
-      setError(e.message ?? 'Failed to create course');
+      setError(e.message ?? 'Failed to update course');
     } finally {
       setSaving(false);
     }
   };
 
-  if (authLoading) return (
+  if (authLoading || loading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
     </div>
@@ -90,10 +115,10 @@ export default function NewCoursePage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <BookOpenIcon className="w-5 h-5 text-violet-400" />
-            <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">New Course</span>
+            <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Edit Course</span>
           </div>
-          <h1 className="text-3xl font-extrabold">Add Course</h1>
-          <p className="text-white/40 text-sm mt-1">Create a new course within a programme</p>
+          <h1 className="text-3xl font-extrabold">Edit Course</h1>
+          <p className="text-white/40 text-sm mt-1">Update course details</p>
         </div>
 
         {error && (
@@ -105,7 +130,6 @@ export default function NewCoursePage() {
 
         <form onSubmit={handleSubmit} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-5">
 
-          {/* Title */}
           <div>
             <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
               Course Title <span className="text-rose-400">*</span>
@@ -116,7 +140,6 @@ export default function NewCoursePage() {
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500 transition-colors" />
           </div>
 
-          {/* Programme */}
           <div>
             <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
               Programme <span className="text-rose-400">*</span>
@@ -132,7 +155,6 @@ export default function NewCoursePage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* Duration */}
             <div>
               <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Duration (hours)</label>
               <input type="number" min="1" value={form.duration_hours}
@@ -140,17 +162,18 @@ export default function NewCoursePage() {
                 placeholder="e.g. 8"
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500 transition-colors" />
             </div>
-            {/* Order */}
-            <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Order Index</label>
-              <input type="number" min="1" value={form.order_index}
-                onChange={e => setForm(f => ({ ...f, order_index: e.target.value }))}
-                placeholder="e.g. 1"
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500 transition-colors" />
+            <div className="flex items-end pb-1">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <button type="button"
+                  onClick={() => setForm(f => ({ ...f, is_published: !f.is_published }))}
+                  className={`w-11 h-6 rounded-full transition-all relative flex-shrink-0 ${form.is_published ? 'bg-emerald-500' : 'bg-white/10'}`}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all ${form.is_published ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+                <span className="text-sm text-white/60">Published</span>
+              </label>
             </div>
           </div>
 
-          {/* Description */}
           <div>
             <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Description</label>
             <textarea rows={3} value={form.description}
@@ -159,7 +182,6 @@ export default function NewCoursePage() {
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500 transition-colors resize-none" />
           </div>
 
-          {/* Content/Notes */}
           <div>
             <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Course Notes / Outline</label>
             <textarea rows={5} value={form.content}
@@ -176,7 +198,7 @@ export default function NewCoursePage() {
             <button type="submit" disabled={saving}
               className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-violet-900/20">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-              {saving ? 'Creating…' : 'Create Course'}
+              {saving ? 'Saving…' : 'Save Changes'}
             </button>
           </div>
         </form>

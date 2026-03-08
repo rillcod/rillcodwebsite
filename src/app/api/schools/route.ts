@@ -1,8 +1,44 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
+
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
+
+// GET /api/schools — admin only, returns all schools (bypasses RLS)
+export async function GET(request: Request) {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { data: caller } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+  if (!caller || !['admin', 'school'].includes(caller.role)) {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const email = searchParams.get('email');
+
+  if (email) {
+    // Legacy: lookup by email
+    const { data, error } = await adminClient().from('schools').select('*').eq('email', email).single();
+    if (error) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ school: data });
+  }
+
+  const { data, error } = await adminClient()
+    .from('schools')
+    .select('*, portal_users(id, email, full_name)')
+    .order('created_at', { ascending: false });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ data: data ?? [] });
+}
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
+  const supabase = adminClient(); // service role — bypasses RLS for school creation
   try {
     const body = await request.json();
 

@@ -61,4 +61,5 @@ async function postHandler(req: Request, ctx: ApiContext) {
 }
 
 export const GET = (req: any, ctx: any) => withApiProxy(getHandler, { requireAuth: true, requireTenant: false })(req, ctx);
-export const POST = (req: any, ctx: any) => withApiProxy(postHandler, { requireAuth: true, requireTenant: true })(req, ctx);
+// requireTenant: false — admin/teacher have no school_id; the handler guards school role itself
+export const POST = (req: any, ctx: any) => withApiProxy(postHandler, { requireAuth: true, requireTenant: false })(req, ctx);

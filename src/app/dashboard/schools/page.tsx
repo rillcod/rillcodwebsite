@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import {
   BuildingOfficeIcon, MagnifyingGlassIcon, PlusIcon,
   PhoneIcon, EnvelopeIcon, MapPinIcon, UsersIcon,
@@ -67,26 +66,20 @@ export default function SchoolsPage() {
   const [editingSchool, setEditingSchool] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  // Load all teachers once (for assigning)
+  // Load all teachers once (for assigning) — via service-role API
   useEffect(() => {
     if (!isAdmin) return;
-    createClient()
-      .from('portal_users')
-      .select('id, full_name, email')
-      .eq('role', 'teacher')
-      .eq('is_active', true)
-      .order('full_name')
-      .then(({ data }: any) => setAllTeachers(data ?? []));
+    fetch('/api/portal-users')
+      .then(r => r.json())
+      .then(j => setAllTeachers((j.data ?? []).filter((u: any) => u.role === 'teacher' && u.is_active)));
   }, [isAdmin]);
 
   // Load teachers assigned to the currently open school
   useEffect(() => {
     if (!detail?.id) { setAssignedTeachers([]); return; }
-    createClient()
-      .from('teacher_schools')
-      .select('id, teacher_id, is_primary, portal_users(id, full_name, email)')
-      .eq('school_id', detail.id)
-      .then(({ data }: any) => setAssignedTeachers(data ?? []));
+    fetch(`/api/schools/${detail.id}`)
+      .then(r => r.json())
+      .then(j => setAssignedTeachers(j.data?.teacher_schools ?? []));
   }, [detail?.id]);
 
   useEffect(() => {
@@ -95,12 +88,10 @@ export default function SchoolsPage() {
     async function load() {
       setLoading(true); setError(null);
       try {
-        const { data, error: err } = await createClient()
-          .from('schools')
-          .select('*, portal_users(id, email, full_name)')
-          .order('created_at', { ascending: false });
-        if (err) throw err;
-        if (!cancelled) setSchools(data ?? []);
+        const res = await fetch('/api/schools');
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? 'Failed to load schools');
+        if (!cancelled) setSchools(json.data ?? []);
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load schools');
       } finally {
@@ -114,20 +105,22 @@ export default function SchoolsPage() {
   const updateStatus = async (id: string, status: 'approved' | 'rejected') => {
     setActing(id);
     try {
-      await createClient().from('schools').update({ status }).eq('id', id);
-      setSchools(prev => prev.map(s => s.id === id ? { ...s, status } : s));
-      if (detail?.id === id) setDetail((d: any) => ({ ...d, status }));
-      const target = schools.find(s => s.id === id);
-      if (target?.email) {
-        fetch('/api/schools/notify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: target.email,
-            status,
-            schoolName: target.name,
-          })
-        }).catch(() => null);
+      const res = await fetch(`/api/schools/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        setSchools(prev => prev.map(s => s.id === id ? { ...s, status } : s));
+        if (detail?.id === id) setDetail((d: any) => ({ ...d, status }));
+        const target = schools.find(s => s.id === id);
+        if (target?.email) {
+          fetch('/api/schools/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: target.email, status, schoolName: target.name }),
+          }).catch(() => null);
+        }
       }
     } catch { /* ignore */ }
     setActing(null);
@@ -148,7 +141,6 @@ export default function SchoolsPage() {
     setCreatingSchool(true);
     setError(null);
     try {
-      const db = createClient();
       const payload = {
         name: createForm.name.trim(),
         school_type: createForm.schoolType || null,
@@ -169,23 +161,24 @@ export default function SchoolsPage() {
       };
 
       if (editingSchool) {
-        const { data, error }: { data: any; error: any } = await db
-          .from('schools')
-          .update(payload)
-          .eq('id', editingSchool.id)
-          .select()
-          .single();
-        if (error) throw error;
-        setSchools(prev => prev.map(s => s.id === data.id ? data : s));
+        const res = await fetch(`/api/schools/${editingSchool.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? 'Failed to update school');
+        setSchools(prev => prev.map(s => s.id === json.data.id ? json.data : s));
         setEditingSchool(null);
       } else {
-        const { data, error }: { data: any; error: any } = await db
-          .from('schools')
-          .insert([payload])
-          .select()
-          .single();
-        if (error) throw error;
-        setSchools(prev => [data, ...prev]);
+        const res = await fetch('/api/schools', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? 'Failed to create school');
+        setSchools(prev => [json.school, ...prev]);
       }
 
       setShowCreate(false);
@@ -215,11 +208,11 @@ export default function SchoolsPage() {
     if (!confirm('Are you sure you want to delete this school? This will soft-delete the record.')) return;
     setDeleting(id);
     try {
-      const { error } = await createClient()
-        .from('schools')
-        .update({ is_deleted: true })
-        .eq('id', id);
-      if (error) throw error;
+      const res = await fetch(`/api/schools/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? 'Failed to delete school');
+      }
       setSchools(prev => prev.filter(s => s.id !== id));
     } catch (e: any) {
       alert(e.message ?? 'Failed to delete school');
@@ -249,24 +242,30 @@ export default function SchoolsPage() {
   };
 
   const assignTeacher = async (teacherId: string) => {
-    if (!detail?.id || !profile?.id) return;
+    if (!detail?.id) return;
     setAssigning(teacherId);
     try {
-      const { data, error } = await createClient()
-        .from('teacher_schools')
-        .insert({ teacher_id: teacherId, school_id: detail.id, assigned_by: profile.id })
-        .select('id, teacher_id, is_primary, portal_users(id, full_name, email)')
-        .single();
-      if (!error && data) setAssignedTeachers(prev => [...prev, data]);
+      const res = await fetch(`/api/schools/${detail.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'assign_teacher', teacher_id: teacherId }),
+      });
+      const json = await res.json();
+      if (res.ok && json.data) setAssignedTeachers(prev => [...prev, json.data]);
     } catch { /* ignore */ }
     setAssigning(null);
   };
 
   const removeTeacher = async (assignmentId: string) => {
+    if (!detail?.id) return;
     setAssigning(assignmentId);
     try {
-      await createClient().from('teacher_schools').delete().eq('id', assignmentId);
-      setAssignedTeachers(prev => prev.filter(t => t.id !== assignmentId));
+      const res = await fetch(`/api/schools/${detail.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove_teacher', assignment_id: assignmentId }),
+      });
+      if (res.ok) setAssignedTeachers(prev => prev.filter(t => t.id !== assignmentId));
     } catch { /* ignore */ }
     setAssigning(null);
   };

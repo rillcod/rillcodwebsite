@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { fetchCourses, fetchStudentCourses } from '@/services/dashboard.service';
-import { createClient } from '@/lib/supabase/client';
 import {
   BookOpenIcon, AcademicCapIcon, UserGroupIcon, ClockIcon, ChartBarIcon,
   PlusIcon, PlayIcon, CheckCircleIcon, StarIcon, MagnifyingGlassIcon,
@@ -36,9 +35,13 @@ export default function CoursesPage() {
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete course "${title}"? This cannot be undone.`)) return;
     setDeleting(id);
-    const { error } = await createClient().from('courses').delete().eq('id', id);
-    if (error) { alert(error.message); }
-    else { setCourses(prev => prev.filter(c => c.id !== id)); }
+    const res = await fetch(`/api/courses/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      alert(json.message || json.error || 'Delete failed');
+    } else {
+      setCourses(prev => prev.filter(c => c.id !== id));
+    }
     setDeleting(null);
   };
 
