@@ -76,7 +76,9 @@
     "lightningcss-linux-x64-gnu": "^1.29.1",
     "lightningcss-linux-x64-musl": "^1.29.1",
     "@tailwindcss/oxide-linux-x64-gnu": "^4.2.1",
-    "@tailwindcss/oxide-linux-x64-musl": "^4.2.1"
+    "@tailwindcss/oxide-linux-x64-musl": "^4.2.1",
+    "@img/sharp-linux-x64": "^0.34.0",
+    "@img/sharp-linuxmusl-x64": "^0.34.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
