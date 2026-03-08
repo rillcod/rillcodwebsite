@@ -1,13 +1,42 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 import { env } from '@/config/env';
 
-// Registration fees in Naira — must match StudentRegistration.tsx FEES
-const FEES: Record<string, number> = {
-    school: 60000,
-    bootcamp: 45000,
-    online: 30000,
+// Schedule-specific fees in Naira — must stay in sync with StudentRegistration.tsx SCHEDULE_FEES
+const SCHEDULE_FEES: Record<string, number> = {
+    // Partner school schedules
+    'Weekday Afternoons':          25000,
+    'Weekend In-Person':           20000,
+
+    // Summer bootcamp schedules
+    'Summer Intensive (Day)':      60000,
+    'Summer Intensive (Half Day)': 45000,
+    'Summer Intensive (Afternoon)':45000,
+    'Weekend Bootcamp':            35000,
+
+    // Holiday / termly programme (same type as bootcamp or school)
+    'Holiday Programme':           30000,
+    'Termly Programme':            25000,
+
+    // Online schedules
+    'Online Self-Paced':           30000,
+    'Online Live Sessions':        40000,
+    'Online Weekend':              25000,
 };
+
+// Fallback fees per enrollment type when schedule isn't matched
+const TYPE_FEES: Record<string, number> = {
+    school:   25000,
+    bootcamp: 60000,
+    online:   30000,
+};
+
+function getFee(enrollment_type: string, preferred_schedule: string): number {
+    if (preferred_schedule && SCHEDULE_FEES[preferred_schedule] != null) {
+        return SCHEDULE_FEES[preferred_schedule];
+    }
+    return TYPE_FEES[enrollment_type] ?? 30000;
+}
 
 export async function POST(req: Request) {
     try {
@@ -33,7 +62,7 @@ export async function POST(req: Request) {
         } = body;
 
         // Validate required fields
-        if (!enrollment_type || !FEES[enrollment_type]) {
+        if (!enrollment_type || !TYPE_FEES[enrollment_type]) {
             return NextResponse.json({ error: 'Invalid enrollment type' }, { status: 400 });
         }
         if (!parent_email) {
@@ -46,7 +75,11 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Payment gateway not configured' }, { status: 500 });
         }
 
-        const supabase = await createClient();
+        // Use service role to bypass RLS — this is a public registration endpoint (no user session)
+        const supabase = createSupabaseAdmin(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        );
 
         // 1. Save student registration (status: 'pending' — awaiting admin approval after payment)
         const { data: student, error: studentErr } = await supabase
@@ -82,7 +115,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: studentErr?.message || 'Failed to save registration' }, { status: 500 });
         }
 
-        const amount = FEES[enrollment_type];
+        const amount = getFee(enrollment_type, preferred_schedule);
         const reference = `REG-${Date.now()}-${student.id.substring(0, 6)}`;
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
 

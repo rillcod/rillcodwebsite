@@ -83,40 +83,38 @@ const defaultForm = {
 };
 
 // ─── Schedule options per type ────────────────────────────────────
-const SCHEDULES: Record<string, { value: string; label: string }[]> = {
+const SCHEDULES: Record<string, { value: string; label: string; fee: number; feeLabel: string }[]> = {
   school: [
-    { value: 'Weekday Afternoons', label: 'Weekday Afternoons (at school)' },
-    { value: 'Weekend In-Person', label: 'Weekend In-Person' },
+    { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',  fee: 25000, feeLabel: '₦25,000 / term' },
+    { value: 'Weekend In-Person',   label: 'Weekend In-Person',               fee: 20000, feeLabel: '₦20,000 / term' },
+    { value: 'Termly Programme',    label: 'Termly Programme (full term)',     fee: 25000, feeLabel: '₦25,000 / term' },
+    { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',    fee: 30000, feeLabel: '₦30,000 / holiday' },
   ],
   bootcamp: [
-    { value: 'Summer Intensive (Day)', label: 'Summer Intensive – Full Day' },
-    { value: 'Summer Intensive (Half Day)', label: 'Summer Intensive – Half Day (AM)' },
-    { value: 'Summer Intensive (Afternoon)', label: 'Summer Intensive – Half Day (PM)' },
-    { value: 'Weekend Bootcamp', label: 'Weekend Bootcamp' },
+    { value: 'Summer Intensive (Day)',      label: 'Full Summer – Full Day (9am–4pm)',  fee: 60000, feeLabel: '₦60,000' },
+    { value: 'Summer Intensive (Half Day)', label: 'Full Summer – Half Day (AM)',       fee: 45000, feeLabel: '₦45,000' },
+    { value: 'Summer Intensive (Afternoon)',label: 'Full Summer – Half Day (PM)',       fee: 45000, feeLabel: '₦45,000' },
+    { value: 'Weekend Bootcamp',            label: 'Weekend Bootcamp (Sat & Sun)',      fee: 35000, feeLabel: '₦35,000' },
+    { value: 'Holiday Programme',           label: 'Holiday / Vacation Programme',     fee: 30000, feeLabel: '₦30,000' },
   ],
   online: [
-    { value: 'Online Self-Paced', label: 'Online – Self-Paced (any time)' },
-    { value: 'Online Live Sessions', label: 'Online – Live Sessions (scheduled)' },
-    { value: 'Online Weekend', label: 'Online – Weekends Only' },
+    { value: 'Online Self-Paced',    label: 'Online – Self-Paced (any time)',       fee: 30000, feeLabel: '₦30,000 / term' },
+    { value: 'Online Live Sessions', label: 'Online – Live Sessions (scheduled)',   fee: 40000, feeLabel: '₦40,000 / term' },
+    { value: 'Online Weekend',       label: 'Online – Weekends Only',               fee: 25000, feeLabel: '₦25,000 / term' },
   ],
   '': [
-    { value: 'Weekday', label: 'Weekday Afternoons' },
-    { value: 'Weekend', label: 'Weekend Classes' },
-    { value: 'Online', label: 'Online' },
+    { value: 'Weekday Afternoons', label: 'Weekday Afternoons', fee: 25000, feeLabel: '₦25,000' },
+    { value: 'Weekend In-Person',  label: 'Weekend Classes',    fee: 20000, feeLabel: '₦20,000' },
+    { value: 'Online Self-Paced',  label: 'Online',             fee: 30000, feeLabel: '₦30,000' },
   ],
 };
 
-const FEES: Record<string, string> = {
-  school: '₦25,000 / term',
-  bootcamp: '₦60,000 / bootcamp',
-  online: '₦30,000 / term',
-  '': '₦25,000',
-};
-
-const FEE_AMOUNTS: Record<string, string> = {
-  school: '₦25,000',
-  bootcamp: '₦60,000',
-  online: '₦30,000',
+// Fallback fees per enrollment type (used before schedule is selected)
+const TYPE_FEES: Record<string, string> = {
+  school:   '₦20,000 – ₦30,000',
+  bootcamp: '₦35,000 – ₦60,000',
+  online:   '₦25,000 – ₦40,000',
+  '':       '',
 };
 
 // ─── Main component ───────────────────────────────────────────────
@@ -261,6 +259,9 @@ export function StudentRegistration({ defaultEnrollmentType }: StudentRegistrati
 
   const et = form.enrollmentType;
   const schedules = SCHEDULES[et] ?? SCHEDULES[''];
+  const selectedSchedule = schedules.find(s => s.value === form.preferredSchedule);
+  const feeLabel = selectedSchedule?.feeLabel ?? TYPE_FEES[et] ?? '';
+  const feeAmount = selectedSchedule ? `₦${selectedSchedule.fee.toLocaleString()}` : '';
 
   // ── Main form ──────────────────────────────────────────────────
   return (
@@ -495,7 +496,7 @@ export function StudentRegistration({ defaultEnrollmentType }: StudentRegistrati
                       className={selectCls(true)}>
                       <option value="">Select schedule…</option>
                       {schedules.map(s => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
+                        <option key={s.value} value={s.value}>{s.label} — {s.feeLabel}</option>
                       ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
@@ -523,9 +524,12 @@ export function StudentRegistration({ defaultEnrollmentType }: StudentRegistrati
                       </div>
                       <div>
                         <p className="text-sm font-bold text-white">
-                          {ENROLLMENT_TYPES.find(t => t.id === et)?.title} · {FEES[et]}
+                          {ENROLLMENT_TYPES.find(t => t.id === et)?.title}
+                          {feeLabel ? ` · ${feeLabel}` : feeLabel === '' ? ` · ${TYPE_FEES[et]}` : ''}
                         </p>
-                        <p className="text-xs text-white/40">Pay now to secure your spot · Powered by Paystack</p>
+                        <p className="text-xs text-white/40">
+                          {feeAmount ? `${feeAmount} — pay now to secure your spot` : 'Select a schedule to see pricing'} · Powered by Paystack
+                        </p>
                       </div>
                     </div>
                   )}
@@ -557,7 +561,7 @@ export function StudentRegistration({ defaultEnrollmentType }: StudentRegistrati
                 ) : step < STEPS.length - 1 ? (
                   <>Next Step <ArrowRight className="w-4 h-4" /></>
                 ) : (
-                  <>Pay {FEE_AMOUNTS[et] ?? '₦60,000'} to Enrol <ArrowRight className="w-4 h-4" /></>
+                  <>Pay {feeAmount || TYPE_FEES[et] || '...'} to Enrol <ArrowRight className="w-4 h-4" /></>
                 )}
               </button>
             </div>
