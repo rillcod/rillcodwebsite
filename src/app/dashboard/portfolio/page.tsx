@@ -276,11 +276,11 @@ export default function PortfolioPage() {
   useEffect(() => {
     if (!profile) return;
     const db = createClient();
-    db.from('portfolio_projects')
+    (db as any).from('portfolio_projects')
       .select('*')
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
+      .then(({ data, error }: { data: any; error: any }) => {
         if (error) {
           // Table may not exist yet in remote DB — fall back to localStorage
           const saved = localStorage.getItem(`portfolio_${profile.id}`);
@@ -307,7 +307,7 @@ export default function PortfolioPage() {
     setSaving(true);
     setSaveError(null);
     const db = createClient();
-    const { data: inserted, error } = await db
+    const { data: inserted, error } = await (db as any)
       .from('portfolio_projects')
       .insert({
         user_id: profile.id,
@@ -349,7 +349,7 @@ export default function PortfolioPage() {
     if (!confirm('Delete this project?')) return;
     setSaving(true);
     const db = createClient();
-    const { error } = await db.from('portfolio_projects').delete().eq('id', id);
+    const { error } = await (db as any).from('portfolio_projects').delete().eq('id', id);
     if (error) {
       // Fallback: remove from localStorage copy
       const updated = projects.filter(p => p.id !== id);

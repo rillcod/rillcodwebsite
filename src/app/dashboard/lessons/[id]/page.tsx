@@ -35,17 +35,32 @@ export default function LessonDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'plan'>('content');
 
+  // Lesson completion state (students only)
+  const [completed, setCompleted] = useState(false);
+  const [completedAt, setCompletedAt] = useState<string | null>(null);
+  const [marking, setMarking] = useState(false);
+  const [markError, setMarkError] = useState<string | null>(null);
+  const startTimeRef = useState<number>(() => Date.now())[0];
+
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
   const fetchData = useCallback(async () => {
     if (!profile || !id) return;
     const db = createClient();
     try {
-      const [lessonRes, plansRes, materialsRes] = await Promise.all([
+      const queries: PromiseLike<any>[] = [
         db.from('lessons').select('*, courses(id, title, programs(name)), portal_users!lessons_created_by_fkey(full_name)').eq('id', id).maybeSingle(),
         db.from('lesson_plans').select('*').eq('lesson_id', id).maybeSingle(),
-        db.from('lesson_materials').select('*').eq('lesson_id', id).order('created_at', { ascending: true })
-      ]);
+        db.from('lesson_materials').select('*').eq('lesson_id', id).order('created_at', { ascending: true }),
+      ];
+      // Check completion status for students
+      if (profile.role === 'student') {
+        queries.push(
+          db.from('lesson_progress').select('completed_at').eq('lesson_id', id).eq('user_id', profile.id).maybeSingle()
+        );
+      }
+
+      const [lessonRes, plansRes, materialsRes, progressRes] = await Promise.all(queries);
 
       if (lessonRes.error) throw lessonRes.error;
       if (!lessonRes.data) throw new Error('Lesson not found');
@@ -53,12 +68,40 @@ export default function LessonDetailPage() {
       setLesson(lessonRes.data);
       setPlans(plansRes.data);
       setMaterials(materialsRes.data ?? []);
+      if (progressRes?.data?.completed_at) {
+        setCompleted(true);
+        setCompletedAt(progressRes.data.completed_at);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }, [id, profile, isStaff]);
+
+  const handleMarkComplete = useCallback(async () => {
+    if (!profile || !id || marking || completed) return;
+    setMarking(true);
+    setMarkError(null);
+    const timeSpentMinutes = Math.round((Date.now() - startTimeRef) / 60000);
+    try {
+      const res = await fetch(`/api/lessons/${id}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timeSpentMinutes: Math.max(timeSpentMinutes, 1), progressPercentage: 100 }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? 'Failed to mark complete');
+      }
+      setCompleted(true);
+      setCompletedAt(new Date().toISOString());
+    } catch (e: any) {
+      setMarkError(e.message ?? 'Something went wrong');
+    } finally {
+      setMarking(false);
+    }
+  }, [profile, id, marking, completed, startTimeRef]);
 
   useEffect(() => {
     if (!authLoading && profile) {
@@ -227,8 +270,53 @@ export default function LessonDetailPage() {
           )}
         </div>
 
+        {/* Student: Mark Complete Banner */}
+        {!isStaff && (
+          <div className={`rounded-[32px] p-6 border-2 transition-all duration-500 ${
+            completed
+              ? 'bg-emerald-500/10 border-emerald-500/30'
+              : 'bg-white/5 border-white/10 hover:border-cyan-500/30'
+          }`}>
+            {completed ? (
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <CheckBadgeIcon className="w-7 h-7 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="font-black text-emerald-400 text-lg uppercase tracking-widest">Lesson Completed!</p>
+                  {completedAt && (
+                    <p className="text-white/30 text-xs mt-0.5">
+                      Marked complete {new Date(completedAt).toLocaleDateString('en-GB', { dateStyle: 'medium' })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <p className="font-black text-white text-base uppercase tracking-widest">Finished this lesson?</p>
+                  <p className="text-white/30 text-sm mt-1">Mark it complete to track your progress and earn XP.</p>
+                </div>
+                <div className="flex flex-col items-start sm:items-end gap-2 flex-shrink-0">
+                  <button
+                    onClick={handleMarkComplete}
+                    disabled={marking}
+                    className="flex items-center gap-3 px-8 py-3.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-black text-sm uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-emerald-900/30 hover:scale-[1.02]"
+                  >
+                    {marking
+                      ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving…</>
+                      : <><CheckBadgeIcon className="w-5 h-5 stroke-[3px]" /> Mark as Complete</>
+                    }
+                  </button>
+                  {markError && <p className="text-xs text-rose-400">{markError}</p>}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Bottom Navigation */}
-        <div className="flex items-center justify-between pt-12 border-t border-white/5">
+        <div className="flex items-center justify-between pt-8 border-t border-white/5">
           <Link href="/dashboard/lessons"
             className="flex items-center gap-3 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-sm font-black uppercase tracking-widest text-white/40 hover:text-white transition-all">
             <ArrowLeftIcon className="w-4 h-4" /> Back to List

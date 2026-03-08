@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
+
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -76,33 +77,3 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
-  const supabase = await createClient();
-  try {
-    const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email');
-
-    if (!email) {
-      return NextResponse.json({ error: 'Email parameter is required' }, { status: 400 });
-    }
-
-    const { data, error } = await supabase
-      .from('schools')
-      .select('*')
-      .eq('email', email)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return NextResponse.json({ error: 'No school registration found with this email' }, { status: 404 });
-      }
-      console.error('Error fetching school:', error);
-      return NextResponse.json({ error: 'Failed to fetch school registration' }, { status: 500 });
-    }
-
-    return NextResponse.json({ school: data });
-  } catch (error) {
-    console.error('Unexpected error in school lookup:', error);
-    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
-  }
-}

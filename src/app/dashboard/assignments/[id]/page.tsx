@@ -200,6 +200,10 @@ export default function AssignmentDetailPage() {
     const [submitting, setSubmitting] = useState(false);
     const [submitDone, setSubmitDone] = useState(false);
     const [grading, setGrading] = useState<any | null>(null);
+    const [attachedFile, setAttachedFile] = useState<File | null>(null);
+    const [uploadingFile, setUploadingFile] = useState(false);
+    const [fileUrl, setFileUrl] = useState<string | null>(null);
+    const [fileError, setFileError] = useState<string | null>(null);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -258,9 +262,34 @@ export default function AssignmentDetailPage() {
         return () => { cancelled = true; };
     }, [authLoading, profile, id, isStaff]);
 
+    const handleFileChange = async (file: File | null) => {
+        setAttachedFile(file);
+        setFileUrl(null);
+        setFileError(null);
+        if (!file || !profile) return;
+        // Validate size (10 MB) and type
+        if (file.size > 10 * 1024 * 1024) { setFileError('File too large (max 10 MB)'); return; }
+        setUploadingFile(true);
+        try {
+            const db = createClient();
+            const ext = file.name.split('.').pop();
+            const path = `submissions/${profile.id}/${assignment?.id ?? 'misc'}/${Date.now()}.${ext}`;
+            const { error: uploadErr } = await db.storage.from('assignments').upload(path, file, { upsert: true });
+            if (uploadErr) throw uploadErr;
+            const { data: urlData } = db.storage.from('assignments').getPublicUrl(path);
+            setFileUrl(urlData.publicUrl);
+        } catch (e: any) {
+            setFileError(e.message ?? 'Upload failed');
+            setAttachedFile(null);
+        } finally {
+            setUploadingFile(false);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!profile || !assignment) return;
+        if (uploadingFile) return; // wait for upload to finish
         setSubmitting(true);
         try {
             const result = await submitAssignment({
@@ -268,7 +297,8 @@ export default function AssignmentDetailPage() {
                 portal_user_id: profile.id,
                 submission_text: text,
                 answers: Object.keys(answers).length > 0 ? answers : null,
-            });
+                file_url: fileUrl ?? undefined,
+            } as any);
             setSubmission(result);
             setSubmitDone(true);
             setText('');
@@ -516,12 +546,40 @@ export default function AssignmentDetailPage() {
                                         className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500 transition-colors resize-none"
                                     />
                                 </div>
+
+                                {/* File attachment */}
+                                <div>
+                                    <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                                        Attach a File <span className="normal-case font-normal text-white/20">(optional — PDF, image, doc · max 10 MB)</span>
+                                    </label>
+                                    {fileUrl ? (
+                                        <div className="flex items-center gap-3 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                                            <PaperClipIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                                            <a href={fileUrl} target="_blank" rel="noopener noreferrer"
+                                                className="text-sm text-emerald-400 hover:text-emerald-300 truncate flex-1">{attachedFile?.name}</a>
+                                            <button type="button" onClick={() => { setAttachedFile(null); setFileUrl(null); }}
+                                                className="text-white/30 hover:text-white text-xs font-bold ml-auto flex-shrink-0">Remove</button>
+                                        </div>
+                                    ) : (
+                                        <label className={`flex items-center gap-3 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-all ${uploadingFile ? 'border-amber-500/30 bg-amber-500/5' : 'border-white/10 hover:border-amber-500/40 hover:bg-amber-500/5'}`}>
+                                            {uploadingFile
+                                                ? <><div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" /><span className="text-sm text-amber-400">Uploading…</span></>
+                                                : <><PaperClipIcon className="w-4 h-4 text-white/30" /><span className="text-sm text-white/30">Click to attach a file…</span></>
+                                            }
+                                            <input type="file" className="hidden"
+                                                accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif,.zip"
+                                                onChange={e => handleFileChange(e.target.files?.[0] ?? null)} />
+                                        </label>
+                                    )}
+                                    {fileError && <p className="text-xs text-rose-400 mt-1.5">{fileError}</p>}
+                                </div>
+
                                 {error && (
                                     <div className="flex items-center gap-2 text-rose-400 text-sm">
                                         <ExclamationTriangleIcon className="w-4 h-4" /> {error}
                                     </div>
                                 )}
-                                <button type="submit" disabled={submitting || (assignment.questions?.length > 0 ? Object.keys(answers).length === 0 : !text.trim())}
+                                <button type="submit" disabled={submitting || uploadingFile || (assignment.questions?.length > 0 ? Object.keys(answers).length === 0 : !text.trim() && !fileUrl)}
                                     className="flex items-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-bold rounded-xl transition-all">
                                     {submitting
                                         ? <><ClockIcon className="w-4 h-4 animate-spin" /> Submitting…</>

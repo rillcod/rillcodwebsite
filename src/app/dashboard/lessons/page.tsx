@@ -43,6 +43,12 @@ export default function LessonsPage() {
   const [planGenerating, setPlanGenerating] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
   const [planResult, setPlanResult] = useState<any | null>(null);
+  // Save plan state
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [planSaved, setPlanSaved] = useState(false);
+  const [planSaveError, setPlanSaveError] = useState<string | null>(null);
+  const [planCourseId, setPlanCourseId] = useState('');
+  const [courses, setCourses] = useState<any[]>([]);
 
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete lesson "${title}"? This cannot be undone.`)) return;
@@ -53,11 +59,71 @@ export default function LessonsPage() {
     setDeleting(null);
   };
 
+  // Load courses when AI panel opens (needed for save)
+  useEffect(() => {
+    if (!planOpen || !profile || courses.length > 0) return;
+    const q = createClient().from('courses').select('id, title');
+    if (profile.role === 'teacher') {
+      // teachers see courses they're associated with via lessons they've created
+    }
+    q.order('title').then(({ data }) => setCourses(data ?? []));
+  }, [planOpen, profile?.id]); // eslint-disable-line
+
+  const handleSavePlan = async () => {
+    if (!planResult || !profile) return;
+    if (!planCourseId) { setPlanSaveError('Select a course to attach this plan to.'); return; }
+    setSavingPlan(true);
+    setPlanSaveError(null);
+    try {
+      const db = createClient();
+      // Create a new lesson record for this plan
+      const { data: newLesson, error: lessonErr } = await db.from('lessons').insert({
+        title: planResult.course_title || planTopic,
+        description: planResult.description,
+        lesson_type: 'interactive',
+        status: 'draft',
+        course_id: planCourseId,
+        created_by: profile.id,
+      }).select('id').single();
+      if (lessonErr) throw lessonErr;
+
+      // Save the lesson plan record attached to the lesson
+      const objectives = (planResult.objectives ?? []).join('\n');
+      const activities = (planResult.weeks ?? []).map((w: any) =>
+        `Week ${w.week} — ${w.theme}:\n${(w.activities ?? []).map((a: string) => `• ${a}`).join('\n')}`
+      ).join('\n\n');
+
+      const { error: planErr } = await db.from('lesson_plans').insert({
+        lesson_id: newLesson.id,
+        objectives,
+        activities,
+        assessment_methods: planResult.assessment_strategy ?? '',
+        staff_notes: `Grade: ${planResult.grade_level} | Duration: ${planResult.duration}\nMaterials: ${(planResult.materials ?? []).join(', ')}`,
+      });
+      if (planErr) throw planErr;
+
+      setPlanSaved(true);
+      // Refresh lessons list
+      setLessons(prev => [{
+        id: newLesson.id, title: planResult.course_title || planTopic,
+        description: planResult.description, lesson_type: 'interactive',
+        status: 'draft', created_at: new Date().toISOString(),
+        courses: courses.find(c => c.id === planCourseId),
+      }, ...prev]);
+    } catch (e: any) {
+      setPlanSaveError(e.message ?? 'Failed to save plan');
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
   const handleGeneratePlan = async () => {
     if (!planTopic.trim()) { setPlanError('Enter a subject/course name.'); return; }
     setPlanGenerating(true);
     setPlanError(null);
     setPlanResult(null);
+    setPlanSaved(false);
+    setPlanSaveError(null);
     try {
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
@@ -467,9 +533,46 @@ export default function LessonsPage() {
                       </div>
                     )}
 
+                    {/* Save Plan to DB */}
+                    {planSaved ? (
+                      <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-5 py-4">
+                        <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                        <div>
+                          <p className="text-emerald-400 font-bold text-sm">Lesson plan saved as a draft!</p>
+                          <p className="text-white/40 text-xs mt-0.5">Find it in your lessons list and edit the content.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-white/5 border border-violet-500/20 rounded-xl p-5 space-y-3">
+                        <p className="text-xs font-black uppercase tracking-widest text-violet-300">Save Plan to Lessons</p>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <select
+                            value={planCourseId}
+                            onChange={e => { setPlanCourseId(e.target.value); setPlanSaveError(null); }}
+                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500"
+                          >
+                            <option value="">Select a course to attach…</option>
+                            {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={handleSavePlan}
+                            disabled={savingPlan || !planCourseId}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-all"
+                          >
+                            {savingPlan
+                              ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving…</>
+                              : <><SparklesIcon className="w-4 h-4" /> Save as Draft Lesson</>
+                            }
+                          </button>
+                        </div>
+                        {planSaveError && <p className="text-xs text-rose-400">{planSaveError}</p>}
+                      </div>
+                    )}
+
                     <button
                       type="button"
-                      onClick={() => { setPlanResult(null); setPlanTopic(''); }}
+                      onClick={() => { setPlanResult(null); setPlanTopic(''); setPlanSaved(false); setPlanCourseId(''); }}
                       className="text-xs font-bold text-white/40 hover:text-white transition-colors"
                     >
                       Clear plan
