@@ -37,15 +37,25 @@ function getStoredUser(): User | null {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Initialise synchronously from localStorage — eliminates the loading flash
-  // for users who are already signed in.
   const storedUser = useRef(getStoredUser());
+
   const [user, setUser] = useState<User | null>(storedUser.current);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  // Skip the loading state entirely if we already have a user from localStorage
+
+  // isLoading: true only while we don't yet know if a session exists.
+  // If we found a stored user we already know — skip the spinner entirely.
   const [isLoading, setIsLoading] = useState(!storedUser.current);
+
+  // profileLoading: true while the profile row is being fetched.
+  // Allows consumers to distinguish "fetching" from "genuinely missing".
+  const [profileLoading, setProfileLoading] = useState(!!storedUser.current);
+
   const mountedRef = useRef(true);
+
+  // Tracks whether a profile fetch has been kicked off already for this session.
+  // Prevents INITIAL_SESSION from double-fetching when storedUser fast-path runs first.
+  const profileFetchStartedRef = useRef(false);
 
   // ── Profile fetch with cache ───────────────────────────────
   const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
@@ -80,10 +90,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { user: u } } = await supabase.auth.getUser();
       if (!u) { setProfile(null); return; }
       invalidateCache(u.id);
+      setProfileLoading(true);
       const p = await fetchProfile(u.id);
-      if (mountedRef.current) setProfile(p);
+      if (mountedRef.current) {
+        setProfile(p);
+        setProfileLoading(false);
+      }
     } catch {
-      if (mountedRef.current) setProfile(null);
+      if (mountedRef.current) {
+        setProfile(null);
+        setProfileLoading(false);
+      }
     }
   }, [fetchProfile, invalidateCache]);
 
@@ -92,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
+    setProfileLoading(false);
     invalidateCache();
     try { await supabase.auth.signOut(); } catch { /* ignore */ }
     window.location.href = '/login';
@@ -101,16 +119,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     mountedRef.current = true;
 
-    // If we pre-seeded user from localStorage, kick off the profile fetch
-    // immediately without waiting for onAuthStateChange.
+    // Fast path: if we pre-seeded user from localStorage, kick off the
+    // profile fetch immediately without waiting for onAuthStateChange.
+    // Mark the fetch as started so INITIAL_SESSION doesn't duplicate it.
     if (storedUser.current) {
+      profileFetchStartedRef.current = true;
+      setProfileLoading(true);
       fetchProfile(storedUser.current.id).then(p => {
-        if (mountedRef.current) setProfile(p);
+        if (mountedRef.current) {
+          setProfile(p);
+          setProfileLoading(false);
+        }
       });
     }
 
-    // onAuthStateChange validates the session server-side and fires
-    // INITIAL_SESSION once ready. We use it to sync the authoritative state.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
         if (!mountedRef.current) return;
@@ -119,16 +141,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(s?.user ?? null);
 
         if (s?.user) {
-          // Invalidate cache on fresh sign-in or token refresh
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            // Always re-fetch on fresh sign-in or token refresh — bypass cache
             invalidateCache(s.user.id);
+            profileFetchStartedRef.current = true;
+            setProfileLoading(true);
+            const p = await fetchProfile(s.user.id);
+            if (mountedRef.current) {
+              setProfile(p);
+              setProfileLoading(false);
+            }
+          } else if (!profileFetchStartedRef.current) {
+            // INITIAL_SESSION (or any other event) when storedUser fast-path
+            // has NOT already started a fetch — fetch now.
+            profileFetchStartedRef.current = true;
+            setProfileLoading(true);
+            const p = await fetchProfile(s.user.id);
+            if (mountedRef.current) {
+              setProfile(p);
+              setProfileLoading(false);
+            }
           }
-          // Always fetch profile when a session is present (covers INITIAL_SESSION
-          // when storedUser was null — e.g. token was expired and Supabase refreshed it)
-          const p = await fetchProfile(s.user.id);
-          if (mountedRef.current) setProfile(p);
+          // else: storedUser fast-path is already handling the fetch — skip.
         } else {
+          // Signed out
           setProfile(null);
+          setProfileLoading(false);
+          profileFetchStartedRef.current = false;
           invalidateCache();
         }
 
@@ -153,6 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile,
       isLoading,
       loading: isLoading,
+      profileLoading,
       signOut,
       refreshProfile,
       login: async (email: string, password: string) => {
@@ -162,15 +202,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(data.session ?? null);
           setUser(data.user);
           invalidateCache(data.user.id);
+          profileFetchStartedRef.current = true;
+          setProfileLoading(true);
           const p = await fetchProfile(data.user.id);
-          setProfile(p);
+          if (mountedRef.current) {
+            setProfile(p);
+            setProfileLoading(false);
+          }
           return true;
         } catch {
           return false;
         }
       },
     } as any),
-    [user, session, profile, isLoading, signOut, refreshProfile, fetchProfile, invalidateCache],
+    [user, session, profile, isLoading, profileLoading, signOut, refreshProfile, fetchProfile, invalidateCache],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
