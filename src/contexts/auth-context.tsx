@@ -79,21 +79,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     mountedRef.current = true;
 
-    // Hard upper bound: never stay loading more than 4s (handles slow networks / token refresh)
-    const hardStop = setTimeout(() => {
-      if (mountedRef.current) setIsLoading(false);
-    }, 4000);
-
-    const finish = () => {
-      clearTimeout(hardStop);
-      if (mountedRef.current) setIsLoading(false);
-    };
-
     const init = async () => {
       try {
-        // getSession() is synchronous from cache — no network round trip
-        // when a valid session exists locally. Falls back to network only
-        // if tokens are expired. Middleware already validates server-side.
+        // getSession() reads from localStorage — no network round trip for valid sessions.
+        // Falls back to network only if tokens are expired.
         const { data: { session: s } } = await supabase.auth.getSession();
 
         if (!mountedRef.current) return;
@@ -101,15 +90,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (s?.user) {
           setSession(s);
           setUser(s.user);
-          // Await profile so loading stays true until we know the role.
-          // The 4s hardStop acts as the timeout safety net.
+          // Clear loading immediately once we know the user — unblocks the UI.
+          // Profile fetches in the background; dashboard handles !profile gracefully.
+          if (mountedRef.current) setIsLoading(false);
           const p = await fetchProfile(s.user.id);
           if (mountedRef.current) setProfile(p);
+        } else {
+          if (mountedRef.current) setIsLoading(false);
         }
       } catch {
-        // silent
-      } finally {
-        finish();
+        if (mountedRef.current) setIsLoading(false);
       }
     };
 
@@ -148,7 +138,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mountedRef.current = false;
-      clearTimeout(hardStop);
       subscription.unsubscribe();
       window.removeEventListener('storage', handleStorage);
     };
