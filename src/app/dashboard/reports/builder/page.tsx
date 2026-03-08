@@ -13,6 +13,7 @@ import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
     UserGroupIcon, DocumentTextIcon, EyeIcon, XMarkIcon,
     Cog6ToothIcon, ArrowUpTrayIcon, ChevronDownIcon, ChevronUpIcon,
+    PhotoIcon,
 } from '@heroicons/react/24/outline';
 import { Sparkles } from 'lucide-react';
 
@@ -1222,7 +1223,7 @@ function ReportBuilderInner() {
                                         {branding.logo_url ? (
                                             <img src={branding.logo_url} className="w-full h-full object-contain p-2" alt="Logo" />
                                         ) : (
-                                            <Layout className="w-8 h-8 text-white/20" />
+                                            <PhotoIcon className="w-8 h-8 text-white/20" />
                                         )}
                                         {uploading && (
                                             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">

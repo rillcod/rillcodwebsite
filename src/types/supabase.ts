@@ -2776,6 +2776,76 @@ export type Database = {
           },
         ]
       }
+      payment_accounts: {
+        Row: {
+          account_name: string
+          account_number: string
+          account_type: string
+          bank_name: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          label: string
+          owner_type: string
+          payment_note: string | null
+          school_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_name: string
+          account_number: string
+          account_type?: string
+          bank_name: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          owner_type?: string
+          payment_note?: string | null
+          school_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          account_type?: string
+          bank_name?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          owner_type?: string
+          payment_note?: string | null
+          school_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_accounts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_accounts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "payment_accounts_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_transactions: {
         Row: {
           amount: number
@@ -3530,6 +3600,9 @@ export type Database = {
           course_name: string | null
           created_at: string | null
           current_module: string | null
+          fee_amount: string | null
+          fee_label: string | null
+          fee_status: string | null
           has_certificate: boolean | null
           homework_grade: string | null
           id: string
@@ -3551,7 +3624,9 @@ export type Database = {
           report_term: string | null
           school_id: string | null
           school_name: string | null
+          school_section: string | null
           section_class: string | null
+          show_payment_notice: boolean
           student_id: string
           student_name: string | null
           teacher_id: string | null
@@ -3570,6 +3645,9 @@ export type Database = {
           course_name?: string | null
           created_at?: string | null
           current_module?: string | null
+          fee_amount?: string | null
+          fee_label?: string | null
+          fee_status?: string | null
           has_certificate?: boolean | null
           homework_grade?: string | null
           id?: string
@@ -3591,7 +3669,9 @@ export type Database = {
           report_term?: string | null
           school_id?: string | null
           school_name?: string | null
+          school_section?: string | null
           section_class?: string | null
+          show_payment_notice?: boolean
           student_id: string
           student_name?: string | null
           teacher_id?: string | null
@@ -3610,6 +3690,9 @@ export type Database = {
           course_name?: string | null
           created_at?: string | null
           current_module?: string | null
+          fee_amount?: string | null
+          fee_label?: string | null
+          fee_status?: string | null
           has_certificate?: boolean | null
           homework_grade?: string | null
           id?: string
@@ -3631,7 +3714,9 @@ export type Database = {
           report_term?: string | null
           school_id?: string | null
           school_name?: string | null
+          school_section?: string | null
           section_class?: string | null
+          show_payment_notice?: boolean
           student_id?: string
           student_name?: string | null
           teacher_id?: string | null
@@ -4104,6 +4189,141 @@ export type Database = {
           },
         ]
       }
+      timetable_slots: {
+        Row: {
+          course_id: string | null
+          created_at: string
+          day_of_week: string
+          end_time: string
+          id: string
+          notes: string | null
+          room: string | null
+          start_time: string
+          subject: string
+          teacher_id: string | null
+          teacher_name: string | null
+          timetable_id: string
+        }
+        Insert: {
+          course_id?: string | null
+          created_at?: string
+          day_of_week: string
+          end_time: string
+          id?: string
+          notes?: string | null
+          room?: string | null
+          start_time: string
+          subject: string
+          teacher_id?: string | null
+          teacher_name?: string | null
+          timetable_id: string
+        }
+        Update: {
+          course_id?: string | null
+          created_at?: string
+          day_of_week?: string
+          end_time?: string
+          id?: string
+          notes?: string | null
+          room?: string | null
+          start_time?: string
+          subject?: string
+          teacher_id?: string | null
+          teacher_name?: string | null
+          timetable_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timetable_slots_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timetable_slots_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timetable_slots_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "timetable_slots_timetable_id_fkey"
+            columns: ["timetable_id"]
+            isOneToOne: false
+            referencedRelation: "timetables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timetables: {
+        Row: {
+          academic_year: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          school_id: string | null
+          section: string | null
+          term: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          academic_year?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          school_id?: string | null
+          section?: string | null
+          term?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          academic_year?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          school_id?: string | null
+          section?: string | null
+          term?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timetables_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timetables_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "timetables_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       topic_subscriptions: {
         Row: {
           created_at: string | null
@@ -4355,6 +4575,10 @@ export type Database = {
       get_course_avg_exam_score: {
         Args: { p_course_id: string }
         Returns: number
+      }
+      get_timetable_ids_by_school: {
+        Args: { p_school_id: string }
+        Returns: string[]
       }
       increment_download_count: {
         Args: { file_id: string }

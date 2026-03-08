@@ -104,7 +104,7 @@ export interface ReportCardData {
     school_section?: string | null;
     fee_label?: string | null;
     fee_amount?: string | null;
-    fee_status?: 'paid' | 'outstanding' | 'partial' | 'sponsored' | 'waived' | '' | null;
+    fee_status?: string | null;
     // Next-term payment notice (shown between signature and QR when enabled)
     show_payment_notice?: boolean | null;
 }
