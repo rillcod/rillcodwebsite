@@ -228,6 +228,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [now, setNow] = useState<Date | null>(null);
   const [authHardStop, setAuthHardStop] = useState(false);
+  const [profileHardStop, setProfileHardStop] = useState(false);
   const [stats, setStats] = useState<DashStats[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
@@ -239,9 +240,16 @@ export default function DashboardPage() {
     return () => clearInterval(t);
   }, []);
 
-  // Auth hard-stop (aligned with auth-context 1.5s)
+  // Auth hard-stop: 2s to handle no-user redirect
   useEffect(() => {
     const t = setTimeout(() => setAuthHardStop(true), 2000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Profile hard-stop: 8s — only show error if user exists but profile never loaded
+  // (mobile / slow connections need more time for the Supabase profile fetch)
+  useEffect(() => {
+    const t = setTimeout(() => setProfileHardStop(true), 8000);
     return () => clearTimeout(t);
   }, []);
 
@@ -311,7 +319,7 @@ export default function DashboardPage() {
   // ── Session exists but profile hasn't resolved yet ────────────────
   if (!profile) return (
     <div className="min-h-screen bg-[#050a17] flex flex-col items-center justify-center p-6 text-center">
-      {authHardStop ? (
+      {profileHardStop ? (
         <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-500">
           <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-rose-500/10 mb-2">
             <ExclamationTriangleIcon className="w-10 h-10 text-rose-400" />
