@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import {
     ShieldCheckIcon, MagnifyingGlassIcon, UserGroupIcon,
     AcademicCapIcon, BuildingOfficeIcon, UserIcon,
@@ -18,12 +17,13 @@ export default function UsersPage() {
 
     const load = async () => {
         setLoading(true);
-        const supabase = createClient();
-        const { data } = await supabase
-            .from('portal_users')
-            .select('*')
-            .order('created_at', { ascending: false });
-        setUsers(data ?? []);
+        try {
+            const res = await fetch('/api/portal-users');
+            const json = await res.json();
+            setUsers(json.data ?? []);
+        } catch {
+            setUsers([]);
+        }
         setLoading(false);
     };
 
