@@ -224,9 +224,11 @@ const QUICK_ACTIONS = {
 
 /* ── Main Component ───────────────────────────────────── */
 export default function DashboardPage() {
-  const { user, profile, loading, profileLoading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
   const [now, setNow] = useState<Date | null>(null);
+  const [authHardStop, setAuthHardStop] = useState(false);
+  const [profileHardStop, setProfileHardStop] = useState(false);
   const [stats, setStats] = useState<DashStats[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
@@ -238,12 +240,25 @@ export default function DashboardPage() {
     return () => clearInterval(t);
   }, []);
 
-  // Redirect to login only once auth is fully resolved with no user
+  // Auth hard-stop: 2s to handle no-user redirect
   useEffect(() => {
-    if (!loading && !user) {
+    const t = setTimeout(() => setAuthHardStop(true), 2000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Profile hard-stop: 5s — show error if user exists but profile never loaded
+  useEffect(() => {
+    const t = setTimeout(() => setProfileHardStop(true), 5000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Only redirect after the hard stop fires (2s), giving onAuthStateChange time to propagate.
+  // NEVER use ?clear=1 here — that destroys a valid server-side session and creates a loop.
+  useEffect(() => {
+    if (authHardStop && !user) {
       router.replace('/login');
     }
-  }, [loading, user, router]);
+  }, [authHardStop, user, router]);
 
   // Fetch live stats once we know the role
   const fetchDashData = useCallback(async () => {
@@ -272,9 +287,9 @@ export default function DashboardPage() {
   useEffect(() => { fetchDashData(); }, [fetchDashData]);
 
   // ── Loading / guard screens ────────────────────────────────────
-
-  // Auth session resolving (fresh visit or expired token being refreshed)
-  if (loading) return (
+  // Show spinner while: auth is loading, OR auth resolved with no user but hard-stop hasn't fired yet
+  // (the 2s window gives onAuthStateChange time to propagate a SIGNED_IN event)
+  if (loading || (!user && !authHardStop)) return (
     <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-white/10 border-t-violet-500 rounded-full animate-spin" />
@@ -286,7 +301,7 @@ export default function DashboardPage() {
     </div>
   );
 
-  // No user — redirect is queued in useEffect
+  // Auth fully resolved with no user — redirect is queued in useEffect above
   if (!user) return (
     <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4 text-center px-4">
@@ -300,19 +315,18 @@ export default function DashboardPage() {
     </div>
   );
 
-  // User is authenticated but profile row is still being fetched — show spinner, NOT an error
-  if (profileLoading || !profile) {
-    // Profile fetch finished but returned null → account is inactive or missing portal_users row
-    if (!profileLoading && !profile) return (
-      <div className="min-h-screen bg-[#050a17] flex flex-col items-center justify-center p-6 text-center">
-        <div className="flex flex-col items-center gap-6">
+  // ── Session exists but profile hasn't resolved yet ────────────────
+  if (!profile) return (
+    <div className="min-h-screen bg-[#050a17] flex flex-col items-center justify-center p-6 text-center">
+      {profileHardStop ? (
+        <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-500">
           <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-rose-500/10 mb-2">
             <ExclamationTriangleIcon className="w-10 h-10 text-rose-400" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-white font-black text-2xl tracking-tight">Account Not Found</h2>
+            <h2 className="text-white font-black text-2xl tracking-tight">Portal Insight Required</h2>
             <p className="text-white/40 text-sm max-w-sm leading-relaxed">
-              Your login was successful but your portal profile could not be loaded. Your account may be inactive or not yet set up.
+              Your authentication was successful, but we couldn't resolve your portal privileges in time. This could be a slow connection or a missing profile.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
@@ -326,19 +340,21 @@ export default function DashboardPage() {
             </a>
           </div>
         </div>
-      </div>
-    );
-
-    // Profile fetch still in flight — show a clean spinner
-    return (
-      <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-white/10 border-t-violet-500 rounded-full animate-spin" />
-          <p className="text-white/40 text-sm">Setting up your workspace…</p>
+      ) : (
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-white/5 border-t-violet-500 rounded-full animate-spin" />
+            <div className="absolute inset-x-0 -bottom-8 flex justify-center">
+              <span className="text-[10px] font-black text-violet-400 uppercase tracking-[0.2em] animate-pulse">Initializing</span>
+            </div>
+          </div>
+          <div className="mt-4">
+            <p className="text-white/20 text-xs font-medium italic">Fetching secure portal session...</p>
+          </div>
         </div>
-      </div>
-    );
-  }
+      )}
+    </div>
+  );
 
   const role = profile.role as 'admin' | 'teacher' | 'student' | 'school';
   const quickActions = QUICK_ACTIONS[role] ?? QUICK_ACTIONS.student;

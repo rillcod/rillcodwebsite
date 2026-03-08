@@ -89,10 +89,6 @@ const CHALLENGES = [
 
 type Lang = 'javascript' | 'python' | 'html';
 
-function storageKey(userId: string | undefined, l: Lang) {
-  return `playground_code_${userId ?? 'guest'}_${l}`;
-}
-
 export default function PlaygroundPage() {
   const { profile } = useAuth();
   const [lang, setLang] = useState<Lang>('javascript');
@@ -101,31 +97,11 @@ export default function PlaygroundPage() {
   const [running, setRunning] = useState(false);
   const [activeTab, setActiveTab] = useState<'output' | 'preview'>('output');
   const [showChallenges, setShowChallenges] = useState(false);
-  const [saved, setSaved] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Load saved code for initial language on mount
-  useEffect(() => {
-    const stored = localStorage.getItem(storageKey(profile?.id, 'javascript'));
-    if (stored) setCode(stored);
-  }, [profile?.id]); // eslint-disable-line
-
-  // Auto-save code to localStorage 1s after last keystroke
-  useEffect(() => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      localStorage.setItem(storageKey(profile?.id, lang), code);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 1500);
-    }, 1000);
-    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [code, lang, profile?.id]); // eslint-disable-line
 
   function changeLang(l: Lang) {
     setLang(l);
-    const stored = localStorage.getItem(storageKey(profile?.id, l));
-    setCode(stored ?? STARTER_CODE[l]);
+    setCode(STARTER_CODE[l]);
     setOutput([]);
   }
 
@@ -252,10 +228,9 @@ export default function PlaygroundPage() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          {saved && <span className="text-emerald-400 text-[10px] font-bold">Saved</span>}
           <button
-            onClick={() => { setCode(STARTER_CODE[lang]); setOutput([]); localStorage.removeItem(storageKey(profile?.id, lang)); }}
-            className="p-1.5 text-white/30 hover:text-white transition-colors" title="Reset to starter code">
+            onClick={() => { setCode(STARTER_CODE[lang]); setOutput([]); }}
+            className="p-1.5 text-white/30 hover:text-white transition-colors" title="Reset">
             <ArrowPathIcon className="w-4 h-4" />
           </button>
           <button
