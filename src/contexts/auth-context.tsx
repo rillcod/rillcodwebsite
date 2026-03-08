@@ -57,18 +57,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Prevents INITIAL_SESSION from double-fetching when storedUser fast-path runs first.
   const profileFetchStartedRef = useRef(false);
 
-  // ── Profile fetch with cache ───────────────────────────────
+  // ── Profile fetch with cache + 10s timeout ────────────────
   const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
     const cached = profileCache.get(userId);
     if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
     try {
-      const { data, error } = await supabase
+      // Race the DB query against a 10-second timeout so profileLoading
+      // can never get permanently stuck on a slow/unresponsive connection.
+      const query = supabase
         .from('portal_users')
         .select('id, email, full_name, role, is_active, phone, bio, profile_image_url, school_id, school_name, section_class, current_module, date_of_birth, created_at, updated_at')
         .eq('id', userId)
-        .eq('is_active', true)
         .maybeSingle();
+
+      const timeout = new Promise<{ data: null; error: Error }>(resolve =>
+        setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 10_000)
+      );
+
+      const { data, error } = await Promise.race([query, timeout]);
 
       if (error || !data) return null;
       const p = data as unknown as UserProfile;
@@ -147,8 +154,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mountedRef.current) setIsLoading(false);
 
         if (s?.user) {
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            // Always re-fetch on fresh sign-in or token refresh — bypass cache
+          if (event === 'SIGNED_IN') {
+            // Fresh sign-in — always re-fetch profile (bypass cache)
             invalidateCache(s.user.id);
             profileFetchStartedRef.current = true;
             setProfileLoading(true);
