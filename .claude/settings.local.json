@@ -15,7 +15,9 @@
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
       "Bash(ls:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(npx next:*)",
+      "Bash(npm list:*)"
     ]
   }
 }

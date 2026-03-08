@@ -57,6 +57,13 @@ export default function VerifyPage() {
       });
   }, [code]);
 
+  const theory     = Number(report?.theory_score)     || 0;
+  const practical  = Number(report?.practical_score)  || 0;
+  const attendance = Number(report?.attendance_score) || 0;
+  const computed   = Math.round(theory * 0.4 + practical * 0.4 + attendance * 0.2);
+  const overallNum = Number(report?.overall_score) > 0 ? Number(report?.overall_score) : computed;
+  const showCert   = overallNum >= 45;
+
   const g = report?.overall_grade ?? '';
   const gs = GRADE_STYLE[g] ?? GRADE_STYLE['C'];
   const dateStr = report?.report_date
@@ -88,9 +95,16 @@ export default function VerifyPage() {
 
           {/* Loading */}
           {status === 'loading' && (
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-white/40 text-sm">Verifying report…</p>
+            <div className="text-center space-y-5">
+              <div className="relative w-16 h-16 mx-auto">
+                <div className="absolute inset-0 rounded-full border-[3px] border-violet-500/20" />
+                <div className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-violet-500 animate-spin" />
+                <div className="absolute inset-[10px] rounded-full border-[2px] border-transparent border-t-indigo-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.6s' }} />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+                </div>
+              </div>
+              <p className="text-white/40 text-sm font-medium tracking-wide">Verifying report…</p>
             </div>
           )}
 
@@ -183,7 +197,7 @@ export default function VerifyPage() {
                     { label: 'School', value: report.school_name },
                     { label: 'Class / Section', value: report.section_class },
                     { label: 'Academic Term', value: report.report_term },
-                    { label: 'Score', value: report.overall_score != null ? `${report.overall_score}%` : null },
+                    { label: 'Score', value: overallNum > 0 ? `${overallNum}%` : null },
                     { label: 'Proficiency', value: report.proficiency_level },
                     { label: 'Instructor', value: report.instructor_name },
                   ].filter(d => d.value).map(({ label, value, bold }) => (
@@ -195,13 +209,13 @@ export default function VerifyPage() {
                 </div>
 
                 {/* Score bars */}
-                {(report.theory_score != null || report.practical_score != null || report.attendance_score != null) && (
+                {(theory > 0 || practical > 0 || attendance > 0) && (
                   <div className="px-8 pb-6 space-y-3">
                     <div className="h-px bg-gray-100 mb-4" />
                     {[
-                      { label: 'Theory (40%)', value: report.theory_score ?? 0, color: '#6366f1' },
-                      { label: 'Practical (40%)', value: report.practical_score ?? 0, color: '#10b981' },
-                      { label: 'Attendance (20%)', value: report.attendance_score ?? 0, color: '#f59e0b' },
+                      { label: 'Theory (40%)',     value: theory,     color: '#6366f1' },
+                      { label: 'Practical (40%)',  value: practical,  color: '#10b981' },
+                      { label: 'Attendance (20%)', value: attendance, color: '#f59e0b' },
                     ].map(({ label, value, color }) => (
                       <div key={label} className="space-y-1">
                         <div className="flex justify-between text-[10px] font-black text-gray-400 uppercase tracking-widest">
@@ -217,10 +231,10 @@ export default function VerifyPage() {
                 )}
 
                 {/* Certificate award row */}
-                {report.has_certificate && (
-                  <div className="mx-6 mb-6 bg-[#1a1a2e] rounded-2xl px-5 py-4 flex items-center gap-3">
-                    <CheckBadgeIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
-                    <p className="text-sm font-bold text-amber-400">Certificate of Completion Awarded</p>
+                {showCert && (
+                  <div className="mx-6 mb-6 rounded-2xl px-5 py-4 flex items-center gap-3" style={{ background: 'linear-gradient(135deg, #fffbeb, #fef9e7)', border: '1px solid #fde68a' }}>
+                    <CheckBadgeIcon className="w-5 h-5 flex-shrink-0" style={{ color: '#d97706' }} />
+                    <p className="text-sm font-bold" style={{ color: '#92400e' }}>Certificate of Completion Awarded</p>
                   </div>
                 )}
 
@@ -235,8 +249,8 @@ export default function VerifyPage() {
                       style={{ mixBlendMode: 'multiply' }}
                     />
                     <div className="w-40 h-px bg-gray-900 mt-1" />
-                    <p className="text-[11px] font-black text-gray-900">{report.instructor_name || 'Head of Academics'}</p>
-                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Rillcod Academy</p>
+                    <p className="text-[11px] font-black text-gray-900">Mr Osahon</p>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Director, Rillcod Technologies</p>
                   </div>
                   <div className="text-right">
                     <div className="flex items-center gap-2 justify-end mb-1">

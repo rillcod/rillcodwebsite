@@ -1,3 +1,4 @@
+// @refresh reset
 'use client';
 
 import { useState, useEffect, useRef, Suspense } from 'react';
@@ -10,10 +11,10 @@ import ReportCard from '@/components/reports/ReportCard';
 import { generateReportPDF, ScaledReportCard } from '@/lib/pdf-utils';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
-    UserGroupIcon, DocumentTextIcon, PlusIcon, TrashIcon, EyeIcon,
+    UserGroupIcon, DocumentTextIcon, EyeIcon, XMarkIcon,
     Cog6ToothIcon, ArrowUpTrayIcon, ChevronDownIcon, ChevronUpIcon,
 } from '@heroicons/react/24/outline';
-import { Sparkles, Layout } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser    = Database['public']['Tables']['portal_users']['Row'];
@@ -44,6 +45,13 @@ interface SessionConfig {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const GRADE_OPTIONS = ['Excellent', 'Very Good', 'Good', 'Fair', 'Poor', 'Not Specified'];
+const CLASS_PRESETS = [
+    'Kindergarten',
+    'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6',
+    'JSS 1', 'JSS 2', 'JSS 3',
+    'SS 1', 'SS 2', 'SS 3',
+    'Cohort A', 'Cohort B', 'Cohort C',
+];
 const TERM_OPTIONS = ['Termly', 'Mid-Term', 'First Term', 'Second Term', 'Third Term', 'Annual'];
 const PROFICIENCY_OPTIONS = ['beginner', 'intermediate', 'advanced'];
 const DURATION_OPTIONS = ['Termly', '4 weeks', '6 weeks', '8 weeks', '10 weeks', '12 weeks', '3 months', '6 months', 'Full Year'];
@@ -115,12 +123,11 @@ function ReportBuilderInner() {
         next_module: '',
         course_duration: 'Termly',
         learning_milestones: [],
-        school_section: '',
+        school_section: 'school',
         fee_label: '',
         fee_amount: '',
         show_payment_notice: false,
     });
-    const [sessionMilestoneInput, setSessionMilestoneInput] = useState('');
     const [sessionExpanded, setSessionExpanded] = useState(true); // collapsed after "Start Grading"
 
     // ── Per-student state ─────────────────────────────────────────────────────
@@ -130,6 +137,7 @@ function ReportBuilderInner() {
 
     const [form, setForm] = useState({
         student_name: '',
+        section_class: '',
         theory_score: '0',
         practical_score: '0',
         attendance_score: '0',
@@ -166,10 +174,24 @@ function ReportBuilderInner() {
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
-    // ── Init date on client only (avoids SSR mismatch) ────────────────────────
+    // ── Restore session config from localStorage + init date ──────────────────
     useEffect(() => {
+        try {
+            const saved = localStorage.getItem('rillcod_session_config');
+            if (saved) {
+                const parsed = JSON.parse(saved) as Partial<SessionConfig>;
+                setSessionConfig(s => ({ ...s, ...parsed }));
+            }
+        } catch { /* ignore */ }
         setSessionConfig(s => ({ ...s, report_date: new Date().toISOString().split('T')[0] }));
     }, []);
+
+    // ── Persist session config to localStorage on every change ────────────────
+    useEffect(() => {
+        try {
+            localStorage.setItem('rillcod_session_config', JSON.stringify(sessionConfig));
+        } catch { /* ignore */ }
+    }, [sessionConfig]);
 
     // ── Load students, courses, branding ─────────────────────────────────────
     useEffect(() => {
@@ -257,6 +279,7 @@ function ReportBuilderInner() {
 
         setForm({
             student_name: s.full_name ?? '',
+            section_class: report?.section_class ?? (s as any).section_class ?? '',
             theory_score: String(report?.theory_score ?? 0),
             practical_score: String(report?.practical_score ?? 0),
             attendance_score: String(report?.attendance_score ?? 0),
@@ -305,7 +328,7 @@ function ReportBuilderInner() {
                 course_id: sessionConfig.course_id || null,
                 student_name: form.student_name,
                 school_name: sessionConfig.school_name || null,
-                section_class: sessionConfig.section_class || null,
+                section_class: form.section_class || sessionConfig.section_class || null,
                 course_name: sessionConfig.course_name,
                 report_date: sessionConfig.report_date,
                 report_term: sessionConfig.report_term,
@@ -336,11 +359,12 @@ function ReportBuilderInner() {
                 is_published: publish ? true : form.is_published,
                 photo_url: form.photo_url || null,
                 updated_at: new Date().toISOString(),
-                // Payment / school section (stored as extra fields)
-                ...(sessionConfig.school_section && { school_section: sessionConfig.school_section } as any),
-                ...(sessionConfig.fee_label && { fee_label: sessionConfig.fee_label } as any),
-                ...(sessionConfig.fee_amount && { fee_amount: sessionConfig.fee_amount } as any),
-                ...(form.fee_status && { fee_status: form.fee_status } as any),
+                // Payment / school section fields
+                school_section: sessionConfig.school_section || null,
+                fee_label: sessionConfig.fee_label || null,
+                fee_amount: sessionConfig.fee_amount || null,
+                fee_status: form.fee_status || null,
+                show_payment_notice: sessionConfig.show_payment_notice,
             };
 
             if (existingReport) {
@@ -373,7 +397,7 @@ function ReportBuilderInner() {
     }
 
     // ── AI generate ───────────────────────────────────────────────────────────
-    const handleAIGenerate = async (field: 'key_strengths' | 'areas_for_growth' | 'instructor_assessment') => {
+    const handleAIGenerate = async (field: 'key_strengths' | 'areas_for_growth') => {
         setGenerating(field);
         setError('');
         try {
@@ -381,7 +405,6 @@ function ReportBuilderInner() {
             const responses: Record<string, string> = {
                 key_strengths: `${form.student_name} demonstrates exceptional grasp of ${sessionConfig.current_module} concepts, particularly in practical implementation. Their ${form.projects_grade} project performance highlights strong problem-solving abilities.`,
                 areas_for_growth: `While proficient in theory, ${form.student_name} can improve by dedicating more time to independent research and collaborative projects. Increasing class participation will also help solidify understanding.`,
-                instructor_assessment: `Overall, ${form.student_name} has shown steady progress throughout the course. They have a solid foundation in ${sessionConfig.course_name} and with continued focus, they are well on their way to mastery.`,
             };
             setForm(f => ({ ...f, [field]: responses[field] }));
             setSuccess('AI evaluation generated!');
@@ -429,13 +452,20 @@ function ReportBuilderInner() {
     }
 
     const previewData = {
-        ...form,
         ...sessionConfig,
+        ...form,
+        // explicit overrides so correct types and priorities are preserved
         id: existingReport?.id || 'Preview',
+        section_class: form.section_class || sessionConfig.section_class || undefined,
+        school_name: sessionConfig.school_name || undefined,
         theory_score: parseFloat(form.theory_score),
         practical_score: parseFloat(form.practical_score),
         attendance_score: parseFloat(form.attendance_score),
         overall_score: overallScore,
+        has_certificate: overallScore >= 45,
+        certificate_text: overallScore >= 45
+            ? `This document officially recognizes that ${form.student_name} has successfully completed the intensive study programme in ${sessionConfig.course_name || 'the enrolled course'}.`
+            : undefined,
         fee_status: form.fee_status || undefined,
         fee_label: sessionConfig.fee_label || undefined,
         fee_amount: sessionConfig.fee_amount || undefined,
@@ -466,13 +496,11 @@ function ReportBuilderInner() {
                     <p className="text-xs font-bold text-violet-300 uppercase tracking-widest">Session Settings</p>
                     <p className="text-xs text-white/40 truncate mt-0.5">
                         {sessionConfig.report_term}
-                        {sessionConfig.report_period && ` · ${sessionConfig.report_period}`}
                         {sessionConfig.school_name && ` · ${sessionConfig.school_name}`}
                         {sessionConfig.section_class && ` · ${sessionConfig.section_class}`}
                         {sessionConfig.course_name && ` · ${sessionConfig.course_name}`}
                         {sessionConfig.current_module && ` · Module: ${sessionConfig.current_module}`}
                         {` · ${sessionConfig.instructor_name}`}
-                        {sessionConfig.learning_milestones.length > 0 && ` · ${sessionConfig.learning_milestones.length} milestones`}
                     </p>
                 </div>
                 {sessionExpanded
@@ -493,54 +521,54 @@ function ReportBuilderInner() {
                                 onChange={e => setSessionConfig(s => ({ ...s, report_date: e.target.value }))}
                                 className={INPUT} />
                         </Field>
-                        <Field label="Term">
-                            <select value={sessionConfig.report_term}
-                                onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
-                                className={INPUT}>
-                                {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                        </Field>
-                        <Field label="Report Period">
-                            <select value={sessionConfig.report_period}
-                                onChange={e => setSessionConfig(s => ({ ...s, report_period: e.target.value }))}
-                                className={INPUT}>
-                                <option value="">— Select or type —</option>
-                                {PERIOD_PRESETS.map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                        </Field>
-                        <Field label="Course">
-                            <select value={sessionConfig.course_id}
+                        {sessionConfig.school_section === 'school' ? (
+                            <Field label="Term">
+                                <select value={sessionConfig.report_term}
+                                    onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
+                                    className={INPUT}>
+                                    {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </Field>
+                        ) : (
+                            <Field label="Duration">
+                                <select value={sessionConfig.course_duration}
+                                    onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
+                                    className={INPUT}>
+                                    {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                            </Field>
+                        )}
+                        <Field label="Programme / Course">
+                            <input
+                                list="course-list-bar"
+                                value={sessionConfig.course_name}
                                 onChange={e => {
-                                    const c = courses.find(x => x.id === e.target.value);
-                                    setSessionConfig(s => ({ ...s, course_id: e.target.value, course_name: c?.title ?? s.course_name }));
+                                    const match = courses.find(c => c.title === e.target.value);
+                                    setSessionConfig(s => ({ ...s, course_name: e.target.value, course_id: match?.id ?? s.course_id }));
                                 }}
-                                className={INPUT}>
-                                <option value="">— Select course —</option>
-                                {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                            </select>
-                        </Field>
-                        <Field label="Course Name (override)">
-                            <input value={sessionConfig.course_name}
-                                onChange={e => setSessionConfig(s => ({ ...s, course_name: e.target.value }))}
-                                className={INPUT} placeholder="e.g. Python Programming" />
+                                className={INPUT}
+                                placeholder="e.g. Python Programming" />
+                            <datalist id="course-list-bar">
+                                {courses.map(c => <option key={c.id} value={c.title} />)}
+                            </datalist>
                         </Field>
                         <Field label="School">
-                            <select value={sessionConfig.school_name}
+                            <select
+                                value={sessionConfig.school_name}
                                 onChange={e => setSessionConfig(s => ({ ...s, school_name: e.target.value }))}
                                 className={INPUT}>
-                                <option value="">— Select school —</option>
+                                <option value="">— Select a school —</option>
                                 {schools.map(sc => <option key={sc.id} value={sc.name}>{sc.name}</option>)}
                             </select>
                         </Field>
                         <Field label="Class / Section">
-                            <select value={sessionConfig.section_class}
+                            <select
+                                value={sessionConfig.section_class}
                                 onChange={e => setSessionConfig(s => ({ ...s, section_class: e.target.value }))}
                                 className={INPUT}>
                                 <option value="">— Select class —</option>
-                                {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
-                                {sessionConfig.section_class && !distinctClasses.includes(sessionConfig.section_class) && (
-                                    <option value={sessionConfig.section_class}>{sessionConfig.section_class}</option>
-                                )}
+                                {CLASS_PRESETS.map(c => <option key={c} value={c}>{c}</option>)}
+                                {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </Field>
                         <Field label="Current Module">
@@ -561,43 +589,6 @@ function ReportBuilderInner() {
                             </select>
                         </Field>
                     </div>
-
-                    {/* Milestones */}
-                    <Field label="Learning Milestones (shared for all students)">
-                        <div className="space-y-2">
-                            {sessionConfig.learning_milestones.map((m, i) => (
-                                <div key={i} className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-xl border border-white/10">
-                                    <span className="text-violet-400 text-xs">✓</span>
-                                    <p className="text-sm text-white/70 flex-1">{m}</p>
-                                    <button onClick={() => setSessionConfig(s => ({ ...s, learning_milestones: s.learning_milestones.filter((_, idx) => idx !== i) }))}
-                                        className="text-rose-400/60 hover:text-rose-400 transition-colors">
-                                        <TrashIcon className="w-3.5 h-3.5" />
-                                    </button>
-                                </div>
-                            ))}
-                            <div className="flex gap-2">
-                                <input
-                                    value={sessionMilestoneInput}
-                                    onChange={e => setSessionMilestoneInput(e.target.value)}
-                                    onKeyDown={e => {
-                                        if (e.key === 'Enter' && sessionMilestoneInput.trim()) {
-                                            e.preventDefault();
-                                            setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, sessionMilestoneInput.trim()] }));
-                                            setSessionMilestoneInput('');
-                                        }
-                                    }}
-                                    className={`${INPUT} flex-1`}
-                                    placeholder="Type a milestone and press Enter…" />
-                                <button onClick={() => {
-                                    if (!sessionMilestoneInput.trim()) return;
-                                    setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, sessionMilestoneInput.trim()] }));
-                                    setSessionMilestoneInput('');
-                                }} className="px-3 py-2.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 rounded-xl transition-colors">
-                                    <PlusIcon className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    </Field>
 
                     {/* Next-term payment notice toggle (also accessible from summary bar) */}
                     <div className="flex items-center gap-4 px-1 pt-1">
@@ -678,7 +669,20 @@ function ReportBuilderInner() {
                         <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
                             <div className="flex items-center gap-2 border-b border-white/10 pb-3 mb-2">
                                 <span>📋</span>
-                                <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">Report Period & Instructor</h3>
+                                <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">Session Info</h3>
+                            </div>
+                            {/* Context type */}
+                            <div>
+                                <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">Report Context *</label>
+                                <div className="flex gap-2">
+                                    {(['school', 'bootcamp', 'online'] as const).map(type => (
+                                        <button key={type} type="button"
+                                            onClick={() => setSessionConfig(s => ({ ...s, school_section: type }))}
+                                            className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-violet-600 border-violet-500 text-white' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>
+                                            {type === 'school' ? '🏫 School' : type === 'bootcamp' ? '💻 Bootcamp' : '🌐 Online'}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Field label="Instructor Name *">
@@ -691,21 +695,39 @@ function ReportBuilderInner() {
                                         onChange={e => setSessionConfig(s => ({ ...s, report_date: e.target.value }))}
                                         className={INPUT} />
                                 </Field>
-                                <Field label="Term / Period *">
-                                    <select value={sessionConfig.report_term}
-                                        onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
-                                        className={INPUT}>
-                                        {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </Field>
-                                <Field label="Report Period">
-                                    <select value={sessionConfig.report_period}
-                                        onChange={e => setSessionConfig(s => ({ ...s, report_period: e.target.value }))}
-                                        className={INPUT}>
-                                        <option value="">— Select a period —</option>
-                                        {PERIOD_PRESETS.map(p => <option key={p} value={p}>{p}</option>)}
-                                    </select>
-                                </Field>
+                                {sessionConfig.school_section === 'school' ? (
+                                    <>
+                                        <Field label="Term *">
+                                            <select value={sessionConfig.report_term}
+                                                onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
+                                                className={INPUT}>
+                                                {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                                            </select>
+                                        </Field>
+                                        <Field label="Academic Year">
+                                            <input
+                                                list="academic-year-list"
+                                                value={sessionConfig.report_period}
+                                                onChange={e => setSessionConfig(s => ({ ...s, report_period: e.target.value }))}
+                                                className={INPUT}
+                                                placeholder="e.g. 2025/2026" />
+                                            <datalist id="academic-year-list">
+                                                <option value="2025/2026" />
+                                                <option value="2026/2027" />
+                                                <option value="2027/2028" />
+                                                <option value="2028/2029" />
+                                            </datalist>
+                                        </Field>
+                                    </>
+                                ) : (
+                                    <Field label="Duration *">
+                                        <select value={sessionConfig.course_duration}
+                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
+                                            className={INPUT}>
+                                            {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                    </Field>
+                                )}
                             </div>
                         </div>
 
@@ -716,32 +738,22 @@ function ReportBuilderInner() {
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Field label="School *">
-                                    <select value={sessionConfig.school_name}
+                                    <select
+                                        value={sessionConfig.school_name}
                                         onChange={e => setSessionConfig(s => ({ ...s, school_name: e.target.value }))}
                                         className={INPUT}>
-                                        <option value="">— Select school —</option>
+                                        <option value="">— Select a school —</option>
                                         {schools.map(sc => <option key={sc.id} value={sc.name}>{sc.name}</option>)}
                                     </select>
                                 </Field>
                                 <Field label="Class / Section *">
-                                    <select value={sessionConfig.section_class}
+                                    <select
+                                        value={sessionConfig.section_class}
                                         onChange={e => setSessionConfig(s => ({ ...s, section_class: e.target.value }))}
                                         className={INPUT}>
                                         <option value="">— Select class —</option>
-                                        {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
-                                        {sessionConfig.section_class && !distinctClasses.includes(sessionConfig.section_class) && (
-                                            <option value={sessionConfig.section_class}>{sessionConfig.section_class}</option>
-                                        )}
-                                    </select>
-                                </Field>
-                                <Field label="School Level / Section">
-                                    <select value={sessionConfig.school_section}
-                                        onChange={e => setSessionConfig(s => ({ ...s, school_section: e.target.value }))}
-                                        className={INPUT}>
-                                        <option value="">— Not specified —</option>
-                                        <option value="Primary">Primary (Basic 1–6)</option>
-                                        <option value="Secondary">Secondary (JSS1–SS3)</option>
-                                        <option value="Unified">Unified (Primary + Secondary)</option>
+                                        {CLASS_PRESETS.map(c => <option key={c} value={c}>{c}</option>)}
+                                        {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
                                     </select>
                                 </Field>
                             </div>
@@ -800,22 +812,29 @@ function ReportBuilderInner() {
                                 <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">Course Details</h3>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <Field label="Course">
-                                    <select value={sessionConfig.course_id}
+                                <Field label="Programme / Course *">
+                                    <input
+                                        list="course-list-step1"
+                                        value={sessionConfig.course_name}
                                         onChange={e => {
-                                            const c = courses.find(x => x.id === e.target.value);
-                                            setSessionConfig(s => ({ ...s, course_id: e.target.value, course_name: c?.title ?? s.course_name }));
+                                            const match = courses.find(c => c.title === e.target.value);
+                                            setSessionConfig(s => ({ ...s, course_name: e.target.value, course_id: match?.id ?? s.course_id }));
                                         }}
-                                        className={INPUT}>
-                                        <option value="">— Select course —</option>
-                                        {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                                    </select>
+                                        className={INPUT}
+                                        placeholder="e.g. Python Programming" />
+                                    <datalist id="course-list-step1">
+                                        {courses.map(c => <option key={c.id} value={c.title} />)}
+                                    </datalist>
                                 </Field>
-                                <Field label="Course Name (override)">
-                                    <input value={sessionConfig.course_name}
-                                        onChange={e => setSessionConfig(s => ({ ...s, course_name: e.target.value }))}
-                                        className={INPUT} placeholder="e.g. Python Programming" />
-                                </Field>
+                                {sessionConfig.school_section === 'school' && (
+                                    <Field label="Duration">
+                                        <select value={sessionConfig.course_duration}
+                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
+                                            className={INPUT}>
+                                            {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                    </Field>
+                                )}
                                 <Field label="Current Module">
                                     <input value={sessionConfig.current_module}
                                         onChange={e => setSessionConfig(s => ({ ...s, current_module: e.target.value }))}
@@ -826,55 +845,7 @@ function ReportBuilderInner() {
                                         onChange={e => setSessionConfig(s => ({ ...s, next_module: e.target.value }))}
                                         className={INPUT} placeholder="e.g. Loops & Automation" />
                                 </Field>
-                                <Field label="Course Duration">
-                                    <select value={sessionConfig.course_duration}
-                                        onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
-                                        className={INPUT}>
-                                        {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                                    </select>
-                                </Field>
                             </div>
-                        </div>
-
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-3">
-                            <div className="flex items-center gap-2 border-b border-white/10 pb-3 mb-2">
-                                <span>📚</span>
-                                <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">
-                                    Learning Milestones <span className="text-violet-400 normal-case">(appear on every student's card)</span>
-                                </h3>
-                            </div>
-                            {sessionConfig.learning_milestones.map((m, i) => (
-                                <div key={i} className="flex items-center gap-2 px-3 py-2.5 bg-white/5 rounded-xl border border-white/10">
-                                    <span className="text-violet-400 text-xs">✓</span>
-                                    <p className="text-sm text-white/70 flex-1">{m}</p>
-                                    <button onClick={() => setSessionConfig(s => ({ ...s, learning_milestones: s.learning_milestones.filter((_, idx) => idx !== i) }))}
-                                        className="text-rose-400/60 hover:text-rose-400 transition-colors">
-                                        <TrashIcon className="w-3.5 h-3.5" />
-                                    </button>
-                                </div>
-                            ))}
-                            <div className="flex gap-2">
-                                <input
-                                    value={sessionMilestoneInput}
-                                    onChange={e => setSessionMilestoneInput(e.target.value)}
-                                    onKeyDown={e => {
-                                        if (e.key === 'Enter' && sessionMilestoneInput.trim()) {
-                                            e.preventDefault();
-                                            setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, sessionMilestoneInput.trim()] }));
-                                            setSessionMilestoneInput('');
-                                        }
-                                    }}
-                                    className={`${INPUT} flex-1`}
-                                    placeholder="Type a milestone and press Enter…" />
-                                <button onClick={() => {
-                                    if (!sessionMilestoneInput.trim()) return;
-                                    setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, sessionMilestoneInput.trim()] }));
-                                    setSessionMilestoneInput('');
-                                }} className="px-3 py-2.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 rounded-xl transition-colors">
-                                    <PlusIcon className="w-4 h-4" />
-                                </button>
-                            </div>
-                            <p className="text-white/20 text-[10px]">Press Enter or click + to add each milestone.</p>
                         </div>
 
                         <button
@@ -1043,17 +1014,22 @@ function ReportBuilderInner() {
                                             <Field label="Full Name">
                                                 <input value={form.student_name} onChange={e => setForm(f => ({ ...f, student_name: e.target.value }))} className={INPUT} />
                                             </Field>
-                                            <div className="p-3 bg-white/[0.03] border border-white/10 rounded-xl space-y-1">
-                                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Session School</p>
-                                                <p className="text-sm text-white/70 font-semibold">{sessionConfig.school_name || '—'}</p>
-                                                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mt-1">Class</p>
-                                                <p className="text-sm text-white/70 font-semibold">{sessionConfig.section_class || '—'}</p>
-                                                {sessionConfig.school_section && (
-                                                    <>
-                                                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mt-1">Section</p>
-                                                        <p className="text-sm text-white/70 font-semibold">{sessionConfig.school_section}</p>
-                                                    </>
-                                                )}
+                                            <div className="p-3 bg-white/[0.03] border border-white/10 rounded-xl space-y-2">
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-0.5">School</p>
+                                                    <p className="text-sm text-white/70 font-semibold">{sessionConfig.school_name || '—'}</p>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-1">Class</label>
+                                                    <select
+                                                        value={form.section_class}
+                                                        onChange={e => setForm(f => ({ ...f, section_class: e.target.value }))}
+                                                        className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500 transition-colors">
+                                                        <option value="">— Select class —</option>
+                                                        {CLASS_PRESETS.map(c => <option key={c} value={c}>{c}</option>)}
+                                                        {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
+                                                    </select>
+                                                </div>
                                             </div>
                                             {/* Per-student fee status — only shown when session has fee info */}
                                             {(sessionConfig.fee_label || sessionConfig.fee_amount) && (
@@ -1126,12 +1102,11 @@ function ReportBuilderInner() {
 
                                 {/* Grades */}
                                 <Section title="Grade Qualifiers" icon="🏅">
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-3 gap-3">
                                         {[
                                             { key: 'participation_grade', label: 'Participation' },
-                                            { key: 'projects_grade', label: 'Project Output' },
+                                            { key: 'projects_grade', label: 'Project Work' },
                                             { key: 'homework_grade', label: 'Homework' },
-                                            { key: 'assignments_grade', label: 'Assignments' },
                                         ].map(({ key, label }) => (
                                             <Field key={key} label={label}>
                                                 <select value={(form as any)[key]}
@@ -1141,13 +1116,6 @@ function ReportBuilderInner() {
                                                 </select>
                                             </Field>
                                         ))}
-                                        <Field label="Proficiency Level">
-                                            <select value={form.proficiency_level}
-                                                onChange={e => setForm(f => ({ ...f, proficiency_level: e.target.value }))}
-                                                className={INPUT}>
-                                                {PROFICIENCY_OPTIONS.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
-                                            </select>
-                                        </Field>
                                     </div>
                                     {/* Auto-certificate notice */}
                                     <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl mt-1">
@@ -1169,11 +1137,10 @@ function ReportBuilderInner() {
 
                                 {/* Evaluation */}
                                 <Section title="Instructor Evaluation" icon="✍️">
-                                    {(['key_strengths', 'areas_for_growth', 'instructor_assessment'] as const).map(field => {
+                                    {(['key_strengths', 'areas_for_growth'] as const).map(field => {
                                         const labels: Record<string, string> = {
                                             key_strengths: 'Key Strengths',
                                             areas_for_growth: 'Areas for Growth',
-                                            instructor_assessment: 'Overall Assessment',
                                         };
                                         return (
                                             <div key={field}>
@@ -1244,7 +1211,7 @@ function ReportBuilderInner() {
                                 <p className="text-white/40 text-xs mt-0.5">Configure report header & organization details</p>
                             </div>
                             <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
-                                <PlusIcon className="w-5 h-5 text-white/40 rotate-45" />
+                                <XMarkIcon className="w-5 h-5 text-white/40" />
                             </button>
                         </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckIcon } from '@heroicons/react/24/outline';
+import React from 'react';
 import QRCode from 'react-qr-code';
 
 function SparklesIcon({ className }: { className?: string }) {
@@ -12,9 +12,9 @@ function SparklesIcon({ className }: { className?: string }) {
     );
 }
 
-function CrownIcon({ className }: { className?: string }) {
+function CrownIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
     return (
-        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+        <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
             <path d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
         </svg>
     );
@@ -76,6 +76,7 @@ function ReportField({ label, value, bold }: { label: string; value: string; bol
 export interface ReportCardData {
     id?: string | null;
     student_name?: string | null;
+    school_name?: string | null;
     course_name?: string | null;
     section_class?: string | null;
     report_term?: string | null;
@@ -96,6 +97,8 @@ export interface ReportCardData {
     current_module?: string | null;
     next_module?: string | null;
     learning_milestones?: string[] | null;
+    course_duration?: string | null;
+    report_period?: string | null;
     is_published?: boolean | null;
     // Payment / fee info (all optional — omitted when not applicable)
     school_section?: string | null;
@@ -134,11 +137,14 @@ export default function ReportCard({ report, orgSettings }: {
     const hasPayment = !!report.fee_status;
     const feeStyle = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
 
-    const theory = report.theory_score ?? 0;
-    const practical = report.practical_score ?? 0;
-    const attendance = report.attendance_score ?? 0;
-    const overall = report.overall_score ?? Math.round(theory * 0.4 + practical * 0.4 + attendance * 0.2);
+    const theory     = Number(report.theory_score)     || 0;
+    const practical  = Number(report.practical_score)  || 0;
+    const attendance = Number(report.attendance_score) || 0;
+    // Always compute from components; use stored overall_score only when > 0
+    const computed = Math.round(theory * 0.4 + practical * 0.4 + attendance * 0.2);
+    const overall  = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
     const grade = letterGrade(overall);
+    const showCertificate = overall >= 45 || report.has_certificate === true;
 
     const org: OrgSettings = {
         org_name: orgSettings?.org_name || 'Rillcod Technologies',
@@ -149,13 +155,11 @@ export default function ReportCard({ report, orgSettings }: {
         logo_url: orgSettings?.logo_url || '/images/logo.png',
     };
 
-    const milestones = Array.isArray(report.learning_milestones) ? report.learning_milestones : [];
-
     return (
         <div
             id="report-card"
             className="bg-white text-gray-900 font-sans relative overflow-hidden shrink-0 flex flex-col"
-            style={{ width: 794, height: 1123, margin: '0 auto', fontSize: 12, border: '16px solid #1a1a2e', position: 'relative', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+            style={{ width: 794, height: 1123, margin: '0 auto', fontSize: 13, border: '4px solid #1a1a2e', position: 'relative', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
         >
             {/* Background */}
             <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-50/50 rounded-full blur-3xl -z-10 -mr-40 -mt-40 print:opacity-100" />
@@ -163,8 +167,8 @@ export default function ReportCard({ report, orgSettings }: {
             <div className="absolute inset-0 border-[1px] border-gray-100 m-4 pointer-events-none" />
 
             {/* HEADER */}
-            <div className="relative pt-8 pb-6 px-12 bg-[#1a1a2e] text-white">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 skew-x-12 -mr-16" />
+            <div className="relative pt-8 pb-6 px-12 bg-white border-b border-gray-200" style={{ borderBottom: '2px solid #e5e7eb', borderLeft: '6px solid #1a1a2e' }}>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 skew-x-12 -mr-16" />
                 <div className="flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-6">
                         <img
@@ -175,44 +179,65 @@ export default function ReportCard({ report, orgSettings }: {
                             onError={e => { (e.target as HTMLImageElement).src = '/images/logo.png'; }}
                         />
                         <div>
-                            <h1 className="text-2xl font-black tracking-tighter uppercase leading-none mb-1">
+                            <h1 className="text-2xl font-black tracking-tighter uppercase leading-none mb-1 text-gray-900">
                                 {org.org_name || 'Rillcod Academy'}
                             </h1>
-                            <p className="text-[11px] font-bold text-violet-400 uppercase tracking-[0.3em] opacity-80">
+                            <p className="text-[11px] font-bold text-violet-600 uppercase tracking-[0.3em]">
                                 {org.org_tagline || 'Pioneering Technical Excellence'}
                             </p>
+                            {(org.org_phone || org.org_email) && (
+                                <p className="text-[10px] font-semibold text-gray-400 mt-1">
+                                    {org.org_phone && <>📞 {org.org_phone}</>}
+                                    {org.org_phone && org.org_email && <span className="mx-1.5 opacity-40">·</span>}
+                                    {org.org_email && <>✉ {org.org_email}</>}
+                                </p>
+                            )}
                         </div>
                     </div>
                     <div className="text-right">
-                        <div className="inline-block px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full mb-2">
-                            <span className="text-[11px] font-black text-amber-400 uppercase tracking-widest">Official Record</span>
+                        <div className="inline-block px-3 py-1 bg-amber-50 border border-amber-200 rounded-full mb-2">
+                            <span className="text-[11px] font-black text-amber-700 uppercase tracking-widest">Official Record</span>
                         </div>
-                        <h2 className="text-3xl font-black text-white/90 uppercase tracking-tighter">Progress Report</h2>
+                        <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">Progress Report</h2>
                     </div>
                 </div>
             </div>
 
             {/* STATS BAR */}
-            <div className="bg-gray-50 border-y border-gray-100 px-12 py-3 flex justify-between items-center text-[11px] font-bold text-gray-400 uppercase tracking-widest">
-                <div className="flex gap-6">
-                    <span>ID: <span className="text-gray-900">{report.id?.slice(0, 8).toUpperCase() ?? 'PREVIEW'}</span></span>
-                    <span>Date: <span className="text-gray-900">{today}</span></span>
-                    {report.school_section && (
-                        <span>Section: <span className="text-gray-900">{report.school_section}</span></span>
+            <div className="bg-gray-50 border-y border-gray-100 px-12 py-3 flex justify-between items-center">
+                <div className="flex gap-8">
+                    <div>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">ID</p>
+                        <p className="text-[12px] font-black text-gray-900">{report.id?.slice(0, 8).toUpperCase() ?? 'PREVIEW'}</p>
+                    </div>
+                    <div>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Date</p>
+                        <p className="text-[12px] font-black text-gray-900">{today}</p>
+                    </div>
+                    {report.school_name && (
+                        <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">School</p>
+                            <p className="text-[12px] font-black text-gray-900">{report.school_name}</p>
+                        </div>
                     )}
                 </div>
                 <div className="flex items-center gap-6">
                     {hasPayment && feeStyle && (
-                        <span className="flex items-center gap-1.5">
-                            {report.fee_label && <span className="text-gray-500">{report.fee_label}:</span>}
-                            {report.fee_amount && <span className="text-gray-900">₦{report.fee_amount}</span>}
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black"
-                                style={{ backgroundColor: feeStyle.bg, color: feeStyle.text }}>
-                                {feeStyle.label}
-                            </span>
-                        </span>
+                        <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">{report.fee_label || 'Fee'}</p>
+                            <div className="flex items-center gap-1.5">
+                                {report.fee_amount && <span className="text-[12px] font-black text-gray-900">₦{report.fee_amount}</span>}
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black"
+                                    style={{ backgroundColor: feeStyle.bg, color: feeStyle.text }}>
+                                    {feeStyle.label}
+                                </span>
+                            </div>
+                        </div>
                     )}
-                    <span>Verify: <span className="text-gray-900">rillcod.com/verify</span></span>
+                    <div>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Verify</p>
+                        <p className="text-[12px] font-black text-gray-900">rillcod.com/verify</p>
+                    </div>
                 </div>
             </div>
 
@@ -223,22 +248,28 @@ export default function ReportCard({ report, orgSettings }: {
                     <div className="col-span-4 flex flex-col gap-2">
 
                         {/* Student Participant panel */}
-                        <div className="bg-[#1a1a2e] rounded-3xl px-6 py-5">
-                            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/30 mb-2">Student Participant</p>
-                            <p className="text-lg font-black text-white leading-tight mb-1">{report.student_name ?? '—'}</p>
-                            <div className="h-px bg-white/10 my-2.5" />
+                        <div className="bg-white rounded-3xl px-6 py-5 border border-gray-200" style={{ borderLeft: '5px solid #1a1a2e' }}>
+                            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 mb-2">Student Participant</p>
+                            <p className="text-lg font-black text-gray-900 leading-tight mb-1">{report.student_name ?? '—'}</p>
+                            <div className="h-px bg-gray-200 my-2.5" />
                             <div className="space-y-1.5">
                                 <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Programme</p>
-                                    <p className="text-[13px] font-bold text-white/80">{report.course_name ?? '—'}</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Programme</p>
+                                    <p className="text-[13px] font-bold text-gray-700">{report.course_name ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Section / Class</p>
-                                    <p className="text-[13px] font-bold text-white/80">{report.section_class ?? '—'}</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Class / Section</p>
+                                    <p className="text-[13px] font-bold text-gray-700">{report.section_class ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Academic Term</p>
-                                    <p className="text-[13px] font-bold text-white/80">{report.report_term ?? '—'}</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                        {report.school_section === 'school' ? 'Academic Term' : 'Duration'}
+                                    </p>
+                                    <p className="text-[13px] font-bold text-gray-700">
+                                        {report.school_section === 'school'
+                                            ? `${report.report_term ?? '—'}${report.report_period ? ` · ${report.report_period}` : ''}`
+                                            : (report.course_duration ?? report.report_term ?? '—')}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -269,23 +300,23 @@ export default function ReportCard({ report, orgSettings }: {
                                 <MetricBar label="Attendance (20%)" value={attendance} color="#f59e0b" />
 
                                 {/* Qualitative grades — same column, thin rule separator */}
-                                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly' }}>
                                     <GradeRow label="Participation" value={report.participation_grade} />
-                                    <GradeRow label="Scale Project" value={report.projects_grade} />
+                                    <GradeRow label="Project Work" value={report.projects_grade} />
                                     <GradeRow label="Homework"      value={report.homework_grade} />
                                 </div>
                             </div>
 
                             {/* Right — weighted grade display */}
-                            <div className="flex flex-col items-center justify-center bg-[#1a1a2e] rounded-[32px] p-6 text-white relative overflow-hidden">
+                            <div className="flex flex-col items-center justify-center bg-gray-50 rounded-[32px] p-6 relative overflow-hidden border border-gray-200" style={{ borderLeft: '4px solid #1a1a2e' }}>
                                 <div className="relative z-10 text-center">
-                                    <SparklesIcon className="w-10 h-10 text-amber-400 mx-auto mb-2" />
-                                    <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">Final Weighted Grade</p>
-                                    <h3 className="text-8xl font-black text-white drop-shadow-[0_10px_10px_rgba(0,0,0,0.3)]">{grade.g}</h3>
-                                    <div className="mt-4 px-4 py-1.5 bg-white/10 rounded-full border border-white/10">
-                                        <span className="text-xs font-black uppercase tracking-widest text-white/80">{grade.label}</span>
+                                    <SparklesIcon className="w-10 h-10 text-amber-500 mx-auto mb-2" />
+                                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Final Weighted Grade</p>
+                                    <h3 className="text-8xl font-black" style={{ color: grade.color }}>{grade.g}</h3>
+                                    <div className="mt-4 px-4 py-1.5 bg-white rounded-full border border-gray-200">
+                                        <span className="text-xs font-black uppercase tracking-widest text-gray-700">{grade.label}</span>
                                     </div>
-                                    <p className="text-2xl font-black text-white/60 mt-3">{overall}%</p>
+                                    <p className="text-2xl font-black text-gray-500 mt-3">{overall}%</p>
                                 </div>
                             </div>
 
@@ -293,22 +324,6 @@ export default function ReportCard({ report, orgSettings }: {
                     </div>
                 </div>
 
-                {/* MILESTONES */}
-                {milestones.length > 0 && (
-                    <div className="relative">
-                        <SectionHeaderPremium title="Learning Milestones & Objectives" />
-                        <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-2">
-                            {milestones.map((m, i) => (
-                                <div key={i} className="flex gap-4 group">
-                                    <div className="w-6 h-6 rounded-full bg-violet-600/10 flex items-center justify-center flex-shrink-0">
-                                        <CheckIcon className="w-3.5 h-3.5 text-violet-600" />
-                                    </div>
-                                    <p className="text-[13px] leading-relaxed text-gray-600 font-medium">{m}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
 
                 {/* EVALUATION */}
                 <div className="flex-1 grid grid-cols-2 gap-6" style={{ minHeight: 0, maxHeight: 200 }}>
@@ -331,12 +346,18 @@ export default function ReportCard({ report, orgSettings }: {
                 </div>
 
                 {/* CERTIFICATE */}
-                {report.has_certificate && (
-                    <div className="bg-gradient-to-r from-[#1a1a2e] to-[#252545] rounded-[40px] p-8 text-white relative overflow-hidden text-center shadow-2xl">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 -mr-12 -mt-12 rounded-full" />
-                        <CrownIcon className="w-10 h-10 text-amber-400 mx-auto mb-4" />
-                        <h4 className="text-xl font-black uppercase tracking-[0.2em] mb-3">Academic Excellence Award</h4>
-                        <p className="text-sm text-white/60 leading-relaxed max-w-2xl mx-auto italic font-medium">
+                {showCertificate && (
+                    <div style={{ background: 'linear-gradient(135deg, #fffbeb 0%, #fef9e7 100%)', border: '1px solid #fde68a', borderRadius: 28, padding: '18px 28px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+                        <div style={{ position: 'absolute', inset: 0, borderRadius: 28, background: 'linear-gradient(135deg, rgba(253,230,138,0.25) 0%, transparent 60%)', pointerEvents: 'none' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
+                            <div style={{ height: 1, width: 36, background: 'linear-gradient(to right, transparent, #e4a817)', opacity: 0.6 }} />
+                            <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'linear-gradient(135deg, #fef08a 0%, #fcd34d 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(234,168,23,0.35), inset 0 1px 0 rgba(255,255,255,0.6)' }}>
+                                <CrownIcon className="w-6 h-6" style={{ color: '#92400e' } as any} />
+                            </div>
+                            <div style={{ height: 1, width: 36, background: 'linear-gradient(to left, transparent, #e4a817)', opacity: 0.6 }} />
+                        </div>
+                        <h4 style={{ fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.16em', color: '#a16207', marginBottom: 5 }}>Academic Excellence Award</h4>
+                        <p style={{ fontSize: 11, color: '#b45309', lineHeight: 1.65, fontStyle: 'italic', fontWeight: 400, maxWidth: 500, margin: '0 auto', opacity: 0.85 }}>
                             {report.certificate_text || `This document officially recognizes that ${report.student_name} has successfully completed the intensive study programme in ${report.course_name}.`}
                         </p>
                     </div>
@@ -355,8 +376,8 @@ export default function ReportCard({ report, orgSettings }: {
                                 style={{ height: 56, width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply' }}
                             />
                             <div style={{ width: 180, height: 1, backgroundColor: '#111827', marginBottom: 2 }} />
-                            <p style={{ fontSize: 12, fontWeight: 900, color: '#111827' }}>{report.instructor_name || 'Class Instructor'}</p>
-                            <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>Head of Academics, Rillcod</p>
+                            <p style={{ fontSize: 12, fontWeight: 900, color: '#111827' }}>Mr Osahon</p>
+                            <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' }}>Director, Rillcod Technologies</p>
                         </div>
 
                         {/* Centre — payment notice, 3 lines, centred */}

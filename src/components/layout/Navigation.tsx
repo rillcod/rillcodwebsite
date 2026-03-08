@@ -5,31 +5,33 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
-  Menu, X, ChevronDown, BookOpen,
-  MessageSquare, LogOut, User, Building2, Home, Info,
-  Phone, GraduationCap, LayoutDashboard,
-  type LucideIcon,
-} from 'lucide-react';
+  Bars3Icon, XMarkIcon, ChevronDownIcon, BookOpenIcon,
+  ChatBubbleOvalLeftIcon, ArrowLeftOnRectangleIcon, UserIcon,
+  BuildingOffice2Icon, HomeIcon, InformationCircleIcon,
+  PhoneIcon, AcademicCapIcon, Squares2X2Icon,
+} from '@heroicons/react/24/outline';
+
+type NavIcon = React.ComponentType<{ className?: string }>;
 
 /* ─── Nav data ─────────────────────────────────────────────── */
 const mainLinks = [
-  { href: '/', label: 'Home', icon: Home },
-  { href: '/programs', label: 'Programs', icon: BookOpen },
-  { href: '/curriculum', label: 'Curriculum', icon: GraduationCap },
-  { href: '/about', label: 'About', icon: Info },
+  { href: '/', label: 'Home', icon: HomeIcon },
+  { href: '/programs', label: 'Programs', icon: BookOpenIcon },
+  { href: '/curriculum', label: 'Curriculum', icon: AcademicCapIcon },
+  { href: '/about', label: 'About', icon: InformationCircleIcon },
 ];
 
 const secondaryLinks = [
-  { href: '/partnership', label: 'Become a Partner', icon: Building2, sub: 'For schools and organisations' },
-  { href: '/testimonials', label: 'Success Stories', icon: MessageSquare, sub: 'Hear from our parents & students' },
-  { href: '/contact', label: 'Support', icon: Phone, sub: 'Get in touch with our team' },
+  { href: '/partnership', label: 'Become a Partner', icon: BuildingOffice2Icon, sub: 'For schools and organisations' },
+  { href: '/testimonials', label: 'Success Stories', icon: ChatBubbleOvalLeftIcon, sub: 'Hear from our parents & students' },
+  { href: '/contact', label: 'Support', icon: PhoneIcon, sub: 'Get in touch with our team' },
 ];
 
 const LOGIN_HREF = '/login';
 
 /* ─── Dropdown ───────────────────────────────────────────────── */
 function Dropdown({ label, icon: Icon, isScrolled, children }: {
-  label: string; icon: LucideIcon; isScrolled: boolean; children: React.ReactNode;
+  label: string; icon: NavIcon; isScrolled: boolean; children: React.ReactNode;
 }) {
   return (
     <div className="relative group">
@@ -37,7 +39,7 @@ function Dropdown({ label, icon: Icon, isScrolled, children }: {
         ${isScrolled ? 'text-gray-800 hover:text-[#FF914D]' : 'text-white/85 hover:text-white'}`}>
         <Icon className="w-4 h-4" />
         {label}
-        <ChevronDown className="w-3 h-3 transition-transform group-hover:rotate-180" />
+        <ChevronDownIcon className="w-3 h-3 transition-transform group-hover:rotate-180" />
       </button>
       <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl border border-gray-100 shadow-2xl shadow-black/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-50 overflow-hidden transform translate-y-1 group-hover:translate-y-0 text-left">
         {children}
@@ -100,13 +102,13 @@ function MobileMenu({
                   onClick={onClose}
                   className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold bg-[#FF914D] text-white shadow-xl shadow-orange-500/20"
                 >
-                  <LayoutDashboard className="w-5 h-5" /> Open My Dashboard
+                  <Squares2X2Icon className="w-5 h-5" /> Open My Dashboard
                 </Link>
                 <button
                   onClick={handleLogout}
                   className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold text-white/60 hover:text-rose-500 transition-colors"
                 >
-                  <LogOut className="w-5 h-5" /> Sign Out
+                  <ArrowLeftOnRectangleIcon className="w-5 h-5" /> Sign Out
                 </button>
               </div>
             ) : (
@@ -123,7 +125,7 @@ function MobileMenu({
                   onClick={onClose}
                   className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold text-gray-300 bg-white/5 border border-white/10 hover:bg-white/10"
                 >
-                  <User className="w-5 h-5" /> Portal Login
+                  <UserIcon className="w-5 h-5" /> Portal Login
                 </Link>
               </div>
             )}
@@ -196,10 +198,10 @@ const Navigation = () => {
                 <Image src="/images/logo.png" alt="Rillcod Academy" width={40} height={40} className="w-full h-full object-contain" suppressHydrationWarning />
               </div>
               <div className="hidden sm:block">
-                <span className={`text-base font-extrabold uppercase tracking-tight leading-none block ${isScrolled ? 'text-gray-900' : 'text-white'}`}>
+                <span suppressHydrationWarning className={`text-base font-extrabold uppercase tracking-tight leading-none block ${isScrolled ? 'text-gray-900' : 'text-white'}`}>
                   Rillcod Academy
                 </span>
-                <p className={`text-[10px] font-semibold uppercase tracking-widest leading-none mt-0.5 ${isScrolled ? 'text-gray-400' : 'text-white/50'}`}>
+                <p suppressHydrationWarning className={`text-[10px] font-semibold uppercase tracking-widest leading-none mt-0.5 ${isScrolled ? 'text-gray-400' : 'text-white/50'}`}>
                   STEM Education
                 </p>
               </div>
@@ -208,12 +210,12 @@ const Navigation = () => {
             {/* ── Desktop nav ── */}
             <div className="hidden lg:flex items-center gap-2">
               {mainLinks.map(({ href, label, icon: Icon }) => (
-                <Link key={href} href={href} className={navLinkCls(href)}>
+                <Link suppressHydrationWarning key={href} href={href} className={navLinkCls(href)}>
                   <Icon className="w-4 h-4" /> {label}
                 </Link>
               ))}
 
-              <Dropdown label="More" icon={Menu} isScrolled={isScrolled}>
+              <Dropdown label="More" icon={Bars3Icon} isScrolled={isScrolled}>
                 <div className="p-3 grid gap-1">
                   {secondaryLinks.map(({ href, label, icon: Icon, sub }) => (
                     <Link key={href} href={href}
@@ -238,14 +240,14 @@ const Navigation = () => {
                   <div className="flex items-center gap-3 bg-black/5 p-1 rounded-2xl">
                     <Link href="/dashboard"
                       className="flex items-center gap-2 px-5 py-2 text-sm font-bold rounded-xl bg-[#FF914D] text-white hover:bg-orange-500 transition-all shadow-lg shadow-orange-500/10">
-                      <LayoutDashboard className="w-4 h-4" /> My Dashboard
+                      <Squares2X2Icon className="w-4 h-4" /> My Dashboard
                     </Link>
                     <button
                       onClick={handleLogout}
                       title="Sign Out"
                       className={`p-2 rounded-xl transition-all
                         ${isScrolled ? 'text-gray-400 hover:text-rose-500 hover:bg-rose-50' : 'text-white/40 hover:text-white hover:bg-white/10'}`}>
-                      <LogOut className="w-4 h-4" />
+                      <ArrowLeftOnRectangleIcon className="w-4 h-4" />
                     </button>
                   </div>
                 ) : (
@@ -253,7 +255,7 @@ const Navigation = () => {
                     <Link href={LOGIN_HREF}
                       className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all
                         ${isScrolled ? 'text-gray-700 hover:bg-gray-100' : 'text-white/85 hover:bg-white/10'}`}>
-                      <User className="w-4 h-4" /> Portal Login
+                      <UserIcon className="w-4 h-4" /> Portal Login
                     </Link>
                     <Link href="/student-registration"
                       className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl bg-white text-black hover:bg-gray-100 transition-all border border-black/10 shadow-sm">
@@ -280,7 +282,7 @@ const Navigation = () => {
               className={`lg:hidden p-2 rounded-xl transition-all
                 ${isScrolled ? 'text-gray-700 hover:bg-gray-100' : 'text-white hover:bg-white/10'}`}
             >
-              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {isOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
             </button>
           </div>
         </div>

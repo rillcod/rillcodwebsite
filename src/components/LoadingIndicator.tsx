@@ -4,35 +4,56 @@ import { useEffect, useState } from 'react';
 
 export default function LoadingIndicator() {
   const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     setMounted(true);
-    // Hide loading indicator after initial load
     const timer = setTimeout(() => {
-      const loadingIndicator = document.getElementById('loading-indicator');
-      if (loadingIndicator) {
-        loadingIndicator.style.opacity = '0';
-        setTimeout(() => {
-          loadingIndicator.style.display = 'none';
-        }, 300); // Match the transition duration
-      }
-    }, 1000);
-
+      setVisible(false);
+    }, 1200);
     return () => clearTimeout(timer);
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted || !visible) return null;
 
   return (
-    <div 
-      id="loading-indicator" 
-      className="fixed inset-0 bg-white dark:bg-gray-900 bg-opacity-75 dark:bg-opacity-75 flex items-center justify-center z-[9999] transition-opacity duration-300"
-      style={{ opacity: 1 }}
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center transition-opacity duration-500"
+      style={{ backgroundColor: '#0f0f1a', opacity: visible ? 1 : 0 }}
     >
-      <div className="flex flex-col items-center space-y-4">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-gray-600 dark:text-gray-300 font-medium">Loading...</p>
+      <div className="flex flex-col items-center gap-6">
+
+        {/* Dual-ring spinner */}
+        <div className="relative w-16 h-16">
+          {/* Outer ring */}
+          <div className="absolute inset-0 rounded-full border-[3px] border-violet-500/20" />
+          <div className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-violet-500 animate-spin" />
+          {/* Inner ring — counter spin */}
+          <div className="absolute inset-[10px] rounded-full border-[2px] border-transparent border-t-indigo-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.6s' }} />
+          {/* Centre dot */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+          </div>
+        </div>
+
+        {/* Brand name */}
+        <div className="text-center">
+          <p className="text-white font-black text-lg tracking-[0.25em] uppercase">Rillcod</p>
+          <p className="text-violet-400/60 text-[11px] font-semibold tracking-[0.3em] uppercase mt-0.5">Academy</p>
+        </div>
+
+        {/* Pulsing dots */}
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map(i => (
+            <div
+              key={i}
+              className="w-1.5 h-1.5 rounded-full bg-violet-500/60 animate-bounce"
+              style={{ animationDelay: `${i * 0.15}s` }}
+            />
+          ))}
+        </div>
+
       </div>
     </div>
   );
-} 
+}
