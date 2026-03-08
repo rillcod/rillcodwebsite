@@ -52,11 +52,12 @@ export default function OverviewPage() {
         } else if (role === 'teacher') {
           const [classes, subs, pending] = await Promise.allSettled([
             supabase.from('classes').select('id', { count: 'exact', head: true }).eq('teacher_id', profile!.id),
-            supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }),
-            supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('status', 'submitted'),
+            supabase.from('assignment_submissions').select('id, assignments!inner(created_by)', { count: 'exact', head: true }).eq('assignments.created_by', profile!.id),
+            supabase.from('assignment_submissions').select('id, assignments!inner(created_by)', { count: 'exact', head: true }).eq('assignments.created_by', profile!.id).eq('status', 'submitted'),
           ]);
           const recSubs = await supabase.from('assignment_submissions')
-            .select(`id, status, submitted_at, portal_users!assignment_submissions_portal_user_id_fkey ( full_name ), assignments ( title )`)
+            .select(`id, status, submitted_at, portal_users!assignment_submissions_portal_user_id_fkey ( full_name ), assignments!inner ( title, created_by )`)
+            .eq('assignments.created_by', profile!.id)
             .order('submitted_at', { ascending: false }).limit(5);
           if (!cancelled) {
             setCounts({
