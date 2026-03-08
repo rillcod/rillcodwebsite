@@ -79,54 +79,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     mountedRef.current = true;
 
-    const init = async () => {
-      try {
-        // getSession() reads from localStorage — no network round trip for valid sessions.
-        // Falls back to network only if tokens are expired.
-        const { data: { session: s } } = await supabase.auth.getSession();
-
-        if (!mountedRef.current) return;
-
-        if (s?.user) {
-          setSession(s);
-          setUser(s.user);
-          // Clear loading immediately once we know the user — unblocks the UI.
-          // Profile fetches in the background; dashboard handles !profile gracefully.
-          if (mountedRef.current) setIsLoading(false);
-          const p = await fetchProfile(s.user.id);
-          if (mountedRef.current) setProfile(p);
-        } else {
-          if (mountedRef.current) setIsLoading(false);
-        }
-      } catch {
-        if (mountedRef.current) setIsLoading(false);
-      }
-    };
-
-    init();
-
-    // Listen for future auth state changes (login, logout, token refresh)
+    // onAuthStateChange fires INITIAL_SESSION synchronously from localStorage cache —
+    // no network round trip needed. getSession() by contrast can hit the network to
+    // refresh an expired token, blocking the UI for 2-5s on mobile.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
         if (!mountedRef.current) return;
-        if (event === 'INITIAL_SESSION') return; // handled by init()
 
         setSession(s);
         setUser(s?.user ?? null);
 
         if (s?.user) {
-          // Invalidate cache on sign-in/token-refresh so we get fresh profile
+          // Invalidate cache on fresh sign-in or token refresh
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             invalidateCache(s.user.id);
           }
+          // Clear loading immediately — unblocks the dashboard.
+          // Profile fetches in background; dashboard handles !profile gracefully.
+          if (mountedRef.current) setIsLoading(false);
           const p = await fetchProfile(s.user.id);
           if (mountedRef.current) setProfile(p);
         } else {
           setProfile(null);
           invalidateCache();
+          if (mountedRef.current) setIsLoading(false);
         }
-
-        if (mountedRef.current) setIsLoading(false);
       }
     );
 

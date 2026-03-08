@@ -246,10 +246,9 @@ export default function DashboardPage() {
     return () => clearTimeout(t);
   }, []);
 
-  // Profile hard-stop: 8s — only show error if user exists but profile never loaded
-  // (mobile / slow connections need more time for the Supabase profile fetch)
+  // Profile hard-stop: 5s — show error if user exists but profile never loaded
   useEffect(() => {
-    const t = setTimeout(() => setProfileHardStop(true), 8000);
+    const t = setTimeout(() => setProfileHardStop(true), 5000);
     return () => clearTimeout(t);
   }, []);
 
