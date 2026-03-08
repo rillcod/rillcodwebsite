@@ -4,9 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
-  PlusIcon, TrashIcon, PencilIcon, LinkIcon, PhotoIcon,
+  PlusIcon, TrashIcon, LinkIcon,
   CodeBracketIcon, RocketLaunchIcon, SparklesIcon, XMarkIcon,
-  CheckIcon, PaintBrushIcon, ArrowDownTrayIcon,
+  PaintBrushIcon, ArrowDownTrayIcon, CloudArrowUpIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
@@ -118,7 +118,6 @@ function DrawingCanvas() {
           <span className="text-white font-bold text-sm">Creative Canvas 🎨</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Colors */}
           <div className="flex gap-1">
             {PALETTE.map(c => (
               <button key={c} onClick={() => { setColor(c); setTool('pen'); }}
@@ -126,7 +125,6 @@ function DrawingCanvas() {
                 style={{ background: c }} />
             ))}
           </div>
-          {/* Brush sizes */}
           <div className="flex gap-1 items-center">
             {BRUSHES.map(b => (
               <button key={b} onClick={() => setBrush(b)}
@@ -166,22 +164,19 @@ function DrawingCanvas() {
 }
 
 // ─── Project Card ─────────────────────────────────────────
-function ProjectCard({ project, onDelete, isOwner }: { project: Project; onDelete: () => void; isOwner: boolean }) {
+function ProjectCard({ project, onDelete, saving }: { project: Project; onDelete: () => void; saving: boolean }) {
   const catColor = CAT_COLORS[project.category] ?? 'bg-white/10 text-white/40';
   return (
     <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-all group">
-      {/* Image / placeholder */}
       <div className="h-36 bg-gradient-to-br from-[#1a2b54] to-[#0d1526] flex items-center justify-center relative overflow-hidden">
         {project.image_url
           ? <img src={project.image_url} alt={project.title} className="w-full h-full object-cover" />
           : <RocketLaunchIcon className="w-12 h-12 text-white/10" />}
         <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          {isOwner && (
-            <button onClick={onDelete}
-              className="p-1.5 bg-rose-500/80 rounded-lg text-white hover:bg-rose-500 transition-colors">
-              <TrashIcon className="w-3.5 h-3.5" />
-            </button>
-          )}
+          <button onClick={onDelete} disabled={saving}
+            className="p-1.5 bg-rose-500/80 rounded-lg text-white hover:bg-rose-500 transition-colors disabled:opacity-40">
+            <TrashIcon className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
       <div className="p-4">
@@ -205,7 +200,11 @@ function ProjectCard({ project, onDelete, isOwner }: { project: Project; onDelet
 }
 
 // ─── Add Project Modal ────────────────────────────────────
-function AddProjectModal({ onSave, onClose }: { onSave: (p: Omit<Project, 'id' | 'created_at'>) => void; onClose: () => void }) {
+function AddProjectModal({ onSave, onClose, saving }: {
+  onSave: (p: Omit<Project, 'id' | 'created_at'>) => void;
+  onClose: () => void;
+  saving: boolean;
+}) {
   const [form, setForm] = useState({ title: '', description: '', category: 'Coding', project_url: '', image_url: '', tags: '' });
 
   function save() {
@@ -252,9 +251,9 @@ function AddProjectModal({ onSave, onClose }: { onSave: (p: Omit<Project, 'id' |
         </div>
         <div className="flex gap-3 p-5 border-t border-white/10">
           <button onClick={onClose} className="flex-1 py-2.5 bg-white/5 text-white/60 font-bold rounded-xl hover:bg-white/10 transition-colors text-sm">Cancel</button>
-          <button onClick={save} disabled={!form.title.trim()}
+          <button onClick={save} disabled={!form.title.trim() || saving}
             className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-bold rounded-xl transition-colors text-sm">
-            Add Project
+            {saving ? 'Saving…' : 'Add Project'}
           </button>
         </div>
       </div>
@@ -266,40 +265,105 @@ function AddProjectModal({ onSave, onClose }: { onSave: (p: Omit<Project, 'id' |
 export default function PortfolioPage() {
   const { profile, loading: authLoading } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [catFilter, setCatFilter] = useState('All');
   const [tab, setTab] = useState<'projects' | 'canvas'>('projects');
 
-  // Load from localStorage for now (no DB table yet — keeps it simple and fast)
+  // ── Load from Supabase; fall back to localStorage if table not ready ──
   useEffect(() => {
     if (!profile) return;
-    const saved = localStorage.getItem(`portfolio_${profile.id}`);
-    if (saved) setProjects(JSON.parse(saved));
+    const db = createClient();
+    db.from('portfolio_projects')
+      .select('*')
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          // Table may not exist yet in remote DB — fall back to localStorage
+          const saved = localStorage.getItem(`portfolio_${profile.id}`);
+          if (saved) setProjects(JSON.parse(saved));
+        } else {
+          setProjects((data ?? []).map((r: any) => ({
+            id: r.id,
+            title: r.title,
+            description: r.description ?? '',
+            tags: r.tags ?? [],
+            project_url: r.project_url ?? '',
+            image_url: r.image_url ?? '',
+            category: r.category,
+            created_at: r.created_at,
+          })));
+        }
+        setLoading(false);
+      });
   }, [profile?.id]); // eslint-disable-line
 
-  function saveProjects(p: Project[]) {
+  // ── Add project to Supabase ──
+  const addProject = useCallback(async (data: Omit<Project, 'id' | 'created_at'>) => {
     if (!profile) return;
-    setProjects(p);
-    localStorage.setItem(`portfolio_${profile.id}`, JSON.stringify(p));
-  }
+    setSaving(true);
+    setSaveError(null);
+    const db = createClient();
+    const { data: inserted, error } = await db
+      .from('portfolio_projects')
+      .insert({
+        user_id: profile.id,
+        title: data.title,
+        description: data.description,
+        category: data.category,
+        tags: data.tags,
+        project_url: data.project_url || null,
+        image_url: data.image_url || null,
+      })
+      .select()
+      .single();
 
-  function addProject(data: Omit<Project, 'id' | 'created_at'>) {
-    const newProject: Project = {
-      ...data,
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
-    };
-    saveProjects([newProject, ...projects]);
-  }
+    if (error) {
+      // Fallback: save to localStorage if DB isn't available
+      setSaveError('Saved locally (DB unavailable)');
+      const newProject: Project = { ...data, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+      const updated = [newProject, ...projects];
+      setProjects(updated);
+      localStorage.setItem(`portfolio_${profile.id}`, JSON.stringify(updated));
+    } else {
+      const newProject: Project = {
+        id: inserted.id,
+        title: inserted.title,
+        description: inserted.description ?? '',
+        tags: inserted.tags ?? [],
+        project_url: inserted.project_url ?? '',
+        image_url: inserted.image_url ?? '',
+        category: inserted.category,
+        created_at: inserted.created_at,
+      };
+      setProjects(p => [newProject, ...p]);
+    }
+    setSaving(false);
+  }, [profile, projects]);
 
-  function deleteProject(id: string) {
+  // ── Delete project from Supabase ──
+  const deleteProject = useCallback(async (id: string) => {
     if (!confirm('Delete this project?')) return;
-    saveProjects(projects.filter(p => p.id !== id));
-  }
+    setSaving(true);
+    const db = createClient();
+    const { error } = await db.from('portfolio_projects').delete().eq('id', id);
+    if (error) {
+      // Fallback: remove from localStorage copy
+      const updated = projects.filter(p => p.id !== id);
+      setProjects(updated);
+      if (profile) localStorage.setItem(`portfolio_${profile.id}`, JSON.stringify(updated));
+    } else {
+      setProjects(p => p.filter(p => p.id !== id));
+    }
+    setSaving(false);
+  }, [projects, profile]);
 
   const filtered = catFilter === 'All' ? projects : projects.filter(p => p.category === catFilter);
 
-  if (authLoading) return (
+  if (authLoading || loading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-[#7a0606] border-t-transparent rounded-full animate-spin" />
     </div>
@@ -313,14 +377,26 @@ export default function PortfolioPage() {
           <h1 className="text-2xl font-black text-white">My Portfolio 🚀</h1>
           <p className="text-white/40 text-sm mt-1">Showcase your projects, ideas, and creations</p>
         </div>
-        {tab === 'projects' && (
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-colors"
-          >
-            <PlusIcon className="w-4 h-4" /> Add Project
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {saveError && (
+            <span className="text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
+              {saveError}
+            </span>
+          )}
+          {!saveError && (
+            <span className="flex items-center gap-1.5 text-emerald-400 text-xs bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
+              <CloudArrowUpIcon className="w-3.5 h-3.5" /> Synced
+            </span>
+          )}
+          {tab === 'projects' && (
+            <button
+              onClick={() => setShowAdd(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-colors"
+            >
+              <PlusIcon className="w-4 h-4" /> Add Project
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats strip */}
@@ -374,7 +450,7 @@ export default function PortfolioPage() {
               {filtered.map(p => (
                 <ProjectCard key={p.id} project={p}
                   onDelete={() => deleteProject(p.id)}
-                  isOwner={true} />
+                  saving={saving} />
               ))}
             </div>
           ) : (
@@ -416,7 +492,7 @@ export default function PortfolioPage() {
         </>
       )}
 
-      {showAdd && <AddProjectModal onSave={addProject} onClose={() => setShowAdd(false)} />}
+      {showAdd && <AddProjectModal onSave={addProject} onClose={() => setShowAdd(false)} saving={saving} />}
     </div>
   );
 }

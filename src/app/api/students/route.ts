@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@supabase/supabase-js';
+
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export async function POST(request: Request) {
-  const supabase = createClient();
+  const supabase = adminClient();
   try {
     const body = await request.json();
     const parentEmail = body.parent_email || body.parentEmail;
@@ -102,7 +109,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const supabase = createClient();
+  const supabase = adminClient();
   try {
     const { searchParams } = new URL(request.url);
     const parentEmail = searchParams.get('parentEmail');
