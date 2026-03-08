@@ -57,28 +57,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Prevents INITIAL_SESSION from double-fetching when storedUser fast-path runs first.
   const profileFetchStartedRef = useRef(false);
 
-  // ── Profile fetch with cache + 10s timeout ────────────────
+  // ── Profile fetch via API (service role — bypasses RLS) ───
   const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
     const cached = profileCache.get(userId);
     if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
     try {
-      // Race the DB query against a 10-second timeout so profileLoading
-      // can never get permanently stuck on a slow/unresponsive connection.
-      const query = supabase
-        .from('portal_users')
-        .select('id, email, full_name, role, is_active, phone, bio, profile_image_url, school_id, school_name, section_class, current_module, date_of_birth, created_at, updated_at')
-        .eq('id', userId)
-        .maybeSingle();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10_000);
 
-      const timeout = new Promise<{ data: null; error: Error }>(resolve =>
-        setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 10_000)
-      );
+      const res = await fetch('/api/auth/me', { signal: controller.signal });
+      clearTimeout(timeoutId);
 
-      const { data, error } = await Promise.race([query, timeout]);
+      if (!res.ok) return null;
+      const json = await res.json();
+      if (!json.profile) return null;
 
-      if (error || !data) return null;
-      const p = data as unknown as UserProfile;
+      const p = json.profile as UserProfile;
       profileCache.set(userId, { data: p, ts: Date.now() });
       return p;
     } catch {
