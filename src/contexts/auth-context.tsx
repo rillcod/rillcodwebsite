@@ -14,11 +14,37 @@ const supabase = createClient();
 const profileCache = new Map<string, { data: UserProfile; ts: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Read stored user from localStorage synchronously — Supabase persists the
+// session there, so we can show the correct UI on the very first render
+// without waiting for any async getSession() call.
+function getStoredUser(): User | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const key = Object.keys(localStorage).find(
+      k => k.startsWith('sb-') && k.endsWith('-auth-token')
+    );
+    if (!key) return null;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // Treat expired tokens as absent — Supabase will refresh them async
+    const exp: number = parsed?.expires_at ?? 0;
+    if (exp && Date.now() / 1000 > exp + 60) return null;
+    return (parsed?.user as User) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  // Initialise synchronously from localStorage — eliminates the loading flash
+  // for users who are already signed in.
+  const storedUser = useRef(getStoredUser());
+  const [user, setUser] = useState<User | null>(storedUser.current);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Skip the loading state entirely if we already have a user from localStorage
+  const [isLoading, setIsLoading] = useState(!storedUser.current);
   const mountedRef = useRef(true);
 
   // ── Profile fetch with cache ───────────────────────────────
@@ -63,14 +89,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ── Sign out — clear everything, then navigate ────────────
   const signOut = useCallback(async () => {
-    // Clear local state first for instant UI response
     setUser(null);
     setSession(null);
     setProfile(null);
     invalidateCache();
-    // Await signOut so the session cookie is cleared BEFORE the
-    // browser navigates. Without this the middleware sees a still-valid
-    // cookie on the /login page and redirects back to /dashboard.
     try { await supabase.auth.signOut(); } catch { /* ignore */ }
     window.location.href = '/login';
   }, [invalidateCache]);
@@ -79,9 +101,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     mountedRef.current = true;
 
-    // onAuthStateChange fires INITIAL_SESSION synchronously from localStorage cache —
-    // no network round trip needed. getSession() by contrast can hit the network to
-    // refresh an expired token, blocking the UI for 2-5s on mobile.
+    // If we pre-seeded user from localStorage, kick off the profile fetch
+    // immediately without waiting for onAuthStateChange.
+    if (storedUser.current) {
+      fetchProfile(storedUser.current.id).then(p => {
+        if (mountedRef.current) setProfile(p);
+      });
+    }
+
+    // onAuthStateChange validates the session server-side and fires
+    // INITIAL_SESSION once ready. We use it to sync the authoritative state.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
         if (!mountedRef.current) return;
@@ -90,27 +119,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(s?.user ?? null);
 
         if (s?.user) {
-          // Invalidate cache on fresh sign-in or token refresh
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             invalidateCache(s.user.id);
+            // Re-fetch profile after sign-in or token refresh
+            const p = await fetchProfile(s.user.id);
+            if (mountedRef.current) setProfile(p);
           }
-          // Clear loading immediately — unblocks the dashboard.
-          // Profile fetches in background; dashboard handles !profile gracefully.
-          if (mountedRef.current) setIsLoading(false);
-          const p = await fetchProfile(s.user.id);
-          if (mountedRef.current) setProfile(p);
         } else {
           setProfile(null);
           invalidateCache();
-          if (mountedRef.current) setIsLoading(false);
         }
+
+        if (mountedRef.current) setIsLoading(false);
       }
     );
 
-    const handleStorage = () => {
-      // Supabase syncs session via storage; refresh local profile on changes.
-      refreshProfile();
-    };
+    const handleStorage = () => { refreshProfile(); };
     window.addEventListener('storage', handleStorage);
 
     return () => {
