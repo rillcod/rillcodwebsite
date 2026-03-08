@@ -130,6 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile(p);
           setProfileLoading(false);
         }
+      }).catch(() => {
+        if (mountedRef.current) setProfileLoading(false);
       });
     }
 
@@ -139,6 +141,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setSession(s);
         setUser(s?.user ?? null);
+
+        // Resolve the auth loading gate immediately — we now know the session state.
+        // Do NOT wait for the profile DB fetch to finish before clearing isLoading.
+        if (mountedRef.current) setIsLoading(false);
 
         if (s?.user) {
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
@@ -170,8 +176,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           profileFetchStartedRef.current = false;
           invalidateCache();
         }
-
-        if (mountedRef.current) setIsLoading(false);
       }
     );
 
