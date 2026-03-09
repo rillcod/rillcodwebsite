@@ -7,6 +7,7 @@ import {
     AcademicCapIcon, BuildingOfficeIcon, UserIcon,
     ArrowPathIcon, EnvelopeIcon, PhoneIcon,
     PencilIcon, TrashIcon, XMarkIcon, CheckIcon, PlusIcon,
+    BoltIcon, ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 
 type PortalUser = {
@@ -44,6 +45,11 @@ export default function UsersPage() {
     const [creating, setCreating] = useState(false);
     const [createErr, setCreateErr] = useState('');
 
+    // Sync state
+    const [syncing, setSyncing] = useState(false);
+    const [syncResult, setSyncResult] = useState<any | null>(null);
+    const [gapCount, setGapCount] = useState<number | null>(null);
+
     const load = async () => {
         setLoading(true);
         try {
@@ -56,7 +62,7 @@ export default function UsersPage() {
         setLoading(false);
     };
 
-    useEffect(() => { load(); }, []);
+    useEffect(() => { load(); checkGaps(); }, []); // eslint-disable-line
 
     const openEdit = (u: PortalUser) => {
         setEditing(u);
@@ -111,6 +117,33 @@ export default function UsersPage() {
             setCreateErr(e.message);
         }
         setCreating(false);
+    };
+
+    const checkGaps = async () => {
+        try {
+            const res = await fetch('/api/admin/sync-users');
+            const json = await res.json();
+            if (res.ok) {
+                const total = Object.values(json.gaps as Record<string, number>).reduce((a, b) => a + b, 0);
+                setGapCount(total);
+            }
+        } catch { /* ignore */ }
+    };
+
+    const handleSync = async () => {
+        if (!confirm('This will create auth accounts for approved students and fix all user inconsistencies. Continue?')) return;
+        setSyncing(true);
+        setSyncResult(null);
+        try {
+            const res = await fetch('/api/admin/sync-users', { method: 'POST' });
+            const json = await res.json();
+            setSyncResult(json);
+            setGapCount(0);
+            await load();
+        } catch (e: any) {
+            setSyncResult({ error: e.message });
+        }
+        setSyncing(false);
     };
 
     const handleDelete = async (u: PortalUser) => {
@@ -191,6 +224,14 @@ export default function UsersPage() {
                             className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-violet-600/20"
                         >
                             <PlusIcon className="w-4 h-4" /> Create User
+                        </button>
+                        <button
+                            onClick={handleSync}
+                            disabled={syncing}
+                            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30' : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}`}
+                        >
+                            {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
+                            {syncing ? 'Syncing…' : gapCount ? `Sync (${gapCount} gaps)` : 'Sync Users'}
                         </button>
                         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-6">
                             <div>
@@ -300,6 +341,75 @@ export default function UsersPage() {
                     )}
                 </div>
             </div>
+
+            {/* ── Sync Result Modal ── */}
+            {syncResult && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-[#0f0f1a] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
+                        <div className="flex items-center justify-between p-6 border-b border-white/10 flex-shrink-0">
+                            <div className="flex items-center gap-3">
+                                <BoltIcon className="w-5 h-5 text-amber-400" />
+                                <h2 className="text-lg font-extrabold text-white">Sync Complete</h2>
+                            </div>
+                            <button onClick={() => setSyncResult(null)} className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-all">
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto space-y-4">
+                            {syncResult.error ? (
+                                <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
+                                    <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
+                                    <p className="text-rose-400 text-sm">{syncResult.error}</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {[
+                                            { label: 'New Accounts', value: syncResult.summary?.students_given_accounts ?? 0, color: 'text-emerald-400' },
+                                            { label: 'Portal Rows Fixed', value: syncResult.summary?.portal_rows_created ?? 0, color: 'text-blue-400' },
+                                            { label: 'Auth Synced', value: syncResult.summary?.portal_rows_synced_to_auth ?? 0, color: 'text-violet-400' },
+                                        ].map(s => (
+                                            <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                                <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                                                <p className="text-[10px] text-white/40 mt-0.5">{s.label}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {syncResult.credentials?.length > 0 && (
+                                        <div>
+                                            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">New Student Credentials — share with students</p>
+                                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                                                {syncResult.credentials.map((c: any, i: number) => (
+                                                    <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-3 font-mono text-xs">
+                                                        <p className="text-white font-bold">{c.name}</p>
+                                                        <p className="text-white/60 mt-0.5">{c.email}</p>
+                                                        <p className="text-emerald-400 font-bold mt-0.5">pw: {c.password}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {syncResult.errors?.length > 0 && (
+                                        <div>
+                                            <p className="text-xs font-bold text-rose-400/60 uppercase tracking-widest mb-2">Errors ({syncResult.errors.length})</p>
+                                            <div className="space-y-1 text-xs text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
+                                                {syncResult.errors.map((e: string, i: number) => <p key={i}>• {e}</p>)}
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                        <div className="p-4 border-t border-white/10 flex-shrink-0">
+                            <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl text-sm transition-all">
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── Create User Modal ── */}
             {showCreate && (
