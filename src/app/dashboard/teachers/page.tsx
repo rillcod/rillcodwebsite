@@ -8,7 +8,7 @@ import {
   UserGroupIcon, BookOpenIcon, ClipboardDocumentListIcon, ChartBarIcon,
   CalendarIcon, CheckCircleIcon, ClockIcon, BellIcon, AcademicCapIcon,
   PlusIcon, ArrowRightIcon, StarIcon, FireIcon, TrophyIcon,
-  PencilSquareIcon, DocumentTextIcon, EnvelopeIcon, MagnifyingGlassIcon,
+  BuildingOfficeIcon, PencilSquareIcon, DocumentTextIcon, EnvelopeIcon, MagnifyingGlassIcon,
   XMarkIcon, ArrowPathIcon, KeyIcon, ShieldCheckIcon,
   ClipboardIcon, ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
@@ -408,15 +408,37 @@ function AdminTeacherView() {
   const [credentials, setCredentials] = useState<{ email: string; tempPassword: string; name: string } | null>(null);
   const [editingTeacher, setEditingTeacher] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [schools, setSchools] = useState<any[]>([]); // All available schools
+  const [selectedSchools, setSelectedSchools] = useState<string[]>([]); // Schools for current teacher
+  const [teacherAssignments, setTeacherAssignments] = useState<Record<string, any[]>>({}); // teacherId -> teacher_schools
 
   const load = async () => {
     setLoading(true);
-    const { data } = await createClient()
+    const db = createClient();
+
+    // 1. Fetch teachers with their school assignments
+    const { data: teachersData } = await db
       .from('portal_users')
-      .select('id, full_name, email, phone, is_active, created_at')
+      .select('id, full_name, email, phone, is_active, created_at, teacher_schools(id, school_id, schools(name))')
       .eq('role', 'teacher')
       .order('created_at', { ascending: false });
-    setTeachers(data ?? []);
+
+    // 2. Fetch all schools for the dropdown
+    const { data: schoolsData } = await db
+      .from('schools')
+      .select('id, name')
+      .order('name');
+
+    setTeachers(teachersData as any ?? []);
+    setSchools(schoolsData as any ?? []);
+
+    // Build assignment map for easy lookup
+    const assignmentsMap: Record<string, any[]> = {};
+    (teachersData as any ?? []).forEach((t: any) => {
+      assignmentsMap[t.id] = t.teacher_schools ?? [];
+    });
+    setTeacherAssignments(assignmentsMap);
+
     setLoading(false);
   };
 
@@ -445,6 +467,8 @@ function AdminTeacherView() {
         is_active: true,
       };
 
+      let newTeacherId = '';
+
       if (editingTeacher) {
         const { error } = await db
           .from('portal_users')
@@ -452,6 +476,7 @@ function AdminTeacherView() {
           .eq('id', editingTeacher.id);
         if (error) throw error;
         setInviteOk(`Teacher ${inviteForm.full_name} updated successfully.`);
+        newTeacherId = editingTeacher.id;
         setEditingTeacher(null);
       } else {
         const tempPassword = generateTempPassword();
@@ -468,6 +493,7 @@ function AdminTeacherView() {
 
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? 'Failed to create teacher account');
+        newTeacherId = json.data?.id;
 
         setCredentials({
           email: inviteForm.email,
@@ -478,7 +504,26 @@ function AdminTeacherView() {
       }
 
       setInviteForm({ full_name: '', email: '', phone: '' });
+      setSelectedSchools([]);
       setShowInvite(false);
+
+      if (newTeacherId) {
+        // Sync assignments
+        const existingAssignments = editingTeacher ? (teacherAssignments[newTeacherId] || []) : [];
+        const toRemove = existingAssignments.filter(a => !selectedSchools.includes(a.school_id));
+        const toAdd = selectedSchools.filter(sid => !existingAssignments.some(a => a.school_id === sid));
+
+        for (const a of toRemove) {
+          await db.from('teacher_schools').delete().eq('id', a.id);
+        }
+        for (const sid of toAdd) {
+          await db.from('teacher_schools').insert({
+            teacher_id: newTeacherId,
+            school_id: sid,
+            assigned_by: profile?.id,
+          });
+        }
+      }
       load();
     } catch (err: any) {
       setInviteErr(err?.message ?? 'Failed to save teacher.');
@@ -511,6 +556,7 @@ function AdminTeacherView() {
       email: t.email || '',
       phone: t.phone || '',
     });
+    setSelectedSchools((teacherAssignments[t.id] ?? []).map(a => a.school_id));
     setShowInvite(true);
   };
 
@@ -661,6 +707,16 @@ function AdminTeacherView() {
                       <span className="flex items-center gap-1"><EnvelopeIcon className="w-3 h-3" />{t.email}</span>
                       {t.phone && <span>{t.phone}</span>}
                     </div>
+                    {teacherAssignments[t.id]?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {teacherAssignments[t.id].map(a => (
+                          <span key={a.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400">
+                            <BuildingOfficeIcon className="w-2.5 h-2.5" />
+                            {a.schools?.name ?? 'Unknown School'}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${t.is_active
@@ -771,6 +827,36 @@ function AdminTeacherView() {
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/25" />
                 </div>
               ))}
+
+              {/* School Assignment */}
+              <div>
+                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                  <BuildingOfficeIcon className="w-3.5 h-3.5" /> Assign Schools
+                </label>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-3 space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                  {schools.length === 0 ? (
+                    <p className="text-white/20 text-xs text-center py-2 italic">No schools found. Create a school first.</p>
+                  ) : (
+                    schools.map(s => (
+                      <label key={s.id} className="flex items-center gap-3 px-3 py-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
+                        <input
+                          type="checkbox"
+                          checked={selectedSchools.includes(s.id)}
+                          onChange={e => {
+                            if (e.target.checked) setSelectedSchools(p => [...p, s.id]);
+                            else setSelectedSchools(p => p.filter(id => id !== s.id));
+                          }}
+                          className="w-4 h-4 rounded border-white/10 bg-white/5 text-violet-600 focus:ring-violet-500 flex-shrink-0"
+                        />
+                        <span className={`text-sm font-medium transition-colors ${selectedSchools.includes(s.id) ? 'text-white' : 'text-white/40 group-hover:text-white/60'}`}>
+                          {s.name}
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                <p className="text-[10px] text-white/20 mt-1.5 italic">Teachers assigned to schools can manage results and students for those schools.</p>
+              </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowInvite(false)}
                   className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/60 text-sm font-bold rounded-xl border border-white/10 transition-all">
