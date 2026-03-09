@@ -220,10 +220,13 @@ export default function SchoolsPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: json.school.id, action: 'approved' }),
           });
-          finalSchool = { ...finalSchool, portal_users: [{}] }; // optimistic
+          // Refresh list to show the new school with its linked portal account
+          const reloadRes = await fetch('/api/schools');
+          const reloadJson = await reloadRes.json();
+          if (reloadRes.ok) setSchools(reloadJson.data ?? []);
+        } else {
+          setSchools(prev => [json.school, ...prev]);
         }
-
-        setSchools(prev => [finalSchool, ...prev]);
       }
 
       setShowCreate(false);
@@ -250,7 +253,7 @@ export default function SchoolsPage() {
   };
 
   const handleDeleteSchool = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this school? This will soft-delete the record.')) return;
+    if (!confirm('Are you sure you want to delete this school? This will permanently delete the record and its associated portal accounts.')) return;
     setDeleting(id);
     try {
       const res = await fetch(`/api/schools/${id}`, { method: 'DELETE' });

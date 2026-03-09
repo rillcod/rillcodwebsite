@@ -71,7 +71,17 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
 
   const schoolsNeedingPortal = (allSchools ?? []).filter((s: any) => {
     if (!s.email) return false;
-    const email = s.email.toLowerCase();
+    const email = s.email.trim().toLowerCase();
+
+    // Check portal by email first
+    const existingRow = portalByEmail.get(email);
+    if (existingRow) {
+      // If portal row exists but doesn't have school_id or wrong role, it needs fixing
+      if (existingRow.role !== 'school' || existingRow.school_id !== s.id) return true;
+      return false;
+    }
+
+    // Check auth by email
     const authUser = authByEmail.get(email);
     if (!authUser) return true;           // not in auth at all
     if (!portalById.has(authUser.id)) return true;  // in auth but no portal row
@@ -86,12 +96,12 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
 
   // Split: those with an email match in auth (ID mismatch) vs truly missing auth
   const portalIdMismatches = portalWithoutAuth.filter(
-    (u: any) => u.email && authByEmail.has(u.email.toLowerCase()) &&
-      authByEmail.get(u.email.toLowerCase())!.id !== u.id
+    (u: any) => u.email && authByEmail.has(u.email.trim().toLowerCase()) &&
+      authByEmail.get(u.email.trim().toLowerCase())!.id !== u.id
   );
   // Portal rows with no auth at all — need a NEW auth account created
   const portalNeedingAuth = portalWithoutAuth.filter(
-    (u: any) => u.email && !authByEmail.has(u.email.toLowerCase())
+    (u: any) => u.email && !authByEmail.has(u.email.trim().toLowerCase())
   );
   // Portal rows with no email — truly garbage
   const portalNoEmail = portalWithoutAuth.filter((u: any) => !u.email);
@@ -171,7 +181,7 @@ export async function POST() {
     let authUserId: string | null = null;
     let password: string | null = null;
 
-    const existingAuth = authByEmail.get(loginEmail.toLowerCase());
+    const existingAuth = authByEmail.get(loginEmail.trim().toLowerCase());
     if (existingAuth) {
       authUserId = existingAuth.id;
     } else {
@@ -214,7 +224,7 @@ export async function POST() {
     let authUserId: string | null = null;
     let password: string | null = null;
 
-    const existingAuth = authByEmail.get(email.toLowerCase());
+    const existingAuth = authByEmail.get(email.trim().toLowerCase());
     if (existingAuth) {
       authUserId = existingAuth.id;
     } else {
