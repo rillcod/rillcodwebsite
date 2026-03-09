@@ -730,6 +730,10 @@ function AdminTeacherView() {
                       {toggling === t.id ? '…' : t.is_active ? 'Deactivate' : 'Activate'}
                     </button>
                     <button onClick={() => startEdit(t)}
+                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-blue-500/20 hover:border-blue-500/40 text-blue-400 hover:text-blue-300 transition-all">
+                      Assign
+                    </button>
+                    <button onClick={() => startEdit(t)}
                       className="px-3 py-1.5 text-xs font-bold rounded-lg border border-white/10 hover:border-white/30 text-white/40 hover:text-white transition-all">
                       Edit
                     </button>
