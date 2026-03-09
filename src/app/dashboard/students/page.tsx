@@ -427,21 +427,19 @@ export default function StudentsPage() {
                 <button
                   onClick={handleSync}
                   disabled={syncing}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${
-                    gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30'
-                             : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white'
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30'
+                    : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white'
+                    }`}
                 >
                   {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
                   {syncing ? 'Syncing…' : gapCount ? `Sync (${gapCount} gaps)` : 'Sync Students'}
                 </button>
               )}
-              {profile?.role !== 'student' && (
-                <button onClick={() => { setEditingStudent(null); setShowAdd(true); }}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20">
-                  <PlusIcon className="w-4 h-4" /> Add Student
-                </button>
-              )}
+              {/* Removed unnecessary student role check, we already know user is staff */}
+              <button onClick={() => { setEditingStudent(null); setShowAdd(true); }}
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20">
+                <PlusIcon className="w-4 h-4" /> Add Student
+              </button>
             </div>
           </div>
 
@@ -791,9 +789,9 @@ function StudentSelfView() {
     const gradedData = gradedRes.status === 'fulfilled' ? (gradedRes.value.data ?? []) : [];
     const avgPct = gradedData.length > 0
       ? Math.round(gradedData.reduce((s: number, g: any) => {
-          const max = g.assignments?.max_points ?? 100;
-          return s + (g.grade / max) * 100;
-        }, 0) / gradedData.length)
+        const max = g.assignments?.max_points ?? 100;
+        return s + (g.grade / max) * 100;
+      }, 0) / gradedData.length)
       : 0;
     const letter = avgPct >= 90 ? 'A' : avgPct >= 80 ? 'B' : avgPct >= 70 ? 'C' : avgPct >= 60 ? 'D' : gradedData.length ? 'F' : '—';
     const recentData = recentRes.status === 'fulfilled' ? (recentRes.value.data ?? []) : [];
@@ -894,9 +892,8 @@ function StudentSelfView() {
                 <div className="space-y-1">
                   {recent.map((s: any, i: number) => (
                     <div key={s.id} className={`flex items-start gap-3 py-3 ${i < recent.length - 1 ? 'border-b border-white/5' : ''}`}>
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                        s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'
-                      }`}>
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'
+                        }`}>
                         {s.status === 'graded'
                           ? <StarIcon className="h-4 w-4" />
                           : <ClipboardDocumentListIcon className="h-4 w-4" />}
