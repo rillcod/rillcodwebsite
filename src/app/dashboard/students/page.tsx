@@ -86,10 +86,13 @@ export default function StudentsPage() {
           .select('school_id')
           .eq('teacher_id', profile.id);
         const ids = assignments?.map((a: any) => a.school_id).filter(Boolean) || [];
-        if (ids.length > 0) {
-          query = query.in('school_id', ids);
+        if (profile.school_id) ids.push(profile.school_id);
+        const uniqueIds = Array.from(new Set(ids));
+
+        if (uniqueIds.length > 0) {
+          // Use .or to allow students in those schools OR students they registered
+          query = query.or(`school_id.in.(${uniqueIds.join(',')}),created_by.eq.${profile.id}`);
         } else {
-          // Fallback: only students they registered
           query = query.eq('created_by', profile.id);
         }
       }

@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeftIcon, BookOpenIcon, UserGroupIcon, CalendarIcon,
   ClockIcon, PencilIcon, CheckCircleIcon, AcademicCapIcon,
-  ClipboardDocumentCheckIcon,
+  ClipboardDocumentCheckIcon, PlusIcon
 } from '@heroicons/react/24/outline';
 
 export default function ClassDetailPage() {
@@ -61,13 +61,18 @@ export default function ClassDetailPage() {
           let enrQuery = supabase.from('enrollments')
             .select(`
               id, status, 
-              portal_users!inner(id, full_name, email, school_id)
+              portal_users!inner(id, full_name, email, school_id, section_class)
             `)
             .eq('program_id', program_id);
 
           // If the class is tied to a school, only show students from that school
           if (school_id) {
             enrQuery = enrQuery.eq('portal_users.school_id', school_id);
+          }
+
+          // Strict manual selection check: filter by class name
+          if (clsData.name) {
+            enrQuery = enrQuery.eq('portal_users.section_class', clsData.name);
           }
 
           const { data: enrData } = await enrQuery.order('enrollment_date', { ascending: false });
@@ -207,7 +212,11 @@ export default function ClassDetailPage() {
                 {enrollments.length === 0 ? (
                   <div className="p-6 text-center">
                     <UserGroupIcon className="w-8 h-8 mx-auto text-white/10 mb-2" />
-                    <p className="text-xs text-white/30">No students enrolled</p>
+                    <p className="text-xs text-white/30 truncate mb-3">No students manually assigned</p>
+                    <Link href={`/dashboard/classes/${id}/edit`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-[10px] font-bold text-blue-400 uppercase tracking-widest rounded-lg transition-colors">
+                      <PlusIcon className="w-3 h-3" /> Assign Students
+                    </Link>
                   </div>
                 ) : (
                   <div className="divide-y divide-white/5 max-h-72 overflow-y-auto">

@@ -16,6 +16,9 @@ export default function AddClassPage() {
   const [programs, setPrograms] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [schools, setSchools] = useState<any[]>([]);
+  const [availableStudents, setAvailableStudents] = useState<any[]>([]);
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,11 +55,11 @@ export default function AddClassPage() {
           .select('school_id')
           .eq('teacher_id', profile.id);
 
-        const schoolIds = assignments?.map(a => a.school_id) || [];
+        const schoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
+        if (profile.school_id && !schoolIds.includes(profile.school_id)) schoolIds.push(profile.school_id);
+
         if (schoolIds.length > 0) {
           schoolsQuery = schoolsQuery.in('id', schoolIds);
-        } else if (profile.school_id) {
-          schoolsQuery = schoolsQuery.eq('id', profile.school_id);
         }
       }
 
@@ -69,6 +72,69 @@ export default function AddClassPage() {
 
     loadData();
   }, [profile?.id, authLoading]);
+
+  // Fetch available students when program or school changes
+  useEffect(() => {
+    if (!form.program_id) {
+      setAvailableStudents([]);
+      setSelectedStudents([]);
+      return;
+    }
+    const db = createClient();
+    setLoadingStudents(true);
+    async function fetchStudents() {
+      try {
+        // 1. Get all assigned schools for this teacher
+        const { data: assignments } = await db
+          .from('teacher_schools')
+          .select('school_id')
+          .eq('teacher_id', profile!.id);
+        const schoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
+        if (profile!.school_id && !schoolIds.includes(profile!.school_id)) schoolIds.push(profile!.school_id);
+
+        // 2. Fetch student IDs from registry (students table)
+        let sTableQuery = db.from('students')
+          .select('user_id')
+          .eq('status', 'approved')
+          .not('user_id', 'is', null);
+
+        if (form.school_id) {
+          // Filter by the specific school selected for the class
+          sTableQuery = sTableQuery.eq('school_id', form.school_id);
+        } else if (profile?.role === 'teacher') {
+          // No specific school selected, show all students from teacher's assigned schools or registered by them
+          if (schoolIds.length > 0) {
+            sTableQuery = sTableQuery.or(`school_id.in.(${schoolIds.join(',')}),created_by.eq.${profile.id}`);
+          } else {
+            sTableQuery = sTableQuery.eq('created_by', profile.id);
+          }
+        }
+
+        const { data: sEntries } = await sTableQuery;
+        const relevantUserIds = (sEntries ?? []).map(s => s.user_id).filter((id): id is string => !!id);
+
+        if (relevantUserIds.length > 0) {
+          const { data: studs } = await db.from('portal_users')
+            .select('id, full_name, email, school_id')
+            .in('id', relevantUserIds)
+            .is('is_deleted', null) // Avoid deleted
+            .order('full_name');
+
+          setAvailableStudents(studs ?? []);
+          // Update selected students filter
+          setSelectedStudents(prev => prev.filter(id => (studs ?? []).some(s => s.id === id)));
+        } else {
+          setAvailableStudents([]);
+          setSelectedStudents([]);
+        }
+      } catch (err) {
+        console.error('Error fetching students:', err);
+      } finally {
+        setLoadingStudents(false);
+      }
+    }
+    fetchStudents();
+  }, [form.program_id, form.school_id]);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -90,13 +156,35 @@ export default function AddClassPage() {
         max_students: parseInt(form.max_students) || 20,
         status: form.status,
         schedule: form.schedule.trim() || null,
-        current_students: 0,
+        current_students: selectedStudents.length,
       };
       if (form.start_date) payload.start_date = form.start_date;
       if (form.end_date) payload.end_date = form.end_date;
 
-      const { error: err } = await createClient().from('classes').insert(payload);
+      const db = createClient();
+      const { error: err } = await db.from('classes').insert(payload);
       if (err) throw err;
+
+      // 2. Update students' section_class and ensure they are enrolled in the program
+      if (selectedStudents.length > 0) {
+        // Update class assignment
+        await db.from('portal_users')
+          .update({ section_class: form.name.trim() })
+          .in('id', selectedStudents);
+
+        // Ensure enrollment exists for each student in this program
+        const enrollments = selectedStudents.map(userId => ({
+          user_id: userId,
+          program_id: form.program_id,
+          role: 'student',
+          status: 'active'
+        }));
+
+        // Use upsert to avoid duplicates, requires a unique constraint or primary key 
+        // In our schema, we'll try to insert. If it fails due to duplicates, it's fine.
+        await db.from('enrollments').upsert(enrollments, { onConflict: 'user_id,program_id' });
+      }
+
       router.push('/dashboard/classes');
     } catch (e: any) {
       setError(e.message ?? 'Failed to create class');
@@ -234,6 +322,63 @@ export default function AddClassPage() {
                 <option value="active">Active</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">
+              Manual Student Selection <span className="text-white/20 font-normal normal-case">({selectedStudents.length} selected)</span>
+            </label>
+
+            {!form.program_id ? (
+              <p className="text-sm text-white/20 italic bg-white/5 border border-dashed border-white/10 rounded-xl p-4">
+                Please select a programme first to see eligible students.
+              </p>
+            ) : loadingStudents ? (
+              <div className="flex items-center gap-2 text-sm text-white/40 p-4">
+                <ArrowPathIcon className="w-4 h-4 animate-spin" /> Fetching students…
+              </div>
+            ) : availableStudents.length === 0 ? (
+              <p className="text-sm text-amber-400/60 italic bg-amber-500/5 border border-dashed border-amber-500/10 rounded-xl p-4">
+                No students found enrolled in this programme {form.school_id ? 'at this school' : ''}.
+              </p>
+            ) : (
+              <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                <div className="max-h-60 overflow-y-auto divide-y divide-white/5">
+                  {availableStudents.map(student => (
+                    <label key={student.id} className="flex items-center gap-3 px-4 py-3 hover:bg-white/10 cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedStudents.includes(student.id)}
+                        onChange={e => {
+                          if (e.target.checked) setSelectedStudents(prev => [...prev, student.id]);
+                          else setSelectedStudents(prev => prev.filter(id => id !== student.id));
+                        }}
+                        className="w-4 h-4 rounded border-white/10 bg-white/5 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">{student.full_name}</p>
+                        <p className="text-xs text-white/30 truncate">{student.email}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <div className="px-4 py-2 bg-white/5 border-t border-white/5 flex justify-between items-center">
+                  <span className="text-[10px] text-white/30 uppercase font-bold tracking-wider">
+                    {availableStudents.length} Available
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedStudents.length === availableStudents.length) setSelectedStudents([]);
+                      else setSelectedStudents(availableStudents.map(s => s.id));
+                    }}
+                    className="text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-colors uppercase tracking-wider"
+                  >
+                    {selectedStudents.length === availableStudents.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div>

@@ -200,30 +200,59 @@ function ReportBuilderInner() {
         const db = createClient();
 
         async function loadData() {
-            let studentQuery = db.from('portal_users').select('*').eq('role', 'student');
+            let studentQuery = db.from('portal_users')
+                .select('*')
+                .eq('role', 'student')
+                .or('is_deleted.is.null,is_deleted.eq.false');
 
-            // If teacher, find which schools they manage
+            // If teacher, find which schools they manage OR students they personally registered
             if (profile?.role === 'teacher') {
                 const { data: assignments } = await db
                     .from('teacher_schools')
                     .select('school_id')
                     .eq('teacher_id', profile.id);
 
-                const schoolIds = assignments?.map(a => a.school_id) || [];
-                // If they have explicit schools, filter by them. 
-                // Fallback to profile.school_id if no teacher_schools records exist yet
-                if (schoolIds.length > 0) {
-                    studentQuery = studentQuery.in('school_id', schoolIds);
-                } else if (profile.school_id) {
-                    studentQuery = studentQuery.eq('school_id', profile.school_id);
+                const schoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
+                if (profile.school_id) schoolIds.push(profile.school_id);
+                const uniqueSchoolIds = Array.from(new Set(schoolIds));
+
+                // Primary source: find ALL approved students linked to these schools OR created by this teacher
+                let sTableQuery = db.from('students')
+                    .select('user_id')
+                    .eq('status', 'approved')
+                    .not('user_id', 'is', null);
+
+                if (uniqueSchoolIds.length > 0) {
+                    sTableQuery = sTableQuery.or(`school_id.in.(${uniqueSchoolIds.join(',')}),created_by.eq.${profile.id}`);
+                } else {
+                    sTableQuery = sTableQuery.eq('created_by', profile.id);
+                }
+
+                const { data: sEntries } = await sTableQuery;
+                const relevantUserIds = (sEntries ?? []).map(s => s.user_id).filter((id): id is string => !!id);
+
+                if (relevantUserIds.length > 0) {
+                    studentQuery = studentQuery.in('id', relevantUserIds);
+                } else {
+                    // No relevant students found
+                    studentQuery = studentQuery.eq('id', '00000000-0000-0000-0000-000000000000');
                 }
             }
 
+            let schoolsQuery = db.from('schools').select('id, name').order('name');
+            if (profile?.role === 'teacher') {
+                const { data: assignments } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
+                const schoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
+                if (profile.school_id && !schoolIds.includes(profile.school_id)) schoolIds.push(profile.school_id);
+                if (schoolIds.length > 0) schoolsQuery = schoolsQuery.in('id', schoolIds);
+                else schoolsQuery = schoolsQuery.eq('id', '00000000-0000-0000-0000-000000000000'); // Force empty
+            }
+
             const [sRes, cRes, bRes, schRes] = await Promise.all([
-                studentQuery.order('full_name').limit(200),
+                studentQuery.order('full_name'),
                 db.from('courses').select('*').eq('is_active', true).order('title'),
                 db.from('report_settings').select('*').limit(1).maybeSingle(),
-                db.from('schools').select('id, name').order('name'),
+                schoolsQuery,
             ]);
 
             setStudents(sRes.data ?? []);
@@ -251,9 +280,12 @@ function ReportBuilderInner() {
         loadData();
     }, [profile?.id, authLoading]); // eslint-disable-line
 
-    const filteredStudents = students.filter(s =>
-        !search || s.full_name?.toLowerCase().includes(search.toLowerCase()) || s.email?.toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredStudents = students.filter(s => {
+        const matchesSearch = !search || s.full_name?.toLowerCase().includes(search.toLowerCase()) || s.email?.toLowerCase().includes(search.toLowerCase());
+        // Filter by school name if selected in Step 1
+        const matchesSchool = !sessionConfig.school_name || s.school_name === sessionConfig.school_name;
+        return matchesSearch && matchesSchool;
+    });
 
     const distinctClasses = [...new Set(students.map(s => (s as any).section_class).filter(Boolean))].sort() as string[];
 

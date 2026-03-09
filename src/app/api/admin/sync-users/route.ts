@@ -106,6 +106,22 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
   // Portal rows with no email — truly garbage
   const portalNoEmail = portalWithoutAuth.filter((u: any) => !u.email);
 
+  // --- Gap E: Students with mismatched school_id or name in portal_users ---
+  const { data: allApprovedStudents } = await admin
+    .from('students')
+    .select('id, full_name, school_id, user_id, school_name')
+    .eq('status', 'approved')
+    .not('user_id', 'is', null);
+
+  const studentsNeedingDataFix = (allApprovedStudents ?? []).filter((s: any) => {
+    const portal = portalById.get(s.user_id);
+    if (!portal) return false;
+    // Check if school_id, name, or school_name mismatch
+    return portal.school_id !== s.school_id ||
+      portal.full_name !== s.full_name ||
+      portal.school_name !== s.school_name;
+  });
+
   return {
     authById, authByEmail,
     portalById, portalByEmail,
@@ -115,6 +131,7 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
     portalIdMismatches,
     portalNeedingAuth,
     portalNoEmail,
+    studentsNeedingDataFix,
   };
 }
 
@@ -127,6 +144,7 @@ export async function GET() {
   const {
     studentsNeedingAccounts, schoolsNeedingPortal,
     authWithoutPortal, portalIdMismatches, portalNeedingAuth, portalNoEmail,
+    studentsNeedingDataFix,
   } = await runAudit(admin);
 
   return NextResponse.json({
@@ -136,6 +154,7 @@ export async function GET() {
       auth_without_portal: authWithoutPortal.length,
       portal_id_mismatches: portalIdMismatches.length,
       portal_needing_auth: portalNeedingAuth.length,
+      students_needing_data_fix: studentsNeedingDataFix.length,
     },
     unfixable: {
       portal_rows_no_email: portalNoEmail.length,
@@ -164,6 +183,7 @@ export async function POST() {
     authByEmail, portalById,
     studentsNeedingAccounts, schoolsNeedingPortal,
     authWithoutPortal, portalIdMismatches, portalNeedingAuth,
+    studentsNeedingDataFix,
   } = await runAudit(admin);
 
   const results = {
@@ -172,6 +192,7 @@ export async function POST() {
     portal_rows_created: [] as string[],
     portal_auth_created: [] as any[],
     id_mismatches_fixed: [] as string[],
+    data_fixes: [] as string[],
     errors: [] as string[],
   };
 
@@ -350,6 +371,21 @@ export async function POST() {
     }
   }
 
+  // ── Gap E: Students with mismatched school_id or name ──────────────────
+  for (const s of studentsNeedingDataFix as any[]) {
+    try {
+      await admin.from('portal_users').update({
+        full_name: s.full_name,
+        school_id: s.school_id,
+        school_name: s.school_name,
+        updated_at: new Date().toISOString(),
+      }).eq('id', s.user_id);
+      results.data_fixes.push(s.full_name);
+    } catch (err: any) {
+      results.errors.push(`data-fix ${s.full_name}: ${err.message}`);
+    }
+  }
+
   return NextResponse.json({
     success: true,
     summary: {
@@ -358,6 +394,7 @@ export async function POST() {
       portal_rows_created: results.portal_rows_created.length,
       portal_auth_created: results.portal_auth_created.length,
       id_mismatches_fixed: results.id_mismatches_fixed.length,
+      data_fixes: results.data_fixes.length,
       errors: results.errors.length,
     },
     credentials: [

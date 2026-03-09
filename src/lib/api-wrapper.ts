@@ -72,7 +72,9 @@ export function withApiProxy(
             }
 
             // 3. Execute Handler
-            const response = await handler(req, ctx);
+            const resolvedParams = await ctx.params;
+            const resolvedCtx = { ...ctx, params: resolvedParams };
+            const response = await handler(req, resolvedCtx);
             status = response.status;
 
             if (ctx.user?.role && ctx.user.role !== 'student' && req.method !== 'GET') {

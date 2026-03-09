@@ -43,9 +43,12 @@ export default function ProgressPage() {
     let cancelled = false;
 
     async function load() {
+      if (!profile) return;
       setLoading(true);
       setError(null);
       const supabase = createClient();
+      const p = profile;
+
       try {
         if (isStaff) {
           // Teacher/admin/school: submissions and enrollments
@@ -62,9 +65,41 @@ export default function ProgressPage() {
                 portal_users!inner ( id, full_name, email, school_id )`)
             .order('enrollment_date', { ascending: false });
 
-          if (role === 'school' && profile?.school_id) {
-            subsQuery = subsQuery.eq('portal_users.school_id', profile.school_id);
-            enrQuery = enrQuery.eq('portal_users.school_id', profile.school_id);
+          if (role === 'school' && p.school_id) {
+            subsQuery = subsQuery.eq('portal_users.school_id', p.school_id);
+            enrQuery = enrQuery.eq('portal_users.school_id', p.school_id);
+          } else if (role === 'teacher') {
+            const { data: assignments } = await supabase
+              .from('teacher_schools')
+              .select('school_id')
+              .eq('teacher_id', p.id);
+
+            const schoolIds = assignments?.map((a: any) => a.school_id).filter(Boolean) || [];
+            if (p.school_id) schoolIds.push(p.school_id);
+            const uniqueSchoolIds = Array.from(new Set(schoolIds));
+
+            // Find all user IDs linked to these schools or registered by this teacher
+            let sIdsQuery = supabase.from('students')
+              .select('user_id')
+              .eq('status', 'approved')
+              .not('user_id', 'is', null);
+
+            if (uniqueSchoolIds.length > 0) {
+              sIdsQuery = sIdsQuery.or(`school_id.in.(${uniqueSchoolIds.join(',')}),created_by.eq.${p.id}`);
+            } else {
+              sIdsQuery = sIdsQuery.eq('created_by', p.id);
+            }
+
+            const { data: sEntries } = await sIdsQuery;
+            const relevantUserIds = (sEntries ?? []).map(s => s.user_id).filter((id): id is string => !!id);
+
+            if (relevantUserIds.length > 0) {
+              subsQuery = subsQuery.in('portal_user_id', relevantUserIds);
+              enrQuery = enrQuery.in('user_id', relevantUserIds);
+            } else {
+              subsQuery = subsQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+              enrQuery = enrQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+            }
           }
 
           const [subsRes, enrRes] = await Promise.allSettled([subsQuery, enrQuery]);
