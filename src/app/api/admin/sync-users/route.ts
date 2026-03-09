@@ -356,3 +356,42 @@ export async function POST() {
     errors: results.errors,
   });
 }
+
+// ── DELETE — hard-remove all portal rows that have no matching auth account ──
+// Use this when sync leaves orphaned rows that can't be fixed automatically.
+export async function DELETE() {
+  const caller = await requireAdmin();
+  if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+
+  const admin = adminClient();
+
+  // Fresh fetch — don't use cached maps
+  const { data: authListData } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const authIds = new Set((authListData?.users ?? []).map(u => u.id));
+
+  const { data: portalRows } = await admin
+    .from('portal_users')
+    .select('id, email, full_name, role');
+
+  const orphans = (portalRows ?? []).filter((u: any) => !authIds.has(u.id));
+
+  const deleted: string[] = [];
+  const skipped: string[] = [];
+
+  for (const pu of orphans as any[]) {
+    const { error } = await admin.from('portal_users').delete().eq('id', pu.id);
+    if (error) {
+      skipped.push(`${pu.email ?? pu.id} (${error.message})`);
+    } else {
+      deleted.push(pu.email ?? pu.id);
+    }
+  }
+
+  return NextResponse.json({
+    success: true,
+    deleted: deleted.length,
+    skipped: skipped.length,
+    deleted_list: deleted,
+    skipped_list: skipped,
+  });
+}

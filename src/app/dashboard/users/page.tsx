@@ -138,8 +138,28 @@ export default function UsersPage() {
             const res = await fetch('/api/admin/sync-users', { method: 'POST' });
             const json = await res.json();
             setSyncResult(json);
-            setGapCount(0);
             await load();
+            await checkGaps();
+        } catch (e: any) {
+            setSyncResult({ error: e.message });
+        }
+        setSyncing(false);
+    };
+
+    const handleRemoveOrphans = async () => {
+        if (!confirm('This will permanently delete all portal user rows that have no matching auth account. This cannot be undone. Continue?')) return;
+        setSyncing(true);
+        try {
+            const res = await fetch('/api/admin/sync-users', { method: 'DELETE' });
+            const json = await res.json();
+            await load();
+            await checkGaps();
+            setSyncResult({
+                success: true,
+                summary: { orphans_deleted: json.deleted, skipped: json.skipped },
+                credentials: [],
+                errors: json.skipped_list ?? [],
+            });
         } catch (e: any) {
             setSyncResult({ error: e.message });
         }
@@ -232,6 +252,15 @@ export default function UsersPage() {
                         >
                             {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
                             {syncing ? 'Syncing…' : gapCount ? `Sync (${gapCount} gaps)` : 'Sync Users'}
+                        </button>
+                        <button
+                            onClick={handleRemoveOrphans}
+                            disabled={syncing}
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20"
+                            title="Delete portal rows with no auth account"
+                        >
+                            <TrashIcon className="w-4 h-4" />
+                            Remove Orphans
                         </button>
                         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-6">
                             <div>
@@ -364,13 +393,16 @@ export default function UsersPage() {
                             ) : (
                                 <>
                                     <div className="grid grid-cols-2 gap-3">
-                                        {[
+                                        {(syncResult.summary?.orphans_deleted !== undefined ? [
+                                            { label: 'Orphans Deleted', value: syncResult.summary?.orphans_deleted ?? 0, color: 'text-rose-400' },
+                                            { label: 'Skipped (has data)', value: syncResult.summary?.skipped ?? 0, color: 'text-white/40' },
+                                        ] : [
                                             { label: 'Students Fixed', value: syncResult.summary?.students_fixed ?? 0, color: 'text-emerald-400' },
                                             { label: 'Schools Fixed', value: syncResult.summary?.schools_fixed ?? 0, color: 'text-amber-400' },
                                             { label: 'Auth Created (injected)', value: syncResult.summary?.portal_auth_created ?? 0, color: 'text-cyan-400' },
                                             { label: 'Portal Rows Created', value: syncResult.summary?.portal_rows_created ?? 0, color: 'text-blue-400' },
                                             { label: 'ID Mismatches Fixed', value: syncResult.summary?.id_mismatches_fixed ?? 0, color: 'text-violet-400' },
-                                        ].map(s => (
+                                        ]).map(s => (
                                             <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
                                                 <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
                                                 <p className="text-[10px] text-white/40 mt-0.5">{s.label}</p>
