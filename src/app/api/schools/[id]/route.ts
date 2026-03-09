@@ -81,7 +81,7 @@ export async function PATCH(
   // Default: update school row fields (status, name, contact, etc.)
   const update: Record<string, any> = { updated_at: new Date().toISOString() };
   const allowed = ['name', 'status', 'school_type', 'contact_person', 'address', 'lga', 'city',
-    'state', 'phone', 'email', 'student_count', 'program_interest', 'is_active'];
+    'state', 'phone', 'email', 'student_count', 'program_interest', 'enrollment_types', 'is_active'];
   for (const key of allowed) {
     if (rest[key] !== undefined) update[key] = rest[key];
   }
@@ -90,7 +90,7 @@ export async function PATCH(
     .from('schools')
     .update(update)
     .eq('id', id)
-    .select()
+    .select('*, portal_users(id, email, full_name), teacher_schools(id, teacher_id, portal_users:teacher_id(id, full_name, email))')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -110,19 +110,24 @@ export async function DELETE(
   const { id } = await params;
   const admin = adminClient();
 
-  // Find all portal_users associated with this school to delete their auth.users account
+  // 1. Delete teacher assignments
+  await admin.from('teacher_schools').delete().eq('school_id', id);
+
+  // 2. Find and delete all portal_users + their auth accounts
   const { data: portalUsers } = await admin.from('portal_users').select('id').eq('school_id', id);
   if (portalUsers && portalUsers.length > 0) {
     for (const pu of portalUsers) {
+      // Delete from Auth (this also triggers any profile cleanup if there are triggers, 
+      // but we explicitly delete from portal_users too for safety)
       await admin.auth.admin.deleteUser(pu.id);
       await admin.from('portal_users').delete().eq('id', pu.id);
     }
   }
 
-  // Find all students related to this school to unlink them before deleting
+  // 3. Unlink students (don't delete them, just remove the school link)
   await admin.from('students').update({ school_id: null, school_name: null }).eq('school_id', id);
 
-  // Hard delete the school
+  // 4. Hard delete the school row itself
   const { error } = await admin.from('schools').delete().eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

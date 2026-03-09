@@ -37,13 +37,22 @@ export async function GET(request: Request) {
 
   const { data, error } = await adminClient()
     .from('schools')
-    .select('*, portal_users(id, email, full_name)')
+    .select('*, portal_users(id, email, full_name), teacher_schools(id, teacher_id, portal_users:teacher_id(id, full_name, email))')
+    .or('is_deleted.eq.false,is_deleted.is.null')
     .order('created_at', { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data: data ?? [] });
 }
 
 export async function POST(request: Request) {
+  const supabaseAuth = await createServerClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { data: caller } = await supabaseAuth.from('portal_users').select('role').eq('id', user.id).single();
+  if (!caller || !['admin', 'school'].includes(caller.role)) {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  }
+
   const supabase = adminClient(); // service role — bypasses RLS for school creation
   try {
     const body = await request.json();
@@ -68,12 +77,12 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from('schools')
       .insert([payload])
-      .select()
+      .select('*, portal_users(id, email, full_name), teacher_schools(id, teacher_id, portal_users:teacher_id(id, full_name, email))')
       .single();
 
     if (error) {
       console.error('Error creating school:', error);
-      return NextResponse.json({ error: 'Failed to create school registration' }, { status: 500 });
+      return NextResponse.json({ error: error.message || 'Failed to create school registration' }, { status: 500 });
     }
 
     return NextResponse.json({ message: 'School registration successful', school: data }, { status: 201 });

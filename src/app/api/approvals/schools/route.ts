@@ -140,6 +140,14 @@ export async function POST(request: Request) {
     if (existing) {
       authUserId = existing.id;
       usedExistingAuth = true;
+      // Also update their password and metadata to match the latest school data
+      await admin.auth.admin.updateUserById(authUserId, {
+        password,
+        user_metadata: {
+          full_name: school.contact_person || school.name,
+          role: 'school',
+        },
+      });
     }
   } else {
     authUserId = authData?.user?.id ?? null;
@@ -149,21 +157,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Could not resolve auth user ID' }, { status: 500 });
   }
 
-  // Insert the portal_users row (we know it doesn't exist — we checked above)
-  const { error: portalErr } = await admin.from('portal_users').insert({
+  // Use upsert to create/fix the portal_users row — ensures it's linked to the correct school
+  const { error: portalErr } = await admin.from('portal_users').upsert({
     id: authUserId,
-    email: school.email,
+    email: normalizedEmail,
     full_name: school.contact_person || school.name,
     role: 'school',
     school_name: school.name,
     school_id: school.id,
     is_active: true,
-    created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-  });
+  }, { onConflict: 'id' });
 
   if (portalErr) {
-    return NextResponse.json({ error: `Portal account creation failed: ${portalErr.message}` }, { status: 500 });
+    return NextResponse.json({ error: `Portal account synchronization failed: ${portalErr.message}` }, { status: 500 });
   }
 
   return NextResponse.json({

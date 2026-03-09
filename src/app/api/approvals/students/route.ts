@@ -150,21 +150,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Could not resolve auth user ID' }, { status: 500 });
   }
 
-  const { error: portalErr } = await admin.from('portal_users').insert({
+  // Use upsert to create/fix the portal_users row
+  const { error: portalErr } = await admin.from('portal_users').upsert({
     id: authUserId,
-    email: loginEmail,
+    email: normalizedEmail,
     full_name: student.full_name,
     role: 'student',
     school_name: student.school_name || null,
     school_id: student.school_id || null,
     date_of_birth: student.date_of_birth || null,
     is_active: true,
-    created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-  });
+  }, { onConflict: 'id' });
 
   if (portalErr) {
-    return NextResponse.json({ error: `Portal account creation failed: ${portalErr.message}` }, { status: 500 });
+    return NextResponse.json({ error: `Portal account synchronization failed: ${portalErr.message}` }, { status: 500 });
   }
 
   // Link student row to the portal user

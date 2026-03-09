@@ -171,7 +171,21 @@ export default function SchoolsPage() {
 
   const handleCreateSchool = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createForm.name.trim()) return;
+
+    // Validation - make fields mandatory like "Portal Users"
+    if (!createForm.name.trim()) {
+      setError('School Name is required');
+      return;
+    }
+    if (!createForm.contactPerson.trim()) {
+      setError('Contact Person is required');
+      return;
+    }
+    if (!createForm.email.trim()) {
+      setError('Email address is required for portal account linkage');
+      return;
+    }
+
     setCreatingSchool(true);
     setError(null);
     try {

@@ -58,10 +58,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Insert portal user with admin privileges bypassing RLS
+    // Create or update portal user with admin privileges bypassing RLS
     const { data, error } = await supabaseAdmin
       .from('portal_users')
-      .insert([{ id, email, full_name, role, is_active }])
+      .upsert({ id, email: email.trim().toLowerCase(), full_name, role, is_active, updated_at: new Date().toISOString() }, { onConflict: 'id' })
       .select()
       .single();
 

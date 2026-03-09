@@ -40,8 +40,11 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        // Use admin API to create user with email auto-confirmed
-        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        let authUserId: string | null = null;
+        let authErrorBody: any = null;
+
+        // Try creating the user first
+        const { data: authData, error: signupErr } = await supabaseAdmin.auth.admin.createUser({
             email,
             password,
             email_confirm: true,
@@ -51,36 +54,61 @@ export async function POST(request: Request) {
             }
         });
 
-        if (authError) {
-            return NextResponse.json({ error: authError.message }, { status: 400 });
+        if (signupErr) {
+            // Check if user already exists
+            if (signupErr.message.includes('already been registered') || signupErr.message.includes('already exists')) {
+                // Look up the existing user to get their ID
+                const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+                const existing = listData?.users?.find(
+                    u => u.email?.trim().toLowerCase() === email.trim().toLowerCase()
+                );
+                if (existing) {
+                    authUserId = existing.id;
+                    // Update their password and metadata
+                    await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+                        password,
+                        user_metadata: { full_name: fullName, role: role },
+                    });
+                } else {
+                    authErrorBody = { error: 'User exists in Auth but could not be resolved.' };
+                }
+            } else {
+                authErrorBody = { error: signupErr.message };
+            }
+        } else {
+            authUserId = authData.user?.id ?? null;
         }
 
-        const userId = authData.user?.id;
-
-        if (!userId) {
-            return NextResponse.json({ error: 'User creation failed' }, { status: 500 });
+        if (authErrorBody) {
+            return NextResponse.json(authErrorBody, { status: 400 });
         }
 
-        // Create profile in portal_users table
+        if (!authUserId) {
+            return NextResponse.json({ error: 'User creation/lookup failed' }, { status: 500 });
+        }
+
+        // Create or update profile in portal_users table
         const { error: profileError } = await supabaseAdmin
             .from('portal_users')
             .upsert({
-                id: userId,
-                email,
+                id: authUserId,
+                email: email.trim().toLowerCase(),
                 full_name: fullName || '',
                 role: role,
                 school_id: school_id || null,
                 is_active: true,
-                created_at: new Date().toISOString(),
-            });
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'id' });
 
         if (profileError) {
-            // If profile fails, delete user to rollback
-            await supabaseAdmin.auth.admin.deleteUser(userId);
-            return NextResponse.json({ error: profileError.message }, { status: 400 });
+            return NextResponse.json({ error: `Profile synchronization failed: ${profileError.message}` }, { status: 400 });
         }
 
-        return NextResponse.json({ success: true, message: 'Account created and confirmed successfully!' });
+        return NextResponse.json({
+            success: true,
+            message: 'Account synchronized successfully!',
+            user_id: authUserId
+        });
 
     } catch (error: any) {
         console.error('Signup error:', error);
