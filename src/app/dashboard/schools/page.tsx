@@ -337,6 +337,8 @@ export default function SchoolsPage() {
       setAccCreated({ email: accEmail, pw: tempPassword });
       setAccEmail('');
       setAccPassword('');
+      // Refresh list to update UI
+      fetch('/api/schools').then(r => r.json()).then(j => setSchools(j.data ?? []));
     } catch (e: any) {
       setError(e.message);
     } finally {
