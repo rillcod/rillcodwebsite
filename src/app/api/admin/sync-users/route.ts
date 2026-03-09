@@ -87,7 +87,7 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
   // Split: those with an email match in auth (ID mismatch) vs truly missing auth
   const portalIdMismatches = portalWithoutAuth.filter(
     (u: any) => u.email && authByEmail.has(u.email.toLowerCase()) &&
-                authByEmail.get(u.email.toLowerCase())!.id !== u.id
+      authByEmail.get(u.email.toLowerCase())!.id !== u.id
   );
   // Portal rows with no auth at all — need a NEW auth account created
   const portalNeedingAuth = portalWithoutAuth.filter(
@@ -312,7 +312,9 @@ export async function POST() {
           newAuthId = found.id;
           usedExisting = true;
         } else {
-          results.errors.push(`portal ${pu.email}: ${authErr.message}`);
+          // Force delete the orphaned portal row as requested if it can't be linked
+          await admin.from('portal_users').delete().eq('id', pu.id);
+          results.errors.push(`portal ${pu.email}: ${authErr.message} — Orphaned portal row has been force deleted.`);
           continue;
         }
       } else {

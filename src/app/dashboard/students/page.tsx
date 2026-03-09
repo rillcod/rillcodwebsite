@@ -180,8 +180,8 @@ export default function StudentsPage() {
     if (!confirm('Are you sure you want to delete this student record?')) return;
     setDeleting(id);
     try {
-      const { error } = await createClient().from('students').delete().eq('id', id);
-      if (error) throw error;
+      const res = await fetch(`/api/students/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await res.text());
       setStudents(prev => prev.filter(s => s.id !== id));
     } catch (e: any) {
       alert(e.message ?? 'Failed to delete student');

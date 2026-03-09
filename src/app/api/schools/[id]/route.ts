@@ -97,7 +97,7 @@ export async function PATCH(
   return NextResponse.json({ data });
 }
 
-// DELETE /api/schools/[id] — soft delete
+// DELETE /api/schools/[id] — force delete
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -108,10 +108,22 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const { error } = await adminClient()
-    .from('schools')
-    .update({ is_deleted: true, updated_at: new Date().toISOString() })
-    .eq('id', id);
+  const admin = adminClient();
+
+  // Find all portal_users associated with this school to delete their auth.users account
+  const { data: portalUsers } = await admin.from('portal_users').select('id').eq('school_id', id);
+  if (portalUsers && portalUsers.length > 0) {
+    for (const pu of portalUsers) {
+      await admin.auth.admin.deleteUser(pu.id);
+      await admin.from('portal_users').delete().eq('id', pu.id);
+    }
+  }
+
+  // Find all students related to this school to unlink them before deleting
+  await admin.from('students').update({ school_id: null, school_name: null }).eq('school_id', id);
+
+  // Hard delete the school
+  const { error } = await admin.from('schools').delete().eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
