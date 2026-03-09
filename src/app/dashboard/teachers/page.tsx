@@ -46,9 +46,29 @@ const COLORS = [
 export default function TeacherDashboardPage() {
   const { profile, loading: authLoading } = useAuth();
 
-  // ── ADMIN VIEW: Branch early so admins don't load teacher stats ──
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-14 h-14 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-white/50 text-sm font-medium tracking-widest uppercase">Loading Portal…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── ADMIN VIEW: Separate Manager View ──
   if ((profile?.role as any) === 'admin') return <AdminTeacherView />;
 
+  // ── TEACHER VIEW: Separate Personal View ──
+  return <TeacherPersonalDashboard />;
+}
+
+/* ════════════════════════════════════════════════════════════
+   TEACHER PERSONAL DASHBOARD — For individual staff
+════════════════════════════════════════════════════════════ */
+function TeacherPersonalDashboard() {
+  const { profile } = useAuth();
   const [stats, setStats] = useState<TeacherStats>({
     myClasses: 0, totalStudents: 0, pendingGrades: 0, avgPerformance: 0,
   });
@@ -66,7 +86,7 @@ export default function TeacherDashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (authLoading || !profile) return;
+    if (!profile) return;
     const supabase = createClient();
     let cancelled = false;
 
@@ -101,7 +121,6 @@ export default function TeacherDashboardPage() {
           setStats({ myClasses: classesRes.status === 'fulfilled' ? (classesRes.value.count ?? 0) : 0, totalStudents, pendingGrades: pendingCnt, avgPerformance: avgPerf });
 
           // Build upcoming classes from real data
-          const PALETTE = ['bg-violet-500', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-cyan-500'];
           setUpcomingClasses(classRows.slice(0, 4).map((c: any, i: number) => ({
             id: c.id,
             name: c.name,
@@ -130,29 +149,24 @@ export default function TeacherDashboardPage() {
             color: COLORS_PERF[i % COLORS_PERF.length],
           })));
         }
-      } catch {
-        // keep defaults
-      } finally {
+      } catch { /* fail silently */ } finally {
         if (!cancelled) setLoading(false);
       }
     }
     loadStats();
     return () => { cancelled = true; };
-  }, [profile?.id, authLoading]); // eslint-disable-line
+  }, [profile?.id]); // eslint-disable-line
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-14 h-14 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-white/50 text-sm font-medium tracking-widest uppercase">Loading…</p>
+          <p className="text-white/50 text-sm font-medium tracking-widest uppercase">Syncing Dashboard…</p>
         </div>
       </div>
     );
   }
-
-  // ── ADMIN VIEW: Full teacher roster ────────────────────────────
-  if (profile?.role === 'admin') return <AdminTeacherView />;
 
   const statCards = [
     { label: 'My Classes', value: stats.myClasses, icon: BookOpenIcon, color: 'from-violet-600 to-violet-400', change: '+1 this month', href: '/dashboard/classes' },
@@ -421,17 +435,21 @@ function AdminTeacherView() {
     const db = createClient();
 
     // 1. Fetch teachers with their school assignments
-    const { data: teachersData } = await db
+    const { data: teachersData, error: teachersErr } = await db
       .from('portal_users')
-      .select('id, full_name, email, phone, is_active, created_at, teacher_schools(id, school_id, schools(name))')
+      .select('id, full_name, email, phone, is_active, created_at, teacher_schools:teacher_schools!teacher_schools_teacher_id_fkey(id, school_id, schools(name))')
       .eq('role', 'teacher')
       .order('created_at', { ascending: false });
 
+    if (teachersErr) console.error('Error fetching teachers:', teachersErr);
+
     // 2. Fetch all schools for the dropdown
-    const { data: schoolsData } = await db
+    const { data: schoolsData, error: schoolsErr } = await db
       .from('schools')
       .select('id, name')
       .order('name');
+
+    if (schoolsErr) console.error('Error fetching schools:', schoolsErr);
 
     setTeachers(teachersData as any ?? []);
     setSchools(schoolsData as any ?? []);
