@@ -167,8 +167,17 @@ export async function GET() {
         id: s.id, name: s.name, email: s.email, status: s.status,
       })),
       portal_needing_auth: portalNeedingAuth.map((u: any) => ({
-        id: u.id, email: u.email, role: u.role,
+        id: u.id, email: u.email, role: u.role, name: u.full_name
       })),
+      students_needing_data_fix: studentsNeedingDataFix.map((s: any) => ({
+        id: s.id, user_id: s.user_id, name: s.full_name, school_id: s.school_id
+      })),
+      id_mismatches: portalIdMismatches.map((u: any) => ({
+        id: u.id, email: u.email, name: u.full_name
+      })),
+      auth_without_portal: authWithoutPortal.map((u: any) => ({
+        id: u.id, email: u.email
+      }))
     },
   });
 }
@@ -212,8 +221,25 @@ export async function POST() {
           email: loginEmail, password, email_confirm: true,
           user_metadata: { full_name: (s as any).full_name, role: 'student' },
         });
-        if (authErr) { results.errors.push(`student ${(s as any).full_name}: ${authErr.message}`); continue; }
-        authUserId = authData?.user?.id ?? null;
+
+        if (authErr) {
+          // Rescue: if already registered, search for them manually
+          if (authErr.message.toLowerCase().includes('already registered')) {
+            const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
+            const found = list.users.find(u => u.email?.trim().toLowerCase() === loginEmail.trim().toLowerCase());
+            if (found) {
+              authUserId = found.id;
+            } else {
+              results.errors.push(`student ${(s as any).full_name}: ${authErr.message} (Deep search failed)`);
+              continue;
+            }
+          } else {
+            results.errors.push(`student ${(s as any).full_name}: ${authErr.message}`);
+            continue;
+          }
+        } else {
+          authUserId = authData?.user?.id ?? null;
+        }
       } catch (err: any) {
         results.errors.push(`student ${(s as any).full_name}: ${err.message}`); continue;
       }
@@ -257,8 +283,25 @@ export async function POST() {
             full_name: (s as any).contact_person || (s as any).name, role: 'school',
           },
         });
-        if (authErr) { results.errors.push(`school ${(s as any).name}: ${authErr.message}`); continue; }
-        authUserId = authData?.user?.id ?? null;
+
+        if (authErr) {
+          // Rescue: if already registered, search for them manually
+          if (authErr.message.toLowerCase().includes('already registered')) {
+            const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
+            const found = list.users.find(u => u.email?.trim().toLowerCase() === email.trim().toLowerCase());
+            if (found) {
+              authUserId = found.id;
+            } else {
+              results.errors.push(`school ${(s as any).name}: ${authErr.message} (Deep search failed)`);
+              continue;
+            }
+          } else {
+            results.errors.push(`school ${(s as any).name}: ${authErr.message}`);
+            continue;
+          }
+        } else {
+          authUserId = authData?.user?.id ?? null;
+        }
       } catch (err: any) {
         results.errors.push(`school ${(s as any).name}: ${err.message}`); continue;
       }
