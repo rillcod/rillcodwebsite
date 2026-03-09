@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, ArrowRight, Loader2, CheckCircle, Building2, ArrowLeft } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 type UserRole = 'admin' | 'teacher' | 'student';
 
@@ -68,19 +69,25 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, fullName, role: selectedRole }),
+      const supabase = createClient();
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: fullName, role: selectedRole },
+        },
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to sign up');
+      if (signUpError) throw new Error(signUpError.message);
 
-      toast.success("Account created! Please sign in.");
-      router.push('/login');
+      // Email confirmation is disabled — sign in immediately
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) throw new Error(signInError.message);
+
+      toast.success("Account created! Welcome to Rillcod Academy.");
+      router.push('/dashboard');
     } catch (error: any) {
-      if (error.message?.includes('duplicate key') || error.message?.includes('already exists')) {
+      if (error.message?.includes('already registered') || error.message?.includes('already exists')) {
         toast.error("An account with this email already exists");
       } else {
         toast.error(error.message || "An error occurred during signup");
