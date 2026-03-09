@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
     ShieldCheckIcon, MagnifyingGlassIcon, UserGroupIcon,
@@ -353,6 +354,14 @@ export default function UsersPage() {
 
                                         {/* Action buttons — always visible on mobile, visible on hover on desktop */}
                                         <div className="flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity ml-16 sm:ml-0">
+                                            {u.role === 'teacher' && (
+                                                <Link
+                                                    href="/dashboard/teachers"
+                                                    className="px-3 py-1.5 rounded-lg border border-blue-500/20 hover:border-blue-500/40 text-blue-400 text-[10px] font-bold uppercase transition-all"
+                                                >
+                                                    Manage Schools
+                                                </Link>
+                                            )}
                                             <button
                                                 onClick={() => openEdit(u)}
                                                 className="p-2.5 sm:p-2 rounded-xl bg-white/5 sm:bg-transparent hover:bg-violet-500/20 hover:text-violet-400 text-white/40 transition-all flex items-center justify-center"
