@@ -45,6 +45,10 @@ const COLORS = [
 
 export default function TeacherDashboardPage() {
   const { profile, loading: authLoading } = useAuth();
+
+  // ── ADMIN VIEW: Branch early so admins don't load teacher stats ──
+  if ((profile?.role as any) === 'admin') return <AdminTeacherView />;
+
   const [stats, setStats] = useState<TeacherStats>({
     myClasses: 0, totalStudents: 0, pendingGrades: 0, avgPerformance: 0,
   });
@@ -410,7 +414,7 @@ function AdminTeacherView() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [schools, setSchools] = useState<any[]>([]); // All available schools
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]); // Schools for current teacher
-  const [teacherAssignments, setTeacherAssignments] = useState<Record<string, any[]>>({}); // teacherId -> teacher_schools
+  const [staffDeployment, setStaffDeployment] = useState<Record<string, any[]>>({}); // teacherId -> teacher_schools
 
   const load = async () => {
     setLoading(true);
@@ -432,12 +436,12 @@ function AdminTeacherView() {
     setTeachers(teachersData as any ?? []);
     setSchools(schoolsData as any ?? []);
 
-    // Build assignment map for easy lookup
+    // Build staff deployment map for easy lookup
     const assignmentsMap: Record<string, any[]> = {};
     (teachersData as any ?? []).forEach((t: any) => {
       assignmentsMap[t.id] = t.teacher_schools ?? [];
     });
-    setTeacherAssignments(assignmentsMap);
+    setStaffDeployment(assignmentsMap);
 
     setLoading(false);
   };
@@ -508,8 +512,8 @@ function AdminTeacherView() {
       setShowInvite(false);
 
       if (newTeacherId) {
-        // Sync assignments
-        const existingAssignments = editingTeacher ? (teacherAssignments[newTeacherId] || []) : [];
+        // Sync assignments (Institutional Staff Deployment)
+        const existingAssignments = editingTeacher ? (staffDeployment[newTeacherId] || []) : [];
         const toRemove = existingAssignments.filter(a => !selectedSchools.includes(a.school_id));
         const toAdd = selectedSchools.filter(sid => !existingAssignments.some(a => a.school_id === sid));
 
@@ -556,7 +560,7 @@ function AdminTeacherView() {
       email: t.email || '',
       phone: t.phone || '',
     });
-    setSelectedSchools((teacherAssignments[t.id] ?? []).map(a => a.school_id));
+    setSelectedSchools((staffDeployment[t.id] ?? []).map(a => a.school_id));
     setShowInvite(true);
   };
 
@@ -707,9 +711,9 @@ function AdminTeacherView() {
                       <span className="flex items-center gap-1"><EnvelopeIcon className="w-3 h-3" />{t.email}</span>
                       {t.phone && <span>{t.phone}</span>}
                     </div>
-                    {teacherAssignments[t.id]?.length > 0 && (
+                    {staffDeployment[t.id]?.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-2">
-                        {teacherAssignments[t.id].map(a => (
+                        {staffDeployment[t.id].map(a => (
                           <span key={a.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400">
                             <BuildingOfficeIcon className="w-2.5 h-2.5" />
                             {a.schools?.name ?? 'Unknown School'}
