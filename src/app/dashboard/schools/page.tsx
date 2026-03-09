@@ -138,10 +138,10 @@ export default function SchoolsPage() {
   const updateStatus = async (id: string, status: 'approved' | 'rejected') => {
     setActing(id);
     try {
-      const res = await fetch(`/api/schools/${id}`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/approvals/schools`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ id, action: status }),
       });
       if (res.ok) {
         setSchools(prev => prev.map(s => s.id === id ? { ...s, status } : s));
@@ -211,7 +211,19 @@ export default function SchoolsPage() {
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? 'Failed to create school');
-        setSchools(prev => [json.school, ...prev]);
+
+        let finalSchool = json.school;
+        // If created as approved by admin, run the approval API immediately to generate Portal Account
+        if (payload.status === 'approved') {
+          await fetch(`/api/approvals/schools`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: json.school.id, action: 'approved' }),
+          });
+          finalSchool = { ...finalSchool, portal_users: [{}] }; // optimistic
+        }
+
+        setSchools(prev => [finalSchool, ...prev]);
       }
 
       setShowCreate(false);
@@ -455,10 +467,9 @@ export default function SchoolsPage() {
             <button
               onClick={handleSync}
               disabled={syncing}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${
-                gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30'
-                         : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30'
+                : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white'
+                }`}
             >
               {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
               {syncing ? 'Syncing…' : gapCount ? `Sync Schools (${gapCount} gaps)` : 'Sync Schools'}
@@ -1127,11 +1138,10 @@ function SchoolSelfView() {
                         <p className="font-semibold text-white text-sm truncate">{s.full_name}</p>
                         <p className="text-xs text-white/40">{s.grade_level ?? 'No grade level'}</p>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold border flex-shrink-0 ${
-                        s.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                        s.status === 'pending'  ? 'bg-amber-500/20  text-amber-400  border-amber-500/30' :
-                        'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                      }`}>{s.status}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold border flex-shrink-0 ${s.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                        s.status === 'pending' ? 'bg-amber-500/20  text-amber-400  border-amber-500/30' :
+                          'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                        }`}>{s.status}</span>
                     </div>
                   ))}
                 </div>

@@ -114,14 +114,20 @@ export default function StudentsPage() {
   const approve = async (id: string) => {
     setActing(id);
     try {
-      await createClient().from('students').update({
-        status: 'approved',
-        approved_at: new Date().toISOString(),
-        approved_by: profile?.id,
-      }).eq('id', id);
-      setStudents(prev => prev.map(s => s.id === id
-        ? { ...s, status: 'approved', approved_at: new Date().toISOString() }
-        : s));
+      const res = await fetch('/api/approvals/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'approved' }),
+      });
+      if (res.ok) {
+        setStudents(prev => prev.map(s => s.id === id
+          ? { ...s, status: 'approved', approved_at: new Date().toISOString(), user_id: 'pending_refresh' }
+          : s));
+        const json = await res.json();
+        if (json.credentials) {
+          load(); // Refresh list to get accurate user_id
+        }
+      }
     } catch { /* ignore */ }
     setActing(null);
   };
@@ -130,8 +136,14 @@ export default function StudentsPage() {
   const reject = async (id: string) => {
     setActing(id);
     try {
-      await createClient().from('students').update({ status: 'rejected' }).eq('id', id);
-      setStudents(prev => prev.map(s => s.id === id ? { ...s, status: 'rejected' } : s));
+      const res = await fetch('/api/approvals/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'rejected' }),
+      });
+      if (res.ok) {
+        setStudents(prev => prev.map(s => s.id === id ? { ...s, status: 'rejected' } : s));
+      }
     } catch { /* ignore */ }
     setActing(null);
   };
