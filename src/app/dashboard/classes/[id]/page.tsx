@@ -53,14 +53,25 @@ export default function ClassDetailPage() {
           if (sessRes.status === 'fulfilled') setSessions(sessRes.value.data ?? []);
         }
 
-        // Enrollments are program-level — use program_id from class
-        const programId = clsRes.status === 'fulfilled' ? clsRes.value.data?.program_id : null;
-        if (programId && isStaff && !cancelled) {
-          const enrRes = await supabase.from('enrollments')
-            .select('id, status, portal_users(full_name, email)')
-            .eq('program_id', programId)
-            .order('enrollment_date', { ascending: false });
-          if (!cancelled) setEnrollments(enrRes.data ?? []);
+        // Enrollments are program-level + school-level — use program_id and school_id from class
+        const clsData = (clsRes.status === 'fulfilled' ? clsRes.value.data : null) as any;
+        const program_id = clsData?.program_id;
+        const school_id = clsData?.school_id;
+        if (program_id && isStaff && !cancelled) {
+          let enrQuery = supabase.from('enrollments')
+            .select(`
+              id, status, 
+              portal_users!inner(id, full_name, email, school_id)
+            `)
+            .eq('program_id', program_id);
+
+          // If the class is tied to a school, only show students from that school
+          if (school_id) {
+            enrQuery = enrQuery.eq('portal_users.school_id', school_id);
+          }
+
+          const { data: enrData } = await enrQuery.order('enrollment_date', { ascending: false });
+          if (!cancelled) setEnrollments(enrData ?? []);
         }
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load class');

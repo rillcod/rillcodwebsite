@@ -35,15 +35,39 @@ export default function AddClassPage() {
   useEffect(() => {
     if (authLoading || !profile) return;
     const db = createClient();
-    Promise.all([
-      db.from('programs').select('id, name').eq('is_active', true).order('name'),
-      db.from('portal_users').select('id, full_name').eq('role', 'teacher').eq('is_active', true).order('full_name'),
-      db.from('schools').select('id, name').eq('status', 'approved').order('name'),
-    ]).then(([{ data: pData }, { data: tData }, { data: sData }]) => {
-      setPrograms(pData ?? []);
-      setTeachers(tData ?? []);
+
+    async function loadData() {
+      // 1. Basic lookups
+      const [programsRes, teachersRes] = await Promise.all([
+        db.from('programs').select('id, name').eq('is_active', true).order('name'),
+        db.from('portal_users').select('id, full_name').eq('role', 'teacher').eq('is_active', true).order('full_name'),
+      ]);
+
+      // 2. Schools lookup (role-dependent)
+      let schoolsQuery = db.from('schools').select('id, name').eq('status', 'approved').order('name');
+
+      if (profile?.role === 'teacher') {
+        const { data: assignments } = await db
+          .from('teacher_schools')
+          .select('school_id')
+          .eq('teacher_id', profile.id);
+
+        const schoolIds = assignments?.map(a => a.school_id) || [];
+        if (schoolIds.length > 0) {
+          schoolsQuery = schoolsQuery.in('id', schoolIds);
+        } else if (profile.school_id) {
+          schoolsQuery = schoolsQuery.eq('id', profile.school_id);
+        }
+      }
+
+      const { data: sData } = await schoolsQuery;
+
+      setPrograms(programsRes.data ?? []);
+      setTeachers(teachersRes.data ?? []);
       setSchools(sData ?? []);
-    });
+    }
+
+    loadData();
   }, [profile?.id, authLoading]);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';

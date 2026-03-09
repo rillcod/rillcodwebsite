@@ -78,12 +78,22 @@ export default function AttendancePage() {
     if (!selectedSession || !selectedClass) return;
     setLoading(true);
     const db = createClient();
-    // Get enrolled students in this class's program
-    db.from('classes').select('program_id').eq('id', selectedClass).single()
+    // Get class info (program and school)
+    db.from('classes').select('program_id, school_id').eq('id', selectedClass).single()
       .then(({ data: cls }) => {
         if (!cls || !cls.program_id) return;
+
+        let enrQuery = db.from('enrollments')
+          .select('portal_users!inner(id, full_name, email, school_id)')
+          .eq('program_id', cls.program_id);
+
+        // If class tied to a school, only show students from that school
+        if (cls.school_id) {
+          enrQuery = enrQuery.eq('portal_users.school_id', cls.school_id);
+        }
+
         return Promise.all([
-          db.from('enrollments').select('portal_users(id, full_name, email)').eq('program_id', cls.program_id),
+          enrQuery,
           db.from('attendance').select('*').eq('session_id', selectedSession),
         ]);
       })

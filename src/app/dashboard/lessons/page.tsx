@@ -163,14 +163,37 @@ export default function LessonsPage() {
         if (profile!.role === 'teacher') {
           q = (q as any).eq('created_by', profile!.id);
         } else if (profile!.role === 'student') {
+          // 1. Get enrollments to find valid courses
           const { data: enr } = await supabase
             .from('enrollments').select('program_id').eq('user_id', profile!.id);
           const programIds = (enr ?? []).map((e: any) => e.program_id);
+
           if (programIds.length) {
             const { data: courseData } = await supabase
               .from('courses').select('id').in('program_id', programIds);
             const ids = (courseData ?? []).map((c: any) => c.id);
             if (ids.length) q = (q as any).in('course_id', ids);
+          }
+
+          // 2. Filter by creators: only admins OR teachers from my school
+          const { data: teachersAtSchool } = await supabase
+            .from('portal_users')
+            .select('id')
+            .eq('school_id', profile!.school_id as string)
+            .eq('role', 'teacher');
+
+          const { data: admins } = await supabase
+            .from('portal_users')
+            .select('id')
+            .eq('role', 'admin');
+
+          const validCreatorIds = [
+            ...(teachersAtSchool ?? []).map(t => t.id),
+            ...(admins ?? []).map(a => a.id)
+          ];
+
+          if (validCreatorIds.length > 0) {
+            q = (q as any).in('created_by', validCreatorIds);
           }
         }
 
@@ -422,7 +445,7 @@ export default function LessonsPage() {
                       onChange={e => setPlanGrade(e.target.value)}
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500"
                     >
-                      {['Basic 1–Basic 3','Basic 4–Basic 6','JSS1–JSS3','SS1–SS3','JSS1–SS3','Basic 1–SS3'].map(g => (
+                      {['Basic 1–Basic 3', 'Basic 4–Basic 6', 'JSS1–JSS3', 'SS1–SS3', 'JSS1–SS3', 'Basic 1–SS3'].map(g => (
                         <option key={g} value={g}>{g}</option>
                       ))}
                     </select>
@@ -434,7 +457,7 @@ export default function LessonsPage() {
                       onChange={e => setPlanWeeks(e.target.value)}
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500"
                     >
-                      {['8','10','12','14','16'].map(w => (
+                      {['8', '10', '12', '14', '16'].map(w => (
                         <option key={w} value={w}>{w} weeks</option>
                       ))}
                     </select>

@@ -18,8 +18,8 @@ import {
 import { Sparkles } from 'lucide-react';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
-type PortalUser    = Database['public']['Tables']['portal_users']['Row'];
-type Course        = Database['public']['Tables']['courses']['Row'];
+type PortalUser = Database['public']['Tables']['portal_users']['Row'];
+type Course = Database['public']['Tables']['courses']['Row'];
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -198,18 +198,37 @@ function ReportBuilderInner() {
     useEffect(() => {
         if (authLoading || !profile) return;
         const db = createClient();
-        const q = db.from('portal_users').select('*').eq('role', 'student');
-        const query = (profile.role === 'teacher' && profile.school_id) ? q.eq('school_id', profile.school_id) : q;
 
-        Promise.all([
-            query.order('full_name').limit(200),
-            db.from('courses').select('*').eq('is_active', true).order('title'),
-            db.from('report_settings').select('*').limit(1).maybeSingle(),
-            db.from('schools').select('id, name').order('name'),
-        ]).then(([sRes, cRes, bRes, schRes]) => {
+        async function loadData() {
+            let studentQuery = db.from('portal_users').select('*').eq('role', 'student');
+
+            // If teacher, find which schools they manage
+            if (profile?.role === 'teacher') {
+                const { data: assignments } = await db
+                    .from('teacher_schools')
+                    .select('school_id')
+                    .eq('teacher_id', profile.id);
+
+                const schoolIds = assignments?.map(a => a.school_id) || [];
+                // If they have explicit schools, filter by them. 
+                // Fallback to profile.school_id if no teacher_schools records exist yet
+                if (schoolIds.length > 0) {
+                    studentQuery = studentQuery.in('school_id', schoolIds);
+                } else if (profile.school_id) {
+                    studentQuery = studentQuery.eq('school_id', profile.school_id);
+                }
+            }
+
+            const [sRes, cRes, bRes, schRes] = await Promise.all([
+                studentQuery.order('full_name').limit(200),
+                db.from('courses').select('*').eq('is_active', true).order('title'),
+                db.from('report_settings').select('*').limit(1).maybeSingle(),
+                db.from('schools').select('id, name').order('name'),
+            ]);
+
             setStudents(sRes.data ?? []);
             setCourses(cRes.data ?? []);
-            setSchools((schRes.data ?? []) as { id: string; name: string }[]);
+            setSchools((schRes.data ?? []) as any);
             if (bRes.data) {
                 setBranding({
                     org_name: bRes.data.org_name ?? '',
@@ -227,7 +246,9 @@ function ReportBuilderInner() {
                 const s = (sRes.data ?? []).find(x => x.id === prefStudentId);
                 if (s) selectStudent(s as PortalUser, 0);
             }
-        });
+        }
+
+        loadData();
     }, [profile?.id, authLoading]); // eslint-disable-line
 
     const filteredStudents = students.filter(s =>
