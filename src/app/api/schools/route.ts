@@ -10,24 +10,29 @@ function adminClient() {
   );
 }
 
-// GET /api/schools — admin only, returns all schools (bypasses RLS)
+// GET /api/schools — public email status lookup OR admin list
 export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const email = searchParams.get('email');
+
+  // Public: email status check — returns only name, status, created_at (no sensitive data)
+  if (email) {
+    const { data, error } = await adminClient()
+      .from('schools')
+      .select('name, status, created_at')
+      .eq('email', email)
+      .single();
+    if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ school: data });
+  }
+
+  // Admin-only: full list
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { data: caller } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
   if (!caller || !['admin', 'school'].includes(caller.role)) {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-  }
-
-  const { searchParams } = new URL(request.url);
-  const email = searchParams.get('email');
-
-  if (email) {
-    // Legacy: lookup by email
-    const { data, error } = await adminClient().from('schools').select('*').eq('email', email).single();
-    if (error) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json({ school: data });
   }
 
   const { data, error } = await adminClient()

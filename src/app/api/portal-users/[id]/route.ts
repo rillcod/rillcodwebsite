@@ -40,7 +40,9 @@ export async function PATCH(
   if (phone !== undefined) update.phone = phone;
   if (is_active !== undefined) update.is_active = is_active;
 
-  const { data, error } = await adminClient()
+  const admin = adminClient();
+
+  const { data, error } = await admin
     .from('portal_users')
     .update(update)
     .eq('id', id)
@@ -48,6 +50,15 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Keep auth.users metadata in sync so role/name are consistent everywhere
+  const metaUpdate: Record<string, any> = {};
+  if (full_name !== undefined) metaUpdate.full_name = full_name;
+  if (role !== undefined) metaUpdate.role = role;
+  if (Object.keys(metaUpdate).length > 0) {
+    await admin.auth.admin.updateUserById(id, { user_metadata: metaUpdate });
+  }
+
   return NextResponse.json({ data });
 }
 

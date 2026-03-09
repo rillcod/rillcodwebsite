@@ -6,7 +6,7 @@ import {
     ShieldCheckIcon, MagnifyingGlassIcon, UserGroupIcon,
     AcademicCapIcon, BuildingOfficeIcon, UserIcon,
     ArrowPathIcon, EnvelopeIcon, PhoneIcon,
-    PencilIcon, TrashIcon, XMarkIcon, CheckIcon,
+    PencilIcon, TrashIcon, XMarkIcon, CheckIcon, PlusIcon,
 } from '@heroicons/react/24/outline';
 
 type PortalUser = {
@@ -37,6 +37,12 @@ export default function UsersPage() {
 
     // Delete state
     const [deleting, setDeleting] = useState<string | null>(null);
+
+    // Create user modal state
+    const [showCreate, setShowCreate] = useState(false);
+    const [createForm, setCreateForm] = useState({ email: '', password: '', fullName: '', role: 'student' });
+    const [creating, setCreating] = useState(false);
+    const [createErr, setCreateErr] = useState('');
 
     const load = async () => {
         setLoading(true);
@@ -76,6 +82,35 @@ export default function UsersPage() {
             setEditErr(e.message);
         }
         setSaving(false);
+    };
+
+    const handleCreate = async () => {
+        if (!createForm.email || !createForm.password || !createForm.fullName) {
+            setCreateErr('All fields are required');
+            return;
+        }
+        setCreating(true);
+        setCreateErr('');
+        try {
+            const res = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: createForm.email,
+                    password: createForm.password,
+                    fullName: createForm.fullName,
+                    role: createForm.role,
+                }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed to create user');
+            setShowCreate(false);
+            setCreateForm({ email: '', password: '', fullName: '', role: 'student' });
+            await load(); // refresh list
+        } catch (e: any) {
+            setCreateErr(e.message);
+        }
+        setCreating(false);
     };
 
     const handleDelete = async (u: PortalUser) => {
@@ -150,15 +185,23 @@ export default function UsersPage() {
                         <h1 className="text-3xl font-extrabold">All Portal Users</h1>
                         <p className="text-white/40 text-sm mt-1">Manage and verify all user accounts across the system</p>
                     </div>
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-6">
-                        <div>
-                            <p className="text-2xl font-black text-white">{users.length}</p>
-                            <p className="text-[10px] text-white/40 uppercase font-black tracking-widest">Total Accounts</p>
-                        </div>
-                        <div className="h-8 w-px bg-white/10" />
-                        <button onClick={load} className="p-2 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-white">
-                            <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => { setShowCreate(true); setCreateErr(''); }}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-violet-600/20"
+                        >
+                            <PlusIcon className="w-4 h-4" /> Create User
                         </button>
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-6">
+                            <div>
+                                <p className="text-2xl font-black text-white">{users.length}</p>
+                                <p className="text-[10px] text-white/40 uppercase font-black tracking-widest">Total Accounts</p>
+                            </div>
+                            <div className="h-8 w-px bg-white/10" />
+                            <button onClick={load} className="p-2 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-white">
+                                <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -257,6 +300,58 @@ export default function UsersPage() {
                     )}
                 </div>
             </div>
+
+            {/* ── Create User Modal ── */}
+            {showCreate && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-[#0f0f1a] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
+                        <div className="flex items-center justify-between p-6 border-b border-white/10">
+                            <h2 className="text-lg font-extrabold text-white">Create User</h2>
+                            <button onClick={() => setShowCreate(false)} className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-all">
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-white/40 uppercase tracking-widest mb-1.5">Full Name</label>
+                                <input value={createForm.fullName} onChange={e => setCreateForm(p => ({ ...p, fullName: e.target.value }))}
+                                    placeholder="e.g. Amaka Osei"
+                                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-white/40 uppercase tracking-widest mb-1.5">Email</label>
+                                <input type="email" value={createForm.email} onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))}
+                                    placeholder="user@example.com"
+                                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-white/40 uppercase tracking-widest mb-1.5">Password</label>
+                                <input type="text" value={createForm.password} onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
+                                    placeholder="At least 8 characters"
+                                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-white/40 uppercase tracking-widest mb-1.5">Role</label>
+                                <select value={createForm.role} onChange={e => setCreateForm(p => ({ ...p, role: e.target.value }))}
+                                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors appearance-none cursor-pointer">
+                                    {ROLES.map(r => <option key={r} value={r} className="bg-[#0f0f1a]">{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                                </select>
+                            </div>
+                            {createErr && <p className="text-rose-400 text-sm">{createErr}</p>}
+                        </div>
+                        <div className="flex gap-3 p-6 border-t border-white/10">
+                            <button onClick={() => setShowCreate(false)}
+                                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white/50 bg-white/5 hover:bg-white/10 transition-all">
+                                Cancel
+                            </button>
+                            <button onClick={handleCreate} disabled={creating}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-violet-600 hover:bg-violet-500 text-white transition-all disabled:opacity-50">
+                                {creating ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <><CheckIcon className="w-4 h-4" /> Create</>}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── Edit Modal ── */}
             {editing && (

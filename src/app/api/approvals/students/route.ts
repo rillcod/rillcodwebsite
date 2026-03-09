@@ -1,0 +1,119 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
+import crypto from 'crypto';
+
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
+
+async function requireStaff() {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  const { data: caller } = await supabase
+    .from('portal_users')
+    .select('role, id')
+    .eq('id', user.id)
+    .single();
+  if (!caller || !['admin', 'teacher'].includes(caller.role)) return null;
+  return caller;
+}
+
+// POST /api/approvals/students
+// Body: { id: string; action: 'approved' | 'rejected' }
+// On approval: creates auth account + portal_users row so the student can log in.
+export async function POST(request: Request) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+
+  const { id, action } = await request.json();
+  if (!id || !['approved', 'rejected'].includes(action)) {
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+  }
+
+  const admin = adminClient();
+
+  // Fetch the student row
+  const { data: student, error: fetchErr } = await admin
+    .from('students')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (fetchErr || !student) {
+    return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+  }
+
+  if (action === 'rejected') {
+    await admin.from('students').update({
+      status: 'rejected',
+      approved_by: caller.id,
+      approved_at: null,
+    }).eq('id', id);
+    return NextResponse.json({ success: true });
+  }
+
+  // ── Approval path ────────────────────────────────────────────
+  // Pick the login email: prefer student email, fall back to parent email
+  const loginEmail = student.student_email || student.parent_email;
+  if (!loginEmail) {
+    return NextResponse.json({ error: 'Student has no email to create an account with' }, { status: 400 });
+  }
+
+  // Generate a random 10-char password
+  const password = crypto.randomBytes(8).toString('base64url').slice(0, 10);
+
+  // Create auth account (email_confirm: true since we have no email system)
+  const { data: authData, error: authErr } = await admin.auth.admin.createUser({
+    email: loginEmail,
+    password,
+    email_confirm: true,
+    user_metadata: {
+      full_name: student.full_name,
+      role: 'student',
+    },
+  });
+
+  if (authErr) {
+    // If user already exists in auth, try to find their id and continue
+    if (!authErr.message.includes('already been registered') && !authErr.message.includes('already exists')) {
+      return NextResponse.json({ error: `Auth creation failed: ${authErr.message}` }, { status: 500 });
+    }
+  }
+
+  const authUserId = authData?.user?.id;
+
+  // Upsert portal_users row (trigger may have already created one)
+  if (authUserId) {
+    await admin.from('portal_users').upsert({
+      id: authUserId,
+      email: loginEmail,
+      full_name: student.full_name,
+      role: 'student',
+      school_name: student.school_name || null,
+      date_of_birth: student.date_of_birth || null,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+
+    // Link student row to the portal user
+    await admin.from('students').update({ user_id: authUserId }).eq('id', id);
+  }
+
+  // Mark student as approved
+  await admin.from('students').update({
+    status: 'approved',
+    approved_by: caller.id,
+    approved_at: new Date().toISOString(),
+  }).eq('id', id);
+
+  return NextResponse.json({
+    success: true,
+    credentials: authData?.user ? { email: loginEmail, password } : null,
+  });
+}

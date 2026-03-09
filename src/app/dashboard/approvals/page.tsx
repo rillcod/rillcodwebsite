@@ -49,6 +49,7 @@ export default function ApprovalsPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [acting, setActing] = useState<string | null>(null);
+    const [credentials, setCredentials] = useState<{ email: string; password: string; name: string } | null>(null);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -84,24 +85,42 @@ export default function ApprovalsPage() {
     const handleStudent = async (id: string, action: 'approved' | 'rejected') => {
         setActing(id);
         try {
-            const supabase = createClient();
-            await supabase.from('students').update({
-                status: action,
-                approved_by: profile?.id,
-                approved_at: action === 'approved' ? new Date().toISOString() : null,
-            }).eq('id', id);
+            const student = students.find(s => s.id === id);
+            const res = await fetch('/api/approvals/students', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, action }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Action failed');
             setStudents(prev => prev.filter(s => s.id !== id));
-        } catch { /* ignore */ }
+            if (action === 'approved' && json.credentials) {
+                setCredentials({ ...json.credentials, name: student?.full_name ?? 'Student' });
+            }
+        } catch (e: any) {
+            alert(e.message);
+        }
         setActing(null);
     };
 
     const handleSchool = async (id: string, action: 'approved' | 'rejected') => {
         setActing(id);
         try {
-            const supabase = createClient();
-            await supabase.from('schools').update({ status: action }).eq('id', id);
+            const school = schools.find(s => s.id === id);
+            const res = await fetch('/api/approvals/schools', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, action }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Action failed');
             setSchools(prev => prev.filter(s => s.id !== id));
-        } catch { /* ignore */ }
+            if (action === 'approved' && json.credentials) {
+                setCredentials({ ...json.credentials, name: school?.name ?? 'School' });
+            }
+        } catch (e: any) {
+            alert(e.message);
+        }
         setActing(null);
     };
 
@@ -301,6 +320,38 @@ export default function ApprovalsPage() {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Credentials modal — shown after approving a student/school ── */}
+                {credentials && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                        <div className="bg-[#0f0f1a] border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
+                            <div className="flex items-center gap-3">
+                                <CheckCircleIcon className="w-7 h-7 text-emerald-400 flex-shrink-0" />
+                                <div>
+                                    <p className="font-extrabold text-white">Account Created</p>
+                                    <p className="text-xs text-white/40">{credentials.name}</p>
+                                </div>
+                            </div>
+                            <p className="text-sm text-white/50">Share these credentials with the user. They can change their password after signing in.</p>
+                            <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3 font-mono text-sm">
+                                <div>
+                                    <p className="text-[10px] text-white/30 uppercase tracking-widest mb-0.5">Email</p>
+                                    <p className="text-white select-all">{credentials.email}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] text-white/30 uppercase tracking-widest mb-0.5">Password</p>
+                                    <p className="text-emerald-400 font-bold select-all">{credentials.password}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setCredentials(null)}
+                                className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl text-sm transition-all"
+                            >
+                                Done — I've noted the credentials
+                            </button>
                         </div>
                     </div>
                 )}
