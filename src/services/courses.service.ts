@@ -212,7 +212,7 @@ export class CoursesService {
                     program_id: programId,
                     status: 'active',
                     enrollment_date: new Date().toISOString()
-                }
+                } as any
             ])
             .select()
             .single();
