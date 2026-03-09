@@ -24,13 +24,14 @@ async function requireAdmin() {
 }
 
 // POST /api/approvals/schools
-// Body: { id: string; action: 'approved' | 'rejected' }
+// Body: { id: string; action: 'approved' | 'rejected'; password?: string }
 // On approval: creates auth account + portal_users row so the school can log in.
+// If `password` is supplied by the caller it is used; otherwise a random one is generated.
 export async function POST(request: Request) {
   const caller = await requireAdmin();
   if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
-  const { id, action } = await request.json();
+  const { id, action, password: suppliedPassword } = await request.json();
   if (!id || !['approved', 'rejected'].includes(action)) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
@@ -66,8 +67,10 @@ export async function POST(request: Request) {
     });
   }
 
-  // Generate a random 10-char password
-  const password = crypto.randomBytes(8).toString('base64url').slice(0, 10);
+  // Use the admin-supplied password or fall back to a random one
+  const password = (suppliedPassword && suppliedPassword.length >= 6)
+    ? suppliedPassword
+    : crypto.randomBytes(8).toString('base64url').slice(0, 10);
 
   const { data: authData, error: authErr } = await admin.auth.admin.createUser({
     email: school.email,

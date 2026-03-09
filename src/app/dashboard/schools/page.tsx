@@ -51,6 +51,7 @@ export default function SchoolsPage() {
     state: '',
     phone: '',
     email: '',
+    password: '',
     studentCount: '',
     programInterest: '',
     status: 'approved',
@@ -217,13 +218,24 @@ export default function SchoolsPage() {
           const approvalRes = await fetch(`/api/approvals/schools`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: json.school.id, action: 'approved' }),
+            body: JSON.stringify({
+              id: json.school.id,
+              action: 'approved',
+              ...(createForm.password ? { password: createForm.password } : {}),
+            }),
           });
           if (!approvalRes.ok) {
             const approvalJson = await approvalRes.json().catch(() => ({}));
             throw new Error(approvalJson.error ?? 'School created but portal account generation failed');
           }
-          // Refresh list to show the new school with its linked portal account
+          const approvalJson = await approvalRes.json();
+          // Show credentials if returned
+          if (approvalJson.credentials) {
+            setAccCreated({ email: approvalJson.credentials.email, pw: approvalJson.credentials.password });
+            setAssignTab('account');
+            setDetail(json.school);
+          }
+          // Refresh list
           const reloadRes = await fetch('/api/schools');
           const reloadJson = await reloadRes.json();
           if (reloadRes.ok) setSchools(reloadJson.data ?? []);
@@ -243,6 +255,7 @@ export default function SchoolsPage() {
         state: '',
         phone: '',
         email: '',
+        password: '',
         studentCount: '',
         programInterest: '',
         status: 'approved',
@@ -284,6 +297,7 @@ export default function SchoolsPage() {
       state: school.state || '',
       phone: school.phone || '',
       email: school.email || '',
+      password: '',
       studentCount: school.student_count?.toString() || '',
       programInterest: school.program_interest?.join(', ') || '',
       status: school.status || 'approved',
@@ -949,6 +963,24 @@ export default function SchoolsPage() {
                     />
                   </div>
                 </div>
+
+                {/* Portal account password — only relevant when creating a new approved school */}
+                {!editingSchool && createForm.status === 'approved' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">
+                      Portal Account Password
+                      <span className="ml-2 normal-case font-normal text-white/30">(leave blank to auto-generate)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={createForm.password}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, password: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500 font-mono"
+                      placeholder="At least 6 characters"
+                    />
+                    <p className="text-[10px] text-white/30 mt-1">This will be the school&apos;s login password. Share it with them after creation.</p>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">Program Interests (comma separated)</label>
