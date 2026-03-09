@@ -1,13 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
+import { createClient } from '@/lib/supabase/client';
 import {
   BuildingOfficeIcon, MagnifyingGlassIcon, PlusIcon,
   PhoneIcon, EnvelopeIcon, MapPinIcon, UsersIcon,
   ExclamationTriangleIcon, EyeIcon, ChevronDownIcon, CheckIcon, KeyIcon,
   CheckCircleIcon, ClockIcon, XCircleIcon, PencilSquareIcon, ShieldCheckIcon,
   XMarkIcon, ClipboardIcon,
+  UserGroupIcon, AcademicCapIcon, ChartBarIcon, TrophyIcon, ArrowPathIcon,
+  ArrowRightIcon, DocumentTextIcon, ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import { generateTempPassword } from '@/lib/utils/password';
 
@@ -65,6 +69,9 @@ export default function SchoolsPage() {
   const [accCreated, setAccCreated] = useState<{ email: string; pw: string } | null>(null);
   const [editingSchool, setEditingSchool] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [gapCount, setGapCount] = useState<number | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<any | null>(null);
 
   // Load all teachers once (for assigning) — via service-role API
   useEffect(() => {
@@ -99,8 +106,34 @@ export default function SchoolsPage() {
       }
     }
     load();
+    checkGaps();
     return () => { cancelled = true; };
   }, [profile?.id, isAdmin, authLoading]); // eslint-disable-line
+
+  const checkGaps = async () => {
+    try {
+      const res = await fetch('/api/admin/sync-users');
+      const json = await res.json();
+      if (res.ok) setGapCount(json.gaps?.schools_needing_portal ?? 0);
+    } catch { /* ignore */ }
+  };
+
+  const handleSync = async () => {
+    if (!confirm('This will create portal accounts for all schools without one. Continue?')) return;
+    setSyncing(true); setSyncResult(null);
+    try {
+      const res = await fetch('/api/admin/sync-users', { method: 'POST' });
+      const json = await res.json();
+      setSyncResult(json);
+      const schoolsRes = await fetch('/api/schools');
+      const schoolsJson = await schoolsRes.json();
+      if (schoolsRes.ok) setSchools(schoolsJson.data ?? []);
+      await checkGaps();
+    } catch (e: any) {
+      setSyncResult({ error: e.message });
+    }
+    setSyncing(false);
+  };
 
   const updateStatus = async (id: string, status: 'approved' | 'rejected') => {
     setActing(id);
@@ -329,6 +362,8 @@ export default function SchoolsPage() {
     </div>
   );
 
+  if (profile?.role === 'school') return <SchoolSelfView />;
+
   if (!isAdmin) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
       <p className="text-white/40">Admin access required.</p>
@@ -337,6 +372,73 @@ export default function SchoolsPage() {
 
   return (
     <div className="min-h-screen bg-[#0f0f1a] text-white">
+
+      {/* ── Sync Result Modal ── */}
+      {syncResult && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#0f0f1a] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-white/10 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <CheckCircleIcon className="w-5 h-5 text-emerald-400" />
+                <h2 className="text-lg font-extrabold text-white">School Sync Complete</h2>
+              </div>
+              <button onClick={() => setSyncResult(null)} className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-all">
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-4">
+              {syncResult.error ? (
+                <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
+                  <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
+                  <p className="text-rose-400 text-sm">{syncResult.error}</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: 'Schools Fixed', value: syncResult.summary?.schools_fixed ?? 0, color: 'text-emerald-400' },
+                      { label: 'Errors', value: syncResult.summary?.errors ?? 0, color: 'text-rose-400' },
+                    ].map(s => (
+                      <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                        <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                        <p className="text-[10px] text-white/40 mt-0.5">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {syncResult.credentials?.filter((c: any) => c.password && !c.password.includes('existing')).length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">New School Credentials — share with each school</p>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {syncResult.credentials.filter((c: any) => c.password && !c.password.includes('existing')).map((c: any, i: number) => (
+                          <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-3 font-mono text-xs">
+                            <p className="text-white font-bold">{c.name}</p>
+                            <p className="text-white/60 mt-0.5">{c.email}</p>
+                            <p className="text-emerald-400 font-bold mt-0.5">pw: {c.password}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {syncResult.errors?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-rose-400/60 uppercase tracking-widest mb-2">Errors ({syncResult.errors.length})</p>
+                      <div className="space-y-1 text-xs text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
+                        {syncResult.errors.map((e: string, i: number) => <p key={i}>• {e}</p>)}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="p-4 border-t border-white/10 flex-shrink-0">
+              <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-sm transition-all">
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Header */}
@@ -349,12 +451,25 @@ export default function SchoolsPage() {
             <h1 className="text-3xl font-extrabold">Partner Schools</h1>
             <p className="text-white/40 text-sm mt-1">Manage all partner school registrations and approvals</p>
           </div>
-          <button
-            onClick={() => { setEditingSchool(null); setShowCreate(true); }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-colors"
-          >
-            <PlusIcon className="w-4 h-4" /> Add School
-          </button>
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${
+                gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30'
+                         : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
+              {syncing ? 'Syncing…' : gapCount ? `Sync Schools (${gapCount} gaps)` : 'Sync Schools'}
+            </button>
+            <button
+              onClick={() => { setEditingSchool(null); setShowCreate(true); }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-colors"
+            >
+              <PlusIcon className="w-4 h-4" /> Add School
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -855,6 +970,223 @@ export default function SchoolsPage() {
           </div>
         )}
 
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   SCHOOL SELF VIEW — shown when a school-role user visits /schools
+════════════════════════════════════════════════════════════ */
+function SchoolSelfView() {
+  const { profile } = useAuth();
+  const [stats, setStats] = useState({ students: 0, teachers: 0, avgScore: 0, submissions: 0 });
+  const [recentStudents, setRecentStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setNow(new Date());
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if (!profile?.school_id) { setLoading(false); return; }
+    load();
+  }, [profile?.school_id]); // eslint-disable-line
+
+  async function load() {
+    setLoading(true);
+    const supabase = createClient();
+    const sid = profile!.school_id!;
+    const [studentsRes, teachersRes, gradesRes, recentRes] = await Promise.allSettled([
+      supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', sid),
+      supabase.from('teacher_schools').select('id', { count: 'exact', head: true }).eq('school_id', sid),
+      supabase.from('assignment_submissions')
+        .select('grade, portal_users!inner(school_id)')
+        .eq('portal_users.school_id', sid)
+        .not('grade', 'is', null)
+        .limit(200),
+      supabase.from('students')
+        .select('id, full_name, status, grade_level, created_at')
+        .eq('school_id', sid)
+        .order('created_at', { ascending: false })
+        .limit(6),
+    ]);
+
+    const studentCount = studentsRes.status === 'fulfilled' ? (studentsRes.value.count ?? 0) : 0;
+    const teacherCount = teachersRes.status === 'fulfilled' ? (teachersRes.value.count ?? 0) : 0;
+    const grades = gradesRes.status === 'fulfilled' ? (gradesRes.value.data ?? []) : [];
+    const avgScore = grades.length
+      ? Math.round(grades.reduce((a: number, g: any) => a + Number(g.grade), 0) / grades.length)
+      : 0;
+    const recent = recentRes.status === 'fulfilled' ? (recentRes.value.data ?? []) : [];
+
+    setStats({ students: studentCount, teachers: teacherCount, avgScore, submissions: grades.length });
+    setRecentStudents(recent);
+    setLoading(false);
+  }
+
+  if (loading) return (
+    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  const quickActions = [
+    { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View & manage student roster' },
+    { name: 'Import Students', href: '/dashboard/students/import', icon: PlusIcon, desc: 'Bulk import new students' },
+    { name: 'Grades & Reports', href: '/dashboard/grades', icon: ChartBarIcon, desc: 'View student grades' },
+    { name: 'Student Reports', href: '/dashboard/results', icon: DocumentTextIcon, desc: 'Progress report cards' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#0f0f1a] text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        {/* Header */}
+        <div className="bg-gradient-to-r from-[#0B132B] to-[#1a2b54] rounded-2xl p-6 sm:p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-violet-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10">
+            <span className="inline-block px-3 py-1 bg-violet-600/80 text-white text-xs font-bold uppercase tracking-wider rounded-full mb-3">
+              School Portal
+            </span>
+            <h1 className="text-3xl font-extrabold text-white">{profile?.school_name ?? 'My School'}</h1>
+            <p className="text-blue-200 text-sm mt-2">
+              {now ? now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
+            </p>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: 'Registered Students', value: stats.students, icon: UserGroupIcon, gradient: 'from-blue-600 to-blue-400' },
+            { label: 'Assigned Teachers', value: stats.teachers, icon: AcademicCapIcon, gradient: 'from-violet-600 to-violet-400' },
+            { label: 'Avg Performance', value: `${stats.avgScore}%`, icon: ChartBarIcon, gradient: 'from-emerald-600 to-emerald-400' },
+            { label: 'Graded Submissions', value: stats.submissions, icon: ClipboardDocumentListIcon, gradient: 'from-amber-600 to-amber-400' },
+          ].map(({ label, value, icon: Icon, gradient }) => (
+            <div key={label} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/8 hover:border-white/20 transition-all">
+              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-4 shadow-lg`}>
+                <Icon className="h-5 w-5 text-white" />
+              </div>
+              <p className="text-3xl font-extrabold text-white">{value}</p>
+              <p className="text-white/40 text-sm mt-1">{label}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-2 space-y-6">
+
+            {/* Quick Actions */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h2 className="text-lg font-bold text-white mb-5">Quick Actions</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {quickActions.map(({ name, href, icon: Icon, desc }) => (
+                  <Link key={name} href={href}
+                    className="group flex items-start gap-4 p-4 rounded-xl border border-white/10 hover:border-violet-500/40 hover:bg-violet-500/5 transition-all">
+                    <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-violet-500/25 transition-colors">
+                      <Icon className="h-5 w-5 text-violet-400" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-white text-sm">{name}</p>
+                      <p className="text-xs text-white/40 mt-0.5">{desc}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Recent Student Registrations */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-lg font-bold text-white">Recent Student Registrations</h2>
+                <button onClick={load} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white transition-colors" title="Refresh">
+                  <ArrowPathIcon className="w-4 h-4" />
+                </button>
+              </div>
+              {recentStudents.length === 0 ? (
+                <div className="text-center py-8">
+                  <UserGroupIcon className="w-10 h-10 mx-auto text-white/10 mb-2" />
+                  <p className="text-white/25 text-sm">No students registered yet</p>
+                  <Link href="/dashboard/students/import" className="inline-flex items-center gap-1.5 mt-3 text-xs text-violet-400 hover:text-violet-300 transition-colors">
+                    <PlusIcon className="w-3.5 h-3.5" /> Import Students
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {recentStudents.map((s, i) => (
+                    <div key={s.id} className={`flex items-center gap-3 py-3 ${i < recentStudents.length - 1 ? 'border-b border-white/5' : ''}`}>
+                      <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                        <span className="text-blue-400 text-xs font-black">{(s.full_name ?? '?')[0].toUpperCase()}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-white text-sm truncate">{s.full_name}</p>
+                        <p className="text-xs text-white/40">{s.grade_level ?? 'No grade level'}</p>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold border flex-shrink-0 ${
+                        s.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                        s.status === 'pending'  ? 'bg-amber-500/20  text-amber-400  border-amber-500/30' :
+                        'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                      }`}>{s.status}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-5">
+            <div className="bg-gradient-to-br from-violet-600/20 to-blue-600/20 border border-violet-500/20 rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xl font-black text-white">
+                  {(profile?.school_name ?? 'S')[0].toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-bold text-white truncate">{profile?.school_name ?? 'My School'}</p>
+                  <p className="text-xs text-white/40 truncate">{profile?.email}</p>
+                </div>
+              </div>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-violet-500/20 text-violet-400 border-violet-500/30">
+                School Partner
+              </span>
+              <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+                <Link href="/dashboard/students/import"
+                  className="flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors">
+                  <PlusIcon className="w-4 h-4" /> Import Students
+                </Link>
+                <Link href="/dashboard/settings"
+                  className="flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors">
+                  <ShieldCheckIcon className="w-4 h-4" /> Account Settings
+                </Link>
+              </div>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+              <h3 className="font-bold text-white text-sm mb-4">Navigate To</h3>
+              <div className="space-y-1">
+                {[
+                  { label: 'School Overview', href: '/dashboard/school-overview', icon: BuildingOfficeIcon },
+                  { label: 'My Students', href: '/dashboard/students', icon: UserGroupIcon },
+                  { label: 'Grades & Reports', href: '/dashboard/grades', icon: TrophyIcon },
+                  { label: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+                ].map(({ label, href, icon: Icon }) => (
+                  <Link key={label} href={href}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:bg-white/5 hover:text-white transition-all group">
+                    <Icon className="w-4 h-4 group-hover:text-violet-400 transition-colors" />
+                    {label}
+                    <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

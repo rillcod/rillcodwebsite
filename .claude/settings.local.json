@@ -17,7 +17,11 @@
       "Bash(ls:*)",
       "Bash(npm uninstall:*)",
       "Bash(npx next:*)",
-      "Bash(npm list:*)"
+      "Bash(npm list:*)",
+      "Bash(python3:*)",
+      "Bash(npm ls:*)",
+      "Bash(grep \"\"sharp\"\":*)",
+      "Bash(git:*)"
     ]
   }
 }
