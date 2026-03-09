@@ -79,18 +79,27 @@ export async function POST(request: Request) {
     },
   });
 
+  let authUserId: string | null = null;
+
   if (authErr) {
     if (!authErr.message.includes('already been registered') && !authErr.message.includes('already exists')) {
       return NextResponse.json({ error: `Auth creation failed: ${authErr.message}` }, { status: 500 });
     }
-    // Already exists — no credentials to return
-    return NextResponse.json({ success: true, credentials: null });
+    // Auth user already exists — find their ID so we can still create/update the portal row
+    const { data: listData } = await admin.auth.admin.listUsers({ perPage: 1000 });
+    const existing = listData?.users?.find(
+      u => u.email?.trim().toLowerCase() === school.email.trim().toLowerCase()
+    );
+    if (existing) {
+      authUserId = existing.id;
+    }
+    // No new password to return since we didn't create the auth account
+  } else {
+    authUserId = authData?.user?.id ?? null;
   }
 
-  const authUserId = authData?.user?.id;
-
   if (authUserId) {
-    // Create portal_users row with school_id linking back to the schools table
+    // Upsert portal_users row so the school can log in and be visible in user admin
     await admin.from('portal_users').upsert({
       id: authUserId,
       email: school.email,
@@ -106,6 +115,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     success: true,
-    credentials: authUserId ? { email: school.email, password } : null,
+    credentials: authUserId && !authErr ? { email: school.email, password } : null,
   });
 }

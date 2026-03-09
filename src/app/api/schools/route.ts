@@ -60,6 +60,7 @@ export async function POST(request: Request) {
       email: body.email || body.schoolEmail || null,
       student_count: body.student_count ?? (body.studentCount ? parseInt(body.studentCount, 10) : null),
       program_interest: body.program_interest || (body.programInterest ? [body.programInterest] : []),
+      enrollment_types: body.enrollment_types || ['school'],
       status: body.status || 'pending',
       is_active: true,
     };

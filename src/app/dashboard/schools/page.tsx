@@ -212,14 +212,17 @@ export default function SchoolsPage() {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? 'Failed to create school');
 
-        let finalSchool = json.school;
         // If created as approved by admin, run the approval API immediately to generate Portal Account
         if (payload.status === 'approved') {
-          await fetch(`/api/approvals/schools`, {
+          const approvalRes = await fetch(`/api/approvals/schools`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: json.school.id, action: 'approved' }),
           });
+          if (!approvalRes.ok) {
+            const approvalJson = await approvalRes.json().catch(() => ({}));
+            throw new Error(approvalJson.error ?? 'School created but portal account generation failed');
+          }
           // Refresh list to show the new school with its linked portal account
           const reloadRes = await fetch('/api/schools');
           const reloadJson = await reloadRes.json();
