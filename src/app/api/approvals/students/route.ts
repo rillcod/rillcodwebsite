@@ -66,8 +66,52 @@ export async function POST(request: Request) {
 
   // Generate a random 10-char password
   const password = crypto.randomBytes(8).toString('base64url').slice(0, 10);
+  const normalizedEmail = loginEmail.trim().toLowerCase();
 
-  // Create auth account (email_confirm: true since we have no email system)
+  // ── Step 1: Check portal_users by email FIRST ────────────────────────────
+  const { data: existingPortal } = await admin
+    .from('portal_users')
+    .select('id')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  if (existingPortal) {
+    // Update existing portal user
+    const { error: updateErr } = await admin.from('portal_users').update({
+      role: 'student',
+      full_name: student.full_name,
+      school_name: student.school_name || null,
+      school_id: student.school_id || null,
+      date_of_birth: student.date_of_birth || null,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    }).eq('id', existingPortal.id);
+
+    if (updateErr) {
+      return NextResponse.json({ error: `Failed to link portal account: ${updateErr.message}` }, { status: 500 });
+    }
+
+    // Update auth user with new password & metadata
+    await admin.auth.admin.updateUserById(existingPortal.id, {
+      password,
+      user_metadata: { full_name: student.full_name, role: 'student' },
+    });
+
+    // Link student row to the portal user
+    await admin.from('students').update({
+      user_id: existingPortal.id,
+      status: 'approved',
+      approved_by: caller.id,
+      approved_at: new Date().toISOString(),
+    }).eq('id', id);
+
+    return NextResponse.json({
+      success: true,
+      credentials: { email: loginEmail, password },
+    });
+  }
+
+  // ── Step 2: Create new auth account & portal user ────────────────────────
   const { data: authData, error: authErr } = await admin.auth.admin.createUser({
     email: loginEmail,
     password,
@@ -78,36 +122,54 @@ export async function POST(request: Request) {
     },
   });
 
+  let authUserId: string | null = null;
+  let usedExistingAuth = false;
+
   if (authErr) {
-    // If user already exists in auth, try to find their id and continue
     if (!authErr.message.includes('already been registered') && !authErr.message.includes('already exists')) {
       return NextResponse.json({ error: `Auth creation failed: ${authErr.message}` }, { status: 500 });
     }
+    const { data: listData } = await admin.auth.admin.listUsers({ perPage: 1000 });
+    const existing = listData?.users?.find(
+      u => u.email?.trim().toLowerCase() === normalizedEmail
+    );
+    if (existing) {
+      authUserId = existing.id;
+      usedExistingAuth = true;
+      // also update their password
+      await admin.auth.admin.updateUserById(authUserId, {
+        password,
+        user_metadata: { full_name: student.full_name, role: 'student' },
+      });
+    }
+  } else {
+    authUserId = authData?.user?.id ?? null;
   }
 
-  const authUserId = authData?.user?.id;
-
-  // Upsert portal_users row (trigger may have already created one)
-  if (authUserId) {
-    await admin.from('portal_users').upsert({
-      id: authUserId,
-      email: loginEmail,
-      full_name: student.full_name,
-      role: 'student',
-      school_name: student.school_name || null,
-      school_id: student.school_id || null,
-      date_of_birth: student.date_of_birth || null,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' });
-
-    // Link student row to the portal user
-    await admin.from('students').update({ user_id: authUserId }).eq('id', id);
+  if (!authUserId) {
+    return NextResponse.json({ error: 'Could not resolve auth user ID' }, { status: 500 });
   }
 
-  // Mark student as approved
+  const { error: portalErr } = await admin.from('portal_users').insert({
+    id: authUserId,
+    email: loginEmail,
+    full_name: student.full_name,
+    role: 'student',
+    school_name: student.school_name || null,
+    school_id: student.school_id || null,
+    date_of_birth: student.date_of_birth || null,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  if (portalErr) {
+    return NextResponse.json({ error: `Portal account creation failed: ${portalErr.message}` }, { status: 500 });
+  }
+
+  // Link student row to the portal user
   await admin.from('students').update({
+    user_id: authUserId,
     status: 'approved',
     approved_by: caller.id,
     approved_at: new Date().toISOString(),
@@ -115,6 +177,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     success: true,
-    credentials: authData?.user ? { email: loginEmail, password } : null,
+    credentials: { email: loginEmail, password },
   });
 }

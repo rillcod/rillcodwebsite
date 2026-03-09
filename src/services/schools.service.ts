@@ -10,7 +10,7 @@ export async function getSchools(): Promise<ApiResponse<School[]>> {
     const { data, error } = await db()
         .from('schools')
         .select('*')
-        .eq('is_deleted', false)
+        .or('is_deleted.eq.false,is_deleted.is.null')
         .order('name', { ascending: true });
 
     return { data: (data as School[]) ?? null, error: error?.message ?? null };
@@ -22,7 +22,7 @@ export async function getProspectiveSchools(): Promise<ApiResponse<School[]>> {
         .from('schools')
         .select('*')
         .eq('status', 'pending')
-        .eq('is_deleted', false)
+        .or('is_deleted.eq.false,is_deleted.is.null')
         .order('created_at', { ascending: false });
 
     return { data: (data as School[]) ?? null, error: error?.message ?? null };

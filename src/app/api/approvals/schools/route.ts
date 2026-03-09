@@ -26,7 +26,7 @@ async function requireAdmin() {
 // POST /api/approvals/schools
 // Body: { id: string; action: 'approved' | 'rejected'; password?: string }
 // On approval: creates auth account + portal_users row so the school can log in.
-// If `password` is supplied by the caller it is used; otherwise a random one is generated.
+// If `password` is supplied it is used; otherwise a random one is generated.
 export async function POST(request: Request) {
   const caller = await requireAdmin();
   if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'School not found' }, { status: 404 });
   }
 
-  // Update status first (works for both approve and reject)
+  // Update status on the school row (applies to both approve and reject)
   await admin.from('schools').update({
     status: action,
     updated_at: new Date().toISOString(),
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   }
 
-  // ── Approval path ────────────────────────────────────────────
+  // ── Approval path ────────────────────────────────────────────────────────
   if (!school.email) {
     return NextResponse.json({
       success: true,
@@ -67,11 +67,54 @@ export async function POST(request: Request) {
     });
   }
 
-  // Use the admin-supplied password or fall back to a random one
   const password = (suppliedPassword && suppliedPassword.length >= 6)
     ? suppliedPassword
     : crypto.randomBytes(8).toString('base64url').slice(0, 10);
 
+  const normalizedEmail = school.email.trim().toLowerCase();
+
+  // ── Step 1: Check portal_users by email FIRST ────────────────────────────
+  // portal_users has UNIQUE(email). If a row already exists for this email
+  // (e.g. created via user admin, or from a previous attempt) we must UPDATE
+  // it rather than INSERT — otherwise we hit the unique constraint and the
+  // portal row is never linked to the school.
+  const { data: existingPortal } = await admin
+    .from('portal_users')
+    .select('id')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  if (existingPortal) {
+    // Row exists — update it to link with this school
+    const { error: updateErr } = await admin.from('portal_users').update({
+      role: 'school',
+      school_id: school.id,
+      school_name: school.name,
+      full_name: school.contact_person || school.name,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    }).eq('id', existingPortal.id);
+
+    if (updateErr) {
+      return NextResponse.json({ error: `Failed to link portal account: ${updateErr.message}` }, { status: 500 });
+    }
+
+    // If the caller provided a password, update the auth account password too
+    if (suppliedPassword && suppliedPassword.length >= 6) {
+      await admin.auth.admin.updateUserById(existingPortal.id, {
+        password: suppliedPassword,
+        user_metadata: { full_name: school.contact_person || school.name, role: 'school' },
+      });
+      return NextResponse.json({
+        success: true,
+        credentials: { email: school.email, password: suppliedPassword },
+      });
+    }
+
+    return NextResponse.json({ success: true, credentials: null });
+  }
+
+  // ── Step 2: No existing portal row — create auth user + portal row ───────
   const { data: authData, error: authErr } = await admin.auth.admin.createUser({
     email: school.email,
     password,
@@ -83,41 +126,48 @@ export async function POST(request: Request) {
   });
 
   let authUserId: string | null = null;
+  let usedExistingAuth = false;
 
   if (authErr) {
+    // Auth user exists in auth.users but somehow not in portal_users — look it up
     if (!authErr.message.includes('already been registered') && !authErr.message.includes('already exists')) {
       return NextResponse.json({ error: `Auth creation failed: ${authErr.message}` }, { status: 500 });
     }
-    // Auth user already exists — find their ID so we can still create/update the portal row
     const { data: listData } = await admin.auth.admin.listUsers({ perPage: 1000 });
     const existing = listData?.users?.find(
-      u => u.email?.trim().toLowerCase() === school.email.trim().toLowerCase()
+      u => u.email?.trim().toLowerCase() === normalizedEmail
     );
     if (existing) {
       authUserId = existing.id;
+      usedExistingAuth = true;
     }
-    // No new password to return since we didn't create the auth account
   } else {
     authUserId = authData?.user?.id ?? null;
   }
 
-  if (authUserId) {
-    // Upsert portal_users row so the school can log in and be visible in user admin
-    await admin.from('portal_users').upsert({
-      id: authUserId,
-      email: school.email,
-      full_name: school.contact_person || school.name,
-      role: 'school',
-      school_name: school.name,
-      school_id: school.id,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' });
+  if (!authUserId) {
+    return NextResponse.json({ error: 'Could not resolve auth user ID' }, { status: 500 });
+  }
+
+  // Insert the portal_users row (we know it doesn't exist — we checked above)
+  const { error: portalErr } = await admin.from('portal_users').insert({
+    id: authUserId,
+    email: school.email,
+    full_name: school.contact_person || school.name,
+    role: 'school',
+    school_name: school.name,
+    school_id: school.id,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  if (portalErr) {
+    return NextResponse.json({ error: `Portal account creation failed: ${portalErr.message}` }, { status: 500 });
   }
 
   return NextResponse.json({
     success: true,
-    credentials: authUserId && !authErr ? { email: school.email, password } : null,
+    credentials: !usedExistingAuth ? { email: school.email, password } : null,
   });
 }
