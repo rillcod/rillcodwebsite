@@ -2,14 +2,14 @@
  * POST /api/admin/sync-users
  * GET  /api/admin/sync-users
  *
- * Admin-only. Finds and repairs every inconsistency between the four user pools:
+ * Admin-only. Full reconciliation across all four user pools:
  *  1. auth.users        — who can log in
  *  2. portal_users      — who the app sees (role, profile data)
- *  3. students table    — registration submissions (approved but never got an account)
+ *  3. students table    — approved registrations with no portal account
  *  4. schools table     — approved schools with no portal account
  *
- * GET  → returns a dry-run status report (counts only, no changes)
- * POST → performs the actual sync and returns what was fixed
+ * GET  → dry-run report (counts only, no changes)
+ * POST → performs sync and returns what was fixed
  */
 
 import { NextResponse } from 'next/server';
@@ -38,139 +38,142 @@ function makePassword() {
   return crypto.randomBytes(8).toString('base64url').slice(0, 10);
 }
 
-// ── Shared audit logic ──────────────────────────────────────────────────────
 async function runAudit(admin: ReturnType<typeof adminClient>) {
-  // 1. All auth users
   const { data: authListData } = await admin.auth.admin.listUsers({ perPage: 1000 });
   const authUsers = authListData?.users ?? [];
-  const authIdSet = new Set(authUsers.map(u => u.id));
-  const authEmailSet = new Set(authUsers.map(u => u.email).filter(Boolean));
+  const authById = new Map(authUsers.map(u => [u.id, u]));
+  const authByEmail = new Map(authUsers.map(u => [u.email ?? '', u]));
 
-  // 2. All portal_users
-  const { data: portalRows } = await admin.from('portal_users').select('id, email, role, full_name, school_id, school_name');
+  const { data: portalRows } = await admin
+    .from('portal_users')
+    .select('id, email, role, full_name, school_id, school_name');
   const portalUsers = portalRows ?? [];
-  const portalIdSet = new Set(portalUsers.map((u: any) => u.id));
+  const portalById = new Map(portalUsers.map((u: any) => [u.id, u]));
+  const portalByEmail = new Map(portalUsers.map((u: any) => [u.email ?? '', u]));
 
-  // 3. Approved students with no portal account
+  // Approved students with no user_id (never got a portal account)
   const { data: approvedStudents } = await admin
     .from('students')
     .select('id, full_name, student_email, parent_email, school_name, school_id, date_of_birth, user_id')
     .eq('status', 'approved')
     .is('user_id', null);
 
-  const orphanedApprovedStudents = (approvedStudents ?? []).filter(
-    (s: any) => (s.student_email || s.parent_email)
-  );
-
-  // 4. Approved schools with no portal account
+  // Approved schools — check both: not in auth at all, or in auth but missing portal row
   const { data: approvedSchools } = await admin
     .from('schools')
     .select('id, name, email, contact_person')
     .eq('status', 'approved');
 
-  const orphanedApprovedSchools = (approvedSchools ?? []).filter(
-    (s: any) => s.email && !authEmailSet.has(s.email)
-  );
+  const schoolsNeedingPortal = (approvedSchools ?? []).filter((s: any) => {
+    if (!s.email) return false;
+    const authUser = authByEmail.get(s.email);
+    if (!authUser) return true; // not in auth at all
+    if (!portalById.has(authUser.id)) return true; // in auth but missing portal row
+    return false;
+  });
 
-  // 5. Auth users with no portal_users row
-  const authWithoutPortal = authUsers.filter(u => !portalIdSet.has(u.id));
+  // Auth users with no portal row
+  const authWithoutPortal = authUsers.filter(u => !portalById.has(u.id));
 
-  // 6. Portal users with no auth account
-  const portalWithoutAuth = portalUsers.filter((u: any) => !authIdSet.has(u.id));
+  // Portal users with no auth account (could be ID mismatch)
+  const portalWithoutAuth = portalUsers.filter((u: any) => !authById.has(u.id));
 
   return {
-    authUsers,
-    portalUsers,
-    orphanedApprovedStudents,
-    orphanedApprovedSchools,
+    authUsers, authById, authByEmail,
+    portalUsers, portalById, portalByEmail,
+    approvedStudents: (approvedStudents ?? []).filter((s: any) => s.student_email || s.parent_email),
+    schoolsNeedingPortal,
     authWithoutPortal,
     portalWithoutAuth,
   };
 }
 
-// ── GET — dry run status report ─────────────────────────────────────────────
+// ── GET — dry run ────────────────────────────────────────────────────────────
 export async function GET() {
   const caller = await requireAdmin();
   if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
   const admin = adminClient();
-  const { orphanedApprovedStudents, orphanedApprovedSchools, authWithoutPortal, portalWithoutAuth } = await runAudit(admin);
+  const { approvedStudents, schoolsNeedingPortal, authWithoutPortal, portalWithoutAuth } = await runAudit(admin);
 
   return NextResponse.json({
     gaps: {
-      approved_students_without_account: orphanedApprovedStudents.length,
-      approved_schools_without_account: orphanedApprovedSchools.length,
+      approved_students_without_account: approvedStudents.length,
+      approved_schools_without_portal: schoolsNeedingPortal.length,
       auth_users_without_portal_row: authWithoutPortal.length,
       portal_users_without_auth: portalWithoutAuth.length,
     },
     details: {
-      students_needing_accounts: orphanedApprovedStudents.map((s: any) => ({
-        id: s.id,
-        name: s.full_name,
-        email: s.student_email || s.parent_email,
+      students_needing_accounts: approvedStudents.map((s: any) => ({
+        id: s.id, name: s.full_name, email: s.student_email || s.parent_email,
       })),
-      schools_needing_accounts: orphanedApprovedSchools.map((s: any) => ({
-        id: s.id,
-        name: s.name,
-        email: s.email,
+      schools_needing_portal: schoolsNeedingPortal.map((s: any) => ({
+        id: s.id, name: s.name, email: s.email,
       })),
       auth_without_portal: authWithoutPortal.map(u => ({
-        id: u.id,
-        email: u.email,
-        role: u.user_metadata?.role ?? 'student',
+        id: u.id, email: u.email, role: u.user_metadata?.role ?? 'student',
       })),
       portal_without_auth: portalWithoutAuth.map((u: any) => ({
-        id: u.id,
-        email: u.email,
-        role: u.role,
+        id: u.id, email: u.email, role: u.role,
       })),
     },
   });
 }
 
-// ── POST — perform the sync ──────────────────────────────────────────────────
+// ── POST — perform sync ──────────────────────────────────────────────────────
 export async function POST() {
   const caller = await requireAdmin();
   if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
   const admin = adminClient();
-  const { orphanedApprovedStudents, orphanedApprovedSchools, authWithoutPortal, portalWithoutAuth } = await runAudit(admin);
+  const {
+    authByEmail, portalById,
+    approvedStudents, schoolsNeedingPortal, authWithoutPortal, portalWithoutAuth,
+  } = await runAudit(admin);
 
   const results = {
-    students_given_accounts: [] as any[],
-    schools_given_accounts: [] as any[],
+    students_fixed: [] as any[],
+    schools_fixed: [] as any[],
     portal_rows_created: [] as string[],
-    portal_rows_synced_to_auth: [] as string[],
+    portal_rows_synced: [] as string[],
     errors: [] as string[],
   };
 
-  // ── Gap 1: Approved students with no auth/portal account ───────────────
-  for (const s of orphanedApprovedStudents) {
+  // ── Gap 1: Approved students with no user_id ────────────────────────────
+  for (const s of approvedStudents) {
     const loginEmail = (s as any).student_email || (s as any).parent_email;
-    const password = makePassword();
-    try {
-      const { data: authData, error: authErr } = await admin.auth.admin.createUser({
-        email: loginEmail,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: (s as any).full_name,
-          role: 'student',
-        },
-      });
+    let authUserId: string | null = null;
+    let password: string | null = null;
 
-      if (authErr) {
-        if (authErr.message.includes('already')) {
-          results.errors.push(`student ${(s as any).full_name}: auth already exists, skipping`);
+    // Check if already in auth (by email)
+    const existingAuth = authByEmail.get(loginEmail);
+    if (existingAuth) {
+      // Already in auth — just need to upsert portal row + link student
+      authUserId = existingAuth.id;
+    } else {
+      // Create new auth account
+      password = makePassword();
+      try {
+        const { data: authData, error: authErr } = await admin.auth.admin.createUser({
+          email: loginEmail,
+          password,
+          email_confirm: true,
+          user_metadata: { full_name: (s as any).full_name, role: 'student' },
+        });
+        if (authErr) {
+          results.errors.push(`student ${(s as any).full_name}: ${authErr.message}`);
           continue;
         }
-        results.errors.push(`student ${(s as any).full_name}: ${authErr.message}`);
+        authUserId = authData?.user?.id ?? null;
+      } catch (err: any) {
+        results.errors.push(`student ${(s as any).full_name}: ${err.message}`);
         continue;
       }
+    }
 
-      const authUserId = authData?.user?.id;
-      if (!authUserId) continue;
+    if (!authUserId) continue;
 
+    try {
       await admin.from('portal_users').upsert({
         id: authUserId,
         email: loginEmail,
@@ -186,10 +189,10 @@ export async function POST() {
 
       await admin.from('students').update({ user_id: authUserId }).eq('id', (s as any).id);
 
-      results.students_given_accounts.push({
+      results.students_fixed.push({
         name: (s as any).full_name,
         email: loginEmail,
-        password,
+        password: password ?? '(existing account — no new password)',
         portal_user_id: authUserId,
       });
     } catch (err: any) {
@@ -197,35 +200,44 @@ export async function POST() {
     }
   }
 
-  // ── Gap 2: Approved schools with no auth/portal account ────────────────
-  for (const s of orphanedApprovedSchools) {
-    const password = makePassword();
-    try {
-      const { data: authData, error: authErr } = await admin.auth.admin.createUser({
-        email: (s as any).email,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: (s as any).contact_person || (s as any).name,
-          role: 'school',
-        },
-      });
+  // ── Gap 2: Approved schools missing portal row ──────────────────────────
+  for (const s of schoolsNeedingPortal) {
+    const email = (s as any).email;
+    let authUserId: string | null = null;
+    let password: string | null = null;
 
-      if (authErr) {
-        if (authErr.message.includes('already')) {
-          results.errors.push(`school ${(s as any).name}: auth already exists, skipping`);
+    const existingAuth = authByEmail.get(email);
+    if (existingAuth) {
+      authUserId = existingAuth.id;
+    } else {
+      password = makePassword();
+      try {
+        const { data: authData, error: authErr } = await admin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: {
+            full_name: (s as any).contact_person || (s as any).name,
+            role: 'school',
+          },
+        });
+        if (authErr) {
+          results.errors.push(`school ${(s as any).name}: ${authErr.message}`);
           continue;
         }
-        results.errors.push(`school ${(s as any).name}: ${authErr.message}`);
+        authUserId = authData?.user?.id ?? null;
+      } catch (err: any) {
+        results.errors.push(`school ${(s as any).name}: ${err.message}`);
         continue;
       }
+    }
 
-      const authUserId = authData?.user?.id;
-      if (!authUserId) continue;
+    if (!authUserId) continue;
 
+    try {
       await admin.from('portal_users').upsert({
         id: authUserId,
-        email: (s as any).email,
+        email,
         full_name: (s as any).contact_person || (s as any).name,
         role: 'school',
         school_name: (s as any).name,
@@ -235,10 +247,10 @@ export async function POST() {
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
 
-      results.schools_given_accounts.push({
+      results.schools_fixed.push({
         name: (s as any).name,
-        email: (s as any).email,
-        password,
+        email,
+        password: password ?? '(existing account — no new password)',
         portal_user_id: authUserId,
       });
     } catch (err: any) {
@@ -246,8 +258,9 @@ export async function POST() {
     }
   }
 
-  // ── Gap 3: Auth users with no portal_users row ──────────────────────────
+  // ── Gap 3: Auth users with no portal row ────────────────────────────────
   for (const u of authWithoutPortal) {
+    if (portalById.has(u.id)) continue; // may have been created above
     try {
       const meta = u.user_metadata ?? {};
       await admin.from('portal_users').upsert({
@@ -265,11 +278,10 @@ export async function POST() {
     }
   }
 
-  // ── Gap 4: Portal users with no auth account — fix ID mismatches ────────
+  // ── Gap 4: Portal users with no auth — fix email-matched ID mismatches ──
   for (const pu of portalWithoutAuth as any[]) {
     try {
-      const { data: authListData } = await admin.auth.admin.listUsers({ perPage: 1000 });
-      const matchingAuth = authListData?.users?.find(u => u.email === pu.email);
+      const matchingAuth = authByEmail.get(pu.email);
       if (matchingAuth && matchingAuth.id !== pu.id) {
         await admin.from('portal_users').upsert({
           ...pu,
@@ -279,7 +291,7 @@ export async function POST() {
         await admin.auth.admin.updateUserById(matchingAuth.id, {
           user_metadata: { full_name: pu.full_name, role: pu.role },
         });
-        results.portal_rows_synced_to_auth.push(pu.email);
+        results.portal_rows_synced.push(pu.email);
       }
     } catch (err: any) {
       results.errors.push(`portal ${pu.email}: ${err.message}`);
@@ -289,16 +301,13 @@ export async function POST() {
   return NextResponse.json({
     success: true,
     summary: {
-      students_given_accounts: results.students_given_accounts.length,
-      schools_given_accounts: results.schools_given_accounts.length,
+      students_fixed: results.students_fixed.length,
+      schools_fixed: results.schools_fixed.length,
       portal_rows_created: results.portal_rows_created.length,
-      portal_rows_synced_to_auth: results.portal_rows_synced_to_auth.length,
+      portal_rows_synced: results.portal_rows_synced.length,
       errors: results.errors.length,
     },
-    credentials: [
-      ...results.students_given_accounts,
-      ...results.schools_given_accounts,
-    ],
+    credentials: [...results.students_fixed, ...results.schools_fixed],
     errors: results.errors,
   });
 }

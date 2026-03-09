@@ -363,11 +363,12 @@ export default function UsersPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="grid grid-cols-3 gap-3">
+                                    <div className="grid grid-cols-2 gap-3">
                                         {[
-                                            { label: 'New Accounts', value: syncResult.summary?.students_given_accounts ?? 0, color: 'text-emerald-400' },
-                                            { label: 'Portal Rows Fixed', value: syncResult.summary?.portal_rows_created ?? 0, color: 'text-blue-400' },
-                                            { label: 'Auth Synced', value: syncResult.summary?.portal_rows_synced_to_auth ?? 0, color: 'text-violet-400' },
+                                            { label: 'Students Fixed', value: (syncResult.summary?.students_fixed ?? syncResult.summary?.students_given_accounts ?? 0), color: 'text-emerald-400' },
+                                            { label: 'Schools Fixed', value: syncResult.summary?.schools_fixed ?? 0, color: 'text-amber-400' },
+                                            { label: 'Portal Rows Created', value: syncResult.summary?.portal_rows_created ?? 0, color: 'text-blue-400' },
+                                            { label: 'Auth Synced', value: (syncResult.summary?.portal_rows_synced ?? syncResult.summary?.portal_rows_synced_to_auth ?? 0), color: 'text-violet-400' },
                                         ].map(s => (
                                             <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
                                                 <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
@@ -378,7 +379,7 @@ export default function UsersPage() {
 
                                     {syncResult.credentials?.length > 0 && (
                                         <div>
-                                            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">New Student Credentials — share with students</p>
+                                            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">New Credentials — share with each user</p>
                                             <div className="space-y-2 max-h-48 overflow-y-auto">
                                                 {syncResult.credentials.map((c: any, i: number) => (
                                                     <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-3 font-mono text-xs">
