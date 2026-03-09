@@ -49,7 +49,6 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
     .select('id, email, role, full_name, school_id, school_name');
   const portalUsers = portalRows ?? [];
   const portalById = new Map(portalUsers.map((u: any) => [u.id, u]));
-  const portalByEmail = new Map(portalUsers.map((u: any) => [u.email ?? '', u]));
 
   // Approved students with no user_id (never got a portal account)
   const { data: approvedStudents } = await admin
@@ -58,7 +57,7 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
     .eq('status', 'approved')
     .is('user_id', null);
 
-  // Approved schools — check both: not in auth at all, or in auth but missing portal row
+  // Approved schools — not in auth, or in auth but missing portal row
   const { data: approvedSchools } = await admin
     .from('schools')
     .select('id, name, email, contact_person')
@@ -68,23 +67,26 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
     if (!s.email) return false;
     const authUser = authByEmail.get(s.email);
     if (!authUser) return true; // not in auth at all
-    if (!portalById.has(authUser.id)) return true; // in auth but missing portal row
+    if (!portalById.has(authUser.id)) return true; // in auth but no portal row
     return false;
   });
 
   // Auth users with no portal row
   const authWithoutPortal = authUsers.filter(u => !portalById.has(u.id));
 
-  // Portal users with no auth account (could be ID mismatch)
+  // Portal users with no auth row — split into fixable (email match exists) vs truly orphaned
   const portalWithoutAuth = portalUsers.filter((u: any) => !authById.has(u.id));
+  const portalIdMismatches = portalWithoutAuth.filter((u: any) => authByEmail.has(u.email ?? ''));
+  const portalOrphaned = portalWithoutAuth.filter((u: any) => !authByEmail.has(u.email ?? ''));
 
   return {
     authUsers, authById, authByEmail,
-    portalUsers, portalById, portalByEmail,
+    portalUsers, portalById,
     approvedStudents: (approvedStudents ?? []).filter((s: any) => s.student_email || s.parent_email),
     schoolsNeedingPortal,
     authWithoutPortal,
-    portalWithoutAuth,
+    portalIdMismatches,
+    portalOrphaned,
   };
 }
 
@@ -94,15 +96,20 @@ export async function GET() {
   if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
   const admin = adminClient();
-  const { approvedStudents, schoolsNeedingPortal, authWithoutPortal, portalWithoutAuth } = await runAudit(admin);
+  const {
+    approvedStudents, schoolsNeedingPortal,
+    authWithoutPortal, portalIdMismatches, portalOrphaned,
+  } = await runAudit(admin);
 
   return NextResponse.json({
     gaps: {
       approved_students_without_account: approvedStudents.length,
       approved_schools_without_portal: schoolsNeedingPortal.length,
+      // Only count fixable gaps (ID mismatches where email matches auth)
+      portal_id_mismatches: portalIdMismatches.length,
       auth_users_without_portal_row: authWithoutPortal.length,
-      portal_users_without_auth: portalWithoutAuth.length,
     },
+    orphaned_portal_rows: portalOrphaned.length,
     details: {
       students_needing_accounts: approvedStudents.map((s: any) => ({
         id: s.id, name: s.full_name, email: s.student_email || s.parent_email,
@@ -110,10 +117,13 @@ export async function GET() {
       schools_needing_portal: schoolsNeedingPortal.map((s: any) => ({
         id: s.id, name: s.name, email: s.email,
       })),
+      portal_id_mismatches: portalIdMismatches.map((u: any) => ({
+        id: u.id, email: u.email, role: u.role,
+      })),
       auth_without_portal: authWithoutPortal.map(u => ({
         id: u.id, email: u.email, role: u.user_metadata?.role ?? 'student',
       })),
-      portal_without_auth: portalWithoutAuth.map((u: any) => ({
+      orphaned_portal_rows: portalOrphaned.map((u: any) => ({
         id: u.id, email: u.email, role: u.role,
       })),
     },
@@ -128,14 +138,16 @@ export async function POST() {
   const admin = adminClient();
   const {
     authByEmail, portalById,
-    approvedStudents, schoolsNeedingPortal, authWithoutPortal, portalWithoutAuth,
+    approvedStudents, schoolsNeedingPortal,
+    authWithoutPortal, portalIdMismatches, portalOrphaned,
   } = await runAudit(admin);
 
   const results = {
     students_fixed: [] as any[],
     schools_fixed: [] as any[],
     portal_rows_created: [] as string[],
-    portal_rows_synced: [] as string[],
+    id_mismatches_fixed: [] as string[],
+    orphaned_rows_deleted: [] as string[],
     errors: [] as string[],
   };
 
@@ -145,13 +157,10 @@ export async function POST() {
     let authUserId: string | null = null;
     let password: string | null = null;
 
-    // Check if already in auth (by email)
     const existingAuth = authByEmail.get(loginEmail);
     if (existingAuth) {
-      // Already in auth — just need to upsert portal row + link student
       authUserId = existingAuth.id;
     } else {
-      // Create new auth account
       password = makePassword();
       try {
         const { data: authData, error: authErr } = await admin.auth.admin.createUser({
@@ -260,7 +269,7 @@ export async function POST() {
 
   // ── Gap 3: Auth users with no portal row ────────────────────────────────
   for (const u of authWithoutPortal) {
-    if (portalById.has(u.id)) continue; // may have been created above
+    if (portalById.has(u.id)) continue;
     try {
       const meta = u.user_metadata ?? {};
       await admin.from('portal_users').upsert({
@@ -278,23 +287,41 @@ export async function POST() {
     }
   }
 
-  // ── Gap 4: Portal users with no auth — fix email-matched ID mismatches ──
-  for (const pu of portalWithoutAuth as any[]) {
+  // ── Gap 4: Portal rows with wrong ID — fix mismatch + delete old row ────
+  for (const pu of portalIdMismatches as any[]) {
     try {
       const matchingAuth = authByEmail.get(pu.email);
-      if (matchingAuth && matchingAuth.id !== pu.id) {
-        await admin.from('portal_users').upsert({
-          ...pu,
-          id: matchingAuth.id,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-        await admin.auth.admin.updateUserById(matchingAuth.id, {
-          user_metadata: { full_name: pu.full_name, role: pu.role },
-        });
-        results.portal_rows_synced.push(pu.email);
-      }
+      if (!matchingAuth || matchingAuth.id === pu.id) continue;
+
+      // Create correct portal row
+      await admin.from('portal_users').upsert({
+        ...pu,
+        id: matchingAuth.id,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+
+      // Sync metadata to auth
+      await admin.auth.admin.updateUserById(matchingAuth.id, {
+        user_metadata: { full_name: pu.full_name, role: pu.role },
+      });
+
+      // Delete the old wrong-ID row (safest after creating the replacement)
+      await admin.from('portal_users').delete().eq('id', pu.id);
+
+      results.id_mismatches_fixed.push(pu.email);
     } catch (err: any) {
-      results.errors.push(`portal ${pu.email}: ${err.message}`);
+      results.errors.push(`mismatch ${pu.email}: ${err.message}`);
+    }
+  }
+
+  // ── Gap 5: Truly orphaned portal rows (no auth match at all) — delete ────
+  for (const pu of portalOrphaned as any[]) {
+    try {
+      await admin.from('portal_users').delete().eq('id', pu.id);
+      results.orphaned_rows_deleted.push(pu.email ?? pu.id);
+    } catch (err: any) {
+      // FK constraint means real data references this row — skip deletion
+      results.errors.push(`orphan ${pu.email}: has linked data, skipped — ${err.message}`);
     }
   }
 
@@ -304,7 +331,8 @@ export async function POST() {
       students_fixed: results.students_fixed.length,
       schools_fixed: results.schools_fixed.length,
       portal_rows_created: results.portal_rows_created.length,
-      portal_rows_synced: results.portal_rows_synced.length,
+      id_mismatches_fixed: results.id_mismatches_fixed.length,
+      orphaned_rows_deleted: results.orphaned_rows_deleted.length,
       errors: results.errors.length,
     },
     credentials: [...results.students_fixed, ...results.schools_fixed],

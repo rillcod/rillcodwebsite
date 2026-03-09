@@ -365,10 +365,11 @@ export default function UsersPage() {
                                 <>
                                     <div className="grid grid-cols-2 gap-3">
                                         {[
-                                            { label: 'Students Fixed', value: (syncResult.summary?.students_fixed ?? syncResult.summary?.students_given_accounts ?? 0), color: 'text-emerald-400' },
+                                            { label: 'Students Fixed', value: syncResult.summary?.students_fixed ?? 0, color: 'text-emerald-400' },
                                             { label: 'Schools Fixed', value: syncResult.summary?.schools_fixed ?? 0, color: 'text-amber-400' },
                                             { label: 'Portal Rows Created', value: syncResult.summary?.portal_rows_created ?? 0, color: 'text-blue-400' },
-                                            { label: 'Auth Synced', value: (syncResult.summary?.portal_rows_synced ?? syncResult.summary?.portal_rows_synced_to_auth ?? 0), color: 'text-violet-400' },
+                                            { label: 'ID Mismatches Fixed', value: syncResult.summary?.id_mismatches_fixed ?? 0, color: 'text-violet-400' },
+                                            { label: 'Orphans Deleted', value: syncResult.summary?.orphaned_rows_deleted ?? 0, color: 'text-rose-400' },
                                         ].map(s => (
                                             <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
                                                 <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
