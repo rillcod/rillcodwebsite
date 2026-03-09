@@ -210,7 +210,6 @@ export class CoursesService {
                 {
                     user_id: userId,
                     program_id: programId,
-                    role: 'student',
                     status: 'active',
                     enrollment_date: new Date().toISOString()
                 }

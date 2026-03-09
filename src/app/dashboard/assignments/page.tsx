@@ -60,6 +60,7 @@ export default function AssignmentsPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const role = profile?.role ?? 'student';
+  const schoolId = (profile as any)?.school_id ?? undefined;
 
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete assignment "${title}"? This cannot be undone.`)) return;
@@ -69,7 +70,7 @@ export default function AssignmentsPage() {
     else { setItems(prev => prev.filter((a: any) => a.id !== id)); }
     setDeleting(null);
   };
-  const isStaff = role === 'admin' || role === 'teacher';
+  const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
 
   // Only fetch after auth has resolved and we have a profile
   useEffect(() => {
@@ -81,7 +82,10 @@ export default function AssignmentsPage() {
       setError(null);
       try {
         const data = isStaff
-          ? await fetchAssignments()
+          ? await fetchAssignments({
+              teacherId: role === 'teacher' ? profile!.id : undefined,
+              schoolId: role === 'school' ? schoolId : undefined,
+            })
           : await fetchStudentAssignments(profile!.id);
         if (!cancelled) setItems(data);
       } catch (e: any) {

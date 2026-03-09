@@ -123,7 +123,7 @@ export async function GET(request: Request) {
 
     const { data: student, error } = await supabase
       .from('students')
-      .select('*')
+      .select('id, full_name, status, enrollment_type, created_at, school_name')
       .eq('parent_email', parentEmail)
       .single();
 

@@ -4,24 +4,30 @@ const db = () => createClient();
 
 // ── ASSIGNMENTS ───────────────────────────────────────────────
 // For teachers/admins: all assignments with submission counts
-export async function fetchAssignments(teacherId?: string) {
+export async function fetchAssignments(opts: { teacherId?: string; schoolId?: string } = {}) {
     let q = db()
         .from('assignments')
         .select(`
       id, title, description, instructions, due_date, max_points,
       assignment_type, is_active, created_at, created_by,
-      courses ( id, title, teacher_id, programs ( name ) ),
+      courses ( id, title, teacher_id, school_id, programs ( name ) ),
       assignment_submissions ( id, status, grade )
     `)
         .order('due_date', { ascending: true });
 
     // Scope to teacher's own assignments
-    if (teacherId) {
-        q = (q as any).eq('created_by', teacherId);
+    if (opts.teacherId) {
+        q = (q as any).eq('created_by', opts.teacherId);
     }
 
     const { data, error } = await q;
     if (error) throw error;
+
+    // Filter by school after fetch (courses.school_id)
+    if (opts.schoolId && data) {
+        return data.filter((a: any) => a.courses?.school_id === opts.schoolId);
+    }
+
     return data ?? [];
 }
 
