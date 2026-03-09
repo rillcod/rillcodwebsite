@@ -49,7 +49,9 @@ export default function UsersPage() {
     // Sync state
     const [syncing, setSyncing] = useState(false);
     const [syncResult, setSyncResult] = useState<any | null>(null);
+    const [gapData, setGapData] = useState<any | null>(null);
     const [gapCount, setGapCount] = useState<number | null>(null);
+    const [showConflicts, setShowConflicts] = useState(false);
 
     // Reset password state
     const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
@@ -155,6 +157,7 @@ export default function UsersPage() {
             if (res.ok) {
                 const total = Object.values(json.gaps as Record<string, number>).reduce((a, b) => a + b, 0);
                 setGapCount(total);
+                setGapData(json.details);
             }
         } catch { /* ignore */ }
     };
@@ -195,14 +198,16 @@ export default function UsersPage() {
         setSyncing(false);
     };
 
-    const handleDelete = async (u: PortalUser) => {
-        if (!confirm(`Delete "${u.full_name}"? This removes their account permanently.`)) return;
+    const handleDelete = async (u: { id: string, full_name?: string, name?: string, email?: string }) => {
+        const name = u.full_name || u.name || u.email || 'this user';
+        if (!confirm(`Delete "${name}"? This removes their account permanently and clears any "already registered" conflicts.`)) return;
         setDeleting(u.id);
         try {
             const res = await fetch(`/api/portal-users/${u.id}`, { method: 'DELETE' });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Delete failed');
             setUsers(prev => prev.filter(x => x.id !== u.id));
+            await checkGaps();
         } catch (e: any) {
             alert(e.message);
         }
@@ -307,9 +312,114 @@ export default function UsersPage() {
                                     <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                                 </button>
                             </div>
+                            {gapCount !== null && gapCount > 0 && (
+                                <button
+                                    onClick={() => setShowConflicts(!showConflicts)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border
+                                        ${showConflicts
+                                            ? 'bg-amber-500 text-black border-amber-400'
+                                            : 'bg-amber-600/10 text-amber-500 border-amber-500/20 hover:bg-amber-600/20'}`}
+                                >
+                                    <ExclamationTriangleIcon className="w-4 h-4" />
+                                    {gapCount} Conflicts Found
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
+
+                {/* Conflict Details Panel */}
+                {showConflicts && gapData && (
+                    <div className="bg-amber-600/10 border border-amber-500/20 rounded-3xl p-6 mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-amber-500 font-black text-lg flex items-center gap-2 italic uppercase">
+                                    <BoltIcon className="w-5 h-5 text-amber-400" /> Conflict Audit
+                                </h3>
+                                <p className="text-white/40 text-xs mt-1">These users are in a broken state (e.g., Auth account exists but Portal profile is missing). Deleting them clears "Already Registered" errors.</p>
+                            </div>
+                            <button onClick={() => setShowConflicts(false)} className="text-white/20 hover:text-white">
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Ghost Accounts (Auth without Portal) */}
+                            {gapData.auth_without_portal?.length > 0 && (
+                                <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3 ml-1">Ghost Accounts (Auth-Only)</h4>
+                                    <div className="space-y-2">
+                                        {gapData.auth_without_portal.map((u: any) => (
+                                            <div key={u.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 hover:border-amber-500/30 transition-all group">
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold text-white truncate">{u.email}</p>
+                                                    <p className="text-[9px] text-white/40 font-mono truncate">{u.id}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDelete(u)}
+                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-500 rounded-lg hover:bg-rose-600 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                                                >
+                                                    DELETE CONFLICT
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Portal ID Mismatches */}
+                            {gapData.id_mismatches?.length > 0 && (
+                                <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3 ml-1">ID Mismatches</h4>
+                                    <div className="space-y-2">
+                                        {gapData.id_mismatches.map((u: any) => (
+                                            <div key={u.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 hover:border-amber-500/30 transition-all group">
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold text-white truncate">{u.name || u.email}</p>
+                                                    <p className="text-[9px] text-amber-500/60 font-mono truncate">ID: {u.id}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDelete(u)}
+                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-500 rounded-lg hover:bg-rose-600 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                                                >
+                                                    PURGE
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Portal Needing Auth */}
+                            {gapData.portal_needing_auth?.length > 0 && (
+                                <div className="bg-white/5 rounded-2xl p-4 border border-white/10 col-span-full">
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-3 ml-1">Orphaned Profiles (Portal-Only)</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                        {gapData.portal_needing_auth.map((u: any) => (
+                                            <div key={u.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 hover:border-amber-500/30 transition-all group">
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold text-white truncate">{u.name || u.email}</p>
+                                                    <p className="text-[9px] text-white/20 uppercase font-black">{u.role}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDelete(u)}
+                                                    className="p-1 px-3 text-[10px] font-black bg-rose-600/20 text-rose-500 rounded-lg hover:bg-rose-600 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                                                >
+                                                    PURGE
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="mt-6 pt-4 border-t border-amber-500/20 flex items-center justify-between">
+                            <p className="text-[10px] text-amber-500/60 font-bold uppercase tracking-widest">Warning: Purging or deleting records here is permanent.</p>
+                            <button onClick={handleSync} className="text-[11px] font-black text-amber-500 hover:text-amber-400 underline underline-offset-4 decoration-2">RUN AUTO-REPAIR INSTEAD →</button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Filters */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
