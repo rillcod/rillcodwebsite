@@ -65,6 +65,7 @@ export async function POST(request: Request) {
     if (body.student_email) newStudentData.student_email = body.student_email;
     if (body.heard_about_us) newStudentData.heard_about_us = body.heard_about_us;
     if (body.parent_relationship) newStudentData.parent_relationship = body.parent_relationship;
+    if (body.school_id) newStudentData.school_id = body.school_id;
 
     // For partner school students: try to link to the schools table record
     if (body.enrollment_type === 'school' && body.school_name) {

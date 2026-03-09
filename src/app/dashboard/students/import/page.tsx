@@ -107,6 +107,7 @@ export default function ImportStudentsPage() {
               grade: s.grade,
               enrollment_type: s.enrollment_type || 'school',
               school_name: profile?.school_name ?? '',
+              school_id: (profile as any)?.school_id ?? null,
               status: 'pending',
             }),
           });

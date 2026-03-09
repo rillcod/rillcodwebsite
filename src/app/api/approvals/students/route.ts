@@ -19,7 +19,7 @@ async function requireStaff() {
     .select('role, id')
     .eq('id', user.id)
     .single();
-  if (!caller || !['admin', 'teacher'].includes(caller.role)) return null;
+  if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
   return caller;
 }
 
@@ -95,6 +95,7 @@ export async function POST(request: Request) {
       full_name: student.full_name,
       role: 'student',
       school_name: student.school_name || null,
+      school_id: student.school_id || null,
       date_of_birth: student.date_of_birth || null,
       is_active: true,
       created_at: new Date().toISOString(),
