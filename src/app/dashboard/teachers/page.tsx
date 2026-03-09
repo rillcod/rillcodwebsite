@@ -10,7 +10,7 @@ import {
   PlusIcon, ArrowRightIcon, StarIcon, FireIcon, TrophyIcon,
   BuildingOfficeIcon, PencilSquareIcon, DocumentTextIcon, EnvelopeIcon, MagnifyingGlassIcon,
   XMarkIcon, ArrowPathIcon, KeyIcon, ShieldCheckIcon,
-  ClipboardIcon, ExclamationTriangleIcon,
+  ClipboardIcon, ExclamationTriangleIcon, TrashIcon, PhoneIcon,
 } from '@heroicons/react/24/outline';
 import { generateTempPassword } from '@/lib/utils/password';
 
@@ -706,49 +706,59 @@ function AdminTeacherView() {
                     {(t.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white truncate">{t.full_name}</p>
-                    <div className="flex items-center gap-3 text-xs text-white/40 mt-0.5">
+                    <p className="font-semibold text-white truncate text-lg group-hover:text-blue-400 transition-colors">{t.full_name}</p>
+                    <div className="flex items-center gap-3 text-xs text-white/40 mt-1">
                       <span className="flex items-center gap-1"><EnvelopeIcon className="w-3 h-3" />{t.email}</span>
-                      {t.phone && <span>{t.phone}</span>}
+                      {t.phone && <span className="flex items-center gap-1"><PhoneIcon className="w-3 h-3" />{t.phone}</span>}
                     </div>
-                    {staffDeployment[t.id]?.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {staffDeployment[t.id].map(a => (
-                          <span key={a.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400">
-                            <BuildingOfficeIcon className="w-2.5 h-2.5" />
-                            {a.schools?.name ?? 'Unknown School'}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+
+                    {/* Deployment Status Badges */}
+                    <div className="mt-3">
+                      {staffDeployment[t.id]?.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {staffDeployment[t.id].map(a => (
+                            <span key={a.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400 uppercase tracking-wider">
+                              <BuildingOfficeIcon className="w-3 h-3" />
+                              {a.schools?.name ?? 'Assigned School'}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <button onClick={() => startEdit(t)} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-500 uppercase tracking-wider hover:bg-amber-500/20 transition-all">
+                          <ExclamationTriangleIcon className="w-3.5 h-3.5" />
+                          Not Assigned to any School
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${t.is_active
-                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                      : 'bg-rose-500/20 text-rose-400 border-rose-500/30'}`}>
-                      {t.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                    <button onClick={() => toggleActive(t.id, t.is_active)}
-                      disabled={toggling === t.id}
-                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-white/10 hover:border-white/30 text-white/40 hover:text-white transition-all disabled:opacity-50">
-                      {toggling === t.id ? '…' : t.is_active ? 'Deactivate' : 'Activate'}
-                    </button>
-                    <button onClick={() => startEdit(t)}
-                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-blue-500/20 hover:border-blue-500/40 text-blue-400 hover:text-blue-300 transition-all">
-                      Assign
-                    </button>
-                    <button onClick={() => startEdit(t)}
-                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-white/10 hover:border-white/30 text-white/40 hover:text-white transition-all">
-                      Edit
-                    </button>
-                    <button onClick={() => handleDeleteTeacher(t.id)} disabled={deleting === t.id}
-                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
-                      {deleting === t.id ? '…' : 'Delete'}
-                    </button>
-                    <button onClick={() => { setResetTarget({ id: t.id, name: t.full_name }); setResetPw(''); setResetMsg(null); }}
-                      className="px-3 py-1.5 text-xs font-bold rounded-lg border border-amber-500/20 hover:border-amber-500/40 text-amber-400/60 hover:text-amber-400 transition-all">
-                      Reset PW
-                    </button>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center bg-white/5 p-1 rounded-xl border border-white/10">
+                      <button onClick={() => startEdit(t)}
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-black rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-lg shadow-blue-900/40 uppercase tracking-tighter">
+                        <BuildingOfficeIcon className="w-3.5 h-3.5" />
+                        Manage Deployment
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 opacity-40 hover:opacity-100 transition-opacity">
+                      <button onClick={() => toggleActive(t.id, t.is_active)}
+                        disabled={toggling === t.id}
+                        className="p-2 text-xs font-bold rounded-xl border border-white/10 hover:border-white/30 text-white/40 hover:text-white transition-all disabled:opacity-50"
+                        title={t.is_active ? 'Deactivate' : 'Activate'}>
+                        {toggling === t.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : (t.is_active ? <CheckCircleIcon className="w-4 h-4 text-emerald-400" /> : <XMarkIcon className="w-4 h-4 text-rose-400" />)}
+                      </button>
+                      <button onClick={() => startEdit(t)}
+                        className="p-2 text-xs font-bold rounded-xl border border-white/10 hover:border-white/30 text-white/40 hover:text-white transition-all"
+                        title="Edit Details">
+                        <PencilSquareIcon className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDeleteTeacher(t.id)} disabled={deleting === t.id}
+                        className="p-2 text-xs font-bold rounded-xl border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50"
+                        title="Delete Teacher">
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
