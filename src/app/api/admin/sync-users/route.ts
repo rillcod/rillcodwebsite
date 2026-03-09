@@ -42,14 +42,14 @@ async function runAudit(admin: ReturnType<typeof adminClient>) {
   const { data: authListData } = await admin.auth.admin.listUsers({ perPage: 1000 });
   const authUsers = authListData?.users ?? [];
   const authById = new Map(authUsers.map(u => [u.id, u]));
-  const authByEmail = new Map(authUsers.map(u => [u.email?.toLowerCase() ?? '', u]));
+  const authByEmail = new Map(authUsers.map(u => [u.email?.trim().toLowerCase() ?? '', u]));
 
   const { data: portalRows } = await admin
     .from('portal_users')
     .select('id, email, role, full_name, school_id, school_name, date_of_birth, is_active');
   const portalUsers = portalRows ?? [];
   const portalById = new Map(portalUsers.map((u: any) => [u.id, u]));
-  const portalByEmail = new Map(portalUsers.map((u: any) => [u.email?.toLowerCase() ?? '', u]));
+  const portalByEmail = new Map(portalUsers.map((u: any) => [u.email?.trim().toLowerCase() ?? '', u]));
 
   // --- Gap A: Approved students with no user_id ---
   const { data: approvedStudents } = await admin
@@ -292,23 +292,46 @@ export async function POST() {
   for (const pu of portalNeedingAuth as any[]) {
     const password = makePassword();
     try {
+      let newAuthId: string | null = null;
+      let usedExisting = false;
+
       const { data: authData, error: authErr } = await admin.auth.admin.createUser({
         email: pu.email, password, email_confirm: true,
         user_metadata: { full_name: pu.full_name, role: pu.role },
       });
-      if (authErr) { results.errors.push(`portal ${pu.email}: ${authErr.message}`); continue; }
-      const newAuthId = authData?.user?.id;
+
+      if (authErr) {
+        // "database error" / "already registered" means user exists in auth
+        // but wasn't caught by our email map (whitespace/case mismatch)
+        // Fall back: search the full auth list by trimmed lowercase email
+        const { data: listData } = await admin.auth.admin.listUsers({ perPage: 1000 });
+        const found = listData?.users?.find(
+          u => u.email?.trim().toLowerCase() === pu.email.trim().toLowerCase()
+        );
+        if (found) {
+          newAuthId = found.id;
+          usedExisting = true;
+        } else {
+          results.errors.push(`portal ${pu.email}: ${authErr.message}`);
+          continue;
+        }
+      } else {
+        newAuthId = authData?.user?.id ?? null;
+      }
+
       if (!newAuthId) continue;
 
       if (newAuthId !== pu.id) {
-        // Auth created with a different ID — update portal row to match
+        // Auth ID differs from portal row ID — update portal row to match
         await admin.from('portal_users').upsert({
           ...pu, id: newAuthId, updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
         await admin.from('portal_users').delete().eq('id', pu.id);
       }
+
       results.portal_auth_created.push({
-        name: pu.full_name, email: pu.email, role: pu.role, password,
+        name: pu.full_name, email: pu.email, role: pu.role,
+        password: usedExisting ? '(existing account — no new password)' : password,
       });
     } catch (err: any) {
       results.errors.push(`portal ${pu.email}: ${err.message}`);
