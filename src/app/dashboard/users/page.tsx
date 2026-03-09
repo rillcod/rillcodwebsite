@@ -8,7 +8,7 @@ import {
     AcademicCapIcon, BuildingOfficeIcon, UserIcon,
     ArrowPathIcon, EnvelopeIcon, PhoneIcon,
     PencilIcon, TrashIcon, XMarkIcon, CheckIcon, PlusIcon,
-    BoltIcon, ExclamationTriangleIcon,
+    BoltIcon, ExclamationTriangleIcon, KeyIcon, CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 
 type PortalUser = {
@@ -50,6 +50,34 @@ export default function UsersPage() {
     const [syncing, setSyncing] = useState(false);
     const [syncResult, setSyncResult] = useState<any | null>(null);
     const [gapCount, setGapCount] = useState<number | null>(null);
+
+    // Reset password state
+    const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
+    const [resetPw, setResetPw] = useState('');
+    const [resetting, setResetting] = useState(false);
+    const [resetMsg, setResetMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+    const handleResetPw = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!resetTarget || resetPw.length < 8) return;
+        setResetting(true); setResetMsg(null);
+        try {
+            const res = await fetch('/api/auth/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: resetTarget.id, newPassword: resetPw }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error ?? 'Failed');
+            setResetMsg({ ok: true, text: `Password updated for ${resetTarget.name}` });
+            setResetPw('');
+            setTimeout(() => { setResetTarget(null); setResetMsg(null); }, 2000);
+        } catch (err: any) {
+            setResetMsg({ ok: false, text: err.message });
+        } finally {
+            setResetting(false);
+        }
+    };
 
     const load = async () => {
         setLoading(true);
@@ -369,6 +397,13 @@ export default function UsersPage() {
                                             >
                                                 <PencilIcon className="w-4 h-4" />
                                             </button>
+                                            <button
+                                                onClick={() => { setResetTarget({ id: u.id, name: u.full_name }); setResetPw(''); setResetMsg(null); }}
+                                                className="p-2.5 sm:p-2 rounded-xl bg-white/5 sm:bg-transparent hover:bg-amber-500/20 hover:text-amber-400 text-white/40 transition-all flex items-center justify-center"
+                                                title="Reset password"
+                                            >
+                                                <KeyIcon className="w-4 h-4" />
+                                            </button>
                                             {u.id !== profile?.id && (
                                                 <button
                                                     onClick={() => handleDelete(u)}
@@ -601,6 +636,49 @@ export default function UsersPage() {
                                 )}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* ── Reset Password Modal ── */}
+            {resetTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setResetTarget(null)} />
+                    <div className="relative w-full max-w-md bg-[#0f0f1a] border border-white/10 rounded-3xl shadow-2xl">
+                        <div className="flex items-center justify-between p-6 border-b border-white/10">
+                            <div>
+                                <p className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-0.5">Admin Action</p>
+                                <h2 className="text-lg font-extrabold text-white">Reset Password</h2>
+                                <p className="text-sm text-white/40 mt-0.5">For: <span className="text-white/70 font-semibold">{resetTarget.name}</span></p>
+                            </div>
+                            <button onClick={() => setResetTarget(null)} className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleResetPw} className="p-6 space-y-4">
+                            {resetMsg && (
+                                <div className={`rounded-xl px-4 py-3 text-sm border ${resetMsg.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                                    {resetMsg.text}
+                                </div>
+                            )}
+                            <div>
+                                <label className="block text-xs font-bold text-white/40 uppercase tracking-widest mb-1.5">New Password</label>
+                                <input type="password" required minLength={8} value={resetPw} onChange={e => setResetPw(e.target.value)}
+                                    placeholder="Minimum 8 characters"
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500 transition-colors placeholder-white/20" />
+                                <p className="text-xs text-white/25 mt-1.5">Share this new password with the user directly.</p>
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <button type="button" onClick={() => setResetTarget(null)}
+                                    className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/60 text-sm font-bold rounded-xl border border-white/10 transition-all">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={resetting || resetPw.length < 8}
+                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
+                                    {resetting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
+                                    {resetting ? 'Updating…' : 'Set Password'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

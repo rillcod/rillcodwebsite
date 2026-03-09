@@ -771,6 +771,11 @@ function AdminTeacherView() {
                         title="Edit Details">
                         <PencilSquareIcon className="w-4 h-4" />
                       </button>
+                      <button onClick={() => { setResetTarget({ id: t.id, name: t.full_name }); setResetPw(''); setResetMsg(null); }}
+                        className="p-2 text-xs font-bold rounded-xl border border-amber-500/20 hover:border-amber-500/40 text-amber-400/60 hover:text-amber-400 transition-all"
+                        title="Reset Password">
+                        <KeyIcon className="w-4 h-4" />
+                      </button>
                       <button onClick={() => handleDeleteTeacher(t.id)} disabled={deleting === t.id}
                         className="p-2 text-xs font-bold rounded-xl border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50"
                         title="Delete Teacher">
