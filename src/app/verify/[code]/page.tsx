@@ -5,279 +5,304 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import {
-  ShieldCheckIcon, XCircleIcon, ClockIcon, CheckBadgeIcon,
+  ShieldCheckIcon, XCircleIcon, ClockIcon,
+  ArrowLeftIcon, CheckBadgeIcon,
+  AcademicCapIcon, CalendarIcon, DocumentTextIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
+import { ScaledReportCard } from '@/lib/pdf-utils';
 
-type Report = {
-  id: string;
-  student_name: string | null;
-  course_name: string | null;
-  report_term: string | null;
-  report_date: string | null;
-  overall_grade: string | null;
-  overall_score: number | null;
-  instructor_name: string | null;
-  school_name: string | null;
-  section_class: string | null;
-  school_section: string | null;
-  is_published: boolean | null;
-  has_certificate: boolean | null;
-  proficiency_level: string | null;
-  theory_score: number | null;
-  practical_score: number | null;
-  attendance_score: number | null;
-};
-
-const GRADE_STYLE: Record<string, { bg: string; text: string; border: string; label: string }> = {
-  A: { bg: '#d1fae5', text: '#065f46', border: '#6ee7b7', label: 'Excellent' },
-  B: { bg: '#dbeafe', text: '#1e3a8a', border: '#93c5fd', label: 'Very Good' },
-  C: { bg: '#fef3c7', text: '#78350f', border: '#fcd34d', label: 'Good' },
-  D: { bg: '#ffedd5', text: '#9a3412', border: '#fdba74', label: 'Pass' },
-  E: { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5', label: 'Fail' },
-};
-
-export default function VerifyPage() {
+export default function VerifyCodePage() {
   const { code } = useParams<{ code: string }>();
-  const [report, setReport] = useState<Report | null>(null);
+
+  const [report, setReport] = useState<any | null>(null);
+  const [orgSettings, setOrgSettings] = useState<any | null>(null);
+  const [certificate, setCertificate] = useState<any | null>(null);
+  const [mode, setMode] = useState<'report' | 'certificate' | null>(null);
   const [status, setStatus] = useState<'loading' | 'found' | 'notfound' | 'unpublished'>('loading');
 
   useEffect(() => {
     if (!code) { setStatus('notfound'); return; }
+
     const db = createClient();
-    db.from('student_progress_reports')
-      .select('id,student_name,course_name,report_term,report_date,overall_grade,overall_score,instructor_name,school_name,section_class,is_published,has_certificate,proficiency_level,theory_score,practical_score,attendance_score')
-      .ilike('id', `${code.toLowerCase()}%`)
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!data) { setStatus('notfound'); return; }
-        if (!data.is_published) { setStatus('unpublished'); return; }
-        setReport(data as Report);
-        setStatus('found');
-      });
+
+    async function fetchData() {
+      try {
+        // 1. Try fetching as a report (using ILIKE for partial match)
+        const { data: reportData, error: reportError } = await db
+          .from('student_progress_reports')
+          .select('*')
+          .ilike('id', `${code.toLowerCase()}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (!reportError && reportData) {
+          if (!reportData.is_published) {
+            setStatus('unpublished');
+            return;
+          }
+
+          const { data: orgData } = await db
+            .from('report_settings')
+            .select('*')
+            .limit(1)
+            .maybeSingle();
+
+          setReport(reportData);
+          setOrgSettings(orgData);
+          setMode('report');
+          setStatus('found');
+          return;
+        }
+
+        // 2. Try fetching as a certificate (using EXACT verification_code)
+        const { data: certData, error: certError } = await db
+          .from('certificates')
+          .select('*, portal_users(full_name), courses(title)')
+          .eq('verification_code', code.toUpperCase())
+          .maybeSingle();
+
+        if (!certError && certData) {
+          setCertificate(certData);
+          setMode('certificate');
+          setStatus('found');
+          return;
+        }
+
+        setStatus('notfound');
+      } catch (err) {
+        console.error('Verification error:', err);
+        setStatus('notfound');
+      }
+    }
+
+    fetchData();
   }, [code]);
 
-  const theory     = Number(report?.theory_score)     || 0;
-  const practical  = Number(report?.practical_score)  || 0;
-  const attendance = Number(report?.attendance_score) || 0;
-  const computed   = Math.round(theory * 0.4 + practical * 0.4 + attendance * 0.2);
-  const overallNum = Number(report?.overall_score) > 0 ? Number(report?.overall_score) : computed;
-  const showCert   = overallNum >= 45;
-
-  const g = report?.overall_grade ?? '';
-  const gs = GRADE_STYLE[g] ?? GRADE_STYLE['C'];
-  const dateStr = report?.report_date
-    ? new Date(report.report_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
-    : '—';
-
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col">
+    <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col font-sans selection:bg-violet-500/30">
+
+      {/* Background Decor */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/5 rounded-full blur-[120px]" />
+      </div>
 
       {/* Top bar */}
-      <header className="sticky top-0 z-10 border-b border-white/10 bg-[#0a0a0f]/90 backdrop-blur-md">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <img src="/images/logo.png" alt="Rillcod" className="w-8 h-8 object-contain"
-              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            <span className="font-extrabold text-white text-base tracking-tight group-hover:text-violet-300 transition-colors">
-              Rillcod Academy
-            </span>
+      <header className="sticky top-0 z-50 border-b border-white/5 bg-[#0a0a0f]/80 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/verify" className="flex items-center gap-2 group text-white/40 hover:text-white transition-colors">
+            <ArrowLeftIcon className="w-4 h-4" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Verification Center</span>
           </Link>
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/30">
+
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/images/logo.png" alt="Rillcod" className="w-6 h-6 object-contain"
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <span className="font-black text-sm tracking-tight text-white/90">Rillcod Academy</span>
+          </Link>
+
+          <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-emerald-400">
             <ShieldCheckIcon className="w-3.5 h-3.5" />
-            Certificate Verification
+            Secure Node Verified
           </div>
         </div>
       </header>
 
-      <main className="flex-1 flex items-center justify-center px-4 py-16">
-        <div className="w-full max-w-2xl">
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-start px-4 py-12">
+        <div className="w-full max-w-4xl">
 
           {/* Loading */}
           {status === 'loading' && (
-            <div className="text-center space-y-5">
+            <div className="text-center py-32 space-y-5">
               <div className="relative w-16 h-16 mx-auto">
-                <div className="absolute inset-0 rounded-full border-[3px] border-violet-500/20" />
+                <div className="absolute inset-0 rounded-full border-[3px] border-violet-500/10" />
                 <div className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-violet-500 animate-spin" />
                 <div className="absolute inset-[10px] rounded-full border-[2px] border-transparent border-t-indigo-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.6s' }} />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
-                </div>
               </div>
-              <p className="text-white/40 text-sm font-medium tracking-wide">Verifying report…</p>
+              <p className="text-white/40 text-[11px] font-black uppercase tracking-[0.2em]">Verifying Authorization Token…</p>
             </div>
           )}
 
           {/* Not found */}
           {status === 'notfound' && (
-            <div className="text-center space-y-6">
-              <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 rounded-3xl flex items-center justify-center mx-auto">
-                <XCircleIcon className="w-10 h-10 text-rose-400" />
+            <div className="text-center py-24 space-y-8 max-w-md mx-auto">
+              <div className="w-24 h-24 bg-rose-500/10 border border-rose-500/20 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-2xl shadow-rose-900/20">
+                <XCircleIcon className="w-12 h-12 text-rose-400" />
               </div>
-              <div>
-                <h1 className="text-2xl font-extrabold text-white">Record Not Found</h1>
-                <p className="text-white/40 text-sm mt-2">
-                  No published report matches code <code className="bg-white/10 px-2 py-0.5 rounded text-white font-mono">{code?.toUpperCase()}</code>
+              <div className="space-y-3">
+                <h1 className="text-3xl font-black text-white tracking-tight">Record Not Found</h1>
+                <p className="text-white/40 text-sm leading-relaxed">
+                  No published institutional report or certificate matches the verification code <span className="bg-white/10 px-2.5 py-1 rounded-md text-white font-mono font-bold tracking-tight">{code?.toUpperCase()}</span>.
                 </p>
-                <p className="text-white/25 text-xs mt-1">Please check the QR code or verification URL and try again.</p>
+                <p className="text-white/20 text-xs pt-2">Please verify the code on the printed certificate or QR code URL and try again.</p>
               </div>
-              <Link href="/" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold text-sm rounded-xl transition-colors">
-                Return to Home
+              <Link href="/verify" className="inline-flex items-center gap-3 px-8 py-3.5 bg-white text-black font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-violet-50 transition-all active:scale-95">
+                New Search
               </Link>
             </div>
           )}
 
           {/* Unpublished */}
           {status === 'unpublished' && (
-            <div className="text-center space-y-6">
-              <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 rounded-3xl flex items-center justify-center mx-auto">
-                <ClockIcon className="w-10 h-10 text-amber-400" />
+            <div className="text-center py-24 space-y-8 max-w-md mx-auto">
+              <div className="w-24 h-24 bg-amber-500/10 border border-amber-500/20 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-2xl shadow-amber-900/20">
+                <ClockIcon className="w-12 h-12 text-amber-400" />
               </div>
-              <div>
-                <h1 className="text-2xl font-extrabold text-white">Report Not Yet Published</h1>
-                <p className="text-white/40 text-sm mt-2 max-w-sm mx-auto">
-                  This report exists but has not been officially released. Please contact your school or instructor.
+              <div className="space-y-3">
+                <h1 className="text-3xl font-black text-white tracking-tight">Access Restricted</h1>
+                <p className="text-white/40 text-sm leading-relaxed">
+                  This report exists in our database but has not been officially published for public verification by the Rillcod Academy board.
                 </p>
               </div>
+              <Link href="/verify" className="inline-flex items-center gap-3 px-8 py-3.5 bg-white/10 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-white/15 transition-all outline outline-1 outline-white/10">
+                Back to Center
+              </Link>
             </div>
           )}
 
           {/* Found */}
-          {status === 'found' && report && (
-            <div className="space-y-5">
+          {status === 'found' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
 
-              {/* Verified badge */}
-              <div className="flex items-center gap-3 px-5 py-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
-                <ShieldCheckIcon className="w-6 h-6 text-emerald-400 flex-shrink-0" />
-                <div>
-                  <p className="font-black text-emerald-400 text-sm uppercase tracking-widest">Verified — Authentic Record</p>
-                  <p className="text-emerald-400/60 text-xs mt-0.5">Issued by Rillcod Academy · Confirmed valid</p>
-                </div>
-                <div className="ml-auto flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Live</p>
+              {/* Success Banner */}
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-[2rem] blur opacity-15" />
+                <div className="relative flex flex-col md:flex-row items-center gap-6 px-8 py-6 bg-[#0d1410] border border-emerald-500/20 rounded-[1.8rem] shadow-2xl">
+                  <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center flex-shrink-0">
+                    <ShieldCheckIcon className="w-10 h-10 text-emerald-400" />
+                  </div>
+                  <div className="flex-1 text-center md:text-left space-y-1">
+                    <div className="flex items-center justify-center md:justify-start gap-2">
+                      <p className="font-black text-emerald-400 text-sm uppercase tracking-[0.2em]">{mode === 'report' ? 'Verified — Authentic Report' : 'Verified — Authentic Certificate'}</p>
+                      <CheckBadgeIcon className="w-4 h-4 text-emerald-500" />
+                    </div>
+                    <p className="text-emerald-400/50 text-[11px] font-medium leading-relaxed max-w-lg">
+                      Institutional record confirmed against Rillcod Academy master ledger.
+                      Authorization token <span className="font-mono text-emerald-400/80 font-bold">{code?.toUpperCase()}</span> is valid.
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {/* Report card */}
-              <div className="bg-white rounded-3xl overflow-hidden shadow-2xl shadow-black/40">
-
-                {/* Header */}
-                <div className="bg-[#1a1a2e] px-8 py-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-4">
-                      <img src="/images/logo.png" alt="Rillcod" className="w-14 h-14 object-contain"
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                      <div>
-                        <h2 className="text-xl font-extrabold text-white uppercase tracking-tight leading-none">Rillcod Academy</h2>
-                        <p className="text-[10px] font-bold text-violet-400/80 uppercase tracking-[0.25em] mt-0.5">Progress Report</p>
-                      </div>
-                    </div>
-                    {/* Grade badge */}
-                    <div className="flex flex-col items-center justify-center w-20 h-20 rounded-2xl border-4"
-                      style={{ backgroundColor: gs.bg, borderColor: gs.border }}>
-                      <span className="text-4xl font-black leading-none" style={{ color: gs.text }}>{g}</span>
-                      <span className="text-[9px] font-black uppercase tracking-wide mt-0.5" style={{ color: gs.text, opacity: 0.7 }}>{gs.label}</span>
+              {/* MODE: Report Display */}
+              {mode === 'report' && report && (
+                <div className="space-y-12">
+                  {/* The Actual Report Card */}
+                  <div className="relative">
+                    <div className="absolute -inset-4 bg-white/5 rounded-[3rem] blur-2xl -z-10" />
+                    <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]">
+                      <ScaledReportCard report={report} orgSettings={orgSettings} />
                     </div>
                   </div>
-                </div>
 
-                {/* Stats bar */}
-                <div className="bg-gray-50 border-b border-gray-100 px-8 py-2.5 flex items-center gap-6 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  <span>ID: <span className="text-gray-900">{report.id.slice(0, 8).toUpperCase()}</span></span>
-                  <span>Date: <span className="text-gray-900">{dateStr}</span></span>
-                  {report.school_section && <span>Section: <span className="text-gray-900">{report.school_section}</span></span>}
+                  <div className="flex flex-col md:flex-row items-center justify-center gap-4">
+                    <button
+                      onClick={() => window.print()}
+                      className="px-8 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-colors"
+                    >
+                      Print Report
+                    </button>
+                    <Link
+                      href="/verify"
+                      className="px-8 py-3.5 bg-violet-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-violet-500 transition-all shadow-lg shadow-violet-900/20 active:scale-95 text-center"
+                    >
+                      New Verification
+                    </Link>
+                  </div>
                 </div>
+              )}
 
-                {/* Details */}
-                <div className="px-8 py-6 grid grid-cols-2 gap-x-10 gap-y-5">
-                  {[
-                    { label: 'Student', value: report.student_name, bold: true },
-                    { label: 'Programme', value: report.course_name },
-                    { label: 'School', value: report.school_name },
-                    { label: 'Class / Section', value: report.section_class },
-                    { label: 'Academic Term', value: report.report_term },
-                    { label: 'Score', value: overallNum > 0 ? `${overallNum}%` : null },
-                    { label: 'Proficiency', value: report.proficiency_level },
-                    { label: 'Instructor', value: report.instructor_name },
-                  ].filter(d => d.value).map(({ label, value, bold }) => (
-                    <div key={label}>
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">{label}</p>
-                      <p className={`text-[13px] ${bold ? 'font-extrabold' : 'font-bold'} text-gray-900 capitalize`}>{value}</p>
-                    </div>
-                  ))}
-                </div>
+              {/* MODE: Certificate Display */}
+              {mode === 'certificate' && certificate && (
+                <div className="space-y-12">
+                  <div className="bg-[#12121e] border border-white/5 rounded-[2.5rem] p-10 shadow-2xl space-y-10">
 
-                {/* Score bars */}
-                {(theory > 0 || practical > 0 || attendance > 0) && (
-                  <div className="px-8 pb-6 space-y-3">
-                    <div className="h-px bg-gray-100 mb-4" />
-                    {[
-                      { label: 'Theory (40%)',     value: theory,     color: '#6366f1' },
-                      { label: 'Practical (40%)',  value: practical,  color: '#10b981' },
-                      { label: 'Attendance (20%)', value: attendance, color: '#f59e0b' },
-                    ].map(({ label, value, color }) => (
-                      <div key={label} className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                          <span>{label}</span>
-                          <span style={{ color }}>{value}%</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all" style={{ width: `${value}%`, backgroundColor: color }} />
+                    {/* Certificate Visual */}
+                    <div className="flex items-center justify-center py-6">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-violet-500 blur-[80px] opacity-20" />
+                        <div className="relative w-48 h-48 bg-white/[0.03] border border-white/10 rounded-full flex flex-col items-center justify-center gap-4 backdrop-blur-3xl shadow-2xl">
+                          <AcademicCapIcon className="w-20 h-20 text-violet-400" />
+                          <div className="flex gap-1.5 translate-y-2">
+                            {[1, 2, 3, 4, 5].map(i => <div key={i} className="w-1 h-1 rounded-full bg-violet-500" />)}
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Certificate award row */}
-                {showCert && (
-                  <div className="mx-6 mb-6 rounded-2xl px-5 py-4 flex items-center gap-3" style={{ background: 'linear-gradient(135deg, #fffbeb, #fef9e7)', border: '1px solid #fde68a' }}>
-                    <CheckBadgeIcon className="w-5 h-5 flex-shrink-0" style={{ color: '#d97706' }} />
-                    <p className="text-sm font-bold" style={{ color: '#92400e' }}>Certificate of Completion Awarded</p>
-                  </div>
-                )}
-
-                {/* Signature & footer */}
-                <div className="border-t border-gray-100 px-8 py-6 flex items-end justify-between">
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Signatory Authority</p>
-                    <img
-                      src="/images/signature.png"
-                      alt="Official Signature"
-                      className="h-14 w-auto object-contain"
-                      style={{ mixBlendMode: 'multiply' }}
-                    />
-                    <div className="w-40 h-px bg-gray-900 mt-1" />
-                    <p className="text-[11px] font-black text-gray-900">Mr Osahon</p>
-                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Director, Rillcod Technologies</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center gap-2 justify-end mb-1">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Verified Authentic</p>
                     </div>
-                    <p className="text-[9px] text-gray-400 font-mono">rillcod.com/verify/{report.id.slice(0, 8).toUpperCase()}</p>
+
+                    <div className="text-center space-y-4">
+                      <h2 className="text-4xl font-black tracking-tight text-white leading-tight">
+                        {certificate.portal_users?.full_name}<br />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400">
+                          Certificated Expert
+                        </span>
+                      </h2>
+                      <p className="text-white/30 text-xs font-black uppercase tracking-[0.3em]">Institutional Completion Certificate</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-white/5 rounded-[2rem] overflow-hidden border border-white/5">
+                      {[
+                        { label: 'Programme', value: certificate.courses?.title, icon: <DocumentTextIcon className="w-5 h-5" /> },
+                        { label: 'Issue Date', value: new Date(certificate.issued_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }), icon: <CalendarIcon className="w-5 h-5" /> },
+                        { label: 'Certificate No.', value: certificate.certificate_number, icon: <CheckBadgeIcon className="w-5 h-5" /> },
+                        { label: 'Verify Code', value: certificate.verification_code, icon: <ShieldCheckIcon className="w-5 h-5" /> },
+                      ].map((item, i) => (
+                        <div key={i} className="bg-[#161625] p-6 flex items-start gap-4">
+                          <div className="w-10 h-10 bg-white/[0.03] rounded-xl flex items-center justify-center text-white/40">
+                            {item.icon}
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">{item.label}</p>
+                            <p className="text-sm font-bold text-white/80">{item.value}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {certificate.pdf_url && (
+                      <div className="flex justify-center pt-4">
+                        <a
+                          href={`/api/files/${certificate.pdf_url}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 text-violet-400 hover:text-white transition-colors text-xs font-black uppercase tracking-widest"
+                        >
+                          <ArrowDownTrayIcon className="w-4 h-4" /> Download Official PDF
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col md:flex-row items-center justify-center gap-4">
+                    <Link
+                      href="/verify"
+                      className="px-8 py-3.5 bg-violet-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-violet-500 transition-all shadow-lg shadow-violet-900/20 active:scale-95 text-center"
+                    >
+                      Verify Another Code
+                    </Link>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Disclaimer */}
-              <p className="text-center text-white/20 text-xs leading-relaxed px-4">
-                This page confirms the authenticity of a report issued by Rillcod Academy.
-                For queries contact{' '}
-                <a href="mailto:rillcod@gmail.com" className="text-white/40 hover:text-white underline underline-offset-2 transition-colors">
-                  rillcod@gmail.com
-                </a>
-              </p>
+              <div className="max-w-2xl mx-auto text-center space-y-4 px-6 opacity-30 mt-20">
+                <p className="text-[10px] font-bold text-white uppercase tracking-[0.2em] leading-relaxed">
+                  Institutional Disclosure
+                </p>
+                <p className="text-[11px] leading-relaxed font-medium">
+                  This verification portal validates Rillcod Academy credentials. Any attempt to forge, alter, or misrepresent these records is a violation of international academic standards. For legal inquiries or discrepancies, contact <a href="mailto:rillcod@gmail.com" className="underline hover:text-white transition-colors">rillcod@gmail.com</a>.
+                </p>
+              </div>
+
             </div>
           )}
         </div>
       </main>
 
-      <footer className="border-t border-white/5 px-6 py-4 text-center">
-        <p className="text-[10px] text-white/20">
-          © {new Date().getFullYear()} Rillcod Technologies · 26 Ogiesoba Avenue, GRA, Benin City
+      <footer className="mt-auto border-t border-white/5 px-6 py-10 text-center bg-[#0a0a0f]">
+        <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">
+          © {new Date().getFullYear()} Rillcod Technologies · Secure Verification Framework v3.0 (Master-Sync)
         </p>
       </footer>
     </div>
