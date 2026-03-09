@@ -229,7 +229,7 @@ export default function UsersPage() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     <div>
                         <div className="flex items-center gap-2 mb-1">
                             <ShieldCheckIcon className="w-5 h-5 text-violet-400" />
@@ -238,39 +238,46 @@ export default function UsersPage() {
                         <h1 className="text-3xl font-extrabold">All Portal Users</h1>
                         <p className="text-white/40 text-sm mt-1">Manage and verify all user accounts across the system</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => { setShowCreate(true); setCreateErr(''); }}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-violet-600/20"
-                        >
-                            <PlusIcon className="w-4 h-4" /> Create User
-                        </button>
-                        <button
-                            onClick={handleSync}
-                            disabled={syncing}
-                            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30' : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}`}
-                        >
-                            {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
-                            {syncing ? 'Syncing…' : gapCount ? `Sync (${gapCount} gaps)` : 'Sync Users'}
-                        </button>
-                        <button
-                            onClick={handleRemoveOrphans}
-                            disabled={syncing}
-                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20"
-                            title="Delete portal rows with no auth account"
-                        >
-                            <TrashIcon className="w-4 h-4" />
-                            Remove Orphans
-                        </button>
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-6">
-                            <div>
-                                <p className="text-2xl font-black text-white">{users.length}</p>
-                                <p className="text-[10px] text-white/40 uppercase font-black tracking-widest">Total Accounts</p>
-                            </div>
-                            <div className="h-8 w-px bg-white/10" />
-                            <button onClick={load} className="p-2 hover:bg-white/10 rounded-xl transition-colors text-white/40 hover:text-white">
-                                <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => { setShowCreate(true); setCreateErr(''); }}
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-violet-600/20"
+                            >
+                                <PlusIcon className="w-4 h-4" /> Create User
                             </button>
+                            <button
+                                onClick={handleSync}
+                                disabled={syncing}
+                                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30' : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}`}
+                            >
+                                {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
+                                {syncing ? 'Syncing…' : gapCount ? `Sync (${gapCount} gaps)` : 'Sync'}
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleRemoveOrphans}
+                                disabled={syncing}
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20"
+                                title="Delete portal rows with no auth account"
+                            >
+                                <TrashIcon className="w-4 h-4" />
+                                Orphans
+                            </button>
+
+                            <div className="flex-1 sm:flex-none bg-white/5 border border-white/10 rounded-2xl p-2 px-4 flex items-center justify-between sm:justify-start gap-4 h-[44px]">
+                                <div className="flex items-baseline gap-1.5">
+                                    <p className="text-xl font-black text-white">{users.length}</p>
+                                    <p className="text-[8px] text-white/40 uppercase font-black tracking-widest leading-none">Total</p>
+                                </div>
+                                <div className="h-6 w-px bg-white/10 hidden sm:block" />
+                                <button onClick={load} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/40 hover:text-white">
+                                    <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -319,33 +326,36 @@ export default function UsersPage() {
                         <div className="divide-y divide-white/5">
                             {filtered.map(u => (
                                 <div key={u.id} className="p-5 hover:bg-white/[0.02] transition-colors group">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center text-sm font-black text-white flex-shrink-0 shadow-lg ${avatarGrad(u.role)}`}>
-                                            {(u.full_name ?? '?')[0].toUpperCase()}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                                                <p className="font-bold text-white truncate">{u.full_name}</p>
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${roleBadge(u.role)}`}>
-                                                    {u.role}
-                                                </span>
-                                                {!u.is_active && (
-                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-gray-500/10 text-gray-400 border border-gray-500/20">
-                                                        Inactive
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                                            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center text-sm font-black text-white flex-shrink-0 shadow-lg ${avatarGrad(u.role)}`}>
+                                                {(u.full_name ?? '?')[0].toUpperCase()}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                                    <p className="font-bold text-white truncate">{u.full_name}</p>
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${roleBadge(u.role)}`}>
+                                                        {u.role}
                                                     </span>
-                                                )}
-                                            </div>
-                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/40">
-                                                <span className="flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" />{u.email}</span>
-                                                {u.phone && <span className="flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{u.phone}</span>}
-                                                <span>Joined {new Date(u.created_at).toLocaleDateString()}</span>
+                                                    {!u.is_active && (
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-gray-500/10 text-gray-400 border border-gray-500/20">
+                                                            Inactive
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/40">
+                                                    <span className="flex items-center gap-1 truncate max-w-[200px] sm:max-w-none"><EnvelopeIcon className="w-3.5 h-3.5 flex-shrink-0" />{u.email}</span>
+                                                    {u.phone && <span className="flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{u.phone}</span>}
+                                                    <span className="hidden sm:inline">Joined {new Date(u.created_at).toLocaleDateString()}</span>
+                                                </div>
                                             </div>
                                         </div>
-                                        {/* Action buttons — visible on hover */}
-                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+
+                                        {/* Action buttons — always visible on mobile, visible on hover on desktop */}
+                                        <div className="flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity ml-16 sm:ml-0">
                                             <button
                                                 onClick={() => openEdit(u)}
-                                                className="p-2 rounded-xl bg-white/5 hover:bg-violet-500/20 hover:text-violet-400 text-white/40 transition-all"
+                                                className="p-2.5 sm:p-2 rounded-xl bg-white/5 sm:bg-transparent hover:bg-violet-500/20 hover:text-violet-400 text-white/40 transition-all flex items-center justify-center"
                                                 title="Edit user"
                                             >
                                                 <PencilIcon className="w-4 h-4" />
@@ -354,7 +364,7 @@ export default function UsersPage() {
                                                 <button
                                                     onClick={() => handleDelete(u)}
                                                     disabled={deleting === u.id}
-                                                    className="p-2 rounded-xl bg-white/5 hover:bg-rose-500/20 hover:text-rose-400 text-white/40 transition-all disabled:opacity-40"
+                                                    className="p-2.5 sm:p-2 rounded-xl bg-white/5 sm:bg-transparent hover:bg-rose-500/20 hover:text-rose-400 text-white/40 transition-all disabled:opacity-40 flex items-center justify-center"
                                                     title="Delete user"
                                                 >
                                                     {deleting === u.id
