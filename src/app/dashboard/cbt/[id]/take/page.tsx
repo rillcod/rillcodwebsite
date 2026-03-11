@@ -51,22 +51,34 @@ export default function TakeExamPage() {
     if (!auto && !confirm('Submit exam? You cannot change answers after submission.')) return;
     setSubmitting(true);
     try {
-      // Calculate score
+      // Calculate score for auto-gradable questions
       let correct = 0;
+      let manualGradingRequired = false;
+
       questions.forEach(q => {
+        if (q.question_type === 'essay' || q.question_type === 'fill_blank') {
+          manualGradingRequired = true;
+        }
+
         if ((answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) {
-          correct++;
+          if (q.question_type !== 'essay') { // Essays never auto-match unless maybe it's a perfect string, but we want manual review anyway
+            correct++;
+          }
         }
       });
+
       const totalPoints = questions.reduce((s, q) => s + (q.points ?? 0), 0);
       const earnedPoints = questions.reduce((s, q) => {
+        if (q.question_type === 'essay' || q.question_type === 'fill_blank') return s; // These will be added later
         if ((answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) {
           return s + (q.points ?? 0);
         }
         return s;
       }, 0);
+
       const score = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
       const passed = score >= (exam?.passing_score ?? 70);
+      const finalStatus = manualGradingRequired ? 'pending_grading' : (passed ? 'passed' : 'failed');
 
       await createClient().from('cbt_sessions').insert({
         exam_id: exam.id,
@@ -74,11 +86,12 @@ export default function TakeExamPage() {
         start_time: startTimeRef.current.toISOString(),
         end_time: new Date().toISOString(),
         score,
-        status: passed ? 'passed' : 'failed',
+        status: finalStatus,
         answers,
+        needs_grading: manualGradingRequired,
       });
 
-      setResult({ score, passed, correct });
+      setResult({ score, passed, correct: manualGradingRequired ? -1 : correct });
       setSubmitted(true);
     } finally {
       setSubmitting(false);
@@ -118,41 +131,54 @@ export default function TakeExamPage() {
     </div>
   );
 
-  if (submitted && result) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center text-white p-4">
-      <div className="max-w-md w-full text-center space-y-6">
-        <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center border-4 ${result.passed ? 'border-emerald-500 bg-emerald-500/10' : 'border-rose-500 bg-rose-500/10'}`}>
-          {result.passed
-            ? <CheckCircleIcon className="w-12 h-12 text-emerald-400" />
-            : <XCircleIcon className="w-12 h-12 text-rose-400" />}
-        </div>
-        <div>
-          <h1 className={`text-4xl font-extrabold ${result.passed ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {result.passed ? 'Passed!' : 'Not Passed'}
-          </h1>
-          <p className="text-white/40 mt-2">{exam?.title}</p>
-        </div>
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-white/40">Your Score</span>
-            <span className="font-bold text-2xl">{result.score}%</span>
+  if (submitted && result) {
+    const isPending = result.correct === -1; // Flag from handleSubmit
+
+    return (
+      <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center text-white p-4">
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center border-4 ${isPending ? 'border-amber-500 bg-amber-500/10' : (result.passed ? 'border-emerald-500 bg-emerald-500/10' : 'border-rose-500 bg-rose-500/10')}`}>
+            {isPending ? <ClockIcon className="w-12 h-12 text-amber-400" /> : (result.passed ? <CheckCircleIcon className="w-12 h-12 text-emerald-400" /> : <XCircleIcon className="w-12 h-12 text-rose-400" />)}
           </div>
-          <div className="w-full h-3 bg-white/10 rounded-full">
-            <div className={`h-3 rounded-full ${result.passed ? 'bg-emerald-500' : 'bg-rose-500'}`}
-              style={{ width: `${Math.min(result.score, 100)}%` }} />
+          <div>
+            <h1 className={`text-4xl font-extrabold ${isPending ? 'text-amber-400' : (result.passed ? 'text-emerald-400' : 'text-rose-400')}`}>
+              {isPending ? 'Submitted!' : (result.passed ? 'Passed!' : 'Not Passed')}
+            </h1>
+            <p className="text-white/40 mt-2">{exam?.title}</p>
           </div>
-          <div className="flex justify-between text-xs text-white/30">
-            <span>{result.correct}/{questions.length} correct</span>
-            <span>{exam?.passing_score ?? 70}% required to pass</span>
-          </div>
+          {isPending ? (
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <p className="text-sm text-white/70 leading-relaxed">
+                Your exam contains questions that require manual evaluation by your instructor (Essays/Fill-in-the-blanks).
+              </p>
+              <p className="text-xs text-white/40 mt-3 font-medium uppercase tracking-widest">
+                Final score will be updated soon.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-white/40">Your Score</span>
+                <span className="font-bold text-2xl">{result.score}%</span>
+              </div>
+              <div className="w-full h-3 bg-white/10 rounded-full">
+                <div className={`h-3 rounded-full ${result.passed ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                  style={{ width: `${Math.min(result.score, 100)}%` }} />
+              </div>
+              <div className="flex justify-between text-xs text-white/30">
+                <span>{result.correct}/{questions.length} correct</span>
+                <span>{exam?.passing_score ?? 70}% required to pass</span>
+              </div>
+            </div>
+          )}
+          <button onClick={() => router.push('/dashboard/cbt')}
+            className="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors">
+            Back to CBT Centre
+          </button>
         </div>
-        <button onClick={() => router.push('/dashboard/cbt')}
-          className="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors">
-          Back to CBT Centre
-        </button>
       </div>
-    </div>
-  );
+    );
+  }
 
   const q = questions[current];
   const progress = ((current + 1) / questions.length) * 100;

@@ -51,52 +51,52 @@ export default function ProgressPage() {
 
       try {
         if (isStaff) {
-          // Teacher/admin/school: submissions and enrollments
+          // 1. Resolve school metadata for non-admins
+          let assignedSchoolIds: string[] = [];
+          let assignedSchoolNames: string[] = [];
+
+          if (role === 'school' && p.school_id) {
+            assignedSchoolIds = [p.school_id];
+            const { data: sData } = await supabase.from('schools').select('name').eq('id', p.school_id).maybeSingle();
+            if (sData?.name) assignedSchoolNames = [sData.name];
+          } else if (role === 'teacher') {
+            const { data: assignments } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', p.id);
+            const ids = assignments?.map((a: any) => a.school_id).filter(Boolean) || [];
+            if (p.school_id) ids.push(p.school_id);
+            assignedSchoolIds = Array.from(new Set(ids));
+
+            if (assignedSchoolIds.length > 0) {
+              const { data: namesData } = await supabase.from('schools').select('name').in('id', assignedSchoolIds);
+              assignedSchoolNames = namesData?.map(s => s.name).filter(Boolean) || [];
+            }
+          }
+
+          // 2. Prepare queries with portal_users join
           let subsQuery = supabase.from('assignment_submissions')
             .select(`id, grade, status, portal_user_id,
                 assignments ( id, title, max_points, course_id,
                   courses ( id, title, programs ( name ) ) ),
-                portal_users!assignment_submissions_portal_user_id_fkey!inner ( id, full_name, email, school_id )`)
+                portal_users!assignment_submissions_portal_user_id_fkey!inner ( id, full_name, email, school_id, school_name )`)
             .order('graded_at', { ascending: false });
 
           let enrQuery = supabase.from('enrollments')
             .select(`id, status, grade, progress_pct, enrollment_date,
                 programs ( id, name, difficulty_level, duration_weeks ),
-                portal_users!inner ( id, full_name, email, school_id )`)
+                portal_users!inner ( id, full_name, email, school_id, school_name )`)
             .order('enrollment_date', { ascending: false });
 
-          if (role === 'school' && p.school_id) {
-            subsQuery = subsQuery.eq('portal_users.school_id', p.school_id);
-            enrQuery = enrQuery.eq('portal_users.school_id', p.school_id);
-          } else if (role === 'teacher') {
-            const { data: assignments } = await supabase
-              .from('teacher_schools')
-              .select('school_id')
-              .eq('teacher_id', p.id);
+          // 3. Apply filtering for non-admins
+          if (role !== 'admin') {
+            if (assignedSchoolIds.length > 0) {
+              const namesSegment = assignedSchoolNames.length > 0
+                ? `,school_name.in.(${assignedSchoolNames.map(n => `"${n}"`).join(',')})`
+                : '';
+              const filter = `school_id.in.(${assignedSchoolIds.join(',')})${namesSegment}`;
 
-            const schoolIds = assignments?.map((a: any) => a.school_id).filter(Boolean) || [];
-            if (p.school_id) schoolIds.push(p.school_id);
-            const uniqueSchoolIds = Array.from(new Set(schoolIds));
-
-            // Find all user IDs linked to these schools or registered by this teacher
-            let sIdsQuery = supabase.from('students')
-              .select('user_id')
-              .eq('status', 'approved')
-              .not('user_id', 'is', null);
-
-            if (uniqueSchoolIds.length > 0) {
-              sIdsQuery = sIdsQuery.or(`school_id.in.(${uniqueSchoolIds.join(',')}),created_by.eq.${p.id}`);
+              subsQuery = subsQuery.or(filter, { foreignTable: 'portal_users' });
+              enrQuery = enrQuery.or(filter, { foreignTable: 'portal_users' });
             } else {
-              sIdsQuery = sIdsQuery.eq('created_by', p.id);
-            }
-
-            const { data: sEntries } = await sIdsQuery;
-            const relevantUserIds = (sEntries ?? []).map(s => s.user_id).filter((id): id is string => !!id);
-
-            if (relevantUserIds.length > 0) {
-              subsQuery = subsQuery.in('portal_user_id', relevantUserIds);
-              enrQuery = enrQuery.in('user_id', relevantUserIds);
-            } else {
+              // No schools assigned
               subsQuery = subsQuery.eq('id', '00000000-0000-0000-0000-000000000000');
               enrQuery = enrQuery.eq('id', '00000000-0000-0000-0000-000000000000');
             }
@@ -163,9 +163,26 @@ export default function ProgressPage() {
         </div>
         {[1, 2].map(i => <div key={i} className="bg-white/5 border border-white/10 rounded-2xl h-40 animate-pulse" />)}
       </div>
+
+      <style jsx global>{`
+        @media print {
+          body { background: white !important; color: black !important; }
+          .bg-\[\#0f0f1a\], .bg-gradient-to-br { background: white !important; }
+          .bg-white\/5, .bg-white\/8, .bg-white\/10 { background: #f9fafb !important; border-color: #e5e7eb !important; }
+          .text-white, .text-white\/60, .text-white\/40, .text-white\/30 { color: #111827 !important; }
+          .border-white\/10, .border-white\/20, .border-white\/5 { border-color: #e5e7eb !important; }
+          .max-w-7xl { max-width: 100% !important; padding: 0 !important; }
+          .shadow-xl, .shadow-lg, .shadow-blue-600\/20, .shadow-2xl { box-shadow: none !important; }
+          .print\:hidden { display: none !important; }
+          button { display: none !important; }
+          h1, h2, h3 { color: black !important; }
+          .divide-white\/5 { divide-color: #e5e7eb !important; }
+          .h-2 { height: 8px !important; background: #e5e7eb !important; }
+          .bg-violet-500 { background: #8b5cf6 !important; }
+        }
+      `}</style>
     </div>
   );
-
   if (!profile) return null;
 
   return (
@@ -173,18 +190,33 @@ export default function ProgressPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Header */}
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <ChartBarIcon className="w-5 h-5 text-violet-400" />
-            <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">
-              {isStaff ? 'Student Analytics' : 'My Progress'} · {role}
-            </span>
+        <div className="flex items-center justify-between print:hidden">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <ChartBarIcon className="w-5 h-5 text-violet-400" />
+              <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">
+                {isStaff ? 'Student Analytics' : 'My Progress'} · {role}
+              </span>
+            </div>
+            <h1 className="text-3xl font-extrabold">
+              {isStaff ? 'Progress & Analytics' : 'My Learning Progress'}
+            </h1>
+            <p className="text-white/40 text-sm mt-1">
+              {isStaff ? 'Track student performance across all assignments' : 'Track your academic journey and performance'}
+            </p>
           </div>
-          <h1 className="text-3xl font-extrabold">
-            {isStaff ? 'Progress & Analytics' : 'My Learning Progress'}
-          </h1>
-          <p className="text-white/40 text-sm mt-1">
-            {isStaff ? 'Track student performance across all assignments' : 'Track your academic journey and performance'}
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white/70 text-sm font-bold rounded-xl border border-white/10 transition-all shadow-lg"
+          >
+            <ClipboardDocumentCheckIcon className="w-4 h-4" /> Print Report
+          </button>
+        </div>
+
+        <div className="hidden print:block border-b border-gray-200 pb-6 mb-8">
+          <h1 className="text-2xl font-black text-black">Academic Progress Report</h1>
+          <p className="text-sm text-gray-500">
+            {profile!.full_name} · {profile!.school_name || 'Rillcod Academy'} · {new Date().toLocaleDateString()}
           </p>
         </div>
 

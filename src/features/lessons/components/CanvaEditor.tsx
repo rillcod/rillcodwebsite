@@ -4,16 +4,26 @@ import { useState } from 'react';
 import {
     PlusIcon, TrashIcon, ChevronUpIcon, ChevronDownIcon,
     TypeIcon, HeadingIcon, CodeIcon, ImageIcon, InfoIcon, AlertTriangleIcon,
-    GripVerticalIcon
+    GripVerticalIcon, ActivityIcon, HelpCircleIcon, VideoIcon, FileTextIcon,
+    Share2Icon, SigmaIcon, SparklesIcon, Wand2Icon
 } from 'lucide-react';
 
 interface Block {
-    type: 'text' | 'heading' | 'code' | 'image' | 'callout';
+    type: 'text' | 'heading' | 'code' | 'image' | 'callout' | 'activity' | 'quiz' | 'video' | 'file' | 'mermaid' | 'math';
     content?: string;
     language?: string;
     url?: string;
     caption?: string;
     style?: 'info' | 'warning';
+    title?: string;
+    instructions?: string;
+    question?: string;
+    options?: string[];
+    correct_answer?: string;
+    fileName?: string;
+    code?: string; // For mermaid
+    formula?: string; // For math
+    id?: string; // For AI image generation and potentially other blocks
 }
 
 interface CanvaEditorProps {
@@ -23,16 +33,28 @@ interface CanvaEditorProps {
 
 export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
     const addBlock = (type: Block['type']) => {
-        const newBlock: Block = { type, content: '' };
+        const newBlock: Block = { type, content: '', id: Date.now().toString() }; // Add id to new blocks
         if (type === 'code') newBlock.language = 'javascript';
         if (type === 'callout') newBlock.style = 'info';
+        if (type === 'mermaid') newBlock.code = 'graph TD\n    A[Start] --> B[End]';
+        if (type === 'math') newBlock.formula = 'E = mc^2';
         onChange([...layout, newBlock]);
     };
 
-    const updateBlock = (index: number, updates: Partial<Block>) => {
+    const updateBlock = (indexOrId: number | string, updates: Partial<Block>) => {
         const next = [...layout];
-        next[index] = { ...next[index], ...updates };
-        onChange(next);
+        let targetIndex: number;
+
+        if (typeof indexOrId === 'number') {
+            targetIndex = indexOrId;
+        } else {
+            targetIndex = next.findIndex(block => block.id === indexOrId);
+        }
+
+        if (targetIndex !== -1) {
+            next[targetIndex] = { ...next[targetIndex], ...updates };
+            onChange(next);
+        }
     };
 
     const removeBlock = (index: number) => {
@@ -56,7 +78,45 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                     <ToolbarButton onClick={() => addBlock('text')} icon={TypeIcon} label="Text" />
                     <ToolbarButton onClick={() => addBlock('code')} icon={CodeIcon} label="Code" />
                     <ToolbarButton onClick={() => addBlock('image')} icon={ImageIcon} label="Image" />
+                    <ToolbarButton onClick={() => addBlock('video')} icon={VideoIcon} label="Video" />
+                    <ToolbarButton icon={<FileTextIcon className="w-4 h-4" />} label="File" onClick={() => addBlock('file')} />
+                    <ToolbarButton icon={<Share2Icon className="w-4 h-4" />} label="Diagram" onClick={() => addBlock('mermaid')} />
+                    <ToolbarButton icon={<SigmaIcon className="w-4 h-4" />} label="Math" onClick={() => addBlock('math')} />
+                    <div className="w-[1px] h-4 bg-white/10 mx-1" />
+                    <button
+                        onClick={async () => {
+                            const prompt = window.prompt("What image should AI generate for this lesson? (e.g. A robot soldering a circuit)");
+                            if (!prompt) return;
+
+                            const id = Date.now().toString();
+                            const newBlock: Block = { id, type: 'image', content: '', caption: prompt, url: '' };
+                            onChange([...layout, newBlock]); // Use onChange to update layout
+
+                            try {
+                                const res = await fetch('/api/ai/image', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ prompt })
+                                });
+                                const data = await res.json();
+                                if (data.url) {
+                                    updateBlock(id, { url: data.url }); // Use updateBlock with id
+                                } else {
+                                    alert('AI image generation failed');
+                                }
+                            } catch (e) {
+                                console.error(e);
+                                alert('AI image generation failed');
+                            }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 rounded-lg text-xs font-bold transition-all border border-violet-500/20"
+                    >
+                        <Wand2Icon className="w-3.5 h-3.5" />
+                        AI Image
+                    </button>
                     <ToolbarButton onClick={() => addBlock('callout')} icon={InfoIcon} label="Tip" />
+                    <ToolbarButton onClick={() => addBlock('activity')} icon={ActivityIcon} label="Activity" />
+                    <ToolbarButton onClick={() => addBlock('quiz')} icon={HelpCircleIcon} label="Quiz" />
                 </div>
             </div>
 
@@ -149,7 +209,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                 {block.type === 'callout' && (
                                     <div className="flex gap-3">
                                         <select
-                                            value={block.style}
+                                            value={block.style || 'info'}
                                             onChange={e => updateBlock(i, { style: e.target.value as any })}
                                             className="bg-white/10 text-[10px] px-2 py-1 h-fit rounded-md text-white/60 focus:outline-none"
                                         >
@@ -163,6 +223,122 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                             placeholder="Callout content..."
                                             className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none focus:border-cyan-500 resize-none"
                                         />
+                                    </div>
+                                )}
+
+                                {block.type === 'activity' && (
+                                    <div className="space-y-3">
+                                        <input
+                                            type="text"
+                                            value={block.title || ''}
+                                            onChange={e => updateBlock(i, { title: e.target.value })}
+                                            placeholder="Activity Title (e.g., Coding Challenge)..."
+                                            className="w-full bg-transparent border-b border-white/10 py-1 text-sm font-bold focus:outline-none focus:border-cyan-500"
+                                        />
+                                        <textarea
+                                            rows={3}
+                                            value={block.instructions || ''}
+                                            onChange={e => updateBlock(i, { instructions: e.target.value })}
+                                            placeholder="Step-by-step instructions for students..."
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:border-cyan-500 resize-none"
+                                        />
+                                    </div>
+                                )}
+
+                                {block.type === 'video' && (
+                                    <div className="space-y-3">
+                                        <input
+                                            type="text"
+                                            value={block.url || ''}
+                                            onChange={e => updateBlock(i, { url: e.target.value })}
+                                            placeholder="YouTube or Video URL..."
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={block.caption || ''}
+                                            onChange={e => updateBlock(i, { caption: e.target.value })}
+                                            placeholder="Video caption (optional)..."
+                                            className="w-full bg-transparent border-b border-white/10 py-1 text-xs text-white/40 focus:outline-none focus:border-cyan-500"
+                                        />
+                                    </div>
+                                )}
+
+                                {block.type === 'file' && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <input
+                                            type="text"
+                                            value={block.url || ''}
+                                            onChange={e => updateBlock(i, { url: e.target.value })}
+                                            placeholder="Download Link (Google Drive, etc)..."
+                                            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={block.fileName || ''}
+                                            onChange={e => updateBlock(i, { fileName: e.target.value })}
+                                            placeholder="Display Name (e.g., Study Guide.pdf)..."
+                                            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                                        />
+                                    </div>
+                                )}
+                                {block.type === 'mermaid' && (
+                                    <div className="space-y-4">
+                                        <textarea
+                                            value={block.code || ''}
+                                            onChange={(e) => updateBlock(i, { code: e.target.value })}
+                                            placeholder="graph TD\nA[Start] --> B[End]"
+                                            className="w-full bg-[#1e1e2e] text-white p-4 rounded-xl border border-white/10 font-mono text-sm h-32 focus:outline-none focus:border-cyan-500"
+                                        />
+                                        <p className="text-[10px] text-white/40 uppercase font-black">Mermaid Diagram Syntax</p>
+                                    </div>
+                                )}
+
+                                {block.type === 'math' && (
+                                    <div className="space-y-4">
+                                        <input
+                                            type="text"
+                                            value={block.formula || ''}
+                                            onChange={(e) => updateBlock(i, { formula: e.target.value })}
+                                            placeholder="E = mc^2"
+                                            className="w-full bg-[#1e1e2e] text-white p-4 rounded-xl border border-white/10 font-serif text-lg focus:outline-none focus:border-cyan-500"
+                                        />
+                                        <p className="text-[10px] text-white/40 uppercase font-black">LaTeX Formula Syntax</p>
+                                    </div>
+                                )}
+                                {block.type === 'quiz' && (
+                                    <div className="space-y-4">
+                                        <input
+                                            type="text"
+                                            value={block.question || ''}
+                                            onChange={e => updateBlock(i, { question: e.target.value })}
+                                            placeholder="Quiz Question..."
+                                            className="w-full bg-transparent border-b border-white/10 py-1 text-sm font-bold focus:outline-none focus:border-cyan-500"
+                                        />
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {(block.options || ['', '', '', '']).map((opt: string, optIdx: number) => (
+                                                <div key={optIdx} className="flex gap-2 items-center">
+                                                    <input
+                                                        type="radio"
+                                                        name={`quiz-${i}-correct`}
+                                                        checked={block.correct_answer === opt && opt !== ''}
+                                                        onChange={() => updateBlock(i, { correct_answer: opt })}
+                                                        className="accent-cyan-500"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={opt}
+                                                        onChange={e => {
+                                                            const newOpts = [...(block.options || ['', '', '', ''])];
+                                                            newOpts[optIdx] = e.target.value;
+                                                            updateBlock(i, { options: newOpts });
+                                                        }}
+                                                        placeholder={`Option ${optIdx + 1}`}
+                                                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs focus:outline-none"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>

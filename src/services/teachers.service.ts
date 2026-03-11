@@ -11,7 +11,7 @@ export async function getTeachers(schoolId?: string): Promise<ApiResponse<Teache
         .from('portal_users')
         .select('*')
         .eq('role', 'teacher')
-        .eq('is_deleted', false)
+        .neq('is_deleted', true)
         .order('full_name', { ascending: true });
 
     if (schoolId) {

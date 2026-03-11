@@ -152,13 +152,20 @@ async function loadStudentActivity(supabase: ReturnType<typeof createClient>, us
   }));
 }
 
-async function loadSchoolStats(supabase: ReturnType<typeof createClient>, schoolId: string) {
+async function loadSchoolStats(supabase: ReturnType<typeof createClient>, schoolId: string, schoolName?: string | null) {
+  let studentQuery = supabase.from('students').select('id', { count: 'exact', head: true });
+  if (schoolName) {
+    studentQuery = studentQuery.or(`school_id.eq.${schoolId},school_name.eq."${schoolName}"`);
+  } else {
+    studentQuery = studentQuery.eq('school_id', schoolId);
+  }
+
   const [students, teachers, graded] = await Promise.allSettled([
-    supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
+    studentQuery,
     supabase.from('teacher_schools').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
     supabase.from('assignment_submissions')
-      .select('grade, portal_users!inner(school_id)')
-      .eq('portal_users.school_id', schoolId)
+      .select('grade, portal_users!inner(school_id, school_name)')
+      .or(`portal_users.school_id.eq.${schoolId}${schoolName ? `,portal_users.school_name.eq."${schoolName}"` : ''}`)
       .not('grade', 'is', null)
       .limit(200),
   ]);
@@ -177,11 +184,11 @@ async function loadSchoolStats(supabase: ReturnType<typeof createClient>, school
   ] as DashStats[];
 }
 
-async function loadSchoolActivity(supabase: ReturnType<typeof createClient>, schoolId: string): Promise<Activity[]> {
+async function loadSchoolActivity(supabase: ReturnType<typeof createClient>, schoolId: string, schoolName?: string | null): Promise<Activity[]> {
   const { data } = await supabase
     .from('assignment_submissions')
-    .select('id, status, submitted_at, portal_users!inner(full_name, school_id), assignments(title)')
-    .eq('portal_users.school_id', schoolId)
+    .select('id, status, submitted_at, portal_users!inner(full_name, school_id, school_name), assignments(title)')
+    .or(`portal_users.school_id.eq.${schoolId}${schoolName ? `,portal_users.school_name.eq."${schoolName}"` : ''}`)
     .order('submitted_at', { ascending: false })
     .limit(5);
   return (data ?? []).map((s: any) => ({
@@ -255,11 +262,11 @@ export default function DashboardPage() {
       const [s, a] = await Promise.all([
         role === 'admin' ? loadAdminStats(supabase) :
           role === 'teacher' ? loadTeacherStats(supabase, profile.id) :
-            role === 'school' ? loadSchoolStats(supabase, profile.school_id!) :
+            role === 'school' ? loadSchoolStats(supabase, profile.school_id!, profile.school_name) :
               loadStudentStats(supabase, profile.id),
         role === 'admin' ? loadAdminActivity(supabase) :
           role === 'teacher' ? loadTeacherActivity(supabase, profile.id) :
-            role === 'school' ? loadSchoolActivity(supabase, profile.school_id!) :
+            role === 'school' ? loadSchoolActivity(supabase, profile.school_id!, profile.school_name) :
               loadStudentActivity(supabase, profile.id),
       ]);
       setStats(s);

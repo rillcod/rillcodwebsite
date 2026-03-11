@@ -9,7 +9,7 @@ import {
     ArrowLeft, BookOpen, Check,
     Trash2, Plus, Paperclip,
     GraduationCap, Sparkles, Save,
-    Layout, FileText, Settings2
+    Layout, FileText, Settings2, ChevronDown
 } from 'lucide-react';
 import CanvaEditor from '@/features/lessons/components/CanvaEditor';
 
@@ -18,6 +18,8 @@ export default function EditLessonPage() {
     const id = params?.id as string;
     const router = useRouter();
     const { profile, loading: authLoading } = useAuth();
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const isMinimal = searchParams?.get('minimal') === 'true';
 
     const [lesson, setLesson] = useState<any>(null);
     const [courses, setCourses] = useState<any[]>([]);
@@ -29,6 +31,7 @@ export default function EditLessonPage() {
     const [form, setForm] = useState({
         title: '',
         description: '',
+        lesson_notes: '',
         course_id: '',
         lesson_type: 'hands-on',
         duration_minutes: '60',
@@ -57,7 +60,7 @@ export default function EditLessonPage() {
         try {
             const [lessonRes, coursesRes, planRes, materialsRes] = await Promise.all([
                 db.from('lessons').select('*').eq('id', id).single(),
-                db.from('courses').select('id, title').eq('is_active', true).order('title'),
+                db.from('courses').select('id, title').order('title'),
                 db.from('lesson_plans').select('*').eq('lesson_id', id).maybeSingle(),
                 db.from('lesson_materials').select('*').eq('lesson_id', id).order('created_at', { ascending: true })
             ]);
@@ -71,6 +74,7 @@ export default function EditLessonPage() {
             setForm({
                 title: l.title,
                 description: l.description || '',
+                lesson_notes: l.lesson_notes || '',
                 course_id: l.course_id || '',
                 lesson_type: l.lesson_type || 'hands-on',
                 duration_minutes: String(l.duration_minutes || 60),
@@ -98,6 +102,37 @@ export default function EditLessonPage() {
         if (!authLoading && profile) fetchData();
     }, [authLoading, profile, fetchData]);
 
+    const [aiGeneratingPlan, setAiGeneratingPlan] = useState(false);
+
+    const generateAiPlan = async () => {
+        if (!form.title) { alert('Lesson must have a title'); return; }
+        setAiGeneratingPlan(true);
+        try {
+            const res = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'lesson',
+                    topic: form.title,
+                }),
+            });
+            const payload = await res.json();
+            if (!res.ok) throw new Error(payload.error);
+            const d = payload.data;
+            setPlan({
+                objectives: Array.isArray(d.objectives) ? d.objectives.join('\n') : (d.objectives || ''),
+                activities: Array.isArray(d.content_layout) ? d.content_layout.filter((b: any) => b.type === 'activity').map((b: any) => `${b.title || 'Activity'}: ${b.instructions || b.content || ''}`).join('\n\n') : '',
+                assessment_methods: Array.isArray(d.content_layout) ? d.content_layout.filter((b: any) => b.type === 'quiz').map((b: any) => b.question || b.content || '').join('\n') : '',
+                staff_notes: d.description || ''
+            });
+            alert('AI Plan generated! Review and save.');
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setAiGeneratingPlan(false);
+        }
+    };
+
     const handleSave = async () => {
         if (!id || !profile) return;
         setSaving(true);
@@ -108,6 +143,7 @@ export default function EditLessonPage() {
             const { error: lErr } = await db.from('lessons').update({
                 title: form.title,
                 description: form.description,
+                lesson_notes: form.lesson_notes,
                 course_id: form.course_id,
                 lesson_type: form.lesson_type,
                 status: form.status,
@@ -161,27 +197,36 @@ export default function EditLessonPage() {
     );
 
     return (
-        <div className="min-h-screen bg-[#0f0f1a] text-white">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        <div className={`min-h-screen bg-[#0f0f1a] text-white ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
+            <div className={`${isMinimal ? 'w-full' : 'max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8'} space-y-8`}>
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => router.back()} className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10">
-                            <ArrowLeft className="w-5 h-5 text-white/40" />
-                        </button>
+                        {!isMinimal && (
+                            <button onClick={() => router.back()} className="p-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-white/40 hover:text-white" title="Go Back">
+                                <ArrowLeft className="w-5 h-5" />
+                            </button>
+                        )}
+                        {!isMinimal && (
+                            <div className="w-12 h-12 rounded-2xl bg-cyan-600/10 flex items-center justify-center text-cyan-400">
+                                <BookOpen className="w-6 h-6" />
+                            </div>
+                        )}
                         <div>
-                            <p className="text-[10px] font-black tracking-[0.2em] text-cyan-400 uppercase mb-1">Editing Lesson</p>
-                            <h1 className="text-3xl font-black">{form.title || 'Lesson Title'}</h1>
+                            <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">{isMinimal ? 'Quick Edit' : 'Drafting Lesson'}</p>
+                            <h1 className="text-2xl font-black">{form.title || 'Lesson Title'}</h1>
                         </div>
                     </div>
                     <div className="flex gap-3">
-                        <Link href={`/dashboard/lessons/${id}`} className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl font-bold text-sm hover:bg-white/10 transition-all">
-                            View Live
-                        </Link>
+                        {!isMinimal && (
+                            <Link href={`/dashboard/lessons/${id}`} className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl font-bold text-sm hover:bg-white/10 transition-all">
+                                View Live
+                            </Link>
+                        )}
                         <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm rounded-xl shadow-xl shadow-cyan-900/40 transition-all disabled:opacity-50">
                             {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
-                            {saving ? 'SAVING...' : 'SAVE CHANGES'}
+                            {saving ? (isMinimal ? 'SAVING...' : 'SAVING...') : (isMinimal ? 'SAVE' : 'SAVE CHANGES')}
                         </button>
                     </div>
                 </div>
@@ -207,23 +252,80 @@ export default function EditLessonPage() {
                                 <Field label="Lesson Title" value={form.title} onChange={v => setForm({ ...form, title: v })} />
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Linked Course</label>
-                                    <select value={form.course_id} onChange={e => setForm({ ...form, course_id: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none">
-                                        <option value="">Select Course</option>
-                                        {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                                    </select>
+                                    <div className="relative">
+                                        <select value={form.course_id} onChange={e => setForm({ ...form, course_id: e.target.value })}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer">
+                                            <option value="">Select Course</option>
+                                            {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                            <ChevronDown className="w-4 h-4 text-white/20" />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                <SelectField label="Type" value={form.lesson_type} options={['hands-on', 'video', 'interactive', 'workshop', 'coding']} onChange={v => setForm({ ...form, lesson_type: v })} />
+                                <SelectField label="Type" value={form.lesson_type} options={['hands-on', 'video', 'interactive', 'workshop', 'coding', 'reading']} onChange={v => setForm({ ...form, lesson_type: v })} />
                                 <Field label="Duration (min)" value={form.duration_minutes} type="number" onChange={v => setForm({ ...form, duration_minutes: v })} />
-                                <Field label="Order index" value={form.order_index} type="number" onChange={v => setForm({ ...form, order_index: v })} />
-                                <SelectField label="Status" value={form.status} options={['draft', 'scheduled', 'active']} onChange={v => setForm({ ...form, status: v })} />
+                                <Field label="Sequence Number" value={form.order_index} type="number" onChange={v => setForm({ ...form, order_index: v })} />
+                                <SelectField label="Status" value={form.status} options={['draft', 'scheduled', 'active', 'completed']} onChange={v => setForm({ ...form, status: v })} />
                             </div>
 
-                            <Field label="Description" value={form.description} textarea onChange={v => setForm({ ...form, description: v })} />
-                            <Field label="Video URL / Media Link" value={form.video_url} onChange={v => setForm({ ...form, video_url: v })} />
+                            <Field label="Brief Description" value={form.description} textarea onChange={v => setForm({ ...form, description: v })} />
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Comprehensive Study Notes (Mandatory for Students)</label>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            if (!form.title) return alert('Enter a title first');
+                                            setSaving(true);
+                                            try {
+                                                const res = await fetch('/api/ai/generate', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ type: 'lesson', topic: form.title })
+                                                });
+                                                const payload = await res.json();
+                                                if (!res.ok) throw new Error(payload.error || 'Failed to generate');
+                                                const d = payload.data;
+
+                                                setForm(p => ({
+                                                    ...p,
+                                                    lesson_notes: d.lesson_notes || p.lesson_notes,
+                                                    description: d.description || p.description,
+                                                    content_layout: d.content_layout || p.content_layout,
+                                                    video_url: d.video_url || p.video_url,
+                                                    duration_minutes: d.duration_minutes ? String(d.duration_minutes) : p.duration_minutes
+                                                }));
+
+                                                if (d.objectives) {
+                                                    setPlan(p => ({
+                                                        ...p,
+                                                        objectives: Array.isArray(d.objectives) ? d.objectives.join('\n') : d.objectives
+                                                    }));
+                                                }
+                                                alert('Lesson content generated! Review the Builder and Plan tabs.');
+                                            } catch (e: any) {
+                                                alert(e.message || 'Generation failed');
+                                            }
+                                            setSaving(false);
+                                        }}
+                                        className="text-[9px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1 hover:text-cyan-300 transition-colors"
+                                    >
+                                        <Sparkles className="w-3 h-3" /> Full AI Generation
+                                    </button>
+                                </div>
+                                <textarea
+                                    value={form.lesson_notes}
+                                    rows={8}
+                                    onChange={e => setForm({ ...form, lesson_notes: e.target.value })}
+                                    placeholder="These notes will be shown to students as a prerequisite to watching the video..."
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none"
+                                />
+                            </div>
+                            <Field label="Video URL (YouTube/Direct)" value={form.video_url} onChange={v => setForm({ ...form, video_url: v })} />
                         </div>
                     )}
 
@@ -235,9 +337,23 @@ export default function EditLessonPage() {
 
                     {activeTab === 'plan' && (
                         <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-8 animate-in fade-in duration-500">
-                            <div className="flex items-center gap-3 mb-4">
-                                <Sparkles className="w-6 h-6 text-amber-400" />
-                                <h2 className="text-xl font-black uppercase tracking-tight">Instructor Guidelines</h2>
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                    <Sparkles className="w-6 h-6 text-amber-400" />
+                                    <h2 className="text-xl font-black uppercase tracking-tight">Instructor Guidelines</h2>
+                                </div>
+                                <button
+                                    onClick={generateAiPlan}
+                                    disabled={aiGeneratingPlan}
+                                    className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                                >
+                                    {aiGeneratingPlan ? (
+                                        <div className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <Sparkles className="w-3 h-3" />
+                                    )}
+                                    {aiGeneratingPlan ? 'GENERATING...' : 'MAGIC AI PLAN'}
+                                </button>
                             </div>
                             <Field label="Learning Objectives" value={plan.objectives} textarea rows={4} onChange={v => setPlan({ ...plan, objectives: v })} />
                             <Field label="Activities Sequence" value={plan.activities} textarea rows={6} onChange={v => setPlan({ ...plan, activities: v })} />

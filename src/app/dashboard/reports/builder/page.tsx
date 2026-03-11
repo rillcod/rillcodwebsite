@@ -7,13 +7,14 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { Database } from '@/types/supabase';
-import ReportCard from '@/components/reports/ReportCard';
+import ReportCard, { letterGrade as reportGrade } from '@/components/reports/ReportCard';
 import { generateReportPDF, ScaledReportCard } from '@/lib/pdf-utils';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
     UserGroupIcon, DocumentTextIcon, EyeIcon, XMarkIcon,
     Cog6ToothIcon, ArrowUpTrayIcon, ChevronDownIcon, ChevronUpIcon,
-    PhotoIcon,
+    PhotoIcon, RocketLaunchIcon, CloudArrowUpIcon, ChevronRightIcon,
+    CheckCircleIcon, PrinterIcon,
 } from '@heroicons/react/24/outline';
 import { Sparkles } from 'lucide-react';
 
@@ -36,6 +37,7 @@ interface SessionConfig {
     next_module: string;
     course_duration: string;
     learning_milestones: string[];
+    school_id?: string;
     // School structure & optional payment info
     school_section: string;   // '' | 'Primary' | 'Secondary' | 'Unified'
     fee_label: string;        // e.g. 'Coding Club Fee', 'Extra-Curricular Fee'
@@ -145,11 +147,9 @@ function ReportBuilderInner() {
         participation_grade: 'Good',
         projects_grade: 'Good',
         homework_grade: 'Good',
-        assignments_grade: 'Good',
         proficiency_level: 'intermediate',
         key_strengths: '',
         areas_for_growth: '',
-        instructor_assessment: '',
         is_published: false,
         photo_url: '',
         fee_status: '' as '' | 'paid' | 'outstanding' | 'partial' | 'sponsored' | 'waived',
@@ -160,6 +160,8 @@ function ReportBuilderInner() {
     const [publishing, setPublishing] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [generating, setGenerating] = useState<string | null>(null);
+    const [fetchingStats, setFetchingStats] = useState(false);
+    const [studentStats, setStudentStats] = useState({ attendance: 0, totalSessions: 0, assignments: 0, totalAssignments: 0 });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [showPreview, setShowPreview] = useState(false);
@@ -173,91 +175,98 @@ function ReportBuilderInner() {
         org_phone: '', org_email: '', org_website: '', logo_url: '',
     });
 
-    const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+    const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+    const isAdmin = profile?.role === 'admin';
 
     // ── Restore session config from localStorage + init date ──────────────────
+    // ── Restore session config from localStorage + init date ──────────────────
     useEffect(() => {
+        if (typeof window === 'undefined' || !profile?.id) return;
+        const storageKey = `rillcod_report_session_${profile.id}`;
         try {
-            const saved = localStorage.getItem('rillcod_session_config');
+            const saved = localStorage.getItem(storageKey);
             if (saved) {
                 const parsed = JSON.parse(saved) as Partial<SessionConfig>;
                 setSessionConfig(s => ({ ...s, ...parsed }));
             }
         } catch { /* ignore */ }
         setSessionConfig(s => ({ ...s, report_date: new Date().toISOString().split('T')[0] }));
-    }, []);
+    }, [profile?.id]);
 
     // ── Persist session config to localStorage on every change ────────────────
+    // ── Persist session config to localStorage on every change ────────────────
     useEffect(() => {
+        if (typeof window === 'undefined' || !profile?.id) return;
+        const storageKey = `rillcod_report_session_${profile.id}`;
         try {
-            localStorage.setItem('rillcod_session_config', JSON.stringify(sessionConfig));
+            localStorage.setItem(storageKey, JSON.stringify(sessionConfig));
         } catch { /* ignore */ }
-    }, [sessionConfig]);
+    }, [sessionConfig, profile?.id]);
 
     // ── Load students, courses, branding ─────────────────────────────────────
     useEffect(() => {
-        if (authLoading || !profile) return;
+        if (authLoading) return;
+        if (!profile) {
+            // Clear state if not authenticated
+            setStudents([]);
+            setCourses([]);
+            setSchools([]);
+            return;
+        }
+
         const db = createClient();
 
         async function loadData() {
+            // 1. Fetch assigned schools first to build names mapping (non-admins)
+            let assignedSchoolIds: string[] = [];
+            let schoolsList: { id: string; name: string }[] = [];
+
+            if (profile?.role === 'school' && profile.school_id) {
+                assignedSchoolIds = [profile.school_id];
+            } else if (profile?.role === 'teacher') {
+                const { data: assignments } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
+                assignedSchoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
+                if (profile.school_id && !assignedSchoolIds.includes(profile.school_id)) assignedSchoolIds.push(profile.school_id);
+            }
+
+            // Always fetch schools the user is allowed to see
+            let schoolsQuery = db.from('schools').select('id, name').order('name');
+            if (!isAdmin) {
+                if (assignedSchoolIds.length > 0) schoolsQuery = schoolsQuery.in('id', assignedSchoolIds);
+                else schoolsQuery = schoolsQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+            }
+            const { data: schData } = await schoolsQuery;
+            schoolsList = schData || [];
+
+            // 2. Fetch the "Pool" from portal_users
             let studentQuery = db.from('portal_users')
                 .select('*')
-                .eq('role', 'student')
-                .or('is_deleted.is.null,is_deleted.eq.false');
+                .neq('is_deleted', true);
 
-            // If teacher, find which schools they manage OR students they personally registered
-            if (profile?.role === 'teacher') {
-                const { data: assignments } = await db
-                    .from('teacher_schools')
-                    .select('school_id')
-                    .eq('teacher_id', profile.id);
-
-                const schoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
-                if (profile.school_id) schoolIds.push(profile.school_id);
-                const uniqueSchoolIds = Array.from(new Set(schoolIds));
-
-                // Primary source: find ALL approved students linked to these schools OR created by this teacher
-                let sTableQuery = db.from('students')
-                    .select('user_id')
-                    .eq('status', 'approved')
-                    .not('user_id', 'is', null);
-
-                if (uniqueSchoolIds.length > 0) {
-                    sTableQuery = sTableQuery.or(`school_id.in.(${uniqueSchoolIds.join(',')}),created_by.eq.${profile.id}`);
+            // Admins see everyone; others see their assigned schools/students + restricted to 'student' role
+            if (!isAdmin) {
+                studentQuery = studentQuery.eq('role', 'student');
+                if (assignedSchoolIds.length > 0) {
+                    const names = schoolsList.map(s => `"${s.name}"`);
+                    if (names.length > 0) {
+                        studentQuery = studentQuery.or(`school_id.in.(${assignedSchoolIds.join(',')}),school_name.in.(${names.join(',')})`);
+                    } else {
+                        studentQuery = studentQuery.in('school_id', assignedSchoolIds);
+                    }
                 } else {
-                    sTableQuery = sTableQuery.eq('created_by', profile.id);
-                }
-
-                const { data: sEntries } = await sTableQuery;
-                const relevantUserIds = (sEntries ?? []).map(s => s.user_id).filter((id): id is string => !!id);
-
-                if (relevantUserIds.length > 0) {
-                    studentQuery = studentQuery.in('id', relevantUserIds);
-                } else {
-                    // No relevant students found
                     studentQuery = studentQuery.eq('id', '00000000-0000-0000-0000-000000000000');
                 }
             }
 
-            let schoolsQuery = db.from('schools').select('id, name').order('name');
-            if (profile?.role === 'teacher') {
-                const { data: assignments } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
-                const schoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
-                if (profile.school_id && !schoolIds.includes(profile.school_id)) schoolIds.push(profile.school_id);
-                if (schoolIds.length > 0) schoolsQuery = schoolsQuery.in('id', schoolIds);
-                else schoolsQuery = schoolsQuery.eq('id', '00000000-0000-0000-0000-000000000000'); // Force empty
-            }
-
-            const [sRes, cRes, bRes, schRes] = await Promise.all([
-                studentQuery.order('full_name'),
+            const [sRes, cRes, bRes] = await Promise.all([
+                studentQuery.order('full_name').limit(isAdmin ? 5000 : 1000),
                 db.from('courses').select('*').eq('is_active', true).order('title'),
                 db.from('report_settings').select('*').limit(1).maybeSingle(),
-                schoolsQuery,
             ]);
 
             setStudents(sRes.data ?? []);
             setCourses(cRes.data ?? []);
-            setSchools((schRes.data ?? []) as any);
+            setSchools(schoolsList);
             if (bRes.data) {
                 setBranding({
                     org_name: bRes.data.org_name ?? '',
@@ -282,12 +291,22 @@ function ReportBuilderInner() {
 
     const filteredStudents = students.filter(s => {
         const matchesSearch = !search || s.full_name?.toLowerCase().includes(search.toLowerCase()) || s.email?.toLowerCase().includes(search.toLowerCase());
-        // Filter by school name if selected in Step 1
-        const matchesSchool = !sessionConfig.school_name || s.school_name === sessionConfig.school_name;
-        return matchesSearch && matchesSchool;
+
+        // Filter by school name if selected in Step 1 (Admins can bypass if searching)
+        const matchesSchool = !sessionConfig.school_name || s.school_name === sessionConfig.school_name || (isAdmin && !!search);
+
+        // Filter by class if selected in Step 1 (Admins can bypass if searching)
+        const matchesClass = !sessionConfig.section_class || (s as any).section_class === sessionConfig.section_class || (isAdmin && !!search);
+
+        return matchesSearch && matchesSchool && matchesClass;
     });
 
-    const distinctClasses = [...new Set(students.map(s => (s as any).section_class).filter(Boolean))].sort() as string[];
+    const distinctClasses = [...new Set(
+        students
+            .filter(s => !sessionConfig.school_name || s.school_name === sessionConfig.school_name)
+            .map(s => (s as any).section_class)
+            .filter(Boolean)
+    )].sort() as string[];
 
     // ── Select student: load existing report, fill form ───────────────────────
     async function selectStudent(s: PortalUser, idx: number) {
@@ -316,6 +335,7 @@ function ReportBuilderInner() {
                 report_period: report.report_period ?? prev.report_period,
                 course_id: report.course_id ?? prev.course_id,
                 course_name: report.course_name ?? prev.course_name,
+                school_id: report.school_id ?? prev.school_id,
                 school_name: (report.school_name ?? prev.school_name) || (s as any).school_name || '',
                 section_class: (report.section_class ?? prev.section_class) || (s as any).section_class || '',
                 current_module: report.current_module ?? prev.current_module,
@@ -340,15 +360,54 @@ function ReportBuilderInner() {
             participation_grade: report?.participation_grade ?? 'Good',
             projects_grade: report?.projects_grade ?? 'Good',
             homework_grade: report?.homework_grade ?? 'Good',
-            assignments_grade: report?.assignments_grade ?? 'Good',
             proficiency_level: report?.proficiency_level ?? 'intermediate',
             key_strengths: report?.key_strengths ?? '',
             areas_for_growth: report?.areas_for_growth ?? '',
-            instructor_assessment: report?.instructor_assessment ?? '',
             is_published: report?.is_published ?? false,
             photo_url: report?.photo_url ?? (s as any).photo_url ?? '',
             fee_status: ((report as any)?.fee_status ?? '') as any,
         });
+
+        // ── Fetch realistic stats ─────────────────────────────────────────────
+        setFetchingStats(true);
+        try {
+            // 1. Find the class ID for this student by matching section_class and school
+            const studentSchoolId = s.school_id;
+            const studentClassName = (s as any).section_class;
+
+            let targetClassId = (s as any).class_id;
+
+            if (!targetClassId && studentClassName) {
+                const { data: clsData } = await db.from('classes')
+                    .select('id')
+                    .eq('name', studentClassName)
+                    .eq('school_id', studentSchoolId || '')
+                    .maybeSingle();
+                targetClassId = clsData?.id;
+            }
+
+            // 2. Fetch sessions for that class
+            const { data: sessions } = targetClassId
+                ? await db.from('class_sessions').select('id').eq('class_id', targetClassId).eq('is_active', true)
+                : { data: [] };
+            const sessionIds = sessions?.map(x => x.id) || [];
+
+            const [attRes, subRes, allAssignments] = await Promise.all([
+                sessionIds.length > 0 ? db.from('attendance').select('id').eq('student_id', s.id).in('session_id', sessionIds).eq('status', 'present') : { data: [] },
+                db.from('assignment_submissions').select('id').eq('student_id', s.id).eq('status', 'graded'),
+                db.from('assignments').select('id').eq('course_id', sessionConfig.course_id).eq('is_active', true)
+            ]);
+
+            setStudentStats({
+                attendance: attRes.data?.length || 0,
+                totalSessions: sessionIds.length || 12, // fallback to typical term length
+                assignments: subRes.data?.length || 0,
+                totalAssignments: allAssignments.data?.length || 8, // fallback
+            });
+        } catch { /* silent fail */ } finally {
+            setFetchingStats(false);
+        }
+
         setStep('edit');
         setSessionExpanded(false);
     }
@@ -359,13 +418,12 @@ function ReportBuilderInner() {
         parseFloat(form.attendance_score || '0') * 0.2
     );
 
-    const letterGrade = (pct: number) => {
-        if (pct >= 85) return 'A';
-        if (pct >= 70) return 'B';
-        if (pct >= 55) return 'C';
-        if (pct >= 45) return 'D';
-        return 'E';
-    };
+    // We use the helper from ReportCard which returns an object with {g,label,color}.
+    // convert it to a simple string when rendering or saving, otherwise React will
+    // try to render the object and throw an error ("Objects are not valid as a
+    // React child").
+    const overallGradeObj = reportGrade(overallScore);
+    const overallGradeLetter = overallGradeObj.g; // e.g. "A", "B" etc.
 
     // ── Save report ───────────────────────────────────────────────────────────
     const handleSave = async (publish = false) => {
@@ -378,7 +436,7 @@ function ReportBuilderInner() {
             const payload: Database['public']['Tables']['student_progress_reports']['Insert'] = {
                 student_id: selectedStudent.id,
                 teacher_id: profile!.id,
-                school_id: (selectedStudent as any).school_id ?? profile?.school_id ?? null,
+                school_id: sessionConfig.school_id || (selectedStudent as any).school_id || profile?.school_id || null,
                 course_id: sessionConfig.course_id || null,
                 student_name: form.student_name,
                 school_name: sessionConfig.school_name || null,
@@ -398,12 +456,10 @@ function ReportBuilderInner() {
                 participation_grade: form.participation_grade,
                 projects_grade: form.projects_grade,
                 homework_grade: form.homework_grade,
-                assignments_grade: form.assignments_grade,
-                overall_grade: letterGrade(overallScore),
+                overall_grade: overallGradeLetter,
                 overall_score: overallScore,
                 key_strengths: form.key_strengths || null,
                 areas_for_growth: form.areas_for_growth || null,
-                instructor_assessment: form.instructor_assessment || null,
                 has_certificate: overallScore >= 45,
                 certificate_text: overallScore >= 45
                     ? `This document officially recognizes that ${form.student_name} has successfully completed the intensive study programme in ${sessionConfig.course_name || 'the enrolled course'}.`
@@ -451,19 +507,52 @@ function ReportBuilderInner() {
     }
 
     // ── AI generate ───────────────────────────────────────────────────────────
-    const handleAIGenerate = async (field: 'key_strengths' | 'areas_for_growth') => {
+    const handleAIGenerate = async (field: 'key_strengths' | 'areas_for_growth' | 'participation_grade' | 'projects_grade' | 'homework_grade') => {
         setGenerating(field);
         setError('');
         try {
-            await new Promise(r => setTimeout(r, 1500));
-            const responses: Record<string, string> = {
-                key_strengths: `${form.student_name} demonstrates exceptional grasp of ${sessionConfig.current_module} concepts, particularly in practical implementation. Their ${form.projects_grade} project performance highlights strong problem-solving abilities.`,
-                areas_for_growth: `While proficient in theory, ${form.student_name} can improve by dedicating more time to independent research and collaborative projects. Increasing class participation will also help solidify understanding.`,
-            };
-            setForm(f => ({ ...f, [field]: responses[field] }));
-            setSuccess('AI evaluation generated!');
-        } catch {
-            setError('AI generation failed');
+            const { attendance, totalSessions, assignments, totalAssignments } = studentStats;
+            const attPct = (attendance / totalSessions) * 100;
+            const assigPct = (assignments / totalAssignments) * 100;
+
+            // Technical qualifiers are logic-based for accuracy
+            if (['participation_grade', 'projects_grade', 'homework_grade'].includes(field)) {
+                await new Promise(r => setTimeout(r, 600)); // Brief delay for UX
+                const responses: Record<string, string> = {
+                    participation_grade: `${attendance}/${totalSessions} Meetings Attended (${attPct >= 80 ? 'Excellent' : attPct >= 60 ? 'Active' : 'Moderate'})`,
+                    projects_grade: `${assignments}/${totalAssignments} Lab Tasks Completed (${assigPct >= 90 ? 'Outstanding' : assigPct >= 70 ? 'Proficient' : 'Developing'})`,
+                    homework_grade: `${Math.round(assigPct)}% Assignment Completion Rate — ${assigPct >= 80 ? 'Reliable' : 'Inconsistent'}`,
+                };
+                setForm(f => ({ ...f, [field]: (responses as any)[field] }));
+                setSuccess(`Realistic ${(field as string).replace('_grade', '')} generated!`);
+                return;
+            }
+
+            // Qualitative evaluation uses actual AI
+            const res = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'report-feedback',
+                    topic: sessionConfig.current_module,
+                    studentName: form.student_name,
+                    attendance: `${attendance}/${totalSessions} sessions`,
+                    assignments: `${assignments}/${totalAssignments} labs`,
+                }),
+            });
+
+            if (!res.ok) throw new Error('AI Service unavailable');
+            const result = await res.json();
+            const aiData = result.data || {};
+
+            setForm(f => ({
+                ...f,
+                key_strengths: aiData.key_strengths || f.key_strengths,
+                areas_for_growth: aiData.areas_for_growth || f.areas_for_growth
+            }));
+            setSuccess('Professional evaluation drafted with AI!');
+        } catch (err: any) {
+            setError(err.message ?? 'AI generation failed');
         } finally {
             setGenerating(null);
         }
@@ -505,13 +594,10 @@ function ReportBuilderInner() {
         }
     }
 
-    const previewData = {
+    const previewData: any = {
         ...sessionConfig,
         ...form,
-        // explicit overrides so correct types and priorities are preserved
         id: existingReport?.id || 'Preview',
-        section_class: form.section_class || sessionConfig.section_class || undefined,
-        school_name: sessionConfig.school_name || undefined,
         theory_score: parseFloat(form.theory_score),
         practical_score: parseFloat(form.practical_score),
         attendance_score: parseFloat(form.attendance_score),
@@ -520,6 +606,8 @@ function ReportBuilderInner() {
         certificate_text: overallScore >= 45
             ? `This document officially recognizes that ${form.student_name} has successfully completed the intensive study programme in ${sessionConfig.course_name || 'the enrolled course'}.`
             : undefined,
+        section_class: form.section_class || sessionConfig.section_class || undefined,
+        school_name: sessionConfig.school_name || undefined,
         fee_status: form.fee_status || undefined,
         fee_label: sessionConfig.fee_label || undefined,
         fee_amount: sessionConfig.fee_amount || undefined,
@@ -532,9 +620,19 @@ function ReportBuilderInner() {
             <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
         </div>
     );
-    if (!isStaff) return (
-        <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-            <p className="text-white/40">Staff access required.</p>
+
+    // Ensure isStaff is definitely defined and checked
+    if (profile && !isStaff) return (
+        <div className="min-h-screen bg-[#0f0f1a] flex flex-col items-center justify-center p-4">
+            <ExclamationTriangleIcon className="w-12 h-12 text-amber-500 mb-4" />
+            <h1 className="text-xl font-bold text-white mb-2">Access Restricted</h1>
+            <p className="text-white/40 text-sm text-center max-w-md">
+                You do not have permission to create or edit progress reports.
+                Please visit the <Link href="/dashboard/results" className="text-violet-400 font-bold hover:underline">Results Record Centre</Link> to view and print reports for your school.
+            </p>
+            <Link href="/dashboard/results" className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-violet-900/20">
+                <EyeIcon className="w-4 h-4" /> Go to Results Centre
+            </Link>
         </div>
     );
 
@@ -794,7 +892,11 @@ function ReportBuilderInner() {
                                 <Field label="School *">
                                     <select
                                         value={sessionConfig.school_name}
-                                        onChange={e => setSessionConfig(s => ({ ...s, school_name: e.target.value }))}
+                                        onChange={e => {
+                                            const name = e.target.value;
+                                            const match = schools.find(sc => sc.name === name);
+                                            setSessionConfig(s => ({ ...s, school_name: name, school_id: match?.id }));
+                                        }}
                                         className={INPUT}>
                                         <option value="">— Select a school —</option>
                                         {schools.map(sc => <option key={sc.id} value={sc.name}>{sc.name}</option>)}
@@ -1045,43 +1147,43 @@ function ReportBuilderInner() {
 
                                 {/* Identity & Photo */}
                                 <Section title="Student Identity" icon="👤">
-                                    <div className="flex flex-col sm:flex-row items-start gap-4">
+                                    <div className="flex flex-col sm:flex-row items-start gap-6">
                                         <div className="relative group">
-                                            <div className="w-24 h-24 rounded-2xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden">
+                                            <div className="w-28 h-28 rounded-2xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden transition-colors group-hover:border-violet-500/50">
                                                 {form.photo_url ? (
                                                     <img src={form.photo_url} className="w-full h-full object-cover" alt="Student" />
                                                 ) : (
                                                     <UserGroupIcon className="w-8 h-8 text-white/20" />
                                                 )}
                                                 {uploading && (
-                                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
                                                         <ArrowPathIcon className="w-6 h-6 animate-spin text-white" />
                                                     </div>
                                                 )}
                                             </div>
-                                            <label className="absolute -bottom-2 -right-2 bg-violet-600 hover:bg-violet-500 p-1.5 rounded-xl border border-white/10 cursor-pointer transition-colors shadow-lg">
-                                                <ArrowUpTrayIcon className="w-3.5 h-3.5 text-white" />
+                                            <label className="absolute -bottom-2 -right-2 bg-violet-600 hover:bg-violet-500 p-2 rounded-xl border border-white/10 cursor-pointer transition-all shadow-lg hover:scale-110 active:scale-95">
+                                                <ArrowUpTrayIcon className="w-4 h-4 text-white" />
                                                 <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
                                             </label>
                                         </div>
-                                        <div className="flex-1 space-y-3">
+                                        <div className="flex-1 space-y-4">
                                             <Field label="Full Name">
                                                 <input value={form.student_name} onChange={e => setForm(f => ({ ...f, student_name: e.target.value }))} className={INPUT} />
                                             </Field>
-                                            <div className="p-3 bg-white/[0.03] border border-white/10 rounded-xl space-y-2">
-                                                <div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="p-3 bg-white/[0.03] border border-white/10 rounded-xl">
                                                     <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-0.5">School</p>
-                                                    <p className="text-sm text-white/70 font-semibold">{sessionConfig.school_name || '—'}</p>
+                                                    <p className="text-sm text-white/70 font-semibold truncate">{sessionConfig.school_name || '—'}</p>
                                                 </div>
-                                                <div>
+                                                <div className="p-3 bg-white/[0.03] border border-white/10 rounded-xl">
                                                     <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-1">Class</label>
                                                     <select
                                                         value={form.section_class}
                                                         onChange={e => setForm(f => ({ ...f, section_class: e.target.value }))}
-                                                        className="w-full px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500 transition-colors">
-                                                        <option value="">— Select class —</option>
-                                                        {CLASS_PRESETS.map(c => <option key={c} value={c}>{c}</option>)}
-                                                        {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
+                                                        className="w-full bg-transparent text-sm text-white focus:outline-none transition-colors cursor-pointer">
+                                                        <option value="" className="bg-[#0f0f1a]">Select —</option>
+                                                        {CLASS_PRESETS.map(c => <option key={c} value={c} className="bg-[#0f0f1a]">{c}</option>)}
+                                                        {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c} className="bg-[#0f0f1a]">{c}</option>)}
                                                     </select>
                                                 </div>
                                             </div>
@@ -1092,7 +1194,7 @@ function ReportBuilderInner() {
                                                         value={form.fee_status}
                                                         onChange={e => setForm(f => ({ ...f, fee_status: e.target.value as any }))}
                                                         className={INPUT}>
-                                                        <option value="">— Not specified (won't show on report) —</option>
+                                                        <option value="">— Not specified (won't show) —</option>
                                                         <option value="paid">✅ Paid</option>
                                                         <option value="outstanding">⚠️ Outstanding</option>
                                                         <option value="partial">🔶 Partial Payment</option>
@@ -1106,49 +1208,50 @@ function ReportBuilderInner() {
                                 </Section>
 
                                 {/* Scores */}
-                                <Section title="Performance Scores (0 – 100)" icon="📊">
-                                    {(['theory_score', 'practical_score', 'attendance_score'] as const).map((key) => {
-                                        const labels: Record<string, string> = {
-                                            theory_score: 'Theory Score (40%)',
-                                            practical_score: 'Practical Score (40%)',
-                                            attendance_score: 'Attendance Score (20%)',
-                                        };
-                                        const colors: Record<string, string> = {
-                                            theory_score: 'text-indigo-400',
-                                            practical_score: 'text-emerald-400',
-                                            attendance_score: 'text-amber-400',
-                                        };
-                                        const val = parseInt(form[key]) || 0;
-                                        return (
-                                            <div key={key}>
-                                                <div className="flex justify-between mb-1.5">
-                                                    <label className="text-xs font-semibold text-white/40 uppercase tracking-wider">{labels[key]}</label>
-                                                    <span className={`text-sm font-black ${colors[key]}`}>{val}%</span>
+                                <Section title="Performance Scores" icon="📊">
+                                    <div className="space-y-5">
+                                        {(['theory_score', 'practical_score', 'attendance_score'] as const).map((key) => {
+                                            const labels: Record<string, string> = {
+                                                theory_score: 'Theory (40%)',
+                                                practical_score: 'Practical (40%)',
+                                                attendance_score: 'Attendance (20%)',
+                                            };
+                                            const colors: Record<string, string> = {
+                                                theory_score: 'bg-indigo-500',
+                                                practical_score: 'bg-emerald-500',
+                                                attendance_score: 'bg-amber-500',
+                                            };
+                                            const val = parseInt(form[key]) || 0;
+                                            return (
+                                                <div key={key}>
+                                                    <div className="flex justify-between mb-2">
+                                                        <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{labels[key]}</label>
+                                                        <span className="text-xs font-black text-white">{val}%</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                                            <div className={`h-full ${colors[key]} transition-all duration-500`} style={{ width: `${val}%` }} />
+                                                        </div>
+                                                        <input
+                                                            type="number" min="0" max="100" value={form[key]}
+                                                            onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                                                            className="w-14 text-center py-1 bg-white/5 border border-white/10 rounded-lg text-xs font-bold text-white focus:outline-none focus:border-violet-500" />
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-3">
-                                                    <input
-                                                        type="range" min="0" max="100" value={val}
-                                                        onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                        className="flex-1 accent-violet-500 cursor-pointer" />
-                                                    <input
-                                                        type="number" min="0" max="100" value={form[key]}
-                                                        onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                        className="w-16 text-center px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500" />
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
 
-                                    {/* Overall display */}
-                                    <div className="mt-2 p-4 bg-violet-600/10 border border-violet-500/20 rounded-2xl flex items-center justify-between">
-                                        <div>
-                                            <p className="text-xs font-bold text-violet-300/60 uppercase tracking-widest">Weighted Overall</p>
-                                            <p className="text-3xl font-black text-white mt-0.5">{overallScore}%</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-xs font-bold text-violet-300/60 uppercase tracking-widest mb-1">Grade</p>
-                                            <div className="w-14 h-14 rounded-2xl bg-violet-600 flex items-center justify-center">
-                                                <span className="text-2xl font-black text-white">{letterGrade(overallScore)}</span>
+                                        {/* Overall display */}
+                                        <div className="mt-2 p-5 bg-gradient-to-br from-violet-600/20 to-indigo-600/20 border border-violet-500/20 rounded-2xl flex items-center justify-between">
+                                            <div>
+                                                <p className="text-[10px] font-bold text-violet-300/40 uppercase tracking-widest">Weighted Overall</p>
+                                                <p className="text-4xl font-black text-white">{overallScore}%</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-bold text-violet-300/40 uppercase tracking-widest mb-1">Grade</p>
+                                                <div className="inline-flex w-12 h-12 rounded-xl bg-violet-600 items-center justify-center shadow-lg shadow-violet-900/40">
+                                                    <span className="text-xl font-black text-white">{overallGradeLetter}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1156,254 +1259,254 @@ function ReportBuilderInner() {
 
                                 {/* Grades */}
                                 <Section title="Grade Qualifiers" icon="🏅">
-                                    <div className="grid grid-cols-3 gap-3">
+                                    <div className="space-y-5">
                                         {[
                                             { key: 'participation_grade', label: 'Participation' },
                                             { key: 'projects_grade', label: 'Project Work' },
                                             { key: 'homework_grade', label: 'Homework' },
                                         ].map(({ key, label }) => (
-                                            <Field key={key} label={label}>
-                                                <select value={(form as any)[key]}
+                                            <div key={key}>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{label}</label>
+                                                    <button onClick={() => handleAIGenerate(key as any)} disabled={!!generating}
+                                                        className="flex items-center gap-1.5 text-[10px] font-bold text-violet-400 hover:text-violet-300 disabled:opacity-50 transition-all hover:translate-x-1">
+                                                        {generating === key ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                                                        Generate Realistic Status
+                                                    </button>
+                                                </div>
+                                                <input
+                                                    value={(form as any)[key]}
                                                     onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                    className={INPUT}>
-                                                    {GRADE_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
-                                                </select>
-                                            </Field>
+                                                    className={INPUT}
+                                                    placeholder={`e.g. 12/15 Meetings Attended`}
+                                                />
+                                            </div>
                                         ))}
-                                    </div>
-                                    {/* Auto-certificate notice */}
-                                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl mt-1">
-                                        <span className="text-amber-400 text-xs">🏆</span>
-                                        <p className="text-xs text-amber-300/80">
-                                            Certificate is automatically awarded when overall score ≥ 45% (Grade D)
-                                            {overallScore > 0 && (
-                                                <span className={`ml-1 font-bold ${overallScore >= 45 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                    — {overallScore >= 45 ? 'Will be awarded' : 'Not awarded'} ({overallScore}%)
-                                                </span>
-                                            )}
-                                        </p>
                                     </div>
                                 </Section>
                             </div>
 
                             {/* Right column */}
-                            <div className="space-y-4">
-
+                            <div className="space-y-6">
                                 {/* Evaluation */}
                                 <Section title="Instructor Evaluation" icon="✍️">
-                                    {(['key_strengths', 'areas_for_growth'] as const).map(field => {
-                                        const labels: Record<string, string> = {
-                                            key_strengths: 'Key Strengths',
-                                            areas_for_growth: 'Areas for Growth',
-                                        };
-                                        return (
-                                            <div key={field}>
-                                                <div className="flex items-center justify-between mb-1.5">
-                                                    <label className="text-xs font-semibold text-white/40 uppercase tracking-wider">{labels[field]}</label>
-                                                    <button onClick={() => handleAIGenerate(field)} disabled={!!generating}
-                                                        className="flex items-center gap-1 text-[10px] font-bold text-violet-400 hover:text-violet-300 disabled:opacity-50 transition-colors">
-                                                        {generating === field
-                                                            ? <ArrowPathIcon className="w-3 h-3 animate-spin" />
-                                                            : <Sparkles className="w-3 h-3" />}
-                                                        {generating === field ? 'Generating…' : 'AI Draft'}
-                                                    </button>
+                                    <div className="space-y-5">
+                                        {(['key_strengths', 'areas_for_growth'] as const).map(field => {
+                                            const labels: Record<string, string> = {
+                                                key_strengths: 'Key Strengths',
+                                                areas_for_growth: 'Areas for Growth',
+                                            };
+                                            return (
+                                                <div key={field}>
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{labels[field]}</label>
+                                                        <button onClick={() => handleAIGenerate(field)} disabled={!!generating}
+                                                            className="flex items-center gap-1.5 text-[10px] font-bold text-violet-400 hover:text-violet-300 disabled:opacity-50 transition-all hover:translate-x-1">
+                                                            {generating === field
+                                                                ? <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                                                                : <Sparkles className="w-3 h-3" />}
+                                                            {generating === field ? 'Thinking...' : 'AI Draft'}
+                                                        </button>
+                                                    </div>
+                                                    <textarea rows={5} value={(form as any)[field]}
+                                                        onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
+                                                        placeholder={`Detailed observations...`}
+                                                        className={`${INPUT} resize-none text-sm leading-relaxed`} />
                                                 </div>
-                                                <textarea rows={3} value={(form as any)[field]}
-                                                    onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-                                                    placeholder={`Enter ${labels[field].toLowerCase()}…`}
-                                                    className={`${INPUT} resize-none`} />
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
                                 </Section>
 
                             </div>
                         </div>
 
-                        {/* ── Sticky action bar ── */}
-                        <div className="sticky bottom-0 bg-[#0f0f1a]/97 backdrop-blur-md border-t border-white/10 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center gap-2 flex-wrap">
-                            <button onClick={() => handleSave(false)} disabled={saving || publishing}
-                                className="flex items-center gap-1.5 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50">
-                                {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
-                                {saving ? 'Saving…' : 'Save Draft'}
-                            </button>
-                            <button onClick={() => handleSave(true)} disabled={saving || publishing}
-                                className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50">
-                                {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <EyeIcon className="w-3.5 h-3.5" />}
-                                {publishing ? 'Publishing…' : 'Save & Publish'}
-                            </button>
-                            <button onClick={() => setShowPreview(true)}
-                                className="flex items-center gap-1.5 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition-all">
-                                <Sparkles className="w-3.5 h-3.5" /> Preview
-                            </button>
-                            <div className="ml-auto flex gap-2">
-                                {currentStudentIdx < filteredStudents.length - 1 ? (
-                                    <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
-                                        className="flex items-center gap-1.5 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-violet-900/30">
-                                        {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : null}
-                                        Save & Next Student →
-                                    </button>
-                                ) : (
-                                    <button onClick={() => { handleSave(false); setStep('pick'); }} disabled={saving || publishing}
-                                        className="flex items-center gap-1.5 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-xl transition-all disabled:opacity-50">
-                                        Save & Done ✓
-                                    </button>
-                                )}
+                        {/* Sticky Action Bar */}
+                        <div className="sticky bottom-0 z-40 bg-[#0f0f1a]/80 backdrop-blur-xl border-t border-white/10 p-4 transition-all mt-6 -mx-3 sm:-mx-6 lg:-mx-8">
+                            <div className="max-w-5xl mx-auto flex items-center gap-3">
+                                <button onClick={() => handleSave(false)} disabled={saving || publishing}
+                                    className="flex items-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-2xl transition-all disabled:opacity-50">
+                                    {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4" />}
+                                    {saving ? 'Saving...' : 'Save Draft'}
+                                </button>
+                                <button onClick={() => handleSave(true)} disabled={saving || publishing}
+                                    className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-2xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+                                    {publishing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <RocketLaunchIcon className="w-4 h-4" />}
+                                    {publishing ? 'Publishing...' : 'Publish'}
+                                </button>
+                                <button onClick={() => setShowPreview(true)}
+                                    className="flex items-center gap-2 px-5 py-3 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-2xl transition-all shadow-lg shadow-violet-900/40">
+                                    <EyeIcon className="w-4 h-4" /> Preview
+                                </button>
+
+                                <div className="ml-auto">
+                                    {currentStudentIdx < filteredStudents.length - 1 ? (
+                                        <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
+                                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-black rounded-2xl transition-all disabled:opacity-50 shadow-xl shadow-violet-900/30">
+                                            Next Student <ChevronRightIcon className="w-4 h-4" />
+                                        </button>
+                                    ) : (
+                                        <button onClick={() => { handleSave(false); setStep('pick'); }} disabled={saving || publishing}
+                                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-black rounded-2xl transition-all disabled:opacity-50 shadow-xl shadow-violet-900/30">
+                                            Finish All <CheckCircleIcon className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
-                )}
-            </div>
+                )
+                }
+            </div >
 
             {/* ── Branding Settings Modal ── */}
-            {showSettings && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="bg-[#0f0f1a] border border-white/10 rounded-t-[32px] sm:rounded-[32px] w-full sm:max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-                        <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between bg-white/[0.03]">
-                            <div>
-                                <h3 className="text-xl font-extrabold text-white">Branding Settings</h3>
-                                <p className="text-white/40 text-xs mt-0.5">Configure report header & organization details</p>
+            {
+                showSettings && (
+                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-sm">
+                        <div className="bg-[#0f0f1a] border border-white/10 rounded-t-[32px] sm:rounded-[32px] w-full sm:max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+                            <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between bg-white/[0.03]">
+                                <div>
+                                    <h3 className="text-xl font-extrabold text-white">Branding Settings</h3>
+                                    <p className="text-white/40 text-xs mt-0.5">Configure report header & organization details</p>
+                                </div>
+                                <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                                    <XMarkIcon className="w-5 h-5 text-white/40" />
+                                </button>
                             </div>
-                            <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
-                                <XMarkIcon className="w-5 h-5 text-white/40" />
-                            </button>
-                        </div>
 
-                        <div className="p-6 overflow-y-auto space-y-5">
-                            <div className="flex items-center gap-4 p-5 bg-white/5 border border-white/10 rounded-2xl">
-                                <div className="relative group">
-                                    <div className="w-20 h-20 rounded-2xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden">
-                                        {branding.logo_url ? (
-                                            <img src={branding.logo_url} className="w-full h-full object-contain p-2" alt="Logo" />
-                                        ) : (
-                                            <PhotoIcon className="w-8 h-8 text-white/20" />
-                                        )}
-                                        {uploading && (
-                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                                <ArrowPathIcon className="w-6 h-6 animate-spin text-white" />
-                                            </div>
-                                        )}
+                            <div className="p-6 overflow-y-auto space-y-5">
+                                <div className="flex items-center gap-4 p-5 bg-white/5 border border-white/10 rounded-2xl">
+                                    <div className="relative group">
+                                        <div className="w-20 h-20 rounded-2xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden">
+                                            {branding.logo_url ? (
+                                                <img src={branding.logo_url} className="w-full h-full object-contain p-2" alt="Logo" />
+                                            ) : (
+                                                <PhotoIcon className="w-8 h-8 text-white/20" />
+                                            )}
+                                            {uploading && (
+                                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                                    <ArrowPathIcon className="w-6 h-6 animate-spin text-white" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <label className="absolute -bottom-2 -right-2 bg-violet-600 hover:bg-violet-500 p-2 rounded-xl border border-white/10 cursor-pointer transition-colors shadow-lg">
+                                            <ArrowUpTrayIcon className="w-4 h-4 text-white" />
+                                            <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file) return;
+                                                setUploading(true);
+                                                try {
+                                                    const db = createClient();
+                                                    const path = `branding/${profile?.id}/${Date.now()}_logo.png`;
+                                                    const { error: upErr } = await db.storage.from('reports').upload(path, file);
+                                                    if (upErr) throw upErr;
+                                                    const { data: { publicUrl } } = db.storage.from('reports').getPublicUrl(path);
+                                                    setBranding(b => ({ ...b, logo_url: publicUrl }));
+                                                } catch (err: any) {
+                                                    setError(err.message);
+                                                } finally {
+                                                    setUploading(false);
+                                                }
+                                            }} />
+                                        </label>
                                     </div>
-                                    <label className="absolute -bottom-2 -right-2 bg-violet-600 hover:bg-violet-500 p-2 rounded-xl border border-white/10 cursor-pointer transition-colors shadow-lg">
-                                        <ArrowUpTrayIcon className="w-4 h-4 text-white" />
-                                        <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
-                                            const file = e.target.files?.[0];
-                                            if (!file) return;
-                                            setUploading(true);
-                                            try {
-                                                const db = createClient();
-                                                const path = `branding/${profile?.id}/${Date.now()}_logo.png`;
-                                                const { error: upErr } = await db.storage.from('reports').upload(path, file);
-                                                if (upErr) throw upErr;
-                                                const { data: { publicUrl } } = db.storage.from('reports').getPublicUrl(path);
-                                                setBranding(b => ({ ...b, logo_url: publicUrl }));
-                                            } catch (err: any) {
-                                                setError(err.message);
-                                            } finally {
-                                                setUploading(false);
-                                            }
-                                        }} />
-                                    </label>
+                                    <div className="flex-1 space-y-1">
+                                        <h4 className="text-sm font-bold text-white">Organization Logo</h4>
+                                        <p className="text-xs text-white/40">PNG with transparent background works best.</p>
+                                    </div>
                                 </div>
-                                <div className="flex-1 space-y-1">
-                                    <h4 className="text-sm font-bold text-white">Organization Logo</h4>
-                                    <p className="text-xs text-white/40">PNG with transparent background works best.</p>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <Field label="Organization Name">
+                                        <input value={branding.org_name} onChange={e => setBranding(b => ({ ...b, org_name: e.target.value }))}
+                                            className={INPUT} placeholder="e.g. Rillcod Academy" />
+                                    </Field>
+                                    <Field label="Tagline / Motto">
+                                        <input value={branding.org_tagline} onChange={e => setBranding(b => ({ ...b, org_tagline: e.target.value }))}
+                                            className={INPUT} placeholder="e.g. Learning Reimagined" />
+                                    </Field>
+                                    <Field label="Business Email">
+                                        <input value={branding.org_email} onChange={e => setBranding(b => ({ ...b, org_email: e.target.value }))}
+                                            className={INPUT} placeholder="contact@rillcod.com" />
+                                    </Field>
+                                    <Field label="Business Phone">
+                                        <input value={branding.org_phone} onChange={e => setBranding(b => ({ ...b, org_phone: e.target.value }))}
+                                            className={INPUT} placeholder="+234..." />
+                                    </Field>
+                                    <Field label="Website URL">
+                                        <input value={branding.org_website} onChange={e => setBranding(b => ({ ...b, org_website: e.target.value }))}
+                                            className={INPUT} placeholder="www.rillcod.com" />
+                                    </Field>
+                                    <Field label="Full Address">
+                                        <input value={branding.org_address} onChange={e => setBranding(b => ({ ...b, org_address: e.target.value }))}
+                                            className={INPUT} placeholder="26 Ogiesoba Avenue..." />
+                                    </Field>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <Field label="Organization Name">
-                                    <input value={branding.org_name} onChange={e => setBranding(b => ({ ...b, org_name: e.target.value }))}
-                                        className={INPUT} placeholder="e.g. Rillcod Academy" />
-                                </Field>
-                                <Field label="Tagline / Motto">
-                                    <input value={branding.org_tagline} onChange={e => setBranding(b => ({ ...b, org_tagline: e.target.value }))}
-                                        className={INPUT} placeholder="e.g. Learning Reimagined" />
-                                </Field>
-                                <Field label="Business Email">
-                                    <input value={branding.org_email} onChange={e => setBranding(b => ({ ...b, org_email: e.target.value }))}
-                                        className={INPUT} placeholder="contact@rillcod.com" />
-                                </Field>
-                                <Field label="Business Phone">
-                                    <input value={branding.org_phone} onChange={e => setBranding(b => ({ ...b, org_phone: e.target.value }))}
-                                        className={INPUT} placeholder="+234..." />
-                                </Field>
-                                <Field label="Website URL">
-                                    <input value={branding.org_website} onChange={e => setBranding(b => ({ ...b, org_website: e.target.value }))}
-                                        className={INPUT} placeholder="www.rillcod.com" />
-                                </Field>
-                                <Field label="Full Address">
-                                    <input value={branding.org_address} onChange={e => setBranding(b => ({ ...b, org_address: e.target.value }))}
-                                        className={INPUT} placeholder="26 Ogiesoba Avenue..." />
-                                </Field>
+                            <div className="p-6 bg-white/[0.03] border-t border-white/10 flex justify-end gap-3">
+                                <button onClick={() => setShowSettings(false)}
+                                    className="px-5 py-2.5 text-sm font-bold text-white/40 hover:text-white transition-colors">
+                                    Cancel
+                                </button>
+                                <button onClick={async () => {
+                                    setSaving(true);
+                                    try {
+                                        const db = createClient();
+                                        const { error: setErr } = await db.from('report_settings').upsert({
+                                            ...branding,
+                                            teacher_id: profile?.id,
+                                            school_id: profile?.school_id || null,
+                                            updated_at: new Date().toISOString(),
+                                        }, { onConflict: 'teacher_id' });
+                                        if (setErr) throw setErr;
+                                        setSuccess('Branding settings saved!');
+                                        setShowSettings(false);
+                                    } catch (err: any) {
+                                        setError(err.message);
+                                    } finally {
+                                        setSaving(false);
+                                    }
+                                }} className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-violet-900/40">
+                                    <CheckIcon className="w-4 h-4" /> Save Branding
+                                </button>
                             </div>
-                        </div>
-
-                        <div className="p-6 bg-white/[0.03] border-t border-white/10 flex justify-end gap-3">
-                            <button onClick={() => setShowSettings(false)}
-                                className="px-5 py-2.5 text-sm font-bold text-white/40 hover:text-white transition-colors">
-                                Cancel
-                            </button>
-                            <button onClick={async () => {
-                                setSaving(true);
-                                try {
-                                    const db = createClient();
-                                    const { error: setErr } = await db.from('report_settings').upsert({
-                                        ...branding,
-                                        teacher_id: profile?.id,
-                                        school_id: profile?.school_id || null,
-                                        updated_at: new Date().toISOString(),
-                                    }, { onConflict: 'teacher_id' });
-                                    if (setErr) throw setErr;
-                                    setSuccess('Branding settings saved!');
-                                    setShowSettings(false);
-                                } catch (err: any) {
-                                    setError(err.message);
-                                } finally {
-                                    setSaving(false);
-                                }
-                            }} className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-violet-900/40">
-                                <CheckIcon className="w-4 h-4" /> Save Branding
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* ── Live Preview Modal ── */}
             {showPreview && (
-                <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a14]">
-                    <div className="flex items-center gap-2 px-4 sm:px-6 py-3 border-b border-white/10 bg-white/5 flex-shrink-0 flex-wrap">
-                        <button onClick={() => setShowPreview(false)}
-                            className="p-2 hover:bg-white/10 rounded-xl transition-colors">
-                            <ArrowLeftIcon className="w-5 h-5 text-white/60" />
+                <div className="fixed inset-0 z-50 flex flex-col bg-[#05050a]">
+                    <div className="flex items-center gap-4 px-8 py-4 border-b border-white/5 bg-[#0a0a14]">
+                        <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
+                            <ArrowLeftIcon className="w-6 h-6 text-white/40" />
                         </button>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-white font-black text-sm truncate">{form.student_name || 'Preview'}</p>
-                            <p className="text-white/30 text-[10px]">Live Report Preview</p>
+                        <div className="flex-1">
+                            <h3 className="text-white font-black">{form.student_name}</h3>
+                            <p className="text-[10px] text-white/20 uppercase tracking-[0.2em] font-bold">Report Card Preview</p>
                         </div>
                         <button onClick={downloadPDF} disabled={isGeneratingPdf}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex-shrink-0">
-                            {isGeneratingPdf
-                                ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                                : <ArrowUpTrayIcon className="w-3.5 h-3.5" />}
-                            {isGeneratingPdf ? 'Generating…' : 'Download PDF'}
+                            className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white text-sm font-black rounded-2xl shadow-xl shadow-violet-900/30 transition-all disabled:opacity-50">
+                            {isGeneratingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}
+                            {isGeneratingPdf ? 'Processing...' : 'Export PDF'}
                         </button>
                     </div>
-                    <div className="flex-1 overflow-auto bg-[#1a1a2e]/40 p-4 sm:p-8">
-                        <div className="mx-auto shadow-2xl" style={{ maxWidth: 794 }}>
-                            <ScaledReportCard report={previewData} orgSettings={branding as any} />
+                    <div className="flex-1 overflow-auto p-4 sm:p-8 bg-black/40">
+                        <div className="mx-auto rounded-[2rem] bg-white overflow-hidden shadow-2xl"
+                            style={{ width: '210mm', minHeight: '297mm', transform: 'scale(0.85)', transformOrigin: 'top center' }}>
+                            <ReportCard report={previewData} orgSettings={branding as any} />
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* ── PDF capture div — off-screen; no opacity so html2canvas captures full color ── */}
-            <div style={{ position: 'fixed', left: -9999, top: 0, width: 794, pointerEvents: 'none', zIndex: -1 }}>
+            <div style={{ position: 'fixed', left: -9999, top: 0, width: '210mm', pointerEvents: 'none', zIndex: -1 }}>
                 <div ref={pdfRef}>
                     <ReportCard report={previewData} orgSettings={branding as any} />
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

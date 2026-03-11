@@ -635,27 +635,27 @@ export default function SchoolsPage() {
                       <p className="text-xs text-white/20 mt-1.5">Registered {new Date(s.created_at).toLocaleDateString()}</p>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-end gap-2 flex-shrink-0">
-                      <button onClick={() => setDetail(s)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-xs font-bold rounded-xl transition-all">
-                        <EyeIcon className="w-3.5 h-3.5" /> View
-                      </button>
-                      <button onClick={() => startEdit(s)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-xs font-bold rounded-xl transition-all">
-                        <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
-                      </button>
-                      <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-xs font-bold rounded-xl transition-all disabled:opacity-50">
-                        <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Delete'}
-                      </button>
-                      {(s.status === 'pending' || !s.status) && (
-                        <>
+                    <div className="flex flex-col gap-2 flex-shrink-0 w-full lg:w-auto sm:flex-row sm:items-center mt-4 lg:mt-0">
+                      <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full">
+                        <button onClick={() => setDetail(s)}
+                          className="flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-black rounded-xl transition-all border border-white/5 shadow-sm">
+                          <EyeIcon className="w-4 h-4" /> View
+                        </button>
+                        <button onClick={() => startEdit(s)}
+                          className="flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-black rounded-xl transition-all border border-white/5 shadow-sm">
+                          <PencilSquareIcon className="w-4 h-4" /> Edit
+                        </button>
+                        <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
+                          className="flex items-center justify-center gap-2 px-4 py-3 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-xs font-black rounded-xl transition-all disabled:opacity-50 border border-rose-500/10 shadow-sm">
+                          <XCircleIcon className="w-4 h-4" /> {deleting === s.id ? '…' : 'Delete'}
+                        </button>
+                        {(s.status === 'pending' || !s.status) && (
                           <button onClick={() => updateStatus(s.id, 'approved')} disabled={acting === s.id}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50">
-                            <CheckCircleIcon className="w-3.5 h-3.5" /> Approve
+                            className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 col-span-2 sm:col-span-1">
+                            <CheckCircleIcon className="w-4 h-4" /> Approve
                           </button>
-                        </>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

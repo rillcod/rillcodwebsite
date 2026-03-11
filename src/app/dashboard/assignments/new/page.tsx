@@ -30,7 +30,10 @@ const emptyQuestion = (): Question => ({
 export default function NewAssignmentPage() {
   const router = useRouter();
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const preProgramId = searchParams?.get('program_id');
   const [courses, setCourses] = useState<any[]>([]);
+  const isMinimal = searchParams?.get('minimal') === 'true';
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,15 +48,65 @@ export default function NewAssignmentPage() {
   });
   const [questions, setQuestions] = useState<Question[]>([]);
 
+  // AI Generation State
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiTopic, setAiTopic] = useState('');
+
+  const handleAiGenerate = async () => {
+    if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
+    setAiGenerating(true);
+    setAiError(null);
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'assignment', topic: aiTopic })
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+
+      const data = result.data;
+      setForm(prev => ({
+        ...prev,
+        title: data.title || prev.title,
+        description: data.description || prev.description,
+        instructions: data.instructions || prev.instructions,
+        assignment_type: data.assignment_type || prev.assignment_type,
+      }));
+      if (data.questions?.length > 0) {
+        setQuestions(data.questions.map((q: any) => ({
+          question_text: q.question_text || '',
+          question_type: q.question_type || 'multiple_choice',
+          options: q.options || ['', '', '', ''],
+          correct_answer: q.correct_answer || '',
+          points: q.points || 10,
+        })));
+      }
+      setAiOpen(false);
+    } catch (e: any) {
+      setAiError(e.message || 'AI generation failed');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   useEffect(() => {
     if (authLoading || !profile) return;
     createClient()
       .from('courses')
-      .select('id, title, programs(name)')
+      .select('id, title, program_id, programs(name)')
       .eq('is_active', true)
       .order('title')
-      .then(({ data }) => setCourses(data ?? []));
-  }, [profile?.id, authLoading]);
+      .then(({ data }) => {
+        setCourses(data ?? []);
+        if (preProgramId && data) {
+          const matching = data.find((c: any) => c.program_id === preProgramId);
+          if (matching) setForm(prev => ({ ...prev, course_id: matching.id }));
+        }
+      });
+  }, [profile?.id, authLoading, preProgramId]);
 
   const addQuestion = () => setQuestions(q => [...q, emptyQuestion()]);
   const removeQuestion = (i: number) => setQuestions(q => q.filter((_, idx) => idx !== i));
@@ -118,21 +171,28 @@ export default function NewAssignmentPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className={`min-h-screen bg-[#0f0f1a] text-white ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
+      <div className={`${isMinimal ? 'w-full' : 'max-w-3xl mx-auto'} space-y-6`}>
 
-        <Link href="/dashboard/assignments"
-          className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors">
-          <ArrowLeftIcon className="w-4 h-4" /> Back to Assignments
-        </Link>
+        {!isMinimal && (
+          <Link href="/dashboard/assignments"
+            className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors">
+            <ArrowLeftIcon className="w-4 h-4" /> Back to Assignments
+          </Link>
+        )}
 
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <ClipboardDocumentListIcon className="w-5 h-5 text-amber-400" />
-            <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">New Assignment</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <ClipboardDocumentListIcon className="w-5 h-5 text-amber-400" />
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">{isMinimal ? 'Add Context' : 'New Assignment'}</span>
+            </div>
+            <h1 className="text-2xl font-black">Create Assignment</h1>
           </div>
-          <h1 className="text-3xl font-extrabold">Create Assignment</h1>
-          <p className="text-white/40 text-sm mt-1">Add a new assignment for your students</p>
+          <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-xl shadow-amber-900/40 transition-all disabled:opacity-50">
+            {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+            {saving ? 'Creating...' : (isMinimal ? 'CREATE' : 'CREATE ASSIGNMENT')}
+          </button>
         </div>
 
         {error && (
@@ -141,6 +201,52 @@ export default function NewAssignmentPage() {
             <p className="text-rose-400 text-sm">{error}</p>
           </div>
         )}
+
+        {/* AI Generate Panel */}
+        <div className="bg-gradient-to-br from-amber-500/10 to-violet-500/5 border border-amber-500/20 rounded-2xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setAiOpen(o => !o)}
+            className="w-full flex items-center justify-between px-5 py-4 text-left"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                <ArrowPathIcon className={`w-4 h-4 text-amber-400 ${aiGenerating ? 'animate-spin' : ''}`} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">Generate with AI</p>
+                <p className="text-xs text-white/40">Auto-fill assignment details and questions</p>
+              </div>
+            </div>
+            {aiOpen ? <ChevronDownIcon className="w-4 h-4 text-white/40" /> : <ChevronDownIcon className="w-4 h-4 text-white/40 rotate-180" />}
+          </button>
+
+          {aiOpen && (
+            <div className="px-5 pb-5 space-y-4 border-t border-amber-500/20 bg-white/5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4">
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Topic / Subject Matter</label>
+                  <input
+                    value={aiTopic}
+                    onChange={e => setAiTopic(e.target.value)}
+                    placeholder="e.g. Introduction to Variables in JavaScript"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-amber-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAiGenerate}
+                  disabled={aiGenerating}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all self-end"
+                >
+                  {aiGenerating ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                  {aiGenerating ? 'Generating...' : 'Generate'}
+                </button>
+              </div>
+              {aiError && <p className="text-[10px] text-rose-400">{aiError}</p>}
+            </div>
+          )}
+        </div>
 
         <form onSubmit={handleSubmit} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-5">
 

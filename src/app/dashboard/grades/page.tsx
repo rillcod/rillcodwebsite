@@ -24,21 +24,21 @@ function pctInfo(grade: number, max: number) {
 
 const QUICK_GRADES = [
     { label: 'A+', pct: 95, color: 'emerald' },
-    { label: 'A',  pct: 82, color: 'emerald' },
-    { label: 'B',  pct: 75, color: 'blue' },
-    { label: 'C',  pct: 65, color: 'amber' },
-    { label: 'D',  pct: 52, color: 'orange' },
-    { label: 'F',  pct: 30, color: 'rose' },
+    { label: 'A', pct: 82, color: 'emerald' },
+    { label: 'B', pct: 75, color: 'blue' },
+    { label: 'C', pct: 65, color: 'amber' },
+    { label: 'D', pct: 52, color: 'orange' },
+    { label: 'F', pct: 30, color: 'rose' },
 ];
 
 function colorClass(color: string, variant: 'text' | 'bg' | 'border' | 'ring') {
     const map: Record<string, Record<string, string>> = {
         emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500', border: 'border-emerald-500', ring: 'ring-emerald-500' },
-        blue:    { text: 'text-blue-400',    bg: 'bg-blue-500',    border: 'border-blue-500',    ring: 'ring-blue-500' },
-        amber:   { text: 'text-amber-400',   bg: 'bg-amber-500',   border: 'border-amber-500',   ring: 'ring-amber-500' },
-        orange:  { text: 'text-orange-400',  bg: 'bg-orange-500',  border: 'border-orange-500',  ring: 'ring-orange-500' },
-        rose:    { text: 'text-rose-400',    bg: 'bg-rose-500',    border: 'border-rose-500',     ring: 'ring-rose-500' },
-        violet:  { text: 'text-violet-400',  bg: 'bg-violet-500',  border: 'border-violet-500',  ring: 'ring-violet-500' },
+        blue: { text: 'text-blue-400', bg: 'bg-blue-500', border: 'border-blue-500', ring: 'ring-blue-500' },
+        amber: { text: 'text-amber-400', bg: 'bg-amber-500', border: 'border-amber-500', ring: 'ring-amber-500' },
+        orange: { text: 'text-orange-400', bg: 'bg-orange-500', border: 'border-orange-500', ring: 'ring-orange-500' },
+        rose: { text: 'text-rose-400', bg: 'bg-rose-500', border: 'border-rose-500', ring: 'ring-rose-500' },
+        violet: { text: 'text-violet-400', bg: 'bg-violet-500', border: 'border-violet-500', ring: 'ring-violet-500' },
     };
     return map[color]?.[variant] ?? '';
 }
@@ -46,10 +46,10 @@ function colorClass(color: string, variant: 'text' | 'bg' | 'border' | 'ring') {
 // ─── Status badge ─────────────────────────────────────────────
 function Badge({ status }: { status: string }) {
     const map: Record<string, string> = {
-        graded:    'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+        graded: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
         submitted: 'bg-blue-500/20    text-blue-400    border-blue-500/30',
-        late:      'bg-amber-500/20   text-amber-400   border-amber-500/30',
-        missing:   'bg-rose-500/20    text-rose-400    border-rose-500/30',
+        late: 'bg-amber-500/20   text-amber-400   border-amber-500/30',
+        missing: 'bg-rose-500/20    text-rose-400    border-rose-500/30',
     };
     return (
         <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize whitespace-nowrap ${map[status] ?? 'bg-white/10 text-white/40 border-white/10'}`}>
@@ -155,11 +155,10 @@ function GradeModal({ sub, onClose, onSaved }: {
                                 {QUICK_GRADES.map(q => (
                                     <button key={q.label}
                                         onClick={() => applyQuick(q.pct)}
-                                        className={`py-2.5 rounded-xl text-xs font-black transition-all border ${
-                                            info?.letter === q.label
+                                        className={`py-2.5 rounded-xl text-xs font-black transition-all border ${info?.letter === q.label
                                                 ? `${colorClass(q.color, 'bg')} text-white border-transparent`
                                                 : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'
-                                        }`}>
+                                            }`}>
                                         {q.label}
                                     </button>
                                 ))}
@@ -275,11 +274,11 @@ function DistBar({ items }: { items: any[] }) {
     const total = graded.length;
     const bars: Array<{ label: string; count: number; color: string }> = [
         { label: 'A+', count: counts['A+'], color: 'bg-emerald-500' },
-        { label: 'A',  count: counts.A,    color: 'bg-emerald-400' },
-        { label: 'B',  count: counts.B,    color: 'bg-blue-500' },
-        { label: 'C',  count: counts.C,    color: 'bg-amber-500' },
-        { label: 'D',  count: counts.D,    color: 'bg-orange-500' },
-        { label: 'F',  count: counts.F,    color: 'bg-rose-500' },
+        { label: 'A', count: counts.A, color: 'bg-emerald-400' },
+        { label: 'B', count: counts.B, color: 'bg-blue-500' },
+        { label: 'C', count: counts.C, color: 'bg-amber-500' },
+        { label: 'D', count: counts.D, color: 'bg-orange-500' },
+        { label: 'F', count: counts.F, color: 'bg-rose-500' },
     ].filter(b => b.count > 0);
 
     return (
@@ -340,14 +339,13 @@ function AchievementBadges({ items }: { items: any[] }) {
     return (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {badges.map(b => (
-                <div key={b.label} className={`rounded-2xl p-4 border transition-all ${
-                    b.earned ? (
+                <div key={b.label} className={`rounded-2xl p-4 border transition-all ${b.earned ? (
                         b.color === 'amber' ? 'bg-amber-500/10 border-amber-500/20' :
-                        b.color === 'orange' ? 'bg-orange-500/10 border-orange-500/20' :
-                        b.color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/20' :
-                        'bg-blue-500/10 border-blue-500/20'
+                            b.color === 'orange' ? 'bg-orange-500/10 border-orange-500/20' :
+                                b.color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/20' :
+                                    'bg-blue-500/10 border-blue-500/20'
                     ) : 'bg-white/5 border-white/10 opacity-40 grayscale'
-                }`}>
+                    }`}>
                     <b.icon className={`w-5 h-5 mb-2 ${b.earned ? colorClass(b.color, 'text') : 'text-white/30'}`} />
                     <p className={`text-xs font-black ${b.earned ? 'text-white' : 'text-white/40'}`}>{b.label}</p>
                     <p className="text-[10px] text-white/30 mt-0.5 leading-tight">{b.desc}</p>
@@ -457,6 +455,7 @@ export default function GradesPage() {
                     ? await fetchSubmissionsForGrading({
                         teacherId: role === 'teacher' ? profile!.id : undefined,
                         schoolId: role === 'school' ? profile!.school_id ?? undefined : undefined,
+                        schoolName: role === 'school' ? profile!.school_name ?? undefined : undefined,
                     })
                     : await fetchStudentGrades(profile!.id);
                 if (!cancelled) setItems(data);
@@ -542,10 +541,10 @@ export default function GradesPage() {
                     <div className="h-8 bg-white/10 rounded w-64" />
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[1,2,3,4].map(i => <div key={i} className="bg-white/5 border border-white/10 rounded-2xl h-28 animate-pulse" />)}
+                    {[1, 2, 3, 4].map(i => <div key={i} className="bg-white/5 border border-white/10 rounded-2xl h-28 animate-pulse" />)}
                 </div>
                 <div className="space-y-3">
-                    {[1,2,3,4,5].map(i => <div key={i} className="bg-white/5 border border-white/10 rounded-2xl h-20 animate-pulse" />)}
+                    {[1, 2, 3, 4, 5].map(i => <div key={i} className="bg-white/5 border border-white/10 rounded-2xl h-20 animate-pulse" />)}
                 </div>
             </div>
         </div>
@@ -636,16 +635,15 @@ export default function GradesPage() {
                     ].map(s => (
                         <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5">
                             <div className="flex items-start justify-between mb-3">
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                                    s.color === 'violet' ? 'bg-violet-500/10' :
-                                    s.color === 'amber' ? 'bg-amber-500/10' :
-                                    s.color === 'emerald' ? 'bg-emerald-500/10' :
-                                    'bg-rose-500/10'
-                                }`}>
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.color === 'violet' ? 'bg-violet-500/10' :
+                                        s.color === 'amber' ? 'bg-amber-500/10' :
+                                            s.color === 'emerald' ? 'bg-emerald-500/10' :
+                                                'bg-rose-500/10'
+                                    }`}>
                                     <s.icon className={`w-4 h-4 ${colorClass(s.color, 'text')}`} />
                                 </div>
                                 {s.label === 'Graded' && totalItems > 0 && (
-                                    <div className="text-xs text-white/30">{Math.round((graded/totalItems)*100)}%</div>
+                                    <div className="text-xs text-white/30">{Math.round((graded / totalItems) * 100)}%</div>
                                 )}
                             </div>
                             <p className={`text-2xl font-extrabold ${colorClass(s.color, 'text')}`}>{s.value}</p>
@@ -832,11 +830,10 @@ export default function GradesPage() {
                                             {/* Grade button */}
                                             {canGrade ? (
                                                 <button onClick={() => setGrading(s)}
-                                                    className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${
-                                                        s.status === 'submitted' || s.status === 'late'
+                                                    className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${s.status === 'submitted' || s.status === 'late'
                                                             ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                                                             : 'bg-white/5 hover:bg-white/10 text-white/30 opacity-0 group-hover:opacity-100'
-                                                    }`}
+                                                        }`}
                                                     title={info ? 'Edit grade' : 'Grade now'}>
                                                     <PencilSquareIcon className="w-4 h-4" />
                                                 </button>
@@ -871,10 +868,9 @@ export default function GradesPage() {
 
                             return (
                                 <div key={s.id}
-                                    className={`bg-white/5 border rounded-2xl overflow-hidden transition-all ${
-                                        s.status === 'graded' ? 'border-emerald-500/20' :
-                                        s.status === 'missing' ? 'border-rose-500/20' : 'border-white/10'
-                                    }`}>
+                                    className={`bg-white/5 border rounded-2xl overflow-hidden transition-all ${s.status === 'graded' ? 'border-emerald-500/20' :
+                                            s.status === 'missing' ? 'border-rose-500/20' : 'border-white/10'
+                                        }`}>
                                     {/* Top progress strip */}
                                     {info && (
                                         <div className="h-1 bg-white/5">

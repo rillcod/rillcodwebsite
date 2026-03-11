@@ -7,7 +7,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
     ArrowLeftIcon, BookOpenIcon, CheckIcon,
-    ExclamationTriangleIcon, ArrowPathIcon,
+    ExclamationTriangleIcon, ArrowPathIcon, UserIcon,
+    BuildingOfficeIcon,
 } from '@heroicons/react/24/outline';
 
 export default function EditClassPage() {
@@ -26,6 +27,7 @@ export default function EditClassPage() {
 
     const [loading, setLoading] = useState(true);
     const [loadingStudents, setLoadingStudents] = useState(false);
+    const [pendingCount, setPendingCount] = useState(0);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -117,44 +119,76 @@ export default function EditClassPage() {
         setLoadingStudents(true);
         async function fetchStudents() {
             try {
-                // 1. Get all assigned schools for this teacher
+                // 1. Get schools for permissions (teachers only)
                 const { data: assignments } = await db
                     .from('teacher_schools')
                     .select('school_id')
                     .eq('teacher_id', profile!.id);
-                const schoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
-                if (profile!.school_id && !schoolIds.includes(profile!.school_id)) schoolIds.push(profile!.school_id);
+                const assignedSchoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
+                if (profile!.school_id && !assignedSchoolIds.includes(profile!.school_id)) assignedSchoolIds.push(profile!.school_id);
 
-                // 2. Fetch student IDs from registry (students table)
-                let sTableQuery = db.from('students')
-                    .select('user_id')
-                    .eq('status', 'approved')
-                    .not('user_id', 'is', null);
+                // 2. Fetch the "Pool" from portal_users (active students who can be assigned)
+                let poolQuery = db.from('portal_users')
+                    .select('id, full_name, email, school_id, school_name, section_class')
+                    .eq('role', 'student')
+                    .neq('is_deleted', true);
 
-                if (form.school_id) {
-                    sTableQuery = sTableQuery.eq('school_id', form.school_id);
-                } else if (profile?.role === 'teacher') {
-                    if (schoolIds.length > 0) {
-                        sTableQuery = sTableQuery.or(`school_id.in.(${schoolIds.join(',')}),created_by.eq.${profile.id}`);
-                    } else {
-                        sTableQuery = sTableQuery.eq('created_by', profile.id);
+                if (profile?.role === 'admin') {
+                    // Admins see all students in selected school
+                    if (form.school_id) {
+                        const sName = schools.find(s => s.id === form.school_id)?.name;
+                        if (sName) {
+                            poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}"`);
+                        } else {
+                            poolQuery = poolQuery.eq('school_id', form.school_id);
+                        }
+                    }
+                } else {
+                    // Staff/Teachers see students in their school
+                    if (form.school_id) {
+                        const sName = schools.find(s => s.id === form.school_id)?.name;
+                        if (sName) {
+                            poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}"`);
+                        } else {
+                            poolQuery = poolQuery.eq('school_id', form.school_id);
+                        }
+                    } else if (assignedSchoolIds.length > 0) {
+                        // Match any assigned school ID or matching school name
+                        const names = schools.filter(s => assignedSchoolIds.includes(s.id)).map(s => `"${s.name}"`);
+                        if (names.length > 0) {
+                            poolQuery = poolQuery.or(`school_id.in.(${assignedSchoolIds.join(',')}),school_name.in.(${names.join(',')})`);
+                        } else {
+                            poolQuery = poolQuery.in('school_id', assignedSchoolIds);
+                        }
                     }
                 }
 
-                const { data: sEntries } = await sTableQuery;
-                const relevantUserIds = (sEntries ?? []).map(s => s.user_id).filter((id): id is string => !!id);
+                const { data: studs } = await poolQuery.order('full_name');
+                setAvailableStudents(studs ?? []);
 
-                if (relevantUserIds.length > 0) {
-                    const { data: studs } = await db.from('portal_users')
-                        .select('id, full_name, email, school_id, section_class')
-                        .in('id', relevantUserIds)
-                        .is('is_deleted', null)
-                        .order('full_name');
+                // 3. Count "Pending Admission" (students registry table where user_id is null)
+                let pendingQuery = db.from('students')
+                    .select('id')
+                    .is('user_id', null);
 
-                    setAvailableStudents(studs ?? []);
-                } else {
-                    setAvailableStudents([]);
+                if (form.school_id) {
+                    const sName = schools.find(s => s.id === form.school_id)?.name;
+                    if (sName) {
+                        pendingQuery = pendingQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}",created_by.eq.${profile!.id}`);
+                    } else {
+                        pendingQuery = pendingQuery.or(`school_id.eq.${form.school_id},created_by.eq.${profile!.id}`);
+                    }
+                } else if (profile?.role === 'teacher') {
+                    if (assignedSchoolIds.length > 0) {
+                        pendingQuery = pendingQuery.or(`school_id.in.(${assignedSchoolIds.join(',')}),created_by.eq.${profile.id}`);
+                    } else {
+                        pendingQuery = pendingQuery.eq('created_by', profile.id);
+                    }
                 }
+
+                const { data: pData } = await pendingQuery;
+                setPendingCount(pData?.length ?? 0);
+
             } catch (err) {
                 console.error('Error fetching students:', err);
             } finally {
@@ -164,7 +198,7 @@ export default function EditClassPage() {
         fetchStudents();
     }, [form.program_id, form.school_id, loading]);
 
-    const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+    const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -214,8 +248,11 @@ export default function EditClassPage() {
 
             // 3. Add newly selected students and ensure enrollment
             if (selectedStudents.length > 0) {
+                const updatePayload: any = { section_class: newName };
+                if (form.school_id) updatePayload.school_id = form.school_id;
+
                 await db.from('portal_users')
-                    .update({ section_class: newName })
+                    .update(updatePayload)
                     .in('id', selectedStudents);
 
                 // Ensure enrollment exists for each student in this program
@@ -225,7 +262,7 @@ export default function EditClassPage() {
                     role: 'student',
                     status: 'active'
                 }));
-                await db.from('enrollments').upsert(enrollments, { onConflict: 'user_id,program_id' });
+                await db.from('enrollments').upsert(enrollments, { onConflict: 'user_id,program_id,role' });
             }
 
             router.push(`/dashboard/classes/${id}`);
@@ -333,9 +370,22 @@ export default function EditClassPage() {
                                 <ArrowPathIcon className="w-4 h-4 animate-spin" /> Refreshing student list…
                             </div>
                         ) : availableStudents.length === 0 ? (
-                            <p className="text-sm text-amber-400/60 italic bg-amber-500/5 border border-dashed border-amber-500/10 rounded-xl p-4">
-                                No students found matching this programme/school.
-                            </p>
+                            <div className="space-y-3">
+                                <p className="text-sm text-amber-400/60 italic bg-amber-500/5 border border-dashed border-amber-500/10 rounded-xl p-4">
+                                    No students found matching this programme/school. Only students with active portal accounts appear here.
+                                </p>
+                                {pendingCount > 0 && (
+                                    <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+                                        <UserIcon className="w-5 h-5 text-blue-400" />
+                                        <p className="text-xs text-blue-300">
+                                            <strong>{pendingCount} student{pendingCount !== 1 ? 's' : ''}</strong> you registered are still <strong>Pending Admission</strong>. They will appear here once approved by an administrator.
+                                        </p>
+                                    </div>
+                                )}
+                                {!form.program_id && (
+                                    <p className="text-xs text-white/30 px-1">Please select a <strong>Programme</strong> above to see eligible students.</p>
+                                )}
+                            </div>
                         ) : (
                             <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
                                 <div className="max-h-60 overflow-y-auto divide-y divide-white/5">

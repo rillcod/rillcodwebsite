@@ -17,28 +17,29 @@ import { ScaledReportCard, generateReportPDF } from '@/lib/pdf-utils';
 import { Database } from '@/types/supabase';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
-type PortalUser    = Database['public']['Tables']['portal_users']['Row'];
-type OrgSettings   = Database['public']['Tables']['report_settings']['Row'];
+type PortalUser = Database['public']['Tables']['portal_users']['Row'];
+type OrgSettings = Database['public']['Tables']['report_settings']['Row'];
 
 // ─── Inner component ───────────────────────────────────────────────────────────
 function ResultsPageInner() {
-    const searchParams  = useSearchParams();
+    const searchParams = useSearchParams();
     const prefStudentId = searchParams.get('student');
     const { profile, loading: authLoading } = useAuth();
 
     // ── Core data ──────────────────────────────────────────────────────────────
-    const [students, setStudents]       = useState<PortalUser[]>([]);
-    const [reportsMap, setReportsMap]   = useState<Record<string, any>>({});
+    const [students, setStudents] = useState<PortalUser[]>([]);
+    const [reportsMap, setReportsMap] = useState<Record<string, any>>({});
     const [orgSettings, setOrgSettings] = useState<OrgSettings | null>(null);
-    const [loading, setLoading]         = useState(true);
+    const [loading, setLoading] = useState(true);
 
     // ── Selection / view ───────────────────────────────────────────────────────
     const [selectedStudent, setSelectedStudent] = useState<PortalUser | null>(null);
-    const [selectedReport, setSelectedReport]   = useState<StudentReport | null>(null);
-    const [loadingReport, setLoadingReport]     = useState(false);
+    const [selectedReport, setSelectedReport] = useState<StudentReport | null>(null);
+    const [loadingReport, setLoadingReport] = useState(false);
 
     // ── Filters ────────────────────────────────────────────────────────────────
-    const [search, setSearch]           = useState('');
+    const [search, setSearch] = useState('');
+    const [filterSchool, setFilterSchool] = useState('');
     const [filterClass, setFilterClass] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'none'>('all');
 
@@ -51,12 +52,12 @@ function ResultsPageInner() {
     const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
     const [captureReport, setCaptureReport] = useState<StudentReport | null>(null);
 
-    const pdfRef         = useRef<HTMLDivElement>(null);  // single-student capture
-    const captureRef     = useRef<HTMLDivElement>(null);  // batch capture
-    const captureQueue   = useRef<StudentReport[]>([]);
-    const captureIdx     = useRef<number>(0);
+    const pdfRef = useRef<HTMLDivElement>(null);  // single-student capture
+    const captureRef = useRef<HTMLDivElement>(null);  // batch capture
+    const captureQueue = useRef<StudentReport[]>([]);
+    const captureIdx = useRef<number>(0);
 
-    const isStaff  = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+    const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
     // School partners can VIEW and PRINT but cannot create or edit reports
     const isEditor = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -72,7 +73,7 @@ function ResultsPageInner() {
                     .select('*')
                     .eq('student_id', profile.id)
                     .eq('is_published', true)
-                    .order('created_at', { ascending: false })
+                    .order('updated_at', { ascending: false })
                     .limit(1)
                     .maybeSingle(),
                 db.from('report_settings').select('*').limit(1).maybeSingle(),
@@ -84,34 +85,82 @@ function ResultsPageInner() {
             return;
         }
 
-        // Staff: load students + report summaries
-        const q = db.from('portal_users')
-            .select('id, full_name, email, school_name, section_class, school_id, profile_image_url')
-            .eq('role', 'student');
-        const query = (profile.role === 'school' && profile.school_id)
-            ? q.eq('school_id', profile.school_id) : q;
+        async function loadStaffData() {
+            // 1. Resolve school metadata for non-admins
+            let assignedSchoolIds: string[] = [];
+            let assignedSchoolNames: string[] = [];
 
-        Promise.all([
-            query.order('full_name').limit(200),
-            db.from('student_progress_reports')
-                .select('student_id, overall_grade, is_published, updated_at'),
-            db.from('report_settings').select('*').limit(1).maybeSingle(),
-        ]).then(([sRes, rRes, orgRes]) => {
+            if (profile?.role === 'school' && profile.school_id) {
+                assignedSchoolIds = [profile.school_id];
+                const { data: sData } = await db.from('schools').select('name').eq('id', profile.school_id).maybeSingle();
+                if (sData?.name) assignedSchoolNames = [sData.name];
+            } else if (profile?.role === 'teacher') {
+                const { data: assignments } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
+                const ids = assignments?.map((a: any) => a.school_id).filter(Boolean) || [];
+                if (profile.school_id) ids.push(profile.school_id);
+                assignedSchoolIds = Array.from(new Set(ids));
+
+                if (assignedSchoolIds.length > 0) {
+                    const { data: namesData } = await db.from('schools').select('name').in('id', assignedSchoolIds);
+                    assignedSchoolNames = namesData?.map(s => s.name).filter(Boolean) || [];
+                }
+            }
+
+            // 2. Build student query
+            let finalQuery = db.from('portal_users')
+                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url')
+                .neq('is_deleted', true);
+
+            const isAdmin = profile?.role === 'admin';
+
+            if (!isAdmin) {
+                finalQuery = finalQuery.eq('role', 'student');
+                if (assignedSchoolIds.length > 0) {
+                    const namesSegment = assignedSchoolNames.length > 0
+                        ? `,school_name.in.(${assignedSchoolNames.map(n => `"${n}"`).join(',')})`
+                        : '';
+                    const filter = `school_id.in.(${assignedSchoolIds.join(',')})${namesSegment}`;
+                    finalQuery = finalQuery.or(filter);
+                } else {
+                    finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+                }
+            }
+
+            const [sRes, orgRes] = await Promise.all([
+                finalQuery.order('full_name').limit(isAdmin ? 5000 : 400),
+                db.from('report_settings').select('*').limit(1).maybeSingle(),
+            ]);
+
             const studs = (sRes.data ?? []) as PortalUser[];
             setStudents(studs);
-
-            const rMap: Record<string, any> = {};
-            (rRes.data ?? []).forEach(r => {
-                if (r.student_id && !rMap[r.student_id]) rMap[r.student_id] = r;
-            });
-            setReportsMap(rMap);
             setOrgSettings(orgRes.data);
+
+            const studentIds = studs.map(s => s.id);
+            const rMap: Record<string, any> = {};
+            if (studentIds.length > 0) {
+                const { data: reports } = await db.from('student_progress_reports')
+                    .select('student_id, overall_grade, is_published, updated_at')
+                    .in('student_id', studentIds)
+                    .order('is_published', { ascending: false })
+                    .order('updated_at', { ascending: false });
+
+                (reports ?? []).forEach(r => {
+                    // Latest report for each student (since they are ordered by updated_at desc)
+                    if (r.student_id && !rMap[r.student_id]) rMap[r.student_id] = r;
+                });
+            }
+
+            setReportsMap(rMap);
 
             if (prefStudentId) {
                 const s = studs.find(x => x.id === prefStudentId);
                 if (s) loadStudentReport(s);
             }
-        }).finally(() => setLoading(false));
+            setLoading(false);
+        }
+
+        loadStaffData();
+        return;
     }, [profile?.id, authLoading]); // eslint-disable-line
 
     // ── Load single student report ─────────────────────────────────────────────
@@ -123,7 +172,8 @@ function ResultsPageInner() {
             .from('student_progress_reports')
             .select('*')
             .eq('student_id', s.id)
-            .order('created_at', { ascending: false })
+            .order('is_published', { ascending: false })
+            .order('updated_at', { ascending: false })
             .limit(1)
             .maybeSingle();
         setSelectedReport(data as StudentReport | null);
@@ -131,6 +181,10 @@ function ResultsPageInner() {
     }
 
     // ── Derived data ───────────────────────────────────────────────────────────
+    const distinctSchools = [...new Set(
+        students.map(s => (s as any).school_name).filter(Boolean)
+    )].sort() as string[];
+
     const distinctClasses = [...new Set(
         students.map(s => (s as any).section_class).filter(Boolean)
     )].sort() as string[];
@@ -139,21 +193,22 @@ function ResultsPageInner() {
         const matchSearch = !search
             || (s.full_name ?? '').toLowerCase().includes(search.toLowerCase())
             || (s.email ?? '').toLowerCase().includes(search.toLowerCase());
+        const matchSchool = !filterSchool || (s as any).school_name === filterSchool;
         const matchClass = !filterClass || (s as any).section_class === filterClass;
         const r = reportsMap[s.id];
         const matchStatus =
-            filterStatus === 'all'       ? true :
-            filterStatus === 'published' ? r?.is_published === true :
-            filterStatus === 'draft'     ? (r && r.is_published === false) :
-            /* none */                     !r;
-        return matchSearch && matchClass && matchStatus;
+            filterStatus === 'all' ? true :
+                filterStatus === 'published' ? r?.is_published === true :
+                    filterStatus === 'draft' ? (r && r.is_published === false) :
+            /* none */ !r;
+        return matchSearch && matchSchool && matchClass && matchStatus;
     });
 
     const stats = {
-        total:     students.length,
+        total: students.length,
         published: Object.values(reportsMap).filter(r => r.is_published).length,
-        draft:     Object.values(reportsMap).filter(r => !r.is_published).length,
-        none:      students.length - Object.keys(reportsMap).length,
+        draft: Object.values(reportsMap).filter(r => !r.is_published).length,
+        none: students.length - Object.keys(reportsMap).length,
     };
 
     const currentIdx = selectedStudent
@@ -222,7 +277,7 @@ function ResultsPageInner() {
         }
 
         captureQueue.current = queue;
-        captureIdx.current   = 0;
+        captureIdx.current = 0;
         setBatchProgress({ current: 0, total: queue.length });
         setCaptureReport(queue[0]);
     }
@@ -237,7 +292,7 @@ function ResultsPageInner() {
         const timer = setTimeout(async () => {
             if (cancelled || !captureRef.current) return;
 
-            const idx   = captureIdx.current;
+            const idx = captureIdx.current;
             const total = captureQueue.current.length;
             setBatchProgress({ current: idx + 1, total });
 
@@ -379,26 +434,35 @@ function ResultsPageInner() {
                                 />
                             </div>
 
-                            {/* Filters */}
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-2">
                                 <select
-                                    value={filterClass}
-                                    onChange={e => setFilterClass(e.target.value)}
-                                    className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
+                                    value={filterSchool}
+                                    onChange={e => setFilterSchool(e.target.value)}
+                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
                                 >
-                                    <option value="">All Classes</option>
-                                    {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
+                                    <option value="">All Schools</option>
+                                    {distinctSchools.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
-                                <select
-                                    value={filterStatus}
-                                    onChange={e => setFilterStatus(e.target.value as any)}
-                                    className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
-                                >
-                                    <option value="all">All Status</option>
-                                    <option value="published">Published</option>
-                                    <option value="draft">Draft</option>
-                                    <option value="none">No Report</option>
-                                </select>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <select
+                                        value={filterClass}
+                                        onChange={e => setFilterClass(e.target.value)}
+                                        className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
+                                    >
+                                        <option value="">All Classes</option>
+                                        {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                    <select
+                                        value={filterStatus}
+                                        onChange={e => setFilterStatus(e.target.value as any)}
+                                        className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
+                                    >
+                                        <option value="all">All Status</option>
+                                        <option value="published">Published</option>
+                                        <option value="draft">Draft</option>
+                                        <option value="none">No Report</option>
+                                    </select>
+                                </div>
                             </div>
 
                             {/* Select-all bar */}
@@ -423,11 +487,11 @@ function ResultsPageInner() {
                                     <p className="text-white/30 text-sm py-8 text-center">No students found</p>
                                 )}
                                 {filtered.map(s => {
-                                    const r        = reportsMap[s.id];
-                                    const isActive  = selectedStudent?.id === s.id;
+                                    const r = reportsMap[s.id];
+                                    const isActive = selectedStudent?.id === s.id;
                                     const isChecked = selectedIds.has(s.id);
-                                    const cls       = (s as any).section_class as string | undefined;
-                                    const sch       = (s as any).school_name as string | undefined;
+                                    const cls = (s as any).section_class as string | undefined;
+                                    const sch = (s as any).school_name as string | undefined;
 
                                     return (
                                         <div

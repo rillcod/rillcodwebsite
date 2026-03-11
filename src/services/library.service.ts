@@ -33,12 +33,12 @@ export interface ListFilters {
 }
 
 export class LibraryService {
-    async createContent(tenantId: string, authorId: string, role: string, data: CreateContentPayload) {
+    async createContent(tenantId: string | null | undefined, authorId: string, role: string, data: CreateContentPayload) {
         const supabase = await createClient();
         const { data: item, error } = await supabase
             .from('content_library')
             .insert([{
-                school_id: tenantId,
+                school_id: tenantId ?? null,
                 created_by: authorId,
                 title: data.title,
                 description: data.description ?? null,
@@ -66,9 +66,9 @@ export class LibraryService {
             .from('content_library')
             .select('*, files(public_url, file_type, thumbnail_url, file_size, mime_type)');
 
-        // If tenantId is provided, scope to that school; otherwise return all content (e.g. for admins)
+        // If tenantId is provided, scope to that school + global content; otherwise return all
         if (tenantId) {
-            query = query.eq('school_id', tenantId);
+            query = query.or(`school_id.eq.${tenantId},school_id.is.null`);
         }
 
         if (filters.type) query = query.eq('content_type', filters.type);

@@ -75,33 +75,66 @@ export default function SchoolOverviewPage() {
   async function load() {
     setLoading(true);
     const supabase = createClient();
-    const schoolId = profile!.school_id;
+    const schoolId = profile?.school_id;
+    const schoolName = profile?.school_name;
 
-    // Fetch students linked to this school
-    const { data: portalStudents } = await supabase
+    // 1. Fetch ALL registered students for this school (from students table)
+    let studAppsQuery = supabase
+      .from('students')
+      .select('id, full_name, status, enrollment_type');
+
+    if (schoolId) {
+      if (schoolName) {
+        studAppsQuery = studAppsQuery.or(`school_id.eq.${schoolId},school_name.eq."${schoolName}"`);
+      } else {
+        studAppsQuery = studAppsQuery.eq('school_id', schoolId);
+      }
+    } else if (schoolName) {
+      studAppsQuery = studAppsQuery.eq('school_name', schoolName);
+    } else {
+      setLoading(false); return;
+    }
+
+    const { data: allApps } = await studAppsQuery;
+    const totalCount = allApps?.length || 0;
+    const approvedCount = allApps?.filter(s => s.status === 'approved' || s.status === 'active').length || 0;
+
+    // 2. Fetch PORTAL USERS for detailed metrics (grades/attendance)
+    let portalQuery = supabase
       .from('portal_users')
       .select('id, full_name, email, section_class, is_active')
       .eq('role', 'student')
-      .eq('school_id', schoolId!);
+      .neq('is_deleted', true);
+
+    if (schoolId) {
+      if (schoolName) {
+        portalQuery = portalQuery.or(`school_id.eq.${schoolId},school_name.eq."${schoolName}"`);
+      } else {
+        portalQuery = portalQuery.eq('school_id', schoolId);
+      }
+    } else if (schoolName) {
+      portalQuery = portalQuery.eq('school_name', schoolName);
+    }
+
+    const { data: portalStudents } = await portalQuery;
 
     if (!portalStudents?.length) {
+      setStats({ total: totalCount, active: approvedCount, avgScore: 0, avgAttendance: 0 });
+      setStudents([]);
       setLoading(false);
       return;
     }
 
     const ids = portalStudents.map(s => s.id);
 
-    // Fetch submissions for grade data
-    const { data: subs } = await supabase
-      .from('assignment_submissions')
-      .select('portal_user_id, grade, status')
-      .in('portal_user_id', ids);
+    // 3. Detailed metrics
+    const [subsRes, attRes] = await Promise.all([
+      supabase.from('assignment_submissions').select('portal_user_id, grade, status').in('portal_user_id', ids),
+      supabase.from('attendance').select('user_id, status').in('user_id', ids)
+    ]);
 
-    // Fetch attendance for attendance data
-    const { data: attRows } = await supabase
-      .from('attendance')
-      .select('user_id, status')
-      .in('user_id', ids);
+    const subs = subsRes.data || [];
+    const attRows = attRes.data || [];
 
     const rows: StudentRow[] = portalStudents.map(s => {
       const mySubs = (subs ?? []).filter(x => x.portal_user_id === s.id && x.grade != null);
@@ -125,11 +158,10 @@ export default function SchoolOverviewPage() {
       };
     });
 
-    const active = rows.filter(r => r.is_active).length;
     const avgScore = rows.length ? rows.reduce((a, r) => a + r.avgGrade, 0) / rows.length : 0;
     const avgAttendance = rows.length ? rows.reduce((a, r) => a + r.attendance, 0) / rows.length : 0;
 
-    setStats({ total: rows.length, active, avgScore, avgAttendance });
+    setStats({ total: totalCount, active: approvedCount, avgScore, avgAttendance });
     setStudents(rows);
     setLoading(false);
   }

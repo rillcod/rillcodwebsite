@@ -11,7 +11,7 @@ export async function getStudents(schoolId?: string): Promise<ApiResponse<Studen
         .from('portal_users')
         .select('*')
         .eq('role', 'student')
-        .eq('is_deleted', false)
+        .neq('is_deleted', true)
         .order('created_at', { ascending: false });
 
     if (schoolId) {

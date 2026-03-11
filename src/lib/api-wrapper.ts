@@ -56,7 +56,8 @@ export function withApiProxy(
                     throw new AuthenticationError('Authentication required');
                 }
 
-                if (options.requireTenant && !tenantId) {
+                // Relax the requireTenant check for admin and teacher roles
+                if (options.requireTenant && !tenantId && role !== 'admin' && role !== 'teacher') {
                     throw new AppError('Tenant context missing. You must belong to a school.', 403, true);
                 }
 

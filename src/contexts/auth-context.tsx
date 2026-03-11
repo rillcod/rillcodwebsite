@@ -113,8 +113,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
     setProfileLoading(false);
     invalidateCache();
-    try { await supabase.auth.signOut(); } catch { /* ignore */ }
-    window.location.href = '/login';
+    
+    try { 
+      await supabase.auth.signOut();
+      if (typeof window !== 'undefined') {
+        const keys = Object.keys(localStorage);
+        keys.forEach(k => { if (k.startsWith('sb-')) localStorage.removeItem(k); });
+        sessionStorage.clear();
+      }
+    } catch { /* ignore */ }
+    
+    // Hard navigate with clear=1 to ensure the login page clears its own client
+    window.location.href = '/login?clear=1';
   }, [invalidateCache]);
 
   // ── Main init ─────────────────────────────────────────────

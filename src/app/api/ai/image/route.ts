@@ -1,64 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const HF_API = 'https://api-inference.huggingface.co/models';
-const MODEL = 'black-forest-labs/FLUX.1-schnell';
-
 export async function POST(req: NextRequest) {
   try {
-    if (!process.env.HUGGINGFACE_API_KEY) {
-      return NextResponse.json({ error: 'Hugging Face API key not configured.' }, { status: 503 });
+    const { prompt } = await req.json();
+    if (!prompt) return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
+
+    const apiKey = process.env.HUGGINGFACE_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: 'Hugging Face API key not configured' }, { status: 503 });
     }
 
-    const { prompt, title, subject, gradeLevel } = await req.json();
+    // Using a reliable model for educational illustrations
+    const model = "black-forest-labs/FLUX.1-schnell"; // Fast and high quality
 
-    if (!prompt && !title) {
-      return NextResponse.json({ error: 'prompt or title is required' }, { status: 400 });
-    }
-
-    // Build an educational, child-safe image prompt
-    const imagePrompt = prompt ?? [
-      `Educational illustration for a STEM lesson about "${title}"`,
-      subject ? `subject: ${subject}` : '',
-      gradeLevel ? `for ${gradeLevel} students` : '',
-      'colorful, engaging, digital art style, clean background, school learning theme, no text',
-    ].filter(Boolean).join(', ');
-
-    const hfRes = await fetch(`${HF_API}/${MODEL}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ inputs: imagePrompt }),
-      // HF can be slow on cold start — allow up to 60s
-      signal: AbortSignal.timeout(60_000),
-    });
-
-    if (!hfRes.ok) {
-      const errText = await hfRes.text();
-      // Model may still be loading — surface friendly message
-      if (hfRes.status === 503) {
-        return NextResponse.json({ error: 'Model is loading, please try again in 20 seconds.' }, { status: 503 });
+    const response = await fetch(
+      `https://api-inference.huggingface.co/models/${model}`,
+      {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        method: "POST",
+        body: JSON.stringify({
+          inputs: `Educational illustration for a classroom: ${prompt}. High quality, clean style, STEM educational theme, white background where possible.`,
+          parameters: { num_inference_steps: 4 }
+        }),
       }
-      return NextResponse.json({ error: `HF error: ${errText}` }, { status: hfRes.status });
+    );
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error('HF Error:', err);
+      return NextResponse.json({ error: 'Failed to generate image from AI' }, { status: response.status });
     }
 
-    const imageBuffer = await hfRes.arrayBuffer();
-    const base64 = Buffer.from(imageBuffer).toString('base64');
-    const contentType = hfRes.headers.get('content-type') ?? 'image/jpeg';
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64 = buffer.toString('base64');
 
     return NextResponse.json({
-      data: {
-        base64,
-        dataUrl: `data:${contentType};base64,${base64}`,
-        contentType,
-        prompt: imagePrompt,
-      },
+      url: `data:image/jpeg;base64,${base64}`
     });
-  } catch (err: any) {
-    if (err.name === 'TimeoutError') {
-      return NextResponse.json({ error: 'Image generation timed out. Try again.' }, { status: 504 });
-    }
-    return NextResponse.json({ error: err.message ?? 'Image generation failed' }, { status: 500 });
+
+  } catch (error: any) {
+    console.error('AI Image Route Error:', error);
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }

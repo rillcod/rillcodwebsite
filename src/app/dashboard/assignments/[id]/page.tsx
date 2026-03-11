@@ -91,7 +91,7 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
                                         <span className="text-[10px] text-white/40">{q.points} pt{q.points !== 1 && 's'}</span>
                                     </div>
                                     <div className="text-sm text-white/70 bg-black/20 p-2 rounded">
-                                        <span className="text-white font-medium">{sub.answers[idx] || <span className="text-white/30 italic">No answer provided</span>}</span>
+                                        <span className="text-white font-medium">{sub.answers?.[idx] || <span className="text-white/30 italic">No answer provided</span>}</span>
                                     </div>
                                     {q.question_type === 'multiple_choice' && q.correct_answer && (
                                         <p className="text-xs text-emerald-400 mt-2 font-semibold">Correct Answer: {q.correct_answer}</p>
@@ -106,7 +106,7 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
                             📎 View attached file
                         </a>
                     )}
-                    {!sub.submission_text && !sub.file_url && (!sub.answers || Object.keys(sub.answers).length === 0) && sub.status !== 'missing' && (
+                    {!sub.submission_text && !sub.file_url && (!sub.answers || Object.keys(sub.answers as object).length === 0) && sub.status !== 'missing' && (
                         <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-sm text-amber-400">
                             No text, file, or answers submitted — grade based on verbal/in-person work if applicable.
                         </div>

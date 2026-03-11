@@ -51,7 +51,7 @@ export default function LeaderboardPage() {
   const { profile, loading: authLoading } = useAuth();
   const [entries, setEntries] = useState<LeaderEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'school'>('all');
+  const [filter, setFilter] = useState<'all' | 'school'>(profile?.role === 'school' ? 'school' : 'all');
   const [myRank, setMyRank] = useState<number | null>(null);
 
   useEffect(() => {
@@ -63,12 +63,19 @@ export default function LeaderboardPage() {
     setLoading(true);
     const supabase = createClient();
 
-    // Fetch all students
-    const { data: students } = await supabase
+    // Build student query
+    let studQuery = supabase
       .from('portal_users')
       .select('id, full_name, school_name, section_class, school_id')
       .eq('role', 'student')
       .eq('is_active', true);
+
+    // If school partner, restrict to their school immediately
+    if (profile?.role === 'school' && profile.school_id) {
+      studQuery = studQuery.eq('school_id', profile.school_id);
+    }
+
+    const { data: students } = await studQuery;
 
     if (!students?.length) { setLoading(false); return; }
 

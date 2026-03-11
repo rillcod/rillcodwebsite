@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const HF_API = 'https://api-inference.huggingface.co/models';
+const HF_API = 'https://router.huggingface.co/hf-inference/models';
 const MODEL = 'openai/whisper-large-v3';
 
 export async function POST(req: NextRequest) {

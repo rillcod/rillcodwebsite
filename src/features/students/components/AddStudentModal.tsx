@@ -36,35 +36,41 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: Add
         if (!isOpen) return;
 
         const client = createClient();
+        const fetchSchools = async () => {
+            let query = client
+                .from('schools')
+                .select('id, name')
+                .eq('status', 'approved')
+                .order('name');
 
-        // 1. Fetch schools
-        client
-            .from('schools')
-            .select('id, name')
-            .eq('status', 'approved')
-            .order('name')
-            .then(({ data }: any) => {
-                setSchools(data ?? []);
-                // If school user, auto-select their school
-                if (profile?.role === 'school' && profile.school_id) {
-                    const mySchool = data?.find((s: any) => s.id === profile.school_id);
-                    if (mySchool) setForm(prev => ({ ...prev, school_name: mySchool.name }));
+            if (profile?.role === 'teacher') {
+                const { data: assignments } = await client
+                    .from('teacher_schools')
+                    .select('school_id')
+                    .eq('teacher_id', profile.id);
+                const ids = assignments?.map((a: any) => a.school_id).filter(Boolean) || [];
+                if (profile.school_id) ids.push(profile.school_id);
+                const uniqueIds = Array.from(new Set(ids));
+
+                if (uniqueIds.length > 0) {
+                    query = query.in('id', uniqueIds);
                 }
-            });
+            }
 
-        // 2. If teacher, see if they are linked to one school
-        if (profile?.role === 'teacher') {
-            client
-                .from('teacher_schools')
-                .select('schools(id, name)')
-                .eq('teacher_id', profile.id)
-                .then(({ data }: any) => {
-                    if (data && data.length === 1) {
-                        const s = data[0].schools;
-                        setForm(prev => ({ ...prev, school_name: s.name }));
-                    }
-                });
-        }
+            const { data } = await query;
+            const schoolList = data ?? [];
+            setSchools(schoolList);
+
+            // Auto-select school if only one exists or user is school profile
+            if (profile?.role === 'school' && profile.school_id) {
+                const mySchool = schoolList.find((s: any) => s.id === profile.school_id);
+                if (mySchool) setForm(prev => ({ ...prev, school_name: mySchool.name }));
+            } else if (profile?.role === 'teacher' && schoolList.length === 1) {
+                setForm(prev => ({ ...prev, school_name: schoolList[0].name }));
+            }
+        };
+
+        fetchSchools();
 
         if (initialData) {
             setForm({

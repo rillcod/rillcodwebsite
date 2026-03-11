@@ -58,7 +58,7 @@ export default function StudentApproval() {
             name
           )
         `)
-        .eq('is_deleted', false)
+        .neq('is_deleted', true)
         .order('created_at', { ascending: false })
 
       if (error) {

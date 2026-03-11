@@ -7,7 +7,7 @@ import { fetchCourses, fetchStudentCourses } from '@/services/dashboard.service'
 import {
   BookOpenIcon, AcademicCapIcon, UserGroupIcon, ClockIcon, ChartBarIcon,
   PlusIcon, PlayIcon, CheckCircleIcon, StarIcon, MagnifyingGlassIcon,
-  EyeIcon, PencilIcon, TrashIcon, BoltIcon,
+  EyeIcon, PencilIcon, TrashIcon, BoltIcon, RocketLaunchIcon,
 } from '@heroicons/react/24/outline';
 
 const GRADIENTS = [
@@ -53,7 +53,10 @@ export default function CoursesPage() {
       setError(null);
       try {
         const data = isStaff
-          ? await fetchCourses()
+          ? await fetchCourses(undefined, {
+            schoolId: profile.school_id || undefined,
+            schoolName: profile.school_name || undefined
+          })
           : await fetchStudentCourses(profile!.id);
         if (!cancelled) setCourses(data);
       } catch (e: any) {
@@ -64,7 +67,7 @@ export default function CoursesPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [profile?.id, isStaff, authLoading]); // eslint-disable-line
+  }, [profile?.id, isStaff, authLoading, profile?.school_id, profile?.school_name]); // eslint-disable-line
 
   const filtered = courses.filter(c => {
     const title = isStaff ? (c.title ?? '') : (c.programs?.name ?? '');

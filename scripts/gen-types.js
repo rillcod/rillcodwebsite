@@ -1,7 +1,7 @@
 const postgres = require('postgres');
 const fs = require('fs');
 
-const sql = postgres('postgres://postgres:rillcod12345.@db.akaorqukdoawacvxsdij.supabase.co:5432/postgres', {
+const sql = postgres('postgres://postgres.akaorqukdoawacvxsdij:rillcod12345%2E@aws-0-eu-central-1.pooler.supabase.com:6543/postgres', {
     ssl: 'require',
     max: 1
 });

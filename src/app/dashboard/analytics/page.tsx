@@ -29,17 +29,25 @@ export default function AnalyticsPage() {
     }
   };
 
+  const isSchool = profile?.role === 'school';
+  const isTeacher = profile?.role === 'teacher';
+  const isAdmin = profile?.role === 'admin';
+  const isStaff = isAdmin || isSchool || isTeacher;
+
   useEffect(() => {
-    if (authLoading || !profile) return;
+    if (authLoading || !profile || !isStaff) return;
     let cancelled = false;
     async function load() {
       setLoading(true);
       setError(null);
       try {
         const supabase = createClient();
+        const schoolId = profile?.school_id || undefined;
+        const schoolName = profile?.school_name || undefined;
+
         const [overviewData, teacherData, programData] = await Promise.all([
-          fetchAnalyticsOverview(),
-          fetchTeachers(),
+          fetchAnalyticsOverview({ schoolId, schoolName }),
+          fetchTeachers({ schoolId, schoolName }),
           supabase.from('programs').select('id, name, enrollments(id)').eq('is_active', true),
         ]);
         if (!cancelled) {
@@ -55,7 +63,7 @@ export default function AnalyticsPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [profile?.id, authLoading]); // eslint-disable-line
+  }, [profile?.id, authLoading, isStaff]); // eslint-disable-line
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
@@ -66,12 +74,12 @@ export default function AnalyticsPage() {
     </div>
   );
 
-  if (profile?.role !== 'admin') return (
+  if (!isStaff) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
       <div className="text-center">
         <ChartBarIcon className="w-12 h-12 mx-auto mb-4 text-white/20" />
         <h2 className="text-xl font-bold text-white mb-2">Access Restricted</h2>
-        <p className="text-white/40 text-sm">Analytics is only available to administrators.</p>
+        <p className="text-white/40 text-sm">Analytics is only available to school staff and administrators.</p>
       </div>
     </div>
   );
@@ -83,16 +91,22 @@ export default function AnalyticsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between print:hidden">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <ChartBarIcon className="w-5 h-5 text-violet-400" />
-              <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Admin</span>
+              <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">{profile?.role?.toUpperCase()}</span>
             </div>
-            <h1 className="text-3xl font-extrabold">Analytics Dashboard</h1>
+            <h1 className="text-3xl font-extrabold">{isAdmin ? 'Global Analytics' : `${profile?.school_name || 'School'} Analytics`}</h1>
             <p className="text-white/40 text-sm mt-1">Live performance and engagement metrics</p>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 border border-white/10 rounded-xl bg-white/5 hover:bg-white/10 transition-all text-xs font-bold flex items-center gap-2"
+            >
+              <BoltIcon className="w-4 h-4" /> Print Analytics
+            </button>
             <button
               onClick={() => handleExport('performance')}
               disabled={exporting}
@@ -109,7 +123,7 @@ export default function AnalyticsPage() {
 
         {/* KPI Cards */}
         {overview && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
             {[
               { label: 'Total Students', value: overview.totalStudents.toLocaleString(), icon: UserGroupIcon, gradient: 'from-violet-600 to-violet-400', change: 'Live from DB' },
               { label: 'Active Students', value: overview.activeStudents.toLocaleString(), icon: CheckCircleIcon, gradient: 'from-emerald-600 to-emerald-400', change: 'Live from DB' },
@@ -232,6 +246,23 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
+        {/* Global Print Styles */}
+        <style jsx global>{`
+          @media print {
+            body { background: white !important; color: black !important; }
+            .bg-[#0f0f1a] { background: white !important; }
+            .bg-white\/5, .bg-white\/8, .bg-white\/10 { background: #f9fafb !important; border-color: #e5e7eb !important; }
+            .text-white, .text-white\/60, .text-white\/40 { color: #111827 !important; }
+            .border-white\/10, .border-white\/20 { border-color: #e5e7eb !important; }
+            .max-w-7xl { max-width: 100% !important; padding: 0 !important; }
+            .shadow-xl, .shadow-lg { shadow: none !important; }
+            .print\:hidden { display: none !important; }
+            button { display: none !important; }
+            input, select { display: none !important; }
+            .divide-white\/5 { divide-color: #e5e7eb !important; }
+            h1, h2, h3 { color: black !important; }
+          }
+        `}</style>
       </div>
     </div>
   );

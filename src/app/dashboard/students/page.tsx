@@ -79,7 +79,12 @@ export default function StudentsPage() {
         `);
 
       if (profile.role === 'school' && profile.school_id) {
-        query = query.eq('school_id', profile.school_id);
+        // If we have a school_name in the profile, use it as a fallback for students without IDs
+        if (profile.school_name) {
+          query = query.or(`school_id.eq.${profile.school_id},school_name.eq."${profile.school_name}"`);
+        } else {
+          query = query.eq('school_id', profile.school_id);
+        }
       } else if (profile.role === 'teacher') {
         const { data: assignments } = await createClient()
           .from('teacher_schools')
@@ -416,7 +421,7 @@ export default function StudentsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
           {/* ── Header ─────────────────────────────────────── */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <UserGroupIcon className="w-5 h-5 text-blue-400" />
@@ -434,8 +439,12 @@ export default function StudentsPage() {
                 className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/40 hover:text-white transition-all">
                 <ArrowPathIcon className="w-4 h-4" />
               </button>
+              <button onClick={() => window.print()} title="Print List"
+                className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-sm font-bold rounded-xl border border-white/10 transition-all print:hidden">
+                <ClipboardIcon className="w-4 h-4" /> Print
+              </button>
               <button onClick={exportCSV} title="Export CSV"
-                className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-sm font-bold rounded-xl border border-white/10 transition-all">
+                className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-sm font-bold rounded-xl border border-white/10 transition-all print:hidden">
                 <ArrowDownTrayIcon className="w-4 h-4" /> Export
               </button>
               {profile?.role === 'admin' && (
@@ -467,7 +476,7 @@ export default function StudentsPage() {
           )}
 
           {/* ── Stats ──────────────────────────────────────── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
             {[
               { label: 'Total', value: students.length, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', active: filter === 'all', onClick: () => setFilter('all') },
               { label: 'Approved', value: approved, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', active: filter === 'approved', onClick: () => setFilter(filter === 'approved' ? 'all' : 'approved') },
@@ -494,14 +503,22 @@ export default function StudentsPage() {
                 <p className="text-xs text-white/30 mt-0.5">Click a student row to expand parent info before approving</p>
               </div>
               <button onClick={() => setFilter('pending')}
-                className="px-4 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold rounded-xl transition-colors">
+                className="px-4 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold rounded-xl transition-colors print:hidden">
                 Show Pending
               </button>
             </div>
           )}
 
+          {/* Print Header (Only visible when printing) */}
+          <div className="hidden print:block mb-8">
+            <h1 className="text-2xl font-black text-black">Student List</h1>
+            <p className="text-sm text-gray-500">
+              {profile?.school_name || 'School Report'} · {new Date().toLocaleDateString()}
+            </p>
+          </div>
+
           {/* ── Search + Filter ─────────────────────────────── */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 print:hidden">
             <div className="relative flex-1">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
               <input type="text"
@@ -588,7 +605,7 @@ export default function StudentsPage() {
                         </div>
 
                         {/* Right side: actions + expand */}
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-2 flex-shrink-0 print:hidden">
                           {s.status === 'pending' && profile?.role === 'admin' && (
                             <>
                               <button
@@ -755,6 +772,21 @@ export default function StudentsPage() {
         onSuccess={() => { setShowAdd(false); setEditingStudent(null); load(); }}
         initialData={editingStudent}
       />
+
+      <style jsx global>{`
+        @media print {
+          body { background: white !important; color: black !important; }
+          .bg-\[\#0f0f1a\], .bg-gradient-to-br { background: white !important; }
+          .bg-white\/5, .bg-white\/8, .bg-white\/10 { background: #f9fafb !important; border-color: #e5e7eb !important; }
+          .text-white, .text-white\/60, .text-white\/40, .text-white\/30 { color: #111827 !important; }
+          .border-white\/10, .border-white\/20, .border-white\/5 { border-color: #e5e7eb !important; }
+          .max-w-7xl { max-width: 100% !important; padding: 0 !important; }
+          .shadow-xl, .shadow-lg, .shadow-blue-600\/20, .shadow-2xl { box-shadow: none !important; }
+          .print\:hidden { display: none !important; }
+          h1, h2, h3 { color: black !important; }
+          .divide-white\/5 { divide-color: #e5e7eb !important; }
+        }
+      `}</style>
     </>
   );
 }
@@ -851,7 +883,7 @@ function StudentSelfView() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
           {[
             { label: 'Enrolled Courses', value: stats.enrolled, icon: BookOpenIcon, gradient: 'from-blue-600 to-blue-400' },
             { label: 'Assignments Done', value: stats.submitted, icon: ClipboardDocumentListIcon, gradient: 'from-violet-600 to-violet-400' },

@@ -1,17 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeftIcon, PlayIcon, DocumentTextIcon, AcademicCapIcon,
-  PencilIcon, ClockIcon, BookOpenIcon, CheckCircleIcon, LinkIcon,
+  ClockIcon, BookOpenIcon, CheckCircleIcon,
   PaperClipIcon, ArrowDownTrayIcon, VideoCameraIcon, DocumentIcon,
   PhotoIcon, BoltIcon, CheckBadgeIcon, LockClosedIcon,
-  InformationCircleIcon, ExclamationTriangleIcon
+  InformationCircleIcon, ExclamationTriangleIcon, RocketLaunchIcon,
+  QuestionMarkCircleIcon, ChevronRightIcon,
 } from '@heroicons/react/24/outline';
+import Script from 'next/script';
 
 const TYPE_COLOR: Record<string, string> = {
   video: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
@@ -22,393 +24,53 @@ const TYPE_COLOR: Record<string, string> = {
   coding: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
 };
 
-export default function LessonDetailPage() {
-  const params = useParams();
-  const id = params?.id as string;
-  const router = useRouter();
-  const { profile, loading: authLoading } = useAuth();
+// --- Sub-components ---
 
-  const [lesson, setLesson] = useState<any>(null);
-  const [plans, setPlans] = useState<any>(null);
-  const [materials, setMaterials] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'plan'>('content');
-
-  // Lesson completion state (students only)
-  const [completed, setCompleted] = useState(false);
-  const [completedAt, setCompletedAt] = useState<string | null>(null);
-  const [marking, setMarking] = useState(false);
-  const [markError, setMarkError] = useState<string | null>(null);
-  const startTimeRef = useState<number>(() => Date.now())[0];
-
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
-
-  const fetchData = useCallback(async () => {
-    if (!profile || !id) return;
-    const db = createClient();
-    try {
-      const queries: PromiseLike<any>[] = [
-        db.from('lessons').select('*, courses(id, title, programs(name)), portal_users!lessons_created_by_fkey(full_name)').eq('id', id).maybeSingle(),
-        db.from('lesson_plans').select('*').eq('lesson_id', id).maybeSingle(),
-        db.from('lesson_materials').select('*').eq('lesson_id', id).order('created_at', { ascending: true }),
-      ];
-      // Check completion status for students
-      if (profile.role === 'student') {
-        queries.push(
-          db.from('lesson_progress').select('completed_at').eq('lesson_id', id).eq('user_id', profile.id).maybeSingle()
-        );
+function MermaidRenderer({ code }: { code: string }) {
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).mermaid) {
+      try {
+        (window as any).mermaid.contentLoaded();
+      } catch (e) {
+        console.error("Mermaid error:", e);
       }
-
-      const [lessonRes, plansRes, materialsRes, progressRes] = await Promise.all(queries);
-
-      if (lessonRes.error) throw lessonRes.error;
-      if (!lessonRes.data) throw new Error('Lesson not found');
-
-      setLesson(lessonRes.data);
-      setPlans(plansRes.data);
-      setMaterials(materialsRes.data ?? []);
-      if (progressRes?.data?.completed_at) {
-        setCompleted(true);
-        setCompletedAt(progressRes.data.completed_at);
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
     }
-  }, [id, profile, isStaff]);
+  }, [code]);
 
-  const handleMarkComplete = useCallback(async () => {
-    if (!profile || !id || marking || completed) return;
-    setMarking(true);
-    setMarkError(null);
-    const timeSpentMinutes = Math.round((Date.now() - startTimeRef) / 60000);
-    try {
-      const res = await fetch(`/api/lessons/${id}/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timeSpentMinutes: Math.max(timeSpentMinutes, 1), progressPercentage: 100 }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? 'Failed to mark complete');
-      }
-      setCompleted(true);
-      setCompletedAt(new Date().toISOString());
-    } catch (e: any) {
-      setMarkError(e.message ?? 'Something went wrong');
-    } finally {
-      setMarking(false);
-    }
-  }, [profile, id, marking, completed, startTimeRef]);
+  return (
+    <div className="mermaid bg-white p-6 rounded-3xl flex justify-center overflow-hidden my-8">
+      {code}
+    </div>
+  );
+}
+
+function MathRenderer({ formula }: { formula: string }) {
+  const [html, setHtml] = useState('');
 
   useEffect(() => {
-    if (!authLoading && profile) {
-      fetchData();
+    if (typeof window !== 'undefined' && (window as any).katex) {
+      try {
+        const rendered = (window as any).katex.renderToString(formula, {
+          throwOnError: false,
+          displayMode: true
+        });
+        setHtml(rendered);
+      } catch (e) {
+        setHtml(`<span class="text-rose-400">Error: ${formula}</span>`);
+      }
+    } else {
+      setHtml(`<span class="font-serif italic text-white/80">${formula}</span>`);
     }
-  }, [authLoading, profile, fetchData]);
+  }, [formula]);
 
-  if (authLoading || loading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  return <div className="math-container py-4 text-2xl overflow-x-auto text-center" dangerouslySetInnerHTML={{ __html: html }} />;
+}
 
-  if (error || !lesson) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex flex-col items-center justify-center gap-4">
-      <p className="text-rose-400 font-semibold">{error ?? 'Lesson not found'}</p>
-      <Link href="/dashboard/lessons" className="text-sm text-cyan-400 hover:underline">← Back to Lessons</Link>
-    </div>
-  );
+function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: string }) {
+  if (!blocks || blocks.length === 0) return null;
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white selection:bg-cyan-500/30">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-          <button onClick={() => router.back()}
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors shrink-0">
-            <ArrowLeftIcon className="w-5 h-5 text-white/60" />
-          </button>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <BookOpenIcon className="w-4 h-4 text-cyan-400" />
-              <span className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.2em]">Lesson Detail</span>
-              {lesson.courses && (
-                <>
-                  <span className="text-white/20">/</span>
-                  <Link href={`/dashboard/courses/${lesson.courses.id}`}
-                    className="text-[10px] text-white/40 hover:text-white transition-colors truncate font-bold uppercase tracking-widest">
-                    {lesson.courses.title}
-                  </Link>
-                </>
-              )}
-            </div>
-            <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">{lesson.title}</h1>
-          </div>
-
-          {isStaff && (
-            <Link href={`/dashboard/lessons/${id}/edit`}
-              className="flex items-center gap-2 px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm rounded-2xl transition-all shadow-xl shadow-cyan-900/40">
-              <PencilIcon className="w-4 h-4 stroke-[3px]" /> EDIT LESSON
-            </Link>
-          )}
-        </div>
-
-        {/* Stats & Meta Badges */}
-        <div className="flex flex-wrap items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-2xl">
-          <div className={`px-4 py-1.5 rounded-full text-[10px] font-black border uppercase tracking-widest ${TYPE_COLOR[lesson.lesson_type] ?? 'bg-white/10 text-white/40 border-white/10'}`}>
-            {lesson.lesson_type?.replace(/[-_]/g, ' ')}
-          </div>
-          {lesson.duration_minutes && (
-            <div className="flex items-center gap-2 text-xs font-bold text-white/40">
-              <ClockIcon className="w-4 h-4" /> {lesson.duration_minutes} MINS
-            </div>
-          )}
-          <div className="h-4 w-px bg-white/10 mx-1" />
-          <div className="flex items-center gap-2 text-xs font-bold text-white/40">
-            <span className={`w-2 h-2 rounded-full ${lesson.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-white/20'}`} />
-            <span className="uppercase tracking-widest">{lesson.status}</span>
-          </div>
-        </div>
-
-        {/* Dynamic Navigation Tabs */}
-        <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-[20px] w-fit">
-          <TabButton active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={DocumentTextIcon} label="Content" />
-          <TabButton active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} icon={PaperClipIcon} label="Materials" count={materials.length} />
-          <TabButton
-            active={activeTab === 'plan'}
-            onClick={() => setActiveTab('plan')}
-            icon={AcademicCapIcon}
-            label={isStaff ? "Staff Plan" : "Lesson Overview"}
-          />
-        </div>
-
-        {/* Main Content Renderers */}
-        <div className="min-h-[400px]">
-          {activeTab === 'content' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
-              {/* Media Section */}
-              {lesson.lesson_type === 'video' && lesson.video_url && (
-                <div className="group relative bg-black rounded-[40px] overflow-hidden aspect-video shadow-2xl border border-white/10 ring-1 ring-white/5">
-                  <VideoPlayer url={lesson.video_url} title={lesson.title} />
-                </div>
-              )}
-
-              {/* Main Text Content */}
-              <div className="bg-white/5 border border-white/10 rounded-[40px] overflow-hidden p-8 sm:p-16 shadow-2xl relative">
-                <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
-                  <BookOpenIcon className="w-64 h-64" />
-                </div>
-                <CanvaRenderer layout={lesson.content_layout} fallback={lesson.content} description={lesson.description} />
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'materials' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {materials.length === 0 ? (
-                <div className="col-span-full py-32 flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-[40px] border-dashed">
-                  <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center mb-6">
-                    <PaperClipIcon className="w-10 h-10 text-white/20" />
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2">No files here yet</h3>
-                  <p className="text-white/30 text-sm max-w-xs text-center">Resources and downloadable materials will appear here once uploaded.</p>
-                </div>
-              ) : (
-                materials.map((m: any) => (
-                  <a key={m.id} href={m.file_url} target="_blank" rel="noreferrer"
-                    className="flex items-center gap-5 p-6 bg-white/5 border border-white/10 rounded-3xl hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all group">
-                    <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:bg-cyan-500/20 transition-all">
-                      <FileTypeIcon type={m.file_type} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-lg text-white truncate leading-tight mb-1">{m.title}</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-[10px] text-white/40 uppercase font-black tracking-widest">{m.file_type || 'Asset'}</p>
-                        <span className="w-1 h-1 rounded-full bg-white/10" />
-                        <p className="text-[10px] text-cyan-400 font-black uppercase tracking-widest">Downloadable</p>
-                      </div>
-                    </div>
-                    <ArrowDownTrayIcon className="w-5 h-5 text-white/20 group-hover:text-cyan-400 group-hover:translate-y-0.5 transition-all" />
-                  </a>
-                ))
-              )}
-            </div>
-          )}
-
-          {activeTab === 'plan' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 bg-white/5 border border-white/10 rounded-[40px] p-8 sm:p-20 space-y-16 shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
-                <AcademicCapIcon className="w-80 h-80" />
-              </div>
-
-              {!plans ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <div className="w-20 h-20 rounded-3xl bg-amber-500/10 flex items-center justify-center mb-6">
-                    <ExclamationTriangleIcon className="w-10 h-10 text-amber-500/40" />
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2">No active lesson plan</h3>
-                  <p className="text-white/30 text-sm max-w-sm">Detailed instructor guidelines haven't been published for this session.</p>
-                </div>
-              ) : (
-                <div className="space-y-12 relative z-10">
-                  <PlanSection title="Learning Objectives" content={plans.objectives} icon={BoltIcon} color="text-amber-400" />
-                  <PlanSection title="Activities / Sequence" content={plans.activities} icon={PlayIcon} color="text-emerald-400" />
-                  {isStaff && <PlanSection title="Assessment & Review" content={plans.assessment_methods} icon={CheckBadgeIcon} color="text-cyan-400" />}
-                  {isStaff && plans.staff_notes && (
-                    <div className="pt-12 border-t border-white/5">
-                      <PlanSection title="Staff Confidential" content={plans.staff_notes} icon={LockClosedIcon} color="text-rose-400" />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Student: Mark Complete Banner */}
-        {!isStaff && (
-          <div className={`rounded-[32px] p-6 border-2 transition-all duration-500 ${
-            completed
-              ? 'bg-emerald-500/10 border-emerald-500/30'
-              : 'bg-white/5 border-white/10 hover:border-cyan-500/30'
-          }`}>
-            {completed ? (
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                  <CheckBadgeIcon className="w-7 h-7 text-emerald-400" />
-                </div>
-                <div>
-                  <p className="font-black text-emerald-400 text-lg uppercase tracking-widest">Lesson Completed!</p>
-                  {completedAt && (
-                    <p className="text-white/30 text-xs mt-0.5">
-                      Marked complete {new Date(completedAt).toLocaleDateString('en-GB', { dateStyle: 'medium' })}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <p className="font-black text-white text-base uppercase tracking-widest">Finished this lesson?</p>
-                  <p className="text-white/30 text-sm mt-1">Mark it complete to track your progress and earn XP.</p>
-                </div>
-                <div className="flex flex-col items-start sm:items-end gap-2 flex-shrink-0">
-                  <button
-                    onClick={handleMarkComplete}
-                    disabled={marking}
-                    className="flex items-center gap-3 px-8 py-3.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-black text-sm uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-emerald-900/30 hover:scale-[1.02]"
-                  >
-                    {marking
-                      ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving…</>
-                      : <><CheckBadgeIcon className="w-5 h-5 stroke-[3px]" /> Mark as Complete</>
-                    }
-                  </button>
-                  {markError && <p className="text-xs text-rose-400">{markError}</p>}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Bottom Navigation */}
-        <div className="flex items-center justify-between pt-8 border-t border-white/5">
-          <Link href="/dashboard/lessons"
-            className="flex items-center gap-3 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-sm font-black uppercase tracking-widest text-white/40 hover:text-white transition-all">
-            <ArrowLeftIcon className="w-4 h-4" /> Back to List
-          </Link>
-          {lesson.courses && (
-            <Link href={`/dashboard/courses/${lesson.courses.id}`}
-              className="flex items-center gap-3 px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 rounded-2xl text-sm font-black uppercase tracking-widest text-cyan-400 transition-all">
-              <BookOpenIcon className="w-4 h-4" /> View Course
-            </Link>
-          )}
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-// ── Components & Helpers ─────────────────────────────────────
-
-function TabButton({ active, onClick, icon: Icon, label, count }: any) {
-  return (
-    <button onClick={onClick}
-      className={`relative flex items-center gap-3 px-6 py-3.5 rounded-[18px] text-[11px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${active ? 'bg-cyan-600 text-white shadow-xl shadow-cyan-900/40' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
-      <Icon className={`w-4 h-4 ${active ? 'stroke-[3px]' : 'stroke-[2px]'}`} />
-      {label}
-      {count !== undefined && count > 0 && (
-        <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${active ? 'bg-white/20' : 'bg-white/10'}`}>{count}</span>
-      )}
-    </button>
-  );
-}
-
-function VideoPlayer({ url, title }: any) {
-  if (url.includes('youtube') || url.includes('youtu.be')) {
-    const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.split('youtu.be/')[1].split('?')[0];
-    return (
-      <iframe src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
-        className="w-full h-full" allowFullScreen title={title} />
-    );
-  }
-  return <video src={url} controls playsInline preload="metadata" className="w-full h-full object-contain" />;
-}
-
-function FileTypeIcon({ type }: any) {
-  const t = type?.toLowerCase();
-  if (t === 'pdf') return <DocumentTextIcon className="w-7 h-7 text-rose-400" />;
-  if (['mp4', 'mov', 'video'].includes(t)) return <VideoCameraIcon className="w-7 h-7 text-blue-400" />;
-  if (['jpg', 'png', 'image'].includes(t)) return <PhotoIcon className="w-7 h-7 text-emerald-400" />;
-  return <DocumentIcon className="w-7 h-7 text-cyan-400" />;
-}
-
-function PlanSection({ title, content, icon: Icon, color }: any) {
-  if (!content) return null;
-  return (
-    <div className="space-y-6 group">
-      <div className="flex items-center gap-4">
-        <div className={`p-3 rounded-2xl bg-white/5 group-hover:scale-110 transition-transform ${color}`}>
-          <Icon className="w-6 h-6 stroke-[2.5px]" />
-        </div>
-        <h3 className="text-xl font-black tracking-tight uppercase leading-none">{title}</h3>
-      </div>
-      <div className="pl-16 prose prose-invert prose-md max-w-none text-white/50 leading-[1.8] whitespace-pre-wrap font-medium">
-        {content}
-      </div>
-    </div>
-  );
-}
-
-function CanvaRenderer({ layout, fallback, description }: any) {
-  const blocks = Array.isArray(layout) ? layout : [];
-
-  if (blocks.length === 0) {
-    return (
-      <div className="space-y-12 animate-in fade-in duration-700">
-        {description && (
-          <div className="p-8 bg-cyan-500/5 border border-cyan-500/10 rounded-3xl relative overflow-hidden group">
-            <div className="absolute -right-4 -top-4 opacity-10 group-hover:rotate-12 transition-transform duration-500">
-              <InformationCircleIcon className="w-24 h-24 text-cyan-400" />
-            </div>
-            <h4 className="text-[10px] font-black uppercase text-cyan-400 tracking-[0.3em] mb-4">Lesson Overview</h4>
-            <p className="text-lg text-white/70 leading-relaxed italic">{description}</p>
-          </div>
-        )}
-        <div className="prose prose-invert prose-xl max-w-none text-white/70 leading-[1.8] whitespace-pre-wrap">
-          {fallback || 'No lesson material provided yet.'}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-16">
+    <div className={`space-y-12 ${lessonType === 'reading' ? 'max-w-3xl mx-auto' : ''}`}>
       {blocks.map((block: any, i: number) => {
         switch (block.type) {
           case 'heading':
@@ -454,6 +116,80 @@ function CanvaRenderer({ layout, fallback, description }: any) {
                 </div>
               </div>
             );
+          case 'activity':
+            return (
+              <div key={i} className="p-8 sm:p-12 rounded-[40px] border-2 border-emerald-500/20 bg-emerald-500/5 space-y-6 relative overflow-hidden group">
+                <div className="absolute -right-8 -top-8 w-48 h-48 text-emerald-500/10 transition-transform group-hover:scale-110 rotate-12">
+                  <RocketLaunchIcon />
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-400">
+                    <RocketLaunchIcon className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-2xl font-black uppercase tracking-tight">{block.title || 'Learning Activity'}</h3>
+                </div>
+                <div className="prose prose-invert prose-lg max-w-none text-white/80 leading-relaxed whitespace-pre-wrap">
+                  {block.instructions || 'Follow the instructions provided.'}
+                </div>
+              </div>
+            );
+          case 'quiz':
+            return (
+              <div key={i} className="p-8 sm:p-12 rounded-[40px] border-2 border-violet-500/20 bg-violet-500/5 space-y-8 relative overflow-hidden group">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-2xl bg-violet-500/20 text-violet-400">
+                    <QuestionMarkCircleIcon className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-2xl font-black uppercase tracking-tight">Quick Check</h3>
+                </div>
+                <div className="space-y-6">
+                  <p className="text-xl font-bold text-white leading-relaxed">{block.question}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {block.options?.map((opt: string, optIdx: number) => (
+                      <button key={optIdx} className="p-5 rounded-2xl border-2 border-white/5 bg-white/5 hover:border-violet-500/40 hover:bg-violet-500/10 text-left transition-all group/opt">
+                        <div className="flex items-center gap-4">
+                          <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-white/40 group-hover/opt:border-violet-500/40 group-hover/opt:text-violet-400">
+                            {String.fromCharCode(65 + optIdx)}
+                          </div>
+                          <span className="font-bold text-white/70 group-hover/opt:text-white">{opt}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          case 'video':
+            return (
+              <div key={i} className="space-y-4">
+                <div className="aspect-video rounded-[40px] overflow-hidden border-2 border-white/5 bg-slate-900 shadow-2xl relative group">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${block.url?.includes('v=') ? block.url.split('v=')[1].split('&')[0] : block.url?.split('/').pop()}`}
+                    className="w-full h-full"
+                    allowFullScreen
+                  />
+                </div>
+                {block.caption && <p className="text-center text-sm font-medium text-white/40 italic">{block.caption}</p>}
+              </div>
+            );
+          case 'file':
+            return (
+              <div key={i} className="p-6 rounded-[32px] border-2 border-white/5 bg-white/5 flex items-center justify-between group hover:border-cyan-500/30 transition-all">
+                <div className="flex items-center gap-6">
+                  <div className="p-4 rounded-2xl bg-cyan-500/10 text-cyan-400 group-hover:scale-110 transition-transform">
+                    <ArrowDownTrayIcon className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">{block.fileName || 'Download Resource'}</h4>
+                  </div>
+                </div>
+                <a href={block.url} target="_blank" className="px-6 py-3 rounded-2xl bg-white/5 hover:bg-cyan-500 text-white font-black text-xs uppercase transition-all">Download</a>
+              </div>
+            );
+          case 'mermaid':
+            return <MermaidRenderer key={i} code={block.code || ''} />;
+          case 'math':
+            return <MathRenderer key={i} formula={block.formula || ''} />;
           default:
             return null;
         }
@@ -462,3 +198,234 @@ function CanvaRenderer({ layout, fallback, description }: any) {
   );
 }
 
+const TabBtn = ({ active, onClick, icon: Icon, label, count }: any) => (
+  <button onClick={onClick}
+    className={`relative flex items-center gap-3 px-6 py-3.5 rounded-[18px] text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${active ? 'bg-cyan-600 text-white shadow-xl shadow-cyan-900/40' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
+    <Icon className="w-4 h-4" />
+    {label}
+    {count !== undefined && count > 0 && (
+      <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${active ? 'bg-white/20' : 'bg-white/10'}`}>{count}</span>
+    )}
+  </button>
+);
+
+// --- Main Page Component ---
+
+export default function LessonDetailPage() {
+  const params = useParams();
+  const id = params?.id as string;
+  const router = useRouter();
+  const { profile, loading: authLoading } = useAuth();
+
+  const [lesson, setLesson] = useState<any>(null);
+  const [courseLessons, setCourseLessons] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any>(null);
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'plan'>('content');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const [completed, setCompleted] = useState(false);
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  const [marking, setMarking] = useState(false);
+  const [markError, setMarkError] = useState<string | null>(null);
+  const startTimeRef = useState<number>(() => Date.now())[0];
+  const [notesRead, setNotesRead] = useState(false);
+
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+
+  const fetchData = useCallback(async () => {
+    if (!profile || !id) return;
+    const db = createClient();
+    try {
+      const { data: lessonData, error: lErr } = await db
+        .from('lessons')
+        .select('*, lesson_notes, courses(id, title, programs(name)), portal_users!lessons_created_by_fkey(full_name)')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (lErr) throw lErr;
+      if (!lessonData) { setError('Lesson not found'); return; }
+      setLesson(lessonData);
+
+      const [plansRes, materialsRes] = await Promise.all([
+        db.from('lesson_plans').select('*').eq('lesson_id', id).maybeSingle(),
+        db.from('lesson_materials').select('*').eq('lesson_id', id).order('created_at', { ascending: true }),
+      ]);
+      setPlans(plansRes.data);
+      setMaterials(materialsRes.data ?? []);
+
+      if (lessonData.course_id) {
+        const { data: cLessons } = await db.from('lessons').select('id, title, order_index, lesson_type').eq('course_id', lessonData.course_id).order('order_index', { ascending: true });
+        setCourseLessons(cLessons ?? []);
+      }
+
+      if (profile.role === 'student') {
+        const { data: progress } = await db.from('lesson_progress').select('lesson_id, completed_at').eq('user_id', profile.id);
+        const cIds = new Set<string>();
+        progress?.forEach((p: any) => { if (p.completed_at) cIds.add(p.lesson_id); });
+        setCompletedIds(cIds);
+        if (cIds.has(id)) setCompleted(true);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [id, profile]);
+
+  useEffect(() => {
+    if (!authLoading && profile) fetchData();
+  }, [authLoading, profile, fetchData]);
+
+  const handleMarkComplete = async () => {
+    if (!profile || !id || marking || completed) return;
+    setMarking(true);
+    const timeSpent = Math.round((Date.now() - startTimeRef) / 60000);
+    try {
+      const res = await fetch(`/api/lessons/${id}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timeSpentMinutes: Math.max(timeSpent, 1), progressPercentage: 100 }),
+      });
+      if (!res.ok) throw new Error('Failed to mark complete');
+      setCompleted(true);
+      setCompletedIds(prev => new Set([...prev, id]));
+    } catch (e: any) {
+      setMarkError(e.message);
+    } finally {
+      setMarking(false);
+    }
+  };
+
+  if (authLoading || loading) return (
+    <div className="min-h-screen bg-[#0f0f1a] flex flex-col items-center justify-center gap-4">
+      <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+      <p className="text-white/20 text-xs font-black uppercase tracking-widest">Loading Learning Environment...</p>
+      <Script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js" strategy="afterInteractive" onLoad={() => {
+        (window as any).mermaid?.initialize({ startOnLoad: true, theme: 'neutral' });
+      }} />
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+      <Script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" strategy="afterInteractive" />
+    </div>
+  );
+
+  if (error || !lesson) return (
+    <div className="min-h-screen bg-[#070710] flex flex-col items-center justify-center p-8 text-center gap-6">
+      <ExclamationTriangleIcon className="w-16 h-16 text-rose-500/20" />
+      <h2 className="text-3xl font-black text-rose-400">Lesson Error</h2>
+      <p className="text-white/40 max-w-md">{error || 'Unable to load lesson content. Please check your connection or contact support.'}</p>
+      <Link href="/dashboard" className="px-8 py-3 bg-white/5 border border-white/10 rounded-2xl text-xs font-black uppercase">Back to Dashboard</Link>
+    </div>
+  );
+
+  const heroVideo = lesson.lesson_type === 'video' ? (lesson.content_layout as any[])?.find(b => b.type === 'video') : null;
+  const isCoding = lesson.lesson_type === 'coding';
+  const isReading = lesson.lesson_type === 'reading';
+
+  return (
+    <div className="min-h-screen bg-[#070710] text-white flex overflow-hidden">
+      {/* Sidebar */}
+      <aside className={`transition-all duration-500 border-r border-white/5 bg-[#0a0a1a] flex flex-col ${sidebarOpen ? 'w-[360px]' : 'w-0 overflow-hidden'}`}>
+        <div className="p-8 border-b border-white/5">
+          <h2 className="text-sm font-black text-cyan-400 uppercase tracking-widest mb-1">Module Library</h2>
+          <p className="text-lg font-bold truncate text-white/90">{lesson.courses?.title || 'Current Course'}</p>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {courseLessons.map((l, idx) => (
+            <Link key={l.id} href={`/dashboard/lessons/${l.id}`}
+              className={`flex items-center gap-3 p-4 rounded-2xl transition-all ${l.id === id ? 'bg-cyan-600/10 border border-cyan-500/20 text-white' : 'hover:bg-white/5 text-white/40'}`}>
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px] font-black ${completedIds.has(l.id) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-current'}`}>
+                {idx + 1}
+              </div>
+              <span className="text-xs font-bold truncate">{l.title}</span>
+            </Link>
+          ))}
+        </div>
+      </aside>
+
+      <main className={`flex-1 overflow-y-auto transition-all duration-500 ${isCoding ? 'bg-[#050508]' : ''}`}>
+        {/* Dynamic Video Hero */}
+        {lesson.lesson_type === 'video' && heroVideo && (
+          <div className="w-full bg-black aspect-video lg:h-[65vh] relative shadow-2xl">
+            <iframe src={`https://www.youtube.com/embed/${heroVideo.url.includes('v=') ? heroVideo.url.split('v=')[1].split('&')[0] : heroVideo.url.split('/').pop()}?rel=0&autoplay=0`}
+              className="w-full h-full border-0" allowFullScreen />
+            <div className="absolute top-0 left-0 right-0 p-8 flex justify-between items-start pointer-events-none">
+              <div className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-cyan-400 border border-white/10">Cinematic Mode</div>
+            </div>
+          </div>
+        )}
+
+        <div className={`max-w-5xl mx-auto px-8 py-12 space-y-16 ${isReading ? 'max-w-3xl' : ''}`}>
+          {/* Header */}
+          <header className="space-y-6">
+            <div className="flex items-center gap-4">
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-3 bg-white/5 border border-white/10 rounded-2xl text-white/40 hover:text-white transition-all"><BoltIcon className="w-5 h-5" /></button>
+              <div className={`px-4 py-1 rounded-full text-[10px] font-black border uppercase tracking-widest ${TYPE_COLOR[lesson.lesson_type] || 'bg-white/10 text-white border-white/10'}`}>{lesson.lesson_type}</div>
+              {lesson.duration_minutes && <div className="text-[10px] font-black text-white/30 uppercase flex items-center gap-2"><ClockIcon className="w-4 h-4" />{lesson.duration_minutes} Mins</div>}
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-none text-white">{lesson.title}</h1>
+            <p className="text-xl text-white/50 max-w-2xl font-medium leading-relaxed">{lesson.description}</p>
+          </header>
+
+          {/* Nav Tabs */}
+          <div className="flex items-center gap-2 bg-[#151525] p-1.5 rounded-2xl border border-white/5 w-fit shadow-2xl">
+            <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={LayoutIcon} label="Learning" />
+            <TabBtn active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} icon={PaperClipIcon} label="Resources" count={materials.length} />
+            <TabBtn active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={AcademicCapIcon} label="Curriculum" />
+          </div>
+
+          {/* Display Area */}
+          {activeTab === 'content' && (
+            <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+              <CanvaRenderer blocks={lesson.content_layout || []} lessonType={lesson.lesson_type} />
+
+              {!completed && profile?.role === 'student' && (
+                <div className="mt-24 p-12 rounded-[40px] bg-gradient-to-br from-cyan-600 to-indigo-700 text-center space-y-8 shadow-2xl">
+                  <h3 className="text-3xl font-black text-white italic">Ready to finish?</h3>
+                  <button onClick={handleMarkComplete} disabled={marking} className="px-12 py-5 bg-white text-indigo-700 font-black rounded-2xl hover:scale-105 transition-all shadow-xl">
+                    {marking ? 'Saving...' : 'Complete Module'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'materials' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-500">
+              {materials.map((m: any) => (
+                <a key={m.id} href={m.file_url} target="_blank" className="p-6 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-between hover:bg-white/10 transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className="p-4 bg-cyan-500/10 rounded-2xl text-cyan-400 font-black text-[10px] uppercase">{m.file_type || 'Asset'}</div>
+                    <span className="font-bold text-lg">{m.title}</span>
+                  </div>
+                  <ArrowDownTrayIcon className="w-5 h-5 text-white/20" />
+                </a>
+              ))}
+              {materials.length === 0 && <div className="col-span-full py-20 text-center text-white/20 uppercase font-black text-xs tracking-widest">No resources uploaded.</div>}
+            </div>
+          )}
+
+          {activeTab === 'plan' && (
+            <div className="bg-white/5 border border-white/10 rounded-[40px] p-12 space-y-12 animate-in fade-in duration-500">
+              <PlanBlock title="Target Outcomes" content={plans?.objectives} />
+              <PlanBlock title="Applied Activities" content={plans?.activities} />
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+const LayoutIcon = ({ className }: any) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+);
+
+const PlanBlock = ({ title, content }: any) => (
+  <div className="space-y-4">
+    <h4 className="text-[10px] font-black uppercase text-cyan-400 tracking-widest">{title}</h4>
+    <p className="text-xl text-white/70 leading-relaxed font-serif italic">{content || 'Details pending...'}</p>
+  </div>
+);

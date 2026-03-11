@@ -34,26 +34,61 @@ function Badge({ text, color }: { text: string; color: string }) {
   );
 }
 
-function SlotCell({ slot, onEdit, onDelete, isAdmin, highlight }: {
+function SlotCell({ slot, onEdit, onDelete, isAdmin, highlight, isCurrent }: {
   slot: Slot; onEdit: (s: Slot) => void; onDelete: (id: string) => void;
-  isAdmin: boolean; highlight?: boolean;
+  isAdmin: boolean; highlight?: boolean; isCurrent?: boolean;
 }) {
+  const isPractical = slot.subject.toLowerCase().includes('lab') || slot.subject.toLowerCase().includes('practical') || slot.subject.toLowerCase().includes('coding') || slot.subject.toLowerCase().includes('robotics');
+  const isExam = slot.subject.toLowerCase().includes('exam') || slot.subject.toLowerCase().includes('test') || slot.subject.toLowerCase().includes('quiz');
+
+  const cardCls = isCurrent 
+    ? 'bg-violet-600 border-violet-400 shadow-[0_0_20px_rgba(139,92,246,0.3)] ring-2 ring-violet-500/50' 
+    : isPractical 
+      ? 'bg-cyan-500/10 border-cyan-500/20' 
+      : isExam 
+        ? 'bg-rose-500/10 border-rose-500/20' 
+        : 'bg-violet-500/10 border-violet-500/20';
+
   return (
-    <div className={`border rounded-xl p-2 group relative ${highlight
-      ? 'bg-violet-600/20 border-violet-500/40'
-      : 'bg-violet-500/10 border-violet-500/20'}`}>
-      <p className="text-[11px] font-black text-white leading-tight">{slot.subject}</p>
-      <p className="text-[10px] text-white/40 mt-0.5">{slot.start_time}–{slot.end_time}</p>
-      {slot.teacher_name && <p className="text-[10px] text-violet-300/70 truncate">{slot.teacher_name}</p>}
-      {slot.room && <p className="text-[10px] text-white/30">{slot.room}</p>}
+    <div className={`border rounded-xl p-3 group relative transition-all duration-300 ${cardCls}`}>
+      <div className="flex justify-between items-start gap-2">
+        <p className="text-[12px] font-black text-white leading-tight uppercase tracking-tight">{slot.subject}</p>
+        {isCurrent && (
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+        )}
+      </div>
+      
+      <p className={`text-[10px] mt-1 font-bold ${isCurrent ? 'text-white/70' : 'text-white/40'}`}>
+        {slot.start_time}–{slot.end_time}
+      </p>
+      
+      {slot.teacher_name && (
+        <p className={`text-[10px] mt-2 font-medium truncate ${isCurrent ? 'text-white/90' : 'text-violet-300/60'}`}>
+          👤 {slot.teacher_name}
+        </p>
+      )}
+      
+      {slot.room && (
+        <p className={`text-[10px] mt-0.5 font-bold ${isCurrent ? 'text-white/80' : 'text-white/30'}`}>
+          📍 {slot.room}
+        </p>
+      )}
+
+      {isCurrent && (
+        <p className="text-[9px] font-black text-emerald-400 mt-2 uppercase tracking-widest animate-pulse">Now Ongoing</p>
+      )}
+
       {isAdmin && (
-        <div className="absolute top-1 right-1 hidden group-hover:flex gap-1">
+        <div className="absolute top-1 right-1 hidden group-hover:flex gap-1 bg-[#1a1a2e]/80 backdrop-blur rounded-lg p-0.5">
           <button onClick={() => onEdit(slot)}
-            className="p-1 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
-            <PencilIcon className="w-3 h-3 text-white/60" />
+            className="p-1 hover:bg-white/10 rounded-lg transition-colors">
+            <PencilIcon className="w-3 h-3 text-white/60 hover:text-white" />
           </button>
           <button onClick={() => onDelete(slot.id)}
-            className="p-1 bg-rose-500/20 hover:bg-rose-500/30 rounded-lg transition-colors">
+            className="p-1 hover:bg-rose-500/20 rounded-lg transition-colors">
             <TrashIcon className="w-3 h-3 text-rose-400" />
           </button>
         </div>
@@ -274,12 +309,20 @@ export default function TimetablePage() {
                     'Create and manage school timetables'}
             </p>
           </div>
-          {isAdmin && (
-            <button onClick={openNewTT}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-violet-900/30">
-              <PlusIcon className="w-4 h-4" /> New Timetable
+          <div className="flex items-center gap-2 print:hidden flex-wrap">
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 font-bold text-sm rounded-xl transition-all"
+            >
+              <CalendarDaysIcon className="w-4 h-4" /> Print Schedule
             </button>
-          )}
+            {isAdmin && (
+              <button onClick={openNewTT}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-violet-900/30">
+                <PlusIcon className="w-4 h-4" /> New Timetable
+              </button>
+            )}
+          </div>
         </div>
 
         {error && (
@@ -497,10 +540,23 @@ export default function TimetablePage() {
                             )}
                           </div>
                         )}
-                        {slotsByDay[day]?.map(slot => (
-                          <SlotCell key={slot.id} slot={slot} onEdit={openEditSlot}
-                            onDelete={deleteSlot} isAdmin={isAdmin} highlight={day === TODAY} />
-                        ))}
+                        {slotsByDay[day]?.map(slot => {
+                          const now = new Date();
+                          const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
+                          const currentTime = now.getHours() * 60 + now.getMinutes();
+                          
+                          const [h1, m1] = slot.start_time.split(':').map(Number);
+                          const [h2, m2] = slot.end_time.split(':').map(Number);
+                          const start = h1 * 60 + m1;
+                          const end = h2 * 60 + m2;
+                          
+                          const isCurrent = day === currentDay && currentTime >= start && currentTime < end;
+                          
+                          return (
+                            <SlotCell key={slot.id} slot={slot} onEdit={openEditSlot}
+                              onDelete={deleteSlot} isAdmin={isAdmin} highlight={day === TODAY} isCurrent={isCurrent} />
+                          );
+                        })}
                       </div>
                     </div>
                   ))}

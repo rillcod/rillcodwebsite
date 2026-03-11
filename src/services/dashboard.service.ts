@@ -4,13 +4,14 @@ const db = () => createClient();
 
 // ── ASSIGNMENTS ───────────────────────────────────────────────
 // For teachers/admins: all assignments with submission counts
-export async function fetchAssignments(opts: { teacherId?: string; schoolId?: string } = {}) {
+export async function fetchAssignments(opts: { teacherId?: string; schoolId?: string; schoolName?: string } = {}) {
     let q = db()
         .from('assignments')
         .select(`
       id, title, description, instructions, due_date, max_points,
       assignment_type, is_active, created_at, created_by,
-      courses ( id, title, teacher_id, school_id, programs ( name ) ),
+      school_id, school_name,
+      courses ( id, title, programs ( name ) ),
       assignment_submissions ( id, status, grade )
     `)
         .order('due_date', { ascending: true });
@@ -23,9 +24,13 @@ export async function fetchAssignments(opts: { teacherId?: string; schoolId?: st
     const { data, error } = await q;
     if (error) throw error;
 
-    // Filter by school after fetch (courses.school_id)
-    if (opts.schoolId && data) {
-        return data.filter((a: any) => a.courses?.school_id === opts.schoolId);
+    // Filter by school after fetch (courses.school_id or courses.school_name)
+    if (data && (opts.schoolId || opts.schoolName)) {
+        return data.filter((a: any) => {
+            const matchId = opts.schoolId && a.school_id === opts.schoolId;
+            const matchName = opts.schoolName && a.school_name === opts.schoolName;
+            return matchId || matchName;
+        });
     }
 
     return data ?? [];
@@ -92,7 +97,7 @@ export async function fetchStudentAssignments(portalUserId: string) {
 // ── GRADES ────────────────────────────────────────────────────
 // All submissions for grading (teachers/admins)
 // All submissions for grading (teachers/admins)
-export async function fetchSubmissionsForGrading(opts: { teacherId?: string, schoolId?: string } = {}) {
+export async function fetchSubmissionsForGrading(opts: { teacherId?: string, schoolId?: string, schoolName?: string } = {}) {
     let q = db()
         .from('assignment_submissions')
         .select(`
@@ -102,12 +107,15 @@ export async function fetchSubmissionsForGrading(opts: { teacherId?: string, sch
         id, title, max_points, due_date, created_by,
         courses ( title, teacher_id, programs ( name ) )
       ),
-      portal_users!assignment_submissions_portal_user_id_fkey!inner ( id, full_name, email, school_id )
+      portal_users!assignment_submissions_portal_user_id_fkey!inner ( id, full_name, email, school_id, school_name )
     `)
         .order('submitted_at', { ascending: false });
 
-    if (opts.schoolId) {
-        q = (q as any).eq('portal_users.school_id', opts.schoolId);
+    if (opts.schoolId || opts.schoolName) {
+        let filter = '';
+        if (opts.schoolId) filter += `school_id.eq.${opts.schoolId}`;
+        if (opts.schoolName) filter += `${filter ? ',' : ''}school_name.eq."${opts.schoolName}"`;
+        q = (q as any).or(filter, { foreignTable: 'portal_users' });
     }
 
     const { data, error } = await q;
@@ -140,12 +148,12 @@ export async function fetchStudentGrades(portalUserId: string) {
     return data ?? [];
 }
 
-// ── COURSES ───────────────────────────────────────────────────
-export async function fetchCourses(teacherId?: string) {
+export async function fetchCourses(teacherId?: string, opts: { schoolId?: string; schoolName?: string } = {}) {
     let q = db()
         .from('courses')
         .select(`
       id, title, description, duration_hours, is_active, teacher_id,
+      school_id, school_name,
       created_at,
       programs ( id, name, difficulty_level ),
       assignment_submissions ( id )
@@ -154,6 +162,13 @@ export async function fetchCourses(teacherId?: string) {
 
     if (teacherId) q = (q as any).eq('teacher_id', teacherId);
     else q = (q as any).eq('is_active', true);
+
+    if (opts.schoolId || opts.schoolName) {
+        let filter = '';
+        if (opts.schoolId) filter += `school_id.eq.${opts.schoolId}`;
+        if (opts.schoolName) filter += `${filter ? ',' : ''}school_name.eq."${opts.schoolName}"`;
+        q = (q as any).or(filter);
+    }
 
     const { data, error } = await q;
     if (error) {
@@ -237,17 +252,42 @@ export async function fetchLessons(opts: { teacherId?: string; portalUserId?: st
 }
 
 // ── ANALYTICS ─────────────────────────────────────────────────
-export async function fetchAnalyticsOverview() {
-    const [students, teachers, programs, subs] = await Promise.allSettled([
-        db().from('portal_users').select('id, is_active').eq('role', 'student'),
-        db().from('portal_users').select('id', { count: 'exact' }).eq('role', 'teacher'),
-        db().from('programs').select('id', { count: 'exact' }).eq('is_active', true),
-        db().from('assignment_submissions').select('grade').eq('status', 'graded'),
+export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolName?: string } = {}) {
+    // 1. Total Students from registration applications (comprehensive count)
+    let studAppsQ = db().from('students').select('id', { count: 'exact', head: true });
+
+    // 2. Portal users (active/teachers)
+    let studentPortalQ = db().from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student');
+    let teacherPortalQ = db().from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'teacher');
+    let programPortalQ = db().from('programs').select('id', { count: 'exact', head: true }).eq('is_active', true);
+
+    // 3. Submissions (grades) for average progress
+    let subsQ = db().from('assignment_submissions').select('grade, portal_users!inner(school_id, school_name)').eq('status', 'graded');
+
+    if (opts.schoolId || opts.schoolName) {
+        let filter = '';
+        if (opts.schoolId) filter += `school_id.eq.${opts.schoolId}`;
+        if (opts.schoolName) filter += `${filter ? ',' : ''}school_name.eq."${opts.schoolName}"`;
+
+        studAppsQ = (studAppsQ as any).or(filter);
+        studentPortalQ = (studentPortalQ as any).or(filter);
+        teacherPortalQ = (teacherPortalQ as any).or(filter);
+        subsQ = (subsQ as any).or(filter, { foreignTable: 'portal_users' });
+    }
+
+    const [apps, students, teachers, programs, subs] = await Promise.allSettled([
+        studAppsQ,
+        studentPortalQ,
+        teacherPortalQ,
+        programPortalQ,
+        subsQ,
     ]);
 
-    const studentRows = students.status === 'fulfilled' ? (students.value.data ?? []) : [];
+    const totalCount = apps.status === 'fulfilled' ? (apps.value.count ?? 0) : 0;
+    const studentCount = students.status === 'fulfilled' ? (students.value.count ?? 0) : 0;
     const teacherCount = teachers.status === 'fulfilled' ? (teachers.value.count ?? 0) : 0;
     const programCount = programs.status === 'fulfilled' ? (programs.value.count ?? 0) : 0;
+
     const grades = subs.status === 'fulfilled'
         ? (subs.value.data ?? []).map((s: any) => s.grade).filter((g: any) => g != null)
         : [];
@@ -257,8 +297,8 @@ export async function fetchAnalyticsOverview() {
         : 0;
 
     return {
-        totalStudents: studentRows.length,
-        activeStudents: studentRows.filter((s: any) => s.is_active).length,
+        totalStudents: totalCount || studentCount,
+        activeStudents: studentCount,
         totalTeachers: teacherCount,
         totalPrograms: programCount,
         avgProgress,
@@ -288,22 +328,40 @@ export async function fetchStudentReport(studentId: string) {
 }
 
 // ── HELPERS ───────────────────────────────────────────────────
-export async function fetchTeachers() {
-    const { data, error } = await db()
+export async function fetchTeachers(opts: { schoolId?: string; schoolName?: string } = {}) {
+    let q = db()
         .from('portal_users')
-        .select('id, full_name, email, is_active, created_at')
+        .select('id, full_name, email, is_active, created_at, school_id, school_name')
         .eq('role', 'teacher')
         .order('full_name');
+
+    if (opts.schoolId || opts.schoolName) {
+        let filter = '';
+        if (opts.schoolId) filter += `school_id.eq.${opts.schoolId}`;
+        if (opts.schoolName) filter += `${filter ? ',' : ''}school_name.eq."${opts.schoolName}"`;
+        q = (q as any).or(filter);
+    }
+
+    const { data, error } = await q;
     if (error) throw error;
     return data ?? [];
 }
 
-export async function fetchStudents() {
-    const { data, error } = await db()
+export async function fetchStudents(opts: { schoolId?: string; schoolName?: string } = {}) {
+    let q = db()
         .from('portal_users')
-        .select('id, full_name, email, is_active, school_name, created_at')
+        .select('id, full_name, email, is_active, school_id, school_name, created_at')
         .eq('role', 'student')
         .order('full_name');
+
+    if (opts.schoolId || opts.schoolName) {
+        let filter = '';
+        if (opts.schoolId) filter += `school_id.eq.${opts.schoolId}`;
+        if (opts.schoolName) filter += `${filter ? ',' : ''}school_name.eq."${opts.schoolName}"`;
+        q = (q as any).or(filter);
+    }
+
+    const { data, error } = await q;
     if (error) throw error;
     return data ?? [];
 }
@@ -361,14 +419,17 @@ export async function submitAssignment(payload: {
     file_url?: string;
     answers?: any;
 }) {
+    const upsertData: any = {
+        ...payload,
+        submitted_at: new Date().toISOString(),
+        status: 'submitted',
+    };
+    if (payload.answers === null || payload.answers === undefined) delete upsertData.answers;
+
     // Upsert — student can resubmit
     const { data, error } = await db()
         .from('assignment_submissions')
-        .upsert({
-            ...payload,
-            submitted_at: new Date().toISOString(),
-            status: 'submitted',
-        }, { onConflict: 'assignment_id,portal_user_id' })
+        .upsert(upsertData, { onConflict: 'assignment_id,portal_user_id' })
         .select()
         .single();
     if (error) throw error;

@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeftIcon, AcademicCapIcon, PlusIcon, TrashIcon,
-  CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
+  CheckIcon, ArrowPathIcon, ExclamationTriangleIcon, ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 
 interface Question {
@@ -29,6 +29,8 @@ const emptyQuestion = (): Question => ({
 export default function NewExamPage() {
   const router = useRouter();
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const preProgramId = searchParams?.get('program_id');
   const [programs, setPrograms] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,11 +47,58 @@ export default function NewExamPage() {
   });
   const [questions, setQuestions] = useState<Question[]>([emptyQuestion()]);
 
+  // AI Generation State
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiTopic, setAiTopic] = useState('');
+
+  const handleAiGenerate = async () => {
+    if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
+    setAiGenerating(true);
+    setAiError(null);
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'cbt', topic: aiTopic })
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+
+      const data = result.data;
+      setForm(prev => ({
+        ...prev,
+        title: data.title || prev.title,
+        description: data.description || prev.description,
+        duration_minutes: (data.duration_minutes || 60).toString(),
+        passing_score: (data.passing_score || 70).toString(),
+      }));
+      if (data.questions?.length > 0) {
+        setQuestions(data.questions.map((q: any) => ({
+          question_text: q.question_text || '',
+          question_type: q.question_type || 'multiple_choice',
+          options: q.options || ['', '', '', ''],
+          correct_answer: q.correct_answer || '',
+          points: q.points || 5,
+        })));
+      }
+      setAiOpen(false);
+    } catch (e: any) {
+      setAiError(e.message || 'AI generation failed');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   useEffect(() => {
     if (authLoading || !profile) return;
     createClient().from('programs').select('id, name').eq('is_active', true).order('name')
-      .then(({ data }) => setPrograms(data ?? []));
-  }, [profile?.id, authLoading]); // eslint-disable-line
+      .then(({ data }) => {
+        setPrograms(data ?? []);
+        if (preProgramId) setForm(prev => ({ ...prev, program_id: preProgramId }));
+      });
+  }, [profile?.id, authLoading, preProgramId]);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -142,6 +191,52 @@ export default function NewExamPage() {
             <p className="text-rose-400 text-sm">{error}</p>
           </div>
         )}
+
+        {/* AI Generate Panel */}
+        <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border border-emerald-500/20 rounded-2xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setAiOpen(o => !o)}
+            className="w-full flex items-center justify-between px-5 py-4 text-left"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                <ArrowPathIcon className={`w-4 h-4 text-emerald-400 ${aiGenerating ? 'animate-spin' : ''}`} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white">Generate with AI</p>
+                <p className="text-xs text-white/40">Auto-fill exam details and questions</p>
+              </div>
+            </div>
+            {aiOpen ? <ChevronDownIcon className="w-4 h-4 text-white/40" /> : <ChevronDownIcon className="w-4 h-4 text-white/40 rotate-180" />}
+          </button>
+
+          {aiOpen && (
+            <div className="px-5 pb-5 space-y-4 border-t border-emerald-500/20 bg-white/5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4">
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Topic / Subject Matter</label>
+                  <input
+                    value={aiTopic}
+                    onChange={e => setAiTopic(e.target.value)}
+                    placeholder="e.g. Fundamental Concepts of AI & Machine Learning"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAiGenerate}
+                  disabled={aiGenerating}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all self-end"
+                >
+                  {aiGenerating ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                  {aiGenerating ? 'Generating...' : 'Generate'}
+                </button>
+              </div>
+              {aiError && <p className="text-[10px] text-rose-400">{aiError}</p>}
+            </div>
+          )}
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Exam Details */}

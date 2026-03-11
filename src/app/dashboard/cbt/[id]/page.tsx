@@ -142,17 +142,28 @@ export default function ExamDetailPage() {
                     <p className="font-semibold text-white text-sm">{s.portal_users?.full_name ?? 'Student'}</p>
                     <p className="text-xs text-white/30">{s.portal_users?.email}</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {s.score != null && (
-                      <div className="text-right">
-                        <span className={`text-sm font-bold ${s.status === 'passed' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          {s.score}%
-                        </span>
-                        <p className="text-xs text-white/30">{s.status}</p>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="flex items-center gap-2 mb-1">
+                        {s.status === 'pending_grading' ? (
+                          <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                            Pending Grading
+                          </span>
+                        ) : (
+                          <span className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest ${s.status === 'passed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                            {s.status === 'passed' ? 'Passed' : 'Failed'} — {s.score}%
+                          </span>
+                        )}
                       </div>
-                    )}
-                    {s.end_time && (
-                      <span className="text-xs text-white/30">{new Date(s.end_time).toLocaleDateString()}</span>
+                      {s.end_time && (
+                        <p className="text-[10px] text-white/30 truncate">Completed {new Date(s.end_time).toLocaleDateString()}</p>
+                      )}
+                    </div>
+                    {s.status === 'pending_grading' && (
+                      <Link href={`/dashboard/cbt/${exam.id}/sessions/${s.id}/grade`}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all">
+                        <ChartBarIcon className="w-3.5 h-3.5" /> Grade
+                      </Link>
                     )}
                   </div>
                 </div>

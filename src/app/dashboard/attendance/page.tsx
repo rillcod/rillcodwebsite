@@ -6,8 +6,9 @@ import { createClient } from '@/lib/supabase/client';
 import {
   ClipboardDocumentCheckIcon, UserGroupIcon, CalendarIcon,
   CheckCircleIcon, XCircleIcon, ClockIcon, ExclamationCircleIcon,
-  PlusIcon, ChevronDownIcon, CheckIcon, ArrowPathIcon,
+  PlusIcon, ChevronDownIcon, CheckIcon, ArrowPathIcon, ArrowLeftIcon,
 } from '@heroicons/react/24/outline';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   present: { label: 'Present', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: CheckCircleIcon },
@@ -18,6 +19,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 
 export default function AttendancePage() {
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const classIdFromQuery = searchParams.get('class_id');
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [sessions, setSessions] = useState<any[]>([]);
@@ -55,6 +59,12 @@ export default function AttendancePage() {
         .then(({ data }) => setMyAttendance(data ?? []));
     }
   }, [profile?.id, authLoading]); // eslint-disable-line
+
+  useEffect(() => {
+    if (classIdFromQuery && isStaff) {
+      setSelectedClass(classIdFromQuery);
+    }
+  }, [classIdFromQuery, isStaff]);
 
   // Load sessions when class selected
   useEffect(() => {
@@ -137,24 +147,38 @@ export default function AttendancePage() {
     setSaving(false);
   };
 
-  const createSession = async () => {
-    if (!selectedClass || !newSession.session_date) return;
-    setCreatingSession(true);
-    const { data, error } = await createClient().from('class_sessions').insert({
-      class_id: selectedClass,
-      session_date: newSession.session_date,
-      start_time: newSession.start_time || null,
-      end_time: newSession.end_time || null,
-      topic: newSession.topic || null,
-    }).select().single();
-    if (error) { alert(error.message); }
-    else {
-      setSessions(prev => [data, ...prev]);
-      setSelectedSession(data.id);
-      setShowNewSession(false);
-      setNewSession({ session_date: '', start_time: '', end_time: '', topic: '' });
+  const quickMarkToday = async () => {
+    if (!selectedClass) return;
+    setLoading(true);
+    const db = createClient();
+    const today = new Date().toISOString().split('T')[0];
+
+    // Check if today's session already exists
+    const { data: existing } = await db.from('class_sessions')
+      .select('*')
+      .eq('class_id', selectedClass)
+      .eq('session_date', today)
+      .maybeSingle();
+
+    if (existing) {
+      setSelectedSession(existing.id);
+    } else {
+      // Create new session for today
+      const { data: created, error } = await db.from('class_sessions').insert({
+        class_id: selectedClass,
+        session_date: today,
+        topic: `Session on ${new Date().toLocaleDateString()}`
+      }).select().single();
+
+      if (error) {
+        alert(error.message);
+        setLoading(false);
+        return;
+      }
+      setSessions(prev => [created, ...prev]);
+      setSelectedSession(created.id);
     }
-    setCreatingSession(false);
+    setLoading(false);
   };
 
   if (authLoading) return (
@@ -225,13 +249,29 @@ export default function AttendancePage() {
     <div className="min-h-screen bg-[#0f0f1a] text-white">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <ClipboardDocumentCheckIcon className="w-5 h-5 text-teal-400" />
-            <span className="text-xs font-bold text-teal-400 uppercase tracking-widest">Attendance Manager</span>
+        <div className="flex flex-col md:flex-row md:items-center gap-6">
+          <button onClick={() => router.back()}
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors flex-shrink-0">
+            <ArrowLeftIcon className="w-5 h-5 text-white/60" />
+          </button>
+          <div className="flex-1">
+            <div className="flex items-center justify-between gap-4 mb-1">
+              <div className="flex items-center gap-2">
+                <ClipboardDocumentCheckIcon className="w-5 h-5 text-teal-400" />
+                <span className="text-xs font-bold text-teal-400 uppercase tracking-widest">Attendance Manager</span>
+              </div>
+              {selectedClass && (
+                <button
+                  onClick={() => router.push(`/dashboard/classes/${selectedClass}`)}
+                  className="text-xs font-black text-white/40 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-colors"
+                >
+                  <ArrowLeftIcon className="w-3 h-3" /> Return to Class
+                </button>
+              )}
+            </div>
+            <h1 className="text-3xl font-extrabold">{selectedClass ? 'Class Attendance' : 'Attendance Tracking'}</h1>
+            <p className="text-white/40 text-sm mt-1">Mark and review student attendance per session</p>
           </div>
-          <h1 className="text-3xl font-extrabold">Attendance Tracking</h1>
-          <p className="text-white/40 text-sm mt-1">Mark and review student attendance per session</p>
         </div>
 
         {/* Selectors */}
@@ -267,50 +307,54 @@ export default function AttendancePage() {
           </div>
 
           {selectedClass && (
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-xs text-white/30">{sessions.length} session{sessions.length !== 1 ? 's' : ''} found</span>
-              <button onClick={() => setShowNewSession(!showNewSession)}
-                className="flex items-center gap-1.5 text-xs font-bold text-teal-400 hover:text-teal-300 transition-colors">
-                <PlusIcon className="w-3.5 h-3.5" /> New Session
-              </button>
-            </div>
-          )}
+            <div className="flex flex-col gap-4 pt-2">
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <button onClick={quickMarkToday} disabled={loading}
+                  className="w-full sm:flex-1 flex items-center justify-center gap-2 py-3.5 bg-teal-600 hover:bg-teal-500 text-white font-extrabold rounded-2xl transition-all shadow-lg shadow-teal-900/30">
+                  <CalendarIcon className="w-5 h-5 text-teal-200" />
+                  {loading ? 'Processing…' : 'Mark Today\'s Attendance'}
+                </button>
+                <button onClick={() => setShowNewSession(!showNewSession)}
+                  className="w-full sm:w-auto px-4 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-bold text-white/40 hover:text-white transition-all">
+                  Past / Custom Date
+                </button>
+              </div>
 
-          {showNewSession && (
-            <div className="border border-teal-500/20 bg-teal-500/5 rounded-xl p-4 space-y-3">
-              <p className="text-xs font-bold text-teal-400 uppercase tracking-widest">New Session</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs text-white/40 mb-1">Date <span className="text-rose-400">*</span></label>
-                  <input type="date" value={newSession.session_date}
-                    onChange={e => setNewSession(f => ({ ...f, session_date: e.target.value }))}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-teal-500 transition-colors" />
+              {showNewSession && (
+                <div className="bg-white/5 border border-teal-500/10 rounded-2xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest px-1">Session Options</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input type="date" value={newSession.session_date}
+                      onChange={e => setNewSession(f => ({ ...f, session_date: e.target.value }))}
+                      className="px-4 py-2.5 bg-[#0f0f1a] border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-teal-500 transition-colors" />
+                    <button onClick={async () => {
+                      if (!newSession.session_date) return;
+                      setLoading(true);
+                      const { data, error } = await createClient().from('class_sessions').insert({
+                        class_id: selectedClass,
+                        session_date: newSession.session_date,
+                        topic: newSession.topic || `Session on ${newSession.session_date}`,
+                        start_time: newSession.start_time || null,
+                        end_time: newSession.end_time || null,
+                      }).select().single();
+                      if (error) alert(error.message);
+                      else {
+                        setSessions(prev => [data, ...prev]);
+                        setSelectedSession(data.id);
+                        setShowNewSession(false);
+                      }
+                      setLoading(false);
+                    }}
+                      className="px-4 py-2.5 bg-teal-600/20 text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all">
+                      Confirm & Create
+                    </button>
+                  </div>
+                  <input type="text" value={newSession.topic}
+                    onChange={e => setNewSession(f => ({ ...f, topic: e.target.value }))}
+                    placeholder="Topic / Lessons (optional)"
+                    className="w-full px-4 py-2.5 bg-[#0f0f1a] border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-teal-500 transition-colors" />
                 </div>
-                <div>
-                  <label className="block text-xs text-white/40 mb-1">Start Time</label>
-                  <input type="time" value={newSession.start_time}
-                    onChange={e => setNewSession(f => ({ ...f, start_time: e.target.value }))}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-teal-500 transition-colors" />
-                </div>
-                <div>
-                  <label className="block text-xs text-white/40 mb-1">End Time</label>
-                  <input type="time" value={newSession.end_time}
-                    onChange={e => setNewSession(f => ({ ...f, end_time: e.target.value }))}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-teal-500 transition-colors" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-white/40 mb-1">Topic / Notes</label>
-                <input type="text" value={newSession.topic}
-                  onChange={e => setNewSession(f => ({ ...f, topic: e.target.value }))}
-                  placeholder="e.g. Introduction to Variables"
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-teal-500 transition-colors" />
-              </div>
-              <button onClick={createSession} disabled={creatingSession || !newSession.session_date}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white rounded-xl transition-colors disabled:opacity-50">
-                {creatingSession ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PlusIcon className="w-3.5 h-3.5" />}
-                Create Session
-              </button>
+              )}
             </div>
           )}
         </div>

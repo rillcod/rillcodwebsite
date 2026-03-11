@@ -1,0 +1,11 @@
+            {/* ── PDF capture div — off-screen; no opacity so html2canvas captures full color ── */}
+            <div style={{ position: 'fixed', left: -9999, top: 0, width: 794, pointerEvents: 'none', zIndex: -1 }}>
+                <div ref={pdfRef}>
+                    <ReportCard report={previewData} orgSettings={branding as any} />
+                </div>
+            </div>
+            </>
+            )}
+        </div>
+    );
+}

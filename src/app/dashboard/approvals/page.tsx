@@ -63,9 +63,9 @@ export default function ApprovalsPage() {
             try {
                 const supabase = createClient();
                 const [studRes, schRes, prosRes] = await Promise.allSettled([
-                    supabase.from('students').select('*').eq('status', 'pending').order('created_at', { ascending: true }),
-                    supabase.from('schools').select('*').eq('status', 'pending').order('created_at', { ascending: true }),
-                    supabase.from('prospective_students').select('*').eq('is_deleted', false).eq('is_active', false).order('created_at', { ascending: true }),
+                    supabase.from('students').select('*').eq('status', 'pending').neq('is_deleted', true).order('created_at', { ascending: true }),
+                    supabase.from('schools').select('*').eq('status', 'pending').neq('is_deleted', true).order('created_at', { ascending: true }),
+                    supabase.from('prospective_students').select('*').neq('is_deleted', true).eq('is_active', false).order('created_at', { ascending: true }),
                 ]);
                 if (!cancelled) {
                     setStudents(studRes.status === 'fulfilled' ? (studRes.value.data ?? []) : []);

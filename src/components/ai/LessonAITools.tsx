@@ -3,7 +3,6 @@
 import { useState, useRef } from 'react';
 import {
   PhotoIcon,
-  SpeakerWaveIcon,
   MicrophoneIcon,
   ArrowDownTrayIcon,
   XMarkIcon,
@@ -145,92 +144,7 @@ function ImageGenerator({ lessonTitle, lessonSubject, lessonGrade }: Pick<Lesson
   );
 }
 
-/* ── Text-to-Speech ──────────────────────────────────────── */
-function TextToSpeech({ lessonText, lessonTitle }: Pick<LessonAIToolsProps, 'lessonText' | 'lessonTitle'>) {
-  const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [customText, setCustomText] = useState('');
 
-  const MAX = 1000;
-  const textToUse = customText.trim() || lessonText.trim();
-  const charCount = textToUse.length;
-
-  const handleGenerate = async () => {
-    if (!textToUse) { setError('Add a lesson description or type text to convert.'); return; }
-    setGenerating(true);
-    setError(null);
-    setAudioUrl(null);
-    try {
-      const res = await fetch('/api/ai/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: textToUse.slice(0, MAX) }),
-      });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? 'TTS failed');
-      setAudioUrl(payload.data.dataUrl);
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to generate audio');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  return (
-    <ToolCard icon={SpeakerWaveIcon} title="Text to Speech" color="bg-cyan-600">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Text to read aloud</p>
-          <span className={`text-[10px] font-bold ${charCount > MAX ? 'text-rose-400' : 'text-white/30'}`}>
-            {Math.min(charCount, MAX)}/{MAX} chars
-          </span>
-        </div>
-        <textarea
-          value={customText}
-          onChange={e => setCustomText(e.target.value)}
-          placeholder={lessonText ? `Using lesson description (${lessonText.length} chars)…` : 'Enter text to convert to audio…'}
-          rows={3}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-cyan-500 resize-none"
-        />
-      </div>
-
-      {error && <ErrorMsg msg={error} />}
-
-      {audioUrl && (
-        <div className="space-y-2">
-          <audio controls src={audioUrl} className="w-full h-10 rounded-xl" />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => downloadDataUrl(audioUrl, `lesson-audio-${Date.now()}.wav`)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white/10 hover:bg-white/15 rounded-lg text-white transition-colors"
-            >
-              <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Download
-            </button>
-            <button
-              type="button"
-              onClick={() => setAudioUrl(null)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white/5 hover:bg-white/10 rounded-lg text-white/40 transition-colors"
-            >
-              <XMarkIcon className="w-3.5 h-3.5" /> Clear
-            </button>
-          </div>
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={handleGenerate}
-        disabled={generating || !textToUse}
-        className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all"
-      >
-        {generating ? <Spinner /> : <SpeakerWaveIcon className="w-4 h-4" />}
-        {generating ? 'Generating audio...' : 'Convert to Speech'}
-      </button>
-    </ToolCard>
-  );
-}
 
 /* ── Speech-to-Text ──────────────────────────────────────── */
 function SpeechToText({ onTranscript }: Pick<LessonAIToolsProps, 'onTranscript'>) {
@@ -346,9 +260,8 @@ export default function LessonAITools({
         <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Hugging Face AI Tools</p>
         <div className="h-px flex-1 bg-white/5" />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ImageGenerator lessonTitle={lessonTitle} lessonSubject={lessonSubject} lessonGrade={lessonGrade} />
-        <TextToSpeech lessonText={lessonText} lessonTitle={lessonTitle} />
         <SpeechToText onTranscript={onTranscript} />
       </div>
     </div>

@@ -46,7 +46,7 @@ async function postHandler(req: Request, ctx: ApiContext) {
     const { data, errorResponse } = await withValidation(req as any, createContentSchema);
     if (errorResponse) return errorResponse;
 
-    const item = await libraryService.createContent(ctx.user!.tenantId!, ctx.user!.id, ctx.user!.role, data!);
+    const item = await libraryService.createContent(ctx.user?.tenantId, ctx.user!.id, ctx.user!.role, data!);
     return NextResponse.json({ success: true, data: item }, { status: 201 });
 }
 

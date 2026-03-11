@@ -15,6 +15,9 @@ import LessonAITools from '@/components/ai/LessonAITools';
 export default function AddLessonPage() {
   const router = useRouter();
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const preProgramId = searchParams?.get('program_id');
+  const isMinimal = searchParams?.get('minimal') === 'true';
 
   const [courses, setCourses] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
@@ -32,6 +35,7 @@ export default function AddLessonPage() {
   const [form, setForm] = useState({
     title: '',
     description: '',
+    lesson_notes: '',
     course_id: '',
     lesson_type: 'hands-on',
     duration_minutes: '60',
@@ -45,12 +49,16 @@ export default function AddLessonPage() {
   useEffect(() => {
     if (authLoading || !profile) return;
     const db = createClient();
-    let q = db.from('courses').select('id, title, programs(name)').eq('is_active', true).order('title');
-    if (profile?.role === 'teacher') {
-      q = (q as any).eq('teacher_id', profile.id);
-    }
-    q.then(({ data }) => setCourses(data ?? []));
-  }, [profile?.id, authLoading]);
+    let q = db.from('courses').select('id, title, program_id, programs(name)').order('title');
+
+    q.then(({ data }) => {
+      setCourses(data ?? []);
+      if (preProgramId && data) {
+        const matching = data.find((c: any) => c.program_id === preProgramId);
+        if (matching) setForm(prev => ({ ...prev, course_id: matching.id }));
+      }
+    });
+  }, [profile?.id, authLoading, preProgramId]);
 
   const handleAiGenerate = async () => {
     if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
@@ -76,8 +84,11 @@ export default function AddLessonPage() {
         ...prev,
         title: d.title ?? prev.title,
         description: d.description ?? prev.description,
+        lesson_notes: d.lesson_notes ?? prev.lesson_notes,
         content_layout: d.content_layout ?? prev.content_layout,
         video_url: d.video_url ?? prev.video_url,
+        duration_minutes: d.duration_minutes ? String(d.duration_minutes) : prev.duration_minutes,
+        lesson_type: d.lesson_type ?? prev.lesson_type
       }));
       setAiOpen(false);
       setActiveTab('content');
@@ -86,6 +97,13 @@ export default function AddLessonPage() {
     } finally {
       setAiGenerating(false);
     }
+  };
+
+  const handleMagicTitle = async () => {
+    if (!form.course_id) { setError('Select a course first'); return; }
+    const course = courses.find(c => c.id === form.course_id);
+    setAiTopic(course?.title ?? '');
+    setAiOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -100,6 +118,7 @@ export default function AddLessonPage() {
       const payload: any = {
         title: form.title.trim(),
         description: form.description.trim() || null,
+        lesson_notes: form.lesson_notes.trim() || null,
         course_id: form.course_id,
         lesson_type: form.lesson_type,
         status: form.status,
@@ -128,16 +147,17 @@ export default function AddLessonPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-
-        <div className="flex items-center justify-between">
-          <Link href="/dashboard/lessons" className="flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to Lessons
-          </Link>
+    <div className={`min-h-screen bg-[#0f0f1a] text-white ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
+      <div className={`${isMinimal ? 'w-full' : 'max-w-5xl mx-auto'} space-y-8`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {!isMinimal ? (
+            <Link href="/dashboard/lessons" className="flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors">
+              <ArrowLeft className="w-4 h-4" /> Back to Lessons
+            </Link>
+          ) : <div />}
           <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm rounded-xl shadow-xl shadow-cyan-900/40 transition-all disabled:opacity-50">
             {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
-            {saving ? 'CREATING...' : 'CREATE LESSON'}
+            {saving ? 'CREATING...' : (isMinimal ? 'CREATE' : 'CREATE LESSON')}
           </button>
         </div>
 
@@ -196,7 +216,7 @@ export default function AddLessonPage() {
                     onChange={e => setAiGrade(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500"
                   >
-                    {['Basic 1–Basic 3','Basic 4–Basic 6','JSS1–JSS3','SS1–SS3','JSS1–SS3','Basic 1–SS3'].map(g => (
+                    {['Basic 1–Basic 3', 'Basic 4–Basic 6', 'JSS1–JSS3', 'SS1–SS3', 'JSS1–SS3', 'Basic 1–SS3'].map(g => (
                       <option key={g} value={g}>{g}</option>
                     ))}
                   </select>
@@ -234,14 +254,32 @@ export default function AddLessonPage() {
           {activeTab === 'settings' && (
             <div className="space-y-6 animate-in fade-in duration-500">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Field label="Lesson Title" value={form.title} onChange={(v: string) => setForm({ ...form, title: v })} />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Lesson Title *</label>
+                    <button type="button" onClick={handleMagicTitle} className="text-[10px] font-black uppercase tracking-widest text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors">
+                      <Sparkles className="w-3 h-3" /> Magic Suggest
+                    </button>
+                  </div>
+                  <input
+                    value={form.title}
+                    onChange={e => setForm({ ...form, title: e.target.value })}
+                    placeholder="e.g. Building your first App"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none"
+                  />
+                </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Linked Course</label>
-                  <select value={form.course_id} onChange={e => setForm({ ...form, course_id: e.target.value })}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none">
-                    <option value="">Select Course</option>
-                    {courses.map((c: any) => <option key={c.id} value={c.id}>{c.title}{c.programs?.name ? ` — ${c.programs.name}` : ''}</option>)}
-                  </select>
+                  <div className="relative">
+                    <select value={form.course_id} onChange={e => setForm({ ...form, course_id: e.target.value })}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer">
+                      <option value="">Select Course</option>
+                      {courses.map((c: any) => <option key={c.id} value={c.id}>{c.title}{c.programs?.name ? ` — ${c.programs.name}` : ''}</option>)}
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <ChevronDown className="w-4 h-4 text-white/20" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -252,8 +290,25 @@ export default function AddLessonPage() {
                 <SelectField label="Status" value={form.status} options={['draft', 'scheduled', 'active']} onChange={(v: string) => setForm({ ...form, status: v })} />
               </div>
 
-              <Field label="Description" value={form.description} textarea onChange={(v: string) => setForm({ ...form, description: v })} />
-              <Field label="Video URL / Media Link" value={form.video_url} onChange={(v: string) => setForm({ ...form, video_url: v })} />
+              <Field label="Brief Description" value={form.description} textarea onChange={(v: string) => setForm({ ...form, description: v })} />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Lesson Notes (Student Prerequisite)</label>
+                  <button type="button" onClick={async () => {
+                    setAiTopic(form.title); setAiOpen(true);
+                  }} className="text-[9px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1 hover:text-violet-300 transition-colors">
+                    <Sparkles className="w-3 h-3" /> Generate Notes
+                  </button>
+                </div>
+                <textarea
+                  value={form.lesson_notes}
+                  onChange={e => setForm({ ...form, lesson_notes: e.target.value })}
+                  placeholder="Detailed study notes for the student..."
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none"
+                  rows={6}
+                />
+              </div>
+              <Field label="Video URL (YouTube/Direct)" value={form.video_url} onChange={(v: string) => setForm({ ...form, video_url: v })} />
             </div>
           )}
 
