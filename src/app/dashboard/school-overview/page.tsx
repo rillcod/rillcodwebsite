@@ -129,7 +129,9 @@ export default function SchoolOverviewPage() {
 
     // 3. Detailed metrics
     const [subsRes, attRes] = await Promise.all([
-      supabase.from('assignment_submissions').select('portal_user_id, grade, status').in('portal_user_id', ids),
+      supabase.from('assignment_submissions')
+        .select('portal_user_id, user_id, grade, status')
+        .or(`portal_user_id.in.(${ids.join(',')}),user_id.in.(${ids.join(',')})`),
       supabase.from('attendance').select('user_id, status').in('user_id', ids)
     ]);
 
@@ -137,7 +139,7 @@ export default function SchoolOverviewPage() {
     const attRows = attRes.data || [];
 
     const rows: StudentRow[] = portalStudents.map(s => {
-      const mySubs = (subs ?? []).filter(x => x.portal_user_id === s.id && x.grade != null);
+      const mySubs = (subs ?? []).filter(x => (x.portal_user_id === s.id || x.user_id === s.id) && x.grade != null);
       const avgGrade = mySubs.length
         ? mySubs.reduce((acc, x) => acc + Number(x.grade), 0) / mySubs.length
         : 0;

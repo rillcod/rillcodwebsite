@@ -28,93 +28,191 @@ function timeAgo(iso: string | null): string {
 
 /* ── Real-data hooks per role ─────────────────────────── */
 async function loadAdminStats(supabase: ReturnType<typeof createClient>) {
-  const [schools, teachers, students, partnerships, submissions] = await Promise.allSettled([
+  const [schools, teachers, students, partnerships, asgnSubs, cbtSubs] = await Promise.allSettled([
     supabase.from('schools').select('id, status', { count: 'exact', head: true }),
     supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'teacher').eq('is_active', true),
     supabase.from('students').select('id', { count: 'exact', head: true }),
     supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'school').eq('is_active', true),
-    supabase.from('assignment_submissions').select('id, grade', { count: 'exact', head: false }).not('grade', 'is', null),
+    supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).not('grade', 'is', null),
+    supabase.from('cbt_sessions').select('id', { count: 'exact', head: true }).not('score', 'is', null),
   ]);
   const totalSchools = schools.status === 'fulfilled' ? (schools.value.count ?? 0) : 0;
   const totalTeachers = teachers.status === 'fulfilled' ? (teachers.value.count ?? 0) : 0;
   const totalStudents = students.status === 'fulfilled' ? (students.value.count ?? 0) : 0;
   const totalPartners = partnerships.status === 'fulfilled' ? (partnerships.value.count ?? 0) : 0;
+  const totalGraded = (asgnSubs.status === 'fulfilled' ? (asgnSubs.value.count ?? 0) : 0) + 
+                    (cbtSubs.status === 'fulfilled' ? (cbtSubs.value.count ?? 0) : 0);
 
   return [
     { label: 'Partner Schools', value: totalSchools, icon: BuildingOfficeIcon, gradient: 'from-blue-600 to-blue-400' },
     { label: 'Partner Accounts', value: totalPartners, icon: ShieldCheckIcon, gradient: 'from-cyan-600 to-cyan-400' },
     { label: 'Active Teachers', value: totalTeachers, icon: AcademicCapIcon, gradient: 'from-violet-600 to-violet-400' },
     { label: 'Total Students', value: totalStudents, icon: UserGroupIcon, gradient: 'from-emerald-600 to-emerald-400' },
-    { label: 'Submissions Graded', value: submissions.status === 'fulfilled' ? (submissions.value.count ?? 0) : 0, icon: ChartBarIcon, gradient: 'from-amber-600 to-amber-400' },
+    { label: 'Submissions Graded', value: totalGraded, icon: ChartBarIcon, gradient: 'from-amber-600 to-amber-400' },
   ] as DashStats[];
 }
 
 async function loadAdminActivity(supabase: ReturnType<typeof createClient>): Promise<Activity[]> {
-  const { data } = await supabase
-    .from('assignment_submissions')
-    .select('id, status, submitted_at, portal_users!assignment_submissions_portal_user_id_fkey(full_name), assignments(title)')
-    .order('submitted_at', { ascending: false })
-    .limit(5);
-  return (data ?? []).map((s: any) => ({
-    id: s.id,
-    title: `${s.portal_users?.full_name ?? 'Student'} submitted`,
-    desc: s.assignments?.title ?? '—',
-    time: timeAgo(s.submitted_at),
-    icon: ClipboardDocumentListIcon,
-    color: 'bg-violet-500/20 text-violet-400',
-  }));
+  // 2-step: avoid FK ambiguity — some submissions use portal_user_id, others user_id
+  const [rawSubsRes, rawCbtRes] = await Promise.all([
+    supabase.from('assignment_submissions')
+      .select('id, status, submitted_at, portal_user_id, user_id, assignment_id, assignments(title)')
+      .order('submitted_at', { ascending: false }).limit(8),
+    supabase.from('cbt_sessions')
+      .select('id, status, end_time, user_id, portal_user_id, cbt_exams(title)')
+      .order('end_time', { ascending: false }).limit(8),
+  ]);
+
+  const rawSubs = rawSubsRes.data ?? [];
+  const rawCbt = rawCbtRes.data ?? [];
+
+  // Collect all user IDs to batch-lookup
+  const allUids = [...new Set([
+    ...rawSubs.map((s: any) => s.portal_user_id ?? s.user_id),
+    ...rawCbt.map((s: any) => s.portal_user_id ?? s.user_id),
+  ].filter(Boolean))];
+
+  const umap: Record<string, string> = {};
+  if (allUids.length > 0) {
+    const { data: users } = await supabase.from('portal_users').select('id, full_name').in('id', allUids);
+    (users ?? []).forEach((u: any) => { umap[u.id] = u.full_name; });
+  }
+
+  const activities: Activity[] = [];
+
+  rawSubs.forEach((s: any) => {
+    const name = umap[s.portal_user_id ?? s.user_id] ?? 'Student';
+    activities.push({
+      id: s.id,
+      title: `${name} submitted`,
+      desc: `Assignment: ${s.assignments?.title ?? '—'}`,
+      time: timeAgo(s.submitted_at),
+      icon: ClipboardDocumentListIcon,
+      color: s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-violet-500/20 text-violet-400',
+    });
+  });
+
+  rawCbt.forEach((s: any) => {
+    const name = umap[s.portal_user_id ?? s.user_id] ?? 'Student';
+    activities.push({
+      id: s.id,
+      title: `${name} completed`,
+      desc: `Exam: ${s.cbt_exams?.title ?? '—'}`,
+      time: timeAgo(s.end_time),
+      icon: AcademicCapIcon,
+      color: s.status === 'passed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-violet-500/20 text-violet-400',
+    });
+  });
+
+  return activities.slice(0, 6);
 }
 
 async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userId: string) {
-  const [classes, pending, subs] = await Promise.allSettled([
+  // Step 1: get this teacher's assignment IDs
+  const { data: myAsgns } = await supabase
+    .from('assignments').select('id').eq('created_by', userId);
+  const aIds = (myAsgns ?? []).map((a: any) => a.id);
+
+  const [classes, pendingAsgn, pendingCbt, subsAsgn] = await Promise.allSettled([
     supabase.from('classes').select('id', { count: 'exact', head: true }).eq('teacher_id', userId),
-    supabase.from('assignment_submissions')
-      .select('id, assignments!inner(created_by)', { count: 'exact', head: true })
-      .eq('status', 'submitted')
-      .eq('assignments.created_by', userId),
-    supabase.from('assignment_submissions')
-      .select('grade, assignments!inner(created_by)')
-      .eq('assignments.created_by', userId)
-      .not('grade', 'is', null)
-      .limit(100),
+    aIds.length > 0
+      ? supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('status', 'submitted').in('assignment_id', aIds)
+      : Promise.resolve({ count: 0 }),
+    supabase.from('cbt_sessions').select('id', { count: 'exact', head: true }).eq('status', 'pending_grading'),
+    aIds.length > 0
+      ? supabase.from('assignment_submissions').select('grade').not('grade', 'is', null).in('assignment_id', aIds).limit(200)
+      : Promise.resolve({ data: [] }),
   ]);
   const myClasses = classes.status === 'fulfilled' ? (classes.value.count ?? 0) : 0;
-  const pendingGrade = pending.status === 'fulfilled' ? (pending.value.count ?? 0) : 0;
-  const grades = subs.status === 'fulfilled' ? (subs.value.data ?? []) : [];
-  const avg = grades.length > 0
-    ? Math.round(grades.reduce((s: number, g: any) => s + (g.grade ?? 0), 0) / grades.length)
+  const pendingCbtCount = pendingCbt.status === 'fulfilled' ? (pendingCbt.value.count ?? 0) : 0;
+  const pendingAsgnCount = pendingAsgn.status === 'fulfilled' ? ((pendingAsgn.value as any).count ?? 0) : 0;
+  const pendingGrade = pendingAsgnCount + pendingCbtCount;
+  const asgnGrades = subsAsgn.status === 'fulfilled' ? ((subsAsgn.value as any).data ?? []) : [];
+
+  const allGrades = asgnGrades.map((g: any) => g.grade).filter((g: any) => g != null);
+  const avg = allGrades.length > 0
+    ? Math.round(allGrades.reduce((s: number, g: any) => s + (g ?? 0), 0) / allGrades.length)
     : 0;
+
   return [
     { label: 'My Classes', value: myClasses, icon: BookOpenIcon, gradient: 'from-blue-600 to-blue-400' },
     { label: 'Pending Grading', value: pendingGrade, icon: ClipboardDocumentListIcon, gradient: 'from-amber-600 to-amber-400' },
-    { label: 'Avg Score (My Asgn)', value: `${avg}%`, icon: ChartBarIcon, gradient: 'from-violet-600 to-violet-400' },
-    { label: 'Graded Total', value: grades.length, icon: CheckCircleIcon, gradient: 'from-emerald-600 to-emerald-400' },
+    { label: 'Avg Class Perf', value: `${avg}%`, icon: ChartBarIcon, gradient: 'from-violet-600 to-violet-400' },
+    { label: 'Total Graded', value: allGrades.length, icon: CheckCircleIcon, gradient: 'from-emerald-600 to-emerald-400' },
   ] as DashStats[];
 }
 
 async function loadTeacherActivity(supabase: ReturnType<typeof createClient>, userId: string): Promise<Activity[]> {
-  const { data } = await supabase
-    .from('assignment_submissions')
-    .select('id, status, submitted_at, portal_users!assignment_submissions_portal_user_id_fkey(full_name), assignments!inner(title, created_by)')
-    .eq('assignments.created_by', userId)
-    .order('submitted_at', { ascending: false })
-    .limit(5);
-  return (data ?? []).map((s: any) => ({
-    id: s.id,
-    title: `${s.portal_users?.full_name ?? 'Student'} submitted`,
-    desc: s.assignments?.title ?? '—',
-    time: timeAgo(s.submitted_at),
-    icon: ClipboardDocumentListIcon,
-    color: s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400',
-  }));
+  // Step 1: get teacher's assignment IDs to filter submissions correctly
+  const { data: myAsgns } = await supabase.from('assignments').select('id, title').eq('created_by', userId);
+  const aIds = (myAsgns ?? []).map((a: any) => a.id);
+  const aTitleMap: Record<string, string> = {};
+  (myAsgns ?? []).forEach((a: any) => { aTitleMap[a.id] = a.title; });
+
+  const [asgnRes, cbtRes] = await Promise.all([
+    aIds.length > 0
+      ? supabase.from('assignment_submissions')
+          .select('id, status, submitted_at, assignment_id, portal_user_id, user_id')
+          .in('assignment_id', aIds).order('submitted_at', { ascending: false }).limit(5)
+      : Promise.resolve({ data: [] }),
+    supabase.from('cbt_sessions')
+      .select('id, status, end_time, user_id, cbt_exams(title)')
+      .order('end_time', { ascending: false }).limit(5)
+  ]);
+
+  // Enrich submission user names via separate lookup
+  const subsData: any[] = (asgnRes as any).data ?? [];
+  if (subsData.length > 0) {
+    const uids = [...new Set(subsData.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
+    const { data: users } = await supabase.from('portal_users').select('id, full_name').in('id', uids);
+    const umap: Record<string, string> = {};
+    (users ?? []).forEach((u: any) => { umap[u.id] = u.full_name; });
+    subsData.forEach((s: any) => { s._name = umap[s.portal_user_id ?? s.user_id] ?? 'Student'; });
+  }
+
+  const cbtData: any[] = (cbtRes as any).data ?? [];
+  if (cbtData.length > 0) {
+    const uids = [...new Set(cbtData.map((s: any) => s.user_id).filter(Boolean))];
+    const { data: users } = await supabase.from('portal_users').select('id, full_name').in('id', uids);
+    const umap: Record<string, string> = {};
+    (users ?? []).forEach((u: any) => { umap[u.id] = u.full_name; });
+    cbtData.forEach((s: any) => { s._name = umap[s.user_id] ?? 'Student'; });
+  }
+
+  const activities: Activity[] = [];
+
+  subsData.forEach((s: any) => {
+    activities.push({
+      id: s.id,
+      title: `${s._name} submitted`,
+      desc: aTitleMap[s.assignment_id] ?? '—',
+      time: timeAgo(s.submitted_at),
+      icon: ClipboardDocumentListIcon,
+      color: s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400',
+    });
+  });
+
+  cbtData.forEach((s: any) => {
+    activities.push({
+      id: s.id,
+      title: `${s._name} exam`,
+      desc: s.cbt_exams?.title ?? '—',
+      time: timeAgo(s.end_time),
+      icon: AcademicCapIcon,
+      color: s.status === 'passed' ? 'bg-emerald-500/20 text-emerald-400' : s.status === 'pending_grading' ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400',
+    });
+  });
+
+  return activities.slice(0, 5);
 }
 
 async function loadStudentStats(supabase: ReturnType<typeof createClient>, userId: string) {
   const [enr, subs, graded] = await Promise.allSettled([
     supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-    supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('portal_user_id', userId),
+    supabase.from('assignment_submissions').select('id', { count: 'exact', head: true })
+      .or(`portal_user_id.eq.${userId},user_id.eq.${userId}`),
     supabase.from('assignment_submissions').select('grade, assignments(max_points)')
-      .eq('portal_user_id', userId).not('grade', 'is', null).limit(50),
+      .or(`portal_user_id.eq.${userId},user_id.eq.${userId}`).not('grade', 'is', null).limit(50),
   ]);
   const enrolled = enr.status === 'fulfilled' ? (enr.value.count ?? 0) : 0;
   const totalSubs = subs.status === 'fulfilled' ? (subs.value.count ?? 0) : 0;
@@ -160,45 +258,72 @@ async function loadSchoolStats(supabase: ReturnType<typeof createClient>, school
     studentQuery = studentQuery.eq('school_id', schoolId);
   }
 
+  // Use 2-step for submissions to avoid FK ambiguity
+  const subsQuery = supabase.from('assignment_submissions')
+    .select('id, grade, portal_user_id, user_id')
+    .not('grade', 'is', null)
+    .limit(200);
+
   const [students, teachers, graded] = await Promise.allSettled([
     studentQuery,
     supabase.from('teacher_schools').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
-    supabase.from('assignment_submissions')
-      .select('grade, portal_users!inner(school_id, school_name)')
-      .or(`portal_users.school_id.eq.${schoolId}${schoolName ? `,portal_users.school_name.eq."${schoolName}"` : ''}`)
-      .not('grade', 'is', null)
-      .limit(200),
+    subsQuery,
   ]);
+
   const totalStudents = students.status === 'fulfilled' ? (students.value.count ?? 0) : 0;
   const totalTeachers = teachers.status === 'fulfilled' ? (teachers.value.count ?? 0) : 0;
-  const grades = graded.status === 'fulfilled' ? (graded.value.data ?? []) : [];
-  const avg = grades.length > 0
-    ? Math.round(grades.reduce((s: number, g: any) => s + (Number(g.grade) || 0), 0) / grades.length)
+  
+  // Enrich submissions with user data and filter by school
+  let gradedData = graded.status === 'fulfilled' ? (graded.value.data ?? []) : [];
+  if (gradedData.length > 0) {
+    const uids = [...new Set(gradedData.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
+    const { data: users } = await supabase.from('portal_users').select('id, school_id, school_name').in('id', uids);
+    const umap: Record<string, any> = {};
+    (users ?? []).forEach((u: any) => { umap[u.id] = u; });
+    gradedData = gradedData
+      .map((s: any) => ({ ...s, _u: umap[s.portal_user_id ?? s.user_id] }))
+      .filter((s: any) => s._u?.school_id === schoolId || s._u?.school_name === schoolName);
+  }
+
+  const avg = gradedData.length > 0
+    ? Math.round(gradedData.reduce((s: number, g: any) => s + (Number(g.grade) || 0), 0) / gradedData.length)
     : 0;
 
   return [
     { label: 'Registered Students', value: totalStudents, icon: UserGroupIcon, gradient: 'from-blue-600 to-blue-400' },
     { label: 'Assigned Teachers', value: totalTeachers, icon: AcademicCapIcon, gradient: 'from-violet-600 to-violet-400' },
     { label: 'Student Perf. Avg', value: `${avg}%`, icon: ChartBarIcon, gradient: 'from-emerald-600 to-emerald-400' },
-    { label: 'Submissions Count', value: grades.length, icon: ClipboardDocumentListIcon, gradient: 'from-amber-600 to-amber-400' },
+    { label: 'Submissions Count', value: gradedData.length, icon: ClipboardDocumentListIcon, gradient: 'from-amber-600 to-amber-400' },
   ] as DashStats[];
 }
 
 async function loadSchoolActivity(supabase: ReturnType<typeof createClient>, schoolId: string, schoolName?: string | null): Promise<Activity[]> {
-  const { data } = await supabase
+  // 2-step: fetch submissions then enrich with user data
+  const { data: rawSubs } = await supabase
     .from('assignment_submissions')
-    .select('id, status, submitted_at, portal_users!inner(full_name, school_id, school_name), assignments(title)')
-    .or(`portal_users.school_id.eq.${schoolId}${schoolName ? `,portal_users.school_name.eq."${schoolName}"` : ''}`)
+    .select('id, status, submitted_at, portal_user_id, user_id, assignments(title)')
     .order('submitted_at', { ascending: false })
-    .limit(5);
-  return (data ?? []).map((s: any) => ({
-    id: s.id,
-    title: `${s.portal_users?.full_name ?? 'Student'} submitted`,
-    desc: s.assignments?.title ?? '—',
-    time: timeAgo(s.submitted_at),
-    icon: ClipboardDocumentListIcon,
-    color: 'bg-emerald-500/20 text-emerald-400',
-  }));
+    .limit(20);
+
+  if (!rawSubs || rawSubs.length === 0) return [];
+
+  const uids = [...new Set(rawSubs.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
+  const { data: users } = await supabase.from('portal_users').select('id, full_name, school_id, school_name').in('id', uids);
+  const umap: Record<string, any> = {};
+  (users ?? []).forEach((u: any) => { umap[u.id] = u; });
+
+  return rawSubs
+    .map((s: any) => ({ ...s, portal_users: umap[s.portal_user_id ?? s.user_id] ?? null }))
+    .filter((s: any) => s.portal_users?.school_id === schoolId || s.portal_users?.school_name === schoolName)
+    .slice(0, 5)
+    .map((s: any) => ({
+      id: s.id,
+      title: `${s.portal_users?.full_name ?? 'Student'} submitted`,
+      desc: s.assignments?.title ?? '—',
+      time: timeAgo(s.submitted_at),
+      icon: ClipboardDocumentListIcon,
+      color: 'bg-emerald-500/20 text-emerald-400',
+    }));
 }
 
 /* ── Quick actions by role ────────────────────────────── */

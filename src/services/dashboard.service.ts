@@ -50,7 +50,7 @@ export async function fetchStudentAssignments(portalUserId: string) {
         courses ( title, programs ( name ) )
       )
     `)
-        .eq('portal_user_id', portalUserId)
+        .or(`portal_user_id.eq.${portalUserId},user_id.eq.${portalUserId}`)
         .order('submitted_at', { ascending: false });
     if (error) throw error;
 
@@ -96,39 +96,65 @@ export async function fetchStudentAssignments(portalUserId: string) {
 
 // ── GRADES ────────────────────────────────────────────────────
 // All submissions for grading (teachers/admins)
-// All submissions for grading (teachers/admins)
 export async function fetchSubmissionsForGrading(opts: { teacherId?: string, schoolId?: string, schoolName?: string } = {}) {
-    let q = db()
+    const client = db();
+
+    // Step 1: Fetch submissions without portal_users join (avoids FK ambiguity)
+    const { data: rawSubs, error } = await client
         .from('assignment_submissions')
         .select(`
       id, grade, feedback, status, submitted_at, graded_at,
-      submission_text, file_url, portal_user_id,
+      submission_text, file_url, portal_user_id, user_id,
       assignments (
         id, title, max_points, due_date, created_by,
         courses ( title, teacher_id, programs ( name ) )
-      ),
-      portal_users!assignment_submissions_portal_user_id_fkey!inner ( id, full_name, email, school_id, school_name )
+      )
     `)
         .order('submitted_at', { ascending: false });
 
+    if (error) throw error;
+    if (!rawSubs || rawSubs.length === 0) return [];
+
+    // Step 2: Collect user IDs (prefer portal_user_id, fall back to user_id)
+    const userIds = [...new Set(
+        rawSubs.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean)
+    )];
+
+    // Step 3: Batch-fetch portal_users for those IDs
+    const { data: users } = await client
+        .from('portal_users')
+        .select('id, full_name, email, school_id, school_name')
+        .in('id', userIds);
+
+    const userMap: Record<string, any> = {};
+    (users ?? []).forEach((u: any) => { userMap[u.id] = u; });
+
+    // Step 4: Merge
+    let result = rawSubs.map((s: any) => ({
+        ...s,
+        portal_users: userMap[s.portal_user_id ?? s.user_id] ?? null,
+    }));
+
+    // Step 5: Filter by school
     if (opts.schoolId || opts.schoolName) {
-        let filter = '';
-        if (opts.schoolId) filter += `school_id.eq.${opts.schoolId}`;
-        if (opts.schoolName) filter += `${filter ? ',' : ''}school_name.eq."${opts.schoolName}"`;
-        q = (q as any).or(filter, { foreignTable: 'portal_users' });
+        result = result.filter((s: any) => {
+            const u = s.portal_users;
+            if (!u) return false;
+            const matchId = opts.schoolId && u.school_id === opts.schoolId;
+            const matchName = opts.schoolName && u.school_name === opts.schoolName;
+            return matchId || matchName;
+        });
     }
 
-    const { data, error } = await q;
-    if (error) throw error;
-
-    // If teacher, filter to their assignments
-    if (opts.teacherId && data) {
-        return data.filter((s: any) =>
+    // Step 6: Filter to teacher's own assignments
+    if (opts.teacherId) {
+        result = result.filter((s: any) =>
             s.assignments?.created_by === opts.teacherId ||
             s.assignments?.courses?.teacher_id === opts.teacherId
         );
     }
-    return data ?? [];
+
+    return result;
 }
 
 // Student's own grades
@@ -136,13 +162,14 @@ export async function fetchStudentGrades(portalUserId: string) {
     const { data, error } = await db()
         .from('assignment_submissions')
         .select(`
-      id, grade, feedback, status, submitted_at, graded_at, portal_user_id,
+      id, grade, feedback, status, submitted_at, graded_at, portal_user_id, user_id,
       assignments (
         id, title, max_points, due_date, assignment_type,
         courses ( title, programs ( name ) )
       )
     `)
-        .eq('portal_user_id', portalUserId)
+        // Match on either column — some older submissions use user_id, newer use portal_user_id
+        .or(`portal_user_id.eq.${portalUserId},user_id.eq.${portalUserId}`)
         .order('graded_at', { ascending: false });
     if (error) throw error;
     return data ?? [];
@@ -261,8 +288,9 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
     let teacherPortalQ = db().from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'teacher');
     let programPortalQ = db().from('programs').select('id', { count: 'exact', head: true }).eq('is_active', true);
 
-    // 3. Submissions (grades) for average progress
-    let subsQ = db().from('assignment_submissions').select('grade, portal_users!inner(school_id, school_name)').eq('status', 'graded');
+    // 3. Submissions (grades) for average progress — 2-step to avoid FK ambiguity
+    const subsQ = db().from('assignment_submissions')
+        .select('grade, portal_user_id, user_id').eq('status', 'graded').not('grade', 'is', null).limit(500);
 
     if (opts.schoolId || opts.schoolName) {
         let filter = '';
@@ -272,7 +300,7 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
         studAppsQ = (studAppsQ as any).or(filter);
         studentPortalQ = (studentPortalQ as any).or(filter);
         teacherPortalQ = (teacherPortalQ as any).or(filter);
-        subsQ = (subsQ as any).or(filter, { foreignTable: 'portal_users' });
+        // subsQ school filter is applied post-fetch below
     }
 
     const [apps, students, teachers, programs, subs] = await Promise.allSettled([
@@ -288,10 +316,21 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
     const teacherCount = teachers.status === 'fulfilled' ? (teachers.value.count ?? 0) : 0;
     const programCount = programs.status === 'fulfilled' ? (programs.value.count ?? 0) : 0;
 
-    const grades = subs.status === 'fulfilled'
-        ? (subs.value.data ?? []).map((s: any) => s.grade).filter((g: any) => g != null)
-        : [];
+    let subsData = subs.status === 'fulfilled' ? (subs.value.data ?? []) : [];
 
+    // Filter by school post-fetch
+    if ((opts.schoolId || opts.schoolName) && subsData.length > 0) {
+        const uids = [...new Set(subsData.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
+        const { data: users } = await db().from('portal_users').select('id, school_id, school_name').in('id', uids);
+        const umap: Record<string, any> = {};
+        (users ?? []).forEach((u: any) => { umap[u.id] = u; });
+        subsData = subsData.filter((s: any) => {
+            const u = umap[s.portal_user_id ?? s.user_id];
+            return u?.school_id === opts.schoolId || u?.school_name === opts.schoolName;
+        });
+    }
+
+    const grades = subsData.map((s: any) => s.grade).filter((g: any) => g != null);
     const avgProgress = grades.length
         ? Math.round(grades.reduce((a: number, b: number) => a + Number(b), 0) / grades.length)
         : 0;
@@ -398,7 +437,7 @@ export async function gradeSubmission(
     feedback: string,
     gradedBy: string,
 ) {
-    const { error } = await db()
+    const { data, error } = await db()
         .from('assignment_submissions')
         .update({
             grade,
@@ -407,8 +446,13 @@ export async function gradeSubmission(
             graded_by: gradedBy,
             graded_at: new Date().toISOString(),
         })
-        .eq('id', submissionId);
+        .eq('id', submissionId)
+        .select('id, grade, status');
     if (error) throw error;
+    if (!data || data.length === 0) {
+        throw new Error('Grade could not be saved — permission denied or submission not found. Please check your account role.');
+    }
+    return data[0];
 }
 
 // ── SUBMIT ASSIGNMENT ─────────────────────────────────────────

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
@@ -12,6 +12,8 @@ import {
 
 export default function ExamDetailPage() {
   const params = useParams() as { id?: string };
+  const searchParams = useSearchParams();
+  const classId = searchParams?.get('class_id');
   const { profile, loading: authLoading } = useAuth();
   const [exam, setExam] = useState<any>(null);
   const [questions, setQuestions] = useState<any[]>([]);
@@ -67,8 +69,8 @@ export default function ExamDetailPage() {
   return (
     <div className="min-h-screen bg-[#0f0f1a] text-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <Link href="/dashboard/cbt" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors">
-          <ArrowLeftIcon className="w-4 h-4" /> Back to CBT
+        <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/cbt`} className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors">
+          <ArrowLeftIcon className="w-4 h-4" /> {classId ? 'Back to Class' : 'Back to CBT'}
         </Link>
 
         {/* Exam header */}
@@ -142,7 +144,7 @@ export default function ExamDetailPage() {
                     <p className="font-semibold text-white text-sm">{s.portal_users?.full_name ?? 'Student'}</p>
                     <p className="text-xs text-white/30">{s.portal_users?.email}</p>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <div className="text-right">
                       <div className="flex items-center gap-2 mb-1">
                         {s.status === 'pending_grading' ? (
@@ -150,21 +152,29 @@ export default function ExamDetailPage() {
                             Pending Grading
                           </span>
                         ) : (
-                          <span className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest ${s.status === 'passed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
-                            {s.status === 'passed' ? 'Passed' : 'Failed'} — {s.score}%
+                          <span className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest ${
+                            s.status === 'passed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                            : s.status === 'failed' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                            : 'bg-white/5 border-white/10 text-white/30'
+                          }`}>
+                            {s.status === 'passed' ? `Passed` : s.status === 'failed' ? 'Failed' : s.status} {s.score != null ? `— ${s.score}%` : ''}
                           </span>
                         )}
                       </div>
                       {s.end_time && (
-                        <p className="text-[10px] text-white/30 truncate">Completed {new Date(s.end_time).toLocaleDateString()}</p>
+                        <p className="text-[10px] text-white/30 truncate">Submitted {new Date(s.end_time).toLocaleDateString()}</p>
                       )}
                     </div>
-                    {s.status === 'pending_grading' && (
-                      <Link href={`/dashboard/cbt/${exam.id}/sessions/${s.id}/grade`}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all">
-                        <ChartBarIcon className="w-3.5 h-3.5" /> Grade
-                      </Link>
-                    )}
+                    {/* Always show Grade/Review button for staff */}
+                    <Link href={`/dashboard/cbt/${exam.id}/sessions/${s.id}/grade`}
+                      className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all ${
+                        s.status === 'pending_grading'
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30'
+                          : 'bg-white/10 hover:bg-white/20 text-white/60'
+                      }`}>
+                      <ChartBarIcon className="w-3.5 h-3.5" />
+                      {s.status === 'pending_grading' ? 'Grade' : 'Review'}
+                    </Link>
                   </div>
                 </div>
               ))}

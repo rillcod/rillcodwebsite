@@ -132,49 +132,73 @@ export default function TakeExamPage() {
   );
 
   if (submitted && result) {
-    const isPending = result.correct === -1; // Flag from handleSubmit
+    const isPending = result.correct === -1;
 
     return (
-      <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center text-white p-4">
-        <div className="max-w-md w-full text-center space-y-6">
-          <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center border-4 ${isPending ? 'border-amber-500 bg-amber-500/10' : (result.passed ? 'border-emerald-500 bg-emerald-500/10' : 'border-rose-500 bg-rose-500/10')}`}>
-            {isPending ? <ClockIcon className="w-12 h-12 text-amber-400" /> : (result.passed ? <CheckCircleIcon className="w-12 h-12 text-emerald-400" /> : <XCircleIcon className="w-12 h-12 text-rose-400" />)}
-          </div>
-          <div>
-            <h1 className={`text-4xl font-extrabold ${isPending ? 'text-amber-400' : (result.passed ? 'text-emerald-400' : 'text-rose-400')}`}>
-              {isPending ? 'Submitted!' : (result.passed ? 'Passed!' : 'Not Passed')}
-            </h1>
-            <p className="text-white/40 mt-2">{exam?.title}</p>
-          </div>
-          {isPending ? (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <p className="text-sm text-white/70 leading-relaxed">
-                Your exam contains questions that require manual evaluation by your instructor (Essays/Fill-in-the-blanks).
-              </p>
-              <p className="text-xs text-white/40 mt-3 font-medium uppercase tracking-widest">
-                Final score will be updated soon.
-              </p>
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center text-white p-6 relative overflow-hidden">
+        {/* Animated Background Accents */}
+        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[120px] rounded-full animate-pulse delay-700" />
+
+        <div className="max-w-xl w-full relative z-10">
+          <div className="bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-12 shadow-2xl space-y-8 text-center">
+            <div className={`w-32 h-32 mx-auto rounded-[2rem] flex items-center justify-center border-2 rotate-3 transition-transform hover:rotate-0 duration-500 ${isPending ? 'border-amber-500/50 bg-amber-500/10' : (result.passed ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-rose-500/50 bg-rose-500/10')}`}>
+              {isPending ? <ClockIcon className="w-16 h-16 text-amber-400" /> : (result.passed ? <CheckCircleIcon className="w-16 h-16 text-emerald-400" /> : <XCircleIcon className="w-16 h-16 text-rose-400" />)}
             </div>
-          ) : (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-white/40">Your Score</span>
-                <span className="font-bold text-2xl">{result.score}%</span>
-              </div>
-              <div className="w-full h-3 bg-white/10 rounded-full">
-                <div className={`h-3 rounded-full ${result.passed ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                  style={{ width: `${Math.min(result.score, 100)}%` }} />
-              </div>
-              <div className="flex justify-between text-xs text-white/30">
-                <span>{result.correct}/{questions.length} correct</span>
-                <span>{exam?.passing_score ?? 70}% required to pass</span>
-              </div>
+            
+            <div className="space-y-2">
+              <h1 className={`text-5xl font-black italic tracking-tighter ${isPending ? 'text-amber-400' : (result.passed ? 'text-emerald-400' : 'text-rose-400')}`}>
+                {isPending ? 'SUBMITTED' : (result.passed ? 'EXCELLENT' : 'COMPLETE')}
+              </h1>
+              <p className="text-white/40 font-medium tracking-widest uppercase text-xs">{exam?.title}</p>
             </div>
-          )}
-          <button onClick={() => router.push('/dashboard/cbt')}
-            className="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-colors">
-            Back to CBT Centre
-          </button>
+
+            {isPending ? (
+              <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-4">
+                <p className="text-lg text-white/80 font-medium leading-relaxed">
+                  Your performance review is in progress.
+                </p>
+                <div className="flex flex-col gap-2">
+                    <span className="px-4 py-2 rounded-xl bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 w-fit mx-auto">
+                        Awaiting Manual Evaluation
+                    </span>
+                    <p className="text-sm text-white/30 italic">
+                        Essays & Subjective answers are being reviewed by your instructor.
+                    </p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-6">
+                <div className="space-y-2">
+                   <div className="flex justify-between items-end">
+                     <span className="text-white/40 text-xs font-black uppercase tracking-widest">Final Grade</span>
+                     <span className={`text-4xl font-black ${result.passed ? 'text-emerald-400' : 'text-rose-400'}`}>{result.score}%</span>
+                   </div>
+                   <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5">
+                     <div className={`h-full rounded-full transition-all duration-1000 ease-out ${result.passed ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-rose-600 to-rose-400'}`}
+                       style={{ width: `${Math.min(result.score, 100)}%` }} />
+                   </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                        <p className="text-[10px] text-white/30 font-black uppercase mb-1">Accuracy</p>
+                        <p className="text-xl font-bold">{result.correct} / {questions.length}</p>
+                    </div>
+                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                        <p className="text-[10px] text-white/30 font-black uppercase mb-1">Requirement</p>
+                        <p className="text-xl font-bold text-white/50">{exam?.passing_score ?? 70}%</p>
+                    </div>
+                </div>
+              </div>
+            )}
+
+            <button onClick={() => router.push('/dashboard/cbt')}
+              className="group relative w-full py-4 bg-gradient-to-r from-white/10 to-white/5 hover:from-white/20 hover:to-white/10 border border-white/10 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all overflow-hidden">
+              <span className="relative z-10">Return to Command Center</span>
+              <div className="absolute inset-0 bg-white/5 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500" />
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -185,117 +209,146 @@ export default function TakeExamPage() {
   const answered = Object.keys(answers).length;
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white flex flex-col">
-      {/* Sticky header */}
-      <div className="sticky top-0 z-10 bg-[#0f0f1a]/90 backdrop-blur border-b border-white/10 px-4 py-3">
-        <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex-1">
-            <p className="text-xs text-white/40 truncate">{exam?.title}</p>
-            <div className="flex items-center gap-2 mt-1">
-              <div className="flex-1 h-1.5 bg-white/10 rounded-full max-w-48">
-                <div className="h-1.5 bg-emerald-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
+    <div className="min-h-screen bg-[#050505] text-white flex flex-col font-sans selection:bg-emerald-500/30">
+      {/* Cinematic Header */}
+      <div className="sticky top-0 z-50 bg-[#050505]/60 backdrop-blur-2xl border-b border-white/5 px-6 py-4">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-8">
+          <div className="flex-1 flex items-center gap-6">
+            <div className="flex-shrink-0">
+               <div className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-1">Live Examination</div>
+               <h2 className="text-sm font-bold text-white/80 truncate max-w-[200px] sm:max-w-md">{exam?.title}</h2>
+            </div>
+            <div className="hidden sm:flex flex-1 items-center gap-3">
+              <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden max-w-[120px]">
+                <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }} />
               </div>
-              <span className="text-xs text-white/40">{current + 1}/{questions.length}</span>
+              <span className="text-[10px] font-black text-white/20 tracking-tighter uppercase">{current + 1} of {questions.length}</span>
             </div>
           </div>
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold ${timeLeft < 120 ? 'bg-rose-500/20 text-rose-400 animate-pulse' : 'bg-white/5 text-white/60'}`}>
-            <ClockIcon className="w-4 h-4" />
-            {formatTime(timeLeft)}
+          
+          <div className={`flex items-center gap-3 px-5 py-2.5 rounded-2xl border transition-all duration-500 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 animate-pulse' : 'bg-white/3 border-white/10 text-white/60'}`}>
+            <ClockIcon className={`w-4 h-4 ${timeLeft < 120 ? 'text-rose-500' : 'text-emerald-500/50'}`} />
+            <span className="text-lg font-black tracking-widest leading-none">{formatTime(timeLeft)}</span>
           </div>
         </div>
       </div>
 
-      {/* Question */}
-      <div className="flex-1 max-w-3xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6">
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
-          <div className="flex items-start gap-3">
-            <span className="w-7 h-7 bg-emerald-500/20 border border-emerald-500/30 rounded-lg flex items-center justify-center text-xs font-bold text-emerald-400 flex-shrink-0 mt-0.5">
-              {current + 1}
-            </span>
-            <p className="text-white font-medium leading-relaxed">{q?.question_text}</p>
+      {/* Main Examination Canvas */}
+      <div className="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+        {/* Subtle Ambient Glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-emerald-500/[0.02] blur-[150px] rounded-full pointer-events-none" />
+
+        <div className="max-w-4xl w-full space-y-8 relative z-10 py-12">
+          <div className="space-y-8 min-h-[400px]">
+            <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 tracking-widest uppercase">Question {current + 1}</span>
+                    <span className="text-[10px] text-white/20 font-bold uppercase tracking-widest">{q?.points} Points</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-br from-white to-white/60 bg-clip-text text-transparent leading-tight">
+                    {q?.question_text}
+                </h1>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 pt-4">
+              {q?.question_type === 'multiple_choice' && Array.isArray(q.options) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {q.options.filter((o: string) => o.trim()).map((opt: string, oi: number) => (
+                    <button key={oi} type="button"
+                      onClick={() => setAnswers(a => ({ ...a, [q.id]: opt }))}
+                      className={`group relative flex items-center gap-5 p-5 rounded-[1.5rem] border-2 transition-all duration-300 ${answers[q.id] === opt
+                        ? 'bg-emerald-500/10 border-emerald-500/50 scale-[1.02]'
+                        : 'bg-white/3 border-white/5 hover:bg-white/5 hover:border-white/10'
+                        }`}>
+                      <div className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center text-xs font-black transition-all ${answers[q.id] === opt ? 'bg-emerald-500 border-emerald-500 text-white rotate-6' : 'bg-white/5 border-white/10 text-white/20'}`}>
+                        {String.fromCharCode(65 + oi)}
+                      </div>
+                      <span className={`text-base font-medium transition-colors ${answers[q.id] === opt ? 'text-white' : 'text-white/60 group-hover:text-white/80'}`}>
+                        {opt}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {q?.question_type === 'true_false' && (
+                <div className="grid grid-cols-2 gap-6">
+                  {['True', 'False'].map(val => (
+                    <button key={val} type="button"
+                      onClick={() => setAnswers(a => ({ ...a, [q.id]: val }))}
+                      className={`h-32 rounded-[2rem] border-2 flex flex-col items-center justify-center gap-3 transition-all duration-300 ${answers[q.id] === val
+                        ? 'bg-emerald-500/10 border-emerald-500/50 scale-[1.05]'
+                        : 'bg-white/3 border-white/5 hover:bg-white/5'
+                        }`}>
+                      <div className={`w-3 h-3 rounded-full transition-all ${answers[q.id] === val ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-white/10'}`} />
+                      <span className={`text-xl font-black italic tracking-tighter uppercase transition-all ${answers[q.id] === val ? 'text-emerald-400' : 'text-white/20'}`}>
+                        {val}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {(q?.question_type === 'fill_blank' || q?.question_type === 'essay') && (
+                <div className="relative group">
+                  <div className="absolute inset-0 bg-emerald-500/5 blur-2xl rounded-[2rem] opacity-0 group-focus-within:opacity-100 transition-opacity" />
+                  <textarea
+                    rows={q.question_type === 'essay' ? 8 : 3}
+                    value={answers[q?.id] ?? ''}
+                    onChange={e => setAnswers(a => ({ ...a, [q.id]: e.target.value }))}
+                    placeholder={q.question_type === 'essay' ? 'Compose your comprehensive response here…' : 'Provide the specific answer…'}
+                    className="relative w-full px-8 py-6 bg-white/3 border-2 border-white/5 rounded-[2rem] text-lg text-white placeholder-white/10 focus:outline-none focus:border-emerald-500/50 focus:bg-white/[0.05] transition-all resize-none shadow-2xl"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
-          {q?.question_type === 'multiple_choice' && Array.isArray(q.options) && (
-            <div className="space-y-2 pl-10">
-              {q.options.filter((o: string) => o.trim()).map((opt: string, oi: number) => (
-                <button key={oi} type="button"
-                  onClick={() => setAnswers(a => ({ ...a, [q.id]: opt }))}
-                  className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${answers[q.id] === opt
-                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
-                    : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/70'
-                    }`}>
-                  <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold flex-shrink-0 ${answers[q.id] === opt ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/30'}`}>
-                    {String.fromCharCode(65 + oi)}
-                  </span>
-                  {opt}
-                </button>
-              ))}
+          {/* Navigation Controls */}
+          <div className="flex items-center justify-between pt-12 border-t border-white/5">
+            <button onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}
+              className="group flex items-center gap-3 px-6 py-3 text-sm font-bold text-white/40 hover:text-white transition-all disabled:opacity-0">
+              <ChevronLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /> 
+              <span className="uppercase tracking-widest italic">Previous</span>
+            </button>
+
+            <div className="flex-1 flex justify-center">
+                <div className="bg-white/5 border border-white/10 rounded-full px-4 py-2 flex items-center gap-4">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{answered} Submitted</span>
+                    <div className="w-1 h-1 bg-white/10 rounded-full" />
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{questions.length - answered} Remaining</span>
+                </div>
             </div>
-          )}
 
-          {q?.question_type === 'true_false' && (
-            <div className="flex gap-3 pl-10">
-              {['True', 'False'].map(val => (
-                <button key={val} type="button"
-                  onClick={() => setAnswers(a => ({ ...a, [q.id]: val }))}
-                  className={`flex-1 py-3 font-bold rounded-xl border transition-all ${answers[q.id] === val
-                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
-                    : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/70'
-                    }`}>
-                  {val}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {(q?.question_type === 'fill_blank' || q?.question_type === 'essay') && (
-            <div className="pl-10">
-              <textarea
-                rows={q.question_type === 'essay' ? 5 : 2}
-                value={answers[q?.id] ?? ''}
-                onChange={e => setAnswers(a => ({ ...a, [q.id]: e.target.value }))}
-                placeholder={q.question_type === 'essay' ? 'Write your answer…' : 'Fill in the blank…'}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500 transition-colors resize-none"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Navigation */}
-        <div className="flex items-center justify-between">
-          <button onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}
-            className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-white/50 bg-white/5 hover:bg-white/10 rounded-xl transition-colors disabled:opacity-30">
-            <ChevronLeftIcon className="w-4 h-4" /> Previous
-          </button>
-
-          <div className="flex items-center gap-1 text-xs text-white/30">
-            <span>{answered}/{questions.length} answered</span>
+            {current < questions.length - 1 ? (
+              <button onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))}
+                className="group flex items-center gap-3 px-6 py-3 text-sm font-bold text-white/80 hover:text-white transition-all">
+                <span className="uppercase tracking-widest italic">Proceed</span>
+                <ChevronRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+            ) : (
+              <button onClick={() => handleSubmit(false)} disabled={submitting}
+                className="relative group overflow-hidden px-10 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-[0.2em] italic text-xs rounded-2xl transition-all shadow-xl shadow-emerald-900/40 disabled:opacity-50">
+                <span className="relative z-10">{submitting ? 'Finalizing…' : 'Complete Exam'}</span>
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+              </button>
+            )}
           </div>
-
-          {current < questions.length - 1 ? (
-            <button onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))}
-              className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-white/70 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
-              Next <ChevronRightIcon className="w-4 h-4" />
-            </button>
-          ) : (
-            <button onClick={() => handleSubmit(false)} disabled={submitting}
-              className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-colors disabled:opacity-50">
-              {submitting ? 'Submitting…' : 'Submit Exam'}
-            </button>
-          )}
         </div>
+      </div>
 
-        {/* Question map */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-          <p className="text-xs text-white/40 uppercase tracking-widest mb-3">Question Map</p>
-          <div className="flex flex-wrap gap-2">
+      {/* Persistent Question Grid Footer */}
+      <div className="bg-[#050505]/80 backdrop-blur-xl border-t border-white/5 p-6">
+        <div className="max-w-5xl mx-auto flex items-center gap-6 overflow-x-auto pb-2 no-scrollbar">
+          <span className="text-[10px] font-black text-white/20 uppercase tracking-widest flex-shrink-0">Jump To</span>
+          <div className="flex gap-2">
             {questions.map((_, i) => (
               <button key={i} onClick={() => setCurrent(i)}
-                className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${i === current
-                  ? 'bg-emerald-500 text-white'
+                className={`w-10 h-10 rounded-xl text-xs font-black transition-all duration-300 flex-shrink-0 ${i === current
+                  ? 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-110'
                   : answers[questions[i]?.id]
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-white/5 text-white/40 hover:bg-white/10'
+                    : 'bg-white/3 text-white/20 border border-white/5 hover:border-white/20'
                   }`}>
                 {i + 1}
               </button>

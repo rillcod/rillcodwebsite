@@ -93,24 +93,49 @@ function TeacherPersonalDashboard() {
     async function loadStats() {
       setLoading(true);
       try {
-        const [classesRes, pendingRes, studentsRes, gradesRes, recentSubsRes, recentStudentsRes] = await Promise.allSettled([
+        // Step 1: get teacher's own assignment IDs
+        const { data: myAsgns } = await supabase.from('assignments').select('id, title').eq('created_by', profile!.id);
+        const aIds = (myAsgns ?? []).map((a: any) => a.id);
+        const aTitleMap: Record<string, string> = {};
+        (myAsgns ?? []).forEach((a: any) => { aTitleMap[a.id] = a.title; });
+
+        const [classesRes, pendingRes, studentsRes, gradesRes, recentStudentsRes] = await Promise.allSettled([
           supabase.from('classes').select('id, name, max_students, current_students, schedule, status', { count: 'exact' }).eq('teacher_id', profile!.id),
-          supabase.from('assignment_submissions').select('id, assignments!inner(created_by)', { count: 'exact' }).eq('status', 'submitted').eq('assignments.created_by', profile!.id),
+          aIds.length > 0
+            ? supabase.from('assignment_submissions').select('id', { count: 'exact' }).eq('status', 'submitted').in('assignment_id', aIds)
+            : Promise.resolve({ count: 0, data: [] }),
           supabase.from('classes').select('current_students').eq('teacher_id', profile!.id),
-          supabase.from('assignment_submissions').select('grade, assignments!inner(created_by)').eq('assignments.created_by', profile!.id).eq('status', 'graded'),
-          supabase.from('assignment_submissions')
-            .select('id, status, submitted_at, portal_users!assignment_submissions_portal_user_id_fkey(full_name), assignments!inner(title, created_by)')
-            .eq('assignments.created_by', profile!.id)
-            .order('submitted_at', { ascending: false })
-            .limit(5),
+          aIds.length > 0
+            ? supabase.from('assignment_submissions').select('grade').eq('status', 'graded').in('assignment_id', aIds)
+            : Promise.resolve({ data: [] }),
           supabase.from('students').select('*').eq('created_by', profile!.id).order('created_at', { ascending: false }).limit(5),
         ]);
+
+        // Recent activity: fetch submissions + enrich with user names
+        let recentSubs: any[] = [];
+        if (aIds.length > 0) {
+          const { data: rawSubs } = await supabase.from('assignment_submissions')
+            .select('id, status, submitted_at, assignment_id, portal_user_id, user_id')
+            .in('assignment_id', aIds)
+            .order('submitted_at', { ascending: false })
+            .limit(5);
+          if (rawSubs && rawSubs.length > 0) {
+            const uids = [...new Set(rawSubs.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
+            const { data: uData } = await supabase.from('portal_users').select('id, full_name').in('id', uids);
+            const umap: Record<string, string> = {};
+            (uData ?? []).forEach((u: any) => { umap[u.id] = u.full_name; });
+            recentSubs = rawSubs.map((s: any) => ({
+              ...s,
+              portal_users: { full_name: umap[s.portal_user_id ?? s.user_id] ?? 'Student' },
+              assignments: { title: aTitleMap[s.assignment_id] ?? '—' },
+            }));
+          }
+        }
 
         const classRows = classesRes.status === 'fulfilled' ? (classesRes.value.data ?? []) : [];
         const pendingCnt = pendingRes.status === 'fulfilled' ? (pendingRes.value.count ?? 0) : 0;
         const studentRows = studentsRes.status === 'fulfilled' ? (studentsRes.value.data ?? []) : [];
         const gradeRows = gradesRes.status === 'fulfilled' ? (gradesRes.value.data ?? []) : [];
-        const recentSubs = recentSubsRes.status === 'fulfilled' ? (recentSubsRes.value.data ?? []) : [];
         const registeredStudents = recentStudentsRes.status === 'fulfilled' ? (recentStudentsRes.value.data ?? []) : [];
 
         const totalStudents = studentRows.reduce((s: number, c: any) => s + (c.current_students ?? 0), 0);
@@ -515,7 +540,7 @@ function AdminTeacherView() {
 
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? 'Failed to create teacher account');
-        newTeacherId = json.data?.id;
+        newTeacherId = json.user_id;
 
         setCredentials({
           email: inviteForm.email,

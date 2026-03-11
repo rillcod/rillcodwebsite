@@ -10,8 +10,9 @@ import {
   ClockIcon, PencilIcon, CheckCircleIcon, AcademicCapIcon,
   ClipboardDocumentCheckIcon, PlusIcon, ExclamationTriangleIcon,
   ClipboardDocumentListIcon, ArrowRightIcon as ArrowRightOutline,
-  ChevronDownIcon, ArrowPathIcon, TrashIcon
+  ChevronDownIcon, ArrowPathIcon, TrashIcon, ChartBarIcon, BoltIcon
 } from '@heroicons/react/24/outline';
+
 
 export default function ClassDetailPage() {
   const params = useParams();
@@ -25,8 +26,8 @@ export default function ClassDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'lessons' | 'assignments' | 'cbt'>('overview');
-  const [items, setItems] = useState<{ lessons: any[], assignments: any[], cbt: any[] }>({ lessons: [], assignments: [], cbt: [] });
+  const [activeTab, setActiveTab] = useState<'overview' | 'lessons' | 'assignments' | 'cbt' | 'gradebook'>('overview');
+  const [items, setItems] = useState<{ lessons: any[], assignments: any[], cbt: any[], submissions: any[], cbtSessions: any[] }>({ lessons: [], assignments: [], cbt: [], submissions: [], cbtSessions: [] });
 
   // Student Management State
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -59,11 +60,43 @@ export default function ClassDetailPage() {
           .neq('portal_users.is_deleted', true),
         supabase.from('lessons').select('id, title, lesson_type, status, courses!inner(program_id)').eq('courses.program_id', program_id!),
         supabase.from('assignments').select('id, title, assignment_type, due_date, course_id, courses!inner(program_id)').eq('courses.program_id', program_id!),
-        supabase.from('cbt_exams').select('id, title, duration_minutes, total_points, is_active').eq('program_id', program_id!)
+        supabase.from('cbt_exams').select('id, title, duration_minutes, total_questions, is_active').eq('program_id', program_id!)
       ]);
 
+      const assignments = asgnRes.data ?? [];
+      const assignmentIds = assignments.map(a => a.id);
+      const cbtExams = cbtRes.data ?? [];
+      const cbtIds = cbtExams.map(e => e.id);
+
+      let submissions: any[] = [];
+      let cbtSessions: any[] = [];
+      
+      const subQueries: any[] = [];
+      if (assignmentIds.length > 0) {
+        subQueries.push(supabase.from('assignment_submissions').select('id, assignment_id, portal_user_id, grade, status').in('assignment_id', assignmentIds));
+      }
+      if (cbtIds.length > 0) {
+        subQueries.push(supabase.from('cbt_sessions').select('id, exam_id, user_id, score, status').in('exam_id', cbtIds));
+      }
+
+      const subResults = await Promise.all(subQueries);
+      let resIdx = 0;
+      if (assignmentIds.length > 0) {
+        submissions = subResults[resIdx]?.data ?? [];
+        resIdx++;
+      }
+      if (cbtIds.length > 0) {
+        cbtSessions = subResults[resIdx]?.data ?? [];
+      }
+
       setEnrollments(enrRes.data ?? []);
-      setItems({ lessons: lessonRes.data ?? [], assignments: asgnRes.data ?? [], cbt: cbtRes.data ?? [] });
+      setItems({
+        lessons: lessonRes.data ?? [],
+        assignments: assignments,
+        cbt: cbtExams,
+        submissions,
+        cbtSessions
+      });
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -172,14 +205,14 @@ export default function ClassDetailPage() {
           )}
         </div>
 
-        {/* ── Tabs ──────────────────────────────────────────── */}
         <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl w-fit">
           {[
             { id: 'overview', label: 'Overview', icon: UserGroupIcon },
             { id: 'lessons', label: 'Curriculum', icon: BookOpenIcon },
-            { id: 'assignments', label: 'Tasks', icon: ClipboardDocumentCheckIcon },
+            { id: 'assignments', label: 'Tasks', icon: ClipboardDocumentListIcon },
             { id: 'cbt', label: 'CBT / Quizzes', icon: AcademicCapIcon },
-          ].map(tab => (
+            { id: 'gradebook', label: 'Gradebook', icon: ChartBarIcon, staffOnly: true },
+          ].filter(tab => !tab.staffOnly || isStaff).map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
@@ -306,7 +339,7 @@ export default function ClassDetailPage() {
                         <h4 className="font-bold text-white group-hover:text-cyan-400 transition-colors line-clamp-1">{l.title}</h4>
                         <p className="text-[10px] text-white/30 uppercase mt-1">Status: {l.status}</p>
                         <div className="mt-4 flex gap-2">
-                          <Link href={`/dashboard/lessons/${l.id}`} onClick={e => e.stopPropagation()} className="text-[9px] font-black text-white/40 hover:text-white uppercase tracking-widest">Preview Page →</Link>
+                          <Link href={`/dashboard/lessons/${l.id}?class_id=${id}`} onClick={e => e.stopPropagation()} className="text-[9px] font-black text-white/40 hover:text-white uppercase tracking-widest">Preview Page →</Link>
                         </div>
                       </div>
                     ))}
@@ -340,7 +373,7 @@ export default function ClassDetailPage() {
                           <p className="text-[10px] text-white/30 uppercase">{a.assignment_type} · {a.due_date ? `Due: ${new Date(a.due_date).toLocaleDateString()}` : 'No due date'}</p>
                         </div>
                         <div className="flex gap-2">
-                          <Link href={`/dashboard/assignments/${a.id}`} onClick={e => e.stopPropagation()} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black border border-white/10 transition-all uppercase tracking-widest">
+                          <Link href={`/dashboard/assignments/${a.id}?class_id=${id}`} onClick={e => e.stopPropagation()} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black border border-white/10 transition-all uppercase tracking-widest">
                             Manage Page
                           </Link>
                         </div>
@@ -374,15 +407,121 @@ export default function ClassDetailPage() {
                           </div>
                           <div>
                             <h4 className="font-black text-white">{e.title}</h4>
-                            <p className="text-[10px] text-white/30 uppercase tracking-widest">{e.duration_minutes}m · {e.total_points} Points · {e.is_active ? 'Active' : 'Draft'}</p>
+                            <p className="text-[10px] text-white/30 uppercase tracking-widest">{e.duration_minutes}m · {e.total_questions} Questions · {e.is_active ? 'Active' : 'Draft'}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
-                          <Link href={`/dashboard/cbt/${e.id}`} onClick={e => e.stopPropagation()} className="text-[9px] font-black text-white/20 hover:text-white uppercase tracking-widest">Full View</Link>
+                          <Link href={`/dashboard/cbt/${e.id}?class_id=${id}`} onClick={e => e.stopPropagation()} className="text-[9px] font-black text-white/20 hover:text-white uppercase tracking-widest">Full View</Link>
                           <ArrowRightIcon className="w-5 h-5 text-white/20 group-hover:text-violet-400 transition-colors mr-2" />
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'gradebook' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-white/40">Class Gradebook</h3>
+                  <button onClick={() => router.push('/dashboard/grades')} className="text-[10px] font-black text-blue-400 hover:underline uppercase tracking-widest">
+                    Full Grading Center →
+                  </button>
+                </div>
+                {items.assignments.length === 0 ? (
+                  <div className="bg-white/5 border border-white/10 border-dashed rounded-3xl p-12 text-center text-white/20">
+                    <ChartBarIcon className="w-10 h-10 mx-auto mb-4 opacity-10" />
+                    <p>No assignments to track for this class.</p>
+                  </div>
+                ) : (
+                  <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[600px]">
+                      <thead>
+                        <tr className="border-b border-white/10 bg-white/3">
+                          <th className="px-6 py-4 text-[10px] font-black text-white/30 uppercase tracking-widest">Student</th>
+                          {items.assignments.map(a => (
+                            <th key={a.id} className="px-4 py-4 text-[10px] font-black text-white/30 uppercase tracking-widest text-center min-w-[120px] bg-amber-500/5">
+                              <div className="line-clamp-1" title={a.title}>{a.title}</div>
+                              <div className="text-[8px] opacity-40 lowercase font-normal">Assignment · {a.max_points}pts</div>
+                            </th>
+                          ))}
+                          {items.cbt.map(c => (
+                            <th key={c.id} className="px-4 py-4 text-[10px] font-black text-white/30 uppercase tracking-widest text-center min-w-[120px] bg-violet-600/5">
+                              <div className="line-clamp-1" title={c.title}>{c.title}</div>
+                              <div className="text-[8px] opacity-40 lowercase font-normal">CBT · {c.total_questions} Qs</div>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5 font-medium text-xs">
+                        {enrollments.map(enr => (
+                          <tr key={enr.id} className="hover:bg-white/2 transition-colors group">
+                            <td className="px-6 py-5 sticky left-0 bg-[#0f0f1a] z-10 border-r border-white/5 group-hover:bg-[#151525] transition-colors">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border border-blue-500/20 flex items-center justify-center text-[10px] font-black text-blue-400">
+                                  {(enr.portal_users?.full_name ?? '?')[0]}
+                                </div>
+                                <div>
+                                  <p className="text-white font-bold whitespace-nowrap">{enr.portal_users?.full_name}</p>
+                                  <p className="text-[9px] text-white/30 truncate max-w-[120px]">{enr.portal_users?.email}</p>
+                                </div>
+                              </div>
+                            </td>
+                            {items.assignments.map(a => {
+                              const sub = items.submissions.find(s => s.assignment_id === a.id && s.portal_user_id === enr.portal_users.id);
+                              const score = sub?.grade;
+                              const percentage = a.max_points > 0 ? (score ?? 0) / a.max_points : 0;
+                              return (
+                                <td key={a.id} className="px-4 py-5 text-center border-l border-white/5 bg-amber-500/[0.02] group-hover:bg-amber-500/[0.05] transition-all">
+                                  {sub ? (
+                                    score !== null ? (
+                                      <div className="space-y-1">
+                                         <span className={`text-sm font-black ${percentage >= 0.7 ? 'text-emerald-400' : percentage >= 0.5 ? 'text-amber-400' : 'text-rose-400'}`}>
+                                          {score}
+                                        </span>
+                                        <div className="w-full h-0.5 bg-white/5 rounded-full overflow-hidden max-w-[40px] mx-auto">
+                                          <div className={`h-full ${percentage >= 0.7 ? 'bg-emerald-500' : percentage >= 0.5 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <span className="text-[9px] font-black text-blue-400/60 uppercase tracking-widest bg-blue-500/10 px-2 py-1 rounded-md">Pending</span>
+                                    )
+                                  ) : (
+                                    <span className="text-[9px] text-white/5 font-bold uppercase tracking-widest">—</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            {items.cbt.map(c => {
+                              const sess = items.cbtSessions.find(s => s.exam_id === c.id && s.user_id === enr.portal_users.id);
+                              const score = sess?.score;
+                              const percentage = c.total_questions > 0 ? (score ?? 0) / c.total_questions : 0;
+                              return (
+                                <td key={c.id} className="px-4 py-5 text-center border-l border-white/5 bg-violet-600/[0.02] group-hover:bg-violet-600/[0.05] transition-all">
+                                  {sess ? (
+                                    score !== null ? (
+                                      <div className="space-y-1">
+                                        <span className={`text-sm font-black ${percentage >= 0.7 ? 'text-emerald-400' : percentage >= 0.5 ? 'text-amber-400' : 'text-rose-400'}`}>
+                                          {score}
+                                        </span>
+                                        <div className="w-full h-0.5 bg-white/5 rounded-full overflow-hidden max-w-[40px] mx-auto">
+                                          <div className={`h-full ${percentage >= 0.7 ? 'bg-emerald-500' : percentage >= 0.5 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <span className="text-[9px] font-black text-cyan-400/60 uppercase tracking-widest bg-cyan-500/10 px-2 py-1 rounded-md">Active</span>
+                                    )
+                                  ) : (
+                                    <span className="text-[9px] text-white/5 font-bold uppercase tracking-widest">—</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
@@ -394,32 +533,41 @@ export default function ClassDetailPage() {
           <div className="space-y-6">
 
             {/* Quick Actions */}
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-6 space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-white/40">Teacher Toolkit</h3>
-              <div className="grid grid-cols-1 gap-2">
-                <button onClick={() => router.push(`/dashboard/attendance?class_id=${id}`)} className="flex items-center gap-3 w-full p-4 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-600/20 rounded-2xl text-left transition-all group">
-                  <div className="w-10 h-10 rounded-xl bg-blue-600/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform"><CheckCircleIcon className="w-5 h-5" /></div>
-                  <div>
-                    <p className="text-xs font-black text-white uppercase tracking-tighter">Roll Call</p>
-                    <p className="text-[10px] text-white/40">Mark attendance now</p>
-                  </div>
-                </button>
-                <button onClick={() => setActiveTab('assignments')} className="flex items-center gap-3 w-full p-4 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-2xl text-left transition-all group">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><ClipboardDocumentListIcon className="w-5 h-5" /></div>
-                  <div>
-                    <p className="text-xs font-black text-white uppercase tracking-tighter">New Task</p>
-                    <p className="text-[10px] text-white/40">Assign to this class</p>
-                  </div>
-                </button>
-                <button onClick={() => setActiveTab('cbt')} className="flex items-center gap-3 w-full p-4 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-600/20 rounded-2xl text-left transition-all group">
-                  <div className="w-10 h-10 rounded-xl bg-violet-600/20 flex items-center justify-center text-violet-400 group-hover:scale-110 transition-transform"><AcademicCapIcon className="w-5 h-5" /></div>
-                  <div>
-                    <p className="text-xs font-black text-white uppercase tracking-tighter">CBT Exam</p>
-                    <p className="text-[10px] text-white/40">Launch online test</p>
-                  </div>
-                </button>
+            {isStaff && (
+              <div className="bg-white/5 border border-white/10 rounded-3xl p-6 space-y-4">
+                <h3 className="text-xs font-black uppercase tracking-widest text-white/40">Teacher Toolkit</h3>
+                <div className="grid grid-cols-1 gap-2">
+                  <button onClick={() => router.push(`/dashboard/attendance?class_id=${id}`)} className="flex items-center gap-3 w-full p-4 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-600/20 rounded-2xl text-left transition-all group">
+                    <div className="w-10 h-10 rounded-xl bg-blue-600/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform"><CheckCircleIcon className="w-5 h-5" /></div>
+                    <div>
+                      <p className="text-xs font-black text-white uppercase tracking-tighter">Roll Call</p>
+                      <p className="text-[10px] text-white/40">Mark attendance now</p>
+                    </div>
+                  </button>
+                  <button onClick={() => setViewingItem({ type: 'assignment', id: 'add' })} className="flex items-center gap-3 w-full p-4 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-2xl text-left transition-all group">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><ClipboardDocumentListIcon className="w-5 h-5" /></div>
+                    <div>
+                      <p className="text-xs font-black text-white uppercase tracking-tighter">Quick Task</p>
+                      <p className="text-[10px] text-white/40">Launch new assignment</p>
+                    </div>
+                  </button>
+                  <button onClick={() => setViewingItem({ type: 'lesson', id: 'add' })} className="flex items-center gap-3 w-full p-4 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 rounded-2xl text-left transition-all group">
+                    <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform"><BookOpenIcon className="w-5 h-5" /></div>
+                    <div>
+                      <p className="text-xs font-black text-white uppercase tracking-tighter">New Lesson</p>
+                      <p className="text-[10px] text-white/40">Add to curriculum</p>
+                    </div>
+                  </button>
+                  <button onClick={() => setViewingItem({ type: 'cbt', id: 'add' })} className="flex items-center gap-3 w-full p-4 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-600/20 rounded-2xl text-left transition-all group">
+                    <div className="w-10 h-10 rounded-xl bg-violet-600/20 flex items-center justify-center text-violet-400 group-hover:scale-110 transition-transform"><AcademicCapIcon className="w-5 h-5" /></div>
+                    <div>
+                      <p className="text-xs font-black text-white uppercase tracking-tighter">CBT Exam</p>
+                      <p className="text-[10px] text-white/40">Online testing</p>
+                    </div>
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Students List */}
             <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden">
@@ -562,8 +710,6 @@ export default function ClassDetailPage() {
   );
 }
 
-// Support Icons
-function ChartBarIcon(props: any) { return <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>; }
-function BoltIcon(props: any) { return <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>; }
+// Support Icons (inline SVGs for icons not in the heroicons import above)
 function StarIcon(props: any) { return <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.385a.563.563 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345l2.125-5.111z" /></svg>; }
 function ArrowRightIcon(props: any) { return <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>; }

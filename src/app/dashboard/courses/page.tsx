@@ -232,13 +232,22 @@ export default function CoursesPage() {
                         <span>Enrolled {new Date(enr.enrollment_date).toLocaleDateString()}</span>
                         {enr.grade && <span className="text-amber-400 font-bold">Grade: {enr.grade}</span>}
                       </div>
+                      {enr.progress_pct != null && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-violet-500 rounded-full transition-all" style={{ width: `${enr.progress_pct}%` }} />
+                          </div>
+                          <span className="text-xs text-white/30 w-8 text-right">{enr.progress_pct}%</span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex-shrink-0">
-                      <Link href={`/dashboard/courses/${prog?.id}`}
+                      <Link
+                        href={prog?.id ? `/dashboard/lessons?program=${prog.id}` : '/dashboard/lessons'}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all ${enr.status === 'completed'
                           ? 'bg-white/10 text-white/60 hover:bg-white/20'
                           : 'bg-violet-600 text-white hover:bg-violet-500'
-                          }`}>
+                        }`}>
                         {enr.status === 'completed' ? <><EyeIcon className="w-4 h-4" /> Review</> : <><PlayIcon className="w-4 h-4" /> Continue</>}
                       </Link>
                     </div>

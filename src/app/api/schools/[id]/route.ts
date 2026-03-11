@@ -18,7 +18,7 @@ async function requireAdmin() {
     .select('role, id, school_id')
     .eq('id', user.id)
     .single();
-  if (!caller || !['admin', 'school'].includes(caller.role)) return null;
+  if (!caller || caller.role !== 'admin') return null;
   return caller;
 }
 
@@ -61,7 +61,7 @@ export async function PATCH(
     const { data, error } = await adminClient()
       .from('teacher_schools')
       .insert({ teacher_id, school_id: id, assigned_by: caller.id })
-      .select()
+      .select('*, portal_users:teacher_id(id, full_name, email)')
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ data });

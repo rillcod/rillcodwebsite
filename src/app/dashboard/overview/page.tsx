@@ -50,54 +50,90 @@ export default function OverviewPage() {
             setRecentStudents(recStudents.status === 'fulfilled' ? (recStudents.value.data ?? []) : []);
           }
         } else if (role === 'teacher') {
+          // 2-step: get teacher's assignment IDs first
+          const { data: myAsgns } = await supabase.from('assignments').select('id, title').eq('created_by', profile!.id);
+          const aIds = (myAsgns ?? []).map((a: any) => a.id);
+          const aTitleMap: Record<string, string> = {};
+          (myAsgns ?? []).forEach((a: any) => { aTitleMap[a.id] = a.title; });
+
           const [classes, subs, pending] = await Promise.allSettled([
             supabase.from('classes').select('id', { count: 'exact', head: true }).eq('teacher_id', profile!.id),
-            supabase.from('assignment_submissions').select('id, assignments!inner(created_by)', { count: 'exact', head: true }).eq('assignments.created_by', profile!.id),
-            supabase.from('assignment_submissions').select('id, assignments!inner(created_by)', { count: 'exact', head: true }).eq('assignments.created_by', profile!.id).eq('status', 'submitted'),
+            aIds.length > 0
+              ? supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).in('assignment_id', aIds)
+              : Promise.resolve({ count: 0 }),
+            aIds.length > 0
+              ? supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).in('assignment_id', aIds).eq('status', 'submitted')
+              : Promise.resolve({ count: 0 }),
           ]);
-          const recSubs = await supabase.from('assignment_submissions')
-            .select(`id, status, submitted_at, portal_users!assignment_submissions_portal_user_id_fkey ( full_name ), assignments!inner ( title, created_by )`)
-            .eq('assignments.created_by', profile!.id)
-            .order('submitted_at', { ascending: false }).limit(5);
+
+          let recSubsData: any[] = [];
+          if (aIds.length > 0) {
+            const { data: rawSubs } = await supabase.from('assignment_submissions')
+              .select('id, status, submitted_at, assignment_id, portal_user_id, user_id')
+              .in('assignment_id', aIds)
+              .order('submitted_at', { ascending: false }).limit(5);
+            recSubsData = rawSubs ?? [];
+            if (recSubsData.length > 0) {
+              const uids = [...new Set(recSubsData.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
+              const { data: users } = await supabase.from('portal_users').select('id, full_name').in('id', uids);
+              const umap: Record<string, string> = {};
+              (users ?? []).forEach((u: any) => { umap[u.id] = u.full_name; });
+              recSubsData = recSubsData.map((s: any) => ({
+                ...s,
+                portal_users: { full_name: umap[s.portal_user_id ?? s.user_id] ?? 'Student' },
+                assignments: { title: aTitleMap[s.assignment_id] ?? '—' },
+              }));
+            }
+          }
+
           if (!cancelled) {
             setCounts({
-              classes: classes.status === 'fulfilled' ? (classes.value.count ?? 0) : 0,
-              submissions: subs.status === 'fulfilled' ? (subs.value.count ?? 0) : 0,
-              pending: pending.status === 'fulfilled' ? (pending.value.count ?? 0) : 0,
+              classes: classes.status === 'fulfilled' ? ((classes.value as any).count ?? 0) : 0,
+              submissions: subs.status === 'fulfilled' ? ((subs.value as any).count ?? 0) : 0,
+              pending: pending.status === 'fulfilled' ? ((pending.value as any).count ?? 0) : 0,
             });
-            setRecentSubmissions(recSubs.data ?? []);
+            setRecentSubmissions(recSubsData);
           }
         } else if (role === 'school') {
-          const [sStudents, sTeachers, sGraded] = await Promise.allSettled([
+          const [sStudents, sTeachers] = await Promise.allSettled([
             supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', profile!.school_id!),
             supabase.from('teacher_schools').select('id', { count: 'exact', head: true }).eq('school_id', profile!.school_id!),
-            supabase.from('assignment_submissions')
-              .select('id, portal_users!inner(school_id)', { count: 'exact', head: true })
-              .eq('portal_users.school_id', profile!.school_id!)
-              .not('grade', 'is', null),
           ]);
-          const recent = await supabase.from('assignment_submissions')
-            .select(`id, status, submitted_at, portal_users!inner(full_name, school_id), assignments(title, max_points)`)
-            .eq('portal_users.school_id', profile!.school_id!)
-            .order('submitted_at', { ascending: false }).limit(5);
+          // 2-step: avoid portal_users!inner FK ambiguity on assignment_submissions
+          const { data: rawSubs } = await supabase.from('assignment_submissions')
+            .select('id, status, submitted_at, portal_user_id, user_id, assignments(title, max_points)')
+            .not('grade', 'is', null)
+            .order('submitted_at', { ascending: false }).limit(50);
+          
+          let schoolSubs: any[] = [];
+          if (rawSubs && rawSubs.length > 0) {
+            const uids = [...new Set(rawSubs.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
+            const { data: uData } = await supabase.from('portal_users').select('id, full_name, school_id').in('id', uids);
+            const umap: Record<string, any> = {};
+            (uData ?? []).forEach((u: any) => { umap[u.id] = u; });
+            schoolSubs = rawSubs
+              .map((s: any) => ({ ...s, portal_users: umap[s.portal_user_id ?? s.user_id] ?? null }))
+              .filter((s: any) => s.portal_users?.school_id === profile!.school_id);
+          }
 
           if (!cancelled) {
             setCounts({
               students: sStudents.status === 'fulfilled' ? (sStudents.value.count ?? 0) : 0,
               teachers: sTeachers.status === 'fulfilled' ? (sTeachers.value.count ?? 0) : 0,
-              graded: sGraded.status === 'fulfilled' ? (sGraded.value.count ?? 0) : 0,
+              graded: schoolSubs.length,
             });
-            setRecentSubmissions(recent.data ?? []);
+            setRecentSubmissions(schoolSubs.slice(0, 5));
           }
         } else {
           // student
           const [mySubs, myEnr] = await Promise.allSettled([
-            supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('portal_user_id', profile!.id),
+            supabase.from('assignment_submissions').select('id', { count: 'exact', head: true })
+              .or(`portal_user_id.eq.${profile!.id},user_id.eq.${profile!.id}`),
             supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('user_id', profile!.id),
           ]);
           const graded = await supabase.from('assignment_submissions')
             .select(`id, grade, status, submitted_at, assignments ( title, max_points )`)
-            .eq('portal_user_id', profile!.id)
+            .or(`portal_user_id.eq.${profile!.id},user_id.eq.${profile!.id}`)
             .eq('status', 'graded')
             .order('submitted_at', { ascending: false }).limit(5);
           if (!cancelled) {

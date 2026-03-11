@@ -8,7 +8,7 @@ import {
   UserIcon, EnvelopeIcon, PhoneIcon, ShieldCheckIcon,
   AcademicCapIcon, BookOpenIcon, ClipboardDocumentListIcon,
   BuildingOfficeIcon, ChartBarIcon, PencilSquareIcon,
-  CheckIcon, ArrowPathIcon,
+  CheckIcon, ArrowPathIcon, ChevronRightIcon, RocketLaunchIcon,
 } from '@heroicons/react/24/outline';
 
 export default function ProfilePage() {
@@ -105,168 +105,201 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="min-h-screen bg-[#070710] text-white selection:bg-indigo-500 selection:text-white">
+      <div className="max-w-5xl mx-auto px-6 sm:px-12 py-12 md:py-20 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-        {/* Header card */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-          {/* Avatar */}
-          <div className="w-20 h-20 bg-[#7a0606] border-2 border-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 text-3xl font-black text-white uppercase shadow-lg">
-            {profile.full_name?.charAt(0) ?? 'U'}
-          </div>
-          <div className="flex-1">
-            {editing ? (
-              <input
-                value={form.full_name}
-                onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
-                className="text-2xl font-extrabold bg-white/5 border border-white/20 rounded-xl px-3 py-1 text-white focus:outline-none focus:border-violet-500 w-full max-w-xs"
-              />
-            ) : (
-              <h1 className="text-2xl font-extrabold">{profile.full_name}</h1>
-            )}
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border capitalize ${roleColor[profile.role]}`}>
-                <ShieldCheckIcon className="w-3.5 h-3.5" />
-                {profile.role}
-              </span>
-              <span className="text-xs text-white/30">{profile.email}</span>
+        {/* Header card with profile gradient background */}
+        <div className="relative overflow-hidden group">
+            <div className={`absolute inset-0 bg-gradient-to-r ${profile.role === 'teacher' ? 'from-teal-600/20 to-cyan-500/10' : 'from-indigo-600/20 to-blue-500/10'} opacity-50 blur-3xl rounded-[40px] -z-10`} />
+            <div className="bg-white/5 border border-white/10 rounded-[40px] p-8 md:p-12 backdrop-blur-xl flex flex-col md:flex-row items-center md:items-start gap-10 shadow-2xl">
+              {/* Avatar Section */}
+              <div className="relative shrink-0">
+                <div className={`w-32 h-32 md:w-44 md:h-44 ${profile.role === 'teacher' ? 'bg-teal-600' : 'bg-indigo-600'} border-4 border-white/20 rounded-[48px] flex items-center justify-center text-5xl md:text-7xl font-black text-white uppercase shadow-2xl rotate-3 group-hover:rotate-0 transition-transform duration-500`}>
+                    {profile.full_name?.charAt(0) ?? 'U'}
+                </div>
+                <div className="absolute -bottom-2 -right-2 bg-[#070710] border border-white/10 p-3 rounded-2xl shadow-xl">
+                    <ShieldCheckIcon className={`w-6 h-6 ${profile.role === 'teacher' ? 'text-teal-400' : 'text-indigo-400'}`} />
+                </div>
+              </div>
+
+              <div className="flex-1 text-center md:text-left space-y-6">
+                <div className="space-y-2">
+                    {editing ? (
+                      <input
+                        value={form.full_name}
+                        onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
+                        className="text-3xl md:text-5xl font-black bg-white/5 border border-white/20 rounded-2xl px-6 py-2 text-white outline-none focus:border-indigo-500 w-full"
+                        autoFocus
+                      />
+                    ) : (
+                      <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">{profile.full_name}</h1>
+                    )}
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-4">
+                      <span className={`px-5 py-1.5 rounded-full text-[10px] font-black border uppercase tracking-[0.2em] shadow-lg ${roleColor[profile.role]}`}>
+                        {profile.role}
+                      </span>
+                      <span className="text-sm font-medium text-white/30 lowercase tracking-tight">{profile.email}</span>
+                    </div>
+                </div>
+
+                {!editing && profile.bio && (
+                    <p className="text-lg text-white/50 max-w-2xl leading-relaxed italic border-l-2 border-white/10 pl-6">
+                        "{profile.bio}"
+                    </p>
+                )}
+                
+                {editing && (
+                    <textarea
+                        rows={3}
+                        value={form.bio}
+                        onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
+                        placeholder="Share your journey..."
+                        className="w-full bg-white/5 border border-white/20 rounded-2xl p-6 text-white outline-none focus:border-indigo-500 resize-none text-lg"
+                    />
+                )}
+
+                <div className="flex items-center justify-center md:justify-start gap-4 pt-4">
+                    {editing ? (
+                      <>
+                        <button onClick={() => setEditing(false)} className="px-8 py-3 text-xs font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors bg-white/5 rounded-2xl">
+                          Cancel
+                        </button>
+                        <button onClick={handleSave} disabled={saving} className={`flex items-center gap-2 px-10 py-3 text-xs font-black uppercase tracking-widest text-white ${profile.role === 'teacher' ? 'bg-teal-600 hover:bg-teal-500' : 'bg-indigo-600 hover:bg-indigo-500'} rounded-2xl transition-all shadow-xl disabled:opacity-50`}>
+                          {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                          Save Changes
+                        </button>
+                      </>
+                    ) : (
+                      <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-8 py-3 text-xs font-black uppercase tracking-widest text-white/40 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all">
+                        <PencilSquareIcon className="w-4 h-4" /> Edit Profile
+                      </button>
+                    )}
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {editing ? (
-              <>
-                <button onClick={() => setEditing(false)} className="px-4 py-2 text-xs font-bold text-white/50 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
-                  Cancel
-                </button>
-                <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-violet-600 hover:bg-violet-500 rounded-xl transition-colors disabled:opacity-50">
-                  {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
-                  Save
-                </button>
-              </>
-            ) : (
-              <button onClick={() => setEditing(true)} className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white/50 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
-                <PencilSquareIcon className="w-4 h-4" /> Edit Profile
-              </button>
-            )}
-          </div>
         </div>
 
-        {/* Stats */}
-        <div className={`grid gap-4 ${statCards.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
+        {/* Stats Grid - Modern High-Contrast */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {statCards.map(s => (
-            <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col items-center text-center">
-              <s.icon className={`w-6 h-6 ${s.color} mb-2`} />
-              <span className="text-2xl font-extrabold">{s.value}{s.label === 'Avg Score' ? '%' : ''}</span>
-              <span className="text-xs text-white/40 uppercase tracking-widest mt-0.5">{s.label}</span>
+            <div key={s.label} className="bg-white/5 border border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center text-center group hover:bg-white/[0.08] transition-all relative overflow-hidden">
+              <div className={`absolute -right-4 -top-4 w-24 h-24 ${s.color.replace('text-', 'bg-')}/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700`} />
+              <div className={`w-14 h-14 rounded-2xl ${s.color.replace('text-', 'bg-')}/10 flex items-center justify-center ${s.color} mb-6 border border-current/10`}>
+                <s.icon className="w-7 h-7" />
+              </div>
+              <span className="text-4xl font-black tracking-tighter text-white">{s.value}{s.label === 'Avg Score' ? '%' : ''}</span>
+              <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mt-2">{s.label}</span>
             </div>
           ))}
         </div>
 
-        {/* Contact & Bio */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
-          <h2 className="text-xs font-bold text-white/40 uppercase tracking-widest">Contact & Details</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-white/40 uppercase tracking-widest block mb-1">Email</label>
-              <div className="flex items-center gap-2 text-sm">
-                <EnvelopeIcon className="w-4 h-4 text-white/30" />
-                <span>{profile.email}</span>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-white/40 uppercase tracking-widest block mb-1">Phone</label>
-              {editing ? (
-                <input
-                  value={form.phone}
-                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  placeholder="e.g. +234 800 000 0000"
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500 transition-colors"
-                />
-              ) : (
-                <div className="flex items-center gap-2 text-sm">
-                  <PhoneIcon className="w-4 h-4 text-white/30" />
-                  <span className={profile.phone ? '' : 'text-white/30'}>{profile.phone || 'Not set'}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Info Column */}
+            <div className="lg:col-span-2 space-y-8">
+                {/* Detailed Sections */}
+                <div className="bg-white/5 border border-white/10 rounded-[32px] overflow-hidden">
+                    <div className="px-8 py-5 bg-white/[0.02] border-b border-white/10 flex items-center justify-between">
+                        <h2 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Contact Information</h2>
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                    </div>
+                    <div className="p-8 grid grid-cols-1 sm:grid-cols-2 gap-10">
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black text-white/20 uppercase tracking-widest block">Primary Email</label>
+                            <div className="flex items-center gap-4 text-xl font-bold group">
+                                <EnvelopeIcon className="w-6 h-6 text-indigo-400 group-hover:scale-110 transition-transform" />
+                                <span className="selection:bg-indigo-500">{profile.email}</span>
+                            </div>
+                        </div>
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black text-white/20 uppercase tracking-widest block">Phone Number</label>
+                            {editing ? (
+                                <input
+                                    value={form.phone}
+                                    onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                                    placeholder="e.g. +234 800 000 0000"
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-indigo-500"
+                                />
+                            ) : (
+                                <div className="flex items-center gap-4 text-xl font-bold group">
+                                    <PhoneIcon className="w-6 h-6 text-emerald-400 group-hover:scale-110 transition-transform" />
+                                    <span className={profile.phone ? 'text-white' : 'text-white/20 italic font-medium'}>{profile.phone || 'None provided'}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
-              )}
-            </div>
-          </div>
-          <div>
-            <label className="text-xs text-white/40 uppercase tracking-widest block mb-1">Bio</label>
-            {editing ? (
-              <textarea
-                rows={3}
-                value={form.bio}
-                onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
-                placeholder="Tell us about yourself…"
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500 transition-colors resize-none"
-              />
-            ) : (
-              <p className={profile.bio ? 'text-sm text-white/70' : 'text-sm text-white/30'}>
-                {profile.bio || 'No bio added yet.'}
-              </p>
-            )}
-          </div>
-        </div>
 
-        {/* Teacher: Assigned Schools */}
-        {profile.role === 'teacher' && (
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-3">
-            <h2 className="text-xs font-bold text-white/40 uppercase tracking-widest">Assigned Schools</h2>
-            {schools.length === 0 ? (
-              <p className="text-sm text-white/30">No schools assigned yet.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {schools.map((s: any, i: number) => (
-                  <div key={i} className="flex items-center gap-3 bg-white/5 rounded-xl p-3">
-                    <BuildingOfficeIcon className="w-5 h-5 text-teal-400 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold">{s.name}</p>
-                      {s.city && <p className="text-xs text-white/40">{s.city}</p>}
+                {/* Role Specific Detailed Sections */}
+                {profile.role === 'teacher' && schools.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">Affiliated Institutions</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {schools.map((s: any, i: number) => (
+                          <div key={i} className="flex items-center gap-5 bg-white/5 border border-white/10 rounded-[28px] p-6 hover:bg-teal-500/5 hover:border-teal-500/30 transition-all group">
+                            <div className="w-14 h-14 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 group-hover:scale-110 transition-transform">
+                                <BuildingOfficeIcon className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <p className="text-xl font-black text-white/90 truncate">{s.name}</p>
+                              {s.city && <p className="text-xs font-bold text-white/30 uppercase tracking-widest mt-1">{s.city}</p>}
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                )}
 
-        {/* Student: Enrolled Programmes */}
-        {profile.role === 'student' && programmes.length > 0 && (
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-3">
-            <h2 className="text-xs font-bold text-white/40 uppercase tracking-widest">Enrolled Programmes</h2>
-            <div className="flex flex-wrap gap-2">
-              {programmes.map((name, i) => (
-                <span key={i} className="px-3 py-1 text-xs font-bold bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-full">
-                  {name}
-                </span>
-              ))}
+                {profile.role === 'student' && programmes.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">Active Learning Paths</h3>
+                    <div className="flex flex-wrap gap-3">
+                      {programmes.map((name, i) => (
+                        <div key={i} className="px-6 py-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-black text-xs uppercase tracking-widest flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-indigo-400" />
+                          {name}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
             </div>
-          </div>
-        )}
 
-        {/* Quick Links */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-3">
-          <h2 className="text-xs font-bold text-white/40 uppercase tracking-widest">Quick Links</h2>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/dashboard" className="px-4 py-2 text-xs font-bold text-white/60 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
-              Dashboard
-            </Link>
-            <Link href="/dashboard/settings" className="px-4 py-2 text-xs font-bold text-white/60 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
-              Settings
-            </Link>
-            {(profile.role === 'teacher' || profile.role === 'admin') && (
-              <Link href="/dashboard/students" className="px-4 py-2 text-xs font-bold text-white/60 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
-                Students
-              </Link>
-            )}
-            {profile.role === 'student' && (
-              <Link href="/dashboard/courses" className="px-4 py-2 text-xs font-bold text-white/60 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
-                My Courses
-              </Link>
-            )}
-          </div>
+            {/* Sidebar Column */}
+            <div className="space-y-6">
+                <div className="bg-[#10101a] border border-white/10 rounded-[32px] p-8 space-y-6 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500/50" />
+                    <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Quick Access</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                        <Link href="/dashboard" className="flex items-center justify-between p-4 bg-white/5 rounded-2xl font-bold text-sm hover:bg-white/10 transition-all group">
+                            <span>Dashboard</span>
+                            <ChevronRightIcon className="w-4 h-4 text-white/20 group-hover:translate-x-1 transition-transform" />
+                        </Link>
+                        <Link href="/dashboard/settings" className="flex items-center justify-between p-4 bg-white/5 rounded-2xl font-bold text-sm hover:bg-white/10 transition-all group">
+                            <span>Settings</span>
+                            <ChevronRightIcon className="w-4 h-4 text-white/20 group-hover:translate-x-1 transition-transform" />
+                        </Link>
+                        {(profile.role === 'teacher' || profile.role === 'admin') && (
+                          <Link href="/dashboard/students" className="flex items-center justify-between p-4 bg-white/5 rounded-2xl font-bold text-sm hover:bg-white/10 transition-all group">
+                            <span>Manage Roster</span>
+                            <ChevronRightIcon className="w-4 h-4 text-white/20 group-hover:translate-x-1 transition-transform" />
+                          </Link>
+                        )}
+                        {profile.role === 'student' && (
+                          <Link href="/dashboard/courses" className="flex items-center justify-between p-4 bg-white/5 rounded-2xl font-bold text-sm hover:bg-white/10 transition-all group">
+                            <span>My Curriculum</span>
+                            <ChevronRightIcon className="w-4 h-4 text-white/20 group-hover:translate-x-1 transition-transform" />
+                          </Link>
+                        )}
+                    </div>
+                </div>
+
+                <div className="p-8 bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20 rounded-[32px] space-y-4">
+                    <RocketLaunchIcon className="w-8 h-8 text-indigo-400" />
+                    <h4 className="font-black text-white">Unlock New Skills</h4>
+                    <p className="text-xs font-medium text-white/40 leading-relaxed">Your progress is being tracked across all programmes. Keep pushing boundaries to reach of your full potential.</p>
+                </div>
+            </div>
         </div>
-
       </div>
     </div>
   );

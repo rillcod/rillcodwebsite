@@ -172,7 +172,7 @@ export default function NewAssignmentPage() {
 
   return (
     <div className={`min-h-screen bg-[#0f0f1a] text-white ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
-      <div className={`${isMinimal ? 'w-full' : 'max-w-3xl mx-auto'} space-y-6`}>
+      <div className={`${isMinimal ? 'w-full' : 'max-w-4xl mx-auto'} space-y-6`}>
 
         {!isMinimal && (
           <Link href="/dashboard/assignments"
@@ -185,13 +185,14 @@ export default function NewAssignmentPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <ClipboardDocumentListIcon className="w-5 h-5 text-amber-400" />
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">{isMinimal ? 'Add Context' : 'New Assignment'}</span>
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-[0.2em]">{isMinimal ? 'Add Context' : 'New Assignment'}</span>
             </div>
-            <h1 className="text-2xl font-black">Create Assignment</h1>
+            <h1 className="text-3xl font-black italic tracking-tight">Create Assignment</h1>
+            {!isMinimal && <p className="text-white/40 text-sm mt-1 font-medium italic">Define challenges for applied learning</p>}
           </div>
-          <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-xl shadow-amber-900/40 transition-all disabled:opacity-50">
+          <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-amber-900/40 transition-all disabled:opacity-50">
             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-            {saving ? 'Creating...' : (isMinimal ? 'CREATE' : 'CREATE ASSIGNMENT')}
+            {saving ? 'Creating...' : (isMinimal ? 'CREATE' : 'PUBLISH TASK')}
           </button>
         </div>
 
@@ -387,36 +388,58 @@ export default function NewAssignmentPage() {
                         onChange={e => updateQuestion(qi, { points: parseInt(e.target.value) || 1 })}
                         className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none" />
                     </div>
-                    <div>
-                      <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Correct Answer</label>
-                      {q.question_type === 'true_false' ? (
-                        <select value={q.correct_answer}
-                          onChange={e => updateQuestion(qi, { correct_answer: e.target.value })}
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none cursor-pointer">
-                          <option value="">Select…</option>
-                          <option value="True">True</option>
-                          <option value="False">False</option>
-                        </select>
-                      ) : (
+                    {(q.question_type === 'fill_blank' || q.question_type === 'essay') && (
+                      <div className="sm:col-span-1">
+                        <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Correct Answer / Reference</label>
                         <input type="text" value={q.correct_answer}
                           onChange={e => updateQuestion(qi, { correct_answer: e.target.value })}
-                          placeholder="Correct answer…"
+                          placeholder={q.question_type === 'fill_blank' ? "Exact answer..." : "Grading guide..."}
                           className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none" />
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
 
-                  {q.question_type === 'multiple_choice' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {q.options.map((opt, oi) => (
-                        <div key={oi} className="flex items-center gap-2">
-                          <span className="text-[10px] text-white/30 w-4">{String.fromCharCode(65 + oi)}.</span>
-                          <input type="text" value={opt}
-                            onChange={e => updateOption(qi, oi, e.target.value)}
-                            placeholder={`Option ${String.fromCharCode(65 + oi)}`}
-                            className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none" />
-                        </div>
+                  {q.question_type === 'true_false' && (
+                    <div className="flex gap-4 pt-2">
+                      {['True', 'False'].map(opt => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => updateQuestion(qi, { correct_answer: opt })}
+                          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-bold transition-all ${q.correct_answer === opt ? 'bg-amber-600 border-amber-500 text-white' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}
+                        >
+                          {q.correct_answer === opt && <CheckIcon className="w-4 h-4" />}
+                          {opt}
+                        </button>
                       ))}
+                    </div>
+                  )}
+
+                  {q.question_type === 'multiple_choice' && (
+                    <div className="space-y-3">
+                      <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Options (Select correct one)</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {q.options.map((opt, oi) => (
+                          <div key={oi} className={`flex items-center gap-2 p-1 rounded-2xl border transition-all ${q.correct_answer === opt && opt !== '' ? 'bg-amber-500/10 border-amber-500/50' : 'bg-white/5 border-white/10'}`}>
+                            <button
+                              type="button"
+                              onClick={() => updateQuestion(qi, { correct_answer: opt })}
+                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${q.correct_answer === opt && opt !== '' ? 'bg-amber-500 border-amber-500 text-white' : 'border-white/20 hover:border-amber-500/50'}`}
+                            >
+                              {q.correct_answer === opt && opt !== '' && <CheckIcon className="w-3 h-3 font-black" />}
+                            </button>
+                            <input type="text" value={opt}
+                              onChange={e => {
+                                const newVal = e.target.value;
+                                const isCorrect = q.correct_answer === opt;
+                                updateOption(qi, oi, newVal);
+                                if (isCorrect) updateQuestion(qi, { correct_answer: newVal });
+                              }}
+                              placeholder={`Option ${String.fromCharCode(65 + oi)}`}
+                              className="flex-1 bg-transparent border-none px-1 py-1 text-xs text-white placeholder-white/20 focus:outline-none" />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

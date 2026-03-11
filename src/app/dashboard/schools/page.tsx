@@ -635,27 +635,27 @@ export default function SchoolsPage() {
                       <p className="text-xs text-white/20 mt-1.5">Registered {new Date(s.created_at).toLocaleDateString()}</p>
                     </div>
 
-                    <div className="flex flex-col gap-2 flex-shrink-0 w-full lg:w-auto sm:flex-row sm:items-center mt-4 lg:mt-0">
-                      <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-shrink-0 w-full lg:w-auto mt-4 lg:mt-0">
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
                         <button onClick={() => setDetail(s)}
-                          className="flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-black rounded-xl transition-all border border-white/5 shadow-sm">
-                          <EyeIcon className="w-4 h-4" /> View
+                          className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-[10px] font-black uppercase rounded-xl transition-all border border-white/5 shadow-sm">
+                          <EyeIcon className="w-3.5 h-3.5" /> View
                         </button>
                         <button onClick={() => startEdit(s)}
-                          className="flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-black rounded-xl transition-all border border-white/5 shadow-sm">
-                          <PencilSquareIcon className="w-4 h-4" /> Edit
+                          className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-[10px] font-black uppercase rounded-xl transition-all border border-white/5 shadow-sm">
+                          <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                         </button>
                         <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
-                          className="flex items-center justify-center gap-2 px-4 py-3 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-xs font-black rounded-xl transition-all disabled:opacity-50 border border-rose-500/10 shadow-sm">
-                          <XCircleIcon className="w-4 h-4" /> {deleting === s.id ? '…' : 'Delete'}
+                          className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2.5 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-rose-500/10 shadow-sm">
+                          <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Delete'}
                         </button>
-                        {(s.status === 'pending' || !s.status) && (
-                          <button onClick={() => updateStatus(s.id, 'approved')} disabled={acting === s.id}
-                            className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 col-span-2 sm:col-span-1">
-                            <CheckCircleIcon className="w-4 h-4" /> Approve
-                          </button>
-                        )}
                       </div>
+                      {(s.status === 'pending' || !s.status) && (
+                        <button onClick={() => updateStatus(s.id, 'approved')} disabled={acting === s.id}
+                          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+                          <CheckCircleIcon className="w-4 h-4" /> Approve
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1065,14 +1065,11 @@ function SchoolSelfView() {
     setLoading(true);
     const supabase = createClient();
     const sid = profile!.school_id!;
-    const [studentsRes, teachersRes, gradesRes, recentRes] = await Promise.allSettled([
+    const sname = profile!.school_name;
+
+    const [studentsRes, teachersRes, recentRes] = await Promise.allSettled([
       supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', sid),
       supabase.from('teacher_schools').select('id', { count: 'exact', head: true }).eq('school_id', sid),
-      supabase.from('assignment_submissions')
-        .select('grade, portal_users!inner(school_id)')
-        .eq('portal_users.school_id', sid)
-        .not('grade', 'is', null)
-        .limit(200),
       supabase.from('students')
         .select('id, full_name, status, grade_level, created_at')
         .eq('school_id', sid)
@@ -1080,9 +1077,32 @@ function SchoolSelfView() {
         .limit(6),
     ]);
 
+    // 2-step grades: avoid portal_users!inner FK ambiguity
+    const { data: rawGrades } = await supabase
+      .from('assignment_submissions')
+      .select('grade, portal_user_id, user_id')
+      .not('grade', 'is', null)
+      .limit(500);
+
+    let grades: any[] = rawGrades ?? [];
+    if (grades.length > 0) {
+      const uids = [...new Set(grades.map((g: any) => g.portal_user_id ?? g.user_id).filter(Boolean))];
+      if (uids.length > 0) {
+        const { data: uData } = await supabase
+          .from('portal_users').select('id, school_id, school_name').in('id', uids);
+        const umap: Record<string, any> = {};
+        (uData ?? []).forEach((u: any) => { umap[u.id] = u; });
+        grades = grades.filter((g: any) => {
+          const u = umap[g.portal_user_id ?? g.user_id];
+          return u?.school_id === sid || (sname && u?.school_name === sname);
+        });
+      } else {
+        grades = [];
+      }
+    }
+
     const studentCount = studentsRes.status === 'fulfilled' ? (studentsRes.value.count ?? 0) : 0;
     const teacherCount = teachersRes.status === 'fulfilled' ? (teachersRes.value.count ?? 0) : 0;
-    const grades = gradesRes.status === 'fulfilled' ? (gradesRes.value.data ?? []) : [];
     const avgScore = grades.length
       ? Math.round(grades.reduce((a: number, g: any) => a + Number(g.grade), 0) / grades.length)
       : 0;

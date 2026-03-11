@@ -71,38 +71,46 @@ export default function ProgressPage() {
             }
           }
 
-          // 2. Prepare queries with portal_users join
-          let subsQuery = supabase.from('assignment_submissions')
-            .select(`id, grade, status, portal_user_id,
+          // 2. Fetch submissions (2-step to avoid FK ambiguity)
+          const rawSubsQ = supabase.from('assignment_submissions')
+            .select(`id, grade, status, portal_user_id, user_id,
                 assignments ( id, title, max_points, course_id,
-                  courses ( id, title, programs ( name ) ) ),
-                portal_users!assignment_submissions_portal_user_id_fkey!inner ( id, full_name, email, school_id, school_name )`)
+                  courses ( id, title, programs ( name ) ) )`)
             .order('graded_at', { ascending: false });
 
-          let enrQuery = supabase.from('enrollments')
+          const enrQuery = supabase.from('enrollments')
             .select(`id, status, grade, progress_pct, enrollment_date,
                 programs ( id, name, difficulty_level, duration_weeks ),
-                portal_users!inner ( id, full_name, email, school_id, school_name )`)
+                portal_users!enrollments_user_id_fkey ( id, full_name, email, school_id, school_name )`)
             .order('enrollment_date', { ascending: false });
 
-          // 3. Apply filtering for non-admins
-          if (role !== 'admin') {
-            if (assignedSchoolIds.length > 0) {
-              const namesSegment = assignedSchoolNames.length > 0
-                ? `,school_name.in.(${assignedSchoolNames.map(n => `"${n}"`).join(',')})`
-                : '';
-              const filter = `school_id.in.(${assignedSchoolIds.join(',')})${namesSegment}`;
+          const [rawSubsRes, enrRes] = await Promise.allSettled([rawSubsQ, enrQuery]);
 
-              subsQuery = subsQuery.or(filter, { foreignTable: 'portal_users' });
-              enrQuery = enrQuery.or(filter, { foreignTable: 'portal_users' });
+          // 3. Enrich submissions with portal_users via separate lookup
+          let subsData = rawSubsRes.status === 'fulfilled' ? (rawSubsRes.value.data ?? []) : [];
+          if (subsData.length > 0) {
+            const uids = [...new Set(subsData.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
+            const { data: users } = await supabase.from('portal_users').select('id, full_name, email, school_id, school_name').in('id', uids);
+            const umap: Record<string, any> = {};
+            (users ?? []).forEach((u: any) => { umap[u.id] = u; });
+            subsData = subsData.map((s: any) => ({ ...s, portal_users: umap[s.portal_user_id ?? s.user_id] ?? null }));
+          }
+
+          // 4. Filter by school for non-admins
+          if (role !== 'admin') {
+            if (assignedSchoolIds.length > 0 || assignedSchoolNames.length > 0) {
+              subsData = subsData.filter((s: any) => {
+                const u = s.portal_users;
+                if (!u) return false;
+                return assignedSchoolIds.includes(u.school_id) || assignedSchoolNames.includes(u.school_name);
+              });
             } else {
-              // No schools assigned
-              subsQuery = subsQuery.eq('id', '00000000-0000-0000-0000-000000000000');
-              enrQuery = enrQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+              subsData = [];
             }
           }
 
-          const [subsRes, enrRes] = await Promise.allSettled([subsQuery, enrQuery]);
+          const subsRes = { status: 'fulfilled' as const, value: { data: subsData } };
+          const [_unused, _enrRes] = [subsRes, enrRes]; // keep same shape for setters below
           if (!cancelled) {
             setSubmissions(subsRes.status === 'fulfilled' ? (subsRes.value.data ?? []) : []);
             setEnrollments(enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : []);
@@ -114,7 +122,7 @@ export default function ProgressPage() {
               .select(`id, grade, status, submitted_at, graded_at, feedback,
                 assignments ( id, title, max_points,
                   courses ( id, title, programs ( name ) ) )`)
-              .eq('portal_user_id', profile!.id)
+              .or(`portal_user_id.eq.${profile!.id},user_id.eq.${profile!.id}`)
               .order('submitted_at', { ascending: false }),
             supabase.from('enrollments')
               .select(`id, status, grade, progress_pct, enrollment_date,

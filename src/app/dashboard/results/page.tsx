@@ -127,9 +127,11 @@ function ResultsPageInner() {
             }
 
             const [sRes, orgRes] = await Promise.all([
-                finalQuery.order('full_name').limit(isAdmin ? 5000 : 400),
+                finalQuery.order('full_name').limit(isAdmin ? 10000 : 400),
                 db.from('report_settings').select('*').limit(1).maybeSingle(),
             ]);
+
+            if (sRes.error) throw sRes.error;
 
             const studs = (sRes.data ?? []) as PortalUser[];
             setStudents(studs);

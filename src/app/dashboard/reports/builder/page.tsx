@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { Database } from '@/types/supabase';
-import ReportCard, { letterGrade as reportGrade } from '@/components/reports/ReportCard';
+import ReportCard, { letterGrade as importedReportGrade } from '@/components/reports/ReportCard';
 import { generateReportPDF, ScaledReportCard } from '@/lib/pdf-utils';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
@@ -100,7 +100,11 @@ function ReportBuilderInner() {
     const searchParams = useSearchParams();
     const prefStudentId = searchParams.get('student');
 
-    const { profile, loading: authLoading } = useAuth();
+    const { profile, loading: authLoading, profileLoading } = useAuth();
+    
+    // ── Permissions ──────────────────────────────────────────────────────────
+    const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+    const isAdmin = profile?.role === 'admin';
 
     // ── Data ──────────────────────────────────────────────────────────────────
     const [students, setStudents] = useState<PortalUser[]>([]);
@@ -175,8 +179,15 @@ function ReportBuilderInner() {
         org_phone: '', org_email: '', org_website: '', logo_url: '',
     });
 
-    const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
-    const isAdmin = profile?.role === 'admin';
+    // ── Local Grade Helper (Avoids conflict with imported one) ─────────────
+    const reportGrade = (score: number) => {
+        if (score >= 90) return { g: 'A+', label: 'Exceptional' };
+        if (score >= 80) return { g: 'A', label: 'Excellent' };
+        if (score >= 70) return { g: 'B', label: 'Very Good' };
+        if (score >= 60) return { g: 'C', label: 'Good' };
+        if (score >= 50) return { g: 'D', label: 'Fair' };
+        return { g: 'F', label: 'Needs Improvement' };
+    };
 
     // ── Restore session config from localStorage + init date ──────────────────
     // ── Restore session config from localStorage + init date ──────────────────
@@ -615,7 +626,7 @@ function ReportBuilderInner() {
     };
 
     // ── Guards ────────────────────────────────────────────────────────────────
-    if (authLoading) return (
+    if (authLoading || profileLoading) return (
         <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
             <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
         </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
@@ -25,7 +25,7 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
     assignmentTitle: string;
     questions?: any[];
     onClose: () => void;
-    onSaved: (id: string, grade: number, feedback: string) => void;
+    onSaved: () => void;
 }) {
     const { profile } = useAuth();
     const max = maxPoints ?? 100;
@@ -42,11 +42,9 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
         setSaving(true); setErr('');
         try {
             await gradeSubmission(sub.id, g, feedback, profile!.id);
-            onSaved(sub.id, g, feedback);
-            onClose();
+            onSaved(); // triggers server refetch
         } catch (e: any) {
             setErr(e.message ?? 'Failed to save grade');
-        } finally {
             setSaving(false);
         }
     };
@@ -152,7 +150,12 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
                         />
                     </div>
 
-                    {err && <p className="text-sm text-rose-400 flex items-center gap-1"><ExclamationTriangleIcon className="w-4 h-4" />{err}</p>}
+                    {err && (
+                        <div className="flex items-start gap-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl">
+                            <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm text-rose-400 font-semibold">{err}</p>
+                        </div>
+                    )}
                 </div>
 
                 <div className="p-6 border-t border-white/10 flex gap-3">
@@ -189,6 +192,8 @@ export default function AssignmentDetailPage() {
     const params = useParams();
     const id = params?.id as string;
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const classId = searchParams?.get('class_id');
     const { profile, loading: authLoading } = useAuth();
 
     const [assignment, setAssignment] = useState<any>(null);
@@ -204,19 +209,14 @@ export default function AssignmentDetailPage() {
     const [uploadingFile, setUploadingFile] = useState(false);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
     const [fileError, setFileError] = useState<string | null>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
 
-    const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+    const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
-    const handleGraded = (id: string, grade: number, feedback: string) => {
-        setAssignment((prev: any) => {
-            if (!prev) return prev;
-            return {
-                ...prev,
-                assignment_submissions: prev.assignment_submissions.map((s: any) =>
-                    s.id === id ? { ...s, grade, feedback, status: 'graded', graded_at: new Date().toISOString() } : s
-                )
-            };
-        });
+    // Called when a grade is successfully saved — refetch from server to sync counters
+    const handleGraded = () => {
+        setGrading(null);
+        setRefreshKey(k => k + 1); // triggers useEffect refetch
     };
 
     useEffect(() => {
@@ -228,29 +228,42 @@ export default function AssignmentDetailPage() {
             setLoading(true);
             setError(null);
             try {
-                // Fetch assignment
-                const { data: aData, error: aErr } = await supabase
-                    .from('assignments')
-                    .select(`
-            id, title, description, instructions, due_date, max_points,
-            assignment_type, is_active, created_at, questions,
-            courses ( id, title, programs ( name ) ),
-            assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, portal_user_id, submission_text, file_url, answers, portal_users!assignment_submissions_portal_user_id_fkey ( full_name, email ) )
-          `)
-                    .eq('id', id)
-                    .single();
-                if (aErr) throw aErr;
-                if (!cancelled) setAssignment(aData);
-
-                // For student, find their submission (guard against select error type)
-                if (!isStaff) {
-                    const submissions = Array.isArray(aData?.assignment_submissions)
-                        ? aData.assignment_submissions
-                        : [];
-                    const mySub = submissions.find(
-                        (s: any) => s.portal_user_id === profile!.id
-                    );
-                    if (!cancelled) setSubmission(mySub ?? null);
+                if (isStaff) {
+                    // Staff can see all submissions — fetch assignment + all submissions separately
+                    const [asgnRes, subsRes] = await Promise.all([
+                        supabase.from('assignments').select(`
+                            id, title, description, instructions, due_date, max_points,
+                            assignment_type, is_active, created_at, questions,
+                            courses ( id, title, programs ( name ) )
+                        `).eq('id', id).single(),
+                        supabase.from('assignment_submissions').select(`
+                            id, status, grade, feedback, submitted_at, graded_at,
+                            portal_user_id, submission_text, file_url, answers,
+                            portal_users!assignment_submissions_portal_user_id_fkey ( full_name, email )
+                        `).eq('assignment_id', id)
+                    ]);
+                    if (asgnRes.error) throw asgnRes.error;
+                    const asgn = { ...asgnRes.data, assignment_submissions: subsRes.data ?? [] };
+                    if (!cancelled) setAssignment(asgn);
+                } else {
+                    // Student: fetch their own submission only
+                    const [asgnRes, mySubRes] = await Promise.all([
+                        supabase.from('assignments').select(`
+                            id, title, description, instructions, due_date, max_points,
+                            assignment_type, is_active, created_at, questions,
+                            courses ( id, title, programs ( name ) )
+                        `).eq('id', id).single(),
+                        supabase.from('assignment_submissions').select(`
+                            id, status, grade, feedback, submitted_at, graded_at,
+                            portal_user_id, submission_text, file_url, answers
+                        `).eq('assignment_id', id).eq('portal_user_id', profile!.id).maybeSingle()
+                    ]);
+                    if (asgnRes.error) throw asgnRes.error;
+                    const asgn = { ...asgnRes.data, assignment_submissions: mySubRes.data ? [mySubRes.data] : [] };
+                    if (!cancelled) {
+                        setAssignment(asgn);
+                        setSubmission(mySubRes.data ?? null);
+                    }
                 }
             } catch (e: any) {
                 if (!cancelled) setError(e.message ?? 'Failed to load assignment');
@@ -260,7 +273,7 @@ export default function AssignmentDetailPage() {
         }
         load();
         return () => { cancelled = true; };
-    }, [authLoading, profile, id, isStaff]);
+    }, [authLoading, profile, id, isStaff, refreshKey]);
 
     const handleFileChange = async (file: File | null) => {
         setAttachedFile(file);
@@ -358,9 +371,9 @@ export default function AssignmentDetailPage() {
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
                 {/* Back */}
-                <Link href="/dashboard/assignments"
+                <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/assignments`}
                     className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors">
-                    <ArrowLeftIcon className="w-4 h-4" /> Back to Assignments
+                    <ArrowLeftIcon className="w-4 h-4" /> {classId ? 'Back to Class' : 'Back to Assignments'}
                 </Link>
 
                 {/* Header Card */}

@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
     ArrowLeftIcon, AcademicCapIcon, PlusIcon, TrashIcon,
     CheckIcon, ArrowPathIcon, ExclamationTriangleIcon, PencilSquareIcon,
-    ChevronUpIcon, ChevronDownIcon,
+    ChevronUpIcon, ChevronDownIcon, SparklesIcon, CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 
 interface Question {
@@ -340,11 +340,24 @@ export default function EditExamPage() {
                             <div key={q.id ?? `new-${qi}`} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
                                 {/* Question header */}
                                 <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-white/10">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-black text-white/40 w-6">{qi + 1}</span>
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${q._new ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/40'}`}>
-                                            {q._new ? 'New' : 'Existing'}
-                                        </span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-xs font-black text-white/40 w-6 tracking-tighter italic mr-1">#{qi + 1}</span>
+                                            {q.question_type === 'essay' || q.question_type === 'fill_blank' ? (
+                                                <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black uppercase text-amber-500 italic flex items-center gap-1">
+                                                    <SparklesIcon className="w-2.5 h-2.5" /> Manual Eval
+                                                </span>
+                                            ) : (
+                                                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black uppercase text-emerald-400 italic flex items-center gap-1">
+                                                    <CheckCircleIcon className="w-2.5 h-2.5" /> Auto Graded
+                                                </span>
+                                            )}
+                                        </div>
+                                        {q._new && (
+                                            <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-[9px] font-black uppercase tracking-widest italic">
+                                                New
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-1">
                                         <button type="button" onClick={() => moveQuestion(qi, -1)} disabled={qi === 0}
@@ -380,60 +393,61 @@ export default function EditExamPage() {
                                                 <option value="essay">Essay</option>
                                             </select>
                                         </div>
-                                        <div>
+                                        <div className="sm:col-span-1">
                                             <label className="block text-xs text-white/40 uppercase tracking-widest mb-1">Points</label>
                                             <input type="number" min="1" value={q.points}
                                                 onChange={e => updateQuestion(questions.indexOf(q), { points: parseInt(e.target.value) || 1 })}
                                                 className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors" />
                                         </div>
-                                        <div>
-                                            <label className="block text-xs text-white/40 uppercase tracking-widest mb-1">Correct Answer</label>
-                                            {q.question_type === 'true_false' ? (
-                                                <select value={q.correct_answer}
-                                                    onChange={e => updateQuestion(questions.indexOf(q), { correct_answer: e.target.value })}
-                                                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
-                                                    <option value="">Select…</option>
-                                                    <option value="True">True</option>
-                                                    <option value="False">False</option>
-                                                </select>
-                                            ) : q.question_type === 'multiple_choice' ? (
-                                                <select value={q.correct_answer}
-                                                    onChange={e => updateQuestion(questions.indexOf(q), { correct_answer: e.target.value })}
-                                                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
-                                                    <option value="">Select correct…</option>
-                                                    {q.options.filter(o => o.trim()).map((opt, oi) => (
-                                                        <option key={oi} value={opt}>{String.fromCharCode(65 + oi)}. {opt}</option>
-                                                    ))}
-                                                </select>
-                                            ) : (
+                                        {(q.question_type === 'fill_blank' || q.question_type === 'essay') && (
+                                            <div className="sm:col-span-2">
+                                                <label className="block text-xs text-white/40 uppercase tracking-widest mb-1">Correct Answer / Scoring Guide</label>
                                                 <input type="text" value={q.correct_answer}
                                                     onChange={e => updateQuestion(questions.indexOf(q), { correct_answer: e.target.value })}
-                                                    placeholder="Correct answer…"
+                                                    placeholder={q.question_type === 'fill_blank' ? "Exact answer..." : "Grading rubric or points guide..."}
                                                     className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500 transition-colors" />
-                                            )}
-                                        </div>
+                                            </div>
+                                        )}
                                     </div>
 
+                                    {q.question_type === 'true_false' && (
+                                        <div className="flex gap-4">
+                                            {['True', 'False'].map(opt => (
+                                                <button
+                                                    key={opt}
+                                                    type="button"
+                                                    onClick={() => updateQuestion(questions.indexOf(q), { correct_answer: opt })}
+                                                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-bold transition-all ${q.correct_answer === opt ? 'bg-emerald-500 border-emerald-400 text-white' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}
+                                                >
+                                                    {q.correct_answer === opt && <CheckIcon className="w-4 h-4" />}
+                                                    {opt}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     {q.question_type === 'multiple_choice' && (
-                                        <div>
-                                            <label className="block text-xs text-white/40 uppercase tracking-widest mb-2">Answer Options</label>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <div className="space-y-3">
+                                            <label className="block text-xs text-white/40 uppercase tracking-widest mb-2">Options (Select correct one)</label>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 {q.options.map((opt, oi) => (
-                                                    <div key={oi} className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors ${opt === q.correct_answer && opt.trim() ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-white/10 bg-white/5'}`}>
-                                                        <span className={`text-xs font-bold w-5 flex-shrink-0 ${opt === q.correct_answer && opt.trim() ? 'text-emerald-400' : 'text-white/30'}`}>
-                                                            {String.fromCharCode(65 + oi)}.
-                                                        </span>
+                                                    <div key={oi} className={`flex items-center gap-2 p-1.5 rounded-2xl border transition-all ${q.correct_answer === opt && opt !== '' ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-white/5 border-white/10'}`}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => updateQuestion(questions.indexOf(q), { correct_answer: opt })}
+                                                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${q.correct_answer === opt && opt !== '' ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/20 hover:border-emerald-500/50'}`}
+                                                        >
+                                                            {q.correct_answer === opt && opt !== '' && <CheckIcon className="w-3 h-3 font-black" />}
+                                                        </button>
                                                         <input type="text" value={opt}
-                                                            onChange={e => updateOption(questions.indexOf(q), oi, e.target.value)}
+                                                            onChange={e => {
+                                                                const newVal = e.target.value;
+                                                                const isCorrect = q.correct_answer === opt;
+                                                                updateOption(questions.indexOf(q), oi, newVal);
+                                                                if (isCorrect) updateQuestion(questions.indexOf(q), { correct_answer: newVal });
+                                                            }}
                                                             placeholder={`Option ${String.fromCharCode(65 + oi)}`}
-                                                            className="flex-1 bg-transparent text-sm text-white placeholder-white/20 focus:outline-none" />
-                                                        {opt.trim() && (
-                                                            <button type="button"
-                                                                onClick={() => updateQuestion(questions.indexOf(q), { correct_answer: opt })}
-                                                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full transition-colors ${opt === q.correct_answer ? 'bg-emerald-500/30 text-emerald-400' : 'text-white/20 hover:text-emerald-400 hover:bg-emerald-500/10'}`}>
-                                                                {opt === q.correct_answer ? '✓ Correct' : 'Set correct'}
-                                                            </button>
-                                                        )}
+                                                            className="flex-1 bg-transparent border-none px-1 py-1 text-sm text-white placeholder-white/20 focus:outline-none" />
                                                     </div>
                                                 ))}
                                             </div>
