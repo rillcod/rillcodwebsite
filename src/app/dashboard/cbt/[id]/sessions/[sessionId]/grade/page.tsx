@@ -125,7 +125,11 @@ export default function GradeSessionPage() {
         </div>
     );
 
-    const subjectiveQuestions = questions.filter(q => q.question_type === 'essay' || q.question_type === 'fill_blank');
+    const subjectiveQuestions = questions.filter(q => 
+        q.question_type === 'essay' || 
+        q.question_type === 'fill_blank' || 
+        q.question_type === 'coding_blocks'
+    );
 
     return (
         <div className="min-h-screen bg-[#0f0f1a] text-white">
@@ -245,7 +249,30 @@ export default function GradeSessionPage() {
                                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400/60">Student's Response</p>
                                             </div>
                                             <div className="p-6 bg-white/[0.02] border border-white/10 rounded-3xl text-base leading-relaxed text-white/80 whitespace-pre-wrap font-medium shadow-inner italic">
-                                                "{studentAnswer}"
+                                                {q.question_type === 'coding_blocks' ? (
+                                                    <div className="space-y-3">
+                                                        <div className="flex flex-wrap items-center gap-2 leading-[2.5rem]">
+                                                            {(q.metadata?.logic_sentence || "").split('[BLANK]').map((part: string, pi: number, arr: string[]) => (
+                                                                <div key={pi} className="contents">
+                                                                    <span className="text-white/60">{part}</span>
+                                                                    {pi < arr.length - 1 && (
+                                                                        <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 font-black italic shadow-sm">
+                                                                            {(session.answers[q.id] || "").split(',')[pi]?.trim() || "???"}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/10 w-fit">
+                                                            <div className={`w-2 h-2 rounded-full ${ (session.answers[q.id] || "").trim().toLowerCase() === (q.correct_answer || "").trim().toLowerCase() ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" }`} />
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-white/40 italic">
+                                                                {(session.answers[q.id] || "").trim().toLowerCase() === (q.correct_answer || "").trim().toLowerCase() ? "Sequence Matched" : "Sequence Mismatch"}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    `"${studentAnswer}"`
+                                                )}
                                             </div>
                                         </div>
 

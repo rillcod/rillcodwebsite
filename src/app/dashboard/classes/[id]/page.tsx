@@ -9,9 +9,12 @@ import {
   ArrowLeftIcon, BookOpenIcon, UserGroupIcon, CalendarIcon,
   ClockIcon, PencilIcon, CheckCircleIcon, AcademicCapIcon,
   ClipboardDocumentCheckIcon, PlusIcon, ExclamationTriangleIcon,
-  ClipboardDocumentListIcon, ArrowRightIcon as ArrowRightOutline,
-  ChevronDownIcon, ArrowPathIcon, TrashIcon, ChartBarIcon, BoltIcon
+  ChevronDownIcon, ArrowPathIcon, TrashIcon, ChartBarIcon, BoltIcon,
+  ClipboardDocumentListIcon,
+  PencilSquareIcon as PencilSquareIconOutline, CheckIcon as CheckIconOutline,
+  CloudArrowUpIcon
 } from '@heroicons/react/24/outline';
+import { gradeSubmission } from '@/services/dashboard.service';
 
 
 export default function ClassDetailPage() {
@@ -28,6 +31,8 @@ export default function ClassDetailPage() {
 
   const [activeTab, setActiveTab] = useState<'overview' | 'lessons' | 'assignments' | 'cbt' | 'gradebook'>('overview');
   const [items, setItems] = useState<{ lessons: any[], assignments: any[], cbt: any[], submissions: any[], cbtSessions: any[] }>({ lessons: [], assignments: [], cbt: [], submissions: [], cbtSessions: [] });
+  const [manualEntry, setManualEntry] = useState(false);
+  const [matrixSaving, setMatrixSaving] = useState<Record<string, boolean>>({});
 
   // Student Management State
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -156,6 +161,85 @@ export default function ClassDetailPage() {
     } finally {
       setProcessingStudent(null);
     }
+  };
+
+  const handleExportLogins = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const enrRows = enrollments.map((enr: any) => `
+      <tr>
+        <td><strong>${enr.portal_users?.full_name || 'Unknown'}</strong></td>
+        <td>${cls.name}</td>
+        <td>${enr.portal_users?.email || 'N/A'}</td>
+        <td style="text-align: center;"><div class="pass-field"></div></td>
+      </tr>
+    `).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Student Credentials - ${cls.name}</title>
+        <style>
+          body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #111; max-width: 800px; margin: 0 auto; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .logo { max-width: 150px; margin-bottom: 20px; }
+          .brand-title { font-size: 24px; font-weight: 900; color: #000; text-transform: uppercase; letter-spacing: 2px; }
+          .brand-subtitle { font-size: 14px; color: #555; font-weight: 600; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
+          h1 { font-size: 22px; margin: 0 0 10px 0; text-align: center; }
+          .meta { font-size: 14px; color: #555; margin-bottom: 30px; text-align: center; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ccc; padding: 12px; text-align: left; font-size: 14px; }
+          th { background: #f4f4f4; font-weight: bold; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
+          .pass-field { display: inline-block; width: 150px; height: 1px; background: #ccc; margin-top: 10px; }
+          .note { margin-top: 40px; text-align: center; color: #666; font-size: 12px; font-style: italic; }
+          .print-btn { display: block; margin: 30px auto; padding: 10px 20px; background: #0f0f1a; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+          @media print {
+            body { padding: 0; }
+            .print-btn { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <!-- <img src="/logo.png" alt="Logo" class="logo" /> -->
+          <div class="brand-title">RILLCOD ACADEMY</div>
+          <div class="brand-subtitle">Student Login Credentials</div>
+        </div>
+        
+        <h1>${cls.name}</h1>
+        <div class="meta">
+          <strong>Programme:</strong> ${cls.programs?.name || 'N/A'} &nbsp;|&nbsp;
+          <strong>Teacher:</strong> ${cls.portal_users?.full_name || 'N/A'} &nbsp;|&nbsp;
+          <strong>Date:</strong> ${new Date().toLocaleDateString()}
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Student Name</th>
+              <th>Class</th>
+              <th>Login Email</th>
+              <th>Password</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${enrRows}
+          </tbody>
+        </table>
+        
+        <div class="note">
+          Passwords are encrypted in our database for security. Please fill in the temporary passwords here before distributing or instruct students to use the "Forgot Password" feature.
+        </div>
+        
+        <button class="print-btn" onclick="window.print()">Print Document</button>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   if (authLoading || loading) return (
@@ -423,8 +507,19 @@ export default function ClassDetailPage() {
 
             {activeTab === 'gradebook' && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white/40">Class Gradebook</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-2">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-white/40">Class Gradebook</h3>
+                    {isStaff && (
+                      <button
+                        onClick={() => setManualEntry(!manualEntry)}
+                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${manualEntry ? 'bg-emerald-500 text-white' : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'}`}
+                      >
+                        {manualEntry ? <CheckIconOutline className="w-3 h-3" /> : <PencilSquareIconOutline className="w-3 h-3" />}
+                        {manualEntry ? 'Editing Mode' : 'Manual Entry'}
+                      </button>
+                    )}
+                  </div>
                   <button onClick={() => router.push('/dashboard/grades')} className="text-[10px] font-black text-blue-400 hover:underline uppercase tracking-widest">
                     Full Grading Center →
                   </button>
@@ -457,14 +552,14 @@ export default function ClassDetailPage() {
                       <tbody className="divide-y divide-white/5 font-medium text-xs">
                         {enrollments.map(enr => (
                           <tr key={enr.id} className="hover:bg-white/2 transition-colors group">
-                            <td className="px-6 py-5 sticky left-0 bg-[#0f0f1a] z-10 border-r border-white/5 group-hover:bg-[#151525] transition-colors">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border border-blue-500/20 flex items-center justify-center text-[10px] font-black text-blue-400">
+                            <td className="px-4 sm:px-6 py-5 sticky left-0 bg-[#0f0f1a] z-10 border-r border-white/5 group-hover:bg-[#151525] transition-colors shadow-xl">
+                              <div className="flex items-center gap-2 sm:gap-3 max-w-[140px] sm:max-w-none">
+                                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border border-blue-500/20 flex items-center justify-center text-[9px] sm:text-[10px] font-black text-blue-400 flex-shrink-0">
                                   {(enr.portal_users?.full_name ?? '?')[0]}
                                 </div>
-                                <div>
-                                  <p className="text-white font-bold whitespace-nowrap">{enr.portal_users?.full_name}</p>
-                                  <p className="text-[9px] text-white/30 truncate max-w-[120px]">{enr.portal_users?.email}</p>
+                                <div className="min-w-0">
+                                  <p className="text-white font-bold whitespace-nowrap text-[11px] sm:text-xs truncate">{enr.portal_users?.full_name}</p>
+                                  <p className="text-[8px] sm:text-[9px] text-white/30 truncate">{enr.portal_users?.email}</p>
                                 </div>
                               </div>
                             </td>
@@ -473,8 +568,41 @@ export default function ClassDetailPage() {
                               const score = sub?.grade;
                               const percentage = a.max_points > 0 ? (score ?? 0) / a.max_points : 0;
                               return (
-                                <td key={a.id} className="px-4 py-5 text-center border-l border-white/5 bg-amber-500/[0.02] group-hover:bg-amber-500/[0.05] transition-all">
-                                  {sub ? (
+                                <td key={a.id} className={`px-2 py-5 text-center border-l border-white/5 transition-all relative ${manualEntry ? 'bg-emerald-500/5' : 'bg-amber-500/[0.02] group-hover:bg-amber-500/[0.05]'}`}>
+                                  {manualEntry ? (
+                                    <div className="flex flex-col items-center gap-1">
+                                      <input
+                                        type="number"
+                                        defaultValue={score ?? ''}
+                                        onBlur={async (e) => {
+                                          const val = e.target.value;
+                                          if (val === '' || isNaN(Number(val))) return;
+                                          const numVal = Math.min(Number(val), a.max_points);
+                                          const key = `asm-${a.id}-${enr.portal_users.id}`;
+                                          if (numVal === score) return;
+                                          
+                                          setMatrixSaving(p => ({ ...p, [key]: true }));
+                                          try {
+                                            if (sub) {
+                                              await gradeSubmission(sub.id, numVal, sub.feedback || '', profile!.id);
+                                            } else {
+                                              // Create new submission if not exists? Probably better to just update existing ones in this view.
+                                              // For now, let's assume we update existing ones.
+                                            }
+                                            await fetchData(); // Refresh data
+                                          } catch (err) {
+                                            console.error(err);
+                                          } finally {
+                                            setMatrixSaving(p => ({ ...p, [key]: false }));
+                                          }
+                                        }}
+                                        className="w-12 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-xs font-black text-white focus:border-emerald-500 outline-none transition-all"
+                                      />
+                                      {matrixSaving[`asm-${a.id}-${enr.portal_users.id}`] && (
+                                        <CloudArrowUpIcon className="w-3 h-3 text-emerald-400 animate-pulse absolute top-1 right-1" />
+                                      )}
+                                    </div>
+                                  ) : sub ? (
                                     score !== null ? (
                                       <div className="space-y-1">
                                          <span className={`text-sm font-black ${percentage >= 0.7 ? 'text-emerald-400' : percentage >= 0.5 ? 'text-amber-400' : 'text-rose-400'}`}>
@@ -576,13 +704,22 @@ export default function ClassDetailPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-black text-blue-400">{enrollments.length} / {cls.max_students}</span>
                   {isStaff && (
-                    <button
-                      onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }}
-                      className="p-1 rounded-md bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 transition-all"
-                      title="Add Students"
-                    >
-                      <PlusIcon className="w-3.5 h-3.5" />
-                    </button>
+                    <>
+                      <button
+                        onClick={handleExportLogins}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 text-[10px] font-black uppercase tracking-widest transition-all"
+                        title="Export Student Logins"
+                      >
+                        Export Logins
+                      </button>
+                      <button
+                        onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }}
+                        className="p-1 rounded-md bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 transition-all"
+                        title="Add Students"
+                      >
+                        <PlusIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

@@ -106,7 +106,7 @@ function GradeModal({ sub, onClose, onSaved }: {
         if (grade === '' || isNaN(g) || g < 0 || g > max) { setErr(`Enter a score between 0 and ${max}`); return; }
         setSaving(true); setErr('');
         try {
-            await gradeSubmission(sub.id, g, feedback, profile!.id);
+            await gradeSubmission(sub.id, g, feedback, profile?.id || '');
             onSaved(sub.id, g, feedback);
             onClose();
         } catch (e: any) {
@@ -453,11 +453,11 @@ export default function GradesPage() {
             try {
                 const data = isStaff
                     ? await fetchSubmissionsForGrading({
-                        teacherId: role === 'teacher' ? profile!.id : undefined,
-                        schoolId: role === 'school' ? profile!.school_id ?? undefined : undefined,
-                        schoolName: role === 'school' ? profile!.school_name ?? undefined : undefined,
+                        teacherId: role === 'teacher' ? profile?.id : undefined,
+                        schoolId: role === 'school' ? profile?.school_id ?? undefined : undefined,
+                        schoolName: role === 'school' ? profile?.school_name ?? undefined : undefined,
                     })
-                    : await fetchStudentGrades(profile!.id);
+                    : await fetchStudentGrades(profile?.id || '');
                 if (!cancelled) setItems(data);
             } catch (e: any) {
                 if (!cancelled) setError(e.message ?? 'Failed to load');

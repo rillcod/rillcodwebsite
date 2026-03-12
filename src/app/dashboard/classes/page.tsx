@@ -43,7 +43,7 @@ export default function ClassesPage() {
       setLoading(true);
       setError(null);
       try {
-        const teacherId = profile!.role === 'teacher' ? profile!.id : undefined;
+        const teacherId = profile?.role === 'teacher' ? profile?.id : undefined;
         const data = await fetchClasses(teacherId);
         if (!cancelled) setClasses(data);
       } catch (e: any) {

@@ -92,7 +92,7 @@ export default function SettingsPage() {
           phone: profileData.phone,
           bio: profileData.bio,
         })
-        .eq('id', profile!.id);
+        .eq('id', profile?.id || '');
       if (error) throw error;
       await refreshProfile();
       setEditing(false);

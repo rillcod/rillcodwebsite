@@ -58,9 +58,8 @@ export default function EditLessonPage() {
         if (!profile || !id) return;
         const db = createClient();
         try {
-            const [lessonRes, coursesRes, planRes, materialsRes] = await Promise.all([
+            const [lessonRes, planRes, materialsRes] = await Promise.all([
                 db.from('lessons').select('*').eq('id', id).single(),
-                db.from('courses').select('id, title').order('title'),
                 db.from('lesson_plans').select('*').eq('lesson_id', id).maybeSingle(),
                 db.from('lesson_materials').select('*').eq('lesson_id', id).order('created_at', { ascending: true })
             ]);
@@ -68,8 +67,19 @@ export default function EditLessonPage() {
             if (lessonRes.error) throw lessonRes.error;
             const l = lessonRes.data;
             setLesson(l);
-            setCourses(coursesRes.data ?? []);
             setMaterials(materialsRes.data ?? []);
+
+            // Handle courses with school context
+            let query = db
+                .from('courses')
+                .select('id, title, program_id, school_id')
+                .eq('is_active', true);
+
+            if (profile?.school_id) {
+                query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
+            }
+            const { data: courseList } = await query.order('title');
+            setCourses(courseList ?? []);
 
             setForm({
                 title: l.title,
@@ -134,7 +144,7 @@ export default function EditLessonPage() {
     };
 
     const handleSave = async () => {
-        if (!id || !profile) return;
+        if (!id || !profile?.id) return;
         setSaving(true);
         setError(null);
         const db = createClient();

@@ -54,10 +54,10 @@ export default function CoursesPage() {
       try {
         const data = isStaff
           ? await fetchCourses(undefined, {
-            schoolId: profile.school_id || undefined,
-            schoolName: profile.school_name || undefined
+            schoolId: profile?.school_id || undefined,
+            schoolName: profile?.school_name || undefined
           })
-          : await fetchStudentCourses(profile!.id);
+          : await fetchStudentCourses(profile?.id || '');
         if (!cancelled) setCourses(data);
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load courses');

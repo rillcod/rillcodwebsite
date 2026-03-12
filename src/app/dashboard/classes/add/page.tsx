@@ -55,10 +55,10 @@ export default function AddClassPage() {
         const { data: assignments } = await db
           .from('teacher_schools')
           .select('school_id')
-          .eq('teacher_id', profile.id);
+          .eq('teacher_id', profile?.id || '');
 
         const schoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
-        if (profile.school_id && !schoolIds.includes(profile.school_id)) schoolIds.push(profile.school_id);
+        if (profile?.school_id && !schoolIds.includes(profile.school_id)) schoolIds.push(profile.school_id);
 
         if (schoolIds.length > 0) {
           schoolsQuery = schoolsQuery.in('id', schoolIds);
@@ -90,9 +90,9 @@ export default function AddClassPage() {
         const { data: assignments } = await db
           .from('teacher_schools')
           .select('school_id')
-          .eq('teacher_id', profile!.id);
+          .eq('teacher_id', profile?.id || '');
         const assignedSchoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
-        if (profile!.school_id && !assignedSchoolIds.includes(profile!.school_id)) assignedSchoolIds.push(profile!.school_id);
+        if (profile?.school_id && !assignedSchoolIds.includes(profile.school_id)) assignedSchoolIds.push(profile.school_id);
 
         // 2. Fetch the "Pool" from portal_users (active students who can be assigned)
         let poolQuery = db.from('portal_users')
@@ -141,9 +141,9 @@ export default function AddClassPage() {
         if (form.school_id) {
           const sName = schools.find(s => s.id === form.school_id)?.name;
           if (sName) {
-            pendingQuery = pendingQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}",created_by.eq.${profile!.id}`);
+            pendingQuery = pendingQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}",created_by.eq.${profile?.id || ''}`);
           } else {
-            pendingQuery = pendingQuery.or(`school_id.eq.${form.school_id},created_by.eq.${profile!.id}`);
+            pendingQuery = pendingQuery.or(`school_id.eq.${form.school_id},created_by.eq.${profile?.id || ''}`);
           }
         } else if (profile?.role === 'teacher') {
           if (assignedSchoolIds.length > 0) {
@@ -180,7 +180,7 @@ export default function AddClassPage() {
         name: form.name.trim(),
         description: form.description.trim() || null,
         program_id: form.program_id,
-        teacher_id: form.teacher_id || profile!.id,
+        teacher_id: form.teacher_id || profile?.id || '',
         school_id: form.school_id || null,
         max_students: parseInt(form.max_students) || 20,
         status: form.status,

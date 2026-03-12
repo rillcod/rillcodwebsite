@@ -6,7 +6,74 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   ClockIcon, CheckCircleIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon,
+  CodeBracketIcon
 } from '@heroicons/react/24/outline';
+
+function CodingBlocksChallenge({ 
+  question, 
+  value, 
+  onChange 
+}: { 
+  question: any, 
+  value: string, 
+  onChange: (val: string) => void 
+}) {
+  const sentence = question.metadata?.logic_sentence || "Logic: [BLANK]";
+  const parts = sentence.split('[BLANK]');
+  const blocks = question.metadata?.logic_blocks || [];
+  
+  const currentAnswers = value ? value.split(',').map(s => s.trim()) : [];
+  
+  const updateAt = (idx: number, newVal: string) => {
+      const newAns = [...currentAnswers];
+      for (let i=0; i < parts.length - 1; i++) {
+          if (newAns[i] === undefined) newAns[i] = '';
+      }
+      newAns[idx] = newVal;
+      onChange(newAns.slice(0, parts.length - 1).join(', '));
+  };
+
+  return (
+      <div className="space-y-6">
+          <div className="p-6 bg-white/[0.03] border border-white/10 rounded-[2rem] flex flex-wrap items-center gap-x-3 gap-y-4 leading-[3rem]">
+              {parts.map((p: string, pi: number) => (
+                  <div key={pi} className="contents">
+                      <span className="text-lg font-medium text-white/80">{p}</span>
+                      {pi < parts.length - 1 && (
+                          <div className="inline-block min-w-[100px] h-10 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-xl px-4 text-sm font-black text-emerald-400 flex items-center justify-center italic shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+                              {currentAnswers[pi] || "???"}
+                          </div>
+                      )}
+                  </div>
+              ))}
+          </div>
+          
+          <div className="flex flex-wrap gap-3">
+              {blocks.map((block: string, bi: number) => (
+                  <button
+                      key={bi}
+                      type="button"
+                      onClick={() => {
+                          const firstEmpty = currentAnswers.findIndex((a, i) => i < parts.length - 1 && !a);
+                          const targetIdx = firstEmpty === -1 ? 0 : firstEmpty;
+                          if (targetIdx < parts.length - 1) updateAt(targetIdx, block);
+                      }}
+                      className="px-5 py-3 bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/30 rounded-2xl text-sm font-bold text-white/70 hover:text-emerald-400 transition-all active:scale-95"
+                  >
+                      {block}
+                  </button>
+              ))}
+              <button 
+                  type="button" 
+                  onClick={() => onChange('')}
+                  className="px-4 py-3 bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/30 rounded-2xl text-[10px] uppercase font-black text-white/30 hover:text-rose-400 ml-auto transition-all"
+              >
+                  Clear Blocks
+              </button>
+          </div>
+      </div>
+  );
+}
 
 export default function TakeExamPage() {
   const params = useParams() as { id?: string };
@@ -56,12 +123,14 @@ export default function TakeExamPage() {
       let manualGradingRequired = false;
 
       questions.forEach(q => {
-        if (q.question_type === 'essay' || q.question_type === 'fill_blank') {
+        if (q.question_type === 'essay') {
           manualGradingRequired = true;
         }
 
-        if ((answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) {
-          if (q.question_type !== 'essay') { // Essays never auto-match unless maybe it's a perfect string, but we want manual review anyway
+        const isCorrect = (answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase();
+        
+        if (isCorrect) {
+          if (q.question_type !== 'essay') {
             correct++;
           }
         }
@@ -69,7 +138,7 @@ export default function TakeExamPage() {
 
       const totalPoints = questions.reduce((s, q) => s + (q.points ?? 0), 0);
       const earnedPoints = questions.reduce((s, q) => {
-        if (q.question_type === 'essay' || q.question_type === 'fill_blank') return s; // These will be added later
+        if (q.question_type === 'essay') return s;
         if ((answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) {
           return s + (q.points ?? 0);
         }
@@ -300,6 +369,14 @@ export default function TakeExamPage() {
                     className="relative w-full px-8 py-6 bg-white/3 border-2 border-white/5 rounded-[2rem] text-lg text-white placeholder-white/10 focus:outline-none focus:border-emerald-500/50 focus:bg-white/[0.05] transition-all resize-none shadow-2xl"
                   />
                 </div>
+              )}
+
+              {q?.question_type === 'coding_blocks' && (
+                <CodingBlocksChallenge 
+                  question={q} 
+                  value={answers[q.id] ?? ''} 
+                  onChange={(val) => setAnswers(a => ({ ...a, [q.id]: val }))} 
+                />
               )}
             </div>
           </div>

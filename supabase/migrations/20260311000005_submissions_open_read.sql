@@ -18,6 +18,7 @@ DROP POLICY IF EXISTS "submissions_student_insert" ON public.assignment_submissi
 DROP POLICY IF EXISTS "submissions_student_update" ON public.assignment_submissions;
 
 -- Single permissive SELECT: staff see all, students see their own
+DROP POLICY IF EXISTS "submissions_read" ON public.assignment_submissions;
 CREATE POLICY "submissions_read"
   ON public.assignment_submissions
   FOR SELECT TO authenticated
@@ -34,6 +35,7 @@ CREATE POLICY "submissions_read"
   );
 
 -- Staff: can insert/update/delete
+DROP POLICY IF EXISTS "submissions_staff_write" ON public.assignment_submissions;
 CREATE POLICY "submissions_staff_write"
   ON public.assignment_submissions
   FOR ALL TO authenticated
@@ -53,6 +55,7 @@ CREATE POLICY "submissions_staff_write"
   );
 
 -- Students: can insert their own submission
+DROP POLICY IF EXISTS "submissions_student_insert" ON public.assignment_submissions;
 CREATE POLICY "submissions_student_insert"
   ON public.assignment_submissions
   FOR INSERT TO authenticated
@@ -62,6 +65,7 @@ CREATE POLICY "submissions_student_insert"
   );
 
 -- Students: can update their own submission (resubmit)
+DROP POLICY IF EXISTS "submissions_student_update" ON public.assignment_submissions;
 CREATE POLICY "submissions_student_update"
   ON public.assignment_submissions
   FOR UPDATE TO authenticated

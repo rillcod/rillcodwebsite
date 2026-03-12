@@ -146,14 +146,10 @@ export async function fetchSubmissionsForGrading(opts: { teacherId?: string, sch
         });
     }
 
-    // Step 6: Filter to teacher's own assignments
-    if (opts.teacherId) {
-        result = result.filter((s: any) =>
-            s.assignments?.created_by === opts.teacherId ||
-            s.assignments?.courses?.teacher_id === opts.teacherId
-        );
-    }
-
+    // Step 6: Broadened staff access (RLS will filter what they can see)
+    // We removed the strict manual teacherId equality check that was hiding assignments 
+    // created by admins but taught by teachers.
+    
     return result;
 }
 

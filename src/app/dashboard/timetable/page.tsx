@@ -193,7 +193,7 @@ export default function TimetablePage() {
         title: ttForm.title.trim(), section: ttForm.section || null,
         academic_year: ttForm.academic_year || null, term: ttForm.term || null,
         school_id: ttForm.school_id || null, is_active: ttForm.is_active,
-        created_by: profile!.id,
+        created_by: profile?.id || '',
       };
       if (editingTT) {
         await anyDb.from('timetables').update(payload).eq('id', editingTT.id);

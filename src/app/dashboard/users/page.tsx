@@ -491,27 +491,27 @@ export default function UsersPage() {
                                         </div>
 
                                         {/* Action buttons — always visible on mobile, visible on hover on desktop */}
-                                        <div className="flex flex-wrap items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity ml-12 sm:ml-0 mt-3 sm:mt-0 w-full sm:w-auto">
+                                        <div className="flex flex-wrap items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity ml-0 sm:ml-0 mt-3 sm:mt-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
                                             {u.role === 'teacher' && (
                                                 <Link
                                                     href="/dashboard/teachers"
-                                                    className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 text-[10px] font-black uppercase rounded-lg border border-blue-500/20 transition-all"
+                                                    className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 text-[10px] font-black uppercase rounded-lg border border-blue-500/20 transition-all flex-grow sm:flex-grow-0 justify-center"
                                                 >
                                                     <BuildingOfficeIcon className="w-3.5 h-3.5" />
-                                                    Manage Schools
+                                                    Manage Access
                                                 </Link>
                                             )}
                                             <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
                                                 <button
                                                     onClick={() => openEdit(u)}
-                                                    className="p-2 sm:p-2 rounded-xl hover:bg-violet-500/20 hover:text-violet-400 text-white/40 transition-all flex items-center justify-center"
+                                                    className="p-2.5 sm:p-2 rounded-xl bg-white/5 sm:bg-transparent hover:bg-violet-500/20 hover:text-violet-400 text-white/40 transition-all flex items-center justify-center border border-white/5 sm:border-none"
                                                     title="Edit user"
                                                 >
                                                     <PencilIcon className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => { setResetTarget({ id: u.id, name: u.full_name }); setResetPw(''); setResetMsg(null); }}
-                                                    className="p-2 sm:p-2 rounded-xl hover:bg-amber-500/20 hover:text-amber-400 text-white/40 transition-all flex items-center justify-center"
+                                                    className="p-2.5 sm:p-2 rounded-xl bg-white/5 sm:bg-transparent hover:bg-amber-500/20 hover:text-amber-400 text-white/40 transition-all flex items-center justify-center border border-white/5 sm:border-none"
                                                     title="Reset password"
                                                 >
                                                     <KeyIcon className="w-4 h-4" />
@@ -520,7 +520,7 @@ export default function UsersPage() {
                                                     <button
                                                         onClick={() => handleDelete(u)}
                                                         disabled={deleting === u.id}
-                                                        className="p-2 sm:p-2 rounded-xl hover:bg-rose-500/20 hover:text-rose-400 text-white/40 transition-all disabled:opacity-40 flex items-center justify-center"
+                                                        className="p-2.5 sm:p-2 rounded-xl bg-white/5 sm:bg-transparent hover:bg-rose-500/20 hover:text-rose-400 text-white/40 transition-all disabled:opacity-40 flex items-center justify-center border border-white/5 sm:border-none"
                                                         title="Delete user"
                                                     >
                                                         {deleting === u.id

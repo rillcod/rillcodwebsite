@@ -1064,8 +1064,8 @@ function SchoolSelfView() {
   async function load() {
     setLoading(true);
     const supabase = createClient();
-    const sid = profile!.school_id!;
-    const sname = profile!.school_name;
+    const sid = profile?.school_id || '';
+    const sname = profile?.school_name;
 
     const [studentsRes, teachersRes, recentRes] = await Promise.allSettled([
       supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', sid),

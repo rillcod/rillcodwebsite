@@ -79,9 +79,9 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                     <ToolbarButton onClick={() => addBlock('code')} icon={CodeIcon} label="Code" />
                     <ToolbarButton onClick={() => addBlock('image')} icon={ImageIcon} label="Image" />
                     <ToolbarButton onClick={() => addBlock('video')} icon={VideoIcon} label="Video" />
-                    <ToolbarButton icon={<FileTextIcon className="w-4 h-4" />} label="File" onClick={() => addBlock('file')} />
-                    <ToolbarButton icon={<Share2Icon className="w-4 h-4" />} label="Diagram" onClick={() => addBlock('mermaid')} />
-                    <ToolbarButton icon={<SigmaIcon className="w-4 h-4" />} label="Math" onClick={() => addBlock('math')} />
+                    <ToolbarButton icon={FileTextIcon} label="File" onClick={() => addBlock('file')} />
+                    <ToolbarButton icon={Share2Icon} label="Diagram" onClick={() => addBlock('mermaid')} />
+                    <ToolbarButton icon={SigmaIcon} label="Math" onClick={() => addBlock('math')} />
                     <div className="w-[1px] h-4 bg-white/10 mx-1" />
                     <button
                         onClick={async () => {

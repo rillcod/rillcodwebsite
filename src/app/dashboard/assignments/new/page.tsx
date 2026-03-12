@@ -9,6 +9,7 @@ import {
   ArrowLeftIcon, ClipboardDocumentListIcon, CalendarIcon,
   CheckIcon, ExclamationTriangleIcon, ArrowPathIcon, PlusIcon, TrashIcon,
   ChevronUpIcon, ChevronDownIcon, AcademicCapIcon,
+  CodeBracketIcon, CommandLineIcon, SparklesIcon as SparklesIconOutline
 } from '@heroicons/react/24/outline';
 
 interface Question {
@@ -17,6 +18,10 @@ interface Question {
   options: string[];
   correct_answer: string;
   points: number;
+  metadata?: {
+    logic_sentence?: string; // e.g. "When [BLANK] click, move [BLANK] steps"
+    logic_blocks?: string[];  // e.g. ["Green Flag", "10", "Space Key"]
+  };
 }
 
 const emptyQuestion = (): Question => ({
@@ -25,6 +30,7 @@ const emptyQuestion = (): Question => ({
   options: ['', '', '', ''],
   correct_answer: '',
   points: 5,
+  metadata: { logic_sentence: '', logic_blocks: ['', '', ''] }
 });
 
 export default function NewAssignmentPage() {
@@ -32,6 +38,7 @@ export default function NewAssignmentPage() {
   const { profile, loading: authLoading } = useAuth();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const preProgramId = searchParams?.get('program_id');
+  const preCourseId = searchParams?.get('course_id');
   const [courses, setCourses] = useState<any[]>([]);
   const isMinimal = searchParams?.get('minimal') === 'true';
   const [saving, setSaving] = useState(false);
@@ -94,19 +101,35 @@ export default function NewAssignmentPage() {
 
   useEffect(() => {
     if (authLoading || !profile) return;
-    createClient()
-      .from('courses')
-      .select('id, title, program_id, programs(name)')
-      .eq('is_active', true)
-      .order('title')
-      .then(({ data }) => {
-        setCourses(data ?? []);
-        if (preProgramId && data) {
-          const matching = data.find((c: any) => c.program_id === preProgramId);
-          if (matching) setForm(prev => ({ ...prev, course_id: matching.id }));
-        }
-      });
-  }, [profile?.id, authLoading, preProgramId]);
+    
+    // Fetch courses with a more robust query for teachers/admins
+    const fetchData = async () => {
+      let query = createClient()
+        .from('courses')
+        .select('id, title, program_id, school_id, programs(name)')
+        .eq('is_active', true);
+
+      // If teacher has a school, prioritize that school's courses + global ones
+      if (profile?.school_id) {
+        // use filter to handle the OR condition effectively
+        query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
+      }
+
+      const { data } = await query.order('title');
+      const courseList = data ?? [];
+      setCourses(courseList);
+      
+      // Auto-select if IDs provided in URL
+      if (preCourseId) {
+        setForm(prev => ({ ...prev, course_id: preCourseId }));
+      } else if (preProgramId && courseList.length > 0) {
+        const matching = courseList.find((c: any) => c.program_id === preProgramId);
+        if (matching) setForm(prev => ({ ...prev, course_id: matching.id }));
+      }
+    };
+
+    fetchData();
+  }, [profile?.id, authLoading, preProgramId, preCourseId, profile?.school_id]);
 
   const addQuestion = () => setQuestions(q => [...q, emptyQuestion()]);
   const removeQuestion = (i: number) => setQuestions(q => q.filter((_, idx) => idx !== i));
@@ -143,7 +166,7 @@ export default function NewAssignmentPage() {
         max_points: parseInt(form.max_points) || 100,
         assignment_type: form.assignment_type,
         is_active: true,
-        created_by: profile!.id,
+        created_by: profile?.id || '',
         questions: questions.length > 0 ? questions.filter(q => q.question_text.trim()) : null,
       };
       if (form.due_date) payload.due_date = new Date(form.due_date).toISOString();
@@ -285,9 +308,10 @@ export default function NewAssignmentPage() {
                 onChange={e => setForm(f => ({ ...f, assignment_type: e.target.value }))}
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500 cursor-pointer">
                 <option value="homework">Homework</option>
-                <option value="project">Project</option>
-                <option value="quiz">Quiz</option>
-                <option value="exam">Exam</option>
+                <option value="project">Project / Lab</option>
+                <option value="coding">Coding Challenge</option>
+                <option value="quiz">Interactive Quiz</option>
+                <option value="exam">Main Exam</option>
                 <option value="presentation">Presentation</option>
               </select>
             </div>
@@ -379,7 +403,8 @@ export default function NewAssignmentPage() {
                         <option value="multiple_choice">Multiple Choice</option>
                         <option value="true_false">True / False</option>
                         <option value="fill_blank">Fill in Blank</option>
-                        <option value="essay">Essay</option>
+                        <option value="essay">Essay / Free Text</option>
+                        <option value="coding_blocks">Visual Logic Block</option>
                       </select>
                     </div>
                     <div>
@@ -397,7 +422,36 @@ export default function NewAssignmentPage() {
                           className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none" />
                       </div>
                     )}
+
+                    {q.question_type === 'coding_blocks' && (
+                      <div className="sm:col-span-1">
+                         <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Correct Blocks (ordered, comma separated)</label>
+                         <input type="text" value={q.correct_answer}
+                            onChange={e => updateQuestion(qi, { correct_answer: e.target.value })}
+                            placeholder="e.g. Green Flag, 10"
+                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none" />
+                      </div>
+                    )}
                   </div>
+
+                  {q.question_type === 'coding_blocks' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Logic Sentence ([BLANK] = placeholder)</label>
+                          <input type="text" value={q.metadata?.logic_sentence}
+                             onChange={e => updateQuestion(qi, { metadata: { ...q.metadata, logic_sentence: e.target.value } })}
+                             placeholder="e.g. When [BLANK] clicked, move [BLANK] steps"
+                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Draggable Options (comma separated)</label>
+                          <input type="text" value={q.metadata?.logic_blocks?.join(', ')}
+                            onChange={e => updateQuestion(qi, { metadata: { ...q.metadata, logic_blocks: e.target.value.split(',').map(s=>s.trim()) } })}
+                            placeholder="e.g. Green Flag, 10, Space Key"
+                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none" />
+                        </div>
+                    </div>
+                  )}
 
                   {q.question_type === 'true_false' && (
                     <div className="flex gap-4 pt-2">

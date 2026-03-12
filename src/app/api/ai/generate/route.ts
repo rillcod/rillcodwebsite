@@ -12,12 +12,14 @@ const client = new OpenAI({
 });
 
 const MODELS = [
-  "google/gemini-2.0-flash-lite-preview-02-05", // Primary (Fast, Free)
-  "qwen/qwen-2.5-72b-instruct",               // Excellent context
-  "mistralai/mistral-7b-instruct:free",       // Fast fallback
-  "meta-llama/llama-3-8b-instruct:free",      // Robust fallback
-  "google/gemma-2-9b-it:free",                // Lightweight fallback
-  "moonshotai/moonshot-v1-8k"                  // Kimi (Alternative)
+  "google/gemini-2.0-flash-001",              // Primary Stable (Fast)
+  "google/gemini-2.0-flash-lite-preview-02-05", // User requested, kept with fallbacks
+  "google/gemini-flash-1.5",                  // Extremely reliable fallback
+  "meta-llama/llama-3.3-70b-instruct",        // High performance
+  "qwen/qwen-2.5-72b-instruct",               // Alternative expert
+  "mistralai/mistral-large-2411",             // Complex reasoning fallback
+  "meta-llama/llama-3.1-8b-instruct:free",    // Fast free fallback
+  "mistralai/mistral-7b-instruct:free"        // Emergency fallback
 ];
 
 const SYSTEM_PROMPT = `You are an expert STEM curriculum designer for Rillcod Academy. You create engaging, age-appropriate educational content. 
@@ -25,6 +27,7 @@ You can use specialized blocks in content_layout:
 - 'mermaid': for flowcharts/diagrams (graph TD...)
 - 'math': for LaTeX formulas (E = mc^2)
 - 'code': for programming snippets
+- 'coding_blocks': for visual logic tasks (sentence with [BLANK] placeholders, options, and correct ordering)
 - 'image': for illustrations
 - 'video': for educational videos
 Always return valid JSON only. For Nigerian context (Basic 1 to SS3), the tone is premium and modern.`;
@@ -112,15 +115,21 @@ Return a JSON object with this exact shape:
   "questions": [
     {
       "question_text": "string",
-      "question_type": "multiple_choice",
-      "options": ["string", "string", "string", "string"],
-      "correct_answer": "string — exact text of the correct option",
-      "points": 10
+      "question_type": "string — one of: multiple_choice, true_false, fill_blank, essay, coding_blocks",
+      "options": ["string"],
+      "correct_answer": "string",
+      "points": 10,
+      "metadata": {
+        "logic_sentence": "string — only for coding_blocks, e.g. 'When [BLANK] clicked, move [BLANK] steps'",
+        "logic_blocks": ["string"] 
+      }
     }
   ]
 }
 
-Include at least 5 relevant multiple choice questions.`;
+For 'coding_blocks', 'correct_answer' should be the sequence of blocks for [BLANK] placeholders, comma-separated.
+Include at least one coding challenge if the topic is technical.
+Include at least 5 relevant questions total.`;
 
     case 'cbt':
       return `Generate a Computer Based Test (CBT) for Rillcod Academy.
@@ -137,15 +146,19 @@ Return a JSON object with this exact shape:
   "questions": [
     {
       "question_text": "string",
-      "question_type": "multiple_choice",
-      "options": ["string", "string", "string", "string"],
-      "correct_answer": "string — exact text of the correct option",
-      "points": 5
+      "question_type": "string — one of: multiple_choice, true_false, fill_blank, essay, coding_blocks",
+      "options": ["string"],
+      "correct_answer": "string",
+      "points": 5,
+      "metadata": {
+        "logic_sentence": "string — only for coding_blocks, e.g. 'When [BLANK] clicked, move [BLANK] steps'",
+        "logic_blocks": ["string"] 
+      }
     }
   ]
 }
 
-Include at least 10 high-quality multiple choice questions covering the topic thoroughly.`;
+Include at least 10 high-quality questions covering the topic thoroughly. For technical topics, include coding logic questions.`;
 
     case 'lesson-plan':
       return `Generate a term-long lesson plan for Rillcod Academy.

@@ -8,7 +8,7 @@ import {
   BookOpenIcon, PlusIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon,
   TrashIcon, ClockIcon, UserGroupIcon, CheckCircleIcon,
   VideoCameraIcon, PlayIcon, DocumentTextIcon, BoltIcon,
-  SparklesIcon, ChevronDownIcon, ChevronUpIcon,
+  SparklesIcon, ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon, CalendarIcon, ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 
 const STATUS_BADGE: Record<string, string> = {
@@ -62,12 +62,23 @@ export default function LessonsPage() {
   // Load courses when AI panel opens (needed for save)
   useEffect(() => {
     if (!planOpen || !profile || courses.length > 0) return;
-    const q = createClient().from('courses').select('id, title');
-    if (profile.role === 'teacher') {
-      // teachers see courses they're associated with via lessons they've created
-    }
-    q.order('title').then(({ data }) => setCourses(data ?? []));
-  }, [planOpen, profile?.id]); // eslint-disable-line
+    
+    const fetchData = async () => {
+      let query = createClient()
+        .from('courses')
+        .select('id, title, school_id')
+        .eq('is_active', true);
+
+      if (profile?.school_id) {
+        query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
+      }
+      
+      const { data } = await query.order('title');
+      setCourses(data ?? []);
+    };
+
+    fetchData();
+  }, [planOpen, profile?.id, profile?.school_id]); // eslint-disable-line
 
   const handleSavePlan = async () => {
     if (!planResult || !profile) return;
@@ -234,41 +245,57 @@ export default function LessonsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <BookOpenIcon className="w-5 h-5 text-cyan-400" />
-              <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest">Learning Content</span>
+        <div className="bg-gradient-to-r from-[#0B132B] to-[#1a2b54] rounded-2xl sm:rounded-[2.5rem] p-6 sm:p-10 relative overflow-hidden shadow-2xl">
+          {/* Decorative blobs */}
+          <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-white opacity-[0.03] rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-cyan-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="px-3 py-1 bg-cyan-600/80 text-white text-[10px] font-black uppercase tracking-widest rounded-full">
+                  Learning Content
+                </span>
+                <div className="h-px w-8 bg-white/20" />
+                <span className="text-[10px] font-bold text-cyan-300/60 uppercase tracking-widest">Modules & Materials</span>
+              </div>
+              <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+                Course Lessons
+              </h1>
+              <p className="text-blue-200/60 text-sm sm:text-base mt-3 font-medium flex items-center gap-2">
+                <BookOpenIcon className="w-4 h-4" />
+                Manage, track, and generate educational content
+              </p>
             </div>
-            <h1 className="text-3xl font-extrabold">Lessons</h1>
-            <p className="text-white/40 text-sm mt-1">Manage and track lesson progress</p>
+            {(profile?.role === 'admin' || profile?.role === 'teacher') && (
+              <Link href="/dashboard/lessons/add"
+                className="group inline-flex items-center justify-center gap-3 px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm uppercase tracking-widest rounded-2xl transition-all hover:scale-105 shadow-2xl shadow-cyan-900/60 active:scale-95">
+                <PlusIcon className="w-5 h-5 flex-shrink-0 group-hover:rotate-90 transition-transform" /> 
+                Create Lesson
+              </Link>
+            )}
           </div>
-          {(profile?.role === 'admin' || profile?.role === 'teacher') && (
-            <Link href="/dashboard/lessons/add"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-cyan-900/30">
-              <PlusIcon className="w-4 h-4" /> Create Lesson
-            </Link>
-          )}
         </div>
 
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm">{error}</div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 px-1 sm:px-0">
           {[
-            { label: 'Total Lessons', value: lessons.length, icon: BookOpenIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
-            { label: 'Completed', value: completed, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Active', value: active, icon: BoltIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-            { label: 'Completion Rate', value: lessons.length ? `${Math.round((completed / lessons.length) * 100)}%` : '0%', icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+            { label: 'Total Content', value: lessons.length, icon: BookOpenIcon, gradient: 'from-cyan-600 to-cyan-400' },
+            { label: 'Completed', value: completed, icon: CheckCircleIcon, gradient: 'from-emerald-600 to-emerald-400' },
+            { label: 'Active Now', value: active, icon: BoltIcon, gradient: 'from-blue-600 to-blue-400' },
+            { label: 'Completion', value: lessons.length ? `${Math.round((completed / lessons.length) * 100)}%` : '0%', icon: ClockIcon, gradient: 'from-amber-600 to-amber-400' },
           ].map((s) => (
-            <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-5">
-              <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
-                <s.icon className={`w-5 h-5 ${s.color}`} />
+            <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-7 hover:bg-white/8 transition-all group relative overflow-hidden">
+               <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${s.gradient} opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
+              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${s.gradient} flex items-center justify-center mb-4 sm:mb-6 shadow-xl group-hover:scale-110 transition-transform`}>
+                <s.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-white/40 mt-1">{s.label}</p>
+              <p className="text-2xl sm:text-4xl font-black text-white tracking-tight tabular-nums relative z-10">{s.value}</p>
+              <p className="text-[10px] sm:text-xs text-white/30 font-black uppercase tracking-widest mt-1.5 relative z-10">{s.label}</p>
             </div>
           ))}
         </div>
@@ -276,14 +303,14 @@ export default function LessonsPage() {
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-            <input type="text" placeholder="Search lessons or courses…" value={search}
+            <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+            <input type="text" placeholder="Search lessons…" value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-cyan-500 transition-colors" />
           </div>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500 cursor-pointer">
-            <option value="all">All Status</option>
+            className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500 cursor-pointer appearance-none">
+            <option value="all">All Content</option>
             <option value="completed">Completed</option>
             <option value="active">Active</option>
             <option value="scheduled">Scheduled</option>
@@ -291,86 +318,108 @@ export default function LessonsPage() {
           </select>
         </div>
 
-        {/* Empty */}
+        {/* Lesson List */}
         {filtered.length === 0 ? (
-          <div className="text-center py-24 bg-white/5 border border-white/10 rounded-2xl">
-            <BookOpenIcon className="w-16 h-16 mx-auto text-white/10 mb-4" />
-            <p className="text-lg font-semibold text-white/30">No lessons found</p>
-            <p className="text-sm text-white/20 mt-1">Create your first lesson or adjust filters</p>
+          <div className="text-center py-24 sm:py-32 bg-[#0a0a1a] border border-dashed border-white/10 rounded-[2.5rem] shadow-2xl">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-8 border border-white/5">
+              <BookOpenIcon className="w-10 h-10 sm:w-12 sm:h-12 text-white/10" />
+            </div>
+            <p className="text-2xl font-black text-white/40 tracking-tight">No modules found</p>
+            <p className="text-sm text-white/20 mt-3 font-medium uppercase tracking-widest">Refine your search or filters</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-5">
             {filtered.map((lesson: any) => {
               const attendanceCount = lesson.attendance?.length ?? 0;
               const completedAttendance = lesson.attendance?.filter((a: any) => a.status === 'present').length ?? 0;
+              const typeColor = TYPE_COLORS[lesson.lesson_type] || 'text-white/40';
+              const typeBg = typeColor.replace('text-', 'bg-').replace('400', '500/10');
+              
               return (
-                <div key={lesson.id} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/8 hover:border-white/20 transition-all">
-                  <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
+                <div key={lesson.id} className="group bg-[#0a0a1a] border border-white/10 rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 hover:bg-white/[0.03] hover:border-cyan-500/30 transition-all relative overflow-hidden shadow-2xl">
+                  {/* Subtle Background Accent */}
+                  <div className={`absolute top-0 left-0 w-1.5 h-full ${typeColor.replace('text-', 'bg-') || 'bg-white/10'} opacity-50`} />
+                  
+                  <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-6 sm:gap-10">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className={`mt-0.5 flex-shrink-0 ${TYPE_COLORS[lesson.lesson_type] ?? 'text-white/40'}`}>
-                          {lesson.lesson_type === 'video' ? <VideoCameraIcon className="w-5 h-5" /> :
-                            lesson.lesson_type === 'interactive' ? <PlayIcon className="w-5 h-5" /> :
-                              <BookOpenIcon className="w-5 h-5" />}
+                      <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-6 mb-6">
+                        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl ${typeBg} flex items-center justify-center flex-shrink-0 shadow-xl group-hover:scale-110 transition-transform`}>
+                          {lesson.lesson_type === 'video' ? <VideoCameraIcon className="w-7 h-7 sm:w-8 sm:h-8" /> :
+                            lesson.lesson_type === 'interactive' ? <PlayIcon className="w-7 h-7 sm:w-8 sm:h-8" /> :
+                              <BookOpenIcon className="w-7 h-7 sm:w-8 sm:h-8" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <h3 className="font-bold text-white">{lesson.title}</h3>
-                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${STATUS_BADGE[lesson.status] ?? 'bg-white/10 text-white/40'}`}>
+                          <div className="flex flex-wrap items-center gap-3 mb-2.5">
+                            <h3 className="text-xl sm:text-2xl font-black text-white group-hover:text-cyan-300 transition-colors truncate tracking-tight">{lesson.title}</h3>
+                            <div className={`px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] border shadow-xl ${STATUS_BADGE[lesson.status] ?? 'bg-white/10 text-white/40 border-white/10'}`}>
                               {lesson.status}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] sm:text-xs font-black text-white/30 uppercase tracking-[0.15em]">
+                            <span className="flex items-center gap-2 truncate max-w-[200px] sm:max-w-none">
+                               <BuildingOfficeIcon className="w-3.5 h-3.5 text-white/10" />
+                               {lesson.courses?.title}
                             </span>
-                            <span className="px-2 py-0.5 text-xs text-white/40 uppercase tracking-widest font-black">
-                              {lesson.lesson_type?.replace(/[-_]/g, ' ')}
+                            <span className="w-1 h-1 bg-white/10 rounded-full hidden sm:block" />
+                            <span className={`px-2 py-0.5 rounded-md ${typeBg} ${typeColor}`}>
+                               {lesson.lesson_type?.replace(/[-_]/g, ' ')}
                             </span>
                           </div>
-                          <p className="text-sm text-white/40">{lesson.courses?.title} — {lesson.courses?.programs?.name}</p>
                         </div>
                       </div>
 
                       {lesson.description && (
-                        <p className="text-white/40 text-sm line-clamp-2 mb-3">{lesson.description}</p>
+                        <p className="text-sm sm:text-base text-white/40 font-medium line-clamp-2 mb-8 sm:pl-20 border-l-2 border-white/5 sm:border-0">
+                          {lesson.description}
+                        </p>
                       )}
 
-                      <div className="flex flex-wrap gap-4 text-xs text-white/30">
+                      <div className="flex flex-wrap items-center gap-4 sm:gap-8 text-[10px] sm:text-xs text-white/30 font-black uppercase tracking-[0.2em] sm:pl-20">
                         {lesson.duration_minutes && (
-                          <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" /> {lesson.duration_minutes} min</span>
+                          <span className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                            <ClockIcon className="w-4 h-4 text-cyan-500/50" /> {lesson.duration_minutes}m
+                          </span>
                         )}
                         {lesson.session_date && (
-                          <span>{new Date(lesson.session_date).toLocaleDateString()}</span>
+                          <span className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                            <CalendarIcon className="w-4 h-4 text-violet-500/50" /> {new Date(lesson.session_date).toLocaleDateString('en-GB')}
+                          </span>
                         )}
                         {attendanceCount > 0 && (
-                          <span className="flex items-center gap-1"><UserGroupIcon className="w-3.5 h-3.5" /> {completedAttendance}/{attendanceCount} present</span>
-                        )}
-                        {attendanceCount > 0 && (
-                          <div className="flex items-center gap-2">
-                            <div className="w-20 h-1.5 bg-white/10 rounded-full">
-                              <div className="h-1.5 rounded-full bg-emerald-500"
-                                style={{ width: `${Math.round((completedAttendance / attendanceCount) * 100)}%` }} />
+                          <div className="flex items-center gap-4 bg-white/5 px-4 py-2 rounded-2xl border border-white/5">
+                            <UserGroupIcon className="w-4 h-4 text-emerald-500/50" />
+                            <div className="flex items-center gap-3">
+                              <span className="text-emerald-400 font-black">{Math.round((completedAttendance / attendanceCount) * 100)}%</span>
+                              <div className="w-16 sm:w-24 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all duration-1000"
+                                  style={{ width: `${Math.round((completedAttendance / attendanceCount) * 100)}%` }} />
+                              </div>
                             </div>
-                            <span className="text-emerald-400">{Math.round((completedAttendance / attendanceCount) * 100)}%</span>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex flex-row lg:flex-col items-center gap-3 flex-shrink-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-white/10 lg:pl-10">
                       <Link href={`/dashboard/lessons/${lesson.id}`}
-                        className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors">
-                        <EyeIcon className="w-4 h-4" /> View
+                        className="flex-1 lg:flex-none w-full flex items-center justify-center gap-3 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white hover:text-cyan-400 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all group/btn shadow-xl active:scale-95">
+                        <EyeIcon className="w-4 h-4 group-hover/btn:scale-110 transition-transform" /> 
+                        <span className="hidden sm:inline">Modules</span>
+                        <span className="sm:hidden text-[9px]">View</span>
                       </Link>
                       {(profile?.role === 'admin' || profile?.role === 'teacher') && (
-                        <>
+                        <div className="flex flex-1 lg:flex-none gap-2 w-full lg:w-auto">
                           <Link href={`/dashboard/lessons/${lesson.id}/edit`}
-                            className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white/50 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
-                            <PencilIcon className="w-4 h-4" /> Edit
+                             className="flex-1 flex items-center justify-center gap-2 px-4 py-4 text-white/40 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all active:scale-95 shadow-xl">
+                             <PencilIcon className="w-4 h-4" />
                           </Link>
                           <button
                             onClick={() => handleDelete(lesson.id, lesson.title)}
                             disabled={deleting === lesson.id}
-                            className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors disabled:opacity-40">
+                            className="flex-1 flex items-center justify-center p-4 text-rose-500/60 hover:text-rose-400 bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/10 rounded-2xl transition-all disabled:opacity-40 active:scale-95 shadow-xl">
                             <TrashIcon className="w-4 h-4" />
                           </button>
-                        </>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -382,44 +431,68 @@ export default function LessonsPage() {
 
         {/* Quick Actions */}
         {(profile?.role === 'admin' || profile?.role === 'teacher') && (
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <BoltIcon className="w-5 h-5 text-amber-400" /> Content Tools
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: 'Add New Lesson', icon: VideoCameraIcon, color: 'bg-blue-600 hover:bg-blue-700', href: '/dashboard/lessons/add' },
-                { label: 'Create Quiz', icon: DocumentTextIcon, color: 'bg-violet-600 hover:bg-violet-700', href: '/dashboard/assignments/new' },
-                { label: 'CBT Exams', icon: PlayIcon, color: 'bg-emerald-600 hover:bg-emerald-700', href: '/dashboard/cbt' },
-                { label: 'Class Sessions', icon: UserGroupIcon, color: 'bg-amber-600 hover:bg-amber-700', href: '/dashboard/classes' },
-              ].map((a) => (
-                <Link key={a.label} href={a.href}
-                  className={`flex items-center gap-2 px-4 py-3 ${a.color} text-white font-semibold text-sm rounded-xl transition-all hover:scale-[1.02]`}>
-                  <a.icon className="w-4 h-4 flex-shrink-0" />{a.label}
-                </Link>
-              ))}
+          <div className="bg-[#0a0a1a] border border-white/5 rounded-[2.5rem] p-8 sm:p-12 relative overflow-hidden shadow-2xl">
+            <div className="absolute top-0 left-0 w-64 h-64 bg-cyan-600/5 blur-[100px] -ml-32 -mt-32 pointer-events-none" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-10">
+                <div>
+                  <h3 className="text-2xl font-black text-white tracking-tight flex items-center gap-3">
+                    <BoltIcon className="w-8 h-8 text-amber-400" /> Architect Console
+                  </h3>
+                  <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mt-1">Management Utilities</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                {[
+                  { label: 'Content Engine', desc: 'Synthesize new modules', icon: VideoCameraIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', href: '/dashboard/lessons/add' },
+                  { label: 'Assessment Lab', desc: 'Deploy new challenges', icon: DocumentTextIcon, color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20', href: '/dashboard/assignments/new' },
+                  { label: 'CBT Hub', desc: 'Coordinate examinations', icon: PlayIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', href: '/dashboard/cbt' },
+                  { label: 'Registry', desc: 'Calibrate learning groups', icon: UserGroupIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', href: '/dashboard/classes' },
+                ].map((a) => (
+                  <Link key={a.label} href={a.href}
+                    className="group flex flex-col items-start gap-6 p-8 bg-white/5 border border-white/5 rounded-3xl transition-all hover:bg-white/10 hover:border-white/20 hover:scale-[1.02] shadow-2xl relative overflow-hidden">
+                    <div className={`absolute top-0 right-0 w-24 h-24 ${a.bg} opacity-[0.05] blur-3xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
+                    <div className={`w-14 h-14 rounded-2xl ${a.bg} ${a.border} border flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>
+                      <a.icon className={`w-7 h-7 ${a.color}`} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-white uppercase tracking-widest mb-1">{a.label}</h4>
+                      <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.1em]">{a.desc}</p>
+                    </div>
+                    <div className="mt-4 w-full flex justify-end">
+                       <ChevronRightIcon className="w-5 h-5 text-white/10 group-hover:text-white transition-all group-hover:translate-x-1" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
         {/* AI Lesson Plan Generator */}
         {(profile?.role === 'admin' || profile?.role === 'teacher') && (
-          <div className="bg-gradient-to-br from-violet-500/10 to-cyan-500/5 border border-violet-500/20 rounded-2xl overflow-hidden">
+          <div className="bg-[#0a0a1a] border border-violet-500/30 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-violet-600/10 blur-[100px] -mr-32 -mt-32 pointer-events-none" />
+            
             <button
               type="button"
               onClick={() => { setPlanOpen(o => !o); setPlanResult(null); setPlanError(null); }}
-              className="w-full flex items-center justify-between px-6 py-5 text-left"
+              className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between p-8 sm:p-10 text-left relative z-10 group"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
-                  <SparklesIcon className="w-5 h-5 text-violet-400" />
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
+                  <SparklesIcon className="w-8 h-8 text-white animate-pulse" />
                 </div>
                 <div>
-                  <p className="font-bold text-white">AI Lesson Plan Generator</p>
-                  <p className="text-xs text-white/40 mt-0.5">Generate a full term-long curriculum plan instantly</p>
+                  <h3 className="text-2xl font-black text-white tracking-tight">AI Orchestrator</h3>
+                  <p className="text-sm text-white/40 mt-1 font-medium uppercase tracking-widest">Intelligent Curriculum Synthesis</p>
                 </div>
               </div>
-              {planOpen ? <ChevronUpIcon className="w-5 h-5 text-white/40" /> : <ChevronDownIcon className="w-5 h-5 text-white/40" />}
+              <div className="mt-6 sm:mt-0 flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl group-hover:bg-violet-600 group-hover:border-violet-500 transition-all font-black text-[10px] uppercase tracking-widest text-white/60 group-hover:text-white">
+                {planOpen ? 'Dismiss' : 'Synthesize Plan'} 
+                {planOpen ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+              </div>
             </button>
 
             {planOpen && (
@@ -480,77 +553,106 @@ export default function LessonsPage() {
 
                 {/* Plan Result */}
                 {planResult && (
-                  <div className="space-y-4">
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-                      <h4 className="font-extrabold text-lg text-white mb-1">{planResult.course_title}</h4>
-                      <p className="text-sm text-white/50 mb-3">{planResult.description}</p>
-                      <div className="flex flex-wrap gap-3 text-xs text-white/40 mb-4">
-                        <span className="px-2.5 py-1 bg-violet-500/10 border border-violet-500/20 text-violet-300 rounded-lg font-semibold">{planResult.grade_level}</span>
-                        <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg">{planResult.duration}</span>
-                      </div>
-                      {planResult.objectives?.length > 0 && (
-                        <div className="mb-4">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Term Objectives</p>
-                          <ul className="space-y-1">
-                            {planResult.objectives.map((o: string, i: number) => (
-                              <li key={i} className="text-sm text-white/60 flex items-start gap-2">
-                                <span className="text-violet-400 mt-0.5 flex-shrink-0">✓</span>{o}
-                              </li>
-                            ))}
-                          </ul>
+                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <div className="bg-white/5 border border-white/10 rounded-3xl p-8 sm:p-12 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/10 blur-3xl rounded-full" />
+                      <div className="relative z-10">
+                        <h4 className="font-black text-3xl sm:text-4xl text-white mb-2 tracking-tight">{planResult.course_title}</h4>
+                        <p className="text-lg text-white/50 mb-8 font-medium italic border-l-2 border-white/10 pl-6 py-2">{planResult.description}</p>
+                        <div className="flex flex-wrap gap-4 text-[10px] font-black uppercase tracking-widest mb-10">
+                          <span className="px-5 py-2 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-xl shadow-xl">{planResult.grade_level}</span>
+                          <span className="px-5 py-2 bg-white/5 border border-white/10 text-white/40 rounded-xl shadow-xl">{planResult.duration}</span>
                         </div>
-                      )}
+                        {planResult.objectives?.length > 0 && (
+                          <div className="mb-4">
+                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-400/60 mb-6">Foundational Objectives</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              {planResult.objectives.map((o: string, i: number) => (
+                                <div key={i} className="text-sm text-white/60 flex items-start gap-4 p-4 bg-white/5 border border-white/5 rounded-2xl group/obj hover:bg-violet-600/5 transition-all">
+                                  <div className="w-6 h-6 rounded-lg bg-violet-500/20 text-violet-400 flex items-center justify-center flex-shrink-0 group-hover/obj:scale-110 transition-transform">✓</div>
+                                  <span className="font-medium leading-relaxed">{o}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Week-by-week table */}
-                    <div className="space-y-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Week-by-Week Plan</p>
-                      {(planResult.weeks ?? []).map((week: any) => (
-                        <div key={week.week} className="bg-white/[0.03] border border-white/10 rounded-xl p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-                          <div className="flex items-center gap-2">
-                            <span className="w-8 h-8 rounded-xl bg-violet-500/20 text-violet-400 font-black text-sm flex items-center justify-center flex-shrink-0">{week.week}</span>
-                            <p className="font-bold text-white text-sm">{week.theme}</p>
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-4 mb-2">
+                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                        <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white/20">Learning Map</p>
+                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                      </div>
+                      
+                      <div className="grid grid-cols-1 gap-4">
+                        {(planResult.weeks ?? []).map((week: any) => (
+                          <div key={week.week} className="bg-white/5 border border-white/10 rounded-[2rem] p-6 sm:p-8 hover:bg-white/[0.08] transition-all group overflow-hidden relative">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-violet-600/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                              <div className="lg:col-span-3 flex items-start gap-5">
+                                <span className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white font-black text-xl flex items-center justify-center flex-shrink-0 shadow-2xl group-hover:scale-110 transition-transform">
+                                  {week.week}
+                                </span>
+                                <div>
+                                  <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-1">Theme</p>
+                                  <p className="font-black text-white text-lg leading-tight tracking-tight">{week.theme}</p>
+                                </div>
+                              </div>
+                              
+                              <div className="lg:col-span-3">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-3">Modular Topics</p>
+                                <div className="space-y-1.5">
+                                  {(week.topics ?? []).map((t: string, i: number) => (
+                                    <div key={i} className="flex items-center gap-2 text-sm text-white/50 font-medium">
+                                      <span className="w-1 h-1 rounded-full bg-violet-500/40" /> {t}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              
+                              <div className="lg:col-span-3">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-3">Active Engagement</p>
+                                <div className="space-y-1.5">
+                                  {(week.activities ?? []).map((a: string, i: number) => (
+                                    <div key={i} className="flex items-center gap-2 text-sm text-white/50 font-medium italic">
+                                      <span className="w-1 h-1 rounded-full bg-emerald-500/40" /> {a}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              
+                              <div className="lg:col-span-3 bg-white/5 rounded-2xl p-5 border border-white/5">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-2">Milestone</p>
+                                <p className="text-sm text-white/60 font-medium leading-relaxed">{week.assessment}</p>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Topics</p>
-                            <ul className="space-y-0.5">
-                              {(week.topics ?? []).map((t: string, i: number) => (
-                                <li key={i} className="text-xs text-white/50">• {t}</li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Activities</p>
-                            <ul className="space-y-0.5">
-                              {(week.activities ?? []).map((a: string, i: number) => (
-                                <li key={i} className="text-xs text-white/50">• {a}</li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1">Assessment</p>
-                            <p className="text-xs text-white/50">{week.assessment}</p>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
 
                     {(planResult.materials?.length > 0 || planResult.assessment_strategy) && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {planResult.assessment_strategy && (
-                          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Assessment Strategy</p>
-                            <p className="text-sm text-white/60">{planResult.assessment_strategy}</p>
+                          <div className="bg-white/5 border border-white/10 rounded-[2rem] p-8 sm:p-10">
+                            <h5 className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-400 mb-4">Quality Assurance</h5>
+                            <p className="text-lg text-white/60 font-medium leading-relaxed">{planResult.assessment_strategy}</p>
                           </div>
                         )}
                         {planResult.materials?.length > 0 && (
-                          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-2">Materials & Tools</p>
-                            <ul className="space-y-1">
+                          <div className="bg-white/5 border border-white/10 rounded-[2rem] p-8 sm:p-10">
+                            <h5 className="text-[11px] font-black uppercase tracking-[0.2em] text-violet-400 mb-6">Toolkit & Artifacts</h5>
+                            <div className="flex flex-wrap gap-2">
                               {planResult.materials.map((m: string, i: number) => (
-                                <li key={i} className="text-xs text-white/50">• {m}</li>
+                                <span key={i} className="px-4 py-2 bg-white/5 border border-white/5 rounded-xl text-xs text-white/50 font-black uppercase tracking-widest inline-block">
+                                  {m}
+                                </span>
                               ))}
-                            </ul>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -558,38 +660,43 @@ export default function LessonsPage() {
 
                     {/* Save Plan to DB */}
                     {planSaved ? (
-                      <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-5 py-4">
-                        <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                      <div className="flex items-center gap-5 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl px-8 py-6 shadow-2xl">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                           <CheckCircleIcon className="w-6 h-6" />
+                        </div>
                         <div>
-                          <p className="text-emerald-400 font-bold text-sm">Lesson plan saved as a draft!</p>
-                          <p className="text-white/40 text-xs mt-0.5">Find it in your lessons list and edit the content.</p>
+                          <p className="text-emerald-400 font-black text-lg uppercase tracking-tight">Synthesis Complete</p>
+                          <p className="text-white/40 text-xs mt-0.5 font-medium uppercase tracking-widest">Plan archived to course curriculum</p>
                         </div>
                       </div>
                     ) : (
-                      <div className="bg-white/5 border border-violet-500/20 rounded-xl p-5 space-y-3">
-                        <p className="text-xs font-black uppercase tracking-widest text-violet-300">Save Plan to Lessons</p>
-                        <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="bg-[#0B0B1B] border border-violet-500/20 rounded-[2.5rem] p-8 sm:p-10 space-y-6 shadow-3xl">
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-violet-400 mb-2">Commit to Repository</p>
+                          <p className="text-white/40 text-sm font-medium">Select a master curriculum to attach this synthesized plan.</p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-4">
                           <select
                             value={planCourseId}
                             onChange={e => { setPlanCourseId(e.target.value); setPlanSaveError(null); }}
-                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500"
+                            className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-white outline-none focus:border-violet-500 transition-all cursor-pointer"
                           >
-                            <option value="">Select a course to attach…</option>
-                            {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                            <option value="" className="bg-[#0f0f1a]">Select curriculum...</option>
+                            {courses.map(c => <option key={c.id} value={c.id} className="bg-[#0f0f1a]">{c.title}</option>)}
                           </select>
                           <button
                             type="button"
                             onClick={handleSavePlan}
                             disabled={savingPlan || !planCourseId}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-all"
+                            className="flex items-center justify-center gap-3 px-10 py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-2xl active:scale-95"
                           >
                             {savingPlan
-                              ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving…</>
-                              : <><SparklesIcon className="w-4 h-4" /> Save as Draft Lesson</>
+                              ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Committing…</>
+                              : <><SparklesIcon className="w-4 h-4" /> Save Plan</>
                             }
                           </button>
                         </div>
-                        {planSaveError && <p className="text-xs text-rose-400">{planSaveError}</p>}
+                        {planSaveError && <p className="text-xs text-rose-400 bg-rose-500/10 px-4 py-2 rounded-lg border border-rose-500/20">{planSaveError}</p>}
                       </div>
                     )}
 

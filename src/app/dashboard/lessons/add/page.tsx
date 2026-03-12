@@ -17,6 +17,7 @@ export default function AddLessonPage() {
   const { profile, loading: authLoading } = useAuth();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const preProgramId = searchParams?.get('program_id');
+  const preCourseId = searchParams?.get('course_id');
   const isMinimal = searchParams?.get('minimal') === 'true';
 
   const [courses, setCourses] = useState<any[]>([]);
@@ -48,17 +49,33 @@ export default function AddLessonPage() {
 
   useEffect(() => {
     if (authLoading || !profile) return;
-    const db = createClient();
-    let q = db.from('courses').select('id, title, program_id, programs(name)').order('title');
+    
+    const fetchData = async () => {
+      const db = createClient();
+      let query = db
+        .from('courses')
+        .select('id, title, program_id, school_id, programs(name)')
+        .eq('is_active', true);
 
-    q.then(({ data }) => {
-      setCourses(data ?? []);
-      if (preProgramId && data) {
-        const matching = data.find((c: any) => c.program_id === preProgramId);
+      if (profile?.school_id) {
+        query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
+      }
+
+      const { data } = await query.order('title');
+      const courseList = data ?? [];
+      setCourses(courseList);
+      
+      // Auto-select if IDs provided in URL
+      if (preCourseId) {
+        setForm(prev => ({ ...prev, course_id: preCourseId }));
+      } else if (preProgramId && courseList.length > 0) {
+        const matching = courseList.find((c: any) => c.program_id === preProgramId);
         if (matching) setForm(prev => ({ ...prev, course_id: matching.id }));
       }
-    });
-  }, [profile?.id, authLoading, preProgramId]);
+    };
+
+    fetchData();
+  }, [profile?.id, authLoading, preProgramId, preCourseId, profile?.school_id]);
 
   const handleAiGenerate = async () => {
     if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
@@ -124,7 +141,7 @@ export default function AddLessonPage() {
         status: form.status,
         video_url: form.video_url.trim() || null,
         content_layout: form.content_layout,
-        created_by: profile!.id,
+        created_by: profile?.id || '',
       };
       if (form.duration_minutes) payload.duration_minutes = parseInt(form.duration_minutes);
       if (form.order_index) payload.order_index = parseInt(form.order_index) || null;

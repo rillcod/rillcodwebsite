@@ -11,6 +11,7 @@ DROP POLICY IF EXISTS "Staff can manage content library" ON public.content_libra
 DROP POLICY IF EXISTS "Users can view content" ON public.content_library;
 
 -- 1. SELECT: Users can view content if it's approved, if they are staff, or if they created it
+DROP POLICY IF EXISTS "Users can view content" ON public.content_library;
 CREATE POLICY "Users can view content" ON public.content_library
   FOR SELECT
   TO authenticated
@@ -21,6 +22,7 @@ CREATE POLICY "Users can view content" ON public.content_library
   );
 
 -- 2. ALL: Staff can manage all content
+DROP POLICY IF EXISTS "Staff can manage content library" ON public.content_library;
 CREATE POLICY "Staff can manage content library" ON public.content_library
   FOR ALL
   TO authenticated
@@ -28,6 +30,7 @@ CREATE POLICY "Staff can manage content library" ON public.content_library
   WITH CHECK (is_staff());
 
 -- 3. INSERT: Any authenticated user can contribute content (requires approval if not admin)
+DROP POLICY IF EXISTS "Users can insert content" ON public.content_library;
 CREATE POLICY "Users can insert content" ON public.content_library
   FOR INSERT
   TO authenticated

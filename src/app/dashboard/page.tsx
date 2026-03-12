@@ -113,7 +113,18 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
     .from('assignments').select('id').eq('created_by', userId);
   const aIds = (myAsgns ?? []).map((a: any) => a.id);
 
-  const [classes, pendingAsgn, pendingCbt, subsAsgn] = await Promise.allSettled([
+  // Get schools this teacher is assigned to
+  const { data: teacherSchools } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', userId);
+  const schoolIds = teacherSchools?.map(s => s.school_id).filter(Boolean) || [];
+
+  let studentQuery = supabase.from('students').select('id', { count: 'exact', head: true });
+  if (schoolIds.length > 0) {
+    studentQuery = studentQuery.or(`school_id.in.(${schoolIds.join(',')}),created_by.eq.${userId}`);
+  } else {
+    studentQuery = studentQuery.eq('created_by', userId);
+  }
+
+  const [classes, pendingAsgn, pendingCbt, subsAsgn, studentsHead] = await Promise.allSettled([
     supabase.from('classes').select('id', { count: 'exact', head: true }).eq('teacher_id', userId),
     aIds.length > 0
       ? supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('status', 'submitted').in('assignment_id', aIds)
@@ -122,12 +133,14 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
     aIds.length > 0
       ? supabase.from('assignment_submissions').select('grade').not('grade', 'is', null).in('assignment_id', aIds).limit(200)
       : Promise.resolve({ data: [] }),
+    studentQuery
   ]);
   const myClasses = classes.status === 'fulfilled' ? (classes.value.count ?? 0) : 0;
   const pendingCbtCount = pendingCbt.status === 'fulfilled' ? (pendingCbt.value.count ?? 0) : 0;
   const pendingAsgnCount = pendingAsgn.status === 'fulfilled' ? ((pendingAsgn.value as any).count ?? 0) : 0;
   const pendingGrade = pendingAsgnCount + pendingCbtCount;
   const asgnGrades = subsAsgn.status === 'fulfilled' ? ((subsAsgn.value as any).data ?? []) : [];
+  const totalStudents = studentsHead.status === 'fulfilled' ? (studentsHead.value.count ?? 0) : 0;
 
   const allGrades = asgnGrades.map((g: any) => g.grade).filter((g: any) => g != null);
   const avg = allGrades.length > 0
@@ -136,9 +149,9 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
 
   return [
     { label: 'My Classes', value: myClasses, icon: BookOpenIcon, gradient: 'from-blue-600 to-blue-400' },
+    { label: 'Total Students', value: totalStudents, icon: UserGroupIcon, gradient: 'from-emerald-600 to-emerald-400' },
     { label: 'Pending Grading', value: pendingGrade, icon: ClipboardDocumentListIcon, gradient: 'from-amber-600 to-amber-400' },
     { label: 'Avg Class Perf', value: `${avg}%`, icon: ChartBarIcon, gradient: 'from-violet-600 to-violet-400' },
-    { label: 'Total Graded', value: allGrades.length, icon: CheckCircleIcon, gradient: 'from-emerald-600 to-emerald-400' },
   ] as DashStats[];
 }
 
@@ -386,13 +399,13 @@ export default function DashboardPage() {
       const role = profile.role;
       const [s, a] = await Promise.all([
         role === 'admin' ? loadAdminStats(supabase) :
-          role === 'teacher' ? loadTeacherStats(supabase, profile.id) :
-            role === 'school' ? loadSchoolStats(supabase, profile.school_id!, profile.school_name) :
-              loadStudentStats(supabase, profile.id),
+          role === 'teacher' ? loadTeacherStats(supabase, profile?.id || '') :
+            role === 'school' ? loadSchoolStats(supabase, profile?.school_id!, profile?.school_name) :
+              loadStudentStats(supabase, profile?.id || ''),
         role === 'admin' ? loadAdminActivity(supabase) :
-          role === 'teacher' ? loadTeacherActivity(supabase, profile.id) :
-            role === 'school' ? loadSchoolActivity(supabase, profile.school_id!, profile.school_name) :
-              loadStudentActivity(supabase, profile.id),
+          role === 'teacher' ? loadTeacherActivity(supabase, profile?.id || '') :
+            role === 'school' ? loadSchoolActivity(supabase, profile?.school_id!, profile?.school_name) :
+              loadStudentActivity(supabase, profile?.id || ''),
       ]);
       setStats(s);
       setActivities(a);
@@ -479,55 +492,65 @@ export default function DashboardPage() {
     <div className="space-y-6">
 
       {/* ── Welcome Banner ── */}
-      <div className="bg-gradient-to-r from-[#0B132B] to-[#1a2b54] rounded-2xl shadow-lg p-6 sm:p-8
-        flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-[#0B132B] to-[#1a2b54] rounded-2xl sm:rounded-[2.5rem] shadow-2xl p-6 sm:p-10
+        flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-8 relative overflow-hidden">
         {/* Decorative blobs */}
-        <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-white opacity-[0.03] rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-violet-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10">
-          <span className="inline-block px-3 py-1 bg-violet-600/80 text-white text-xs font-bold uppercase tracking-wider rounded-full mb-3">
-            {role} Portal
-          </span>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Welcome back, {profile.full_name?.split(' ')?.[0] || 'User'}!
+          <div className="flex items-center gap-2 mb-4">
+            <span className="px-3 py-1 bg-violet-600/80 text-white text-[10px] font-black uppercase tracking-widest rounded-full">
+              {role} Portal
+            </span>
+            <div className="h-px w-8 bg-white/20" />
+            <span className="text-[10px] font-bold text-blue-300/60 uppercase tracking-widest">Global Status: Online</span>
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+            Welcome back,<br className="sm:hidden" /> {profile.full_name?.split(' ')?.[0] || 'User'}!
           </h1>
-          <p className="text-blue-200 text-sm mt-2 font-medium">
+          <p className="text-blue-200/60 text-sm sm:text-base mt-3 font-medium flex items-center gap-2">
+            <ClockIcon className="w-4 h-4" />
             {now ? now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
           </p>
         </div>
 
-        <div className="relative z-10 flex-shrink-0 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-6 py-4 flex flex-col items-center">
-          <div className="text-3xl font-mono font-bold text-white tracking-widest">
+        <div className="relative z-10 flex sm:flex-row items-center gap-4 sm:gap-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl">
+          <div className="text-3xl sm:text-5xl font-black text-white tracking-tighter tabular-nums">
             {now ? now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '--:--'}
           </div>
-          <div className="flex items-center gap-2 mt-2 bg-white/10 px-3 py-1 rounded-full">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
-            <span className="text-xs text-white font-medium uppercase tracking-wider">System Online</span>
+          <div className="h-8 w-px bg-white/10 hidden sm:block" />
+          <div className="flex flex-col items-start gap-1">
+             <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
+                <span className="text-[8px] sm:text-[10px] text-emerald-400 font-black uppercase tracking-widest">Active</span>
+             </div>
+             <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest ml-1">Live Feed</p>
           </div>
         </div>
       </div>
 
       {/* ── Stats Grid ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {dataLoading
           ? Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-6 animate-pulse">
+            <div key={i} className="bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-6 animate-pulse">
               <div className="h-10 w-10 bg-white/10 rounded-xl mb-4" />
               <div className="h-8 bg-white/10 rounded w-1/2 mb-2" />
               <div className="h-4 bg-white/5 rounded w-2/3" />
             </div>
           ))
           : stats.map(({ label, value, icon: Icon, gradient }) => (
-            <div key={label} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/8 hover:border-white/20 transition-all group">
-              <div className="flex items-start justify-between mb-4">
-                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}>
-                  <Icon className="h-5 w-5 text-white" />
+            <div key={label} className="bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-7 hover:bg-white/8 hover:border-white/20 transition-all group relative overflow-hidden">
+              <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${gradient} opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
+              <div className="flex items-start justify-between mb-5 relative z-10">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
-                <span className="text-[10px] font-bold text-white/25 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-full">Live</span>
+                <span className="text-[8px] sm:text-[10px] font-black text-white/20 uppercase tracking-[0.2em] bg-white/5 px-2 py-0.5 rounded-full border border-white/5">Live</span>
               </div>
-              <p className="text-3xl font-extrabold text-white">{value}</p>
-              <p className="text-white/40 text-sm mt-1">{label}</p>
+              <p className="text-2xl sm:text-4xl font-black text-white tracking-tight tabular-nums relative z-10">{value}</p>
+              <p className="text-[10px] sm:text-xs text-white/30 font-black uppercase tracking-widest mt-1.5 relative z-10">{label}</p>
             </div>
           ))
         }
@@ -557,43 +580,51 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent Activity — live from DB */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-white">Recent Activity</h2>
-              <button onClick={fetchDashData} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white transition-colors" title="Refresh">
-                <ArrowPathIcon className={`w-4 h-4 ${dataLoading ? 'animate-spin' : ''}`} />
+          <div className="bg-[#0a0a1a] border border-white/10 rounded-[2rem] p-6 sm:p-8 shadow-2xl">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-xl font-black text-white tracking-tight">Recent Activity</h2>
+                <p className="text-xs text-white/30 font-medium uppercase tracking-widest mt-1">Live Platform Pulse</p>
+              </div>
+              <button onClick={fetchDashData} className="p-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/30 hover:text-white border border-white/10 transition-all group" title="Refresh">
+                <ArrowPathIcon className={`w-4 h-4 ${dataLoading ? 'animate-spin' : 'group-active:rotate-180 transition-transform'}`} />
               </button>
             </div>
             {dataLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="flex items-center gap-3 animate-pulse">
-                    <div className="w-9 h-9 bg-white/10 rounded-xl flex-shrink-0" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3.5 bg-white/10 rounded w-3/4" />
-                      <div className="h-3 bg-white/5 rounded w-1/2" />
+              <div className="space-y-4">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="flex items-center gap-4 animate-pulse">
+                    <div className="w-11 h-11 bg-white/5 rounded-2xl flex-shrink-0" />
+                    <div className="flex-1 space-y-3">
+                      <div className="h-4 bg-white/5 rounded w-3/4" />
+                      <div className="h-3 bg-white/5 rounded w-1/2 opacity-50" />
                     </div>
-                    <div className="h-3 bg-white/5 rounded w-12" />
                   </div>
                 ))}
               </div>
             ) : activities.length === 0 ? (
-              <div className="text-center py-8">
-                <ClipboardDocumentListIcon className="w-10 h-10 mx-auto text-white/10 mb-2" />
-                <p className="text-white/25 text-sm">No recent activity yet</p>
+              <div className="text-center py-16 bg-white/[0.02] border border-dashed border-white/10 rounded-3xl">
+                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/5">
+                  <ClipboardDocumentListIcon className="w-8 h-8 text-white/10" />
+                </div>
+                <p className="text-white/30 font-bold uppercase tracking-widest text-xs">No recent activity yet</p>
               </div>
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {activities.map((a, i) => (
-                  <div key={a.id} className={`flex items-start gap-3 py-3 ${i < activities.length - 1 ? 'border-b border-white/5' : ''}`}>
-                    <div className={`w-9 h-9 rounded-xl ${a.color} flex items-center justify-center flex-shrink-0 mt-0.5`}>
-                      <a.icon className="h-4 w-4" />
+                  <div key={a.id} className="group flex items-start gap-4 p-4 rounded-2xl hover:bg-white/[0.03] transition-all border border-transparent hover:border-white/5">
+                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${a.color} group-hover:scale-110 transition-transform`}>
+                      <a.icon className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-white text-sm">{a.title}</p>
-                      <p className="text-xs text-white/40 truncate mt-0.5">{a.desc}</p>
+                      <p className="font-bold text-white text-sm tracking-tight group-hover:text-blue-300 transition-colors uppercase leading-none mt-1">
+                        {a.title}
+                      </p>
+                      <p className="text-xs text-white/30 mt-2 font-medium truncate">{a.desc}</p>
                     </div>
-                    <span className="text-xs text-white/25 whitespace-nowrap mt-0.5">{a.time}</span>
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest whitespace-nowrap mt-1 bg-white/5 px-2 py-0.5 rounded-full border border-white/5 group-hover:text-white/40 transition-colors">
+                      {a.time}
+                    </span>
                   </div>
                 ))}
               </div>

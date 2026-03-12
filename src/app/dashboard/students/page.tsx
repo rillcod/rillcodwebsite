@@ -11,7 +11,7 @@ import {
   ChevronDownIcon, ChevronUpIcon, ArrowPathIcon, ArrowDownTrayIcon,
   CalendarIcon, UserIcon, ExclamationTriangleIcon, StarIcon,
   BookOpenIcon, ClipboardDocumentListIcon, KeyIcon, ShieldCheckIcon,
-  XMarkIcon, ClipboardIcon, PencilSquareIcon, BoltIcon,
+  XMarkIcon, ClipboardIcon, PencilSquareIcon, BoltIcon, SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 
@@ -78,27 +78,27 @@ export default function StudentsPage() {
           status, created_at, approved_at, approved_by
         `);
 
-      if (profile.role === 'school' && profile.school_id) {
+      if (profile?.role === 'school' && profile?.school_id) {
         // If we have a school_name in the profile, use it as a fallback for students without IDs
         if (profile.school_name) {
           query = query.or(`school_id.eq.${profile.school_id},school_name.eq."${profile.school_name}"`);
         } else {
           query = query.eq('school_id', profile.school_id);
         }
-      } else if (profile.role === 'teacher') {
+      } else if (profile?.role === 'teacher') {
         const { data: assignments } = await createClient()
           .from('teacher_schools')
           .select('school_id')
-          .eq('teacher_id', profile.id);
+          .eq('teacher_id', profile?.id || '');
         const ids = assignments?.map((a: any) => a.school_id).filter(Boolean) || [];
-        if (profile.school_id) ids.push(profile.school_id);
+        if (profile?.school_id) ids.push(profile.school_id);
         const uniqueIds = Array.from(new Set(ids));
 
         if (uniqueIds.length > 0) {
           // Use .or to allow students in those schools OR students they registered
-          query = query.or(`school_id.in.(${uniqueIds.join(',')}),created_by.eq.${profile.id}`);
+          query = query.or(`school_id.in.(${uniqueIds.join(',')}),created_by.eq.${profile?.id || ''}`);
         } else {
-          query = query.eq('created_by', profile.id);
+          query = query.eq('created_by', profile?.id || '');
         }
       }
 
@@ -418,65 +418,75 @@ export default function StudentsPage() {
       )}
 
       <div className="min-h-screen bg-[#0f0f1a] text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6 sm:space-y-10">
 
           {/* ── Header ─────────────────────────────────────── */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 print:hidden">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <UserGroupIcon className="w-5 h-5 text-blue-400" />
-                <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">
-                  Student Management · {profile?.role}
+              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <UserGroupIcon className="w-5 h-5 text-blue-400" />
+                </div>
+                <span className="text-[10px] font-black text-blue-400/80 uppercase tracking-[0.2em]">
+                  Registry · {profile?.role}
                 </span>
               </div>
-              <h1 className="text-3xl font-extrabold">Students</h1>
-              <p className="text-white/40 text-sm mt-1">
+              <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-none">Students</h1>
+              <p className="text-white/40 text-sm sm:text-lg mt-3 font-medium max-w-2xl">
                 Manage registrations, parent info, approvals and student records
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={load} title="Refresh"
-                className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/40 hover:text-white transition-all">
-                <ArrowPathIcon className="w-4 h-4" />
-              </button>
-              <button onClick={() => window.print()} title="Print List"
-                className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-sm font-bold rounded-xl border border-white/10 transition-all print:hidden">
-                <ClipboardIcon className="w-4 h-4" /> Print
-              </button>
-              <button onClick={exportCSV} title="Export CSV"
-                className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-sm font-bold rounded-xl border border-white/10 transition-all print:hidden">
-                <ArrowDownTrayIcon className="w-4 h-4" /> Export
-              </button>
-              {profile?.role === 'admin' && (
-                <button
-                  onClick={handleSync}
-                  disabled={syncing}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30'
-                    : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white'
-                    }`}
-                >
-                  {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
-                  {syncing ? 'Syncing…' : gapCount ? `Sync (${gapCount} gaps)` : 'Sync Students'}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button onClick={load} title="Refresh"
+                  className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/40 hover:text-white transition-all">
+                  <ArrowPathIcon className="w-4 h-4" />
                 </button>
-              )}
-              {/* Removed unnecessary student role check, we already know user is staff */}
-              <button onClick={() => { setEditingStudent(null); setShowAdd(true); }}
-                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20">
-                <PlusIcon className="w-4 h-4" /> Add Student
-              </button>
+                <div className="flex items-center gap-2 flex-1 sm:flex-none">
+                  <button onClick={() => window.print()} 
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all print:hidden">
+                    <ClipboardIcon className="w-4 h-4" /> Print
+                  </button>
+                  <button onClick={exportCSV}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all print:hidden">
+                    <ArrowDownTrayIcon className="w-4 h-4" /> Export
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 w-full lg:w-auto">
+                {profile?.role === 'admin' && (
+                  <button
+                    onClick={handleSync}
+                    disabled={syncing}
+                    className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20'
+                      : 'bg-white/5 border border-white/10 text-white/40 hover:bg-white/10 hover:text-white'
+                      }`}
+                  >
+                    {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
+                    {syncing ? 'Syncing' : gapCount ? `Sync ${gapCount}` : 'Sync'}
+                  </button>
+                )}
+                <button onClick={() => { setEditingStudent(null); setShowAdd(true); }}
+                  className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-2xl shadow-blue-600/20 active:scale-95">
+                  <PlusIcon className="w-4 h-4" /> Add Student
+                </button>
+              </div>
             </div>
           </div>
 
           {/* ── Error ──────────────────────────────────────── */}
           {error && (
-            <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-              <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-              <p className="text-rose-400 text-sm">{error}</p>
+            <div className="flex items-center gap-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-5 shadow-2xl animate-shake">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center flex-shrink-0">
+                <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
+              </div>
+              <p className="text-rose-400 text-sm font-bold">{error}</p>
             </div>
           )}
 
           {/* ── Stats ──────────────────────────────────────── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden px-1 sm:px-0">
             {[
               { label: 'Total', value: students.length, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', active: filter === 'all', onClick: () => setFilter('all') },
               { label: 'Approved', value: approved, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', active: filter === 'approved', onClick: () => setFilter(filter === 'approved' ? 'all' : 'approved') },
@@ -484,12 +494,13 @@ export default function StudentsPage() {
               { label: 'Rejected', value: rejected, icon: XCircleIcon, color: 'text-rose-400', bg: 'bg-rose-500/10', active: filter === 'rejected', onClick: () => setFilter(filter === 'rejected' ? 'all' : 'rejected') },
             ].map(s => (
               <button key={s.label} onClick={s.onClick}
-                className={`text-left bg-white/5 border rounded-2xl p-5 transition-all hover:bg-white/8 ${s.active ? 'border-white/30 ring-1 ring-white/10' : 'border-white/10'}`}>
-                <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
-                  <s.icon className={`w-5 h-5 ${s.color}`} />
+                className={`group relative text-left bg-white/5 border rounded-2xl sm:rounded-3xl p-5 sm:p-6 transition-all hover:bg-white/8 overflow-hidden ${s.active ? 'border-white/30 ring-1 ring-white/10' : 'border-white/10'}`}>
+                <div className={`absolute top-0 right-0 w-24 h-24 ${s.bg} rounded-full blur-3xl opacity-20 -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 ${s.bg} rounded-xl sm:rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                  <s.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${s.color}`} />
                 </div>
-                <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-                <p className="text-xs text-white/40 mt-1">{s.label}</p>
+                <p className={`text-2xl sm:text-4xl font-black ${s.color} lowercase' tabular-nums`}>{s.value}</p>
+                <p className="text-[10px] sm:text-xs text-white/30 font-black uppercase tracking-widest mt-1.5">{s.label}</p>
               </button>
             ))}
           </div>
@@ -585,12 +596,12 @@ export default function StudentsPage() {
                           </div>
 
                           {/* Chips row */}
-                          <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                             <Chip icon={BuildingOfficeIcon} text={s.school_name} />
                             <Chip icon={AcademicCapIcon} text={s.grade_level} />
                             <Chip icon={MapPinIcon} text={[s.city, s.state].filter(Boolean).join(', ')} />
                             <Chip icon={BookOpenIcon} text={s.enrollment_type ? `${s.enrollment_type} enrolment` : ''} />
-                            <Chip icon={CalendarIcon} text={s.created_at ? `Registered ${new Date(s.created_at).toLocaleDateString()}` : ''} />
+                            <Chip icon={CalendarIcon} text={s.created_at ? `Reg ${new Date(s.created_at).toLocaleDateString('en-GB')}` : ''} />
                           </div>
 
                           {/* Parent summary (always visible) */}
@@ -605,53 +616,59 @@ export default function StudentsPage() {
                         </div>
 
                         {/* Right side: actions + expand */}
-                        <div className="flex items-center gap-2 flex-shrink-0 print:hidden">
-                          {s.status === 'pending' && profile?.role === 'admin' && (
-                            <>
-                              <button
-                                onClick={e => { e.stopPropagation(); approve(s.id); }}
-                                disabled={acting === s.id}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50">
-                                <CheckCircleIcon className="w-3.5 h-3.5" />
-                                {acting === s.id ? '…' : 'Approve'}
-                              </button>
-                              <button
-                                onClick={e => { e.stopPropagation(); reject(s.id); }}
-                                disabled={acting === s.id}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50">
-                                <XCircleIcon className="w-3.5 h-3.5" />
-                                {acting === s.id ? '…' : 'Reject'}
-                              </button>
-                            </>
-                          )}
-                          <button
-                            onClick={e => { e.stopPropagation(); startEdit(s); }}
-                            className="p-1.5 rounded-lg border border-white/10 hover:border-white/30 text-white/40 hover:text-white transition-all">
-                            <PencilSquareIcon className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={e => { e.stopPropagation(); handleDeleteStudent(s.id); }}
-                            disabled={deleting === s.id}
-                            className="p-1.5 rounded-lg border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
-                            <XMarkIcon className="w-3.5 h-3.5" />
-                          </button>
-                          {isExpanded
-                            ? <ChevronUpIcon className="w-4 h-4 text-white/30 group-hover:text-white/60 transition-colors" />
-                            : <ChevronDownIcon className="w-4 h-4 text-white/30 group-hover:text-white/60 transition-colors" />}
+                        <div className="flex items-center gap-2 flex-shrink-0 print:hidden ml-auto">
+                          <div className="hidden sm:flex items-center gap-2">
+                            {s.status === 'pending' && profile?.role === 'admin' && (
+                              <>
+                                <button
+                                  onClick={e => { e.stopPropagation(); approve(s.id); }}
+                                  disabled={acting === s.id}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50">
+                                  <CheckCircleIcon className="w-3.5 h-3.5" />
+                                  {acting === s.id ? '…' : 'Approve'}
+                                </button>
+                                <button
+                                  onClick={e => { e.stopPropagation(); reject(s.id); }}
+                                  disabled={acting === s.id}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50">
+                                  <XCircleIcon className="w-3.5 h-3.5" />
+                                  {acting === s.id ? '…' : 'Reject'}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={e => { e.stopPropagation(); startEdit(s); }}
+                              className="p-2 rounded-xl bg-white/5 border border-white/10 hover:border-violet-500/30 text-white/40 hover:text-white transition-all">
+                              <PencilSquareIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={e => { e.stopPropagation(); handleDeleteStudent(s.id); }}
+                              disabled={deleting === s.id}
+                              className="p-2 rounded-xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
+                              <XMarkIcon className="w-4 h-4" />
+                            </button>
+                            <div className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/40">
+                              {isExpanded
+                                ? <ChevronUpIcon className="w-4 h-4" />
+                                : <ChevronDownIcon className="w-4 h-4" />}
+                            </div>
+                          </div>
                         </div>
                       </div>
 
                       {/* ── Expanded Detail Panel ─── */}
                       {isExpanded && (
-                        <div className="bg-white/[0.03] border-t border-white/5 px-5 pb-6 pt-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="bg-white/[0.03] border-t border-white/5 p-4 sm:p-8">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
 
                             {/* Parent / Guardian */}
-                            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-                              <p className="text-xs font-bold text-white/30 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                                <UserIcon className="w-3.5 h-3.5" /> Parent / Guardian
+                            <div className="bg-white/5 rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-white/10 shadow-2xl">
+                              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
+                                <UserIcon className="w-4 h-4 text-blue-500" /> Parent / Guardian
                               </p>
-                              <div className="space-y-2.5">
+                              <div className="space-y-3.5">
                                 <InfoRow label="Name" value={s.parent_name} />
                                 <InfoRow label="Relationship" value={s.parent_relationship} />
                                 <InfoRow label="Phone" value={s.parent_phone} icon={<PhoneIcon className="w-3 h-3 text-white/20" />} />
@@ -660,14 +677,14 @@ export default function StudentsPage() {
                             </div>
 
                             {/* Student Details */}
-                            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-                              <p className="text-xs font-bold text-white/30 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                                <AcademicCapIcon className="w-3.5 h-3.5" /> Student Details
+                            <div className="bg-white/5 rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-white/10 shadow-2xl">
+                              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
+                                <AcademicCapIcon className="w-4 h-4 text-violet-500" /> Identity
                               </p>
-                              <div className="space-y-2.5">
+                              <div className="space-y-3.5">
                                 <InfoRow label="Full Name" value={s.full_name} />
                                 <InfoRow label="Gender" value={s.gender} />
-                                <InfoRow label="Age" value={age ? `${age} years old` : undefined} />
+                                <InfoRow label="Age" value={age ? `${age} yrs` : undefined} />
                                 <InfoRow label="Grade" value={s.grade_level} />
                                 <InfoRow label="School" value={s.school_name} />
                                 <InfoRow label="Location" value={[s.city, s.state].filter(Boolean).join(', ')} />
@@ -675,81 +692,76 @@ export default function StudentsPage() {
                             </div>
 
                             {/* Programme & Status */}
-                            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-                              <p className="text-xs font-bold text-white/30 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                                <BookOpenIcon className="w-3.5 h-3.5" /> Programme & Status
+                            <div className="bg-[#0a0a1a] rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-white/10 shadow-2xl">
+                              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
+                                <BookOpenIcon className="w-4 h-4 text-emerald-500" /> Programme
                               </p>
-                              <div className="space-y-2.5">
+                              <div className="space-y-3.5">
                                 <InfoRow label="Interests" value={s.interests} />
                                 <InfoRow label="Course Interest" value={s.course_interest} />
-                                <InfoRow label="Preferred Schedule" value={s.preferred_schedule} />
-                                <InfoRow label="Goals" value={s.goals} />
-                                <InfoRow label="Heard About" value={s.heard_about_us} />
-                                <InfoRow label="Enrollment Type" value={s.enrollment_type} />
-                                <InfoRow label="Status" value={s.status} />
+                                <InfoRow label="Schedule" value={s.preferred_schedule} />
+                                <InfoRow label="Enrollment" value={s.enrollment_type} />
+                                <InfoRow label="Applied" value={new Date(s.created_at).toLocaleDateString('en-GB')} />
                                 {s.approved_at && (
-                                  <InfoRow label="Approved On" value={new Date(s.approved_at).toLocaleDateString()} />
+                                  <InfoRow label="Approved" value={new Date(s.approved_at).toLocaleDateString('en-GB')} />
                                 )}
-                                <InfoRow label="Registered" value={new Date(s.created_at).toLocaleDateString()} />
                               </div>
                             </div>
-
                           </div>
 
                           {/* Action bar at bottom of expanded */}
-                          <div className="flex items-center gap-3 mt-4 pt-4 border-t border-white/5">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mt-8 pt-8 border-t border-white/5">
                             {s.status === 'pending' && profile?.role === 'admin' && (
-                              <>
+                              <div className="flex items-center gap-3">
                                 <button onClick={() => approve(s.id)} disabled={acting === s.id}
-                                  className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-600/20">
+                                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 shadow-2xl shadow-emerald-600/20 active:scale-95">
                                   <CheckCircleIcon className="w-4 h-4" />
-                                  {acting === s.id ? 'Processing…' : `Approve ${s.full_name?.split(' ')[0]}`}
+                                  {acting === s.id ? '…' : `Approve ${s.full_name?.split(' ')[0]}`}
                                 </button>
                                 <button onClick={() => reject(s.id)} disabled={acting === s.id}
-                                  className="flex items-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
+                                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 active:scale-95">
                                   <XCircleIcon className="w-4 h-4" />
                                   {acting === s.id ? '…' : 'Reject'}
                                 </button>
-                              </>
+                              </div>
                             )}
                             {s.status === 'approved' && (
-                              <div className="flex items-center gap-3 flex-wrap">
-                                <div className="flex items-center gap-2 text-emerald-400 text-sm">
-                                  <StarIcon className="w-4 h-4" />
-                                  <span className="font-semibold">Approved student</span>
-                                  {s.approved_at && <span className="text-white/30 text-xs">· {new Date(s.approved_at).toLocaleDateString()}</span>}
+                              <div className="flex flex-wrap items-center gap-4">
+                                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
+                                  <CheckCircleIcon className="w-3.5 h-3.5" />
+                                  Approved Student
                                 </div>
-                                {/* Show portal status */}
                                 {s.user_id ? (
-                                  <span className="flex items-center gap-1.5 text-xs text-violet-400 font-semibold">
-                                    <ShieldCheckIcon className="w-3.5 h-3.5" /> Portal Active
-                                  </span>
+                                  <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600/10 border border-violet-500/20 text-violet-400 text-[10px] font-black uppercase tracking-widest">
+                                    <ShieldCheckIcon className="w-3.5 h-3.5" />
+                                    Portal Active
+                                  </div>
                                 ) : (
                                   <button
                                     onClick={() => activatePortalAccount(s.id, s.full_name)}
                                     disabled={activating === s.id}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all">
-                                    <KeyIcon className="w-3.5 h-3.5" />
-                                    {activating === s.id ? 'Creating…' : 'Activate Portal'}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-2xl active:scale-95">
+                                    <KeyIcon className="w-4 h-4" />
+                                    {activating === s.id ? 'Creating' : 'Activate Portal'}
                                   </button>
                                 )}
                               </div>
                             )}
                             {s.status === 'rejected' && (
-                              <div className="flex items-center gap-2 text-rose-400 text-sm">
-                                <XCircleIcon className="w-4 h-4" />
-                                <span className="font-semibold">Application rejected</span>
+                              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest">
+                                <XCircleIcon className="w-3.5 h-3.5" />
+                                Registration Rejected
                               </div>
                             )}
-                            <div className="ml-auto flex items-center gap-3">
+                            <div className="ml-auto flex items-center gap-5">
                               <Link href={`/dashboard/students/${s.id}/report`}
-                                className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 transition-colors">
-                                <ClipboardDocumentListIcon className="w-3.5 h-3.5" /> View Report
+                                className="flex items-center gap-2 text-[10px] font-black text-violet-400 hover:text-white uppercase tracking-widest transition-colors">
+                                <ClipboardDocumentListIcon className="w-4 h-4" /> Report
                               </Link>
                               {s.parent_email && (
                                 <a href={`mailto:${s.parent_email}`}
-                                  className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white transition-colors">
-                                  <EnvelopeIcon className="w-3.5 h-3.5" /> Email parent
+                                  className="flex items-center gap-2 text-[10px] font-black text-white/30 hover:text-white uppercase tracking-widest transition-colors">
+                                  <EnvelopeIcon className="w-4 h-4" /> Mail
                                 </a>
                               )}
                             </div>
@@ -815,7 +827,7 @@ function StudentSelfView() {
   async function load() {
     setLoading(true);
     const supabase = createClient();
-    const uid = profile!.id;
+    const uid = profile?.id || '';
     const [enrRes, subsRes, gradedRes, recentRes] = await Promise.allSettled([
       supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('user_id', uid),
       supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('portal_user_id', uid),
@@ -866,36 +878,63 @@ function StudentSelfView() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#0B132B] to-[#1a2b54] rounded-2xl p-6 sm:p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-emerald-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative z-10">
-            <span className="inline-block px-3 py-1 bg-emerald-600/80 text-white text-xs font-bold uppercase tracking-wider rounded-full mb-3">
-              Student Portal
-            </span>
-            <h1 className="text-3xl font-extrabold text-white">
-              Welcome back, {profile?.full_name?.split(' ')?.[0] || 'Student'}!
-            </h1>
-            <p className="text-blue-200 text-sm mt-2" suppressHydrationWarning>
-              {now ? now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
-            </p>
+        <div className="bg-[#0a0a1a] border border-emerald-500/20 rounded-[2.5rem] sm:rounded-[4rem] p-8 sm:p-16 relative overflow-hidden shadow-2xl group">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-600/10 blur-[120px] -mr-64 -mt-64 pointer-events-none group-hover:bg-emerald-600/20 transition-all duration-1000" />
+          <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-600/10 blur-[100px] -ml-32 -mb-32 pointer-events-none" />
+          
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="px-5 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.3em] rounded-2xl shadow-xl">
+                  Student Portal
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">System Active</span>
+                </div>
+              </div>
+              
+              <h1 className="text-4xl sm:text-7xl font-black text-white tracking-tighter leading-[0.9]">
+                Welcome back,<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+                  {profile?.full_name?.split(' ')?.[0] || 'Scholar'}
+                </span>
+              </h1>
+              
+              <div className="flex items-center gap-6 pt-2">
+                <div className="flex items-center gap-2.5 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white/40 shadow-xl" suppressHydrationWarning>
+                   <ClockIcon className="w-4 h-4 text-emerald-500" />
+                   {now ? now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
+                </div>
+              </div>
+            </div>
+
+            <div className="hidden lg:block relative">
+               <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-[2.5rem] bg-gradient-to-br from-emerald-600 to-cyan-600 flex items-center justify-center text-5xl sm:text-7xl font-black text-white shadow-3xl rotate-3 hover:rotate-0 transition-transform duration-500">
+                 {profile?.full_name?.[0].toUpperCase()}
+               </div>
+               <div className="absolute -bottom-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl sm:rounded-3xl flex items-center justify-center text-black shadow-2xl -rotate-12">
+                 <SparklesIcon className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />
+               </div>
+            </div>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 print:hidden">
           {[
-            { label: 'Enrolled Courses', value: stats.enrolled, icon: BookOpenIcon, gradient: 'from-blue-600 to-blue-400' },
-            { label: 'Assignments Done', value: stats.submitted, icon: ClipboardDocumentListIcon, gradient: 'from-violet-600 to-violet-400' },
-            { label: 'Graded Work', value: stats.graded, icon: CheckCircleIcon, gradient: 'from-emerald-600 to-emerald-400' },
-            { label: 'Overall Grade', value: stats.graded ? `${stats.letter} (${stats.avgPct}%)` : '—', icon: StarIcon, gradient: 'from-amber-600 to-amber-400' },
-          ].map(({ label, value, icon: Icon, gradient }) => (
-            <div key={label} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/8 hover:border-white/20 transition-all">
-              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-4 shadow-lg`}>
-                <Icon className="h-5 w-5 text-white" />
+            { label: 'Enrolled Courses', value: stats.enrolled, icon: BookOpenIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+            { label: 'Work Submitted', value: stats.submitted, icon: ClipboardDocumentListIcon, color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20' },
+            { label: 'Graded Tasks', value: stats.graded, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+            { label: 'Performance', value: stats.graded ? `${stats.letter} (${stats.avgPct}%)` : '—', icon: StarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+          ].map(({ label, value, icon: Icon, color, bg, border }) => (
+            <div key={label} className="bg-[#0a0a1a] border border-white/5 rounded-3xl p-6 sm:p-8 hover:bg-white/[0.03] hover:border-white/10 transition-all group relative overflow-hidden shadow-2xl">
+              <div className={`absolute top-0 right-0 w-24 h-24 ${bg} opacity-[0.05] blur-3xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
+              <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl ${bg} ${border} border flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 transition-transform`}>
+                <Icon className={`h-6 w-6 sm:h-8 sm:w-8 ${color}`} />
               </div>
-              <p className="text-3xl font-extrabold text-white">{value}</p>
-              <p className="text-white/40 text-sm mt-1">{label}</p>
+              <p className="text-3xl sm:text-5xl font-black text-white tracking-tighter tabular-nums relative z-10">{value}</p>
+              <p className="text-[10px] sm:text-xs text-white/20 font-black uppercase tracking-[0.2em] mt-2 relative z-10">{label}</p>
             </div>
           ))}
         </div>

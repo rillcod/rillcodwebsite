@@ -9,7 +9,8 @@ import { submitAssignment, gradeSubmission } from '@/services/dashboard.service'
 import {
     ArrowLeftIcon, CalendarIcon, ClockIcon, DocumentTextIcon,
     CheckCircleIcon, ExclamationTriangleIcon, ArrowUpTrayIcon,
-    PaperClipIcon, AcademicCapIcon, StarIcon, XMarkIcon, ArrowPathIcon, CheckIcon, PencilIcon
+    PaperClipIcon, AcademicCapIcon, StarIcon, XMarkIcon, ArrowPathIcon, CheckIcon, PencilIcon,
+    CodeBracketIcon, CommandLineIcon
 } from '@heroicons/react/24/outline';
 
 function pctInfo(grade: number, max: number) {
@@ -17,6 +18,73 @@ function pctInfo(grade: number, max: number) {
     const letter = pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'F';
     const color = pct >= 70 ? 'emerald' : pct >= 50 ? 'amber' : 'rose';
     return { pct, letter, color };
+}
+
+function CodingBlocksChallenge({ 
+    question, 
+    value, 
+    onChange 
+}: { 
+    question: any, 
+    value: string, 
+    onChange: (val: string) => void 
+}) {
+    const sentence = question.metadata?.logic_sentence || "Logic: [BLANK]";
+    const parts = sentence.split('[BLANK]');
+    const blocks = question.metadata?.logic_blocks || [];
+    
+    const currentAnswers = value ? value.split(',').map(s => s.trim()) : [];
+    
+    const updateAt = (idx: number, newVal: string) => {
+        const newAns = [...currentAnswers];
+        // Ensure array is long enough
+        for (let i=0; i < parts.length - 1; i++) {
+            if (newAns[i] === undefined) newAns[i] = '';
+        }
+        newAns[idx] = newVal;
+        onChange(newAns.slice(0, parts.length - 1).join(', '));
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-wrap items-center gap-x-2 gap-y-3 leading-loose">
+                {parts.map((p: string, pi: number) => (
+                    <div key={pi} className="contents">
+                        <span className="text-sm font-medium text-white/80">{p}</span>
+                        {pi < parts.length - 1 && (
+                            <div className="inline-block min-w-[80px] h-8 bg-black/40 border border-amber-500/30 rounded-lg px-3 text-xs font-black text-amber-400 flex items-center justify-center italic shadow-inner">
+                                {currentAnswers[pi] || "?"}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+                {blocks.map((block: string, bi: number) => (
+                    <button
+                        key={bi}
+                        type="button"
+                        onClick={() => {
+                            const firstEmpty = currentAnswers.findIndex((a, i) => i < parts.length - 1 && !a);
+                            const targetIdx = firstEmpty === -1 ? 0 : firstEmpty;
+                            if (targetIdx < parts.length - 1) updateAt(targetIdx, block);
+                        }}
+                        className="px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-xl text-xs font-bold text-amber-400 transition-colors active:scale-95"
+                    >
+                        {block}
+                    </button>
+                ))}
+                <button 
+                    type="button" 
+                    onClick={() => onChange('')}
+                    className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl text-[10px] uppercase font-black text-rose-400 ml-auto"
+                >
+                    Reset
+                </button>
+            </div>
+        </div>
+    );
 }
 
 function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSaved }: {
@@ -89,10 +157,33 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
                                         <span className="text-[10px] text-white/40">{q.points} pt{q.points !== 1 && 's'}</span>
                                     </div>
                                     <div className="text-sm text-white/70 bg-black/20 p-2 rounded">
-                                        <span className="text-white font-medium">{sub.answers?.[idx] || <span className="text-white/30 italic">No answer provided</span>}</span>
+                                        {q.question_type === 'coding_blocks' ? (
+                                             <div className="flex flex-wrap items-center gap-1.5 leading-relaxed py-1">
+                                                {(q.metadata?.logic_sentence || "").split('[BLANK]').map((part: string, pi: number, arr: string[]) => (
+                                                    <span key={pi} className="contents">
+                                                        <span className="text-white/40 text-[10px]">{part}</span>
+                                                        {pi < arr.length - 1 && (
+                                                            <span className="px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded text-amber-400 text-[10px] font-bold italic">
+                                                                {(sub.answers?.[idx] || "").split(',')[pi]?.trim() || "???"}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                ))}
+                                             </div>
+                                        ) : (
+                                            <span className="text-white font-medium">{sub.answers?.[idx] || <span className="text-white/30 italic">No answer provided</span>}</span>
+                                        )}
                                     </div>
                                     {q.question_type === 'multiple_choice' && q.correct_answer && (
                                         <p className="text-xs text-emerald-400 mt-2 font-semibold">Correct Answer: {q.correct_answer}</p>
+                                    )}
+                                    {q.question_type === 'coding_blocks' && (
+                                        <div className="mt-2 flex flex-col gap-1">
+                                             <div className="flex items-center gap-2 p-1.5 bg-emerald-500/5 border border-emerald-500/10 rounded">
+                                                <CheckIcon className="w-3 h-3 text-emerald-400" />
+                                                <p className="text-[9px] text-emerald-400 font-bold">Key: {q.correct_answer}</p>
+                                             </div>
+                                        </div>
                                     )}
                                 </div>
                             ))}
@@ -541,6 +632,14 @@ export default function AssignmentDetailPage() {
 
                                                 {(q.question_type === 'essay' || q.question_type === 'fill_blank') && (
                                                     <input type="text" value={answers[i] || ''} onChange={e => setAnswers({ ...answers, [i]: e.target.value })} placeholder="Type your answer here…" className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500 transition-colors" />
+                                                )}
+
+                                                {q.question_type === 'coding_blocks' && (
+                                                    <CodingBlocksChallenge 
+                                                        question={q} 
+                                                        value={answers[i] || ''} 
+                                                        onChange={(val) => setAnswers({ ...answers, [i]: val })} 
+                                                    />
                                                 )}
                                             </div>
                                         ))}

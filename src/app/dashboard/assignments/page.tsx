@@ -83,11 +83,11 @@ export default function AssignmentsPage() {
       try {
         const data = isStaff
           ? await fetchAssignments({
-            teacherId: role === 'teacher' ? profile!.id : undefined,
-            schoolId: role === 'school' ? profile!.school_id : undefined,
-            schoolName: role === 'school' ? profile!.school_name : undefined,
+            teacherId: role === 'teacher' ? profile?.id : undefined,
+            schoolId: role === 'school' ? profile?.school_id : undefined,
+            schoolName: role === 'school' ? profile?.school_name : undefined,
           })
-          : await fetchStudentAssignments(profile!.id);
+          : await fetchStudentAssignments(profile?.id || '');
         if (!cancelled) setItems(data);
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load');

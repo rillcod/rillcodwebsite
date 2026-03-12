@@ -94,21 +94,32 @@ function TeacherPersonalDashboard() {
       setLoading(true);
       try {
         // Step 1: get teacher's own assignment IDs
-        const { data: myAsgns } = await supabase.from('assignments').select('id, title').eq('created_by', profile!.id);
+        const { data: myAsgns } = await supabase.from('assignments').select('id, title').eq('created_by', profile?.id || '');
         const aIds = (myAsgns ?? []).map((a: any) => a.id);
         const aTitleMap: Record<string, string> = {};
         (myAsgns ?? []).forEach((a: any) => { aTitleMap[a.id] = a.title; });
 
-        const [classesRes, pendingRes, studentsRes, gradesRes, recentStudentsRes] = await Promise.allSettled([
-          supabase.from('classes').select('id, name, max_students, current_students, schedule, status', { count: 'exact' }).eq('teacher_id', profile!.id),
+        // Get schools this teacher is assigned to
+        const { data: schools } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', profile?.id || '');
+        const schoolIds = schools?.map(s => s.school_id).filter(Boolean) || [];
+
+        let studentCountQuery = supabase.from('students').select('id', { count: 'exact', head: true });
+        if (schoolIds.length > 0) {
+          studentCountQuery = studentCountQuery.or(`school_id.in.(${schoolIds.join(',')}),created_by.eq.${profile?.id || ''}`);
+        } else {
+          studentCountQuery = studentCountQuery.eq('created_by', profile?.id || '');
+        }
+
+        const [classesRes, pendingRes, studentsHead, gradesRes, recentStudentsRes] = await Promise.allSettled([
+          supabase.from('classes').select('id, name, max_students, current_students, schedule, status', { count: 'exact' }).eq('teacher_id', profile?.id || ''),
           aIds.length > 0
             ? supabase.from('assignment_submissions').select('id', { count: 'exact' }).eq('status', 'submitted').in('assignment_id', aIds)
             : Promise.resolve({ count: 0, data: [] }),
-          supabase.from('classes').select('current_students').eq('teacher_id', profile!.id),
+          studentCountQuery,
           aIds.length > 0
             ? supabase.from('assignment_submissions').select('grade').eq('status', 'graded').in('assignment_id', aIds)
             : Promise.resolve({ data: [] }),
-          supabase.from('students').select('*').eq('created_by', profile!.id).order('created_at', { ascending: false }).limit(5),
+          supabase.from('students').select('*').eq('created_by', profile?.id || '').order('created_at', { ascending: false }).limit(5),
         ]);
 
         // Recent activity: fetch submissions + enrich with user names
@@ -134,11 +145,9 @@ function TeacherPersonalDashboard() {
 
         const classRows = classesRes.status === 'fulfilled' ? (classesRes.value.data ?? []) : [];
         const pendingCnt = pendingRes.status === 'fulfilled' ? (pendingRes.value.count ?? 0) : 0;
-        const studentRows = studentsRes.status === 'fulfilled' ? (studentsRes.value.data ?? []) : [];
+        const totalStudents = studentsHead.status === 'fulfilled' ? (studentsHead.value.count ?? 0) : 0;
         const gradeRows = gradesRes.status === 'fulfilled' ? (gradesRes.value.data ?? []) : [];
         const registeredStudents = recentStudentsRes.status === 'fulfilled' ? (recentStudentsRes.value.data ?? []) : [];
-
-        const totalStudents = studentRows.reduce((s: number, c: any) => s + (c.current_students ?? 0), 0);
         const grades = gradeRows.map((g: any) => Number(g.grade)).filter(Boolean);
         const avgPerf = grades.length ? Math.round(grades.reduce((a: number, b: number) => a + b, 0) / grades.length) : 0;
 
@@ -211,105 +220,124 @@ function TeacherPersonalDashboard() {
 
   return (
     <div className="min-h-screen bg-[#0f0f1a] text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
 
-        {/* ── WELCOME BANNER ── */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-900 via-[#1a1040] to-[#0f0f1a] border border-white/10 p-8">
-          {/* decorative blobs */}
-          <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-violet-600/20 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 -left-10 w-48 h-48 rounded-full bg-blue-600/20 blur-3xl pointer-events-none" />
-
-          <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-600/30 border border-violet-500/40 text-violet-300 text-xs font-semibold uppercase tracking-widest">
-                  <FireIcon className="w-3.5 h-3.5" /> Teacher Portal
-                </span>
-                <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
-                  ONLINE
-                </span>
+        {/* Header */}
+        <div className="bg-[#0a0a1a] border border-violet-500/20 rounded-[2.5rem] sm:rounded-[4rem] p-8 sm:p-16 relative overflow-hidden shadow-2xl group">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/10 blur-[120px] -mr-64 -mt-64 pointer-events-none group-hover:bg-violet-600/20 transition-all duration-1000" />
+          <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-indigo-600/10 blur-[100px] -ml-32 -mb-32 pointer-events-none" />
+          
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="px-5 py-2 bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[10px] font-black uppercase tracking-[0.3em] rounded-2xl shadow-xl">
+                   Teacher Nucleus
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Active Session</span>
+                </div>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-extrabold leading-tight">
-                Welcome back, <span className="text-violet-400">{profile?.full_name?.split(' ')[0] ?? 'Teacher'}!</span>
+              
+              <h1 className="text-4xl sm:text-7xl font-black text-white tracking-tighter leading-[0.9]">
+                Greetings, <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400">
+                  {profile?.full_name?.split(' ')?.[0] || 'Educator'}
+                </span>
               </h1>
-              <p className="text-white/50 mt-1 text-sm" suppressHydrationWarning>
-                {now ? now.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
-              </p>
-            </div>
-            <div className="text-right bg-black/30 border border-white/10 rounded-xl px-6 py-4 backdrop-blur-sm">
-              <div className="text-4xl font-mono font-black text-violet-400 tabular-nums">
-                {now ? now.toLocaleTimeString('en-NG', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+              
+              <div className="flex items-center gap-6 pt-2">
+                <div className="flex items-center gap-2.5 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white/40 shadow-xl" suppressHydrationWarning>
+                   <ClockIcon className="w-4 h-4 text-violet-500" />
+                   {now ? now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
+                </div>
               </div>
-              <div className="text-white/40 text-xs mt-1 font-medium uppercase tracking-wider">WAT — Nigeria</div>
+            </div>
+
+            <div className="hidden lg:block relative">
+               <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-[2.5rem] bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-5xl sm:text-7xl font-black text-white shadow-3xl -rotate-3 hover:rotate-0 transition-transform duration-500">
+                 {profile?.full_name?.[0].toUpperCase()}
+               </div>
+               <div className="absolute -top-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl sm:rounded-3xl flex items-center justify-center text-black shadow-2xl rotate-12">
+                 <AcademicCapIcon className="w-6 h-6 sm:w-8 sm:h-8 text-violet-600" />
+               </div>
             </div>
           </div>
         </div>
 
         {/* ── STAT CARDS ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {statCards.map((card) => (
-            <Link key={card.label} href={card.href} className="group relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 p-6 hover:border-white/20 hover:bg-white/10 transition-all duration-300">
-              <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-              <div className="flex items-start justify-between mb-4">
-                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center shadow-lg`}>
-                  <card.icon className="w-5 h-5 text-white" />
+            <Link key={card.label} href={card.href} className="group relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 p-5 sm:p-6 hover:border-violet-500/30 hover:bg-white/8 transition-all duration-300">
+              <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
+              <div className="flex items-start justify-between mb-4 sm:mb-6">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                  <card.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white/50 group-hover:text-white transition-colors" />
                 </div>
-                <ArrowRightIcon className="w-4 h-4 text-white/20 group-hover:text-white/60 group-hover:translate-x-1 transition-all duration-200" />
+                <ArrowRightIcon className="w-4 h-4 text-white/10 group-hover:text-white group-hover:translate-x-1 transition-all" />
               </div>
-              <p className="text-3xl font-extrabold text-white mb-1">{card.value}</p>
-              <p className="text-white/50 text-sm font-medium">{card.label}</p>
-              <p className="text-xs text-white/30 mt-1">{card.change}</p>
+              <p className="text-2xl sm:text-3xl font-black text-white mb-0.5 sm:mb-1">{card.value}</p>
+              <p className="text-[10px] sm:text-xs text-white/40 font-black uppercase tracking-widest">{card.label}</p>
+              <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
+                 <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{card.change}</span>
+                 <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${card.color}`} />
+              </div>
             </Link>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* ── TODAY'S CLASSES ── */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5 text-violet-400" />
-                Upcoming Classes
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+              <h2 className="text-xl font-black text-white flex items-center gap-3">
+                <CalendarIcon className="w-6 h-6 text-violet-500" />
+                Schedules
               </h2>
-              <Link href="/dashboard/classes" className="text-sm text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors">
-                View all <ArrowRightIcon className="w-3.5 h-3.5" />
+              <Link href="/dashboard/classes" className="text-[10px] font-black text-violet-400 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all">
+                Registry <ArrowRightIcon className="w-3.5 h-3.5" />
               </Link>
             </div>
-            <div className="space-y-3">
-              {upcomingClasses.map((cls, i) => (
-                <div key={cls.id} className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-xl p-5 hover:bg-white/8 hover:border-white/20 transition-all duration-200">
-                  <div className={`w-12 h-12 rounded-xl ${COLORS[i % COLORS.length]} flex items-center justify-center flex-shrink-0`}>
-                    <BookOpenIcon className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white truncate">{cls.name}</p>
-                    <div className="flex items-center gap-3 mt-1 text-sm text-white/40">
-                      <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{cls.time}</span>
-                      <span className="flex items-center gap-1"><UserGroupIcon className="w-3.5 h-3.5" />{cls.students} students</span>
+            
+            <div className="grid grid-cols-1 gap-4">
+              {upcomingClasses.length === 0 ? (
+                <div className="py-12 text-center bg-white/5 border border-white/10 rounded-2xl">
+                  <p className="text-white/20 text-xs font-black uppercase tracking-widest italic">No classes scheduled yet</p>
+                </div>
+              ) : (
+                upcomingClasses.map((cls, i) => (
+                  <div key={cls.id} className="group flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6 hover:bg-white/10 hover:border-violet-500/30 transition-all">
+                    <div className={`w-14 h-14 rounded-2xl ${COLORS[i % COLORS.length]} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-2xl`}>
+                      <BookOpenIcon className="w-7 h-7 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-black text-white mb-1.5 truncate group-hover:text-violet-400 transition-colors">{cls.name}</h3>
+                      <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-white/40">
+                        <span className="flex items-center gap-2"><ClockIcon className="w-4 h-4 text-violet-500" />{cls.time}</span>
+                        <span className="flex items-center gap-2"><UserGroupIcon className="w-4 h-4 text-blue-500" />{cls.students} Enrollments</span>
+                      </div>
+                    </div>
+                    <div className={`mt-2 sm:mt-0 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${cls.day === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-white/5 text-white/30 border-white/5'}`}>
+                      {cls.day}
                     </div>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${cls.day === 'Today' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/10 text-white/50'
-                    }`}>
-                    {cls.day}
-                  </span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             {/* ── QUICK ACTIONS ── */}
-            <div>
-              <h2 className="text-xl font-bold text-white mb-3 flex items-center gap-2 mt-2">
-                <TrophyIcon className="w-5 h-5 text-amber-400" />
-                Quick Actions
+            <div className="pt-6 sm:pt-8">
+              <h2 className="text-xl font-black text-white mb-6 flex items-center gap-3">
+                <TrophyIcon className="w-6 h-6 text-amber-500" />
+                Tools
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {quickActions.map((action) => (
                   <Link key={action.label} href={action.href}
-                    className={`flex items-center gap-3 ${action.color} text-white font-semibold text-sm px-4 py-3 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-95`}
+                    className={`flex flex-col gap-3 ${action.color} text-white font-black text-[10px] uppercase tracking-widest px-5 py-6 rounded-2xl transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl hover:shadow-black active:scale-95 border border-white/5`}
                   >
-                    <action.icon className="w-5 h-5 flex-shrink-0" />
+                    <action.icon className="w-6 h-6 opacity-60" />
                     {action.label}
                   </Link>
                 ))}
@@ -318,46 +346,26 @@ function TeacherPersonalDashboard() {
           </div>
 
           {/* ── SIDEBAR: Activity + Performance ── */}
-          <div className="space-y-4">
+          <div className="space-y-6">
 
             {/* Recent Activity */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-              <div className="p-5 border-b border-white/10 flex items-center justify-between">
-                <h3 className="font-bold text-white flex items-center gap-2">
-                  <BellIcon className="w-4 h-4 text-blue-400" /> Recent Activity
+            <div className="bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl">
+              <div className="p-5 sm:p-6 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+                <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-3">
+                  <BellIcon className="w-4 h-4 text-blue-500" /> Live Logs
                 </h3>
               </div>
               <div className="divide-y divide-white/5">
-                {recentActivity.map((act) => (
-                  <div key={act.id} className="p-4 hover:bg-white/5 transition-colors">
-                    <p className={`text-sm font-semibold ${act.color}`}>{act.title}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{act.subtitle}</p>
-                    <p className="text-xs text-white/25 mt-1">{act.time}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent Students Added */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-              <div className="p-5 border-b border-white/10 flex items-center justify-between">
-                <h3 className="font-bold text-white flex items-center gap-2">
-                  <UserGroupIcon className="w-4 h-4 text-emerald-400" /> New Registrations
-                </h3>
-              </div>
-              <div className="divide-y divide-white/5">
-                {recentStudents.length === 0 ? (
-                  <div className="p-6 text-center text-white/20 text-xs">No students registered yet.</div>
+                {recentActivity.length === 0 ? (
+                  <div className="p-10 text-center opacity-20 italic text-xs font-bold uppercase tracking-widest uppercase">Idle</div>
                 ) : (
-                  recentStudents.map((s) => (
-                    <div key={s.id} className="p-4 hover:bg-white/5 transition-colors flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-white">{s.name || s.full_name}</p>
-                        <p className="text-[10px] text-white/40 uppercase tracking-widest">{s.grade_level || 'No Class'}</p>
+                  recentActivity.map((act) => (
+                    <div key={act.id} className="p-5 hover:bg-white/5 transition-colors group">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className={`text-[10px] font-black uppercase tracking-widest ${act.color}`}>{act.title}</p>
+                        <span className="text-[9px] font-bold text-white/20">{act.time}</span>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${s.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}`}>
-                        {s.status}
-                      </span>
+                      <p className="text-sm font-bold text-white/80 group-hover:text-white transition-colors">{act.subtitle}</p>
                     </div>
                   ))
                 )}
@@ -365,22 +373,22 @@ function TeacherPersonalDashboard() {
             </div>
 
             {/* Performance Summary */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-              <h3 className="font-bold text-white mb-4 flex items-center gap-2">
-                <StarIcon className="w-4 h-4 text-amber-400" /> Class Performance
+            <div className="bg-[#0a0a20] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-violet-500/5">
+              <h3 className="text-xs font-black text-white uppercase tracking-widest mb-6 flex items-center gap-3">
+                <StarIcon className="w-4 h-4 text-amber-400 shadow-xl" /> Scores
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-6">
                 {perfData.length === 0 ? (
-                  <p className="text-white/30 text-sm">No class data yet.</p>
+                  <p className="text-white/20 text-xs italic font-bold tracking-widest uppercase px-2 py-8 text-center border-2 border-dashed border-white/5 rounded-2xl">No metrics yet</p>
                 ) : perfData.map((item) => (
-                  <div key={item.label}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-white/60 truncate pr-2">{item.label}</span>
-                      <span className="text-white font-bold">{item.value}%</span>
+                  <div key={item.label} className="space-y-2">
+                    <div className="flex justify-between items-center px-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white/40 truncate pr-4">{item.label}</span>
+                      <span className="text-xs font-black text-white">{item.value}%</span>
                     </div>
-                    <div className="w-full h-2 rounded-full bg-white/10">
+                    <div className="w-full h-1.5 rounded-full bg-white/5 p-[1px]">
                       <div
-                        className={`h-2 rounded-full ${item.color} transition-all duration-500`}
+                        className={`h-full rounded-full ${item.color.replace('bg-', 'bg-gradient-to-r from-')} to-white transition-all duration-1000 shadow-[0_0_8px_rgba(255,255,255,0.2)]`}
                         style={{ width: `${item.value}%` }}
                       />
                     </div>
@@ -389,38 +397,43 @@ function TeacherPersonalDashboard() {
               </div>
             </div>
 
-            {/* Pending Grading */}
-            <div className="bg-amber-600/10 border border-amber-500/20 rounded-2xl p-5">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                  <ClipboardDocumentListIcon className="w-5 h-5 text-amber-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-white text-sm">{stats.pendingGrades} Submissions Pending</p>
-                  <p className="text-amber-300/70 text-xs mt-0.5">Students are waiting for their grades</p>
-                  <Link href="/dashboard/assignments"
-                    className="inline-flex items-center gap-1.5 mt-3 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors"
-                  >
-                    Grade now <ArrowRightIcon className="w-3.5 h-3.5" />
-                  </Link>
+            {/* Pending Grading Banner */}
+            {stats.pendingGrades > 0 && (
+              <div className="relative group overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-600 to-rose-600 rounded-3xl opacity-10 group-hover:opacity-20 transition-opacity"></div>
+                <div className="relative bg-white/5 border border-amber-500/20 rounded-3xl p-6 sm:p-8">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center flex-shrink-0 animate-bounce">
+                      <ClipboardDocumentListIcon className="w-6 h-6 text-amber-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-black text-white uppercase tracking-widest">{stats.pendingGrades} Due Tasks</p>
+                      <p className="text-white/40 text-[10px] mt-1 font-bold uppercase tracking-widest">Grading backlog detected</p>
+                      <Link href="/dashboard/assignments"
+                        className="inline-flex items-center gap-2 mt-4 text-[10px] font-black text-amber-400 hover:text-white uppercase tracking-widest transition-all"
+                      >
+                        Action <ArrowRightIcon className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* ── FOOTER STATS — real DB values ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {/* ── FOOTER STATS ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 bg-white/5 p-4 sm:p-6 rounded-3xl border border-white/10">
           {[
-            { label: 'My Classes', value: stats.myClasses, icon: AcademicCapIcon, color: 'text-violet-400' },
-            { label: 'Total Students', value: stats.totalStudents, icon: UserGroupIcon, color: 'text-blue-400' },
-            { label: 'Pending Grades', value: stats.pendingGrades, icon: DocumentTextIcon, color: 'text-amber-400' },
-            { label: 'Avg Performance', value: `${stats.avgPerformance}%`, icon: CheckCircleIcon, color: 'text-emerald-400' },
+            { label: 'Classes', value: stats.myClasses, icon: AcademicCapIcon, color: 'text-violet-400' },
+            { label: 'Students', value: stats.totalStudents, icon: UserGroupIcon, color: 'text-blue-400' },
+            { label: 'Pending', value: stats.pendingGrades, icon: DocumentTextIcon, color: 'text-amber-400' },
+            { label: 'Efficiency', value: `${stats.avgPerformance}%`, icon: FireIcon, color: 'text-emerald-400' },
           ].map((item) => (
-            <div key={item.label} className="bg-white/5 border border-white/10 rounded-xl p-5 text-center">
-              <item.icon className={`w-6 h-6 ${item.color} mx-auto mb-2`} />
-              <p className="text-2xl font-extrabold text-white">{item.value}</p>
-              <p className="text-xs text-white/40 mt-1">{item.label}</p>
+            <div key={item.label} className="flex flex-col items-center justify-center py-4 px-2 hover:bg-white/5 rounded-2xl transition-all group">
+              <item.icon className={`w-5 h-5 ${item.color} mb-3 group-hover:scale-110 transition-transform`} />
+              <p className="text-xl sm:text-2xl font-black text-white group-hover:text-violet-400 transition-colors tabular-nums">{item.value}</p>
+              <p className="text-[9px] text-white/30 font-black uppercase tracking-widest mt-1">{item.label}</p>
             </div>
           ))}
         </div>

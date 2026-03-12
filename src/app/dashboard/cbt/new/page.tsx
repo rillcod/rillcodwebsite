@@ -414,28 +414,42 @@ export default function NewExamPage() {
 
                 {q.question_type === 'multiple_choice' && (
                   <div className="space-y-3">
-                    <label className="block text-xs text-white/40 uppercase tracking-widest mb-2">Options (Select correct one)</label>
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs text-white/40 uppercase tracking-widest">Options (Select the correct one)</label>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {q.options.map((opt, oi) => (
-                        <div key={oi} className={`flex items-center gap-2 p-1.5 rounded-2xl border transition-all ${q.correct_answer === opt && opt !== '' ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-white/5 border-white/10'}`}>
-                          <button
-                            type="button"
-                            onClick={() => updateQuestion(qi, { correct_answer: opt })}
-                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${q.correct_answer === opt && opt !== '' ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/20 hover:border-emerald-500/50'}`}
-                          >
-                            {q.correct_answer === opt && opt !== '' && <CheckIcon className="w-3 h-3 font-black" />}
-                          </button>
-                          <input type="text" value={opt}
-                            onChange={e => {
-                                const newVal = e.target.value;
-                                const isCorrect = q.correct_answer === opt;
-                                updateOption(qi, oi, newVal);
-                                if (isCorrect) updateQuestion(qi, { correct_answer: newVal });
+                      {q.options.map((opt, oi) => {
+                        const isCorrect = q.correct_answer === opt && opt !== '';
+                        return (
+                          <div 
+                            key={oi} 
+                            onClick={(e) => {
+                              if (opt.trim()) updateQuestion(qi, { correct_answer: opt });
                             }}
-                            placeholder={`Option ${String.fromCharCode(65 + oi)}`}
-                            className="flex-1 bg-transparent border-none px-1 py-1 text-sm text-white placeholder-white/20 focus:outline-none" />
-                        </div>
-                      ))}
+                            className={`flex items-center gap-2 p-1.5 rounded-2xl border transition-all cursor-pointer group/opt ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/20' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
+                          >
+                            <div className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center flex-shrink-0 transition-all ${isCorrect ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'border-white/10 group-hover/opt:border-white/30 text-white/30'}`}>
+                              {isCorrect ? <CheckIcon className="w-4 h-4 font-black" /> : <span className="text-[10px] font-black">{String.fromCharCode(65 + oi)}</span>}
+                            </div>
+                            <input 
+                              type="text" 
+                              value={opt}
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => {
+                                const newVal = e.target.value;
+                                const wasCorrect = q.correct_answer === opt;
+                                updateOption(qi, oi, newVal);
+                                if (wasCorrect) updateQuestion(qi, { correct_answer: newVal });
+                              }}
+                              placeholder={`Enter option ${String.fromCharCode(65 + oi)}…`}
+                              className="flex-1 bg-transparent border-none px-1 py-1 text-sm text-white placeholder-white/20 focus:outline-none" 
+                            />
+                            {isCorrect && (
+                              <span className="hidden sm:block text-[8px] font-black text-emerald-400 uppercase tracking-widest mr-2">Correct</span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

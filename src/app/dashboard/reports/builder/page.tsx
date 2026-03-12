@@ -232,12 +232,12 @@ function ReportBuilderInner() {
             let assignedSchoolIds: string[] = [];
             let schoolsList: { id: string; name: string }[] = [];
 
-            if (profile?.role === 'school' && profile.school_id) {
+            if (profile?.role === 'school' && profile?.school_id) {
                 assignedSchoolIds = [profile.school_id];
             } else if (profile?.role === 'teacher') {
-                const { data: assignments } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
+                const { data: assignments } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile?.id);
                 assignedSchoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
-                if (profile.school_id && !assignedSchoolIds.includes(profile.school_id)) assignedSchoolIds.push(profile.school_id);
+                if (profile?.school_id && !assignedSchoolIds.includes(profile.school_id)) assignedSchoolIds.push(profile.school_id);
             }
 
             // Always fetch schools the user is allowed to see
@@ -424,9 +424,9 @@ function ReportBuilderInner() {
     }
 
     const overallScore = Math.round(
-        parseFloat(form.theory_score || '0') * 0.4 +
-        parseFloat(form.practical_score || '0') * 0.4 +
-        parseFloat(form.attendance_score || '0') * 0.2
+        (parseFloat(form.theory_score) || 0) * 0.4 +
+        (parseFloat(form.practical_score) || 0) * 0.4 +
+        (parseFloat(form.attendance_score) || 0) * 0.2
     );
 
     // We use the helper from ReportCard which returns an object with {g,label,color}.
@@ -529,10 +529,19 @@ function ReportBuilderInner() {
             // Technical qualifiers are logic-based for accuracy
             if (['participation_grade', 'projects_grade', 'homework_grade'].includes(field)) {
                 await new Promise(r => setTimeout(r, 600)); // Brief delay for UX
+                
+                let prefix = '';
+                const currentText = (form as any)[field] || '';
+                if (currentText && currentText !== 'Good' && !currentText.includes('Completed') && !currentText.includes('Attended')) {
+                    prefix = `${currentText} — `;
+                } else if (field !== 'participation_grade' && sessionConfig.current_module) {
+                    prefix = `${sessionConfig.current_module} — `;
+                }
+
                 const responses: Record<string, string> = {
-                    participation_grade: `${attendance}/${totalSessions} Meetings Attended (${attPct >= 80 ? 'Excellent' : attPct >= 60 ? 'Active' : 'Moderate'})`,
-                    projects_grade: `${assignments}/${totalAssignments} Lab Tasks Completed (${assigPct >= 90 ? 'Outstanding' : assigPct >= 70 ? 'Proficient' : 'Developing'})`,
-                    homework_grade: `${Math.round(assigPct)}% Assignment Completion Rate — ${assigPct >= 80 ? 'Reliable' : 'Inconsistent'}`,
+                    participation_grade: `${prefix}${attendance}/${totalSessions} Meetings Attended (${attPct >= 80 ? 'Excellent' : attPct >= 60 ? 'Active' : 'Moderate'})`,
+                    projects_grade: `${prefix}${assignments}/${totalAssignments} Lab Tasks Completed (${assigPct >= 90 ? 'Outstanding' : assigPct >= 70 ? 'Proficient' : 'Developing'})`,
+                    homework_grade: `${prefix}${Math.round(assigPct)}% Assignment Completion Rate — ${assigPct >= 80 ? 'Reliable' : 'Inconsistent'}`,
                 };
                 setForm(f => ({ ...f, [field]: (responses as any)[field] }));
                 setSuccess(`Realistic ${(field as string).replace('_grade', '')} generated!`);
@@ -1240,9 +1249,17 @@ function ReportBuilderInner() {
                                                         <span className="text-xs font-black text-white">{val}%</span>
                                                     </div>
                                                     <div className="flex items-center gap-4">
-                                                        <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                                            <div className={`h-full ${colors[key]} transition-all duration-500`} style={{ width: `${val}%` }} />
-                                                        </div>
+                                                        <input
+                                                            type="range"
+                                                            min="0"
+                                                            max="100"
+                                                            value={form[key]}
+                                                            onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                                                            className={`flex-1 h-3 rounded-full appearance-none cursor-pointer outline-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg ${key === 'theory_score' ? '[&::-webkit-slider-thumb]:bg-indigo-500' : key === 'practical_score' ? '[&::-webkit-slider-thumb]:bg-emerald-500' : '[&::-webkit-slider-thumb]:bg-amber-500'}`}
+                                                            style={{
+                                                                background: `linear-gradient(to right, ${key === 'theory_score' ? '#6366f1' : key === 'practical_score' ? '#10b981' : '#f59e0b'} ${val}%, rgba(255, 255, 255, 0.1) ${val}%)`
+                                                            }}
+                                                        />
                                                         <input
                                                             type="number" min="0" max="100" value={form[key]}
                                                             onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
