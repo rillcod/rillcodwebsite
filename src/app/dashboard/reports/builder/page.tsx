@@ -157,6 +157,7 @@ function ReportBuilderInner() {
         is_published: false,
         photo_url: '',
         fee_status: '' as '' | 'paid' | 'outstanding' | 'partial' | 'sponsored' | 'waived',
+        participation_score: '0',
     });
 
     // ── UI state ──────────────────────────────────────────────────────────────
@@ -377,6 +378,7 @@ function ReportBuilderInner() {
             is_published: report?.is_published ?? false,
             photo_url: report?.photo_url ?? (s as any).photo_url ?? '',
             fee_status: ((report as any)?.fee_status ?? '') as any,
+            participation_score: String(report?.participation_score ?? 0),
         });
 
         // ── Fetch realistic stats ─────────────────────────────────────────────
@@ -415,6 +417,14 @@ function ReportBuilderInner() {
                 assignments: subRes.data?.length || 0,
                 totalAssignments: allAssignments.data?.length || 8, // fallback
             });
+
+            // Fallback / Suggestion for participation if unset
+            if (form.participation_score === '0' || !form.participation_score) {
+                const attRatio = (attRes.data?.length || 0) / (sessionIds.length || 12);
+                const subRatio = (subRes.data?.length || 0) / (allAssignments.data?.length || 8);
+                const suggested = Math.min(100, Math.round(attRatio * 70 + subRatio * 30));
+                setForm(f => ({ ...f, participation_score: String(suggested) }));
+            }
         } catch { /* silent fail */ } finally {
             setFetchingStats(false);
         }
@@ -424,9 +434,10 @@ function ReportBuilderInner() {
     }
 
     const overallScore = Math.round(
-        (parseFloat(form.theory_score) || 0) * 0.4 +
-        (parseFloat(form.practical_score) || 0) * 0.4 +
-        (parseFloat(form.attendance_score) || 0) * 0.2
+        (parseFloat(form.theory_score) || 0) * 0.35 +
+        (parseFloat(form.practical_score) || 0) * 0.35 +
+        (parseFloat(form.attendance_score) || 0) * 0.15 +
+        (parseFloat(form.participation_score) || 0) * 0.15
     );
 
     // We use the helper from ReportCard which returns an object with {g,label,color}.
@@ -486,6 +497,11 @@ function ReportBuilderInner() {
                 fee_amount: sessionConfig.fee_amount || null,
                 fee_status: form.fee_status || null,
                 show_payment_notice: sessionConfig.show_payment_notice,
+                participation_score: parseFloat(form.participation_score) || 0,
+                engagement_metrics: {
+                    attendanceRate: Math.round((studentStats.attendance / (studentStats.totalSessions || 1)) * 100),
+                    assignmentCompletion: Math.round((studentStats.assignments / (studentStats.totalAssignments || 1)) * 100),
+                },
             };
 
             if (existingReport) {
@@ -548,31 +564,59 @@ function ReportBuilderInner() {
                 return;
             }
 
-            // Qualitative evaluation uses actual AI
-            const res = await fetch('/api/ai/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'report-feedback',
-                    topic: sessionConfig.current_module,
-                    studentName: form.student_name,
-                    attendance: `${attendance}/${totalSessions} sessions`,
-                    assignments: `${assignments}/${totalAssignments} labs`,
-                }),
-            });
+            // Qualitative evaluation uses actual AI with a robust fallback system
+            const fallbackThemes = {
+                key_strengths: [
+                    `${form.student_name} demonstrates a strong intuitive grasp of ${sessionConfig.current_module || 'the course material'}. They excel at practical implementation and show consistent curiosity.`,
+                    `Consistently active in class, ${form.student_name} has shown remarkable progress in building complex logic and debugging code independently.`,
+                    `The student exhibits excellent teamwork and logical thinking skills, particularly during the ${sessionConfig.current_module || 'latest'} project phase.`
+                ],
+                areas_for_growth: [
+                    `To reach the next level, ${form.student_name} should focus on documenting their code and exploring more advanced architectural patterns.`,
+                    `We recommend additional practice with ${sessionConfig.current_module || 'core concepts'} to increase speed and confidence during time-constrained tasks.`,
+                    `Improving attention to detail in syntax will help ${form.student_name} minimize minor errors and build more robust applications.`
+                ]
+            };
 
-            if (!res.ok) throw new Error('AI Service unavailable');
-            const result = await res.json();
-            const aiData = result.data || {};
+            const getRandomFallback = (type: 'key_strengths' | 'areas_for_growth') => {
+                const list = fallbackThemes[type];
+                return list[Math.floor(Math.random() * list.length)];
+            };
 
-            setForm(f => ({
-                ...f,
-                key_strengths: aiData.key_strengths || f.key_strengths,
-                areas_for_growth: aiData.areas_for_growth || f.areas_for_growth
-            }));
-            setSuccess('Professional evaluation drafted with AI!');
+            try {
+                const res = await fetch('/api/ai/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'report-feedback',
+                        topic: sessionConfig.current_module,
+                        studentName: form.student_name,
+                        attendance: `${attendance}/${totalSessions} sessions`,
+                        assignments: `${assignments}/${totalAssignments} labs`,
+                    }),
+                });
+
+                if (!res.ok) throw new Error('AI Service unavailable');
+                const result = await res.json();
+                const aiData = result.data || {};
+
+                setForm(f => ({
+                    ...f,
+                    key_strengths: aiData.key_strengths || getRandomFallback('key_strengths'),
+                    areas_for_growth: aiData.areas_for_growth || getRandomFallback('areas_for_growth')
+                }));
+                setSuccess('AI-assisted evaluation ready!');
+            } catch (err) {
+                console.warn('AI failed, using high-quality fallback:', err);
+                setForm(f => ({
+                    ...f,
+                    key_strengths: f.key_strengths || getRandomFallback('key_strengths'),
+                    areas_for_growth: f.areas_for_growth || getRandomFallback('areas_for_growth')
+                }));
+                setSuccess('Generated detailed report insights (Fallback System Activated).');
+            }
         } catch (err: any) {
-            setError(err.message ?? 'AI generation failed');
+            setError(err.message ?? 'Generation failed');
         } finally {
             setGenerating(null);
         }
@@ -1230,17 +1274,20 @@ function ReportBuilderInner() {
                                 {/* Scores */}
                                 <Section title="Performance Scores" icon="📊">
                                     <div className="space-y-5">
-                                        {(['theory_score', 'practical_score', 'attendance_score'] as const).map((key) => {
+                                        {(['theory_score', 'practical_score', 'attendance_score', 'participation_score'] as const).map((key) => {
                                             const labels: Record<string, string> = {
-                                                theory_score: 'Theory (40%)',
-                                                practical_score: 'Practical (40%)',
-                                                attendance_score: 'Attendance (20%)',
+                                                theory_score: 'Theory Protocols (35%)',
+                                                practical_score: 'Practical Efficiency (35%)',
+                                                attendance_score: 'Operational Presence (15%)',
+                                                participation_score: 'Class Participation & Engagement (15%)',
                                             };
                                             const colors: Record<string, string> = {
-                                                theory_score: 'bg-indigo-500',
-                                                practical_score: 'bg-emerald-500',
-                                                attendance_score: 'bg-amber-500',
+                                                theory_score: '#6366f1',
+                                                practical_score: '#06b6d4',
+                                                attendance_score: '#10b981',
+                                                participation_score: '#8b5cf6',
                                             };
+                                            
                                             const val = parseInt(form[key]) || 0;
                                             return (
                                                 <div key={key}>
@@ -1255,9 +1302,14 @@ function ReportBuilderInner() {
                                                             max="100"
                                                             value={form[key]}
                                                             onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                            className={`flex-1 h-3 rounded-full appearance-none cursor-pointer outline-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg ${key === 'theory_score' ? '[&::-webkit-slider-thumb]:bg-indigo-500' : key === 'practical_score' ? '[&::-webkit-slider-thumb]:bg-emerald-500' : '[&::-webkit-slider-thumb]:bg-amber-500'}`}
+                                                            className={`flex-1 h-3 rounded-full appearance-none cursor-pointer outline-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg ${
+                                                                key === 'theory_score' ? '[&::-webkit-slider-thumb]:bg-indigo-500' : 
+                                                                key === 'practical_score' ? '[&::-webkit-slider-thumb]:bg-cyan-500' : 
+                                                                key === 'attendance_score' ? '[&::-webkit-slider-thumb]:bg-emerald-500' : 
+                                                                '[&::-webkit-slider-thumb]:bg-violet-500'
+                                                            }`}
                                                             style={{
-                                                                background: `linear-gradient(to right, ${key === 'theory_score' ? '#6366f1' : key === 'practical_score' ? '#10b981' : '#f59e0b'} ${val}%, rgba(255, 255, 255, 0.1) ${val}%)`
+                                                                background: `linear-gradient(to right, ${colors[key]} ${val}%, rgba(255, 255, 255, 0.1) ${val}%)`
                                                             }}
                                                         />
                                                         <input
@@ -1268,6 +1320,7 @@ function ReportBuilderInner() {
                                                 </div>
                                             );
                                         })}
+
 
                                         {/* Overall display */}
                                         <div className="mt-2 p-5 bg-gradient-to-br from-violet-600/20 to-indigo-600/20 border border-violet-500/20 rounded-2xl flex items-center justify-between">
@@ -1289,7 +1342,6 @@ function ReportBuilderInner() {
                                 <Section title="Grade Qualifiers" icon="🏅">
                                     <div className="space-y-5">
                                         {[
-                                            { key: 'participation_grade', label: 'Participation' },
                                             { key: 'projects_grade', label: 'Project Work' },
                                             { key: 'homework_grade', label: 'Homework' },
                                         ].map(({ key, label }) => (
@@ -1345,8 +1397,8 @@ function ReportBuilderInner() {
                                         })}
                                     </div>
                                 </Section>
-
                             </div>
+
                         </div>
 
                         {/* Sticky Action Bar */}

@@ -361,9 +361,9 @@ const QUICK_ACTIONS = {
   ],
   school: [
     { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View enrolled students' },
-    { name: 'Grades & Reports', href: '/dashboard/grades', icon: TrophyIcon, desc: 'View student grades' },
+    { name: 'Manage Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon, desc: 'View assigned staff' },
+    { name: 'Grades & Reports', href: '/dashboard/results', icon: TrophyIcon, desc: 'View student grades' },
     { name: 'Activity', href: '/dashboard/progress', icon: ChartBarIcon, desc: 'Track student progress' },
-    { name: 'Messages', href: '/dashboard/messages', icon: ClipboardDocumentListIcon, desc: 'Contact teachers & admin' },
   ],
 };
 
@@ -498,21 +498,26 @@ export default function DashboardPage() {
         <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-white opacity-[0.03] rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-violet-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="px-3 py-1 bg-violet-600/80 text-white text-[10px] font-black uppercase tracking-widest rounded-full">
-              {role} Portal
-            </span>
-            <div className="h-px w-8 bg-white/20" />
-            <span className="text-[10px] font-bold text-blue-300/60 uppercase tracking-widest">Global Status: Online</span>
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
+          <div className="flex-shrink-0 p-4 bg-white/10 backdrop-blur-md rounded-[2.5rem] border border-white/20 shadow-2xl">
+            <img src="/images/logo.png" alt="Rillcod Logo" className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" />
           </div>
-          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
-            Welcome back,<br className="sm:hidden" /> {profile.full_name?.split(' ')?.[0] || 'User'}!
-          </h1>
-          <p className="text-blue-200/60 text-sm sm:text-base mt-3 font-medium flex items-center gap-2">
-            <ClockIcon className="w-4 h-4" />
-            {now ? now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
-          </p>
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="px-3 py-1 bg-violet-600/80 text-white text-[10px] font-black uppercase tracking-widest rounded-full">
+                {role} Portal
+              </span>
+              <div className="h-px w-8 bg-white/20" />
+              <span className="text-[10px] font-bold text-blue-300/60 uppercase tracking-widest">Global Status: Online</span>
+            </div>
+            <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+              Welcome back,<br className="sm:hidden" /> {profile.full_name?.split(' ')?.[0] || 'User'}!
+            </h1>
+            <p className="text-blue-200/60 text-sm sm:text-base mt-3 font-medium flex items-center gap-2">
+              <ClockIcon className="w-4 h-4" />
+              {now ? now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
+            </p>
+          </div>
         </div>
 
         <div className="relative z-10 flex sm:flex-row items-center gap-4 sm:gap-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl">

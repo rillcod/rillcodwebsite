@@ -38,6 +38,7 @@ export default function EditExamPage() {
         title: '',
         description: '',
         program_id: '',
+        course_id: '',
         duration_minutes: '60',
         passing_score: '70',
         start_date: '',
@@ -45,12 +46,15 @@ export default function EditExamPage() {
         is_active: true,
     });
     const [questions, setQuestions] = useState<Question[]>([]);
+    const [courses, setCourses] = useState<any[]>([]);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
     useEffect(() => {
         if (authLoading || !profile || !id) return;
         const db = createClient();
+        
+        // Fetch Exam, Questions, Programs
         Promise.all([
             db.from('cbt_exams').select('*').eq('id', id).single(),
             db.from('cbt_questions').select('*').eq('exam_id', id).order('order_index'),
@@ -62,6 +66,7 @@ export default function EditExamPage() {
                     title: e.title ?? '',
                     description: e.description ?? '',
                     program_id: e.program_id ?? '',
+                    course_id: (e as any).course_id ?? '',
                     duration_minutes: String(e.duration_minutes ?? 60),
                     passing_score: String(e.passing_score ?? 70),
                     start_date: e.start_date ? new Date(e.start_date).toISOString().slice(0, 16) : '',
@@ -78,6 +83,13 @@ export default function EditExamPage() {
             setPrograms(progRes.data ?? []);
             setLoading(false);
         });
+
+        // Fetch courses for linking
+        let courseQuery = db.from('courses').select('id, title, program_id, school_id, programs(name)').eq('is_active', true);
+        if (profile?.school_id) {
+            courseQuery = courseQuery.or(`school_id.eq.${profile.school_id},school_id.is.null`);
+        }
+        courseQuery.order('title').then(({ data }) => setCourses(data ?? []));
     }, [profile?.id, authLoading, id]);
 
     const addQuestion = () => setQuestions(q => [...q, {
@@ -140,6 +152,7 @@ export default function EditExamPage() {
                 title: form.title.trim(),
                 description: form.description.trim() || null,
                 program_id: form.program_id,
+                course_id: form.course_id || null,
                 duration_minutes: parseInt(form.duration_minutes) || 60,
                 passing_score: parseInt(form.passing_score) || 70,
                 total_questions: activeQuestions.length,
@@ -254,16 +267,34 @@ export default function EditExamPage() {
                                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500 transition-colors" />
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
-                                Programme <span className="text-rose-400">*</span>
-                            </label>
-                            <select required value={form.program_id}
-                                onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
-                                <option value="">Select programme…</option>
-                                {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                                    Programme <span className="text-rose-400">*</span>
+                                </label>
+                                <select required value={form.program_id}
+                                    onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
+                                    <option value="">Select programme…</option>
+                                    {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                                    Linked Course (Optional)
+                                </label>
+                                <select value={form.course_id}
+                                    onChange={e => {
+                                        const cId = e.target.value;
+                                        const c = courses.find(x => x.id === cId);
+                                        setForm(f => ({ ...f, course_id: cId, program_id: c?.program_id || f.program_id }));
+                                    }}
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
+                                    <option value="">Not linked to a course</option>
+                                    {courses.map(c => <option key={c.id} value={c.id}>{c.title} {c.programs?.name ? `(${c.programs.name})` : ''}</option>)}
+                                </select>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

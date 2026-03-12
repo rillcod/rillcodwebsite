@@ -12,9 +12,12 @@ import {
   PhotoIcon, BoltIcon, CheckBadgeIcon, LockClosedIcon,
   InformationCircleIcon, ExclamationTriangleIcon, RocketLaunchIcon,
   QuestionMarkCircleIcon, ChevronRightIcon, XMarkIcon,
+  RectangleGroupIcon, ClipboardIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 import Script from 'next/script';
+import { motion, AnimatePresence } from 'framer-motion';
+import Editor from '@monaco-editor/react';
 
 const TYPE_COLOR: Record<string, string> = {
   video: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
@@ -80,6 +83,153 @@ function MathRenderer({ formula }: { formula: string }) {
   );
 }
 
+function MonacoEditorBlock({ code, language }: { code: string; language?: string }) {
+  const [value, setValue] = useState(code);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="bg-[#050510] rounded-[2.5rem] sm:rounded-[4rem] border border-white/5 overflow-hidden shadow-2xl relative group my-12">
+      <div className="flex items-center justify-between px-8 py-5 bg-[#0a0a1a] border-b border-white/5">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-rose-500/30" />
+          <div className="w-3 h-3 rounded-full bg-amber-500/30" />
+          <div className="w-3 h-3 rounded-full bg-emerald-500/30" />
+          <span className="ml-4 text-[10px] text-white/20 uppercase font-black tracking-widest">{language || 'Code Workspace'}</span>
+        </div>
+        <button onClick={handleCopy} className="p-2.5 rounded-xl bg-white/5 text-white/30 hover:text-cyan-400 hover:bg-cyan-400/10 transition-all active:scale-95">
+           {copied ? <CheckBadgeIcon className="w-4 h-4" /> : <ClipboardIcon className="w-4 h-4" />}
+        </button>
+      </div>
+      <div className="h-[300px] sm:h-[450px] relative">
+        <Editor
+          height="100%"
+          defaultLanguage={language?.toLowerCase() || 'javascript'}
+          defaultValue={code}
+          theme="vs-dark"
+          onChange={(v) => setValue(v || '')}
+          options={{
+            minimap: { enabled: false },
+            fontSize: 14,
+            lineNumbers: 'on',
+            roundedSelection: true,
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            padding: { top: 20, bottom: 20 }
+          }}
+        />
+      </div>
+      <div className="px-8 py-4 bg-[#0a0a1a]/50 border-t border-white/5 flex items-center justify-between">
+         <div className="flex items-center gap-2">
+           <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+           <span className="text-[9px] font-black text-white/20 uppercase tracking-widest italic">Live Code Environment</span>
+         </div>
+      </div>
+    </div>
+  );
+}
+
+function InteractiveQuiz({ block }: { block: any }) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const [revealed, setRevealed] = useState(false);
+
+  const handleSelect = (idx: number) => {
+    if (revealed) return;
+    setSelected(idx);
+    setRevealed(true);
+  };
+
+  return (
+    <div className="p-10 sm:p-24 rounded-[60px] sm:rounded-[80px] border-2 border-violet-500/20 bg-[#0a0a1a] space-y-12 sm:space-y-20 relative overflow-hidden group shadow-[0_40px_100px_rgba(139,92,246,0.1)] transition-all hover:border-violet-500/40 my-12">
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 sm:gap-12 relative z-10 text-center sm:text-left">
+        <div className="p-6 rounded-[2rem] bg-violet-500/10 text-violet-400 shadow-2xl ring-4 ring-violet-500/5">
+          <QuestionMarkCircleIcon className="w-10 h-10 sm:w-16 sm:h-16" />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-center sm:justify-start gap-3">
+            <span className="w-2 h-2 rounded-full bg-violet-500 shadow-[0_0_10px_violet]" />
+            <p className="text-[11px] font-black text-violet-400/60 uppercase tracking-[0.4em]">Checkpoint Alpha</p>
+          </div>
+          <h3 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter text-white">Validation Sync</h3>
+        </div>
+      </div>
+      <div className="space-y-12 sm:space-y-20 relative z-10">
+        <p className="text-3xl sm:text-6xl font-black text-white leading-[1.1] tracking-tighter text-center sm:text-left">{block.question}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-10">
+          {block.options?.map((opt: string, optIdx: number) => {
+            const isCorrect = optIdx === block.correctAnswer;
+            const isSelected = selected === optIdx;
+            
+            let stateClass = "border-white/5 bg-white/[0.02]";
+            if (revealed) {
+              if (isCorrect) stateClass = "border-emerald-500/50 bg-emerald-500/10 text-emerald-400";
+              else if (isSelected) stateClass = "border-rose-500/50 bg-rose-500/10 text-rose-400";
+              else stateClass = "border-white/5 bg-white/[0.01] opacity-40";
+            } else {
+              stateClass = "border-white/5 bg-white/[0.02] hover:border-violet-500/40 hover:bg-violet-500/10";
+            }
+
+            return (
+              <motion.button 
+                key={optIdx} 
+                onClick={() => handleSelect(optIdx)}
+                whileHover={!revealed ? { scale: 1.02, y: -4 } : {}}
+                whileTap={!revealed ? { scale: 0.98 } : {}}
+                className={`p-8 sm:p-14 rounded-[3rem] sm:rounded-[4rem] border-2 transition-all text-left shadow-2xl relative overflow-hidden ${stateClass}`}
+              >
+                <div className="flex items-center gap-8 sm:gap-12 relative z-10">
+                  <div className={`w-12 h-12 sm:w-20 sm:h-20 rounded-[1.5rem] sm:rounded-[2rem] border flex items-center justify-center text-[14px] sm:text-[20px] font-black transition-colors ${revealed && isCorrect ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : revealed && isSelected ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'bg-white/5 border-white/10 text-white/20'}`}>
+                    {String.fromCharCode(65 + optIdx)}
+                  </div>
+                  <span className={`font-black text-xl sm:text-3xl leading-tight transition-colors ${revealed && isCorrect ? 'text-white' : revealed && isSelected ? 'text-white' : revealed ? 'text-white/20' : 'text-white/50 group-hover:text-white'}`}>
+                    {opt}
+                  </span>
+                </div>
+                {revealed && isCorrect && isSelected && (
+                  <motion.div 
+                    initial={{ scale: 0, opacity: 0 }} 
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="absolute top-4 right-4 text-emerald-500"
+                  >
+                    <CheckCircleIcon className="w-8 h-8 sm:w-12 sm:h-12" />
+                  </motion.div>
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
+        <AnimatePresence>
+          {revealed && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              className="pt-10 sm:pt-20 border-t border-white/5"
+            >
+              <div className="flex flex-col sm:flex-row gap-6 sm:gap-12 items-center">
+                 <div className={`p-4 rounded-2xl ${selected === block.correctAnswer ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                    {selected === block.correctAnswer ? <CheckBadgeIcon className="w-8 h-8" /> : <XMarkIcon className="w-8 h-8" />}
+                 </div>
+                 <div className="space-y-2 text-center sm:text-left">
+                    <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em]">Module Feedback</p>
+                    <p className="text-xl sm:text-3xl font-black text-white tracking-tight">
+                      {selected === block.correctAnswer ? "Analytical Precision Confirmed." : "Differential Data Detected. Review Required."}
+                    </p>
+                 </div>
+                 <button onClick={() => {setRevealed(false); setSelected(null);}} className="ml-auto px-8 py-4 bg-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/10 hover:text-white transition-all">Try Again</button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
 function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: string }) {
   if (!blocks || blocks.length === 0) return null;
 
@@ -91,7 +241,7 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
             return (
               <div key={i} className="relative group pt-6">
                 <div className="absolute -left-6 sm:-left-12 top-0 bottom-0 w-1.5 bg-gradient-to-b from-cyan-500 to-indigo-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                <h2 className="text-3xl sm:text-6xl font-black tracking-tight text-white leading-[1.1]">
+                <h2 className="text-3xl sm:text-6xl font-black tracking-tight text-white leading-[1.1] break-words">
                   {block.content}
                 </h2>
               </div>
@@ -99,25 +249,13 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
           case 'text':
             return (
               <div key={i} className="relative py-4">
-                <p className="text-xl sm:text-2xl text-white/50 leading-[1.7] whitespace-pre-wrap font-medium selection:bg-cyan-500/30">
+                <p className="text-xl sm:text-2xl text-white/50 leading-[1.7] whitespace-pre-wrap font-medium selection:bg-cyan-500/30 break-words">
                   {block.content}
                 </p>
               </div>
             );
           case 'code':
-            return (
-              <div key={i} className="bg-[#050510] rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-12 border border-white/5 font-mono text-xs sm:text-base overflow-x-auto shadow-2xl relative group">
-                <div className="flex items-center justify-between mb-6 sm:mb-8 border-b border-white/5 pb-4 sm:pb-6">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="w-3 h-3 rounded-full bg-rose-500/40" />
-                    <div className="w-3 h-3 rounded-full bg-amber-500/40" />
-                    <div className="w-3 h-3 rounded-full bg-emerald-500/40" />
-                  </div>
-                  <span className="text-[10px] text-white/20 uppercase font-black tracking-widest">{block.language || 'Snippet'}</span>
-                </div>
-                <pre><code className="text-cyan-400/80 leading-relaxed">{block.content}</code></pre>
-              </div>
-            );
+            return <MonacoEditorBlock key={i} code={block.content} language={block.language} />;
           case 'image':
             return (
               <div key={i} className="space-y-4 sm:space-y-8">
@@ -173,37 +311,7 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
               </div>
             );
           case 'quiz':
-            return (
-              <div key={i} className="p-10 sm:p-24 rounded-[60px] sm:rounded-[80px] border-2 border-violet-500/20 bg-[#0a0a1a] space-y-12 sm:space-y-20 relative overflow-hidden group shadow-[0_40px_100px_rgba(139,92,246,0.1)] transition-all hover:border-violet-500/40">
-                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 sm:gap-12 relative z-10 text-center sm:text-left">
-                  <div className="p-6 rounded-[2rem] bg-violet-500/10 text-violet-400 shadow-2xl ring-4 ring-violet-500/5">
-                    <QuestionMarkCircleIcon className="w-10 h-10 sm:w-16 sm:h-16" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-center sm:justify-start gap-3">
-                      <span className="w-2 h-2 rounded-full bg-violet-500 shadow-[0_0_10px_violet]" />
-                      <p className="text-[11px] font-black text-violet-400/60 uppercase tracking-[0.4em]">Checkpoint Alpha</p>
-                    </div>
-                    <h3 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter text-white">Validation Sync</h3>
-                  </div>
-                </div>
-                <div className="space-y-12 sm:space-y-20 relative z-10">
-                  <p className="text-3xl sm:text-6xl font-black text-white leading-[1.1] tracking-tighter text-center sm:text-left">{block.question}</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-10">
-                    {block.options?.map((opt: string, optIdx: number) => (
-                      <button key={optIdx} className="p-8 sm:p-14 rounded-[3rem] sm:rounded-[4rem] border-2 border-white/5 bg-white/[0.02] hover:border-violet-500/40 hover:bg-violet-500/10 text-left transition-all group/opt shadow-2xl active:scale-[0.98]">
-                        <div className="flex items-center gap-8 sm:gap-12">
-                          <div className="w-12 h-12 sm:w-20 sm:h-20 rounded-[1.5rem] sm:rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-center text-[14px] sm:text-[20px] font-black text-white/20 group-hover/opt:border-violet-500/40 group-hover/opt:text-violet-400 transition-colors">
-                            {String.fromCharCode(65 + optIdx)}
-                          </div>
-                          <span className="font-black text-xl sm:text-3xl text-white/50 group-hover/opt:text-white leading-tight transition-colors">{opt}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            );
+            return <InteractiveQuiz key={i} block={block} />;
           case 'video':
             return (
               <div key={i} className="space-y-4 sm:space-y-8">
@@ -533,7 +641,7 @@ export default function LessonDetailPage() {
                 )}
               </div>
               <div className="space-y-8">
-                <h1 className="text-4xl sm:text-9xl font-black tracking-[0.02em] leading-[0.9] text-white selection:bg-cyan-500 selection:text-black">
+                <h1 className="text-4xl sm:text-9xl font-black tracking-[0.02em] leading-[0.9] text-white selection:bg-cyan-500 selection:text-black break-words">
                   {lesson.title}
                 </h1>
                 <div className="h-2 w-32 bg-gradient-to-r from-cyan-600 to-transparent rounded-full opacity-40"></div>

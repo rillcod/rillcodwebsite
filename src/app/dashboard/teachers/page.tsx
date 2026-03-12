@@ -58,7 +58,7 @@ export default function TeacherDashboardPage() {
   }
 
   // ── ADMIN VIEW: Separate Manager View ──
-  if ((profile?.role as any) === 'admin') return <AdminTeacherView />;
+  if ((profile?.role as any) === 'admin' || (profile?.role as any) === 'school') return <AdminTeacherView schoolId={profile?.school_id || undefined} />;
 
   // ── TEACHER VIEW: Separate Personal View ──
   return <TeacherPersonalDashboard />;
@@ -446,7 +446,7 @@ function TeacherPersonalDashboard() {
 /* ════════════════════════════════════════════════════════════
    ADMIN VIEW — Full teacher roster
 ════════════════════════════════════════════════════════════ */
-function AdminTeacherView() {
+function AdminTeacherView({ schoolId }: { schoolId?: string }) {
   const { profile } = useAuth();
   const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -472,12 +472,29 @@ function AdminTeacherView() {
     setLoading(true);
     const db = createClient();
 
-    // 1. Fetch teachers with their school assignments
-    const { data: teachersData, error: teachersErr } = await db
+    let query = db
       .from('portal_users')
       .select('id, full_name, email, phone, is_active, created_at, teacher_schools:teacher_schools!teacher_schools_teacher_id_fkey(id, school_id, schools(name))')
       .eq('role', 'teacher')
-      .order('created_at', { ascending: false });
+      .neq('is_deleted', true);
+
+    if (schoolId) {
+      // If schoolId is provided, we only want teachers who are assigned to THIS school
+      // This requires a join filter or we fetch all and filter in JS for simplicity if the list is small.
+      // But let's try to do it via query if possible.
+      // Actually, filtered by relationship is tricky in one go without 'inner' join.
+      // Let's use simple approach: fetch teachers assigned to this school first.
+      const { data: assignments } = await db.from('teacher_schools').select('teacher_id').eq('school_id', schoolId);
+      const tIds = assignments?.map(a => a.teacher_id) || [];
+      if (tIds.length > 0) {
+          query = query.in('id', tIds);
+      } else {
+          // No teachers assigned
+          query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+      }
+    }
+
+    const { data: teachersData, error: teachersErr } = await query.order('created_at', { ascending: false });
 
     if (teachersErr) console.error('Error fetching teachers:', teachersErr);
 
@@ -754,71 +771,74 @@ function AdminTeacherView() {
             <p className="text-white/30">{search ? 'No teachers match that search' : 'No teachers registered yet'}</p>
           </div>
         ) : (
-          <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+          <div className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden">
             <div className="divide-y divide-white/5">
               {filtered.map(t => (
-                <div key={t.id} className="flex items-center gap-4 p-5 hover:bg-white/5 transition-colors">
-                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
-                    {(t.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white truncate text-lg group-hover:text-blue-400 transition-colors">{t.full_name}</p>
-                    <div className="flex items-center gap-3 text-xs text-white/40 mt-1">
-                      <span className="flex items-center gap-1"><EnvelopeIcon className="w-3 h-3" />{t.email}</span>
-                      {t.phone && <span className="flex items-center gap-1"><PhoneIcon className="w-3 h-3" />{t.phone}</span>}
+                <div key={t.id} className="p-5 sm:p-7 hover:bg-white/[0.02] transition-all">
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-6 sm:gap-8">
+                    
+                    {/* Left: Avatar + Identity */}
+                    <div className="flex items-center gap-4 sm:gap-6 flex-1 min-w-0">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-sm sm:text-base font-black text-white shrink-0 shadow-2xl">
+                        {(t.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-white text-lg sm:text-xl truncate tracking-tight">{t.full_name}</h3>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-white/40 mt-1.5">
+                          <span className="flex items-center gap-1.5 truncate"><EnvelopeIcon className="w-3.5 h-3.5 text-violet-400" />{t.email}</span>
+                          {t.phone && <span className="flex items-center gap-1.5"><PhoneIcon className="w-3.5 h-3.5 text-blue-400" />{t.phone}</span>}
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Deployment Status Badges */}
-                    <div className="mt-3">
+                    {/* Middle: Deployment Status View */}
+                    <div className="flex flex-wrap items-center gap-2 lg:min-w-[200px]">
                       {staffDeployment[t.id]?.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
-                          {staffDeployment[t.id].map(a => (
-                            <span key={a.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400 uppercase tracking-wider">
-                              <BuildingOfficeIcon className="w-3 h-3" />
-                              {a.schools?.name ?? 'Assigned School'}
-                            </span>
-                          ))}
-                        </div>
+                        staffDeployment[t.id].map(a => (
+                          <div key={a.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400 uppercase tracking-widest whitespace-nowrap">
+                            <BuildingOfficeIcon className="w-3.5 h-3.5" />
+                            {a.schools?.name ?? 'Assigned'}
+                          </div>
+                        ))
                       ) : (
-                        <button onClick={() => startEdit(t)} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-500 uppercase tracking-wider hover:bg-amber-500/20 transition-all">
-                          <ExclamationTriangleIcon className="w-3.5 h-3.5" />
-                          Not Assigned to any School
-                        </button>
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/10 text-[10px] font-black text-amber-500 uppercase tracking-widest shadow-lg shadow-amber-900/10">
+                          <ExclamationTriangleIcon className="w-4 h-4" />
+                          Not Assigned
+                        </div>
                       )}
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center bg-white/5 p-1 rounded-xl border border-white/10">
-                      <button onClick={() => startEdit(t)}
-                        className="flex items-center gap-2 px-4 py-2 text-xs font-black rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-lg shadow-blue-900/40 uppercase tracking-tighter">
-                        <BuildingOfficeIcon className="w-3.5 h-3.5" />
+                    {/* Right: Actions Nucleus */}
+                    <div className="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto pt-5 lg:pt-0 border-t lg:border-0 border-white/5">
+                      <button onClick={() => startEdit(t)} 
+                        className="flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-blue-600/30 hover:-translate-y-0.5 whitespace-nowrap">
+                        <BuildingOfficeIcon className="w-4 h-4" />
                         Manage Deployment
                       </button>
-                    </div>
 
-                    <div className="flex items-center gap-1.5 opacity-40 hover:opacity-100 transition-opacity">
-                      <button onClick={() => toggleActive(t.id, t.is_active)}
-                        disabled={toggling === t.id}
-                        className="p-2 text-xs font-bold rounded-xl border border-white/10 hover:border-white/30 text-white/40 hover:text-white transition-all disabled:opacity-50"
-                        title={t.is_active ? 'Deactivate' : 'Activate'}>
-                        {toggling === t.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : (t.is_active ? <CheckCircleIcon className="w-4 h-4 text-emerald-400" /> : <XMarkIcon className="w-4 h-4 text-rose-400" />)}
-                      </button>
-                      <button onClick={() => startEdit(t)}
-                        className="p-2 text-xs font-bold rounded-xl border border-white/10 hover:border-white/30 text-white/40 hover:text-white transition-all"
-                        title="Edit Details">
-                        <PencilSquareIcon className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => { setResetTarget({ id: t.id, name: t.full_name }); setResetPw(''); setResetMsg(null); }}
-                        className="p-2 text-xs font-bold rounded-xl border border-amber-500/20 hover:border-amber-500/40 text-amber-400/60 hover:text-amber-400 transition-all"
-                        title="Reset Password">
-                        <KeyIcon className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDeleteTeacher(t.id)} disabled={deleting === t.id}
-                        className="p-2 text-xs font-bold rounded-xl border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50"
-                        title="Delete Teacher">
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10 shrink-0">
+                        <button onClick={() => toggleActive(t.id, t.is_active)}
+                          disabled={toggling === t.id}
+                          className="p-2.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all disabled:opacity-50"
+                          title={t.is_active ? 'Deactivate' : 'Activate'}>
+                          {toggling === t.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : (t.is_active ? <CheckCircleIcon className="w-4 h-4 text-emerald-400" /> : <XMarkIcon className="w-4 h-4 text-rose-400" />)}
+                        </button>
+                        <button onClick={() => startEdit(t)}
+                          className="p-2.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all"
+                          title="Edit Details">
+                          <PencilSquareIcon className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => { setResetTarget({ id: t.id, name: t.full_name }); setResetPw(''); setResetMsg(null); }}
+                          className="p-2.5 rounded-lg hover:bg-amber-500/10 text-amber-400/40 hover:text-amber-400 transition-all"
+                          title="Reset Password">
+                          <KeyIcon className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteTeacher(t.id)} disabled={deleting === t.id}
+                          className="p-2.5 rounded-lg hover:bg-rose-500/10 text-rose-400/40 hover:text-rose-400 transition-all disabled:opacity-50"
+                          title="Delete Teacher">
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

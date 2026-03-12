@@ -126,7 +126,7 @@ export default function AdminNavbar() {
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white dark:bg-gray-800">
           <div className="flex h-16 items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center space-x-2">
-              <Shield className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              <img src="/images/logo.png" alt="Rillcod" className="w-8 h-8 object-contain rounded-md" />
               <span className="text-xl font-bold text-gray-900 dark:text-white">Admin</span>
             </div>
             <button
@@ -171,7 +171,7 @@ export default function AdminNavbar() {
         <div className="flex flex-col flex-grow bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
           <div className="flex h-16 items-center px-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center space-x-2">
-              <Shield className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              <img src="/images/logo.png" alt="Rillcod" className="w-8 h-8 object-contain rounded-md" />
               <span className="text-xl font-bold text-gray-900 dark:text-white">Admin Panel</span>
             </div>
           </div>

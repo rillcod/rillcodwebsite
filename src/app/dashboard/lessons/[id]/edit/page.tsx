@@ -114,6 +114,34 @@ export default function EditLessonPage() {
 
     const [aiGeneratingPlan, setAiGeneratingPlan] = useState(false);
 
+    const generateAiNotes = async () => {
+        if (!form.title) { alert('Lesson must have a title'); return; }
+        setSaving(true);
+        try {
+            const res = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'lesson',
+                    topic: form.title,
+                }),
+            });
+            const payload = await res.json();
+            if (!res.ok) throw new Error(payload.error);
+            const d = payload.data;
+            setForm(prev => ({
+                ...prev,
+                lesson_notes: d.lesson_notes || prev.lesson_notes,
+                description: d.description || prev.description
+            }));
+            alert('Study notes generated!');
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const generateAiPlan = async () => {
         if (!form.title) { alert('Lesson must have a title'); return; }
         setAiGeneratingPlan(true);
@@ -288,43 +316,11 @@ export default function EditLessonPage() {
                                     <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Comprehensive Study Notes (Mandatory for Students)</label>
                                     <button
                                         type="button"
-                                        onClick={async () => {
-                                            if (!form.title) return alert('Enter a title first');
-                                            setSaving(true);
-                                            try {
-                                                const res = await fetch('/api/ai/generate', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ type: 'lesson', topic: form.title })
-                                                });
-                                                const payload = await res.json();
-                                                if (!res.ok) throw new Error(payload.error || 'Failed to generate');
-                                                const d = payload.data;
-
-                                                setForm(p => ({
-                                                    ...p,
-                                                    lesson_notes: d.lesson_notes || p.lesson_notes,
-                                                    description: d.description || p.description,
-                                                    content_layout: d.content_layout || p.content_layout,
-                                                    video_url: d.video_url || p.video_url,
-                                                    duration_minutes: d.duration_minutes ? String(d.duration_minutes) : p.duration_minutes
-                                                }));
-
-                                                if (d.objectives) {
-                                                    setPlan(p => ({
-                                                        ...p,
-                                                        objectives: Array.isArray(d.objectives) ? d.objectives.join('\n') : d.objectives
-                                                    }));
-                                                }
-                                                alert('Lesson content generated! Review the Builder and Plan tabs.');
-                                            } catch (e: any) {
-                                                alert(e.message || 'Generation failed');
-                                            }
-                                            setSaving(false);
-                                        }}
-                                        className="text-[9px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1 hover:text-cyan-300 transition-colors"
+                                        onClick={generateAiNotes}
+                                        disabled={saving}
+                                        className="text-[9px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1 hover:text-cyan-300 transition-colors disabled:opacity-50"
                                     >
-                                        <Sparkles className="w-3 h-3" /> Full AI Generation
+                                        <Sparkles className="w-3 h-3" /> {saving ? 'Generating...' : 'Enhance with AI'}
                                     </button>
                                 </div>
                                 <textarea

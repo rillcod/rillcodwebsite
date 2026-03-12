@@ -14,6 +14,100 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false,
   </div>
 ) });
 
+function RobotSimulator() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [robotState, setRobotState] = useState({ x: 150, y: 150, angle: 0 });
+  const [trail, setTrail] = useState<{ x: number, y: number }[]>([]);
+
+  const resetRobot = useCallback(() => {
+    setRobotState({ x: 150, y: 150, angle: 0 });
+    setTrail([]);
+  }, []);
+
+  useEffect(() => {
+    (window as any).moveRobotForward = (steps: number) => {
+      setRobotState(prev => {
+        const rad = (prev.angle - 90) * (Math.PI / 180);
+        const nx = prev.x + Math.cos(rad) * steps;
+        const ny = prev.y + Math.sin(rad) * steps;
+        // Keep in bounds
+        const x = Math.max(10, Math.min(290, nx));
+        const y = Math.max(10, Math.min(290, ny));
+        setTrail(t => [...t, { x, y }]);
+        return { ...prev, x, y };
+      });
+    };
+    (window as any).rotateRobot = (deg: number) => {
+      setRobotState(prev => ({ ...prev, angle: prev.angle + deg }));
+    };
+    (window as any).resetRobot = resetRobot;
+  }, [resetRobot]);
+
+  useEffect(() => {
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+
+    // Draw arena
+    ctx.clearRect(0, 0, 300, 300);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 300, 300);
+    
+    // Grid lines
+    ctx.strokeStyle = '#334155';
+    ctx.setLineDash([5, 5]);
+    for(let i=0; i<300; i+=30) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 300); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(300, i); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Draw trail
+    if (trail.length > 0) {
+      ctx.strokeStyle = '#a78bfa';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(150, 150);
+      trail.forEach(p => ctx.lineTo(p.x, p.y));
+      ctx.stroke();
+    }
+
+    // Draw Robot
+    ctx.save();
+    ctx.translate(robotState.x, robotState.y);
+    ctx.rotate(robotState.angle * Math.PI / 180);
+    
+    // Body
+    ctx.fillStyle = '#7c3aed';
+    ctx.fillRect(-12, -12, 24, 24);
+    // Head/Front
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(-8, -15, 16, 5);
+    // Wheels
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-15, -8, 5, 16);
+    ctx.fillRect(10, -8, 5, 16);
+    
+    ctx.restore();
+  }, [robotState, trail]);
+
+  return (
+    <div className="flex flex-col items-center bg-[#070b14] h-full p-4">
+      <div className="relative border-4 border-violet-500/20 rounded-2xl overflow-hidden shadow-2xl">
+        <canvas ref={canvasRef} width={300} height={300} className="w-full h-auto bg-black" />
+        <div className="absolute top-2 left-2 px-2 py-1 bg-black/50 backdrop-blur-md rounded text-[10px] font-black uppercase text-violet-400">
+          Rillcod Lab 01
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 w-full max-w-[300px]">
+        <button onClick={resetRobot} className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[10px] font-bold uppercase hover:bg-white/10 transition-colors">Reset Pos</button>
+        <div className="flex items-center justify-center text-[10px] font-mono text-white/40">
+           X: {Math.round(robotState.x)} Y: {Math.round(robotState.y)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const STARTER_CODE: Record<string, string> = {
   javascript: `// 🚀 Welcome to the Rillcod Code Playground!
 // Write your JavaScript code here and click Run
@@ -78,16 +172,42 @@ for n in range(1, 21):
   </script>
 </body>
 </html>`,
+
+  scratch: `// SCRATCH MODE
+// Use the visual block interface below to create your games.
+// If you want to use Python for Scratch-like logic, switch to Robotics mode.
+`,
+
+  robotics: `# 🤖 Welcome to Rillcod Robotics Lab!
+# Control the robot below using simple commands:
+# robot.move_forward(100)
+# robot.turn_left(90)
+# robot.move_forward(100)
+# robot.turn_right(45)
+
+print("Starting Robotic Mission...")
+
+robot.move_forward(50)
+robot.turn_right(90)
+robot.move_forward(50)
+robot.turn_right(90)
+robot.move_forward(50)
+robot.turn_right(90)
+robot.move_forward(50)
+
+print("Square Complete!")
+`,
 };
 
 const CHALLENGES = [
   { label: '🌟 Hello World', code: `console.log("Hello, World!");`, lang: 'javascript' },
   { label: '🔢 Count to 10', code: `for (let i = 1; i <= 10; i++) {\n  console.log(i);\n}`, lang: 'javascript' },
   { label: '🎯 FizzBuzz', code: `for (let i = 1; i <= 20; i++) {\n  if (i % 15 === 0) console.log("FizzBuzz");\n  else if (i % 3 === 0) console.log("Fizz");\n  else if (i % 5 === 0) console.log("Buzz");\n  else console.log(i);\n}`, lang: 'javascript' },
-  { label: '🧮 Calculator', code: `function add(a, b) { return a + b; }\nfunction subtract(a, b) { return a - b; }\nfunction multiply(a, b) { return a * b; }\nfunction divide(a, b) { return b !== 0 ? a / b : "Error: divide by zero"; }\n\nconsole.log("5 + 3 =", add(5, 3));\nconsole.log("10 - 4 =", subtract(10, 4));\nconsole.log("6 × 7 =", multiply(6, 7));\nconsole.log("15 ÷ 3 =", divide(15, 3));`, lang: 'javascript' },
+  { label: '🤖 Robot Square', code: `# Mission: Draw a Square\nfor i in range(4):\n    robot.move_forward(100)\n    robot.turn_right(90)`, lang: 'robotics' },
+  { label: '🌀 Robot Spiral', code: `# Mission: Creative Spiral\nlength = 10\nfor i in range(20):\n    robot.move_forward(length)\n    robot.turn_right(45)\n    length += 10`, lang: 'robotics' },
 ];
 
-type Lang = 'javascript' | 'python' | 'html';
+type Lang = 'javascript' | 'python' | 'html' | 'scratch' | 'robotics';
 
 function storageKey(userId: string | undefined, l: Lang) {
   return `playground_code_${userId ?? 'guest'}_${l}`;
@@ -127,16 +247,20 @@ export default function PlaygroundPage() {
     const stored = localStorage.getItem(storageKey(profile?.id, l));
     setCode(stored ?? STARTER_CODE[l]);
     setOutput([]);
+    if (l === 'scratch') setActiveTab('preview');
+    else if (l === 'robotics') setActiveTab('preview');
+    else setActiveTab('output');
   }
 
   const runCode = useCallback(async () => {
     setRunning(true);
     setOutput([]);
 
-    if (lang === 'html') {
+    if (lang === 'html' || lang === 'scratch') {
       setActiveTab('preview');
       if (iframeRef.current) {
-        iframeRef.current.srcdoc = code;
+        if (lang === 'html') iframeRef.current.srcdoc = code;
+        // Scratch is handled by a direct iframe src change for embedding
       }
       setRunning(false);
       return;
@@ -173,9 +297,10 @@ export default function PlaygroundPage() {
       return;
     }
 
-    if (lang === 'python') {
+    if (lang === 'python' || lang === 'robotics') {
       setActiveTab('output');
-      setOutput(['⏳ Loading Python engine...']);
+      const isRobotics = lang === 'robotics';
+      setOutput([`⏳ Loading ${isRobotics ? 'Robotics Engine' : 'Python engine'}...`]);
       try {
         // Dynamically load Pyodide
         if (!(window as any).pyodide) {
@@ -188,6 +313,25 @@ export default function PlaygroundPage() {
         let captured = '';
         pyodide.setStdout({ batched: (s: string) => { captured += s + '\n'; } });
         pyodide.setStderr({ batched: (s: string) => { captured += '❌ ' + s + '\n'; } });
+        
+        if (isRobotics) {
+          // Reset simulator
+          if ((window as any).resetRobot) (window as any).resetRobot();
+          
+          // Inject robot API into Python
+          await pyodide.runPythonAsync(`
+import js
+class Robot:
+    def move_forward(self, steps):
+        js.window.moveRobotForward(steps)
+    def turn_right(self, deg):
+        js.window.rotateRobot(deg)
+    def turn_left(self, deg):
+        js.window.rotateRobot(-deg)
+robot = Robot()
+          `);
+        }
+
         await pyodide.runPythonAsync(code);
         setOutput(captured ? captured.split('\n').filter(Boolean) : ['(no output)']);
       } catch (e: any) {
@@ -217,13 +361,13 @@ export default function PlaygroundPage() {
 
         {/* Language tabs */}
         <div className="flex bg-white/5 rounded-lg p-0.5 gap-0.5">
-          {(['javascript', 'python', 'html'] as Lang[]).map(l => (
+          {(['javascript', 'python', 'html', 'scratch', 'robotics'] as Lang[]).map(l => (
             <button
               key={l}
               onClick={() => changeLang(l)}
-              className={`px-3 py-1 rounded-md text-xs font-bold uppercase transition-all ${lang === l ? 'bg-violet-600 text-white' : 'text-white/40 hover:text-white'}`}
+              className={`px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all ${lang === l ? 'bg-violet-600 text-white' : 'text-white/40 hover:text-white'}`}
             >
-              {l === 'javascript' ? 'JS' : l === 'python' ? 'Python' : 'HTML'}
+              {l === 'javascript' ? 'JS' : l === 'python' ? 'Python' : l}
             </button>
           ))}
         </div>
@@ -327,13 +471,18 @@ export default function PlaygroundPage() {
               ))}
             </div>
           ) : (
-            <div className="flex-1">
-              <iframe
-                ref={iframeRef}
-                className="w-full h-full border-0 bg-white"
-                sandbox="allow-scripts allow-modals"
-                title="HTML Preview"
-              />
+            <div className="flex-1 overflow-hidden">
+              {lang === 'robotics' ? (
+                <RobotSimulator />
+              ) : (
+                <iframe
+                  ref={iframeRef}
+                  src={lang === 'scratch' ? 'https://turbowarp.org/editor?embed' : undefined}
+                  className={`w-full h-full border-0 ${lang === 'html' ? 'bg-white' : 'bg-black'}`}
+                  sandbox="allow-scripts allow-modals allow-popups allow-forms allow-same-origin"
+                  title={lang === 'scratch' ? 'Scratch Preview' : 'HTML Preview'}
+                />
+              )}
             </div>
           )}
         </div>

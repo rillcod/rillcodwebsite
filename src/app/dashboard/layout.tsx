@@ -1,4 +1,5 @@
 import DashboardNavigation from '@/components/layout/DashboardNavigation';
+import CommandPalette from '@/components/layout/CommandPalette';
 
 export default function DashboardLayout({
   children,

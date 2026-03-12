@@ -32,8 +32,10 @@ export default function NewExamPage() {
   const { profile, loading: authLoading } = useAuth();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const preProgramId = searchParams?.get('program_id');
+  const preCourseId = searchParams?.get('course_id');
   const isMinimal = searchParams?.get('minimal') === 'true';
   const [programs, setPrograms] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +43,7 @@ export default function NewExamPage() {
     title: '',
     description: '',
     program_id: '',
+    course_id: '',
     duration_minutes: '60',
     passing_score: '70',
     start_date: '',
@@ -95,12 +98,29 @@ export default function NewExamPage() {
 
   useEffect(() => {
     if (authLoading || !profile) return;
-    createClient().from('programs').select('id, name').eq('is_active', true).order('name')
+    const db = createClient();
+    
+    // 1. Fetch programs
+    db.from('programs').select('id, name').eq('is_active', true).order('name')
       .then(({ data }) => {
         setPrograms(data ?? []);
         if (preProgramId) setForm(prev => ({ ...prev, program_id: preProgramId }));
       });
-  }, [profile?.id, authLoading, preProgramId]);
+
+    // 2. Fetch courses (linked course pattern)
+    let courseQuery = db.from('courses').select('id, title, program_id, school_id, programs(name)').eq('is_active', true);
+    if (profile?.school_id) {
+      courseQuery = courseQuery.or(`school_id.eq.${profile.school_id},school_id.is.null`);
+    }
+    courseQuery.order('title').then(({ data }) => {
+      const cList = data ?? [];
+      setCourses(cList);
+      if (preCourseId) {
+        const c = cList.find((x: any) => x.id === preCourseId);
+        setForm(prev => ({ ...prev, course_id: preCourseId, program_id: c?.program_id || prev.program_id }));
+      }
+    });
+  }, [profile?.id, authLoading, preProgramId, preCourseId]);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -130,6 +150,7 @@ export default function NewExamPage() {
         title: form.title.trim(),
         description: form.description.trim() || null,
         program_id: form.program_id,
+        course_id: form.course_id || null,
         duration_minutes: parseInt(form.duration_minutes) || 60,
         passing_score: parseInt(form.passing_score) || 70,
         total_questions: validQuestions.length,
@@ -263,16 +284,34 @@ export default function NewExamPage() {
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500 transition-colors" />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
-                Programme <span className="text-rose-400">*</span>
-              </label>
-              <select required value={form.program_id}
-                onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
-                <option value="">Select programme…</option>
-                {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                  Programme <span className="text-rose-400">*</span>
+                </label>
+                <select required value={form.program_id}
+                  onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
+                  <option value="">Select programme…</option>
+                  {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                  Linked Course (Optional)
+                </label>
+                <select value={form.course_id}
+                  onChange={e => {
+                    const cId = e.target.value;
+                    const c = courses.find(x => x.id === cId);
+                    setForm(f => ({ ...f, course_id: cId, program_id: c?.program_id || f.program_id }));
+                  }}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
+                  <option value="">Not linked to a course</option>
+                  {courses.map(c => <option key={c.id} value={c.id}>{c.title} {c.programs?.name ? `(${c.programs.name})` : ''}</option>)}
+                </select>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -6,15 +6,18 @@ import { withValidation } from '@/proxies/validation.proxy';
 import { AppError } from '@/lib/errors';
 
 const createCheckoutSchema = z.object({
-    course_id: z.string().uuid("Invalid course ID"),
+    course_id: z.string().uuid("Invalid course ID").optional(),
+    invoice_id: z.string().uuid("Invalid invoice ID").optional(),
     amount: z.number().positive(),
     currency: z.string().default('NGN'),
     payment_method: z.enum(['stripe', 'paystack']).default('paystack'),
+}).refine(data => data.course_id || data.invoice_id, {
+    message: "Either course_id or invoice_id must be provided"
 });
 
 async function postHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role !== 'student') {
-        throw new AppError('Only students can checkout courses', 403, true);
+    if (ctx.user?.role !== 'student' && ctx.user?.role !== 'school') {
+        throw new AppError('Only students or schools can initiate checkout', 403, true);
     }
 
     const { data, errorResponse } = await withValidation(req as any, createCheckoutSchema);
@@ -23,6 +26,7 @@ async function postHandler(req: Request, ctx: ApiContext) {
     let checkoutResult;
 
     if (data!.payment_method === 'stripe') {
+        if (!data!.course_id) throw new AppError('Stripe checkout currently only supports courses', 400);
         checkoutResult = await paymentsService.createStripeCheckout(
             ctx.user.id,
             data!.course_id,
@@ -37,9 +41,12 @@ async function postHandler(req: Request, ctx: ApiContext) {
         checkoutResult = await paymentsService.createPaystackCheckout(
             ctx.user.id,
             userData?.email || 'user@example.com',
-            data!.course_id,
             data!.amount,
-            ctx.user?.tenantId
+            {
+                courseId: data!.course_id,
+                invoiceId: data!.invoice_id,
+                tenantId: ctx.user?.tenantId
+            }
         );
     }
 

@@ -176,6 +176,7 @@ export default function DashboardNavigation() {
           { divider: true, label: 'My School' },
           { name: 'School Overview',  href: '/dashboard/school-overview',  icon: BuildingOfficeIcon },
           { name: 'My Students',      href: '/dashboard/students',         icon: UserGroupIcon },
+          { name: 'Teachers',         href: '/dashboard/teachers',         icon: AcademicCapIcon },
           { name: 'Import Students',  href: '/dashboard/students/import',  icon: UserGroupIcon },
           { name: 'Attendance',       href: '/dashboard/attendance',       icon: ClipboardDocumentCheckIcon },
           { name: 'Timetable',        href: '/dashboard/timetable',        icon: CalendarDaysIcon },
@@ -374,8 +375,8 @@ export default function DashboardNavigation() {
                 active ? 'text-white' : 'text-gray-500 hover:text-gray-300'
               }`}
             >
-              <div className={`relative p-1.5 rounded-lg transition-all duration-200 ${active ? 'bg-[#7a0606] shadow-md shadow-black/40' : ''}`}>
-                <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-gray-400'}`} />
+              <div className={`relative p-2 rounded-lg transition-all duration-200 ${active ? 'bg-[#7a0606] shadow-md shadow-black/40' : ''}`}>
+                <Icon className={`w-6 h-6 ${active ? 'text-white' : 'text-gray-400'}`} />
                 {name === 'Messages' && unreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -397,8 +398,8 @@ export default function DashboardNavigation() {
           onClick={handleLogout}
           className="flex flex-col items-center gap-1 px-2 py-1 rounded-xl min-w-[3.5rem] transition-all duration-200 text-red-500 hover:text-red-400 group"
         >
-          <div className="relative p-1.5 rounded-lg transition-all duration-200 group-active:bg-red-500/20">
-            <ArrowRightOnRectangleIcon className="w-5 h-5" />
+          <div className="relative p-2 rounded-lg transition-all duration-200 group-active:bg-red-500/20">
+            <ArrowRightOnRectangleIcon className="w-6 h-6" />
           </div>
           <span className="text-[9px] font-bold uppercase tracking-wide leading-none">Sign Out</span>
         </button>

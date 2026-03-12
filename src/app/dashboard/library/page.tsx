@@ -10,7 +10,7 @@ import {
   DocumentIcon, ChatBubbleBottomCenterTextIcon,
   PresentationChartBarIcon, BoltIcon, ArrowDownTrayIcon,
   AcademicCapIcon, UserIcon, GlobeAltIcon, BuildingOfficeIcon,
-  ArchiveBoxIcon, StarIcon,
+  ArchiveBoxIcon, StarIcon, ArrowPathIcon, ExclamationTriangleIcon
 } from "@heroicons/react/24/outline";
 
 type ContentItem = {
@@ -55,6 +55,7 @@ export default function ContentLibraryPage() {
 
   // Form State
   const [showUpload, setShowUpload] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -112,9 +113,38 @@ export default function ContentLibraryPage() {
     try {
       const db = createClient();
       const path = `library/${crypto.randomUUID()}_${file.name}`;
-      const { data, error: upErr } = await db.storage.from('lms-files').upload(path, file);
+      
+      // 1. Upload to storage
+      const { data: upData, error: upErr } = await db.storage.from('lms-files').upload(path, file);
       if (upErr) throw upErr;
-      setForm(s => ({ ...s, fileId: data.path, title: s.title || file.name.split('.')[0] }));
+
+      // 2. Register in files table to get UUID
+      const { data: publicUrlData } = db.storage.from('lms-files').getPublicUrl(path);
+      const { data: fileRecord, error: fErr } = await db
+        .from('files')
+        .insert([{
+          school_id: profile?.school_id || null,
+          uploaded_by: profile?.id,
+          filename: file.name,
+          original_filename: file.name,
+          file_type: file.type.split('/')[0],
+          file_size: file.size,
+          mime_type: file.type,
+          storage_path: path,
+          storage_provider: 's3', // supabase storage acts as s3
+          public_url: publicUrlData.publicUrl
+        }])
+        .select()
+        .single();
+
+      if (fErr) throw fErr;
+
+      setForm(s => ({ 
+        ...s, 
+        fileId: fileRecord.id, 
+        title: s.title || file.name.split('.')[0],
+        category: s.category || (file.type.includes('video') ? 'Videos' : 'Guides')
+      }));
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -130,7 +160,7 @@ export default function ContentLibraryPage() {
       const res = await fetch("/api/content-library", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, tags: form.tags.split(',').map(t=>t.trim()) }),
+        body: JSON.stringify({ ...form, tags: form.tags.split(',').map(t=>t.trim()).filter(Boolean) }),
       });
       if (!res.ok) throw new Error("Failed to create");
       await loadItems();
@@ -140,6 +170,44 @@ export default function ContentLibraryPage() {
       setError(e.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const generateMetadata = async () => {
+    if (!form.title.trim()) {
+      setError("Please enter a title first so AI can generate relevant metadata.");
+      return;
+    }
+    setGeneratingAi(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: 'library-content',
+          topic: form.title,
+          contentType: form.contentType
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "AI generation failed");
+      
+      const ai = json.data;
+      setForm(prev => ({
+        ...prev,
+        description: ai.description || prev.description,
+        category: ai.category || prev.category,
+        tags: ai.tags ? ai.tags.join(', ') : prev.tags,
+        subject: ai.subject || prev.subject,
+        gradeLevel: ai.grade_level || prev.gradeLevel,
+        licenseType: ai.license_type || prev.licenseType,
+        attribution: ai.attribution || prev.attribution
+      }));
+    } catch (e: any) {
+      setError("AI was unable to generate metadata: " + e.message);
+    } finally {
+      setGeneratingAi(false);
     }
   };
 
@@ -333,17 +401,34 @@ export default function ContentLibraryPage() {
                <div>
                   <h2 className="text-3xl font-black mb-2">Upload Asset</h2>
                   <p className="text-white/40 text-sm">Add a new resource to the Rillcod Academy Library.</p>
-               </div>
+               </div>                <form onSubmit={handleCreate} className="space-y-6">
+                  {error && (
+                    <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl px-5 py-3 text-rose-400 text-xs flex items-center gap-2">
+                       <ExclamationTriangleIcon className="w-4 h-4" />
+                       {error}
+                    </div>
+                  )}
 
-               <form onSubmit={handleCreate} className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Title</label>
-                        <input required value={form.title} onChange={e => setForm(s=>({...s, title: e.target.value}))} placeholder="e.g. Intro to Logic Gates" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:border-violet-500 outline-none" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Content Title *</label>
+                        <div className="relative group">
+                           <input required value={form.title} onChange={e => setForm(s=>({...s, title: e.target.value}))} placeholder="e.g. Intro to Logic Gates" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:border-violet-500 outline-none transition-all" />
+                           <button 
+                              type="button"
+                              onClick={generateMetadata}
+                              disabled={generatingAi || !form.title}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:bg-white/10 text-white rounded-xl transition-all group/ai shadow-xl"
+                              title="AI Auto-Fill Metadata"
+                           >
+                              {generatingAi ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <SparklesIcon className="w-4 h-4" />}
+                           </button>
+                        </div>
+                        <p className="text-[9px] text-white/20 font-medium px-1">Enter a title and click the sparkle for AI metadata magic.</p>
                      </div>
-                     <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Type</label>
-                        <select value={form.contentType} onChange={e => setForm(s=>({...s, contentType: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:border-violet-500 outline-none">
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Resource Type</label>
+                        <select value={form.contentType} onChange={e => setForm(s=>({...s, contentType: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:border-violet-500 outline-none transition-all">
                            <option value="video">Video</option>
                            <option value="document">Document</option>
                            <option value="interactive">Interactive</option>
@@ -364,13 +449,23 @@ export default function ContentLibraryPage() {
                      </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
-                     {['Subject', 'Grade Level', 'Category'].map(f => (
-                        <div key={f} className="space-y-1.5">
-                           <label className="text-[10px] font-black uppercase tracking-widest text-white/40">{f}</label>
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Description</label>
+                     <textarea rows={3} value={form.description} onChange={e => setForm(s=>({...s, description: e.target.value}))} placeholder="Describe what this resource covers..." className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:border-violet-500 outline-none resize-none" />
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                     {[
+                        { label: 'Subject', name: 'subject' },
+                        { label: 'Grade Level', name: 'gradeLevel' },
+                        { label: 'Category', name: 'category' },
+                        { label: 'Tags (comma separated)', name: 'tags' }
+                     ].map(f => (
+                        <div key={f.name} className="space-y-1.5">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-white/40">{f.label}</label>
                            <input 
-                              value={(form as any)[f.replace(' ', 'L').charAt(0).toLowerCase() + f.replace(' ', '').slice(1)]} 
-                              onChange={e => setForm(s=>({...s, [f.replace(' ', 'L').charAt(0).toLowerCase() + f.replace(' ', '').slice(1)]: e.target.value}))} 
+                              value={(form as any)[f.name]} 
+                              onChange={e => setForm(s=>({...s, [f.name]: e.target.value}))} 
                               className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-xs text-white outline-none focus:border-violet-500" 
                            />
                         </div>

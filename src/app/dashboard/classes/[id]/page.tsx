@@ -114,19 +114,47 @@ export default function ClassDetailPage() {
   }, [id, profile?.id, authLoading]);
 
   const loadAvailableStudents = async () => {
-    if (!cls) return;
+    if (!cls || !profile) return;
     setProcessingStudent('loading');
     const supabase = createClient();
     try {
-      const { data, error: err } = await supabase
+      // 1. Fetch all students enrolled in this program
+      // 2. Filter by school_id to ensure teachers only see their own school's students
+      let query = supabase
         .from('enrollments')
-        .select('portal_users!inner(id, full_name, email, school_id, section_class)')
+        .select(`
+          user_id,
+          portal_users!inner(id, full_name, email, school_id, section_class)
+        `)
         .eq('program_id', cls.program_id);
+
+      // Multi-tenancy: Only show students from the same school
+      if (profile.role === 'school' && profile.school_id) {
+        query = query.eq('portal_users.school_id', profile.school_id as string);
+      } else if (profile.role === 'teacher') {
+        if (profile.school_id) {
+            query = query.eq('portal_users.school_id', profile.school_id as string);
+        }
+      }
+
+      const { data, error: err } = await query;
       if (err) throw err;
-      const filtered = (data ?? []).map((e: any) => e.portal_users).filter((u: any) => u.section_class !== cls.name);
+
+      // Filter out students already in THIS class
+      // We also prioritize students who have NO class assigned (section_class is null)
+      const filtered = (data ?? [])
+        .map((e: any) => e.portal_users)
+        .filter((u: any) => u.section_class !== cls.name)
+        .sort((a: any, b: any) => {
+            if (!a.section_class && b.section_class) return -1;
+            if (a.section_class && !b.section_class) return 1;
+            return 0;
+        });
+
       setAvailableStudents(filtered);
     } catch (e: any) {
       console.error(e);
+      setError('Failed to load available students for enrollment.');
     } finally {
       setProcessingStudent(null);
     }

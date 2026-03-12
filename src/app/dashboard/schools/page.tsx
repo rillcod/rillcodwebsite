@@ -56,6 +56,7 @@ export default function SchoolsPage() {
     programInterest: '',
     status: 'approved',
     enrollmentTypes: ['school'] as string[],
+    rillcodQuotaPercent: '0',
   });
 
   const isAdmin = profile?.role === 'admin';
@@ -205,6 +206,7 @@ export default function SchoolsPage() {
           : [],
         status: createForm.status || 'approved',
         enrollment_types: createForm.enrollmentTypes.length ? createForm.enrollmentTypes : ['school'],
+        rillcod_quota_percent: parseFloat(createForm.rillcodQuotaPercent) || 0,
         is_active: true,
       };
 
@@ -274,6 +276,7 @@ export default function SchoolsPage() {
         programInterest: '',
         status: 'approved',
         enrollmentTypes: ['school'],
+        rillcodQuotaPercent: '0',
       });
     } catch (e: any) {
       setError(e.message ?? 'Failed to save school');
@@ -316,6 +319,7 @@ export default function SchoolsPage() {
       programInterest: school.program_interest?.join(', ') || '',
       status: school.status || 'approved',
       enrollmentTypes: school.enrollment_types || ['school'],
+      rillcodQuotaPercent: (school as any).rillcod_quota_percent?.toString() || '0',
     });
     setShowCreate(true);
   };
@@ -973,8 +977,33 @@ export default function SchoolsPage() {
                       value={createForm.studentCount}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, studentCount: e.target.value }))}
                       className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-blue-500"
-                      placeholder="e.g. 500"
+                      placeholder="500"
                     />
+                  </div>
+                </div>
+
+                <div className="bg-violet-600/5 border border-violet-500/10 rounded-2xl p-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <ChartBarIcon className="w-4 h-4 text-violet-400" />
+                    <span className="text-xs font-extrabold text-white uppercase tracking-widest">Financial & Quota terms</span>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">Rillcod Quota Percent (%)</label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range" min="0" max="100" step="1"
+                        value={createForm.rillcodQuotaPercent}
+                        onChange={(e) => setCreateForm(prev => ({ ...prev, rillcodQuotaPercent: e.target.value }))}
+                        className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                      />
+                      <input
+                        type="number"
+                        value={createForm.rillcodQuotaPercent}
+                        onChange={(e) => setCreateForm(prev => ({ ...prev, rillcodQuotaPercent: e.target.value }))}
+                        className="w-20 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500"
+                      />
+                    </div>
+                    <p className="text-[10px] text-white/30 mt-2 italic">The percentage of fees collected by the school that belongs to Rillcod Academy.</p>
                   </div>
                 </div>
 

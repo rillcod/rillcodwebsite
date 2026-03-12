@@ -136,12 +136,17 @@ export default function LoginPage() {
                     <span className="text-sm font-medium">Back to Home</span>
                   </Link>
                 </div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-violet-300 text-sm font-bold mb-6 backdrop-blur-md">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
-                  </span>
-                  Welcome to RillCod Academy
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="p-3 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md">
+                    <img src="/images/logo.png" alt="Rillcod Logo" className="w-10 h-10 object-contain" />
+                  </div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-violet-300 text-sm font-bold backdrop-blur-md">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
+                    </span>
+                    Welcome to RillCod Academy
+                  </div>
                 </div>
                 <h2 className="text-5xl lg:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-violet-100 to-white/70 tracking-tight leading-tight mb-4">
                   Choose Your <br className="hidden lg:block" /> Path.

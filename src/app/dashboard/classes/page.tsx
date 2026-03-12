@@ -74,43 +74,44 @@ export default function ClassesPage() {
       </div>
     </div>
   );
-
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="min-h-screen bg-[#070710] text-white">
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 py-12 space-y-12">
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <BookOpenIcon className="w-5 h-5 text-blue-400" />
-              <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">
-                {profile?.role === 'teacher' ? 'My Classes' : 'All Classes'}
-              </span>
+        {/* Header - Nucleus Alpha */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 bg-[#0a0a1a] p-8 sm:p-12 rounded-[3.5rem] border border-white/5 relative overflow-hidden shadow-3xl">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-600/10 blur-[120px] -mr-48 -mt-48 pointer-events-none" />
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-cyan-500/20 rounded-lg">
+                <AcademicCapIcon className="w-5 h-5 text-cyan-400" />
+              </div>
+              <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em]">Operational Sector</span>
             </div>
-            <h1 className="text-3xl font-extrabold">Class Management</h1>
-            <p className="text-white/40 text-sm mt-1">Track and manage teaching sessions</p>
+            <h1 className="text-4xl sm:text-6xl font-black tracking-tighter leading-none italic uppercase">Class <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500">Registry</span></h1>
+            <p className="text-white/40 text-sm mt-4 font-medium max-w-lg leading-relaxed uppercase tracking-widest text-[10px]">Synchronizing academic cells and instructor protocols for the current curriculum cycle.</p>
           </div>
           <Link href="/dashboard/classes/add"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-blue-900/30">
-            <PlusIcon className="w-4 h-4" /> Create Class
+            className="relative z-10 group px-10 py-5 bg-white text-black font-black uppercase text-xs tracking-[0.3em] rounded-2xl hover:bg-cyan-500 hover:text-white transition-all shadow-2xl active:scale-95 flex items-center gap-4">
+            Initialize Class <PlusIcon className="w-5 h-5 transition-transform group-hover:rotate-90" />
           </Link>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Stats - Grid Nodes */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { label: 'Total Classes', value: classes.length, icon: AcademicCapIcon, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-            { label: 'Total Students', value: totalStudents, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-            { label: 'Active Classes', value: active, icon: FireIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Programs', value: new Set(classes.map(c => c.program_id)).size, icon: ChartBarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+            { label: 'Active Clusters', value: classes.length, icon: AcademicCapIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+            { label: 'Total Synchronies', value: totalStudents, icon: UserGroupIcon, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+            { label: 'Operational Nodes', value: active, icon: FireIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+            { label: 'Programs Hub', value: new Set(classes.map(c => c.program_id)).size, icon: ChartBarIcon, color: 'text-violet-400', bg: 'bg-violet-500/10' },
           ].map((s) => (
-            <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-5">
-              <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
-                <s.icon className={`w-5 h-5 ${s.color}`} />
+            <div key={s.label} className="bg-[#0a0a1a] border border-white/5 rounded-[2.5rem] p-8 hover:border-white/10 transition-all group overflow-hidden relative shadow-2xl">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform" />
+              <div className={`w-14 h-14 ${s.bg} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500 ring-2 ring-white/5`}>
+                <s.icon className={`w-7 h-7 ${s.color}`} />
               </div>
-              <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-white/40 mt-1">{s.label}</p>
+              <p className={`text-4xl font-black tracking-tight leading-none ${s.color}`}>{s.value}</p>
+              <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] mt-3 group-hover:text-white/40 transition-colors">{s.label}</p>
             </div>
           ))}
         </div>
@@ -120,88 +121,89 @@ export default function ClassesPage() {
           <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm">{error}</div>
         )}
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-            <input type="text" placeholder="Search classes or programs…" value={searchTerm}
+        {/* Filters - Control Deck */}
+        <div className="flex flex-col lg:flex-row gap-4 bg-[#0a0a1a] p-4 rounded-[2rem] border border-white/5">
+          <div className="relative flex-1 group">
+            <MagnifyingGlassIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-cyan-400 transition-colors" />
+            <input type="text" placeholder="Search operational registry..." value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500 transition-colors" />
+              className="w-full pl-16 pr-8 py-5 bg-white/[0.02] border border-white/5 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white placeholder-white/10 focus:outline-none focus:border-cyan-500/30 focus:bg-cyan-500/5 transition-all" />
           </div>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
+            className="px-8 py-5 bg-white/[0.02] border border-white/5 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white focus:outline-none focus:border-cyan-500/30 cursor-pointer hover:bg-white/5 transition-all">
+            <option value="all">Global State</option>
+            <option value="active">Operational</option>
             <option value="scheduled">Scheduled</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="completed">Archive</option>
           </select>
         </div>
 
-        {/* Classes Grid */}
+        {/* Classes Grid - The Grid Hub */}
         {filtered.length === 0 ? (
-          <div className="text-center py-24 bg-white/5 border border-white/10 rounded-2xl">
-            <BookOpenIcon className="w-16 h-16 mx-auto text-white/10 mb-4" />
-            <p className="text-lg font-semibold text-white/30">No classes found</p>
-            <p className="text-sm text-white/20 mt-1">Create your first class to get started</p>
-            <Link href="/dashboard/classes/add"
-              className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl transition-all">
-              <PlusIcon className="w-4 h-4" /> Create Class
-            </Link>
+          <div className="py-40 bg-[#0a0a1a] border-2 border-dashed border-white/5 rounded-[4rem] flex flex-col items-center justify-center text-center">
+            <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-8 opacity-20">
+              <BookOpenIcon className="w-12 h-12" />
+            </div>
+            <p className="text-2xl font-black text-white/20 uppercase tracking-[0.5em]">Sector Empty</p>
+            <p className="text-[10px] font-black text-white/10 uppercase tracking-[0.3em] mt-2">Initialize a data node to begin tracking</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10">
             {filtered.map((cls, i) => (
-              <div key={cls.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-all group">
-                <div className={`h-1.5 bg-gradient-to-r ${GRADIENTS[i % GRADIENTS.length]}`} />
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-white truncate">{cls.name}</h3>
-                      <p className="text-white/40 text-sm mt-0.5">{cls.programs?.name ?? '—'}</p>
+              <div key={cls.id} className="bg-[#0a0a1a] border border-white/5 rounded-[3.5rem] overflow-hidden hover:border-cyan-500/20 transition-all group flex flex-col shadow-3xl relative">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-600/5 blur-[80px] -mr-32 -mt-32 pointer-events-none group-hover:bg-cyan-600/10 transition-colors" />
+                <div className="p-10 flex-1 flex flex-col relative z-10">
+                  <div className="flex items-start justify-between mb-8">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                         <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+                         <span className="text-[10px] font-black text-cyan-500/60 uppercase tracking-[0.4em]">{cls.programs?.name || 'Academic Core'}</span>
+                      </div>
+                      <h3 className="text-3xl font-black text-white leading-tight uppercase tracking-tight group-hover:text-cyan-400 transition-colors">{cls.name}</h3>
                       {cls.portal_users?.full_name && (
-                        <p className="text-white/30 text-xs mt-0.5">Teacher: {cls.portal_users.full_name}</p>
+                        <div className="flex items-center gap-2 mt-4">
+                           <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[8px] font-black">{cls.portal_users.full_name?.charAt(0)}</div>
+                           <p className="text-white/30 text-[10px] font-black uppercase tracking-widest leading-none">Instructor: {cls.portal_users.full_name}</p>
+                        </div>
                       )}
                     </div>
-                    <span className={`ml-3 px-2.5 py-1 rounded-full text-xs font-bold flex-shrink-0 ${cls.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                      cls.status === 'scheduled' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                        cls.status === 'completed' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                          'bg-white/10 text-white/40'
-                      }`}>{cls.status}</span>
+                    <div className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl ring-1 ring-inset ${
+                      cls.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20' :
+                      cls.status === 'scheduled' ? 'bg-amber-500/10 text-amber-400 ring-amber-500/20' :
+                      'bg-white/5 text-white/30 ring-white/10'
+                    }`}>
+                      {cls.status}
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 mb-4 text-sm text-white/50">
-                    {cls.start_date && (
-                      <div className="flex items-center gap-2"><CalendarIcon className="w-4 h-4" /> {new Date(cls.start_date).toLocaleDateString()}</div>
-                    )}
-                    {cls.max_students && (
-                      <div className="flex items-center gap-2"><UserGroupIcon className="w-4 h-4" /> Max {cls.max_students}</div>
-                    )}
-                    {cls.current_students !== undefined && (
-                      <div className="flex items-center gap-2"><ChartBarIcon className="w-4 h-4" /> {cls.current_students} enrolled</div>
-                    )}
-                    {cls.schedule && (
-                      <div className="flex items-center gap-2"><ClockIcon className="w-4 h-4" /> {cls.schedule}</div>
-                    )}
+                  <div className="grid grid-cols-2 gap-6 mb-8 border-y border-white/5 py-8">
+                    <div className="space-y-1">
+                       <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">Synchronization</p>
+                       <div className="flex items-center gap-2 text-[11px] font-black text-white/70 uppercase tracking-widest">
+                          <ClockIcon className="w-4 h-4 text-cyan-400/60" /> {cls.schedule || 'Variable'}
+                       </div>
+                    </div>
+                    <div className="space-y-1">
+                       <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">Population</p>
+                       <div className="flex items-center gap-2 text-[11px] font-black text-white/70 uppercase tracking-widest">
+                          <UserGroupIcon className="w-4 h-4 text-indigo-400/60" /> {cls.current_students || 0}/{cls.max_students || '∞'}
+                       </div>
+                    </div>
                   </div>
 
-                  {cls.description && (
-                    <p className="text-white/40 text-xs mb-4 line-clamp-2">{cls.description}</p>
-                  )}
-
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-4">
                     <Link href={`/dashboard/classes/${cls.id}`}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors">
-                      <EyeIcon className="w-4 h-4" /> View
+                      className="flex-1 flex items-center justify-center gap-3 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-white bg-white/5 hover:bg-white/10 rounded-2xl transition-all shadow-xl active:scale-95 text-center">
+                      <EyeIcon className="w-4 h-4" /> Open Hub
                     </Link>
                     <Link href={`/dashboard/classes/${cls.id}/edit`}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-white/60 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
-                      <PencilIcon className="w-4 h-4" /> Edit
+                      className="p-5 text-white/20 hover:text-cyan-400 bg-white/5 hover:bg-cyan-400/10 rounded-2xl transition-all active:scale-95 shadow-xl">
+                      <PencilIcon className="w-4 h-4" />
                     </Link>
                     <button
                       onClick={() => handleDelete(cls.id, cls.name)}
                       disabled={deleting === cls.id}
-                      className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors disabled:opacity-40">
+                      className="p-5 text-white/10 hover:text-rose-500 bg-white/5 hover:bg-rose-500/10 rounded-2xl transition-all active:scale-95 shadow-xl disabled:opacity-20">
                       <TrashIcon className="w-4 h-4" />
                     </button>
                   </div>
@@ -211,22 +213,25 @@ export default function ClassesPage() {
           </div>
         )}
 
-        {/* Quick Actions */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-            <StarIcon className="w-5 h-5 text-amber-400" /> Quick Actions
+        {/* Action Nodes - Nexus Connect */}
+        <div className="bg-[#0a0a1a] border border-white/5 rounded-[3.5rem] p-12 relative overflow-hidden shadow-3xl">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/[0.02] -mr-32 -mt-32 rounded-full pointer-events-none" />
+          <h3 className="text-[12px] font-black uppercase tracking-[0.6em] text-white/20 mb-10 flex items-center gap-4">
+            <span className="w-12 h-px bg-white/10" /> Rapid Protocols <span className="w-12 h-px bg-white/10" />
           </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: 'Add New Class', icon: VideoCameraIcon, color: 'bg-blue-600 hover:bg-blue-700', href: '/dashboard/classes/add' },
-              { label: 'Create Assignment', icon: DocumentTextIcon, color: 'bg-violet-600 hover:bg-violet-700', href: '/dashboard/assignments' },
-              { label: 'View Progress', icon: ChartBarIcon, color: 'bg-emerald-600 hover:bg-emerald-700', href: '/dashboard/progress' },
-              { label: 'Lesson Plans', icon: BookOpenIcon, color: 'bg-amber-600 hover:bg-amber-700', href: '/dashboard/lessons' },
+              { label: 'Register Cluster', icon: PlusIcon, color: 'bg-white/5 hover:bg-cyan-500/10 text-cyan-400', href: '/dashboard/classes/add' },
+              { label: 'Task Deployment', icon: DocumentTextIcon, color: 'bg-white/5 hover:bg-indigo-500/10 text-indigo-400', href: '/dashboard/assignments' },
+              { label: 'Performance Matrix', icon: ChartBarIcon, color: 'bg-white/5 hover:bg-emerald-500/10 text-emerald-400', href: '/dashboard/progress' },
+              { label: 'Lesson Architect', icon: BookOpenIcon, color: 'bg-white/5 hover:bg-violet-500/10 text-violet-400', href: '/dashboard/lessons' },
             ].map((a) => (
               <Link key={a.label} href={a.href}
-                className={`flex items-center gap-2 px-4 py-3 ${a.color} text-white font-semibold text-sm rounded-xl transition-all hover:scale-[1.02]`}>
-                <a.icon className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">{a.label}</span>
+                className={`flex items-center gap-4 px-6 py-6 ${a.color} border border-white/5 text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all hover:scale-[1.03] shadow-xl group`}>
+                <div className="p-3 bg-white/5 rounded-xl group-hover:scale-110 transition-transform">
+                   <a.icon className="w-5 h-5 flex-shrink-0" />
+                </div>
+                {a.label}
               </Link>
             ))}
           </div>

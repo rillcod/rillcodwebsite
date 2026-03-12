@@ -117,25 +117,23 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 .eq('id', studentId)
                 .eq('status', 'pending'); // only touch if still pending, not already approved/rejected
         }
-    } else {
-        if (transaction.course_id && transaction.portal_user_id) {
-            // Course enrollment payment — enroll portal user in the program
-            const { data: course } = await supabase
-                .from('courses')
-                .select('program_id')
-                .eq('id', transaction.course_id)
-                .single();
+    } else if ((transaction as any).invoice_id) {
+        // Invoice paid — update invoice status
+        await (supabase as any)
+            .from('invoices')
+            .update({ 
+                status: 'paid',
+                payment_transaction_id: transaction.id,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', (transaction as any).invoice_id);
+    }
 
-            if (course?.program_id) {
-                // UNIQUE constraint on enrollments is (user_id, program_id, role)
-                await supabase.from('enrollments').upsert({
-                    user_id: transaction.portal_user_id,
-                    program_id: course.program_id,
-                    role: 'student',
-                    enrollment_date: new Date().toISOString().split('T')[0],
-                    status: 'active'
-                }, { onConflict: 'user_id,program_id,role' });
-            }
-        }
+    // 5. Generate Receipt automatically (Task 23.1)
+    const { paymentsService } = await import('@/services/payments.service');
+    try {
+        await paymentsService.generateReceipt(transaction.id);
+    } catch (err) {
+        console.error('Failed to generate automated receipt:', err);
     }
 }

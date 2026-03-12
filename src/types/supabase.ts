@@ -3077,6 +3077,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_deleted: boolean | null
+          is_direct_enrollment: boolean | null
           last_login: string | null
           phone: string | null
           photo_url: string | null
@@ -3102,6 +3103,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_deleted?: boolean | null
+          is_direct_enrollment?: boolean | null
           last_login?: string | null
           phone?: string | null
           photo_url?: string | null
@@ -3127,6 +3129,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_deleted?: boolean | null
+          is_direct_enrollment?: boolean | null
           last_login?: string | null
           phone?: string | null
           photo_url?: string | null
@@ -3421,6 +3424,7 @@ export type Database = {
           name: string
           phone: string | null
           program_interest: string[] | null
+          rillcod_quota_percent: number | null
           school_type: string | null
           state: string | null
           status: string | null
@@ -3441,6 +3445,7 @@ export type Database = {
           name: string
           phone?: string | null
           program_interest?: string[] | null
+          rillcod_quota_percent?: number | null
           school_type?: string | null
           state?: string | null
           status?: string | null
@@ -3461,6 +3466,7 @@ export type Database = {
           name?: string
           phone?: string | null
           program_interest?: string[] | null
+          rillcod_quota_percent?: number | null
           school_type?: string | null
           state?: string | null
           status?: string | null
@@ -3624,6 +3630,8 @@ export type Database = {
           overall_grade: string | null
           overall_score: number | null
           participation_grade: string | null
+          participation_score: number | null
+          engagement_metrics: Json | null
           photo_url: string | null
           practical_score: number | null
           proficiency_level: string | null
@@ -3669,6 +3677,8 @@ export type Database = {
           overall_grade?: string | null
           overall_score?: number | null
           participation_grade?: string | null
+          participation_score?: number | null
+          engagement_metrics?: Json | null
           photo_url?: string | null
           practical_score?: number | null
           proficiency_level?: string | null
@@ -3714,6 +3724,8 @@ export type Database = {
           overall_grade?: string | null
           overall_score?: number | null
           participation_grade?: string | null
+          participation_score?: number | null
+          engagement_metrics?: Json | null
           photo_url?: string | null
           practical_score?: number | null
           proficiency_level?: string | null

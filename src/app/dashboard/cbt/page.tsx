@@ -8,6 +8,7 @@ import {
   AcademicCapIcon, PlusIcon, ClockIcon, CheckCircleIcon,
   ExclamationTriangleIcon, EyeIcon, TrashIcon, PlayIcon,
   MagnifyingGlassIcon, DocumentCheckIcon, ChartBarIcon, PencilIcon,
+  BookOpenIcon
 } from '@heroicons/react/24/outline';
 
 export default function CBTPage() {
@@ -26,12 +27,12 @@ export default function CBTPage() {
     const db = createClient();
     if (isStaff) {
       db.from('cbt_exams')
-        .select('*, programs(name), cbt_sessions(id, score, status)')
+        .select('*, programs(name), courses(title), cbt_sessions(id, score, status)')
         .order('created_at', { ascending: false })
         .then(({ data }) => { setExams(data ?? []); setLoading(false); });
     } else {
       Promise.all([
-        db.from('cbt_exams').select('*, programs(name)').eq('is_active', true).order('start_date'),
+        db.from('cbt_exams').select('*, programs(name), courses(title)').eq('is_active', true).order('start_date'),
         db.from('cbt_sessions').select('*').eq('user_id', profile.id),
       ]).then(([exmRes, sesRes]) => {
         setExams(exmRes.data ?? []);
@@ -158,7 +159,13 @@ export default function CBTPage() {
                       </div>
                       {exam.description && <p className="text-sm text-white/40 mb-2">{exam.description}</p>}
                       <div className="flex flex-wrap gap-4 text-xs text-white/30">
-                        {exam.programs?.name && <span>{exam.programs.name}</span>}
+                        {exam.courses?.title && (
+                          <span className="flex items-center gap-1 text-blue-400 font-bold">
+                            <BookOpenIcon className="w-3.5 h-3.5" />
+                            {exam.courses.title}
+                          </span>
+                        )}
+                        {exam.programs?.name && !exam.courses?.title && <span>{exam.programs.name}</span>}
                         {exam.duration_minutes && (
                           <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{exam.duration_minutes} min</span>
                         )}

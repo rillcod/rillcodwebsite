@@ -107,6 +107,8 @@ export interface ReportCardData {
     fee_status?: string | null;
     // Next-term payment notice (shown between signature and QR when enabled)
     show_payment_notice?: boolean | null;
+    participation_score?: number | null;
+    engagement_metrics?: any | null;
 }
 
 export interface OrgSettings {
@@ -152,7 +154,7 @@ export default function ReportCard({ report, orgSettings }: {
         org_address: orgSettings?.org_address || '26 Ogiesoba Avenue, GRA, Benin City',
         org_phone: orgSettings?.org_phone || '08116600091',
         org_email: orgSettings?.org_email || 'rillcod@gmail.com',
-        logo_url: orgSettings?.logo_url || '/images/logo.png',
+        logo_url: orgSettings?.logo_url || '/logo.png',
     };
 
     return (
@@ -176,7 +178,7 @@ export default function ReportCard({ report, orgSettings }: {
                             alt="Logo"
                             crossOrigin="anonymous"
                             className="w-20 h-20 object-contain"
-                            onError={e => { (e.target as HTMLImageElement).src = '/images/logo.png'; }}
+                            onError={e => { (e.target as HTMLImageElement).src = '/logo.png'; }}
                         />
                         <div>
                             <h1 className="text-2xl font-black tracking-tighter uppercase leading-none mb-1 text-gray-900">
@@ -295,13 +297,13 @@ export default function ReportCard({ report, orgSettings }: {
 
                             {/* Left — scores + qualitative grades */}
                             <div className="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 flex flex-col gap-3">
-                                <MetricBar label="Theory (40%)" value={theory} color="#6366f1" />
-                                <MetricBar label="Practical (40%)" value={practical} color="#10b981" />
-                                <MetricBar label="Attendance (20%)" value={attendance} color="#f59e0b" />
+                                <MetricBar label="Theory Protocols (35%)" value={theory} color="#6366f1" />
+                                <MetricBar label="Practical Efficiency (35%)" value={practical} color="#06b6d4" />
+                                <MetricBar label="Operational Presence (15%)" value={attendance} color="#10b981" />
+                                <MetricBar label="Class Participation & Engagement (15%)" value={report.participation_score || 0} color="#8b5cf6" />
 
                                 {/* Qualitative grades — same column, thin rule separator */}
                                 <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly' }}>
-                                    <GradeRow label="Participation" value={report.participation_grade} />
                                     <GradeRow label="Project Work" value={report.projects_grade} />
                                     <GradeRow label="Homework"      value={report.homework_grade} />
                                 </div>
@@ -326,20 +328,20 @@ export default function ReportCard({ report, orgSettings }: {
 
 
                 {/* EVALUATION */}
-                <div className="flex-1 grid grid-cols-2 gap-6" style={{ minHeight: 0, maxHeight: 200 }}>
-                    <div className="flex flex-col gap-2">
+                <div className="flex-1 grid grid-cols-2 gap-5" style={{ minHeight: 0 }}>
+                    <div className="flex flex-col gap-1.5">
                         <SectionHeaderPremium title="Core Strengths" />
-                        <div className="flex-1 p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl">
-                            <p className="text-[12px] leading-relaxed text-emerald-900/80 italic font-medium">
-                                "{report.key_strengths || 'The student shows consistent effort and a dedicated approach to theoretical concepts, displaying high focus during complex sessions.'}"
+                        <div className="flex-1 p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl overflow-hidden">
+                            <p className="text-[12px] leading-relaxed text-emerald-900/80 font-medium line-clamp-4">
+                                {report.key_strengths || 'The student shows consistent effort and a dedicated approach to theoretical concepts, displaying high focus during complex sessions.'}
                             </p>
                         </div>
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1.5">
                         <SectionHeaderPremium title="Growth Focus" />
-                        <div className="flex-1 p-4 bg-amber-50/50 border border-amber-100 rounded-2xl">
-                            <p className="text-[12px] leading-relaxed text-amber-900/80 italic font-medium">
-                                "{report.areas_for_growth || 'Further immersion in practical projects will help build implementation confidence and speed in real-world environments.'}"
+                        <div className="flex-1 p-4 bg-amber-50/50 border border-amber-100 rounded-2xl overflow-hidden">
+                            <p className="text-[12px] leading-relaxed text-amber-900/80 font-medium line-clamp-4">
+                                {report.areas_for_growth || 'Further immersion in practical projects will help build implementation confidence and speed in real-world environments.'}
                             </p>
                         </div>
                     </div>
@@ -347,17 +349,17 @@ export default function ReportCard({ report, orgSettings }: {
 
                 {/* CERTIFICATE */}
                 {showCertificate && (
-                    <div style={{ background: 'linear-gradient(135deg, #fffbeb 0%, #fef9e7 100%)', border: '1px solid #fde68a', borderRadius: 28, padding: '18px 28px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-                        <div style={{ position: 'absolute', inset: 0, borderRadius: 28, background: 'linear-gradient(135deg, rgba(253,230,138,0.25) 0%, transparent 60%)', pointerEvents: 'none' }} />
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
-                            <div style={{ height: 1, width: 36, background: 'linear-gradient(to right, transparent, #e4a817)', opacity: 0.6 }} />
-                            <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'linear-gradient(135deg, #fef08a 0%, #fcd34d 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(234,168,23,0.35), inset 0 1px 0 rgba(255,255,255,0.6)' }}>
-                                <CrownIcon className="w-6 h-6" style={{ color: '#92400e' } as any} />
+                    <div style={{ background: 'linear-gradient(135deg, #fffbeb 0%, #fef9e7 100%)', border: '1px solid #fde68a', borderRadius: 24, padding: '14px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden', marginTop: 4 }}>
+                        <div style={{ position: 'absolute', inset: 0, borderRadius: 24, background: 'linear-gradient(135deg, rgba(253,230,138,0.25) 0%, transparent 60%)', pointerEvents: 'none' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+                            <div style={{ height: 1, width: 32, background: 'linear-gradient(to right, transparent, #e4a817)', opacity: 0.6 }} />
+                            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #fef08a 0%, #fcd34d 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(234,168,23,0.3), inset 0 1px 0 rgba(255,255,255,0.6)' }}>
+                                <CrownIcon className="w-5 h-5" style={{ color: '#92400e' } as any} />
                             </div>
-                            <div style={{ height: 1, width: 36, background: 'linear-gradient(to left, transparent, #e4a817)', opacity: 0.6 }} />
+                            <div style={{ height: 1, width: 32, background: 'linear-gradient(to left, transparent, #e4a817)', opacity: 0.6 }} />
                         </div>
-                        <h4 style={{ fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.16em', color: '#a16207', marginBottom: 5 }}>Academic Excellence Award</h4>
-                        <p style={{ fontSize: 11, color: '#b45309', lineHeight: 1.65, fontStyle: 'italic', fontWeight: 400, maxWidth: 500, margin: '0 auto', opacity: 0.85 }}>
+                        <h4 style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.14em', color: '#a16207', marginBottom: 3 }}>Academic Excellence Award</h4>
+                        <p style={{ fontSize: 10.5, color: '#b45309', lineHeight: 1.5, fontStyle: 'italic', fontWeight: 400, maxWidth: 500, margin: '0 auto', opacity: 0.85 }}>
                             {report.certificate_text || `This document officially recognizes that ${report.student_name} has successfully completed the intensive study programme in ${report.course_name}.`}
                         </p>
                     </div>

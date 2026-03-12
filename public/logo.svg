@@ -1,0 +1,28 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="rillcod-grad" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#4F46E5"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse">
+      <blur stdDeviation="10" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  
+  <!-- Main Hexagon Frame -->
+  <path d="M256 40L446.526 148V364L256 472L65.4745 364V148L256 40Z" fill="#0F172A" stroke="url(#rillcod-grad)" stroke-width="12"/>
+  
+  <!-- Stylized 'R' Structure -->
+  <g filter="url(#glow)">
+    <path d="M180 160V352M180 160H260C293.137 160 320 186.863 320 220V220C320 253.137 293.137 280 260 280H180M250 280L320 352" 
+          stroke="white" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Coding Cursor / Dot -->
+    <circle cx="340" cy="352" r="14" fill="#6366F1"/>
+  </g>
+  
+  <!-- Circuit Lines - Accents -->
+  <path d="M446.526 256H410M65.4745 256H100M256 40V80M256 472V432" 
+        stroke="url(#rillcod-grad)" stroke-width="6" stroke-linecap="round"/>
+</svg>

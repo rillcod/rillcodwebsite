@@ -111,6 +111,7 @@ export default function TimetablePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTimetable, setActiveTimetable] = useState<string | null>(null);
+  const [mobileDay, setMobileDay] = useState(DAYS.includes(TODAY) ? TODAY : 'Monday');
 
   const [showTTForm, setShowTTForm] = useState(false);
   const [editingTT, setEditingTT] = useState<Timetable | null>(null);
@@ -514,12 +515,28 @@ export default function TimetablePage() {
               </div>
             )}
 
+            {/* Mobile Day Selector */}
+            {activeTimetable && (
+              <div className="flex sm:hidden gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl overflow-x-auto no-scrollbar">
+                {DAYS.map(day => (
+                  <button
+                    key={day}
+                    onClick={() => setMobileDay(day)}
+                    className={`flex-1 min-w-[80px] py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileDay === day ? 'bg-violet-600 text-white shadow-lg' : 'text-white/30'}`}
+                  >
+                    {day.slice(0, 3)}
+                    {day === TODAY && <span className="block text-[8px] opacity-60">Today</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Week grid */}
             {activeTimetable && (
-              <div className="overflow-x-auto">
-                <div className="min-w-[700px] grid grid-cols-5 gap-3">
+              <div className="overflow-x-auto sm:overflow-visible">
+                <div className="min-w-0 sm:min-w-[700px] grid grid-cols-1 sm:grid-cols-5 gap-3">
                   {DAYS.map(day => (
-                    <div key={day} className="space-y-2">
+                    <div key={day} className={`space-y-2 ${mobileDay === day ? 'block' : 'hidden sm:block'}`}>
                       <div className={`border rounded-xl px-3 py-2 text-center ${day === TODAY
                         ? 'bg-violet-600/30 border-violet-500/40'
                         : 'bg-violet-600/10 border-violet-500/10'}`}>

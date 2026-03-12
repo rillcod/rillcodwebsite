@@ -77,8 +77,10 @@ export default function AddLessonPage() {
     fetchData();
   }, [profile?.id, authLoading, preProgramId, preCourseId, profile?.school_id]);
 
-  const handleAiGenerate = async () => {
-    if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
+  const handleAiGenerate = async (topicOverride?: string) => {
+    const topicToUse = topicOverride || aiTopic;
+    if (!topicToUse.trim()) { setAiError('Enter a topic first.'); setAiOpen(true); return; }
+    
     setAiGenerating(true);
     setAiError(null);
     try {
@@ -87,7 +89,7 @@ export default function AddLessonPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'lesson',
-          topic: aiTopic,
+          topic: topicToUse,
           gradeLevel: aiGrade,
           subject: aiSubject || undefined,
           durationMinutes: form.duration_minutes ? parseInt(form.duration_minutes) : 60,
@@ -99,7 +101,7 @@ export default function AddLessonPage() {
       const d = payload.data;
       setForm(prev => ({
         ...prev,
-        title: d.title ?? prev.title,
+        title: d.title ?? (topicOverride || prev.title),
         description: d.description ?? prev.description,
         lesson_notes: d.lesson_notes ?? prev.lesson_notes,
         content_layout: d.content_layout ?? prev.content_layout,
@@ -111,6 +113,7 @@ export default function AddLessonPage() {
       setActiveTab('content');
     } catch (e: any) {
       setAiError(e.message ?? 'Failed to generate');
+      setAiOpen(true);
     } finally {
       setAiGenerating(false);
     }
@@ -249,7 +252,7 @@ export default function AddLessonPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={handleAiGenerate}
+                  onClick={() => handleAiGenerate()}
                   disabled={aiGenerating}
                   className="flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all self-end"
                 >
@@ -312,9 +315,10 @@ export default function AddLessonPage() {
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Lesson Notes (Student Prerequisite)</label>
                   <button type="button" onClick={async () => {
-                    setAiTopic(form.title); setAiOpen(true);
-                  }} className="text-[9px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1 hover:text-violet-300 transition-colors">
-                    <Sparkles className="w-3 h-3" /> Generate Notes
+                    if (!form.title) { setAiOpen(true); alert('Enter a title first'); return; }
+                    handleAiGenerate(form.title);
+                  }} className="text-[9px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1 hover:text-violet-300 transition-colors disabled:opacity-50" disabled={aiGenerating}>
+                    <Sparkles className="w-3 h-3" /> {aiGenerating ? 'Generating...' : 'Generate Notes'}
                   </button>
                 </div>
                 <textarea

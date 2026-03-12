@@ -13,12 +13,59 @@ import {
     ArrowDownTrayIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon,
 } from '@heroicons/react/24/outline';
 import ReportCard from '@/components/reports/ReportCard';
+import ModernReportCard from '@/components/reports/ModernReportCard';
 import { ScaledReportCard, generateReportPDF } from '@/lib/pdf-utils';
 import { Database } from '@/types/supabase';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
 type OrgSettings = Database['public']['Tables']['report_settings']['Row'];
+
+function GradeDistribution({ students, reportsMap }: { students: PortalUser[], reportsMap: Record<string, any> }) {
+    const counts = { A: 0, B: 0, C: 0, D: 0, E: 0, none: 0 };
+    students.forEach(s => {
+        const r = reportsMap[s.id];
+        if (r?.overall_grade) {
+            const g = r.overall_grade[0].toUpperCase() as keyof typeof counts;
+            if (counts[g] !== undefined) counts[g]++;
+            else counts.E++;
+        } else {
+            counts.none++;
+        }
+    });
+
+    const max = Math.max(...Object.values(counts), 1);
+
+    return (
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-4">
+            <div className="flex items-center justify-between mb-3 px-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 italic">Grade Distribution Analysis</p>
+                <div className="flex gap-3">
+                   {['A','B','C','D','E'].map(g => (
+                       <span key={g} className="text-[9px] font-bold text-white/20">{g}: {counts[g as keyof typeof counts]}</span>
+                   ))}
+                </div>
+            </div>
+            <div className="flex items-end gap-1.5 h-16">
+                {(['A', 'B', 'C', 'D', 'E'] as const).map(g => {
+                    const h = (counts[g] / max) * 100;
+                    const colors = { A: 'bg-emerald-500', B: 'bg-blue-500', C: 'bg-amber-500', D: 'bg-indigo-500', E: 'bg-rose-500' };
+                    return (
+                        <div key={g} className="flex-1 flex flex-col items-center gap-1.5 group">
+                            <div className="w-full bg-white/5 rounded-t-md overflow-hidden flex flex-col justify-end h-full">
+                                <div 
+                                    className={`w-full ${colors[g]} opacity-60 group-hover:opacity-100 transition-all duration-700`} 
+                                    style={{ height: `${h}%` }}
+                                />
+                            </div>
+                            <span className="text-[9px] font-black text-white/30">{g}</span>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
 
 // ─── Inner component ───────────────────────────────────────────────────────────
 function ResultsPageInner() {
@@ -36,6 +83,7 @@ function ResultsPageInner() {
     const [selectedStudent, setSelectedStudent] = useState<PortalUser | null>(null);
     const [selectedReport, setSelectedReport] = useState<StudentReport | null>(null);
     const [loadingReport, setLoadingReport] = useState(false);
+    const [template, setTemplate] = useState<'standard' | 'modern'>('standard');
 
     // ── Filters ────────────────────────────────────────────────────────────────
     const [search, setSearch] = useState('');
@@ -56,6 +104,7 @@ function ResultsPageInner() {
     const captureRef = useRef<HTMLDivElement>(null);  // batch capture
     const captureQueue = useRef<StudentReport[]>([]);
     const captureIdx = useRef<number>(0);
+    const [showSidebar, setShowSidebar] = useState(true);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
     // School partners can VIEW and PRINT but cannot create or edit reports
@@ -170,6 +219,10 @@ function ResultsPageInner() {
         setSelectedStudent(s);
         setLoadingReport(true);
         setSelectedReport(null);
+        // On mobile, auto-hide sidebar when student is selected
+        if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+            setShowSidebar(false);
+        }
         const { data } = await createClient()
             .from('student_progress_reports')
             .select('*')
@@ -353,7 +406,7 @@ function ResultsPageInner() {
                                 {isStaff ? 'Academic Results Centre' : 'My Progress Report'}
                             </span>
                         </div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold">Student Progress Reports</h1>
+                        <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight">Student Progress Reports</h1>
                         {isStaff && (
                             <div className="flex items-center gap-4 mt-2 flex-wrap">
                                 <span className="text-xs text-white/40">{stats.total} students</span>
@@ -418,11 +471,11 @@ function ResultsPageInner() {
                 )}
 
                 {/* ── Main layout ── */}
-                <div className={isStaff ? 'grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5 items-start' : ''}>
-
+                <div className={isStaff ? 'flex flex-col lg:flex-row gap-5 items-start' : ''}>
+                    
                     {/* ══ Sidebar — staff only ══ */}
                     {isStaff && (
-                        <div className="space-y-3 lg:sticky lg:top-6">
+                        <div className={`w-full lg:w-[320px] flex-shrink-0 space-y-3 lg:sticky lg:top-6 ${showSidebar ? 'block' : 'hidden lg:block'}`}>
 
                             {/* Search */}
                             <div className="relative">
@@ -466,6 +519,9 @@ function ResultsPageInner() {
                                     </select>
                                 </div>
                             </div>
+
+                            {/* Grade Distribution */}
+                            <GradeDistribution students={filtered} reportsMap={reportsMap} />
 
                             {/* Select-all bar */}
                             <div className="flex items-center justify-between px-3 py-2 bg-white/[0.03] border border-white/10 rounded-xl">
@@ -552,81 +608,97 @@ function ResultsPageInner() {
                                 <div className="border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
 
                                     {/* Action bar */}
-                                    <div className="bg-white/5 border-b border-white/10 px-4 py-3 flex items-center gap-2 flex-wrap">
-                                        <DocumentTextIcon className="w-4 h-4 text-violet-400 flex-shrink-0" />
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-white truncate">
-                                                {selectedReport?.student_name ?? selectedStudent?.full_name ?? 'Student'}
-                                            </p>
-                                            {selectedReport && (
-                                                <p className="text-[10px] text-white/40 truncate">
-                                                    {[selectedReport.course_name, selectedReport.report_term, selectedReport.section_class]
-                                                        .filter(Boolean).join(' · ')}
+                                    <div className="bg-white/5 border-b border-white/10 px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            {isStaff && (
+                                                <button 
+                                                    onClick={() => setShowSidebar(!showSidebar)}
+                                                    className="lg:hidden p-2 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
+                                                >
+                                                    <MagnifyingGlassIcon className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                            <DocumentTextIcon className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-white truncate">
+                                                    {selectedReport?.student_name ?? selectedStudent?.full_name ?? 'Student'}
                                                 </p>
+                                                {selectedReport && (
+                                                    <p className="text-[10px] text-white/40 truncate">
+                                                        {[selectedReport.course_name, selectedReport.report_term, selectedReport.section_class]
+                                                            .filter(Boolean).join(' · ')}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {selectedReport && (
+                                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 ${selectedReport.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                                    {selectedReport.is_published ? 'Published' : 'Draft'}
+                                                </span>
                                             )}
                                         </div>
 
-                                        {selectedReport && (
-                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0 ${selectedReport.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                                                {selectedReport.is_published ? '✓ Published' : 'Draft'}
-                                            </span>
-                                        )}
+                                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+                                            {/* Prev / Next */}
+                                            {isStaff && currentIdx >= 0 && (
+                                                <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/5 h-9 flex-shrink-0">
+                                                    <button
+                                                        onClick={() => navigateTo(currentIdx - 1)}
+                                                        disabled={currentIdx <= 0 || loadingReport}
+                                                        className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white disabled:opacity-10 transition-colors"
+                                                    >
+                                                        <ArrowLeftIcon className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <span className="text-[10px] text-white/30 font-black tracking-tighter px-1 min-w-[3.5rem] text-center">{currentIdx + 1} / {filtered.length}</span>
+                                                    <button
+                                                        onClick={() => navigateTo(currentIdx + 1)}
+                                                        disabled={currentIdx >= filtered.length - 1 || loadingReport}
+                                                        className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white disabled:opacity-10 transition-colors"
+                                                    >
+                                                        <ArrowRightIcon className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            )}
 
-                                        {/* Prev / Next */}
-                                        {isStaff && currentIdx >= 0 && (
-                                            <>
-                                                <button
-                                                    onClick={() => navigateTo(currentIdx - 1)}
-                                                    disabled={currentIdx <= 0 || loadingReport}
-                                                    title="Previous student"
-                                                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white disabled:opacity-20 transition-colors"
+                                            {/* Template Toggle */}
+                                            <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 h-9 flex-shrink-0">
+                                                <button 
+                                                  onClick={() => setTemplate('standard')}
+                                                  className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${template === 'standard' ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/40' : 'text-white/30 hover:text-white/50'}`}
                                                 >
-                                                    <ArrowLeftIcon className="w-4 h-4" />
+                                                    Standard
                                                 </button>
-                                                <span className="text-xs text-white/30 font-mono">{currentIdx + 1}/{filtered.length}</span>
-                                                <button
-                                                    onClick={() => navigateTo(currentIdx + 1)}
-                                                    disabled={currentIdx >= filtered.length - 1 || loadingReport}
-                                                    title="Next student"
-                                                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white disabled:opacity-20 transition-colors"
+                                                <button 
+                                                  onClick={() => setTemplate('modern')}
+                                                  className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${template === 'modern' ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/40' : 'text-white/30 hover:text-white/50'}`}
                                                 >
-                                                    <ArrowRightIcon className="w-4 h-4" />
+                                                    Modern
                                                 </button>
-                                            </>
-                                        )}
+                                            </div>
 
-                                        {/* Edit — admin/teacher only, not school partners */}
-                                        {isEditor && selectedStudent && (
-                                            <Link
-                                                href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
-                                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-violet-400 bg-violet-600/10 hover:bg-violet-600/20 rounded-lg border border-violet-500/20 transition-colors"
-                                            >
-                                                <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
-                                            </Link>
-                                        )}
-
-                                        {/* Print + Download — shown when report loaded */}
-                                        {selectedReport && (
-                                            <>
-                                                <button
-                                                    onClick={() => window.print()}
-                                                    title="Print report"
-                                                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:text-white transition-colors"
-                                                >
-                                                    <PrinterIcon className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={downloadSinglePDF}
-                                                    disabled={isDownloadingPdf}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg transition-all"
-                                                >
-                                                    {isDownloadingPdf
-                                                        ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                        : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
-                                                    {isDownloadingPdf ? 'Generating…' : 'Save PDF'}
-                                                </button>
-                                            </>
-                                        )}
+                                            {/* Action set */}
+                                            <div className="flex items-center gap-2 h-9">
+                                                {isEditor && selectedStudent && (
+                                                    <Link
+                                                        href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
+                                                        className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-violet-400 bg-violet-600/10 hover:bg-violet-600/20 rounded-xl border border-violet-500/20 transition-all"
+                                                    >
+                                                        <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+                                                    </Link>
+                                                )}
+                                                {selectedReport && (
+                                                    <button
+                                                        onClick={downloadSinglePDF}
+                                                        disabled={isDownloadingPdf}
+                                                        className="h-full inline-flex items-center gap-2 px-4 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-violet-900/40 whitespace-nowrap"
+                                                    >
+                                                        {isDownloadingPdf
+                                                            ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                            : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
+                                                        {isDownloadingPdf ? 'PDF…' : 'Save PDF'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {/* Report body */}
@@ -636,7 +708,13 @@ function ResultsPageInner() {
                                         </div>
                                     ) : selectedReport ? (
                                         <div className="overflow-auto bg-gray-100 p-4 sm:p-6 lg:p-8" style={{ maxHeight: '75vh' }}>
-                                            <ScaledReportCard report={selectedReport} orgSettings={orgSettings} />
+                                            {template === 'standard' ? (
+                                                <ScaledReportCard report={selectedReport} orgSettings={orgSettings} />
+                                            ) : (
+                                                <div className="flex flex-col items-center">
+                                                    <ModernReportCard report={selectedReport} orgSettings={orgSettings} />
+                                                </div>
+                                            )}
                                         </div>
                                     ) : null}
                                 </div>
@@ -685,21 +763,37 @@ function ResultsPageInner() {
             {/* ══ Print view — full page, no chrome ══ */}
             {selectedReport && (
                 <div className="hidden print:block print:w-[794px] print:mx-auto">
-                    <ReportCard report={selectedReport} orgSettings={orgSettings} />
+                    {template === 'standard' ? (
+                        <ReportCard report={selectedReport} orgSettings={orgSettings} />
+                    ) : (
+                        <ModernReportCard report={selectedReport} orgSettings={orgSettings} />
+                    )}
                 </div>
             )}
 
             {/* ══ Off-screen div — single PDF capture ══ */}
             <div style={{ position: 'fixed', left: -9999, top: 0, width: 794, pointerEvents: 'none', zIndex: -1 }}>
                 <div ref={pdfRef}>
-                    {selectedReport && <ReportCard report={selectedReport} orgSettings={orgSettings} />}
+                    {selectedReport && (
+                        template === 'standard' ? (
+                            <ReportCard report={selectedReport} orgSettings={orgSettings} />
+                        ) : (
+                            <ModernReportCard report={selectedReport} orgSettings={orgSettings} />
+                        )
+                    )}
                 </div>
             </div>
 
             {/* ══ Off-screen div — batch PDF capture (one at a time) ══ */}
             <div style={{ position: 'fixed', left: -9999, top: 0, width: 794, pointerEvents: 'none', zIndex: -1 }}>
                 <div ref={captureRef}>
-                    {captureReport && <ReportCard report={captureReport} orgSettings={orgSettings} />}
+                    {captureReport && (
+                        template === 'standard' ? (
+                            <ReportCard report={captureReport} orgSettings={orgSettings} />
+                        ) : (
+                            <ModernReportCard report={captureReport} orgSettings={orgSettings} />
+                        )
+                    )}
                 </div>
             </div>
         </div>

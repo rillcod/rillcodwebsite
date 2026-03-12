@@ -77,7 +77,8 @@ export default function GradeSessionPage() {
                 const studentAnswer = (session.answers[q.id] ?? '').trim().toLowerCase();
                 const correctAnswer = (q.correct_answer ?? '').trim().toLowerCase();
 
-                if (q.question_type === 'essay' || q.question_type === 'fill_blank') {
+                // If a manual score is provided in the state, use it for subjective/reviewable types
+                if (manualScores[q.id] !== undefined && (q.question_type === 'essay' || q.question_type === 'fill_blank' || q.question_type === 'coding_blocks')) {
                     manualPoints += (manualScores[q.id] ?? 0);
                 } else if (studentAnswer === correctAnswer) {
                     autoPoints += (q.points ?? 0);

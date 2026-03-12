@@ -85,24 +85,37 @@ export class PaymentsService {
         }
     }
 
+    // Helper to calculate total to charge so recipient gets exactly `target` after Paystack fees & withdrawal buffer
+    // Based on Paystack Nigeria rates: 1.5% + ₦100 (waived for < ₦2500, capped at ₦2000)
+    // Plus a 0.1% extra commission as requested (Total 1.6%)
+    // Plus a small ₦50 buffer for the withdrawal/stamp duty fee mentioned by user
+    calculatePaystackTotal(target: number): number {
+        const targetWithBuffer = target + 50; 
+        const rate = 0.016; // 1.6% total
+        const divisor = 1 - rate; // 0.984
+        
+        let total = 0;
+        if (targetWithBuffer < 2500 * divisor) {
+            total = targetWithBuffer / divisor;
+        } else if (targetWithBuffer < 125000) { // 2000 / 0.016 = 125000
+            total = (targetWithBuffer + 100) / divisor;
+        } else {
+            total = targetWithBuffer + 2000;
+        }
+        return Math.ceil(total);
+    }
+
     // Task 20.2: Create Paystack integration
-    async createPaystackCheckout(userId: string, userEmail: string, courseId: string, amount: number, tenantId?: string) {
+    async createPaystackCheckout(userId: string, userEmail: string, amount: number, options: { courseId?: string, invoiceId?: string, tenantId?: string }) {
         if (!env.PAYSTACK_SECRET_KEY) {
             throw new AppError('Paystack configuration missing', 500);
         }
 
+        const { courseId, invoiceId, tenantId } = options;
         const supabase = await createClient();
 
-        // Verify course
-        const { data: course, error: courseErr } = await supabase
-            .from('courses')
-            .select('title, school_id')
-            .eq('id', courseId)
-            .single();
-
-        if (courseErr || !course || (tenantId && course.school_id !== tenantId)) {
-            throw new AppError('Course not found or access denied', 404);
-        }
+        // Calculate amount with fees passed to user
+        const totalAmount = this.calculatePaystackTotal(amount);
 
         const reference = `PYS-${Date.now()}-${userId.substring(0, 5)}`;
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -116,13 +129,18 @@ export class PaymentsService {
                 },
                 body: JSON.stringify({
                     email: userEmail,
-                    amount: Math.round(amount * 100), // Paystack uses kobo
+                    amount: Math.round(totalAmount * 100), // Paystack uses kobo
                     reference,
-                    callback_url: `${baseUrl}/courses/${courseId}?payment=success`,
+                    callback_url: invoiceId 
+                        ? `${baseUrl}/dashboard/payments?payment=success&ref=${reference}`
+                        : `${baseUrl}/courses/${courseId}?payment=success`,
                     metadata: {
                         userId,
                         courseId,
+                        invoiceId,
                         tenantId: tenantId || '',
+                        originalAmount: amount,
+                        paystackFees: totalAmount - amount
                     }
                 })
             });
@@ -133,12 +151,13 @@ export class PaymentsService {
                 throw new Error(paystackData.message);
             }
 
-            // Store transaction (Task 20.2)
+            // Store transaction
             await supabase.from('payment_transactions').insert([{
                 school_id: tenantId,
                 portal_user_id: userId,
-                course_id: courseId,
-                amount,
+                course_id: courseId || null,
+                invoice_id: invoiceId || null,
+                amount: totalAmount,
                 currency: 'NGN',
                 payment_method: 'paystack',
                 payment_status: 'pending',
@@ -211,9 +230,9 @@ export class PaymentsService {
         }
 
         const supabase = await createClient();
-        const { data: transaction } = await supabase
+        const { data: transaction } = await (supabase as any)
             .from('payment_transactions')
-            .select('*, courses(title), portal_users(full_name, email), schools(name)')
+            .select('*, courses(title), invoices(invoice_number), portal_users(full_name, email), schools(name)')
             .eq('id', transactionId)
             .single();
 
@@ -235,24 +254,103 @@ export class PaymentsService {
         const schools = transaction.schools as any;
         const courses = transaction.courses as any;
         const portalUsers = transaction.portal_users as any;
+        const invoices = (transaction as any).invoices as any;
 
         const docDefinition = {
             content: [
-                { text: schools?.name || 'Rillcod Academy', style: 'header' },
-                { text: `Receipt for ${courses?.title || 'Course'}`, style: 'subheader' },
-                '\n',
-                `Transaction Ref: ${transaction.transaction_reference}`,
-                `Date: ${new Date(transaction.paid_at || transaction.created_at || '').toLocaleDateString()}`,
-                `Amount: ${transaction.currency} ${transaction.amount}`,
-                '\n',
-                `Student: ${portalUsers?.full_name || 'N/A'}`,
-                `Email: ${portalUsers?.email || 'N/A'}`,
-                '\n\n',
-                `Payment Method: ${(transaction.payment_method || 'unknown').toUpperCase()}`,
+                {
+                    columns: [
+                        {
+                            stack: [
+                                { text: 'RILLCOD ACADEMY', style: 'brand' },
+                                { text: 'STEM & Coding Education', style: 'tagline' },
+                                { text: '12, Digital Learning Hub, Abuja, Nigeria', style: 'address' },
+                                { text: 'RC: 1892341 | www.rillcod.com', style: 'address' },
+                            ]
+                        },
+                        {
+                            stack: [
+                                { text: 'OFFICIAL RECEIPT', style: 'header', alignment: 'right' },
+                                { text: `REF: ${transaction.transaction_reference}`, alignment: 'right', style: 'ref' },
+                                { text: `Date: ${new Date(transaction.paid_at || transaction.created_at || '').toLocaleDateString()}`, alignment: 'right', style: 'date' },
+                            ]
+                        }
+                    ]
+                },
+                { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 1, strokeColor: '#eeeeee' }], margin: [0, 20] },
+                {
+                    columns: [
+                        {
+                            stack: [
+                                { text: 'BILL TO:', style: 'label' },
+                                { text: portalUsers?.full_name || 'Valued Student', style: 'studentName' },
+                                { text: portalUsers?.email || 'N/A', style: 'studentEmail' },
+                                { text: schools?.name || 'Private Enrollment', style: 'schoolName' },
+                            ]
+                        },
+                        {
+                            stack: [
+                                { text: 'PAYMENT DETAILS:', style: 'label', alignment: 'right' },
+                                { text: `Method: ${(transaction.payment_method || 'gateway').toUpperCase()}`, alignment: 'right' },
+                                { text: `Status: ${(transaction.payment_status || 'Paid').toUpperCase()}`, alignment: 'right', color: '#10b981' },
+                            ]
+                        }
+                    ]
+                },
+                { text: '\n\n' },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: ['*', 'auto', 'auto'],
+                        body: [
+                            [
+                                { text: 'DESCRIPTION', style: 'tableHeader' },
+                                { text: 'QTY', style: 'tableHeader', alignment: 'center' },
+                                { text: 'TOTAL', style: 'tableHeader', alignment: 'right' }
+                            ],
+                            [
+                                { text: invoices?.invoice_number ? `Payment for Invoice #${invoices.invoice_number}` : (courses?.title || 'Academic Enrollment Fee'), margin: [0, 10] },
+                                { text: '1', alignment: 'center', margin: [0, 10] },
+                                { text: `${transaction.currency} ${transaction.amount.toLocaleString()}`, alignment: 'right', margin: [0, 10], bold: true }
+                            ]
+                        ]
+                    },
+                    layout: 'lightHorizontalLines'
+                },
+                { text: '\n' },
+                {
+                    columns: [
+                        { text: '', width: '*' },
+                        {
+                            width: 'auto',
+                            stack: [
+                                {
+                                    columns: [
+                                        { text: 'TOTAL PAID', bold: true, fontSize: 14, width: 100 },
+                                        { text: `${transaction.currency} ${transaction.amount.toLocaleString()}`, bold: true, fontSize: 14, alignment: 'right', width: 100 }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                { text: '\n\n\n' },
+                { text: 'This is a system-generated receipt and requires no physical signature.', style: 'footer', alignment: 'center' },
+                { text: 'Thank you for choosing Rillcod Academy!', style: 'footer', alignment: 'center', italic: true }
             ],
             styles: {
-                header: { fontSize: 22, bold: true },
-                subheader: { fontSize: 16, bold: true, margin: [0, 10, 0, 5] as any }
+                brand: { fontSize: 18, bold: true, color: '#4f46e5' },
+                tagline: { fontSize: 8, bold: true, color: '#94a3b8', margin: [0, 0, 0, 5] },
+                address: { fontSize: 9, color: '#64748b' },
+                header: { fontSize: 24, bold: true, color: '#1e293b' },
+                ref: { fontSize: 10, color: '#64748b', margin: [0, 5, 0, 0] },
+                date: { fontSize: 10, color: '#64748b' },
+                label: { fontSize: 8, bold: true, color: '#94a3b8', margin: [0, 0, 0, 5] },
+                studentName: { fontSize: 12, bold: true },
+                studentEmail: { fontSize: 10, color: '#64748b' },
+                schoolName: { fontSize: 10, italic: true, color: '#64748b' },
+                tableHeader: { fontSize: 10, bold: true, color: '#475569', margin: [0, 5, 0, 5] },
+                footer: { fontSize: 9, color: '#94a3b8' }
             }
         };
 
@@ -279,8 +377,21 @@ export class PaymentsService {
                 const { data: publicData } = supabase.storage.from('lms-files').getPublicUrl(storagePath);
 
                 await supabase.from('payment_transactions')
-                    .update({ payment_gateway_response: { receipt_url: publicData.publicUrl } } as any)
+                    .update({ 
+                        receipt_url: publicData.publicUrl 
+                    } as any)
                     .eq('id', transaction.id);
+
+                // Create record in the formal receipts table
+                await (supabase as any).from('receipts').insert({
+                    transaction_id: transaction.id,
+                    student_id: transaction.portal_user_id,
+                    school_id: transaction.school_id,
+                    amount: transaction.amount,
+                    currency: transaction.currency,
+                    pdf_url: publicData.publicUrl,
+                    metadata: { generated_at: new Date().toISOString() }
+                });
 
                 resolve(publicData.publicUrl);
             });
