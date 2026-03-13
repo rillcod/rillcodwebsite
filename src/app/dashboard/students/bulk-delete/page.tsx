@@ -19,10 +19,10 @@ interface StudentRow {
   id: string;
   full_name: string;
   email: string;
-  section_class?: string;
-  school_name?: string;
-  is_active: boolean;
-  created_at: string;
+  section_class: string | null;
+  school_name: string | null;
+  is_active: boolean | null;
+  created_at: string | null;
 }
 
 interface DeleteResult {
@@ -322,7 +322,7 @@ export default function BulkDeletePage() {
                           </span>
                         </td>
                         <td className="px-3 py-2.5 text-white/30 hidden lg:table-cell">
-                          {new Date(s.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {s.created_at ? new Date(s.created_at as string).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                         </td>
                       </tr>
                     );
