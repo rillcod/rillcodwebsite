@@ -78,27 +78,24 @@ export default function StudentsPage() {
           status, created_at, approved_at, approved_by
         `);
 
-      if (profile?.role === 'school' && profile?.school_id) {
-        // If we have a school_name in the profile, use it as a fallback for students without IDs
-        if (profile.school_name) {
-          query = query.or(`school_id.eq.${profile.school_id},school_name.eq."${profile.school_name}"`);
-        } else {
-          query = query.eq('school_id', profile.school_id);
+      if (profile?.role === 'school') {
+        const filters = [];
+        if (profile.id) filters.push(`school_id.eq.${profile.id}`);
+        if (profile.school_id) filters.push(`school_id.eq.${profile.school_id}`);
+        if (profile.school_name) filters.push(`school_name.eq."${profile.school_name}"`);
+        
+        if (filters.length > 0) {
+          query = query.or(filters.join(','));
         }
       } else if (profile?.role === 'teacher') {
-        const { data: assignments } = await createClient()
-          .from('teacher_schools')
-          .select('school_id')
-          .eq('teacher_id', profile?.id || '');
-        const ids = assignments?.map((a: any) => a.school_id).filter(Boolean) || [];
-        if (profile?.school_id) ids.push(profile.school_id);
-        const uniqueIds = Array.from(new Set(ids));
-
-        if (uniqueIds.length > 0) {
-          // Use .or to allow students in those schools OR students they registered
-          query = query.or(`school_id.in.(${uniqueIds.join(',')}),created_by.eq.${profile?.id || ''}`);
+        const filters: string[] = [];
+        if (profile.school_id) filters.push(`school_id.eq.${profile.school_id}`);
+        if (profile.school_name) filters.push(`school_name.eq."${profile.school_name}"`);
+        if (filters.length > 0) {
+          query = query.or(filters.join(','));
         } else {
-          query = query.eq('created_by', profile?.id || '');
+          // No school affiliation — return nothing
+          query = query.eq('id', 'no-match');
         }
       }
 
@@ -115,7 +112,7 @@ export default function StudentsPage() {
   useEffect(() => {
     if (authLoading || !profile) return;
     load();
-    if (profile.role === 'admin') checkGaps();
+    if (isStaff) checkGaps();
   }, [profile?.id, isStaff, authLoading, load]); // eslint-disable-line
 
   // ── Approve ────────────────────────────────────────────────
@@ -455,7 +452,7 @@ export default function StudentsPage() {
               </div>
               
               <div className="flex items-center gap-2 w-full lg:w-auto">
-                {profile?.role === 'admin' && (
+                {(profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school') && (
                   <button
                     onClick={handleSync}
                     disabled={syncing}
@@ -618,7 +615,7 @@ export default function StudentsPage() {
                         {/* Right side: actions + expand */}
                         <div className="flex items-center gap-2 flex-shrink-0 print:hidden ml-auto">
                           <div className="hidden sm:flex items-center gap-2">
-                            {s.status === 'pending' && profile?.role === 'admin' && (
+                            {s.status === 'pending' && (profile?.role === 'admin' || profile?.role === 'teacher') && (
                               <>
                                 <button
                                   onClick={e => { e.stopPropagation(); approve(s.id); }}
@@ -711,7 +708,7 @@ export default function StudentsPage() {
 
                           {/* Action bar at bottom of expanded */}
                           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mt-8 pt-8 border-t border-white/5">
-                            {s.status === 'pending' && profile?.role === 'admin' && (
+                            {s.status === 'pending' && (profile?.role === 'admin' || profile?.role === 'teacher') && (
                               <div className="flex items-center gap-3">
                                 <button onClick={() => approve(s.id)} disabled={acting === s.id}
                                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 shadow-2xl shadow-emerald-600/20 active:scale-95">

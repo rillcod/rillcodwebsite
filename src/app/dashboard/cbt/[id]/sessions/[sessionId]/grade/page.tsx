@@ -61,6 +61,43 @@ export default function GradeSessionPage() {
         fetchData();
     }, [params.id, params.sessionId, authLoading, profile]);
 
+    const [aiGrading, setAiGrading] = useState(false);
+
+    const handleAiGrade = async () => {
+        if (!questions.length || !session?.answers) return;
+        setAiGrading(true);
+        setError(null);
+        try {
+            const res = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'cbt-grading',
+                    topic: exam?.title || 'CBT Grading',
+                    questions: questions.map(q => ({
+                        id: q.id,
+                        text: q.question_text,
+                        type: q.question_type,
+                        points: q.points,
+                        correct_answer: q.correct_answer
+                    })),
+                    studentAnswers: session.answers
+                })
+            });
+
+            const payload = await res.json();
+            if (!res.ok) throw new Error(payload.error || 'AI Grading failed');
+
+            const { scores, feedback } = payload.data;
+            setManualScores(prev => ({ ...prev, ...scores }));
+            if (feedback) setGradingNotes(prev => prev ? `${prev}\n\nAI Insight: ${feedback}` : `AI Insight: ${feedback}`);
+        } catch (e: any) {
+            setError(`AI Grading Error: ${e.message}`);
+        } finally {
+            setAiGrading(false);
+        }
+    };
+
     const handleSaveGrade = async () => {
         setSaving(true);
         setError(null);
@@ -102,6 +139,30 @@ export default function GradeSessionPage() {
             if (!saved || saved.length === 0) {
                 throw new Error('Grade could not be saved — permission denied. Make sure you are logged in as a teacher or admin.');
             }
+
+            // AUTO-ASSIGN CERTIFICATE IF PASSED
+            if (passed && session.user_id) {
+              try {
+                // 1. Get first course for this program
+                const { data: course } = await db.from('courses').select('id').eq('program_id', exam.program_id).order('order_index').limit(1).single();
+                
+                if (course) {
+                  // 2. Check if student already has a certificate for this course
+                  const { data: existing } = await db.from('certificates').select('id').eq('portal_user_id', session.user_id).eq('course_id', course.id).maybeSingle();
+                  
+                  if (!existing) {
+                    await fetch('/api/certificates', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ studentId: session.user_id, courseId: course.id })
+                    });
+                  }
+                }
+              } catch (certErr) {
+                console.error('Auto-certificate issuance failed:', certErr);
+              }
+            }
+
             router.push(`/dashboard/cbt/${params.id}`);
         } catch (e: any) {
             setError(e.message);
@@ -159,13 +220,17 @@ export default function GradeSessionPage() {
                     </div>
                     
                     <div className="flex items-center gap-3">
-                        <div className="text-right hidden sm:block">
-                            <p className="text-[10px] font-black uppercase text-white/20 tracking-widest">Grading Status</p>
-                            <p className="text-xs font-bold text-amber-400 italic">Reviewing Subjective Tasks</p>
-                        </div>
+                        <button
+                            onClick={handleAiGrade}
+                            disabled={aiGrading || saving}
+                            className="flex items-center justify-center gap-2 px-6 py-4 bg-violet-600/20 hover:bg-violet-600 border border-violet-500/50 text-violet-400 hover:text-white font-black uppercase text-[10px] tracking-[0.2em] rounded-2xl transition-all disabled:opacity-50 group"
+                        >
+                            {aiGrading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <SparklesIcon className="w-4 h-4 group-hover:rotate-12 transition-transform" />}
+                            {aiGrading ? 'AI Evaluating...' : 'Magic Auto-Grade'}
+                        </button>
                         <button
                             onClick={handleSaveGrade}
-                            disabled={saving}
+                            disabled={saving || aiGrading}
                             className="flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black uppercase text-[10px] tracking-[0.2em] rounded-2xl transition-all shadow-2xl shadow-emerald-900/40 border border-emerald-400/20 group"
                         >
                             {saving ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <SaveIcon className="w-4 h-4 group-hover:scale-125 transition-transform" />}

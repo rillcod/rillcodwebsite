@@ -135,12 +135,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // profile fetch immediately without waiting for onAuthStateChange.
     // Mark the fetch as started so INITIAL_SESSION doesn't duplicate it.
     if (storedUser.current) {
+      const fastPathUserId = storedUser.current.id;
       profileFetchStartedRef.current = true;
       setProfileLoading(true);
-      fetchProfile(storedUser.current.id).then(p => {
+      fetchProfile(fastPathUserId).then(p => {
+        // Only apply if the currently signed-in user is still the same one
+        // (guards against race where SIGNED_IN for a different account fires first)
         if (mountedRef.current) {
-          setProfile(p);
-          setProfileLoading(false);
+          supabase.auth.getUser().then(({ data }) => {
+            if (data?.user?.id === fastPathUserId) {
+              setProfile(p);
+            }
+            setProfileLoading(false);
+          });
         }
       }).catch(() => {
         if (mountedRef.current) setProfileLoading(false);
@@ -160,7 +167,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (s?.user) {
           if (event === 'SIGNED_IN') {
-            // Fresh sign-in — always re-fetch profile (bypass cache)
+            // Fresh sign-in — clear stale profile immediately so the old
+            // school/user's data is never shown while the new profile loads
+            setProfile(null);
             invalidateCache(s.user.id);
             profileFetchStartedRef.current = true;
             setProfileLoading(true);

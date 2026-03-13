@@ -10,7 +10,8 @@ import {
   ClockIcon, PencilIcon, CheckCircleIcon, AcademicCapIcon,
   ClipboardDocumentCheckIcon, PlusIcon, ExclamationTriangleIcon,
   ChevronDownIcon, ArrowPathIcon, TrashIcon, ChartBarIcon, BoltIcon,
-  ClipboardDocumentListIcon,
+  ClipboardDocumentListIcon, ChevronRightIcon, UserIcon,
+  CloudArrowDownIcon,
   PencilSquareIcon as PencilSquareIconOutline, CheckIcon as CheckIconOutline,
   CloudArrowUpIcon
 } from '@heroicons/react/24/outline';
@@ -75,7 +76,7 @@ export default function ClassDetailPage() {
 
       let submissions: any[] = [];
       let cbtSessions: any[] = [];
-      
+
       const subQueries: any[] = [];
       if (assignmentIds.length > 0) {
         subQueries.push(supabase.from('assignment_submissions').select('id, assignment_id, portal_user_id, grade, status').in('assignment_id', assignmentIds));
@@ -133,7 +134,7 @@ export default function ClassDetailPage() {
         query = query.eq('portal_users.school_id', profile.school_id as string);
       } else if (profile.role === 'teacher') {
         if (profile.school_id) {
-            query = query.eq('portal_users.school_id', profile.school_id as string);
+          query = query.eq('portal_users.school_id', profile.school_id as string);
         }
       }
 
@@ -146,9 +147,9 @@ export default function ClassDetailPage() {
         .map((e: any) => e.portal_users)
         .filter((u: any) => u.section_class !== cls.name)
         .sort((a: any, b: any) => {
-            if (!a.section_class && b.section_class) return -1;
-            if (a.section_class && !b.section_class) return 1;
-            return 0;
+          if (!a.section_class && b.section_class) return -1;
+          if (a.section_class && !b.section_class) return 1;
+          return 0;
         });
 
       setAvailableStudents(filtered);
@@ -271,59 +272,80 @@ export default function ClassDetailPage() {
   };
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-white/40 font-medium animate-pulse uppercase tracking-[0.2em] text-[10px]">Decoding Registry State...</p>
+      </div>
     </div>
   );
 
   if (!isStaff) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-      <p className="text-white/40">You don&apos;t have access to this page.</p>
+    <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
+      <div className="bg-white/5 border border-white/10 rounded-[2rem] p-8 text-center max-w-sm">
+        <ExclamationTriangleIcon className="w-12 h-12 text-rose-500/20 mx-auto mb-4" />
+        <p className="text-white/40 font-black uppercase tracking-widest text-xs leading-relaxed">Insufficient clearance to access specialized cluster telemetry.</p>
+      </div>
     </div>
   );
 
   if (error || !cls) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex flex-col items-center justify-center gap-4">
-      <ExclamationTriangleIcon className="w-12 h-12 text-rose-500/20" />
-      <p className="text-rose-400 font-semibold">{error ?? 'Class not found'}</p>
-      <Link href="/dashboard/classes" className="px-6 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-sm transition-all">← Back to Classes</Link>
+    <div className="min-h-screen bg-[#050a17] flex flex-col items-center justify-center gap-6">
+      <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center border border-rose-500/20">
+        <ExclamationTriangleIcon className="w-10 h-10 text-rose-500/40" />
+      </div>
+      <div className="text-center space-y-2">
+        <p className="text-rose-400 font-black uppercase tracking-widest">{error ?? 'Cluster mismatch'}</p>
+        <p className="text-white/20 text-[10px] font-black uppercase tracking-[0.2em]">The requested resource is missing or inaccessible</p>
+      </div>
+      <Link href="/dashboard/classes" className="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">
+        Return to Registry
+      </Link>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="min-h-screen bg-[#050a17] text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8 pb-32">
 
-        {/* ── Header ────────────────────────────────────────── */}
-        <div className="flex flex-col md:flex-row md:items-center gap-6">
-          <button onClick={() => router.back()}
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors flex-shrink-0">
-            <ArrowLeftIcon className="w-5 h-5 text-white/60" />
-          </button>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-[10px] font-black text-blue-400 uppercase tracking-widest">
-                {cls.status}
+        {/* ── Header Area ────────────────────────────────────────── */}
+        <div className="relative">
+          <div className="absolute -top-24 -left-20 w-64 h-64 bg-violet-600 opacity-10 blur-[100px] pointer-events-none" />
+          <div className="flex flex-col md:flex-row md:items-center gap-8 relative z-10">
+            <button onClick={() => router.back()}
+              className="w-14 h-14 flex items-center justify-center rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all hover:scale-105 group flex-shrink-0">
+              <ArrowLeftIcon className="w-6 h-6 text-white/40 group-hover:text-white transition-colors" />
+            </button>
+            <div className="flex-1 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] border shadow-lg ${
+                  cls.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                  cls.status === 'scheduled' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                  'bg-white/5 text-white/30 border-white/10'
+                }`}>
+                  {cls.status}
+                </div>
+                <div className="h-4 w-px bg-white/10" />
+                <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">{cls.programs?.name}</span>
               </div>
-              <span className="text-xs font-bold text-white/30 uppercase tracking-widest">/ Classes / {cls.programs?.name}</span>
+              <h1 className="text-4xl sm:text-6xl font-black tracking-tighter leading-none">{cls.name}</h1>
             </div>
-            <h1 className="text-3xl font-black tracking-tight">{cls.name}</h1>
+            {isStaff && (
+              <div className="flex gap-3">
+                <Link href={`/dashboard/classes/${id}/edit`}
+                  className="flex items-center gap-3 px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:border-violet-500/50">
+                  <PencilIcon className="w-4 h-4 text-violet-400" /> Edit Settings
+                </Link>
+                <Link href={`/dashboard/attendance?class_id=${id}`}
+                  className="flex items-center gap-3 px-8 py-4 bg-violet-600 hover:bg-violet-500 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-violet-900/40 transition-all active:scale-95">
+                  <ClipboardDocumentCheckIcon className="w-5 h-5" /> Attendance
+                </Link>
+              </div>
+            )}
           </div>
-          {isStaff && (
-            <div className="flex gap-2">
-              <Link href={`/dashboard/classes/${id}/edit`}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold uppercase tracking-widest transition-all">
-                <PencilIcon className="w-4 h-4" /> Edit Class
-              </Link>
-              <Link href={`/dashboard/attendance?class_id=${id}`}
-                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-blue-900/20 transition-all">
-                <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
-              </Link>
-            </div>
-          )}
         </div>
 
-        <div className="flex items-center overflow-x-auto scrollbar-hide gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl w-full sm:w-fit no-scrollbar">
+        <div className="flex items-center overflow-x-auto scrollbar-hide gap-2 p-2 bg-white/5 border border-white/10 rounded-3xl w-full sm:w-fit no-scrollbar backdrop-blur-md">
           {[
             { id: 'overview', label: 'Overview', icon: UserGroupIcon },
             { id: 'lessons', label: 'Curriculum', icon: BookOpenIcon },
@@ -334,10 +356,13 @@ export default function ClassDetailPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap flex-shrink-0 ${activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-white/40 hover:text-white hover:bg-white/5'
-                }`}
+              className={`flex items-center gap-3 px-6 py-3 rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap flex-shrink-0 ${
+                activeTab === tab.id 
+                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/40' 
+                  : 'text-white/40 hover:text-white hover:bg-white/5'
+              }`}
             >
-              <tab.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <tab.icon className="w-4 h-4" />
               {tab.label}
             </button>
           ))}
@@ -346,83 +371,111 @@ export default function ClassDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* Main Content Area */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-8">
 
             {activeTab === 'overview' && (
               <>
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {[
-                    { label: 'Enrolled', value: enrollments.length, icon: UserGroupIcon, color: 'text-blue-400' },
-                    { label: 'Capacity', value: cls.max_students, icon: ChartBarIcon, color: 'text-violet-400' },
-                    { label: 'Sessions', value: sessions.length, icon: CalendarIcon, color: 'text-emerald-400' },
-                    { label: 'Difficulty', value: cls.programs?.difficulty_level, icon: BoltIcon, color: 'text-amber-400' },
+                    { label: 'Enrolled', value: enrollments.length, icon: UserGroupIcon, gradient: 'from-blue-600 to-blue-400' },
+                    { label: 'Capacity', value: cls.max_students, icon: ChartBarIcon, gradient: 'from-violet-600 to-violet-400' },
+                    { label: 'Sessions', value: sessions.length, icon: CalendarIcon, gradient: 'from-emerald-600 to-emerald-400' },
+                    { label: 'Difficulty', value: cls.programs?.difficulty_level, icon: BoltIcon, gradient: 'from-amber-600 to-amber-400' },
                   ].map(s => (
-                    <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-5">
-                      <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">{s.label}</p>
-                      <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
+                    <div key={s.label} className="bg-white/5 border border-white/10 rounded-3xl p-6 group hover:bg-white/10 transition-all relative overflow-hidden">
+                      <div className={`absolute top-0 right-0 w-16 h-16 bg-gradient-to-br ${s.gradient} opacity-[0.03] blur-xl -mr-8 -mt-8 group-hover:scale-150 transition-transform`} />
+                      <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mb-2">{s.label}</p>
+                      <p className="text-2xl font-black text-white">{s.value}</p>
                     </div>
                   ))}
                 </div>
 
                 {/* Class Info */}
-                <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white/40 mb-4">About this class</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-[10px] font-bold text-white/20 uppercase">Teacher</p>
-                        <p className="font-semibold">{cls.portal_users?.full_name ?? 'Not Assigned'}</p>
+                <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 sm:p-10 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-violet-600 opacity-[0.02] rounded-full blur-3xl" />
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 mb-8">Metadata & Identity</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                          <UserIcon className="w-6 h-6 text-violet-400" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-white/20 uppercase tracking-widest leading-none mb-1.5">Assigned Teacher</p>
+                          <p className="text-sm font-bold text-white/80">{cls.portal_users?.full_name ?? 'NOT ASSIGNED'}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-white/20 uppercase">Schedule</p>
-                        <p className="font-semibold">{cls.schedule ?? 'Not set'}</p>
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                          <ClockIcon className="w-6 h-6 text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-white/20 uppercase tracking-widest leading-none mb-1.5">Schedule Rhythm</p>
+                          <p className="text-sm font-bold text-white/80">{cls.schedule ?? 'FLEXIBLE'}</p>
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-[10px] font-bold text-white/20 uppercase">Dates</p>
-                        <p className="font-semibold text-xs">
-                          {cls.start_date ? new Date(cls.start_date).toLocaleDateString() : '—'}
-                          {cls.end_date && ` to ${new Date(cls.end_date).toLocaleDateString()}`}
-                        </p>
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                          <CalendarIcon className="w-6 h-6 text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-white/20 uppercase tracking-widest leading-none mb-1.5">Active Cycle</p>
+                          <p className="text-sm font-bold text-white/80">
+                            {cls.start_date ? new Date(cls.start_date).toLocaleDateString() : 'TBD'}
+                            {cls.end_date && ` — ${new Date(cls.end_date).toLocaleDateString()}`}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-white/20 uppercase">Programme</p>
-                        <p className="text-blue-400 font-bold">{cls.programs?.name}</p>
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                          <AcademicCapIcon className="w-6 h-6 text-amber-400" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-white/20 uppercase tracking-widest leading-none mb-1.5">Domain Pathway</p>
+                          <p className="text-sm font-bold text-white/80 uppercase">{cls.programs?.name}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
                   {cls.description && (
-                    <div className="mt-6 pt-6 border-t border-white/5">
-                      <p className="text-sm text-white/50 leading-relaxed italic">"{cls.description}"</p>
+                    <div className="mt-10 pt-10 border-t border-white/5">
+                      <p className="text-sm text-white/40 leading-relaxed font-medium italic">"{cls.description}"</p>
                     </div>
                   )}
                 </div>
 
                 {/* Recent Sessions */}
-                <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden">
-                  <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-white/40">Recent Activity</h3>
-                    <Link href={`/dashboard/attendance?class_id=${id}`} className="text-[10px] font-bold text-blue-400 hover:underline">Full Logs →</Link>
+                <div className="bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
+                  <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">Operational History</h3>
+                    <Link href={`/dashboard/attendance?class_id=${id}`} className="text-[9px] font-black text-violet-400 hover:text-violet-300 uppercase tracking-widest transition-colors tracking-[0.2em]">View Full Registry →</Link>
                   </div>
                   {sessions.length === 0 ? (
-                    <div className="p-12 text-center text-white/20">
-                      <CalendarIcon className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                      <p className="text-sm">No session activity yet</p>
+                    <div className="p-20 text-center flex flex-col items-center justify-center">
+                      <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5">
+                        <CalendarIcon className="w-8 h-8 text-white/10" />
+                      </div>
+                      <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">No verified session activity detected</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-white/5">
                       {sessions.map(s => (
-                        <div key={s.id} className="px-6 py-4 flex items-center gap-4 hover:bg-white/3 transition-colors">
-                          <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
-                            <CalendarIcon className="w-5 h-5" />
+                        <div key={s.id} className="px-8 py-6 flex items-center gap-6 hover:bg-white/[0.03] transition-all group">
+                          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/20 group-hover:text-violet-400 group-hover:border-violet-500/30 transition-all">
+                            <CalendarIcon className="w-6 h-6" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-bold text-sm truncate">{s.topic ?? 'Normal Session'}</p>
-                            <p className="text-[10px] text-white/30">{new Date(s.session_date).toLocaleDateString()} · {s.start_time}-{s.end_time}</p>
+                            <div className="flex items-center gap-3 mb-1">
+                              <p className="font-black text-sm text-white group-hover:text-violet-400 transition-colors uppercase tracking-tight">{s.topic ?? 'Standard Session'}</p>
+                              <div className="h-3 w-px bg-white/10" />
+                              <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">{new Date(s.session_date).toLocaleDateString()}</p>
+                            </div>
+                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{s.start_time || '00:00'} — {s.end_time || '00:00'}</p>
                           </div>
-                          {s.notes && <p className="text-[10px] text-white/20 italic max-w-[150px] truncate">{s.notes}</p>}
+                          {s.notes && <p className="text-[10px] text-white/20 font-medium italic max-w-[200px] truncate hidden sm:block">"{s.notes}"</p>}
                         </div>
                       ))}
                     </div>
@@ -432,34 +485,37 @@ export default function ClassDetailPage() {
             )}
 
             {activeTab === 'lessons' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white/40">Available Lessons</h3>
-                  <button onClick={() => setViewingItem({ type: 'lesson', id: 'add' })} className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                    + New Lesson
-                  </button>
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-violet-600 to-blue-600 rounded-[2rem] p-8 text-white relative overflow-hidden shadow-2xl">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl -mr-16 -mt-16" />
+                  <div className="relative z-10">
+                    <h2 className="text-2xl font-black tracking-tighter uppercase">Curriculum Master</h2>
+                    <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Modular learning components</p>
+                  </div>
                 </div>
                 {items.lessons.length === 0 ? (
-                  <div className="bg-white/5 border border-white/10 border-dashed rounded-3xl p-12 text-center text-white/20">
-                    <BookOpenIcon className="w-10 h-10 mx-auto mb-4 opacity-10" />
-                    <p>No lessons added to this programme curriculum.</p>
+                  <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-20 text-center flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5">
+                      <BookOpenIcon className="w-8 h-8 text-white/10" />
+                    </div>
+                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">No modular content detected in repository</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {items.lessons.map(l => (
-                      <div key={l.id} className="p-5 bg-white/5 border border-white/10 rounded-2xl hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all group cursor-pointer" onClick={() => setViewingItem({ type: 'lesson', id: l.id })}>
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-400">
-                            <AcademicCapIcon className="w-4 h-4" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {items.lessons.map(lesson => (
+                      <Link key={lesson.id} href={`/dashboard/lessons/${lesson.id}`} 
+                        className="bg-white/5 border border-white/10 rounded-3xl p-6 group hover:bg-white/10 hover:border-violet-500/50 transition-all">
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-white/20 group-hover:text-violet-400 group-hover:bg-violet-600/10 transition-all">
+                            <BookOpenIcon className="w-6 h-6" />
                           </div>
-                          <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">{l.lesson_type}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Module {lesson.order_index}</p>
+                            <h4 className="font-black text-white group-hover:text-violet-400 transition-colors uppercase tracking-tight truncate">{lesson.title}</h4>
+                          </div>
                         </div>
-                        <h4 className="font-bold text-white group-hover:text-cyan-400 transition-colors line-clamp-1">{l.title}</h4>
-                        <p className="text-[10px] text-white/30 uppercase mt-1">Status: {l.status}</p>
-                        <div className="mt-4 flex gap-2">
-                          <Link href={`/dashboard/lessons/${l.id}?class_id=${id}`} onClick={e => e.stopPropagation()} className="text-[9px] font-black text-white/40 hover:text-white uppercase tracking-widest">Preview Page →</Link>
-                        </div>
-                      </div>
+                        <p className="text-xs text-white/30 line-clamp-2 leading-relaxed font-medium">{lesson.content?.substring(0, 100)}...</p>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -467,35 +523,46 @@ export default function ClassDetailPage() {
             )}
 
             {activeTab === 'assignments' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white/40">Class Assignments</h3>
-                  <button onClick={() => setViewingItem({ type: 'assignment', id: 'add' })} className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                    + New Task
-                  </button>
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-blue-600 to-cyan-600 rounded-[2rem] p-8 text-white relative overflow-hidden shadow-2xl">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl -mr-16 -mt-16" />
+                  <div className="relative z-10">
+                    <h2 className="text-2xl font-black tracking-tighter uppercase">Operational Tasks</h2>
+                    <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Assignments and performance metrics</p>
+                  </div>
                 </div>
                 {items.assignments.length === 0 ? (
-                  <div className="bg-white/5 border border-white/10 border-dashed rounded-3xl p-12 text-center text-white/20">
-                    <ClipboardDocumentCheckIcon className="w-10 h-10 mx-auto mb-4 opacity-10" />
-                    <p>No assignments created for this class yet.</p>
+                  <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-20 text-center flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5">
+                      <ClipboardDocumentListIcon className="w-8 h-8 text-white/10" />
+                    </div>
+                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Zero tasks initialized for this cluster</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-white/5 bg-white/5 border border-white/10 rounded-3xl overflow-hidden">
+                  <div className="grid grid-cols-1 gap-4">
                     {items.assignments.map(a => (
-                      <div key={a.id} className="p-5 flex items-center gap-4 hover:bg-white/5 transition-colors cursor-pointer group" onClick={() => setViewingItem({ type: 'assignment', id: a.id })}>
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 flex-shrink-0 group-hover:scale-110 transition-transform">
-                          <ClipboardDocumentListIcon className="w-5 h-5" />
+                      <Link key={a.id} href={`/dashboard/assignments/${a.id}`} 
+                        className="bg-white/5 border border-white/10 rounded-3xl p-6 group hover:bg-white/10 hover:border-blue-500/50 transition-all flex flex-col sm:flex-row sm:items-center gap-6">
+                        <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-white/20 group-hover:text-blue-400 group-hover:bg-blue-600/10 transition-all shrink-0">
+                          <ClipboardDocumentListIcon className="w-7 h-7" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-sm truncate group-hover:text-amber-400 transition-colors">{a.title}</h4>
-                          <p className="text-[10px] text-white/30 uppercase">{a.assignment_type} · {a.due_date ? `Due: ${new Date(a.due_date).toLocaleDateString()}` : 'No due date'}</p>
+                          <div className="flex items-center gap-3 mb-1">
+                            <h4 className="font-black text-lg text-white group-hover:text-blue-400 transition-colors uppercase tracking-tight">{a.title}</h4>
+                            <span className="text-[9px] font-black px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded uppercase tracking-widest">{a.weight} Pts</span>
+                          </div>
+                          <p className="text-xs text-white/30 font-medium uppercase tracking-widest">Deadline: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'NO LIMIT'}</p>
                         </div>
-                        <div className="flex gap-2">
-                          <Link href={`/dashboard/assignments/${a.id}?class_id=${id}`} onClick={e => e.stopPropagation()} className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black border border-white/10 transition-all uppercase tracking-widest">
-                            Manage Page
-                          </Link>
+                        <div className="shrink-0 flex items-center gap-3">
+                          <div className="text-right">
+                            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Status</p>
+                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Active</p>
+                          </div>
+                          <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white/40 group-hover:text-white transition-all">
+                            <ChevronRightIcon className="w-5 h-5" />
+                          </div>
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -503,36 +570,42 @@ export default function ClassDetailPage() {
             )}
 
             {activeTab === 'cbt' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white/40">CBT / Exams</h3>
-                  <button onClick={() => setViewingItem({ type: 'cbt', id: 'add' })} className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                    + New CBT
-                  </button>
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-amber-600 to-orange-600 rounded-[2rem] p-8 text-white relative overflow-hidden shadow-2xl">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl -mr-16 -mt-16" />
+                  <div className="relative z-10">
+                    <h2 className="text-2xl font-black tracking-tighter uppercase">Knowledge Synthesis</h2>
+                    <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Computer-based testing arrays</p>
+                  </div>
                 </div>
                 {items.cbt.length === 0 ? (
-                  <div className="bg-white/5 border border-white/10 border-dashed rounded-3xl p-12 text-center text-white/20">
-                    <BoltIcon className="w-10 h-10 mx-auto mb-4 opacity-10" />
-                    <p>No Computer Based Tests configured for this programme.</p>
+                  <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-20 text-center flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5">
+                      <AcademicCapIcon className="w-8 h-8 text-white/10" />
+                    </div>
+                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">No assessment protocols found</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-3">
-                    {items.cbt.map(e => (
-                      <div key={e.id} className="flex items-center justify-between p-5 bg-gradient-to-r from-violet-600/10 to-transparent border border-violet-500/20 rounded-2xl hover:border-violet-500 transition-all group cursor-pointer" onClick={() => setViewingItem({ type: 'cbt', id: e.id })}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {items.cbt.map(ex => (
+                      <Link key={ex.id} href={`/dashboard/exams/${ex.id}`} 
+                        className="bg-white/5 border border-white/10 rounded-3xl p-6 group hover:bg-white/10 hover:border-amber-500/50 transition-all">
+                        <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-white/20 group-hover:text-amber-400 group-hover:bg-amber-600/10 transition-all mb-4">
+                          <AcademicCapIcon className="w-6 h-6" />
+                        </div>
+                        <h4 className="font-black text-white group-hover:text-amber-400 transition-colors uppercase tracking-tight mb-2 line-clamp-1">{ex.title}</h4>
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-110 transition-transform">
-                            <StarIcon className="w-5 h-5" />
-                          </div>
                           <div>
-                            <h4 className="font-black text-white">{e.title}</h4>
-                            <p className="text-[10px] text-white/30 uppercase tracking-widest">{e.duration_minutes}m · {e.total_questions} Questions · {e.is_active ? 'Active' : 'Draft'}</p>
+                            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Time Limit</p>
+                            <p className="text-[10px] font-black text-white/60 uppercase tracking-widest">{ex.duration_minutes} MINS</p>
+                          </div>
+                          <div className="w-px h-6 bg-white/10" />
+                          <div>
+                            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Payload</p>
+                            <p className="text-[10px] font-black text-white/60 uppercase tracking-widest">{ex.total_questions} QUERIES</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <Link href={`/dashboard/cbt/${e.id}?class_id=${id}`} onClick={e => e.stopPropagation()} className="text-[9px] font-black text-white/20 hover:text-white uppercase tracking-widest">Full View</Link>
-                          <ArrowRightIcon className="w-5 h-5 text-white/20 group-hover:text-violet-400 transition-colors mr-2" />
-                        </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -541,68 +614,70 @@ export default function ClassDetailPage() {
 
             {activeTab === 'gradebook' && (
               <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-2">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-white/40">Class Gradebook</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
+                  <div className="flex items-center gap-4">
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">Class Gradebook</h3>
                     {isStaff && (
                       <button
                         onClick={() => setManualEntry(!manualEntry)}
-                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${manualEntry ? 'bg-emerald-500 text-white' : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'}`}
+                        className={`flex items-center gap-3 px-4 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all ${manualEntry ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/40' : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'}`}
                       >
-                        {manualEntry ? <CheckIconOutline className="w-3 h-3" /> : <PencilSquareIconOutline className="w-3 h-3" />}
-                        {manualEntry ? 'Editing Mode' : 'Manual Entry'}
+                        {manualEntry ? <CheckIconOutline className="w-4 h-4" /> : <PencilSquareIconOutline className="w-4 h-4" />}
+                        {manualEntry ? 'Syncing...' : 'Manual Entry'}
                       </button>
                     )}
                   </div>
-                  <button onClick={() => router.push('/dashboard/grades')} className="text-[10px] font-black text-blue-400 hover:underline uppercase tracking-widest">
-                    Full Grading Center →
+                  <button onClick={() => router.push('/dashboard/grades')} className="text-[9px] font-black text-violet-400 hover:text-violet-300 uppercase tracking-[0.2em] transition-colors">
+                    Full Analytics Node →
                   </button>
                 </div>
                 {items.assignments.length === 0 ? (
-                  <div className="bg-white/5 border border-white/10 border-dashed rounded-3xl p-12 text-center text-white/20">
-                    <ChartBarIcon className="w-10 h-10 mx-auto mb-4 opacity-10" />
-                    <p>No assignments to track for this class.</p>
+                  <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-20 text-center flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5">
+                      <ChartBarIcon className="w-8 h-8 text-white/10" />
+                    </div>
+                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">No grading metrics available for this cluster</p>
                   </div>
                 ) : (
-                  <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden overflow-x-auto">
+                  <div className="bg-[#0B132B]/50 border border-white/10 rounded-[2.5rem] overflow-hidden overflow-x-auto shadow-inner custom-scrollbar">
                     <table className="w-full text-left border-collapse min-w-[600px]">
                       <thead>
-                        <tr className="border-b border-white/10 bg-white/3">
-                          <th className="px-6 py-4 text-[10px] font-black text-white/30 uppercase tracking-widest">Student</th>
+                        <tr className="border-b border-white/5 bg-white/[0.02]">
+                          <th className="px-8 py-6 text-[9px] font-black text-white/20 uppercase tracking-[0.3em] sticky left-0 bg-[#0B132B] z-20">Student Pioneers</th>
                           {items.assignments.map(a => (
-                            <th key={a.id} className="px-4 py-4 text-[10px] font-black text-white/30 uppercase tracking-widest text-center min-w-[120px] bg-amber-500/5">
-                              <div className="line-clamp-1" title={a.title}>{a.title}</div>
-                              <div className="text-[8px] opacity-40 lowercase font-normal">Assignment · {a.max_points}pts</div>
+                            <th key={a.id} className="px-6 py-6 text-[9px] font-black text-white/20 uppercase tracking-[0.2em] text-center min-w-[140px] bg-amber-500/[0.03]">
+                              <div className="line-clamp-1 mb-1" title={a.title}>{a.title}</div>
+                              <div className="text-[8px] opacity-40 lowercase font-medium">{a.max_points}pts</div>
                             </th>
                           ))}
                           {items.cbt.map(c => (
-                            <th key={c.id} className="px-4 py-4 text-[10px] font-black text-white/30 uppercase tracking-widest text-center min-w-[120px] bg-violet-600/5">
-                              <div className="line-clamp-1" title={c.title}>{c.title}</div>
-                              <div className="text-[8px] opacity-40 lowercase font-normal">CBT · {c.total_questions} Qs</div>
+                            <th key={c.id} className="px-6 py-6 text-[9px] font-black text-white/20 uppercase tracking-[0.2em] text-center min-w-[140px] bg-violet-600/[0.03]">
+                              <div className="line-clamp-1 mb-1" title={c.title}>{c.title}</div>
+                              <div className="text-[8px] opacity-40 lowercase font-medium">{c.total_questions} Qs</div>
                             </th>
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/5 font-medium text-xs">
+                      <tbody className="divide-y divide-white/5">
                         {enrollments.map(enr => (
-                          <tr key={enr.id} className="hover:bg-white/2 transition-colors group">
-                            <td className="px-4 sm:px-6 py-5 sticky left-0 bg-[#0f0f1a] z-10 border-r border-white/5 group-hover:bg-[#151525] transition-colors shadow-xl">
-                              <div className="flex items-center gap-2 sm:gap-3 max-w-[140px] sm:max-w-none">
-                                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border border-blue-500/20 flex items-center justify-center text-[9px] sm:text-[10px] font-black text-blue-400 flex-shrink-0">
+                          <tr key={enr.id} className="hover:bg-white/[0.01] transition-colors group">
+                            <td className="px-8 py-6 sticky left-0 bg-[#0D1630] z-10 border-r border-white/5 group-hover:bg-[#121D3D] transition-colors shadow-2xl">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-600/20 to-blue-600/20 border border-white/5 flex items-center justify-center text-[10px] font-black text-violet-400 group-hover:scale-110 transition-transform">
                                   {(enr.portal_users?.full_name ?? '?')[0]}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-white font-bold whitespace-nowrap text-[11px] sm:text-xs truncate">{enr.portal_users?.full_name}</p>
-                                  <p className="text-[8px] sm:text-[9px] text-white/30 truncate">{enr.portal_users?.email}</p>
+                                  <p className="text-white font-black text-[11px] uppercase tracking-tighter truncate group-hover:text-violet-400 transition-colors">{enr.portal_users?.full_name}</p>
+                                  <p className="text-[9px] text-white/20 truncate font-medium">{enr.portal_users?.email}</p>
                                 </div>
                               </div>
                             </td>
                             {items.assignments.map(a => {
-                              const sub = items.submissions.find(s => s.assignment_id === a.id && s.portal_user_id === enr.portal_users.id);
+                              const sub = items.submissions.find(s => s.assignment_id === a.id && s.portal_user_id === enr.portal_users?.id);
                               const score = sub?.grade;
                               const percentage = a.max_points > 0 ? (score ?? 0) / a.max_points : 0;
                               return (
-                                <td key={a.id} className={`px-2 py-5 text-center border-l border-white/5 transition-all relative ${manualEntry ? 'bg-emerald-500/5' : 'bg-amber-500/[0.02] group-hover:bg-amber-500/[0.05]'}`}>
+                                <td key={a.id} className={`px-4 py-6 text-center border-l border-white/5 transition-all relative ${manualEntry ? 'bg-emerald-500/[0.05]' : 'bg-amber-500/[0.01]'}`}>
                                   {manualEntry ? (
                                     <div className="flex flex-col items-center gap-1">
                                       <input
@@ -612,9 +687,9 @@ export default function ClassDetailPage() {
                                           const val = e.target.value;
                                           if (val !== '' && isNaN(Number(val))) return;
                                           const numVal = val === '' ? null : Math.min(Number(val), a.max_points);
-                                          const key = `asm-${a.id}-${enr.portal_users.id}`;
+                                          const key = `asm-${a.id}-${enr.portal_users?.id}`;
                                           if (numVal === score) return;
-                                          
+
                                           setMatrixSaving(p => ({ ...p, [key]: true }));
                                           try {
                                             if (sub) {
@@ -625,7 +700,7 @@ export default function ClassDetailPage() {
                                                 .from('assignment_submissions')
                                                 .insert({
                                                   assignment_id: a.id,
-                                                  portal_user_id: enr.portal_users.id,
+                                                  portal_user_id: enr.portal_users?.id,
                                                   grade: numVal,
                                                   status: 'graded',
                                                   graded_by: profile!.id,
@@ -634,59 +709,59 @@ export default function ClassDetailPage() {
                                                 });
                                               if (error) throw error;
                                             }
-                                            await fetchData(); // Refresh data
+                                            await fetchData();
                                           } catch (err) {
                                             console.error(err);
                                           } finally {
                                             setMatrixSaving(p => ({ ...p, [key]: false }));
                                           }
                                         }}
-                                        className="w-12 h-8 bg-white/5 border border-white/10 rounded-lg text-center text-xs font-black text-white focus:border-emerald-500 outline-none transition-all"
+                                        className="w-14 h-10 bg-white/5 border border-white/10 rounded-xl text-center text-xs font-black text-white focus:border-emerald-500 focus:bg-white/10 outline-none transition-all"
                                       />
-                                      {matrixSaving[`asm-${a.id}-${enr.portal_users.id}`] && (
-                                        <CloudArrowUpIcon className="w-3 h-3 text-emerald-400 animate-pulse absolute top-1 right-1" />
+                                      {matrixSaving[`asm-${a.id}-${enr.portal_users?.id}`] && (
+                                        <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
                                       )}
                                     </div>
                                   ) : sub ? (
                                     score !== null ? (
-                                      <div className="space-y-1">
-                                         <span className={`text-sm font-black ${percentage >= 0.7 ? 'text-emerald-400' : percentage >= 0.5 ? 'text-amber-400' : 'text-rose-400'}`}>
+                                      <div className="space-y-2">
+                                        <span className={`text-sm font-black ${percentage >= 0.7 ? 'text-emerald-400' : percentage >= 0.5 ? 'text-amber-400' : 'text-rose-400'}`}>
                                           {score}
                                         </span>
-                                        <div className="w-full h-0.5 bg-white/5 rounded-full overflow-hidden max-w-[40px] mx-auto">
-                                          <div className={`h-full ${percentage >= 0.7 ? 'bg-emerald-500' : percentage >= 0.5 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
+                                        <div className="w-12 h-1 bg-white/5 rounded-full overflow-hidden mx-auto">
+                                          <div className={`h-full transition-all duration-1000 ${percentage >= 0.7 ? 'bg-emerald-500' : percentage >= 0.5 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
                                         </div>
                                       </div>
                                     ) : (
-                                      <span className="text-[9px] font-black text-blue-400/60 uppercase tracking-widest bg-blue-500/10 px-2 py-1 rounded-md">Pending</span>
+                                      <span className="text-[8px] font-black text-blue-400/60 uppercase tracking-widest bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/10">Pending</span>
                                     )
                                   ) : (
-                                    <span className="text-[9px] text-white/5 font-bold uppercase tracking-widest">—</span>
+                                    <span className="text-[10px] text-white/5 font-black uppercase tracking-widest">—</span>
                                   )}
                                 </td>
                               );
                             })}
                             {items.cbt.map(c => {
-                              const sess = items.cbtSessions.find(s => s.exam_id === c.id && s.user_id === enr.portal_users.id);
+                              const sess = items.cbtSessions.find(s => s.exam_id === c.id && s.user_id === enr.portal_users?.id);
                               const score = sess?.score;
                               const percentage = c.total_questions > 0 ? (score ?? 0) / c.total_questions : 0;
                               return (
-                                <td key={c.id} className="px-4 py-5 text-center border-l border-white/5 bg-violet-600/[0.02] group-hover:bg-violet-600/[0.05] transition-all">
+                                <td key={c.id} className="px-6 py-6 text-center border-l border-white/5 bg-violet-600/[0.01]">
                                   {sess ? (
                                     score !== null ? (
-                                      <div className="space-y-1">
+                                      <div className="space-y-2">
                                         <span className={`text-sm font-black ${percentage >= 0.7 ? 'text-emerald-400' : percentage >= 0.5 ? 'text-amber-400' : 'text-rose-400'}`}>
                                           {score}
                                         </span>
-                                        <div className="w-full h-0.5 bg-white/5 rounded-full overflow-hidden max-w-[40px] mx-auto">
-                                          <div className={`h-full ${percentage >= 0.7 ? 'bg-emerald-500' : percentage >= 0.5 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
+                                        <div className="w-12 h-1 bg-white/5 rounded-full overflow-hidden mx-auto">
+                                          <div className={`h-full transition-all duration-1000 ${percentage >= 0.7 ? 'bg-emerald-500' : percentage >= 0.5 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${percentage * 100}%` }}></div>
                                         </div>
                                       </div>
                                     ) : (
-                                      <span className="text-[9px] font-black text-cyan-400/60 uppercase tracking-widest bg-cyan-500/10 px-2 py-1 rounded-md">Active</span>
+                                      <span className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest bg-cyan-500/10 px-2 py-1 rounded-lg border border-cyan-500/10 animate-pulse">Running</span>
                                     )
                                   ) : (
-                                    <span className="text-[9px] text-white/5 font-bold uppercase tracking-widest">—</span>
+                                    <span className="text-[10px] text-white/5 font-black uppercase tracking-widest">—</span>
                                   )}
                                 </td>
                               );
@@ -703,93 +778,86 @@ export default function ClassDetailPage() {
           </div>
 
           {/* Right: Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-8">
 
             {/* Quick Actions */}
             {isStaff && (
-              <div className="bg-white/5 border border-white/10 rounded-3xl p-6 space-y-4">
-                <h3 className="text-xs font-black uppercase tracking-widest text-white/40">Teacher Toolkit</h3>
-                <div className="grid grid-cols-1 gap-2">
-                  <button onClick={() => router.push(`/dashboard/attendance?class_id=${id}`)} className="flex items-center gap-3 w-full p-4 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-600/20 rounded-2xl text-left transition-all group">
-                    <div className="w-10 h-10 rounded-xl bg-blue-600/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform"><CheckCircleIcon className="w-5 h-5" /></div>
-                    <div>
-                      <p className="text-xs font-black text-white uppercase tracking-tighter">Roll Call</p>
-                      <p className="text-[10px] text-white/40">Mark attendance now</p>
-                    </div>
-                  </button>
-                  <button onClick={() => setViewingItem({ type: 'assignment', id: 'add' })} className="flex items-center gap-3 w-full p-4 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-2xl text-left transition-all group">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform"><ClipboardDocumentListIcon className="w-5 h-5" /></div>
-                    <div>
-                      <p className="text-xs font-black text-white uppercase tracking-tighter">Quick Task</p>
-                      <p className="text-[10px] text-white/40">Launch new assignment</p>
-                    </div>
-                  </button>
-                  <button onClick={() => setViewingItem({ type: 'lesson', id: 'add' })} className="flex items-center gap-3 w-full p-4 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 rounded-2xl text-left transition-all group">
-                    <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform"><BookOpenIcon className="w-5 h-5" /></div>
-                    <div>
-                      <p className="text-xs font-black text-white uppercase tracking-tighter">New Lesson</p>
-                      <p className="text-[10px] text-white/40">Add to curriculum</p>
-                    </div>
-                  </button>
-                  <button onClick={() => setViewingItem({ type: 'cbt', id: 'add' })} className="flex items-center gap-3 w-full p-4 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-600/20 rounded-2xl text-left transition-all group">
-                    <div className="w-10 h-10 rounded-xl bg-violet-600/20 flex items-center justify-center text-violet-400 group-hover:scale-110 transition-transform"><AcademicCapIcon className="w-5 h-5" /></div>
-                    <div>
-                      <p className="text-xs font-black text-white uppercase tracking-tighter">CBT Exam</p>
-                      <p className="text-[10px] text-white/40">Online testing</p>
-                    </div>
-                  </button>
+              <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-6 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600 opacity-[0.03] blur-3xl rounded-full" />
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">Operations Deck</h3>
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    { label: 'Roll Call', sub: 'SYNC REGISTRY', icon: CheckCircleIcon, color: 'blue', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
+                    { label: 'Quick Task', sub: 'INITIATE ASSIGNMENT', icon: ClipboardDocumentListIcon, color: 'amber', action: () => setViewingItem({ type: 'assignment', id: 'add' }) },
+                    { label: 'Add Lesson', sub: 'AUGMENT CURRICULUM', icon: BookOpenIcon, color: 'cyan', action: () => setViewingItem({ type: 'lesson', id: 'add' }) },
+                    { label: 'Apply CBT', sub: 'SYSTEM TESTING', icon: AcademicCapIcon, color: 'violet', action: () => setViewingItem({ type: 'cbt', id: 'add' }) },
+                  ].map(btn => (
+                    <button key={btn.label} onClick={btn.action} className={`group flex items-center gap-4 w-full p-4 bg-${btn.color}-600/5 hover:bg-${btn.color}-600/10 border border-${btn.color}-600/10 hover:border-${btn.color}-600/30 rounded-[1.5rem] text-left transition-all active:scale-[0.98]`}>
+                      <div className={`w-12 h-12 rounded-2xl bg-${btn.color}-600/10 flex items-center justify-center text-${btn.color}-400 group-hover:scale-110 transition-transform shadow-lg`}>
+                        <btn.icon className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-black text-white uppercase tracking-tighter">{btn.label}</p>
+                        <p className={`text-[8px] text-${btn.color}-400/60 font-black uppercase tracking-widest`}>{btn.sub}</p>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
 
             {/* Students List */}
-            <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase tracking-widest text-white/40">Enrolled Students</h3>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-blue-400">{enrollments.length} / {cls.max_students}</span>
+            <div className="bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
+              <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">Enrolled Pioneers</h3>
+                <div className="flex items-center gap-3">
+                  <div className="px-3 py-1 bg-white/5 rounded-full border border-white/5">
+                    <span className="text-[9px] font-black text-violet-400 tracking-widest">{enrollments.length} <span className="text-white/20">/</span> {cls.max_students}</span>
+                  </div>
                   {isStaff && (
-                    <>
-                      <button
-                        onClick={handleExportLogins}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 text-[10px] font-black uppercase tracking-widest transition-all"
-                        title="Export Student Logins"
-                      >
-                        Export Logins
-                      </button>
-                      <button
-                        onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }}
-                        className="p-1 rounded-md bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 transition-all"
-                        title="Add Students"
-                      >
-                        <PlusIcon className="w-3.5 h-3.5" />
-                      </button>
-                    </>
+                    <button
+                      onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }}
+                      className="w-8 h-8 rounded-xl bg-violet-600/20 hover:bg-violet-600/40 border border-violet-600/30 text-violet-400 flex items-center justify-center transition-all active:scale-90"
+                    >
+                      <PlusIcon className="w-4 h-4" />
+                    </button>
                   )}
                 </div>
               </div>
               {enrollments.length === 0 ? (
-                <div className="p-10 text-center space-y-3">
-                  <UserGroupIcon className="w-8 h-8 mx-auto opacity-10" />
-                  <p className="text-xs text-white/20">No students found.</p>
-                  <Link href={`/dashboard/classes/${id}/edit`} className="inline-block text-[10px] font-bold text-blue-400 uppercase tracking-widest underline">Manage Roster</Link>
+                <div className="p-20 text-center flex flex-col items-center justify-center px-10">
+                  <UserGroupIcon className="w-12 h-12 text-white/5 mb-6" />
+                  <p className="text-[10px] font-black text-white/20 uppercase tracking-widest leading-relaxed">No student signals detected in this cluster</p>
+                  <Link href={`/dashboard/classes/${id}/edit`} className="mt-6 text-[9px] font-black text-violet-400 uppercase tracking-widest hover:text-violet-300 transition-colors">Manage Registry →</Link>
                 </div>
               ) : (
-                <div className="divide-y divide-white/5 max-h-[400px] overflow-y-auto">
+                <div className="divide-y divide-white/5 max-h-[500px] overflow-y-auto custom-scrollbar">
                   {enrollments.map((enr: any) => (
-                    <div key={enr.id} className="px-6 py-3 flex items-center gap-3 hover:bg-white/3 transition-colors">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center text-[10px] font-black text-white flex-shrink-0">
+                    <div key={enr.id} className="px-8 py-5 flex items-center gap-4 hover:bg-white/[0.03] transition-all group">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500/10 to-violet-600/10 border border-white/5 flex items-center justify-center text-[10px] font-black text-white/40 group-hover:text-violet-400 transition-all">
                         {(enr.portal_users?.full_name ?? '?')[0]}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-white truncate">{enr.portal_users?.full_name}</p>
-                        <p className="text-[9px] text-white/30 uppercase tracking-tighter">{enr.portal_users?.email}</p>
+                        <p className="text-xs font-black text-white group-hover:text-violet-400 transition-colors truncate uppercase tracking-tighter">{enr.portal_users?.full_name}</p>
+                        <p className="text-[9px] text-white/30 truncate font-medium">{enr.portal_users?.email}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
+
+            {isStaff && (
+              <button
+                onClick={handleExportLogins}
+                className="w-full py-5 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-600/20 rounded-2xl flex items-center justify-center gap-3 group transition-all"
+              >
+                <div className="w-8 h-8 bg-emerald-600/20 rounded-xl flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+                  <CloudArrowDownIcon className="w-4 h-4" />
+                </div>
+                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">Export Login Credentials</span>
+              </button>
+            )}
 
           </div>
 
@@ -798,42 +866,53 @@ export default function ClassDetailPage() {
 
       {/* Student Management Modal */}
       {showStudentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#1a1a2e] border border-white/10 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-              <h3 className="font-black uppercase tracking-widest text-sm text-white">Manage Roster</h3>
-              <button onClick={() => setShowStudentModal(false)} className="text-white/40 hover:text-white transition-colors">&times;</button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-12 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setShowStudentModal(false)} />
+          <div className="bg-[#0D1630] border border-white/10 rounded-[3rem] w-full max-w-xl shadow-[0_0_100px_rgba(139,92,246,0.15)] overflow-hidden relative z-10 scale-in-center">
+            <div className="px-10 py-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+              <div>
+                <h3 className="font-black uppercase tracking-[0.3em] text-xs text-white">Cluster Roster Sync</h3>
+                <p className="text-[9px] font-black text-violet-400 uppercase tracking-[0.2em] mt-1">Manual enrollment portal</p>
+              </div>
+              <button onClick={() => setShowStudentModal(false)} className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-2xl text-white/20 hover:text-white transition-colors">&times;</button>
             </div>
 
-            <div className="p-6 space-y-4">
-              <p className="text-xs text-white/40 uppercase tracking-widest font-bold">Unassigned Students in Programme</p>
+            <div className="p-10 space-y-8">
+              <div className="flex items-center justify-between px-2">
+                <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em]">Discovered Signatures</span>
+                <div className="h-1.5 w-1.5 bg-violet-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
+              </div>
 
               {processingStudent === 'loading' ? (
-                <div className="py-12 text-center">
-                  <ArrowPathIcon className="w-8 h-8 text-blue-500 animate-spin mx-auto" />
+                <div className="py-24 text-center">
+                  <ArrowPathIcon className="w-12 h-12 text-violet-500 animate-spin mx-auto mb-6" />
+                  <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Decoding population matrix...</p>
                 </div>
               ) : availableStudents.length === 0 ? (
-                <div className="py-12 text-center text-white/20 border border-white/5 border-dashed rounded-2xl">
-                  <UserGroupIcon className="w-8 h-8 mx-auto mb-2 opacity-10" />
-                  <p className="text-xs">All programme students are already in this class or another class.</p>
+                <div className="py-24 text-center border border-dashed border-white/5 rounded-[2.5rem] bg-white/[0.01] px-12">
+                  <UserGroupIcon className="w-12 h-12 mx-auto mb-6 text-white/5" />
+                  <p className="text-xs font-black text-white/20 uppercase tracking-widest leading-relaxed">No unassigned student profiles matching this cluster criteria detected.</p>
                 </div>
               ) : (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
                   {availableStudents.map(student => (
-                    <div key={student.id} className="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all">
+                    <div key={student.id} className="flex items-center justify-between p-5 bg-white/5 border border-white/5 rounded-[1.5rem] hover:bg-violet-600/5 hover:border-violet-500/30 transition-all group">
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-white truncate">{student.full_name}</p>
-                        <p className="text-[9px] text-white/30 truncate">{student.email}</p>
+                        <p className="text-sm font-black text-white group-hover:text-violet-400 transition-colors uppercase tracking-tighter truncate">{student.full_name}</p>
+                        <p className="text-[9px] text-white/30 font-medium truncate">{student.email}</p>
                         {student.section_class && (
-                          <p className="text-[8px] text-amber-500/60 uppercase font-black tracking-tighter mt-0.5">Current Class: {student.section_class}</p>
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <div className="w-1 h-1 bg-amber-500 rounded-full" />
+                            <p className="text-[8px] text-amber-500/60 uppercase font-black tracking-widest">Assigned to: {student.section_class}</p>
+                          </div>
                         )}
                       </div>
                       <button
                         onClick={() => assignStudent(student.id)}
                         disabled={!!processingStudent}
-                        className="flex-shrink-0 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-[10px] font-black uppercase rounded-lg transition-all"
+                        className="flex-shrink-0 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
                       >
-                        {processingStudent === student.id ? '...' : 'Assign'}
+                        {processingStudent === student.id ? 'Syncing...' : 'Enroll'}
                       </button>
                     </div>
                   ))}
@@ -841,57 +920,92 @@ export default function ClassDetailPage() {
               )}
             </div>
 
-            <div className="px-6 py-4 bg-white/5 flex justify-end">
+            <div className="px-10 py-6 bg-white/[0.02] border-t border-white/5 flex justify-end">
               <button
                 onClick={() => setShowStudentModal(false)}
-                className="px-4 py-2 text-xs font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors"
+                className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/30 hover:text-white transition-all bg-white/5 hover:bg-white/10 rounded-2xl shadow-inner border border-white/5"
               >
-                Close
+                End Port Sessions
               </button>
             </div>
           </div>
         </div>
       )}
+
       {/* ── Slide-over Panel for Content ── */}
       {viewingItem && (
-        <div className="fixed inset-0 z-[60] overflow-hidden">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setViewingItem(null)} />
-          <div className="absolute inset-y-0 right-0 max-w-2xl w-full flex">
-            <div className="h-full w-full bg-[#0a0a14] border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-              <div className="p-6 border-b border-white/10 flex items-center justify-between bg-white/5">
-                <div>
-                  <h3 className="text-xs font-black text-blue-400 uppercase tracking-[0.2em]">{viewingItem.id === 'add' ? 'Create' : 'View'} {viewingItem.type}</h3>
-                  <p className="text-[10px] text-white/40 uppercase font-black">Managing in context of {cls.name}</p>
+        <div className="fixed inset-0 z-[110] overflow-hidden">
+          <div className="absolute inset-0 bg-[#050a17]/90 backdrop-blur-3xl animate-in fade-in duration-500" onClick={() => setViewingItem(null)} />
+          <div className="absolute inset-y-0 right-0 max-w-4xl w-full flex">
+            <div className="h-full w-full bg-[#0D1630] border-l border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col animate-in slide-in-from-right duration-500">
+              <div className="px-10 py-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                <div className="flex items-center gap-6">
+                  <div className="w-12 h-12 rounded-2xl bg-violet-600 flex items-center justify-center shadow-xl shadow-violet-900/40">
+                    {viewingItem.type === 'lesson' ? <BookOpenIcon className="w-6 h-6" /> : viewingItem.type === 'assignment' ? <ClipboardDocumentListIcon className="w-6 h-6" /> : <AcademicCapIcon className="w-6 h-6" />}
+                  </div>
+                  <div>
+                    <h3 className="text-[10px] font-black text-violet-400 uppercase tracking-[0.3em]">{viewingItem.id === 'add' ? 'Initialize' : 'Telemetry'} {viewingItem.type}</h3>
+                    <p className="text-[11px] text-white uppercase font-black tracking-tight mt-0.5">Context Protocol: {cls.name}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   {viewingItem.id !== 'add' && (
                     <Link href={`/dashboard/${viewingItem.type === 'lesson' ? 'lessons' : viewingItem.type === 'assignment' ? 'assignments' : 'cbt'}/${viewingItem.id}/edit`}
-                      className="p-2 rounded-xl bg-white/5 border border-white/10 hover:text-cyan-400 transition-colors">
-                      <PencilIcon className="w-4 h-4" />
+                      className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-violet-500/50 hover:text-violet-400 transition-all group">
+                      <PencilIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
                     </Link>
                   )}
-                  <button onClick={() => setViewingItem(null)} className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white/40 hover:text-white">
-                    <PlusIcon className="w-4 h-4 rotate-45" />
+                  <button onClick={() => setViewingItem(null)} className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-rose-500/20 hover:text-rose-400 transition-all active:scale-90">
+                    <XMarkIcon className="w-6 h-6" />
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8">
-                <iframe
-                  src={`/dashboard/${viewingItem.type === 'lesson' ? 'lessons' : viewingItem.type === 'assignment' ? 'assignments' : 'cbt'}/${viewingItem.id === 'add' ? (viewingItem.type === 'lesson' ? 'add' : 'new') : viewingItem.id}?minimal=true&program_id=${cls.program_id}`}
-                  className="w-full h-full border-none rounded-2xl bg-white/5"
-                  title="Content View"
-                />
+              <div className="flex-1 overflow-hidden p-8">
+                <div className="w-full h-full bg-[#050a17] rounded-[2.5rem] border border-white/5 overflow-hidden shadow-inner">
+                  <iframe
+                    src={`/dashboard/${viewingItem.type === 'lesson' ? 'lessons' : viewingItem.type === 'assignment' ? 'assignments' : 'cbt'}/${viewingItem.id === 'add' ? (viewingItem.type === 'lesson' ? 'add' : 'new') : viewingItem.id}?minimal=true&program_id=${cls.program_id}`}
+                    className="w-full h-full border-none opacity-0 animate-in fade-in duration-1000 delay-300"
+                    title="Content Protocol Frame"
+                    onLoad={(e: any) => e.target.style.opacity = '1'}
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
-      )
-      }
-    </div >
+      )}
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.02);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(139, 92, 246, 0.2);
+          border-radius: 10px;
+          border: 2px solid #0D1630;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(139, 92, 246, 0.4);
+        }
+        .scale-in-center {
+          animation: scale-in-center 0.4s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+        }
+        @keyframes scale-in-center {
+          0% { transform: scale(0.9); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
+    </div>
   );
 }
 
 // Support Icons (inline SVGs for icons not in the heroicons import above)
 function StarIcon(props: any) { return <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.385a.563.563 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345l2.125-5.111z" /></svg>; }
 function ArrowRightIcon(props: any) { return <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>; }
+function XMarkIcon(props: any) { return <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>; }

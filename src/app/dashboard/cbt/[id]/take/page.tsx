@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   ClockIcon, CheckCircleIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon,
-  CodeBracketIcon
+  CodeBracketIcon, SparklesIcon
 } from '@heroicons/react/24/outline';
 
 function CodingBlocksChallenge({ 
@@ -137,7 +137,7 @@ export default function TakeExamPage() {
       });
 
       const totalPoints = questions.reduce((s, q) => s + (q.points ?? 0), 0);
-      const earnedPoints = questions.reduce((s, q) => {
+      let autoPoints = questions.reduce((s, q) => {
         if (q.question_type === 'essay') return s;
         if ((answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) {
           return s + (q.points ?? 0);
@@ -145,7 +145,40 @@ export default function TakeExamPage() {
         return s;
       }, 0);
 
-      const score = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
+      let aiScores: Record<string, number> = {};
+      let aiFeedback = '';
+
+      if (manualGradingRequired) {
+        try {
+           const aiRes = await fetch('/api/ai/generate', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({
+               type: 'cbt-grading',
+               topic: exam?.title || 'CBT Grading',
+               questions: questions.filter(q => q.question_type === 'essay' || q.question_type === 'fill_blank').map(q => ({
+                  id: q.id,
+                  text: q.question_text,
+                  type: q.question_type,
+                  points: q.points,
+                  correct_answer: q.correct_answer
+               })),
+               studentAnswers: answers
+             })
+           });
+           if (aiRes.ok) {
+             const aiPayload = await aiRes.json();
+             aiScores = aiPayload.data.scores || {};
+             aiFeedback = aiPayload.data.feedback || '';
+             // Add AI scores to points
+             Object.values(aiScores).forEach(s => { autoPoints += s; });
+           }
+        } catch (e) {
+           console.error("AI Grading failed during submission:", e);
+        }
+      }
+
+      const score = totalPoints > 0 ? Math.round((autoPoints / totalPoints) * 100) : 0;
       const passed = score >= (exam?.passing_score ?? 70);
       const finalStatus = manualGradingRequired ? 'pending_grading' : (passed ? 'passed' : 'failed');
 
@@ -157,11 +190,37 @@ export default function TakeExamPage() {
         score,
         status: finalStatus,
         answers,
+        manual_scores: aiScores,
+        grading_notes: aiFeedback ? `AI Preliminary Evaluation: ${aiFeedback}` : null,
         needs_grading: manualGradingRequired,
       });
 
-      setResult({ score, passed, correct: manualGradingRequired ? -1 : correct });
+      setResult({ score, passed, correct: manualGradingRequired ? -2 : correct }); // -2 means AI graded
       setSubmitted(true);
+
+      // AUTO-ASSIGN CERTIFICATE IF PASSED
+      if (passed && profile?.id) {
+        try {
+          const db = createClient();
+          // 1. Get first course for this program
+          const { data: course } = await db.from('courses').select('id').eq('program_id', exam.program_id).order('order_index').limit(1).single();
+          
+          if (course) {
+            // 2. Check if student already has a certificate for this course
+            const { data: existing } = await db.from('certificates').select('id').eq('portal_user_id', profile.id).eq('course_id', course.id).maybeSingle();
+            
+            if (!existing) {
+              await fetch('/api/certificates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ studentId: profile.id, courseId: course.id })
+              });
+            }
+          }
+        } catch (certErr) {
+          console.error('Auto-certificate issuance failed:', certErr);
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -202,6 +261,7 @@ export default function TakeExamPage() {
 
   if (submitted && result) {
     const isPending = result.correct === -1;
+    const isAiGraded = result.correct === -2;
 
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center text-white p-6 relative overflow-hidden">
@@ -219,7 +279,9 @@ export default function TakeExamPage() {
               <h1 className={`text-5xl font-black italic tracking-tighter ${isPending ? 'text-amber-400' : (result.passed ? 'text-emerald-400' : 'text-rose-400')}`}>
                 {isPending ? 'SUBMITTED' : (result.passed ? 'EXCELLENT' : 'COMPLETE')}
               </h1>
-              <p className="text-white/40 font-medium tracking-widest uppercase text-xs">{exam?.title}</p>
+              <p className="text-white/40 font-medium tracking-widest uppercase text-xs">
+                {isAiGraded ? 'AI Assisted Grading' : exam?.title}
+              </p>
             </div>
 
             {isPending ? (
@@ -240,7 +302,9 @@ export default function TakeExamPage() {
               <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-6">
                 <div className="space-y-2">
                    <div className="flex justify-between items-end">
-                     <span className="text-white/40 text-xs font-black uppercase tracking-widest">Final Grade</span>
+                     <span className="text-white/40 text-xs font-black uppercase tracking-widest">
+                       {isAiGraded ? 'Preliminary Grade' : 'Final Grade'}
+                     </span>
                      <span className={`text-4xl font-black ${result.passed ? 'text-emerald-400' : 'text-rose-400'}`}>{result.score}%</span>
                    </div>
                    <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5">
@@ -251,14 +315,20 @@ export default function TakeExamPage() {
                 
                 <div className="grid grid-cols-2 gap-4">
                     <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                        <p className="text-[10px] text-white/30 font-black uppercase mb-1">Accuracy</p>
-                        <p className="text-xl font-bold">{result.correct} / {questions.length}</p>
+                        <p className="text-[10px] text-white/30 font-black uppercase mb-1">Status</p>
+                        <p className="text-sm font-bold">{result.passed ? 'PASSED' : 'FAILED'}</p>
                     </div>
                     <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
                         <p className="text-[10px] text-white/30 font-black uppercase mb-1">Requirement</p>
                         <p className="text-xl font-bold text-white/50">{exam?.passing_score ?? 70}%</p>
                     </div>
                 </div>
+                {isAiGraded && (
+                  <div className="flex items-center gap-2 px-4 py-2 bg-violet-600/10 rounded-xl border border-violet-500/20 w-fit mx-auto">
+                    <SparklesIcon className="w-3.5 h-3.5 text-violet-400" />
+                    <span className="text-[9px] font-black uppercase text-violet-400 tracking-widest">AI Evaluated Subjective Answers</span>
+                  </div>
+                )}
               </div>
             )}
 

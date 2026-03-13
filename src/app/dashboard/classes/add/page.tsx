@@ -226,228 +226,286 @@ export default function AddClassPage() {
   };
 
   if (authLoading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-white/40 font-medium animate-pulse uppercase tracking-[0.2em] text-[10px]">Loading Context...</p>
+      </div>
     </div>
   );
 
   if (!isStaff) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-      <p className="text-white/40">Staff access required.</p>
+    <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
+      <div className="bg-white/5 border border-white/10 rounded-[2rem] p-8 text-center max-w-sm">
+        <ExclamationTriangleIcon className="w-12 h-12 text-rose-500/20 mx-auto mb-4" />
+        <p className="text-white/40 font-black uppercase tracking-widest text-xs leading-relaxed">Administrator level access required to initialize new academy clusters.</p>
+      </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="min-h-screen bg-[#050a17] text-white">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8 pb-32">
 
         <Link href="/dashboard/classes"
-          className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors">
-          <ArrowLeftIcon className="w-4 h-4" /> Back to Classes
+          className="inline-flex items-center gap-3 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-all group">
+          <ArrowLeftIcon className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Registry
         </Link>
 
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <BookOpenIcon className="w-5 h-5 text-blue-400" />
-            <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">New Class</span>
+        {/* Header Block */}
+        <div className="bg-gradient-to-br from-violet-600/20 to-blue-600/20 border border-white/5 rounded-[2.5rem] p-10 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-violet-500 opacity-[0.05] blur-3xl rounded-full" />
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-violet-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-900/40">
+                <BookOpenIcon className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-[10px] font-black text-violet-400 uppercase tracking-[0.2em]">New Cluster initialization</span>
+            </div>
+            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-white">Create <span className="bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">Class</span></h1>
+            <p className="text-white/30 text-sm mt-3 font-medium max-w-md">Configure your new academic group, assign mentorship, and enroll initial student pioneers.</p>
           </div>
-          <h1 className="text-3xl font-extrabold">Create Class</h1>
-          <p className="text-white/40 text-sm mt-1">Set up a new teaching group</p>
         </div>
 
         {error && (
-          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
-            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
-            <p className="text-rose-400 text-sm">{error}</p>
+          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-[2rem] p-6 animate-in fade-in slide-in-from-top-4">
+            <div className="w-10 h-10 bg-rose-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-rose-900/40">
+              <ExclamationTriangleIcon className="w-6 h-6 text-white" />
+            </div>
+            <p className="text-rose-400 text-xs font-black uppercase tracking-widest leading-relaxed">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-5">
-
-          <div>
-            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
-              Class Name <span className="text-rose-400">*</span>
-            </label>
-            <input type="text" required value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="e.g. Python Beginners — Batch A"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-blue-500 transition-colors" />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
-                Programme <span className="text-rose-400">*</span>
-              </label>
-              <select required value={form.program_id}
-                onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
-                <option value="">Select programme…</option>
-                {programs.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Assigned Teacher</label>
-              <select value={form.teacher_id}
-                onChange={e => setForm(f => ({ ...f, teacher_id: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
-                <option value="">— Self (current user) —</option>
-                {teachers.map(t => (
-                  <option key={t.id} value={t.id}>{t.full_name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Partner School */}
-          <div>
-            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
-              Partner School <span className="text-white/25 font-normal normal-case">(optional — leave blank for bootcamp/online)</span>
-            </label>
-            <select value={form.school_id}
-              onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
-              <option value="">— No specific school —</option>
-              {schools.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Max Students</label>
-              <input type="number" min="1" max="100" value={form.max_students}
-                onChange={e => setForm(f => ({ ...f, max_students: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Start Date</label>
-              <input type="date" value={form.start_date}
-                onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">End Date</label>
-              <input type="date" value={form.end_date}
-                onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Schedule</label>
-              <input type="text" value={form.schedule}
-                onChange={e => setForm(f => ({ ...f, schedule: e.target.value }))}
-                placeholder="e.g. Tuesdays 3–5pm"
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-blue-500 transition-colors" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Initial Status</label>
-              <select value={form.status}
-                onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
-                <option value="scheduled">Scheduled</option>
-                <option value="active">Active</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">
-              Manual Student Selection <span className="text-white/20 font-normal normal-case">({selectedStudents.length} selected)</span>
-            </label>
-
-            {!form.program_id ? (
-              <p className="text-sm text-white/20 italic bg-white/5 border border-dashed border-white/10 rounded-xl p-4">
-                Please select a programme first to see eligible students.
-              </p>
-            ) : loadingStudents ? (
-              <div className="flex items-center gap-2 text-sm text-white/40 p-4">
-                <ArrowPathIcon className="w-4 h-4 animate-spin" /> Fetching students…
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Primary Details Card */}
+          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 sm:p-10 space-y-8 shadow-2xl">
+            <h3 className="text-white/20 text-[10px] font-black uppercase tracking-[0.4em] mb-4">Functional Definition</h3>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">
+                  Class Designation <span className="text-violet-500">*</span>
+                </label>
+                <input type="text" required value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. Python Architects — Phase 1"
+                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-white placeholder:text-white/10 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all outline-none" />
               </div>
-            ) : availableStudents.length === 0 ? (
-              <div className="space-y-3">
-                <p className="text-sm text-amber-400/60 italic bg-amber-500/5 border border-dashed border-amber-500/10 rounded-xl p-4">
-                  No students found matching this programme/school. Only students with active portal accounts appear here.
-                </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">
+                    Select Programme <span className="text-violet-500">*</span>
+                  </label>
+                  <select required value={form.program_id}
+                    onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}
+                    className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[11px] font-black text-white/70 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all appearance-none cursor-pointer uppercase tracking-widest">
+                    <option value="" className="bg-[#0f0f1a]">SELECT PATHWAY</option>
+                    {programs.map(p => (
+                      <option key={p.id} value={p.id} className="bg-[#0f0f1a]">{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">Curriculum Mentor</label>
+                  <select value={form.teacher_id}
+                    onChange={e => setForm(f => ({ ...f, teacher_id: e.target.value }))}
+                    className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[11px] font-black text-white/70 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all appearance-none cursor-pointer uppercase tracking-widest">
+                    <option value="" className="bg-[#0f0f1a]">SESSIONS LEAD (DEFAULT: ME)</option>
+                    {teachers.map(t => (
+                      <option key={t.id} value={t.id} className="bg-[#0f0f1a]">{t.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">
+                  Nexus Entity <span className="text-white/10 font-medium normal-case">(Optional: partner school)</span>
+                </label>
+                <select value={form.school_id}
+                  onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
+                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[11px] font-black text-white/70 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all appearance-none cursor-pointer uppercase tracking-widest">
+                  <option value="" className="bg-[#0f0f1a]">INDEPENDENT / ONLINE CLUSTER</option>
+                  {schools.map(s => (
+                    <option key={s.id} value={s.id} className="bg-[#0f0f1a]">{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Configuration Card */}
+          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 sm:p-10 space-y-8 shadow-2xl">
+            <h3 className="text-white/20 text-[10px] font-black uppercase tracking-[0.4em] mb-4">Operational parameters</h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">Capacity Limit</label>
+                <input type="number" min="1" max="100" value={form.max_students}
+                  onChange={e => setForm(f => ({ ...f, max_students: e.target.value }))}
+                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-white focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">Cycle Start</label>
+                <input type="date" value={form.start_date}
+                  onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
+                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[10px] font-black text-white focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all uppercase tracking-widest inverted-calendar" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">Cycle End</label>
+                <input type="date" value={form.end_date}
+                  onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[10px] font-black text-white focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all uppercase tracking-widest inverted-calendar" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">Frequency Rhythm</label>
+                <input type="text" value={form.schedule}
+                  onChange={e => setForm(f => ({ ...f, schedule: e.target.value }))}
+                  placeholder="e.g. MON/WED 4:00 PM"
+                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-white placeholder:text-white/10 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all outline-none" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">Initial State</label>
+                <select value={form.status}
+                  onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[11px] font-black text-white/70 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all appearance-none cursor-pointer uppercase tracking-widest">
+                  <option value="scheduled" className="bg-[#0f0f1a]">QUEUE (SCHEDULED)</option>
+                  <option value="active" className="bg-[#0f0f1a]">ENGAGED (ACTIVE)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Student Roster Card */}
+          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 sm:p-10 space-y-8 shadow-2xl">
+            <h3 className="text-white/20 text-[10px] font-black uppercase tracking-[0.4em] mb-4">Initial roster pioneers</h3>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between px-2">
+                <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Population: {selectedStudents.length} Selected</span>
                 {pendingCount > 0 && (
-                  <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-                    <UserIcon className="w-5 h-5 text-blue-400" />
-                    <p className="text-xs text-blue-300">
-                      <strong>{pendingCount} student{pendingCount !== 1 ? 's' : ''}</strong> you registered are still <strong>Pending Admission</strong>. They will appear here once approved by an administrator.
-                    </p>
+                  <div className="flex items-center gap-2 group cursor-help">
+                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-ping" />
+                    <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">{pendingCount} PENDING ADMISSIONS</span>
                   </div>
                 )}
-                {!form.program_id && (
-                  <p className="text-xs text-white/30 px-1">Please select a <strong>Programme</strong> above to see eligible students.</p>
-                )}
               </div>
-            ) : (
-              <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-                <div className="max-h-60 overflow-y-auto divide-y divide-white/5">
-                  {availableStudents.map(student => (
-                    <label key={student.id} className="flex items-center gap-3 px-4 py-3 hover:bg-white/10 cursor-pointer transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={selectedStudents.includes(student.id)}
-                        onChange={e => {
-                          if (e.target.checked) setSelectedStudents(prev => [...prev, student.id]);
-                          else setSelectedStudents(prev => prev.filter(id => id !== student.id));
-                        }}
-                        className="w-4 h-4 rounded border-white/10 bg-white/5 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">{student.full_name}</p>
-                        <p className="text-xs text-white/30 truncate">{student.email}</p>
-                      </div>
-                    </label>
-                  ))}
+
+              {!form.program_id ? (
+                <div className="py-20 bg-white/5 border border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center text-center">
+                  <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5">
+                    <UserIcon className="w-8 h-8 text-white/10" />
+                  </div>
+                  <h3 className="text-xs font-black text-white/20 uppercase tracking-widest">Awaiting pathway selection</h3>
                 </div>
-                <div className="px-4 py-2 bg-white/5 border-t border-white/5 flex justify-between items-center">
-                  <span className="text-[10px] text-white/30 uppercase font-bold tracking-wider">
-                    {availableStudents.length} Available
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedStudents.length === availableStudents.length) setSelectedStudents([]);
-                      else setSelectedStudents(availableStudents.map(s => s.id));
-                    }}
-                    className="text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-colors uppercase tracking-wider"
-                  >
-                    {selectedStudents.length === availableStudents.length ? 'Deselect All' : 'Select All'}
-                  </button>
+              ) : loadingStudents ? (
+                <div className="py-20 bg-white/5 border border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center text-center">
+                  <ArrowPathIcon className="w-8 h-8 text-violet-500 animate-spin mb-4" />
+                  <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Synchronizing population...</p>
                 </div>
-              </div>
-            )}
+              ) : availableStudents.length === 0 ? (
+                <div className="space-y-4">
+                  <div className="py-20 bg-white/5 border border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center text-center px-8">
+                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5">
+                      <ExclamationTriangleIcon className="w-8 h-8 text-amber-500/20" />
+                    </div>
+                    <h3 className="text-xs font-black text-amber-500/40 uppercase tracking-widest mb-2">Zero matching pioneers found</h3>
+                    <p className="text-[10px] text-white/20 uppercase tracking-[0.2em] leading-relaxed max-w-xs font-medium">No verified portal accounts matching this criteria are available for enrollment.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-[#0B132B]/50 border border-white/5 rounded-3xl overflow-hidden shadow-inner">
+                  <div className="max-h-80 overflow-y-auto divide-y divide-white/5 custom-scrollbar">
+                    {availableStudents.map(student => (
+                      <label key={student.id} className="flex items-center gap-4 px-6 py-5 hover:bg-violet-600/10 cursor-pointer transition-all group">
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            checked={selectedStudents.includes(student.id)}
+                            onChange={e => {
+                              if (e.target.checked) setSelectedStudents(prev => [...prev, student.id]);
+                              else setSelectedStudents(prev => prev.filter(id => id !== student.id));
+                            }}
+                            className="w-6 h-6 rounded-lg border-white/10 bg-white/5 text-violet-600 focus:ring-violet-500 focus:ring-offset-0 transition-all cursor-pointer"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-white group-hover:text-violet-400 transition-colors truncate uppercase tracking-tighter">{student.full_name}</p>
+                          <p className="text-[10px] text-white/20 truncate font-medium">{student.email}</p>
+                        </div>
+                        {selectedStudents.includes(student.id) && (
+                          <div className="px-3 py-1 bg-violet-600/20 border border-violet-600/30 rounded-full">
+                            <span className="text-[8px] font-black text-violet-400 uppercase tracking-widest">READY</span>
+                          </div>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="px-6 py-4 bg-white/5 border-t border-white/5 flex justify-between items-center backdrop-blur-md">
+                    <span className="text-[10px] text-white/30 uppercase font-black tracking-widest">
+                      {availableStudents.length} DISCOVERED
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedStudents.length === availableStudents.length) setSelectedStudents([]);
+                        else setSelectedStudents(availableStudents.map(s => s.id));
+                      }}
+                      className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black text-white/50 hover:text-white transition-all uppercase tracking-widest"
+                    >
+                      {selectedStudents.length === availableStudents.length ? 'DESELECT CLUSTER' : 'INITIALIZE ALL'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Description</label>
-            <textarea rows={3} value={form.description}
+          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 sm:p-10 space-y-8 shadow-2xl">
+            <h3 className="text-white/20 text-[10px] font-black uppercase tracking-[0.4em] mb-4">Cluster annotations</h3>
+            <textarea rows={4} value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              placeholder="Optional class description or notes…"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-blue-500 transition-colors resize-none" />
+              placeholder="Internal notes regarding cluster objectives, requirements, or mentor instructions..."
+              className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-white placeholder:text-white/10 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all resize-none outline-none" />
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
             <Link href="/dashboard/classes"
-              className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white/50 text-sm font-bold rounded-xl transition-colors">
-              Cancel
+              className="w-full sm:w-fit px-8 py-5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all text-center">
+              Abort initialization
             </Link>
             <button type="submit" disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-blue-900/20">
-              {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-              {saving ? 'Creating…' : 'Create Class'}
+              className="w-full sm:flex-1 flex items-center justify-center gap-3 py-5 bg-violet-600 hover:bg-violet-500 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all disabled:opacity-50 shadow-xl shadow-violet-900/40 active:scale-[0.98]">
+              {saving ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CheckIcon className="w-5 h-5" />}
+              {saving ? 'Synchronizing cluster...' : 'Initialize Registry Node'}
             </button>
           </div>
         </form>
-
       </div>
+      <style jsx global>{`
+        .inverted-calendar::-webkit-calendar-picker-indicator {
+          filter: invert(1);
+          opacity: 0.5;
+          cursor: pointer;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.02);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(139, 92, 246, 0.5);
+        }
+      `}</style>
     </div>
   );
 }

@@ -28,10 +28,12 @@ export default function AddLessonPage() {
   // AI generation state
   const [aiOpen, setAiOpen] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiGeneratingNotes, setAiGeneratingNotes] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiTopic, setAiTopic] = useState('');
   const [aiGrade, setAiGrade] = useState('JSS1–SS3');
   const [aiSubject, setAiSubject] = useState('');
+  const [lastModel, setLastModel] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     title: '',
@@ -77,12 +79,24 @@ export default function AddLessonPage() {
     fetchData();
   }, [profile?.id, authLoading, preProgramId, preCourseId, profile?.school_id]);
 
+  // Auto-fill subject from selected course
+  const handleCourseChange = (courseId: string) => {
+    setForm(prev => ({ ...prev, course_id: courseId }));
+    if (courseId && !aiSubject) {
+      const course = courses.find(c => c.id === courseId);
+      if (course?.title) setAiSubject(course.title);
+      if (course?.title && !aiTopic) setAiTopic(course.title);
+    }
+  };
+
+  // Full lesson generation — fills everything
   const handleAiGenerate = async (topicOverride?: string) => {
     const topicToUse = topicOverride || aiTopic;
     if (!topicToUse.trim()) { setAiError('Enter a topic first.'); setAiOpen(true); return; }
-    
+
     setAiGenerating(true);
     setAiError(null);
+    setLastModel(null);
     try {
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
@@ -99,30 +113,63 @@ export default function AddLessonPage() {
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? 'Generation failed');
       const d = payload.data;
+      setLastModel(payload.model ?? null);
       setForm(prev => ({
         ...prev,
         title: d.title ?? (topicOverride || prev.title),
         description: d.description ?? prev.description,
         lesson_notes: d.lesson_notes ?? prev.lesson_notes,
-        content_layout: d.content_layout ?? prev.content_layout,
+        content_layout: Array.isArray(d.content_layout) && d.content_layout.length > 0
+          ? d.content_layout
+          : prev.content_layout,
         video_url: d.video_url ?? prev.video_url,
         duration_minutes: d.duration_minutes ? String(d.duration_minutes) : prev.duration_minutes,
-        lesson_type: d.lesson_type ?? prev.lesson_type
+        lesson_type: d.lesson_type ?? prev.lesson_type,
       }));
       setAiOpen(false);
       setActiveTab('content');
     } catch (e: any) {
-      setAiError(e.message ?? 'Failed to generate');
+      setAiError(e.message ?? 'Failed to generate lesson');
       setAiOpen(true);
     } finally {
       setAiGenerating(false);
     }
   };
 
-  const handleMagicTitle = async () => {
+  // Notes-only generation — only overwrites lesson_notes
+  const handleGenerateNotesOnly = async () => {
+    const topicToUse = form.title || aiTopic;
+    if (!topicToUse.trim()) { setAiError('Enter a lesson title or topic first.'); setAiOpen(true); return; }
+
+    setAiGeneratingNotes(true);
+    setAiError(null);
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'lesson-notes',
+          topic: topicToUse,
+          gradeLevel: aiGrade,
+          subject: aiSubject || undefined,
+          durationMinutes: form.duration_minutes ? parseInt(form.duration_minutes) : 60,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? 'Generation failed');
+      const notes = payload.data?.lesson_notes;
+      if (notes) setForm(prev => ({ ...prev, lesson_notes: notes }));
+    } catch (e: any) {
+      setAiError(e.message ?? 'Failed to generate notes');
+    } finally {
+      setAiGeneratingNotes(false);
+    }
+  };
+
+  const handleMagicTitle = () => {
     if (!form.course_id) { setError('Select a course first'); return; }
     const course = courses.find(c => c.id === form.course_id);
-    setAiTopic(course?.title ?? '');
+    if (course?.title) { setAiTopic(course.title); setAiSubject(course.title); }
     setAiOpen(true);
   };
 
@@ -208,7 +255,11 @@ export default function AddLessonPage() {
               </div>
               <div>
                 <p className="text-sm font-bold text-white">Generate with AI</p>
-                <p className="text-xs text-white/40">Auto-fill lesson content using Claude AI</p>
+                <p className="text-xs text-white/40">
+                  {lastModel
+                    ? <span>Last built with <span className="text-violet-400">{lastModel.split('/').pop()}</span></span>
+                    : 'Auto-fill title, notes, and visual content blocks'}
+                </p>
               </div>
             </div>
             {aiOpen ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
@@ -217,7 +268,9 @@ export default function AddLessonPage() {
           {aiOpen && (
             <div className="px-5 pb-5 space-y-4 border-t border-violet-500/20">
               {aiError && (
-                <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">{aiError}</p>
+                <div className="flex items-start gap-2 mt-4 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
+                  <span className="flex-shrink-0">⚠</span> {aiError}
+                </div>
               )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4">
                 <div className="space-y-1 md:col-span-3">
@@ -225,6 +278,7 @@ export default function AddLessonPage() {
                   <input
                     value={aiTopic}
                     onChange={e => setAiTopic(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiGenerate(); } }}
                     placeholder="e.g. Introduction to Python loops"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-violet-500"
                   />
@@ -236,7 +290,7 @@ export default function AddLessonPage() {
                     onChange={e => setAiGrade(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500"
                   >
-                    {['Basic 1–Basic 3', 'Basic 4–Basic 6', 'JSS1–JSS3', 'SS1–SS3', 'JSS1–SS3', 'Basic 1–SS3'].map(g => (
+                    {['Basic 1–Basic 3', 'Basic 4–Basic 6', 'JSS1', 'JSS2', 'JSS3', 'JSS1–JSS3', 'SS1', 'SS2', 'SS3', 'SS1–SS3', 'JSS1–SS3', 'Basic 1–SS3'].map(g => (
                       <option key={g} value={g}>{g}</option>
                     ))}
                   </select>
@@ -253,14 +307,18 @@ export default function AddLessonPage() {
                 <button
                   type="button"
                   onClick={() => handleAiGenerate()}
-                  disabled={aiGenerating}
+                  disabled={aiGenerating || aiGeneratingNotes}
                   className="flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all self-end"
                 >
                   {aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                  {aiGenerating ? 'Generating...' : 'Generate'}
+                  {aiGenerating ? 'Building lesson...' : 'Full AI Build'}
                 </button>
               </div>
-              <p className="text-[10px] text-white/30">AI will fill in the lesson title, description, and visual content blocks. You can edit everything after generation.</p>
+              <p className="text-[10px] text-white/30">
+                <strong className="text-white/50">Full AI Build</strong> — generates title, description, notes, and all visual content blocks.
+                Use <strong className="text-white/50">Generate Notes</strong> (in the notes field) to only rewrite the study notes.
+                Press <kbd className="px-1 py-0.5 bg-white/10 rounded text-[9px]">Enter</kbd> in topic to quick-build.
+              </p>
             </div>
           )}
         </div>
@@ -291,7 +349,7 @@ export default function AddLessonPage() {
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Linked Course</label>
                   <div className="relative">
-                    <select value={form.course_id} onChange={e => setForm({ ...form, course_id: e.target.value })}
+                    <select value={form.course_id} onChange={e => handleCourseChange(e.target.value)}
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer">
                       <option value="">Select Course</option>
                       {courses.map((c: any) => <option key={c.id} value={c.id}>{c.title}{c.programs?.name ? ` — ${c.programs.name}` : ''}</option>)}
@@ -314,11 +372,12 @@ export default function AddLessonPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Lesson Notes (Student Prerequisite)</label>
-                  <button type="button" onClick={async () => {
-                    if (!form.title) { setAiOpen(true); alert('Enter a title first'); return; }
-                    handleAiGenerate(form.title);
-                  }} className="text-[9px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1 hover:text-violet-300 transition-colors disabled:opacity-50" disabled={aiGenerating}>
-                    <Sparkles className="w-3 h-3" /> {aiGenerating ? 'Generating...' : 'Generate Notes'}
+                  <button type="button" onClick={handleGenerateNotesOnly}
+                    className="text-[9px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1 hover:text-violet-300 transition-colors disabled:opacity-50"
+                    disabled={aiGeneratingNotes || aiGenerating}>
+                    {aiGeneratingNotes
+                      ? <><Loader2 className="w-3 h-3 animate-spin" /> Writing...</>
+                      : <><Sparkles className="w-3 h-3" /> Generate Notes</>}
                   </button>
                 </div>
                 <textarea
@@ -352,6 +411,7 @@ export default function AddLessonPage() {
           }))}
         />
       </div>
+
     </div>
   );
 }

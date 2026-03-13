@@ -219,22 +219,23 @@ export async function fetchStudentCourses(portalUserId: string) {
 }
 
 // ── CLASSES ───────────────────────────────────────────────────
-export async function fetchClasses(teacherId?: string) {
+export async function fetchClasses(teacherId?: string, schoolId?: string) {
     let q = db()
         .from('classes')
         .select(`
       id, name, description, status, max_students, current_students,
-      start_date, end_date, schedule, teacher_id, program_id, created_at,
+      start_date, end_date, schedule, teacher_id, program_id, school_id, created_at,
       programs ( id, name ),
       portal_users!classes_teacher_id_fkey ( id, full_name )
     `)
         .order('created_at', { ascending: false });
     if (teacherId) q = (q as any).eq('teacher_id', teacherId);
+    if (schoolId) q = (q as any).eq('school_id', schoolId);
     const { data, error } = await q;
     if (error) {
         const { data: f, error: e2 } = await db()
             .from('classes')
-            .select('id, name, description, status, max_students, current_students, start_date, schedule, teacher_id, program_id, created_at')
+            .select('id, name, description, status, max_students, current_students, start_date, schedule, teacher_id, program_id, school_id, created_at')
             .order('created_at', { ascending: false });
         if (e2) throw e2;
         return f ?? [];

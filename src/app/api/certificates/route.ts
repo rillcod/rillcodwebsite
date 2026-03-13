@@ -24,9 +24,19 @@ async function verifyHandler(req: Request, ctx: ApiContext) {
     return NextResponse.json({ success: true, data: cert });
 }
 
+async function issueHandler(req: Request, ctx: ApiContext) {
+    const { studentId, courseId } = await req.json();
+    if (!studentId || !courseId) throw new AppError('Missing studentId or courseId', 400);
+
+    const cert = await certificateService.issueCertificate(studentId, courseId);
+    return NextResponse.json({ success: true, data: cert });
+}
+
 export const GET = (req: any, ctx: any) => {
     if (ctx.params?.code) {
         return withApiProxy(verifyHandler)(req, ctx);
     }
     return withApiProxy(listHandler)(req, ctx);
 };
+
+export const POST = withApiProxy(issueHandler);

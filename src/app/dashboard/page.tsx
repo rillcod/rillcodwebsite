@@ -15,6 +15,7 @@ import { createClient } from '@/lib/supabase/client';
 /* ── Types ────────────────────────────────────────────── */
 interface DashStats { label: string; value: string | number; change?: string; icon: any; gradient: string }
 interface Activity { id: string; title: string; desc: string; time: string; icon: any; color: string }
+interface Slot { id: string; start_time: string; end_time: string; subject: string; room: string | null; school_name?: string }
 
 /* ── Helpers ──────────────────────────────────────────── */
 function timeAgo(iso: string | null): string {
@@ -374,7 +375,32 @@ export default function DashboardPage() {
   const [now, setNow] = useState<Date | null>(null);
   const [stats, setStats] = useState<DashStats[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [upcomingSlots, setUpcomingSlots] = useState<Slot[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+
+  // Helper to load upcoming slots
+  const loadUpcomingSlots = async (supabase: any, role: string, userId: string, schoolId?: string) => {
+    try {
+      const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+      let query = supabase.from('timetable_slots').select('*, timetables(school_id, schools(name))').eq('day_of_week', today);
+      
+      if (role === 'teacher') query = query.eq('teacher_id', userId);
+      else if (role === 'school') query = query.eq('timetables.school_id', schoolId);
+      // For students, we'd need to link through classes, but for now we show school-wide if they are in a portal
+      
+      const { data } = await query.order('start_time').limit(3);
+      if (data) {
+        setUpcomingSlots(data.map((s: any) => ({
+          id: s.id,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          subject: s.subject,
+          room: s.room,
+          school_name: s.timetables?.schools?.name
+        })));
+      }
+    } catch (e) { console.error('Failed to load upcoming slots', e); }
+  };
 
   // Live clock — set only on client to avoid SSR hydration mismatch
   useEffect(() => {
@@ -409,6 +435,7 @@ export default function DashboardPage() {
       ]);
       setStats(s);
       setActivities(a);
+      await loadUpcomingSlots(supabase, role, profile.id, profile.school_id || undefined);
     } catch { /* silent */ } finally {
       setDataLoading(false);
     }
@@ -667,6 +694,37 @@ export default function DashboardPage() {
               </Link>
             </div>
           </div>
+
+          {/* Upcoming Schedule */}
+          {(role === 'teacher' || role === 'student' || role === 'school') && (
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-white text-sm">What's Next</h3>
+                <Link href="/dashboard/timetable" className="text-[10px] font-black text-violet-400 uppercase tracking-widest hover:underline">Full View</Link>
+              </div>
+              <div className="space-y-2">
+                {upcomingSlots.length > 0 ? (
+                  upcomingSlots.map(slot => (
+                    <div key={slot.id} className="p-3 bg-white/5 border border-white/10 rounded-xl relative overflow-hidden group">
+                      <div className="absolute top-0 left-0 bottom-0 w-1 bg-violet-600" />
+                      <div className="flex justify-between items-start gap-2">
+                        <p className="text-xs font-bold text-white truncate">{slot.subject}</p>
+                        <span className="text-[9px] font-black text-violet-400 bg-violet-400/10 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">{slot.start_time}</span>
+                      </div>
+                      <p className="text-[10px] text-white/40 mt-1 truncate">
+                        {slot.room ? `📍 ${slot.room}` : 'No room set'}
+                        {slot.school_name && ` · ${slot.school_name}`}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 border border-dashed border-white/10 rounded-xl">
+                    <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">No classes today</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Useful links */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-5">

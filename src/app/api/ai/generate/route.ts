@@ -32,7 +32,7 @@ You can use specialized blocks in content_layout:
 - 'video': for educational videos
 Always return valid JSON only. For Nigerian context (Basic 1 to SS3), the tone is premium and modern.`;
 
-type GenerateType = 'lesson' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback';
+type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading';
 
 interface GenerateRequest {
   type: GenerateType;
@@ -46,10 +46,31 @@ interface GenerateRequest {
   attendance?: string;
   assignments?: string;
   currentContent?: any;
+  // For grading
+  questions?: any[];
+  studentAnswers?: Record<string, string>;
 }
 
 function buildPrompt(req: GenerateRequest): string {
   switch (req.type) {
+    case 'cbt-grading':
+      return `You are an AI Grader for Rillcod Academy. Grade the following student's responses for a CBT exam.
+Questions and Rubrics: ${JSON.stringify(req.questions)}
+Student Answers: ${JSON.stringify(req.studentAnswers)}
+
+Return a JSON object with this exact shape:
+{
+  "scores": {
+    "question_id": number // score awarded for this question (0 to max points)
+  },
+  "feedback": "string — overall encouraging feedback and specific points for improvement",
+  "rationale": {
+    "question_id": "string — brief explanation for the assigned score (internal use)"
+  }
+}
+
+Important: Be fair but encouraging. For 'essay' questions, look for key concepts. For 'fill_blank', allow minor spelling variations unless it's a technical term.`;
+
     case 'report-feedback':
       return `Generate professional, encouraging, and specific student progress report feedback for a Rillcod Academy student.
 Student: "${req.studentName ?? 'The student'}"
@@ -65,39 +86,59 @@ Return a JSON object with this exact shape:
 
 Ensure the tone is premium, academic yet accessible, and reflects the Rillcod Academy brand of modern STEM excellence.`;
 
-    case 'lesson':
-      return `Generate a complete lesson for a Rillcod Academy class session.
+    case 'lesson-notes':
+      return `Generate ONLY the lesson notes for a Rillcod Academy class session.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
 Subject: ${req.subject ?? 'Coding & Technology'}
 Duration: ${req.durationMinutes ?? 60} minutes
-Lesson type: ${req.contentType ?? 'hands-on'} (Choose from: hands-on, video, interactive, workshop, coding, reading. Use 'reading' for long-form theoretical notes, 'coding' for technical labs, 'video' if a video is central).
 
 Return a JSON object with this exact shape:
 {
-  "title": "string — engaging lesson title",
+  "lesson_notes": "string — COMPREHENSIVE markdown-formatted study notes for the student, 500-800 words minimum. Structure with ## headings, bullet points, bold key terms, and concrete examples. Cover: introduction, key concepts, worked examples, and a summary."
+}`;
+
+    case 'lesson':
+      return `Generate a COMPLETE, RICH lesson for a Rillcod Academy class session.
+Topic: "${req.topic}"
+Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
+Subject: ${req.subject ?? 'Coding & Technology'}
+Duration: ${req.durationMinutes ?? 60} minutes
+Lesson type: ${req.contentType ?? 'hands-on'}
+
+Return a JSON object with this exact shape:
+{
+  "title": "string — engaging, specific lesson title",
   "description": "string — 2-3 sentence lesson overview for teachers",
-  "lesson_notes": "string — COMPREHENSIVE study notes for the student. Use markdown for bolding and structure. This is the primary reading material.",
-  "objectives": ["string"],
+  "lesson_notes": "string — COMPREHENSIVE markdown study notes, 500-800 words. Use ## headings, bullet points, bold key terms. Cover intro, concepts, examples, summary.",
+  "objectives": ["string — at least 3 clear learning objectives"],
   "content_layout": [
-    { "type": "heading", "content": "string" },
+    { "type": "heading", "content": "Learning Objectives" },
     { "type": "text", "content": "string" },
-    { "type": "code", "language": "python", "content": "string" },
-    { "type": "callout", "style": "info", "content": "string" },
-    { "type": "image", "url": "https://images.unsplash.com/photo-1...", "caption": "string" },
-    { "type": "activity", "title": "string", "instructions": "string" },
-    { "type": "quiz", "question": "string", "options": ["string"], "correct_answer": "string" },
-    { "type": "mermaid", "code": "graph TD\nA-->B" },
-    { "type": "math", "formula": "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}" }
+    { "type": "callout", "style": "info", "content": "string — key concept callout" },
+    { "type": "heading", "content": "Core Concepts" },
+    { "type": "text", "content": "string — explanation" },
+    { "type": "code", "language": "python", "content": "string — working example" },
+    { "type": "mermaid", "code": "graph TD\\nA-->B" },
+    { "type": "activity", "title": "string", "instructions": "string — step-by-step activity" },
+    { "type": "callout", "style": "tip", "content": "string — pro tip" },
+    { "type": "quiz", "question": "string", "options": ["A","B","C","D"], "correct_answer": "string" },
+    { "type": "heading", "content": "Summary" },
+    { "type": "text", "content": "string — summary paragraph" }
   ],
-  "video_url": "https://www.youtube.com/watch?v=...",
-  "tags": ["string"]
+  "video_url": "string or null — a real relevant YouTube URL if one exists, otherwise null",
+  "tags": ["string — at least 3 tags"],
+  "duration_minutes": ${req.durationMinutes ?? 60},
+  "lesson_type": "${req.contentType ?? 'hands-on'}"
 }
 
-Important instructions:
-1. lesson_notes must be high-quality, long-form content (300-500 words).
-2. content_layout must be an array of blocks for visual rendering. Use 'content' key for text/heading/code.
-3. Research and include a REAL relevant YouTube embed link (educational) if possible, otherwise leave null.`;
+CRITICAL requirements:
+1. content_layout MUST have at least 10 blocks — use the full structure above as a guide.
+2. lesson_notes must be 500+ words with real educational content, not placeholder text.
+3. For coding/STEM topics always include a working code block.
+4. For topics with processes or relationships, include a mermaid diagram.
+5. Always end with at least one quiz block.
+6. Nigerian school context (Basic 1–SS3), premium and modern tone.`;
 
     case 'assignment':
       return `Generate an assignment for Rillcod Academy students.
@@ -222,12 +263,37 @@ export async function POST(req: NextRequest) {
     if (!body.topic?.trim()) {
       return NextResponse.json({ error: 'topic is required' }, { status: 400 });
     }
-    if (!['lesson', 'lesson-plan', 'library-content', 'assignment', 'cbt', 'report-feedback'].includes(type)) {
+    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'cbt', 'report-feedback', 'cbt-grading'];
+    if (!VALID_TYPES.includes(type)) {
       return NextResponse.json({ error: 'invalid type' }, { status: 400 });
     }
 
     const prompt = buildPrompt(body);
     let lastError = null;
+
+    // Rich lesson types need more tokens to avoid truncated JSON
+    const maxTokens =
+      type === 'lesson' ? 4000 :
+      type === 'lesson-plan' ? 3500 :
+      type === 'cbt' ? 3000 :
+      type === 'assignment' ? 3000 :
+      2048;
+
+    // Safe JSON extraction — handles markdown code fences and truncated responses
+    function safeParseJSON(raw: string): any {
+      // Strip markdown code fences if present
+      const stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      try {
+        return JSON.parse(stripped);
+      } catch {
+        // Try to recover a partial object by finding the last complete top-level key
+        const match = stripped.match(/^(\{[\s\S]*\})/);
+        if (match) {
+          try { return JSON.parse(match[1]); } catch { /* fall through */ }
+        }
+        throw new Error('AI returned malformed JSON — please try again');
+      }
+    }
 
     // Iterate through models until one succeeds
     for (const modelId of MODELS) {
@@ -246,7 +312,7 @@ export async function POST(req: NextRequest) {
               { role: 'user', content: prompt }
             ],
             response_format: { type: 'json_object' },
-            max_tokens: type === 'lesson-plan' ? 3500 : 2048,
+            max_tokens: maxTokens,
             temperature: 0.7
           })
         });
@@ -255,10 +321,10 @@ export async function POST(req: NextRequest) {
           const data = await response.json();
           const content = data.choices[0]?.message?.content;
           if (content) {
-            return NextResponse.json({ success: true, model: modelId, data: JSON.parse(content) });
+            const parsed = safeParseJSON(content);
+            return NextResponse.json({ success: true, model: modelId, data: parsed });
           }
-        }
-        else {
+        } else {
           const errData = await response.json().catch(() => ({}));
           console.warn(`Model ${modelId} failed with status ${response.status}:`, errData.error?.message || response.statusText);
           lastError = errData.error?.message || `Status ${response.status}`;

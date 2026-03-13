@@ -31,47 +31,11 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: Add
     const [error, setError] = useState('');
     const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
 
-    // Fetch partner schools for dropdown
+    // Fetch partner schools for dropdown (not needed for school role — locked to their own school)
     useEffect(() => {
         if (!isOpen) return;
 
-        const client = createClient();
-        const fetchSchools = async () => {
-            let query = client
-                .from('schools')
-                .select('id, name')
-                .eq('status', 'approved')
-                .order('name');
-
-            if (profile?.role === 'teacher') {
-                const { data: assignments } = await client
-                    .from('teacher_schools')
-                    .select('school_id')
-                    .eq('teacher_id', profile.id);
-                const ids = assignments?.map((a: any) => a.school_id).filter(Boolean) || [];
-                if (profile.school_id) ids.push(profile.school_id);
-                const uniqueIds = Array.from(new Set(ids));
-
-                if (uniqueIds.length > 0) {
-                    query = query.in('id', uniqueIds);
-                }
-            }
-
-            const { data } = await query;
-            const schoolList = data ?? [];
-            setSchools(schoolList);
-
-            // Auto-select school if only one exists or user is school profile
-            if (profile?.role === 'school' && profile.school_id) {
-                const mySchool = schoolList.find((s: any) => s.id === profile.school_id);
-                if (mySchool) setForm(prev => ({ ...prev, school_name: mySchool.name }));
-            } else if (profile?.role === 'teacher' && schoolList.length === 1) {
-                setForm(prev => ({ ...prev, school_name: schoolList[0].name }));
-            }
-        };
-
-        fetchSchools();
-
+        // Initialize form first so school_name is never overwritten
         if (initialData) {
             setForm({
                 full_name: initialData.full_name || '',
@@ -83,8 +47,45 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: Add
                 city: initialData.city || '',
                 state: initialData.state || '',
             });
+        } else if (profile?.role === 'school') {
+            // School role: lock to their own school
+            setForm({ ...DEFAULT_FORM, school_name: profile.school_name || '' });
         } else {
             setForm(DEFAULT_FORM);
+        }
+
+        // Now handle school list population
+        if (profile?.role === 'school') {
+            setSchools([]);
+        } else {
+            const client = createClient();
+            const fetchSchools = async () => {
+                let query = client
+                    .from('schools')
+                    .select('id, name')
+                    .eq('status', 'approved')
+                    .order('name');
+
+                if (profile?.role === 'teacher') {
+                    const { data: assignments } = await client
+                        .from('teacher_schools')
+                        .select('school_id')
+                        .eq('teacher_id', profile.id);
+                    const ids = assignments?.map((a: any) => a.school_id).filter(Boolean) || [];
+                    if (profile.school_id) ids.push(profile.school_id);
+                    const uniqueIds = Array.from(new Set(ids));
+                    if (uniqueIds.length > 0) query = query.in('id', uniqueIds);
+                }
+
+                const { data } = await query;
+                const schoolList = data ?? [];
+                setSchools(schoolList);
+
+                if (profile?.role === 'teacher' && schoolList.length === 1 && !initialData) {
+                    setForm(prev => ({ ...prev, school_name: schoolList[0].name }));
+                }
+            };
+            fetchSchools();
         }
     }, [isOpen, initialData, profile]);
 
@@ -108,7 +109,9 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: Add
                     .eq('id', initialData.id);
                 if (updateError) throw updateError;
             } else {
-                const schoolId = schools.find(s => s.name === form.school_name)?.id;
+                const schoolId = profile?.role === 'school'
+                    ? profile.school_id
+                    : schools.find(s => s.name === form.school_name)?.id;
                 const { error: insertError } = await client
                     .from('students')
                     .insert([{
@@ -190,11 +193,16 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: Add
                                 value={form.parent_phone} onChange={handleChange} />
                         </Field>
 
-                        {/* School */}
+                        {/* School — locked for school role, dropdown for admin/teacher */}
                         <Field label="Partner School" required>
                             <div className="relative">
                                 <BuildingOfficeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                                {schools.length > 0 ? (
+                                {profile?.role === 'school' ? (
+                                    <div className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white flex items-center gap-2">
+                                        <span className="flex-1 truncate">{form.school_name || 'Your school'}</span>
+                                        <span className="text-[10px] text-violet-400 font-bold uppercase bg-violet-500/10 px-2 py-0.5 rounded-full flex-shrink-0">Your School</span>
+                                    </div>
+                                ) : schools.length > 0 ? (
                                     <select name="school_name" value={form.school_name} onChange={handleChange} required
                                         className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none">
                                         <option value="">Select school…</option>
@@ -209,8 +217,8 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: Add
                             </div>
                         </Field>
 
-                        {/* Show manual text when "Other" selected */}
-                        {form.school_name === '__other__' && (
+                        {/* Manual entry when "Other" selected (admin/teacher only) */}
+                        {form.school_name === '__other__' && profile?.role !== 'school' && (
                             <Field label="School Name (manual)">
                                 <IconInput icon={BuildingOfficeIcon} name="school_name_manual" type="text" placeholder="Type school name"
                                     value={(form as any).school_name_manual ?? ''}

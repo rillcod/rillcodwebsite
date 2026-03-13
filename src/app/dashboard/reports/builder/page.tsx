@@ -173,6 +173,8 @@ function ReportBuilderInner() {
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [milestoneInput, setMilestoneInput] = useState('');
+    const [isBulkBuilding, setIsBulkBuilding] = useState(false);
+    const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
     const pdfRef = useRef<HTMLDivElement>(null);
 
     const [branding, setBranding] = useState({
@@ -446,6 +448,100 @@ function ReportBuilderInner() {
     // React child").
     const overallGradeObj = reportGrade(overallScore);
     const overallGradeLetter = overallGradeObj.g; // e.g. "A", "B" etc.
+
+    // ── Bulk Build: Process all students in current view ─────────────────────
+    const handleBulkBuild = async () => {
+        if (filteredStudents.length === 0) return;
+        if (!confirm(`Are you sure you want to automatically generate reports for ${filteredStudents.length} students? This will overwrite individual drafts.`)) return;
+        
+        setIsBulkBuilding(true);
+        setBulkProgress({ current: 0, total: filteredStudents.length });
+        const db = createClient();
+
+        try {
+            // Find current program ID from course
+            const { data: courseData } = await db.from('courses').select('program_id').eq('id', sessionConfig.course_id).single();
+            const programId = courseData?.program_id;
+
+            for (let i = 0; i < filteredStudents.length; i++) {
+                const s = filteredStudents[i];
+                setBulkProgress({ current: i + 1, total: filteredStudents.length });
+
+                // 1. Fetch Stats (Attendance, Assignments, CBT)
+                const studentSchoolId = s.school_id;
+                const studentClassName = (s as any).section_class;
+                let targetClassId = (s as any).class_id;
+                if (!targetClassId && studentClassName) {
+                    const { data: clsData } = await db.from('classes').select('id').eq('name', studentClassName).eq('school_id', studentSchoolId || '').maybeSingle();
+                    targetClassId = clsData?.id;
+                }
+                const { data: sessions } = targetClassId ? await db.from('class_sessions').select('id').eq('class_id', targetClassId).eq('is_active', true) : { data: [] };
+                const sessionIds = sessions?.map(x => x.id) || [];
+
+                const [attRes, subRes, allAsgn, cbtRes] = await Promise.all([
+                    sessionIds.length > 0 ? db.from('attendance').select('id').eq('user_id', s.id).in('session_id', sessionIds).eq('status', 'present') : { data: [] },
+                    db.from('assignment_submissions').select('grade').eq('user_id', s.id).eq('status', 'graded'),
+                    db.from('assignments').select('id').eq('course_id', sessionConfig.course_id).eq('is_active', true),
+                    programId ? db.from('cbt_sessions').select('score').eq('user_id', s.id).eq('exam_id', programId).order('score', { ascending: false }).limit(1) : { data: [] }
+                ]);
+
+                // 2. Calculate scores
+                const attPct = sessionIds.length > 0 ? Math.min(100, Math.round((attRes.data?.length || 0) / sessionIds.length * 100)) : 80;
+                const cbtScore = cbtRes.data?.[0]?.score || 0;
+                const asgnGrades = subRes.data?.map(sub => sub.grade).filter(g => g !== null) || [];
+                const asgnAvg = asgnGrades.length > 0 ? Math.round(asgnGrades.reduce((a, b) => a + b, 0) / asgnGrades.length) : 0;
+                const assigPct = allAsgn.data?.length ? Math.round((subRes.data?.length || 0) / allAsgn.data.length * 100) : 0;
+
+                // 3. Map to Report Fields
+                const theory = cbtScore || Math.min(100, asgnAvg + 5); 
+                const practical = asgnAvg || theory;
+                const participation = Math.min(100, Math.round(attPct * 0.7 + assigPct * 0.3));
+
+                // 4. Check for existing report
+                const { data: existing } = await db.from('student_progress_reports').select('id').eq('student_id', s.id).eq('report_term', sessionConfig.report_term).order('updated_at', { ascending: false }).maybeSingle();
+
+                const overall = Math.round(theory * 0.35 + practical * 0.35 + attPct * 0.15 + participation * 0.15);
+                const gradeLetter = reportGrade(overall).g;
+
+                const payload: any = {
+                    student_id: s.id,
+                    teacher_id: profile!.id,
+                    school_id: sessionConfig.school_id || s.school_id || null,
+                    course_id: sessionConfig.course_id || null,
+                    student_name: s.full_name,
+                    school_name: sessionConfig.school_name || s.school_name,
+                    section_class: (s as any).section_class || sessionConfig.section_class,
+                    course_name: sessionConfig.course_name,
+                    report_date: sessionConfig.report_date,
+                    report_term: sessionConfig.report_term,
+                    report_period: sessionConfig.report_period,
+                    instructor_name: sessionConfig.instructor_name,
+                    theory_score: theory,
+                    practical_score: practical,
+                    attendance_score: attPct,
+                    participation_score: participation,
+                    overall_score: overall,
+                    overall_grade: gradeLetter,
+                    proficiency_level: overall >= 80 ? 'advanced' : overall >= 50 ? 'intermediate' : 'beginner',
+                    is_published: false,
+                    updated_at: new Date().toISOString(),
+                };
+
+                if (existing) {
+                    await db.from('student_progress_reports').update(payload).eq('id', existing.id);
+                } else {
+                    await db.from('student_progress_reports').insert(payload);
+                }
+            }
+            setSuccess(`Successfully generated ${filteredStudents.length} report drafts!`);
+            // Trigger a data refresh for student list
+            selectStudent(filteredStudents[0], 0); 
+        } catch (err: any) {
+            setError('Bulk build failed: ' + err.message);
+        } finally {
+            setIsBulkBuilding(false);
+        }
+    };
 
     // ── Save report ───────────────────────────────────────────────────────────
     const handleSave = async (publish = false) => {
@@ -1100,6 +1196,25 @@ function ReportBuilderInner() {
                                     <UserGroupIcon className="w-5 h-5 text-violet-400" /> Students
                                 </h2>
                                 <span className="text-xs text-white/30 bg-white/5 px-2 py-0.5 rounded-full">{filteredStudents.length} total</span>
+                                {filteredStudents.length > 0 && (
+                                    <button
+                                        onClick={handleBulkBuild}
+                                        disabled={isBulkBuilding}
+                                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg shadow-violet-900/20 group"
+                                    >
+                                        {isBulkBuilding ? (
+                                            <>
+                                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                                                {bulkProgress.current} / {bulkProgress.total} Building...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <RocketLaunchIcon className="w-3.5 h-3.5 group-hover:translate-y-[-2px] transition-transform" />
+                                                Magic Bulk Build
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                                 <input
                                     type="search" placeholder="Search…"
                                     value={search} onChange={e => setSearch(e.target.value)}
