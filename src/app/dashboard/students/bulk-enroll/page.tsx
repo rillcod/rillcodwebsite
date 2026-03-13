@@ -21,9 +21,9 @@ interface StudentRow {
   id: string;
   full_name: string;
   email: string;
-  section_class?: string;
-  school_name?: string;
-  school_id?: string;
+  section_class: string;
+  school_name: string;
+  school_id: string;
 }
 
 interface EnrollResult {
@@ -62,10 +62,18 @@ export default function BulkEnrollPage() {
         .select('id, full_name, email, section_class, school_name, school_id')
         .eq('role', 'student')
         .order('full_name'),
-      db.from('programs').select('id, title').order('title'),
+      db.from('programs').select('id, name').order('name'),
       db.from('schools').select('id, name').eq('status', 'approved').order('name'),
     ]);
-    setStudents(studRes.data ?? []);
+    
+    const mappedStudents = (studRes.data ?? []).map(s => ({
+      ...s,
+      section_class: s.section_class ?? '',
+      school_name: s.school_name ?? '',
+      school_id: s.school_id ?? ''
+    }));
+
+    setStudents(mappedStudents);
     setPrograms(progRes.data ?? []);
     setSchools(schoolRes.data ?? []);
     setLoading(false);
@@ -192,7 +200,7 @@ export default function BulkEnrollPage() {
           <div className="flex-1 min-w-0">
             <p className="text-white font-bold text-sm">
               {result.enrolled} student{result.enrolled !== 1 ? 's' : ''} enrolled into{' '}
-              <span className="text-violet-300">{selectedProgram?.title ?? result.program_id}</span>
+              <span className="text-violet-300">{selectedProgram?.name ?? result.program_id}</span>
               {result.section_class && <> · <span className="text-cyan-300">{result.section_class}</span></>}
             </p>
             {result.skipped > 0 && (
@@ -216,7 +224,7 @@ export default function BulkEnrollPage() {
             <span className="text-white font-bold text-sm">Enrolment Settings</span>
             {programId && (
               <span className="text-violet-300 text-xs bg-violet-500/15 px-2 py-0.5 rounded-full border border-violet-500/20 font-bold truncate max-w-[120px] sm:max-w-none">
-                {selectedProgram?.title}
+                {selectedProgram?.name}
               </span>
             )}
             {sectionClass && (
@@ -243,7 +251,7 @@ export default function BulkEnrollPage() {
               >
                 <option value="">— Select a programme —</option>
                 {programs.map((p) => (
-                  <option key={p.id} value={p.id}>{p.title}</option>
+                  <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
             </div>

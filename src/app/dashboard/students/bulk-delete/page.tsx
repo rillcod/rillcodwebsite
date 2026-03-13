@@ -19,10 +19,10 @@ interface StudentRow {
   id: string;
   full_name: string;
   email: string;
-  section_class: string | null;
-  school_name: string | null;
-  is_active: boolean | null;
-  created_at: string | null;
+  section_class: string;
+  school_name: string;
+  is_active: boolean;
+  created_at: string;
 }
 
 interface DeleteResult {
@@ -57,7 +57,17 @@ export default function BulkDeletePage() {
       .select('id, full_name, email, section_class, school_name, is_active, created_at')
       .eq('role', 'student')
       .order('full_name');
-    if (!error) setStudents(data ?? []);
+    
+    if (!error) {
+      const mapped = (data ?? []).map(s => ({
+        ...s,
+        section_class: s.section_class ?? '',
+        school_name: s.school_name ?? '',
+        is_active: !!s.is_active,
+        created_at: s.created_at ?? ''
+      }));
+      setStudents(mapped);
+    }
     setLoading(false);
   }
 

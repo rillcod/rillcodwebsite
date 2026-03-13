@@ -11,6 +11,7 @@ import {
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { ScaledReportCard } from '@/lib/pdf-utils';
+import ReportCard from '@/components/reports/ReportCard';
 
 export default function VerifyCodePage() {
   const { code } = useParams<{ code: string }>();
@@ -192,7 +193,9 @@ export default function VerifyCodePage() {
                   <div className="relative">
                     <div className="absolute -inset-4 bg-white/5 rounded-[3rem] blur-2xl -z-10" />
                     <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]">
-                      <ScaledReportCard report={report} orgSettings={orgSettings} />
+                      <ScaledReportCard report={report}>
+                        <ReportCard report={report} orgSettings={orgSettings} />
+                      </ScaledReportCard>
                     </div>
                   </div>
 

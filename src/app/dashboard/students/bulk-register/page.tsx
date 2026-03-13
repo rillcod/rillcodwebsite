@@ -95,7 +95,7 @@ interface School {
 
 interface Programme {
   id: string;
-  title: string;
+  name: string;
 }
 
 interface ClassOption {
@@ -242,8 +242,8 @@ export default function BulkRegisterPage() {
       // Load programmes
       const { data: progs } = await supabase
         .from('programs')
-        .select('id, title')
-        .order('title');
+        .select('id, name')
+        .order('name');
       setProgrammes(progs ?? []);
     }
 
@@ -360,7 +360,7 @@ export default function BulkRegisterPage() {
   const successCount = results?.filter((r) => r.status !== 'failed').length ?? 0;
   const failCount    = results?.filter((r) => r.status === 'failed').length ?? 0;
 
-  const selectedProgLabel = programmes.find((p) => p.id === selectedProgramId)?.title ?? '';
+  const selectedProgLabel = programmes.find((p) => p.id === selectedProgramId)?.name ?? '';
 
   // Shared input class
   const inp = 'w-full bg-transparent border border-white/10 rounded-lg px-2 py-1.5 text-white text-xs focus:outline-none focus:border-violet-500/60 focus:bg-violet-500/5 transition-colors placeholder-white/20';
@@ -483,7 +483,7 @@ export default function BulkRegisterPage() {
                     >
                       <option value="">— No auto-enrolment —</option>
                       {programmes.map((p) => (
-                        <option key={p.id} value={p.id}>{p.title}</option>
+                        <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>
                     <p className="text-white/25 text-[11px] mt-1.5">
