@@ -48,7 +48,7 @@ export default function StudentProgressReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
   useEffect(() => {
     if (authLoading || !profile || !studentId) return;
@@ -58,11 +58,15 @@ export default function StudentProgressReportPage() {
       try {
         const supabase = createClient();
         // Step 1: Load student (including user_id link to portal_users)
-        const { data: studentData, error: studErr } = await supabase
+        let studentQuery = supabase
           .from('students')
           .select('id, full_name, school_name, current_class, parent_name, parent_email, status, created_at, city, state, user_id, enrollment_type, preferred_schedule, course_interest')
-          .eq('id', studentId)
-          .single();
+          .eq('id', studentId);
+        // School users may only view reports for students in their school
+        if (profile?.role === 'school' && profile?.school_id) {
+          studentQuery = studentQuery.eq('school_id', profile.school_id);
+        }
+        const { data: studentData, error: studErr } = await studentQuery.single();
         if (!cancelled) setStudent(studentData ?? null);
         if (studErr) throw studErr;
 

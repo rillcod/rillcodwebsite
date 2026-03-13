@@ -25,9 +25,9 @@ type PortalUser = {
 const ROLES = ['admin', 'teacher', 'school', 'student'];
 
 export default function UsersPage() {
-    const { profile } = useAuth();
+    const { profile, loading: authLoading } = useAuth();
     const [users, setUsers] = useState<PortalUser[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
 
@@ -93,7 +93,10 @@ export default function UsersPage() {
         setLoading(false);
     };
 
-    useEffect(() => { load(); checkGaps(); }, []); // eslint-disable-line
+    useEffect(() => {
+        if (authLoading || profile?.role !== 'admin') return;
+        load(); checkGaps();
+    }, [profile?.id, authLoading]); // eslint-disable-line
 
     const openEdit = (u: PortalUser) => {
         setEditing(u);
@@ -250,7 +253,13 @@ export default function UsersPage() {
         return map[role] ?? 'from-gray-600 to-gray-400';
     };
 
-    if (profile?.role !== 'admin') {
+    if (authLoading || !profile) return (
+        <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
+            <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
+
+    if (profile.role !== 'admin') {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
                 <p className="text-white/40">Only admins can access this page.</p>

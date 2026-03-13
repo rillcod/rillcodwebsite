@@ -32,6 +32,7 @@ import {
   RocketLaunchIcon,
   CalendarDaysIcon,
   BanknotesIcon,
+  VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -116,6 +117,7 @@ export default function DashboardNavigation() {
           { name: 'Report Builder',   href: '/dashboard/reports/builder',  icon: DocumentTextIcon },
           { name: 'Progress Reports', href: '/dashboard/results',          icon: DocumentChartBarIcon },
           { divider: true, label: 'System' },
+          { name: 'Live Sessions',    href: '/dashboard/live-sessions',    icon: VideoCameraIcon },
           { name: 'Messages',         href: '/dashboard/messages',         icon: EnvelopeIcon },
           { name: 'Analytics',        href: '/dashboard/analytics',        icon: ChartBarIcon },
           { name: 'IoT Monitor',      href: '/dashboard/iot',              icon: SignalIcon },
@@ -143,6 +145,7 @@ export default function DashboardNavigation() {
           { name: 'Report Builder',   href: '/dashboard/reports/builder',  icon: DocumentTextIcon },
           { name: 'Progress Reports', href: '/dashboard/results',          icon: DocumentChartBarIcon },
           { divider: true, label: 'More' },
+          { name: 'Live Sessions',    href: '/dashboard/live-sessions',    icon: VideoCameraIcon },
           { name: 'Messages',         href: '/dashboard/messages',         icon: EnvelopeIcon },
           { name: 'Progress',         href: '/dashboard/progress',         icon: ChartBarIcon },
           { name: 'Settings',         href: '/dashboard/settings',         icon: CogIcon },
@@ -161,6 +164,7 @@ export default function DashboardNavigation() {
           { name: 'Leaderboard',      href: '/dashboard/leaderboard',      icon: TrophyIcon },
           { name: 'Code Playground',  href: '/dashboard/playground',       icon: CodeBracketIcon },
           { name: 'My Portfolio',     href: '/dashboard/portfolio',        icon: RocketLaunchIcon },
+          { name: 'Live Sessions',    href: '/dashboard/live-sessions',    icon: VideoCameraIcon },
           { name: 'Timetable',        href: '/dashboard/timetable',        icon: CalendarDaysIcon },
           { divider: true, label: 'My Report' },
           { name: 'My Report Card',   href: '/dashboard/results',          icon: DocumentChartBarIcon },
@@ -193,6 +197,7 @@ export default function DashboardNavigation() {
           { name: 'Student Reports',  href: '/dashboard/results',          icon: DocumentChartBarIcon },
           { name: 'Progress',         href: '/dashboard/progress',         icon: PresentationChartLineIcon },
           { divider: true, label: 'More' },
+          { name: 'Live Sessions',    href: '/dashboard/live-sessions',    icon: VideoCameraIcon },
           { name: 'Messages',         href: '/dashboard/messages',         icon: EnvelopeIcon },
           { name: 'Settings',         href: '/dashboard/settings',         icon: CogIcon },
         ];

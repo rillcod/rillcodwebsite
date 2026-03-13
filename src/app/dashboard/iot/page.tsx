@@ -78,7 +78,7 @@ function MiniBar({ pct, warn = 70, danger = 85 }: { pct: number; warn?: number; 
 
 // ─── Page ─────────────────────────────────────────────────────
 export default function IoTPage() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const [devices, setDevices] = useState<Device[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -182,6 +182,18 @@ export default function IoTPage() {
   const offline = devices.filter(d => d.status === 'offline').length;
   const avgCpu = Math.round(devices.filter(d => d.status === 'online').reduce((a, d) => a + d.cpu, 0) / Math.max(online, 1));
   const avgTemp = Math.round(devices.filter(d => d.status === 'online').reduce((a, d) => a + d.temperature, 0) / Math.max(online, 1));
+
+  if (authLoading || !profile) return (
+    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  if (profile.role !== 'admin') return (
+    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+      <p className="text-white/40">Admin access required.</p>
+    </div>
+  );
 
   if (dbLoading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">

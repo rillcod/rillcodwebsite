@@ -174,8 +174,9 @@ for n in range(1, 21):
 </html>`,
 
   scratch: `// SCRATCH MODE
-// Use the visual block interface below to create your games.
-// If you want to use Python for Scratch-like logic, switch to Robotics mode.
+// Use the visual block interface on the right to build your games.
+// To load a specific Scratch project, type the Project ID below:
+// 1092686029
 `,
 
   robotics: `# 🤖 Welcome to Rillcod Robotics Lab!
@@ -222,6 +223,7 @@ export default function PlaygroundPage() {
   const [activeTab, setActiveTab] = useState<'output' | 'preview'>('output');
   const [showChallenges, setShowChallenges] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [scratchUrl, setScratchUrl] = useState('https://llk.github.io/scratch-gui/');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -247,7 +249,12 @@ export default function PlaygroundPage() {
     const stored = localStorage.getItem(storageKey(profile?.id, l));
     setCode(stored ?? STARTER_CODE[l]);
     setOutput([]);
-    if (l === 'scratch') setActiveTab('preview');
+    if (l === 'scratch') {
+      setActiveTab('preview');
+      const c = stored ?? STARTER_CODE[l];
+      const match = c.match(/\b(\d{8,12})\b/);
+      setScratchUrl(match ? `https://llk.github.io/scratch-gui/#${match[1]}` : 'https://llk.github.io/scratch-gui/');
+    }
     else if (l === 'robotics') setActiveTab('preview');
     else setActiveTab('output');
   }
@@ -258,9 +265,13 @@ export default function PlaygroundPage() {
 
     if (lang === 'html' || lang === 'scratch') {
       setActiveTab('preview');
-      if (iframeRef.current) {
-        if (lang === 'html') iframeRef.current.srcdoc = code;
-        // Scratch is handled by a direct iframe src change for embedding
+      if (lang === 'html' && iframeRef.current) {
+        iframeRef.current.srcdoc = code;
+      }
+      if (lang === 'scratch') {
+        const match = code.match(/\b(\d{8,12})\b/);
+        const target = match ? `https://llk.github.io/scratch-gui/#${match[1]}` : 'https://llk.github.io/scratch-gui/';
+        if (scratchUrl !== target) setScratchUrl(target);
       }
       setRunning(false);
       return;
@@ -367,7 +378,7 @@ robot = Robot()
               onClick={() => changeLang(l)}
               className={`px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all ${lang === l ? 'bg-violet-600 text-white' : 'text-white/40 hover:text-white'}`}
             >
-              {l === 'javascript' ? 'JS' : l === 'python' ? 'Python' : l}
+              {l === 'javascript' ? 'JS' : l === 'python' ? 'Python' : l === 'scratch' ? 'Scratch 3' : l}
             </button>
           ))}
         </div>
@@ -477,7 +488,7 @@ robot = Robot()
               ) : (
                 <iframe
                   ref={iframeRef}
-                  src={lang === 'scratch' ? 'https://turbowarp.org/editor?embed' : undefined}
+                  src={lang === 'scratch' ? scratchUrl : undefined}
                   className={`w-full h-full border-0 ${lang === 'html' ? 'bg-white' : 'bg-black'}`}
                   sandbox="allow-scripts allow-modals allow-popups allow-forms allow-same-origin"
                   title={lang === 'scratch' ? 'Scratch Preview' : 'HTML Preview'}

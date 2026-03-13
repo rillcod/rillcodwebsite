@@ -31,7 +31,7 @@ export default function MessagesPage() {
   const [posting, setPosting] = useState(false);
   const [posted, setPosted] = useState(false);
 
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -289,6 +289,7 @@ export default function MessagesPage() {
                       <option value="students">Students Only</option>
                       <option value="teachers">Teachers Only</option>
                       <option value="admins">Admins Only</option>
+                      <option value="schools">Partner Schools Only</option>
                     </select>
                   </div>
                 </div>

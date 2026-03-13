@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   UserIcon, EnvelopeIcon, PhoneIcon, ShieldCheckIcon,
   AcademicCapIcon, BookOpenIcon, ClipboardDocumentListIcon,
   BuildingOfficeIcon, ChartBarIcon, PencilSquareIcon,
   CheckIcon, ArrowPathIcon, ChevronRightIcon, RocketLaunchIcon,
+  CameraIcon,
 } from '@heroicons/react/24/outline';
 
 export default function ProfilePage() {
@@ -19,10 +21,15 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ full_name: '', phone: '', bio: '' });
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!profile) return;
     setForm({ full_name: profile.full_name ?? '', phone: profile.phone ?? '', bio: profile.bio ?? '' });
+    setAvatarUrl((profile as any).avatar_url ?? null);
     const db = createClient();
     if (profile.role === 'student') {
       Promise.all([
@@ -54,6 +61,14 @@ export default function ProfilePage() {
       ]).then(([stu, tea, sch, prog]) => {
         setStats({ students: stu.count ?? 0, teachers: tea.count ?? 0, schools: sch.count ?? 0, programmes: prog.count ?? 0 });
       });
+    } else if (profile.role === 'school' && profile.school_id) {
+      Promise.all([
+        db.from('students').select('id', { count: 'exact', head: true }).eq('school_id', profile.school_id),
+        db.from('teacher_schools').select('id', { count: 'exact', head: true }).eq('school_id', profile.school_id),
+        db.from('programs').select('id', { count: 'exact', head: true }).eq('is_active', true),
+      ]).then(([stu, tea, prog]) => {
+        setStats({ students: stu.count ?? 0, teachers: tea.count ?? 0, programmes: prog.count ?? 0 });
+      });
     }
   }, [profile?.id]);
 
@@ -70,6 +85,31 @@ export default function ProfilePage() {
     setEditing(false);
   };
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
+    setAvatarError(null);
+    if (file.size > 1 * 1024 * 1024) {
+      setAvatarError('Max file size is 1MB');
+      return;
+    }
+    setUploadingAvatar(true);
+    const db = createClient();
+    const ext = file.name.split('.').pop() ?? 'jpg';
+    const path = `${profile.id}/avatar.${ext}`;
+    const { error: upErr } = await db.storage.from('avatars').upload(path, file, {
+      contentType: file.type,
+      upsert: true,
+    });
+    if (upErr) { setAvatarError(upErr.message); setUploadingAvatar(false); return; }
+    const { data } = db.storage.from('avatars').getPublicUrl(path);
+    const url = `${data.publicUrl}?t=${Date.now()}`;
+    await db.from('portal_users').update({ avatar_url: url } as any).eq('id', profile.id);
+    setAvatarUrl(url);
+    await refreshProfile?.();
+    setUploadingAvatar(false);
+  };
+
   if (!profile) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
@@ -80,6 +120,7 @@ export default function ProfilePage() {
     admin: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
     teacher: 'text-teal-400 bg-teal-500/10 border-teal-500/20',
     student: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
+    school: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
   };
 
   const statCards: { label: string; value: number; icon: any; color: string }[] = [];
@@ -94,6 +135,12 @@ export default function ProfilePage() {
       { label: 'Classes', value: stats.classes ?? 0, icon: AcademicCapIcon, color: 'text-teal-400' },
       { label: 'Lessons', value: stats.lessons ?? 0, icon: BookOpenIcon, color: 'text-cyan-400' },
       { label: 'Assignments', value: stats.assignments ?? 0, icon: ClipboardDocumentListIcon, color: 'text-amber-400' },
+    );
+  } else if (profile.role === 'school') {
+    statCards.push(
+      { label: 'My Students', value: stats.students ?? 0, icon: UserIcon, color: 'text-indigo-400' },
+      { label: 'Assigned Teachers', value: stats.teachers ?? 0, icon: AcademicCapIcon, color: 'text-teal-400' },
+      { label: 'Programmes', value: stats.programmes ?? 0, icon: BookOpenIcon, color: 'text-amber-400' },
     );
   } else {
     statCards.push(
@@ -114,12 +161,31 @@ export default function ProfilePage() {
             <div className="bg-white/5 border border-white/10 rounded-[40px] p-8 md:p-12 backdrop-blur-xl flex flex-col md:flex-row items-center md:items-start gap-10 shadow-2xl">
               {/* Avatar Section */}
               <div className="relative shrink-0">
-                <div className={`w-32 h-32 md:w-44 md:h-44 ${profile.role === 'teacher' ? 'bg-teal-600' : 'bg-indigo-600'} border-4 border-white/20 rounded-[48px] flex items-center justify-center text-5xl md:text-7xl font-black text-white uppercase shadow-2xl rotate-3 group-hover:rotate-0 transition-transform duration-500`}>
-                    {profile.full_name?.charAt(0) ?? 'U'}
+                <div className={`w-32 h-32 md:w-44 md:h-44 ${profile.role === 'teacher' ? 'bg-teal-600' : 'bg-indigo-600'} border-4 border-white/20 rounded-[48px] overflow-hidden flex items-center justify-center text-5xl md:text-7xl font-black text-white uppercase shadow-2xl rotate-3 group-hover:rotate-0 transition-transform duration-500`}>
+                    {avatarUrl
+                      ? <Image src={avatarUrl} alt={profile.full_name ?? 'Avatar'} fill className="object-cover" unoptimized />
+                      : (profile.full_name?.charAt(0) ?? 'U')
+                    }
                 </div>
+                {/* Upload button */}
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="absolute -bottom-2 -left-2 bg-[#070710] border border-white/10 p-3 rounded-2xl shadow-xl hover:bg-white/10 transition-colors disabled:opacity-50"
+                  title="Change profile photo"
+                >
+                  {uploadingAvatar
+                    ? <ArrowPathIcon className="w-5 h-5 text-white/60 animate-spin" />
+                    : <CameraIcon className="w-5 h-5 text-white/60" />
+                  }
+                </button>
+                <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarChange} />
                 <div className="absolute -bottom-2 -right-2 bg-[#070710] border border-white/10 p-3 rounded-2xl shadow-xl">
                     <ShieldCheckIcon className={`w-6 h-6 ${profile.role === 'teacher' ? 'text-teal-400' : 'text-indigo-400'}`} />
                 </div>
+                {avatarError && (
+                  <p className="absolute -bottom-10 left-0 text-xs text-red-400 whitespace-nowrap">{avatarError}</p>
+                )}
               </div>
 
               <div className="flex-1 text-center md:text-left space-y-6">

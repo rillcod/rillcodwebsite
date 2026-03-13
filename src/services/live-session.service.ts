@@ -1,93 +1,60 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
-import { videoConferenceService, MeetingConfig, Provider } from './video-conference.service';
 import { notificationsService } from './notifications.service';
 
 export interface ScheduleSessionParams {
-    courseId: string;
-    instructorId: string;
+    hostId: string;
     title: string;
     description?: string;
-    scheduledStart: string; // ISO String representation
-    scheduledEnd: string;
-    provider: Provider;
-    recordingEnabled?: boolean;
-    allowBreakoutRooms?: boolean;
-    allowScreenSharing?: boolean;
-    allowPolls?: boolean;
+    scheduledAt: string; // ISO string
+    durationMinutes?: number;
+    platform?: 'zoom' | 'google_meet' | 'teams' | 'discord' | 'other';
+    sessionUrl?: string;
+    programId?: string;
+    schoolId?: string;
+    notes?: string;
 }
 
 export class LiveSessionService {
     async scheduleLiveSession(params: ScheduleSessionParams) {
         const supabase = await createClient();
 
-        // 1. Check if course exists
-        const { data: course, error: courseErr } = await supabase
-            .from('courses')
-            .select('title, program_id')
-            .eq('id', params.courseId)
-            .single();
-
-        if (courseErr || !course) {
-            throw new AppError('Course not found', 404);
-        }
-
-        // 2. Create meeting via video-conference provider
-        const durationMinutes = Math.floor((new Date(params.scheduledEnd).getTime() - new Date(params.scheduledStart).getTime()) / 60000);
-
-        const meetingConfig: MeetingConfig = {
-            topic: `${course.title}: ${params.title}`,
-            startTime: new Date(params.scheduledStart),
-            durationMinutes,
-            provider: params.provider,
-        };
-
-        const meetingInfo = await videoConferenceService.createMeeting(meetingConfig);
-
-        // 3. Save to database
         const { data: session, error: dbErr } = await supabase
             .from('live_sessions')
             .insert([{
-                course_id: params.courseId,
-                instructor_id: params.instructorId,
+                host_id: params.hostId,
                 title: params.title,
-                description: params.description,
-                scheduled_start: params.scheduledStart,
-                scheduled_end: params.scheduledEnd,
-                provider: meetingInfo.provider,
-                meeting_id: meetingInfo.meeting_id,
-                meeting_url: meetingInfo.meeting_url,
-                meeting_password: meetingInfo.meeting_password,
-                recording_enabled: params.recordingEnabled ?? false,
-                allow_breakout_rooms: params.allowBreakoutRooms ?? false,
-                allow_screen_sharing: params.allowScreenSharing ?? true,
-                allow_polls: params.allowPolls ?? false,
-                status: 'scheduled'
+                description: params.description ?? null,
+                scheduled_at: params.scheduledAt,
+                duration_minutes: params.durationMinutes ?? 60,
+                platform: params.platform ?? 'zoom',
+                session_url: params.sessionUrl ?? null,
+                program_id: params.programId ?? null,
+                school_id: params.schoolId ?? null,
+                notes: params.notes ?? null,
+                status: 'scheduled',
             }])
             .select()
             .single();
 
         if (dbErr) throw new AppError(dbErr.message, 500);
 
-        // 4. Send notifications to all enrolled students
-        const programId = course.program_id;
-        if (programId) {
+        // Send notifications to enrolled students if program_id provided
+        if (params.programId) {
             const { data: enrollments } = await supabase
                 .from('enrollments')
                 .select('user_id')
-                .eq('program_id', programId)
+                .eq('program_id', params.programId)
                 .eq('status', 'active');
 
-            if (enrollments) {
-                for (const { user_id } of enrollments) {
-                    if (!user_id) continue;
-                    await notificationsService.logNotification(
-                        user_id,
-                        'New Live Session Scheduled',
-                        `A new live session covering "${params.title}" has been scheduled for your course.`,
-                        'info'
-                    );
-                }
+            for (const { user_id } of enrollments ?? []) {
+                if (!user_id) continue;
+                await notificationsService.logNotification(
+                    user_id,
+                    'New Live Session Scheduled',
+                    `A new live session "${params.title}" has been scheduled.`,
+                    'info'
+                );
             }
         }
 
@@ -97,19 +64,9 @@ export class LiveSessionService {
     async updateSessionStatus(sessionId: string, status: 'scheduled' | 'live' | 'completed' | 'cancelled') {
         const supabase = await createClient();
 
-        const updates: any = { status };
-
-        if (status === 'live') {
-            updates.actual_start = new Date().toISOString();
-        } else if (status === 'completed') {
-            updates.actual_end = new Date().toISOString();
-            // Automatically fetch recording async after completion (mocked logic)
-            setTimeout(() => this.syncRecording(sessionId).catch(console.error), 3600000); // Wait 1hr before looking for recording
-        }
-
         const { data, error } = await supabase
             .from('live_sessions')
-            .update(updates)
+            .update({ status })
             .eq('id', sessionId)
             .select()
             .single();
@@ -121,23 +78,29 @@ export class LiveSessionService {
     async updateSessionDetails(sessionId: string, updates: Partial<{
         title: string;
         description: string;
-        scheduledStart: string;
-        scheduledEnd: string;
-        recordingEnabled: boolean;
-        allowBreakoutRooms: boolean;
-        allowScreenSharing: boolean;
-        allowPolls: boolean;
+        scheduledAt: string;
+        durationMinutes: number;
+        platform: 'zoom' | 'google_meet' | 'teams' | 'discord' | 'other';
+        sessionUrl: string;
+        programId: string;
+        schoolId: string;
+        recordingUrl: string;
+        notes: string;
+        status: 'scheduled' | 'live' | 'completed' | 'cancelled';
     }>) {
         const supabase = await createClient();
-        const payload: any = {};
-        if (updates.title) payload.title = updates.title;
+        const payload: Record<string, unknown> = {};
+        if (updates.title !== undefined) payload.title = updates.title;
         if (updates.description !== undefined) payload.description = updates.description;
-        if (updates.scheduledStart) payload.scheduled_start = updates.scheduledStart;
-        if (updates.scheduledEnd) payload.scheduled_end = updates.scheduledEnd;
-        if (updates.recordingEnabled !== undefined) payload.recording_enabled = updates.recordingEnabled;
-        if (updates.allowBreakoutRooms !== undefined) payload.allow_breakout_rooms = updates.allowBreakoutRooms;
-        if (updates.allowScreenSharing !== undefined) payload.allow_screen_sharing = updates.allowScreenSharing;
-        if (updates.allowPolls !== undefined) payload.allow_polls = updates.allowPolls;
+        if (updates.scheduledAt !== undefined) payload.scheduled_at = updates.scheduledAt;
+        if (updates.durationMinutes !== undefined) payload.duration_minutes = updates.durationMinutes;
+        if (updates.platform !== undefined) payload.platform = updates.platform;
+        if (updates.sessionUrl !== undefined) payload.session_url = updates.sessionUrl;
+        if (updates.programId !== undefined) payload.program_id = updates.programId;
+        if (updates.schoolId !== undefined) payload.school_id = updates.schoolId;
+        if (updates.recordingUrl !== undefined) payload.recording_url = updates.recordingUrl;
+        if (updates.notes !== undefined) payload.notes = updates.notes;
+        if (updates.status !== undefined) payload.status = updates.status;
 
         const { data, error } = await supabase
             .from('live_sessions')
@@ -153,7 +116,7 @@ export class LiveSessionService {
     async joinSession(sessionId: string, userId: string): Promise<string> {
         const supabase = await createClient();
 
-        // Check if user already joined
+        // Record attendance (upsert-style)
         const { data: existing } = await supabase
             .from('live_session_attendance')
             .select('id')
@@ -165,14 +128,14 @@ export class LiveSessionService {
             await supabase.from('live_session_attendance').insert([{
                 session_id: sessionId,
                 portal_user_id: userId,
-                joined_at: new Date().toISOString()
+                joined_at: new Date().toISOString(),
             }]);
         }
 
-        // Return the meeting URL
+        // Return the session URL
         const { data: session, error } = await supabase
             .from('live_sessions')
-            .select('meeting_url, status')
+            .select('session_url, status')
             .eq('id', sessionId)
             .single();
 
@@ -182,13 +145,12 @@ export class LiveSessionService {
             throw new AppError('This session is no longer active', 400);
         }
 
-        return session.meeting_url || '';
+        return session.session_url ?? '';
     }
 
     async leaveSession(sessionId: string, userId: string) {
         const supabase = await createClient();
 
-        // Get existing attendance
         const { data: attendance } = await supabase
             .from('live_session_attendance')
             .select('id, joined_at')
@@ -201,48 +163,27 @@ export class LiveSessionService {
             const joinedAt = new Date(attendance.joined_at);
             const durationMinutes = Math.floor((leftAt.getTime() - joinedAt.getTime()) / 60000);
 
-            await supabase.from('live_session_attendance')
-                .update({
-                    left_at: leftAt.toISOString(),
-                    duration_minutes: durationMinutes
-                })
+            await supabase
+                .from('live_session_attendance')
+                .update({ left_at: leftAt.toISOString(), duration_minutes: durationMinutes })
                 .eq('id', attendance.id);
         }
 
         return true;
     }
 
-    async syncRecording(sessionId: string) {
+    async listSessions(filters?: { programId?: string; hostId?: string; schoolId?: string }) {
         const supabase = await createClient();
-
-        const { data: session } = await supabase
-            .from('live_sessions')
-            .select('meeting_id, provider')
-            .eq('id', sessionId)
-            .single();
-
-        if (!session?.meeting_id || !session?.provider) return;
-
-        const recordingUrl = await videoConferenceService.getRecordingUrl(
-            session.meeting_id,
-            session.provider as Provider
-        );
-
-        if (recordingUrl) {
-            await supabase
-                .from('live_sessions')
-                .update({ recording_url: recordingUrl })
-                .eq('id', sessionId);
-        }
-    }
-
-    async listSessions(courseId: string) {
-        const supabase = await createClient();
-        const { data, error } = await supabase
+        let query = supabase
             .from('live_sessions')
             .select('*')
-            .eq('course_id', courseId)
-            .order('scheduled_start', { ascending: true });
+            .order('scheduled_at', { ascending: true });
+
+        if (filters?.programId) query = query.eq('program_id', filters.programId);
+        if (filters?.hostId) query = query.eq('host_id', filters.hostId);
+        if (filters?.schoolId) query = query.eq('school_id', filters.schoolId);
+
+        const { data, error } = await query;
         if (error) throw new AppError(error.message, 500);
         return data ?? [];
     }
@@ -258,6 +199,44 @@ export class LiveSessionService {
         return data;
     }
 
+    async sendSessionReminders() {
+        const supabase = await createClient();
+        const now = new Date();
+        const inFifteen = new Date(now.getTime() + 15 * 60 * 1000);
+
+        const { data: sessions, error } = await supabase
+            .from('live_sessions')
+            .select('id, title, scheduled_at, program_id')
+            .gte('scheduled_at', now.toISOString())
+            .lte('scheduled_at', inFifteen.toISOString())
+            .eq('status', 'scheduled');
+
+        if (error) throw new AppError(error.message, 500);
+
+        for (const session of sessions ?? []) {
+            if (!session.program_id) continue;
+
+            const { data: enrollments } = await supabase
+                .from('enrollments')
+                .select('user_id')
+                .eq('program_id', session.program_id)
+                .eq('status', 'active');
+
+            for (const enrollment of enrollments ?? []) {
+                if (!enrollment.user_id) continue;
+                await notificationsService.logNotification(
+                    enrollment.user_id,
+                    'Live Session Reminder',
+                    `Your live session "${session.title}" starts in 15 minutes.`,
+                    'info'
+                );
+            }
+        }
+
+        return { processed: sessions?.length ?? 0 };
+    }
+
+    // Breakout room methods (still supported by DB)
     async createBreakoutRoom(sessionId: string, name: string, maxParticipants?: number, createdBy?: string) {
         const supabase = await createClient();
         const { data, error } = await supabase
@@ -267,7 +246,7 @@ export class LiveSessionService {
                 name,
                 max_participants: maxParticipants ?? null,
                 created_by: createdBy ?? null,
-                status: 'active'
+                status: 'active',
             }])
             .select()
             .single();
@@ -293,7 +272,7 @@ export class LiveSessionService {
             .insert([{
                 room_id: roomId,
                 portal_user_id: userId,
-                joined_at: new Date().toISOString()
+                joined_at: new Date().toISOString(),
             }])
             .select()
             .single();
@@ -301,7 +280,14 @@ export class LiveSessionService {
         return data;
     }
 
-    async createPoll(sessionId: string, question: string, pollType: 'poll' | 'quiz', options: { text: string; isCorrect?: boolean }[], createdBy?: string, allowMultiple: boolean = false) {
+    async createPoll(
+        sessionId: string,
+        question: string,
+        pollType: 'poll' | 'quiz',
+        options: { text: string; isCorrect?: boolean }[],
+        createdBy?: string,
+        allowMultiple: boolean = false,
+    ) {
         const supabase = await createClient();
         const { data: poll, error: pollErr } = await supabase
             .from('live_session_polls')
@@ -311,7 +297,7 @@ export class LiveSessionService {
                 poll_type: pollType,
                 status: 'draft',
                 allow_multiple: allowMultiple,
-                created_by: createdBy ?? null
+                created_by: createdBy ?? null,
             }])
             .select()
             .single();
@@ -323,7 +309,7 @@ export class LiveSessionService {
                 poll_id: poll.id,
                 option_text: opt.text,
                 order_index: index + 1,
-                is_correct: opt.isCorrect ?? false
+                is_correct: opt.isCorrect ?? false,
             }));
             const { error: optsErr } = await supabase
                 .from('live_session_poll_options')
@@ -350,54 +336,11 @@ export class LiveSessionService {
         const payload = optionIds.map(optionId => ({
             poll_id: pollId,
             option_id: optionId,
-            portal_user_id: userId
+            portal_user_id: userId,
         }));
         const { error } = await supabase.from('live_session_poll_responses').insert(payload);
         if (error) throw new AppError(error.message, 500);
         return true;
-    }
-
-    async sendSessionReminders() {
-        const supabase = await createClient();
-        const now = new Date();
-        const inFifteen = new Date(now.getTime() + 15 * 60 * 1000);
-
-        const { data: sessions, error } = await supabase
-            .from('live_sessions')
-            .select('id, title, scheduled_start, course_id')
-            .gte('scheduled_start', now.toISOString())
-            .lte('scheduled_start', inFifteen.toISOString());
-
-        if (error) throw new AppError(error.message, 500);
-
-        for (const session of sessions ?? []) {
-            if (!session.course_id) continue;
-            const { data: course } = await supabase
-                .from('courses')
-                .select('program_id')
-                .eq('id', session.course_id)
-                .single();
-
-            if (!course?.program_id) continue;
-
-            const { data: enrollments } = await supabase
-                .from('enrollments')
-                .select('user_id')
-                .eq('program_id', course.program_id)
-                .eq('status', 'active');
-
-            for (const enrollment of enrollments ?? []) {
-                if (!enrollment.user_id) continue;
-                await notificationsService.logNotification(
-                    enrollment.user_id,
-                    'Live Session Reminder',
-                    `Your live session "${session.title}" starts in 15 minutes.`,
-                    'info'
-                );
-            }
-        }
-
-        return { processed: sessions?.length ?? 0 };
     }
 }
 

@@ -46,7 +46,7 @@ function parseCSV(text: string): ParsedStudent[] {
 }
 
 export default function ImportStudentsPage() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [parsed, setParsed] = useState<ParsedStudent[]>([]);
@@ -129,6 +129,12 @@ export default function ImportStudentsPage() {
     setImporting(false);
     if (results.success > 0) setParsed([]);
   }
+
+  if (authLoading || !profile) return (
+    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 
   if (!canImport) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">

@@ -9,12 +9,14 @@ const updateSessionSchema = z.object({
     status: z.enum(['scheduled', 'live', 'completed', 'cancelled']).optional(),
     title: z.string().min(3).optional(),
     description: z.string().optional(),
-    scheduledStart: z.string().optional(),
-    scheduledEnd: z.string().optional(),
-    recordingEnabled: z.boolean().optional(),
-    allowBreakoutRooms: z.boolean().optional(),
-    allowScreenSharing: z.boolean().optional(),
-    allowPolls: z.boolean().optional(),
+    scheduledAt: z.string().optional(),
+    durationMinutes: z.number().int().positive().optional(),
+    platform: z.enum(['zoom', 'google_meet', 'teams', 'discord', 'other']).optional(),
+    sessionUrl: z.string().optional(),
+    programId: z.string().uuid().optional(),
+    schoolId: z.string().uuid().optional(),
+    recordingUrl: z.string().optional(),
+    notes: z.string().optional(),
 });
 
 async function getHandler(req: Request, ctx: ApiContext) {
@@ -39,18 +41,20 @@ async function putHandler(req: Request, ctx: ApiContext) {
         updated = await liveSessionService.updateSessionStatus(id, data.status);
     }
 
-    const detailKeys = ['title', 'description', 'scheduledStart', 'scheduledEnd', 'recordingEnabled', 'allowBreakoutRooms', 'allowScreenSharing', 'allowPolls'];
-    const hasDetailUpdates = detailKeys.some((key) => (data as any)?.[key] !== undefined);
+    const hasDetailUpdates = ['title', 'description', 'scheduledAt', 'durationMinutes', 'platform', 'sessionUrl', 'programId', 'schoolId', 'recordingUrl', 'notes'].some((key) => (data as Record<string, unknown>)?.[key] !== undefined);
     if (hasDetailUpdates) {
         updated = await liveSessionService.updateSessionDetails(id, {
             title: data?.title,
             description: data?.description,
-            scheduledStart: data?.scheduledStart,
-            scheduledEnd: data?.scheduledEnd,
-            recordingEnabled: data?.recordingEnabled,
-            allowBreakoutRooms: data?.allowBreakoutRooms,
-            allowScreenSharing: data?.allowScreenSharing,
-            allowPolls: data?.allowPolls,
+            scheduledAt: data?.scheduledAt,
+            durationMinutes: data?.durationMinutes,
+            platform: data?.platform,
+            sessionUrl: data?.sessionUrl,
+            programId: data?.programId,
+            schoolId: data?.schoolId,
+            recordingUrl: data?.recordingUrl,
+            notes: data?.notes,
+            status: data?.status,
         });
     }
 

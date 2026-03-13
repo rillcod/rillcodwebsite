@@ -429,7 +429,7 @@ export async function markNotificationRead(id: string) {
 // ── GRADE SUBMISSION ─────────────────────────────────────────
 export async function gradeSubmission(
     submissionId: string,
-    grade: number,
+    grade: number | null,
     feedback: string,
     gradedBy: string,
 ) {
@@ -449,6 +449,42 @@ export async function gradeSubmission(
         throw new Error('Grade could not be saved — permission denied or submission not found. Please check your account role.');
     }
     return data[0];
+}
+
+/**
+ * Universal update for submissions — can change status, text, grade, etc.
+ */
+export async function updateSubmission(
+    id: string,
+    payload: {
+        grade?: number | null;
+        feedback?: string | null;
+        status?: 'submitted' | 'graded' | 'late' | 'missing';
+        submission_text?: string | null;
+        graded_by?: string;
+    }
+) {
+    const updateData: any = { ...payload };
+    if (payload.status === 'graded' && !payload.hasOwnProperty('graded_at')) {
+        updateData.graded_at = new Date().toISOString();
+    }
+    
+    const { data, error } = await db()
+        .from('assignment_submissions')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw error;
+    return data;
+}
+
+export async function deleteSubmission(id: string) {
+    const { error } = await db()
+        .from('assignment_submissions')
+        .delete()
+        .eq('id', id);
+    if (error) throw error;
 }
 
 // ── SUBMIT ASSIGNMENT ─────────────────────────────────────────

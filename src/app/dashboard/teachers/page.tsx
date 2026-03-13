@@ -58,10 +58,17 @@ export default function TeacherDashboardPage() {
   }
 
   // ── ADMIN VIEW: Separate Manager View ──
-  if ((profile?.role as any) === 'admin' || (profile?.role as any) === 'school') return <AdminTeacherView schoolId={profile?.school_id || undefined} />;
+  if (profile?.role === 'admin' || profile?.role === 'school') return <AdminTeacherView schoolId={profile?.school_id || undefined} />;
 
   // ── TEACHER VIEW: Separate Personal View ──
-  return <TeacherPersonalDashboard />;
+  if (profile?.role === 'teacher') return <TeacherPersonalDashboard />;
+
+  // ── ALL OTHER ROLES: No access ──
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
+      <p className="text-white/40">You don&apos;t have access to this page.</p>
+    </div>
+  );
 }
 
 /* ════════════════════════════════════════════════════════════

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
-import { fetchSubmissionsForGrading, fetchStudentGrades, gradeSubmission } from '@/services/dashboard.service';
+import { fetchSubmissionsForGrading, fetchStudentGrades, gradeSubmission, updateSubmission, deleteSubmission } from '@/services/dashboard.service';
 import {
     ClipboardDocumentCheckIcon, CheckCircleIcon, ClockIcon, ChartBarIcon,
     ExclamationTriangleIcon, MagnifyingGlassIcon, PencilSquareIcon,
@@ -11,6 +11,7 @@ import {
     DocumentTextIcon, StarIcon, ArrowDownTrayIcon, AcademicCapIcon,
     TrophyIcon, BoltIcon, FireIcon, ChevronDownIcon, ChevronUpIcon,
     ArrowsUpDownIcon, SparklesIcon,
+    PaperClipIcon, TrashIcon
 } from '@heroicons/react/24/outline';
 
 // ─── Grade helpers ────────────────────────────────────────────
@@ -84,13 +85,16 @@ function GradeRing({ pct, letter, color, size = 'md' }: { pct: number; letter: s
 function GradeModal({ sub, onClose, onSaved }: {
     sub: any;
     onClose: () => void;
-    onSaved: (id: string, grade: number, feedback: string) => void;
+    onSaved: () => void;
 }) {
     const { profile } = useAuth();
     const max = sub.assignments?.max_points ?? 100;
     const [grade, setGrade] = useState<string>(sub.grade?.toString() ?? '');
     const [feedback, setFb] = useState<string>(sub.feedback ?? '');
+    const [status, setStatus] = useState(sub.status);
+    const [subText, setSubText] = useState(sub.submission_text ?? '');
     const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [err, setErr] = useState('');
     const [showContent, setShowContent] = useState(false);
 
@@ -103,16 +107,39 @@ function GradeModal({ sub, onClose, onSaved }: {
 
     const save = async () => {
         const g = Number(grade);
-        if (grade === '' || isNaN(g) || g < 0 || g > max) { setErr(`Enter a score between 0 and ${max}`); return; }
+        if (grade !== '' && (isNaN(g) || g < 0 || g > max)) { setErr(`Enter a score between 0 and ${max}`); return; }
         setSaving(true); setErr('');
         try {
-            await gradeSubmission(sub.id, g, feedback, profile?.id || '');
-            onSaved(sub.id, g, feedback);
+            const payload: any = { 
+                grade: grade === '' ? null : g, 
+                feedback, 
+                status,
+                submission_text: subText || null,
+                graded_by: profile?.id
+            };
+            if (status === 'graded') payload.graded_at = new Date().toISOString();
+            
+            await updateSubmission(sub.id, payload);
+            onSaved();
             onClose();
         } catch (e: any) {
             setErr(e.message ?? 'Failed to save grade');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!window.confirm('Are you sure you want to delete this submission? The student will need to submit again.')) return;
+        setDeleting(true); setErr('');
+        try {
+            await deleteSubmission(sub.id);
+            onSaved();
+            onClose();
+        } catch (e: any) {
+            setErr(e.message ?? 'Failed to delete submission');
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -134,11 +161,24 @@ function GradeModal({ sub, onClose, onSaved }: {
                             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
                                 {(sub.portal_users?.full_name ?? '?')[0]}
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                                 <p className="text-sm font-semibold text-white truncate">{sub.portal_users?.full_name ?? 'Student'}</p>
-                                <p className="text-xs text-white/30 truncate">{sub.portal_users?.email}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <select value={status} onChange={e => setStatus(e.target.value)}
+                                        className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border appearance-none cursor-pointer ${
+                                            status === 'graded' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                            status === 'submitted' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                                            status === 'late' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                                            'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                                        }`}>
+                                        <option value="submitted">Submitted</option>
+                                        <option value="graded">Graded</option>
+                                        <option value="late">Late</option>
+                                        <option value="missing">Missing</option>
+                                    </select>
+                                    <p className="text-[10px] text-white/30 truncate">{sub.portal_users?.email}</p>
+                                </div>
                             </div>
-                            <Badge status={sub.status} />
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-colors flex-shrink-0">
@@ -207,16 +247,26 @@ function GradeModal({ sub, onClose, onSaved }: {
                                     {showContent ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
                                 </button>
                                 {showContent && (
-                                    <div className="mt-2 bg-white/5 border border-white/10 rounded-xl p-4 max-h-36 overflow-y-auto">
-                                        {sub.submission_text && (
-                                            <p className="text-sm text-white/70 whitespace-pre-wrap">{sub.submission_text}</p>
-                                        )}
+                                    <div className="mt-2 space-y-3">
+                                        <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+                                            <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">Edit Student Text</label>
+                                            <textarea value={subText} rows={4}
+                                                onChange={e => setSubText(e.target.value)}
+                                                className="w-full bg-transparent text-sm text-white/70 focus:outline-none resize-none leading-relaxed"
+                                                placeholder="Student text submission..."
+                                            />
+                                        </div>
                                         {sub.file_url && (
                                             <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
-                                                className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 underline mt-2">
-                                                📎 View attached file
+                                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-400 hover:text-blue-300 p-3 bg-blue-400/5 rounded-xl border border-blue-400/10">
+                                                <PaperClipIcon className="w-3 h-3" /> View attached file
                                             </a>
                                         )}
+                                        <button onClick={handleDelete} disabled={deleting}
+                                            className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-rose-400/40 hover:text-rose-400 hover:bg-rose-400/10 rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent hover:border-rose-400/20">
+                                            <TrashIcon className="w-3 h-3" />
+                                            {deleting ? 'Deleting...' : 'Delete Submission'}
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -426,6 +476,137 @@ function exportCSV(items: any[], isStaff: boolean) {
     URL.revokeObjectURL(url);
 }
 
+function exportPDF(items: any[], isStaff: boolean, profile: any) {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    
+    const rowsHtml = items.map(s => {
+        const max = s.assignments?.max_points ?? 100;
+        const info = s.grade != null ? pctInfo(s.grade, max) : null;
+        const statusColor = s.status === 'graded' ? '#10b981' : s.status === 'submitted' ? '#3b82f6' : '#f43f5e';
+        
+        return `
+            <tr>
+                ${isStaff ? `<td><div style="font-weight: 800; color: #111;">${s.portal_users?.full_name || '—'}</div><div style="font-size: 10px; color: #666;">${s.portal_users?.email || ''}</div></td>` : ''}
+                <td><div style="font-weight: 700;">${s.assignments?.title || '—'}</div><div style="font-size: 10px; color: #666;">${s.assignments?.courses?.title || ''}</div></td>
+                <td><span style="display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 800; text-transform: uppercase; background: ${statusColor}15; color: ${statusColor}; border: 1px solid ${statusColor}30;">${s.status}</span></td>
+                <td style="text-align: center;"><div style="font-size: 14px; font-weight: 900;">${s.grade ?? '—'} <span style="font-size: 10px; color: #999; font-weight: 400;">/ ${max}</span></div></td>
+                <td style="text-align: center;"><div style="font-weight: 900; color: ${info?.color === 'emerald' ? '#10b981' : info?.color === 'amber' ? '#f59e0b' : '#f43f5e'}">${info?.pct ? info.pct + '%' : '—'}</div></td>
+                <td style="text-align: center;"><div style="font-weight: 900; font-size: 16px;">${info?.letter || '—'}</div></td>
+            </tr>
+        `;
+    }).join('');
+
+    const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Grade Report - ${profile?.full_name || 'Rillcod'}</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+                body { font-family: 'Inter', sans-serif; padding: 40px; color: #111; max-width: 1000px; margin: 0 auto; background: #fff; }
+                .header-container { display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid #1a1a2e; padding-bottom: 20px; margin-bottom: 30px; }
+                .logo-section { display: flex; align-items: center; gap: 15px; }
+                .logo { width: 60px; height: 60px; object-contain: contain; }
+                .brand-title { font-size: 24px; font-weight: 900; color: #000; text-transform: uppercase; letter-spacing: -0.02em; }
+                .brand-subtitle { font-size: 11px; color: #6366f1; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; }
+                .doc-title { text-align: right; }
+                .doc-title h1 { margin: 0; font-size: 28px; font-weight: 900; text-transform: uppercase; color: #111; letter-spacing: -0.03em; }
+                .doc-title p { margin: 5px 0 0; font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.1em; }
+                
+                .meta-summary { display: grid; grid-template-cols: repeat(4, 1fr); gap: 20px; margin-bottom: 40px; background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; }
+                .meta-item { border-left: 2px solid #e2e8f0; padding-left: 15px; }
+                .meta-label { font-size: 9px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+                .meta-value { font-size: 14px; font-weight: 800; color: #1e293b; }
+                
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+                th { background: #f1f5f9; padding: 12px 15px; text-align: left; font-weight: 900; color: #475569; text-transform: uppercase; font-size: 10px; letter-spacing: 0.1em; border-bottom: 2px solid #e2e8f0; }
+                td { padding: 15px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
+                
+                .footer { margin-top: 60px; border-top: 1px solid #eee; padding-top: 20px; text-align: center; }
+                .footer-text { font-size: 10px; color: #94a3b8; display: flex; justify-content: center; align-items: center; gap: 20px; }
+                
+                .print-btn { position: fixed; bottom: 30px; right: 30px; padding: 12px 24px; background: #1a1a2e; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 900; text-transform: uppercase; font-size: 12px; letter-spacing: 0.1em; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); transition: all 0.2s; }
+                .print-btn:hover { transform: translateY(-2px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); background: #000; }
+                
+                @media print {
+                    body { padding: 0; }
+                    .print-btn { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header-container">
+                <div class="logo-section">
+                    <img src="/logo.png" alt="Rillcod Logo" class="logo" />
+                    <div>
+                        <div class="brand-title">Rillcod Academy</div>
+                        <div class="brand-subtitle">Technical Excellence</div>
+                    </div>
+                </div>
+                <div class="doc-title">
+                    <h1>Academic Report</h1>
+                    <p>Official Performance Record</p>
+                </div>
+            </div>
+
+            <div class="meta-summary">
+                <div class="meta-item">
+                    <div class="meta-label">Issued To</div>
+                    <div class="meta-value">${profile?.full_name || 'Standard Report'}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">System Role</div>
+                    <div class="meta-value" style="text-transform: capitalize;">${isStaff ? 'Administrator View' : 'Student Record'}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Record Date</div>
+                    <div class="meta-value">${today}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Verification</div>
+                    <div class="meta-value">rillcod.com/verify</div>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        ${isStaff ? '<th>Student Participant</th>' : ''}
+                        <th>Assignment / Programme</th>
+                        <th style="width: 100px;">Status</th>
+                        <th style="text-align: center; width: 100px;">Score</th>
+                        <th style="text-align: center; width: 80px;">%</th>
+                        <th style="text-align: center; width: 80px;">Grade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                    ${items.length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 60px; color: #94a3b8; font-weight: 700;">No academic records found for this period.</td></tr>' : ''}
+                </tbody>
+            </table>
+
+            <div class="footer">
+                <div class="footer-text">
+                    <span>© Rillcod Technologies Limited</span>
+                    <span>•</span>
+                    <span>26 Ogiesoba Avenue, GRA, Benin City</span>
+                    <span>•</span>
+                    <span>08116600091</span>
+                </div>
+            </div>
+
+            <button class="print-btn" onclick="window.print()">Print PDF Report</button>
+        </body>
+        </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
 // ─── Main Page ────────────────────────────────────────────────
 export default function GradesPage() {
     const { profile, loading: authLoading } = useAuth();
@@ -439,6 +620,7 @@ export default function GradesPage() {
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
     const [grading, setGrading] = useState<any | null>(null);
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const role = profile?.role ?? '';
     const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
@@ -467,14 +649,11 @@ export default function GradesPage() {
         }
         load();
         return () => { cancelled = true; };
-    }, [profile?.id, isStaff, authLoading]); // eslint-disable-line
+    }, [profile?.id, isStaff, authLoading, refreshKey]); // eslint-disable-line
 
     // ── Optimistic update ──────────────────────────────────────
-    const handleGraded = (id: string, grade: number, feedback: string) => {
-        setItems(prev => prev.map(s => s.id === id
-            ? { ...s, grade, feedback, status: 'graded', graded_at: new Date().toISOString() }
-            : s
-        ));
+    const handleGraded = () => {
+        setRefreshKey(prev => prev + 1);
     };
 
     // ── Toggle expand ──────────────────────────────────────────
@@ -584,11 +763,18 @@ export default function GradesPage() {
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                         {items.length > 0 && (
-                            <button onClick={() => exportCSV(items, isStaff)}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-white/60 hover:text-white transition-all">
-                                <ArrowDownTrayIcon className="w-4 h-4" />
-                                <span className="hidden sm:inline">Export CSV</span>
-                            </button>
+                            <>
+                                <button onClick={() => exportPDF(items, isStaff, profile)}
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-bold text-white transition-all shadow-lg shadow-violet-900/20">
+                                    <DocumentTextIcon className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Export PDF</span>
+                                </button>
+                                <button onClick={() => exportCSV(items, isStaff)}
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-white/60 hover:text-white transition-all">
+                                    <ArrowDownTrayIcon className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Export CSV</span>
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>

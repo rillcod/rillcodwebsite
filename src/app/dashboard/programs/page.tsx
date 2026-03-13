@@ -121,7 +121,7 @@ export default function ProgramsPage() {
     </div>
   );
 
-  if (!isAdmin && profile?.role !== 'teacher') return (
+  if (!isAdmin && profile?.role !== 'teacher' && profile?.role !== 'school') return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center p-6 text-center">
       <p className="text-white/40">Staff access required.</p>
     </div>

@@ -40,7 +40,7 @@ export default function AttendancePage() {
   const [newSession, setNewSession] = useState({ session_date: '', start_time: '', end_time: '', topic: '' });
   const [creatingSession, setCreatingSession] = useState(false);
 
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
   useEffect(() => {
     if (authLoading || !profile) return;

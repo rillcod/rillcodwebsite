@@ -276,6 +276,12 @@ export default function ClassDetailPage() {
     </div>
   );
 
+  if (!isStaff) return (
+    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+      <p className="text-white/40">You don&apos;t have access to this page.</p>
+    </div>
+  );
+
   if (error || !cls) return (
     <div className="min-h-screen bg-[#0f0f1a] flex flex-col items-center justify-center gap-4">
       <ExclamationTriangleIcon className="w-12 h-12 text-rose-500/20" />
@@ -317,7 +323,7 @@ export default function ClassDetailPage() {
           )}
         </div>
 
-        <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl w-fit">
+        <div className="flex items-center overflow-x-auto scrollbar-hide gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl w-full sm:w-fit no-scrollbar">
           {[
             { id: 'overview', label: 'Overview', icon: UserGroupIcon },
             { id: 'lessons', label: 'Curriculum', icon: BookOpenIcon },
@@ -328,10 +334,10 @@ export default function ClassDetailPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-white/40 hover:text-white hover:bg-white/5'
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap flex-shrink-0 ${activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-white/40 hover:text-white hover:bg-white/5'
                 }`}
             >
-              <tab.icon className="w-4 h-4" />
+              <tab.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               {tab.label}
             </button>
           ))}
@@ -604,8 +610,8 @@ export default function ClassDetailPage() {
                                         defaultValue={score ?? ''}
                                         onBlur={async (e) => {
                                           const val = e.target.value;
-                                          if (val === '' || isNaN(Number(val))) return;
-                                          const numVal = Math.min(Number(val), a.max_points);
+                                          if (val !== '' && isNaN(Number(val))) return;
+                                          const numVal = val === '' ? null : Math.min(Number(val), a.max_points);
                                           const key = `asm-${a.id}-${enr.portal_users.id}`;
                                           if (numVal === score) return;
                                           
@@ -614,8 +620,19 @@ export default function ClassDetailPage() {
                                             if (sub) {
                                               await gradeSubmission(sub.id, numVal, sub.feedback || '', profile!.id);
                                             } else {
-                                              // Create new submission if not exists? Probably better to just update existing ones in this view.
-                                              // For now, let's assume we update existing ones.
+                                              const supabase = createClient();
+                                              const { error } = await supabase
+                                                .from('assignment_submissions')
+                                                .insert({
+                                                  assignment_id: a.id,
+                                                  portal_user_id: enr.portal_users.id,
+                                                  grade: numVal,
+                                                  status: 'graded',
+                                                  graded_by: profile!.id,
+                                                  graded_at: new Date().toISOString(),
+                                                  submitted_at: new Date().toISOString(),
+                                                });
+                                              if (error) throw error;
                                             }
                                             await fetchData(); // Refresh data
                                           } catch (err) {

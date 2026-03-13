@@ -96,8 +96,8 @@ export default function OverviewPage() {
           }
         } else if (role === 'school') {
           const [sStudents, sTeachers] = await Promise.allSettled([
-            supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', profile!.school_id!),
-            supabase.from('teacher_schools').select('id', { count: 'exact', head: true }).eq('school_id', profile!.school_id!),
+            supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', profile!.school_id || ''),
+            supabase.from('teacher_schools').select('id', { count: 'exact', head: true }).eq('school_id', profile!.school_id || ''),
           ]);
           // 2-step: avoid portal_users!inner FK ambiguity on assignment_submissions
           const { data: rawSubs } = await supabase.from('assignment_submissions')

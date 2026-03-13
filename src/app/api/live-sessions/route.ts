@@ -8,38 +8,24 @@ import { withValidation } from '@/proxies/validation.proxy';
 
 async function listHandler(req: Request, ctx: ApiContext) {
     const { searchParams } = new URL(req.url);
-    const courseId = searchParams.get('courseId');
+    const programId = searchParams.get('programId') ?? undefined;
+    const schoolId = searchParams.get('schoolId') ?? undefined;
+    const hostId = searchParams.get('hostId') ?? undefined;
 
-    const supabase = await createClient();
-    let query;
-
-    if (courseId) {
-        query = supabase.from('live_sessions').select('*').eq('course_id', courseId);
-    } else if (ctx.user?.tenantId) {
-        // Join with courses to filter by school_id
-        query = supabase.from('live_sessions').select('*, courses!inner(school_id)')
-            .eq('courses.school_id', ctx.user.tenantId);
-    } else {
-        query = supabase.from('live_sessions').select('*');
-    }
-
-    const { data, error } = await query.order('scheduled_start', { ascending: true });
-    if (error) throw new AppError(error.message, 500);
-
-    return NextResponse.json({ success: true, data });
+    const sessions = await liveSessionService.listSessions({ programId, schoolId, hostId });
+    return NextResponse.json({ success: true, data: sessions });
 }
 
 const createSessionSchema = z.object({
-    courseId: z.string().uuid(),
     title: z.string().min(3),
     description: z.string().optional(),
-    scheduledStart: z.string(),
-    scheduledEnd: z.string(),
-    provider: z.enum(['zoom', 'google_meet', 'microsoft_teams']),
-    recordingEnabled: z.boolean().optional(),
-    allowBreakoutRooms: z.boolean().optional(),
-    allowScreenSharing: z.boolean().optional(),
-    allowPolls: z.boolean().optional(),
+    scheduledAt: z.string(),
+    durationMinutes: z.number().int().positive().optional(),
+    platform: z.enum(['zoom', 'google_meet', 'teams', 'discord', 'other']).optional(),
+    sessionUrl: z.string().optional(),
+    programId: z.string().uuid().optional(),
+    schoolId: z.string().uuid().optional(),
+    notes: z.string().optional(),
 });
 
 async function postHandler(req: Request, ctx: ApiContext) {
@@ -49,17 +35,16 @@ async function postHandler(req: Request, ctx: ApiContext) {
     if (errorResponse) return errorResponse;
 
     const session = await liveSessionService.scheduleLiveSession({
-        courseId: data!.courseId,
-        instructorId: ctx.user!.id,
+        hostId: ctx.user!.id,
         title: data!.title,
         description: data!.description,
-        scheduledStart: data!.scheduledStart,
-        scheduledEnd: data!.scheduledEnd,
-        provider: data!.provider,
-        recordingEnabled: data!.recordingEnabled,
-        allowBreakoutRooms: data!.allowBreakoutRooms,
-        allowScreenSharing: data!.allowScreenSharing,
-        allowPolls: data!.allowPolls,
+        scheduledAt: data!.scheduledAt,
+        durationMinutes: data!.durationMinutes,
+        platform: data!.platform,
+        sessionUrl: data!.sessionUrl,
+        programId: data!.programId,
+        schoolId: data!.schoolId,
+        notes: data!.notes,
     });
 
     return NextResponse.json({ success: true, data: session });

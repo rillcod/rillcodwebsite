@@ -61,6 +61,7 @@ export default function ContentLibraryPage() {
     description: "",
     contentType: "video",
     fileId: "",
+    externalUrl: "",
     category: "",
     tags: "",
     subject: "",
@@ -111,33 +112,17 @@ export default function ContentLibraryPage() {
     if (!file) return;
     setSaving(true);
     try {
-      const db = createClient();
-      const path = `library/${crypto.randomUUID()}_${file.name}`;
+      const formData = new FormData();
+      formData.append('file', file);
       
-      // 1. Upload to storage
-      const { data: upData, error: upErr } = await db.storage.from('lms-files').upload(path, file);
-      if (upErr) throw upErr;
-
-      // 2. Register in files table to get UUID
-      const { data: publicUrlData } = db.storage.from('lms-files').getPublicUrl(path);
-      const { data: fileRecord, error: fErr } = await db
-        .from('files')
-        .insert([{
-          school_id: profile?.school_id || null,
-          uploaded_by: profile?.id,
-          filename: file.name,
-          original_filename: file.name,
-          file_type: file.type.split('/')[0],
-          file_size: file.size,
-          mime_type: file.type,
-          storage_path: path,
-          storage_provider: 's3', // supabase storage acts as s3
-          public_url: publicUrlData.publicUrl
-        }])
-        .select()
-        .single();
-
-      if (fErr) throw fErr;
+      const res = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error || 'Upload failed');
+      const fileRecord = payload.data;
 
       setForm(s => ({ 
         ...s, 
@@ -157,15 +142,44 @@ export default function ContentLibraryPage() {
     if (!form.title.trim()) return;
     setSaving(true);
     try {
+      let finalFileId = form.fileId;
+      
+      // Handle external resource URL
+      if (form.externalUrl && !finalFileId) {
+        const db = createClient();
+        const { data: fileRecord, error: fErr } = await db
+          .from('files')
+          .insert([{
+            school_id: profile?.school_id || null,
+            uploaded_by: profile?.id,
+            filename: form.title,
+            original_filename: form.title,
+            file_type: form.contentType,
+            file_size: 0,
+            mime_type: 'text/url',
+            storage_path: form.externalUrl,
+            storage_provider: 'cloudinary',
+            public_url: form.externalUrl
+          }])
+          .select()
+          .single();
+        if (fErr) throw fErr;
+        finalFileId = fileRecord.id;
+      }
+
       const res = await fetch("/api/content-library", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, tags: form.tags.split(',').map(t=>t.trim()).filter(Boolean) }),
+        body: JSON.stringify({ 
+          ...form, 
+          fileId: finalFileId,
+          tags: form.tags.split(',').map(t=>t.trim()).filter(Boolean) 
+        }),
       });
       if (!res.ok) throw new Error("Failed to create");
       await loadItems();
       setShowUpload(false);
-      setForm({ title: "", description: "", contentType: "video", fileId: "", category: "", tags: "", subject: "", gradeLevel: "", licenseType: "", attribution: "" });
+      setForm({ title: "", description: "", contentType: "video", fileId: "", externalUrl: "", category: "", tags: "", subject: "", gradeLevel: "", licenseType: "", attribution: "" });
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -437,17 +451,35 @@ export default function ContentLibraryPage() {
                      </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                     <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Select File</label>
-                     <div className="relative group cursor-pointer">
-                        <input type="file" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                        <div className="w-full border-2 border-dashed border-white/10 rounded-3xl p-8 text-center group-hover:border-violet-500/50 group-hover:bg-violet-500/5 transition-all">
-                           <ArrowDownTrayIcon className="w-10 h-10 text-white/10 mx-auto mb-3 group-hover:text-violet-400 transition-colors" />
-                           <p className="text-sm font-bold text-white/40 group-hover:text-white transition-colors">{form.fileId || 'Click or drag to upload asset'}</p>
-                           <p className="text-[10px] text-white/20 mt-1 uppercase tracking-widest">PDF, MP4, PPT, ZIP</p>
-                        </div>
-                     </div>
-                  </div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Upload File</label>
+                         <div className="relative group cursor-pointer">
+                            <input type="file" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                            <div className={`w-full border-2 border-dashed rounded-3xl p-8 text-center transition-all ${form.fileId ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/10 group-hover:border-violet-500/50 group-hover:bg-violet-500/5'}`}>
+                               {form.fileId ? <CheckCircleIcon className="w-10 h-10 text-emerald-400 mx-auto mb-3" /> : <ArrowDownTrayIcon className="w-10 h-10 text-white/10 mx-auto mb-3 group-hover:text-violet-400" />}
+                               <p className="text-sm font-bold text-white/40 group-hover:text-white transition-colors">{form.fileId ? 'File Uploaded' : 'Click or drag to upload'}</p>
+                               <p className="text-[10px] text-white/20 mt-1 uppercase tracking-widest">Local Asset</p>
+                            </div>
+                         </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                         <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Or Remote URL (Cloudinary/YouTube)</label>
+                         <div className="h-full flex flex-col">
+                            <div className={`flex-1 flex flex-col border-2 border-dashed rounded-3xl p-6 transition-all ${form.externalUrl ? 'border-blue-500/50 bg-blue-500/5' : 'border-white/10'}`}>
+                               <GlobeAltIcon className={`w-8 h-8 mx-auto mb-3 ${form.externalUrl ? 'text-blue-400' : 'text-white/10'}`} />
+                               <input 
+                                  value={form.externalUrl}
+                                  onChange={e => setForm(s => ({ ...s, externalUrl: e.target.value, fileId: "" }))}
+                                  placeholder="https://cloudinary.com/..." 
+                                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white outline-none focus:border-blue-500 transition-all mb-2"
+                               />
+                               <p className="text-[10px] text-white/20 text-center uppercase tracking-widest font-bold">Remote Resource</p>
+                            </div>
+                         </div>
+                      </div>
+                   </div>
 
                   <div className="space-y-2">
                      <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Description</label>

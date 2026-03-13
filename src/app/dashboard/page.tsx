@@ -400,11 +400,11 @@ export default function DashboardPage() {
       const [s, a] = await Promise.all([
         role === 'admin' ? loadAdminStats(supabase) :
           role === 'teacher' ? loadTeacherStats(supabase, profile?.id || '') :
-            role === 'school' ? loadSchoolStats(supabase, profile?.school_id!, profile?.school_name) :
+            role === 'school' ? loadSchoolStats(supabase, profile?.school_id || '', profile?.school_name) :
               loadStudentStats(supabase, profile?.id || ''),
         role === 'admin' ? loadAdminActivity(supabase) :
           role === 'teacher' ? loadTeacherActivity(supabase, profile?.id || '') :
-            role === 'school' ? loadSchoolActivity(supabase, profile?.school_id!, profile?.school_name) :
+            role === 'school' ? loadSchoolActivity(supabase, profile?.school_id || '', profile?.school_name) :
               loadStudentActivity(supabase, profile?.id || ''),
       ]);
       setStats(s);

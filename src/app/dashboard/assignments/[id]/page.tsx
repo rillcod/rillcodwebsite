@@ -5,12 +5,12 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import { submitAssignment, gradeSubmission } from '@/services/dashboard.service';
+import { submitAssignment, gradeSubmission, updateSubmission, deleteSubmission } from '@/services/dashboard.service';
 import {
     ArrowLeftIcon, CalendarIcon, ClockIcon, DocumentTextIcon,
     CheckCircleIcon, ExclamationTriangleIcon, ArrowUpTrayIcon,
     PaperClipIcon, AcademicCapIcon, StarIcon, XMarkIcon, ArrowPathIcon, CheckIcon, PencilIcon,
-    CodeBracketIcon, CommandLineIcon
+    CodeBracketIcon, CommandLineIcon, TrashIcon
 } from '@heroicons/react/24/outline';
 
 function pctInfo(grade: number, max: number) {
@@ -99,39 +99,78 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
     const max = maxPoints ?? 100;
     const [grade, setGrade] = useState<string>(sub.grade?.toString() ?? '');
     const [feedback, setFb] = useState<string>(sub.feedback ?? '');
+    const [status, setStatus] = useState(sub.status);
+    const [subText, setSubText] = useState(sub.submission_text ?? '');
     const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [err, setErr] = useState('');
 
     const info = grade ? pctInfo(Number(grade), max) : null;
 
     const save = async () => {
         const g = Number(grade);
-        if (isNaN(g) || g < 0 || g > max) { setErr(`Enter a score between 0 and ${max}`); return; }
+        if (grade !== '' && (isNaN(g) || g < 0 || g > max)) { setErr(`Enter a score between 0 and ${max}`); return; }
         setSaving(true); setErr('');
         try {
-            await gradeSubmission(sub.id, g, feedback, profile!.id);
-            onSaved(); // triggers server refetch
+            const payload: any = { 
+                grade: grade === '' ? null : g, 
+                feedback, 
+                status,
+                submission_text: subText || null,
+                graded_by: profile!.id 
+            };
+            if (status === 'graded') payload.graded_at = new Date().toISOString();
+            
+            await updateSubmission(sub.id, payload);
+            onSaved();
         } catch (e: any) {
             setErr(e.message ?? 'Failed to save grade');
             setSaving(false);
         }
     };
 
+    const handleDelete = async () => {
+        if (!window.confirm('Delete this submission? Student will need to retry.')) return;
+        setDeleting(true); setErr('');
+        try {
+            await deleteSubmission(sub.id);
+            onSaved();
+            onClose();
+        } catch (e: any) {
+            setErr(e.message ?? 'Failed to delete submission');
+            setDeleting(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-[#161628] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl"
+            <div className="bg-[#161628] border border-white/10 rounded-2xl w-full max-lg shadow-2xl" id="grade-modal"
                 onClick={(e) => e.stopPropagation()}>
 
                 {/* Modal header */}
                 <div className="p-6 border-b border-white/10 flex items-start justify-between">
-                    <div>
+                    <div className="flex-1">
                         <h3 className="font-bold text-white text-lg">Grade Submission</h3>
                         <p className="text-sm text-white/40 mt-0.5">{assignmentTitle}</p>
                         <div className="flex items-center gap-2 mt-2">
                             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs font-black text-white">
                                 {(sub.portal_users?.full_name ?? '?')[0]}
                             </div>
-                            <span className="text-sm text-white/70">{sub.portal_users?.full_name ?? 'Student'}</span>
+                            <div className="min-w-0 flex-1">
+                                <span className="text-sm text-white/70 font-bold block mb-1">{sub.portal_users?.full_name ?? 'Student'}</span>
+                                <select value={status} onChange={e => setStatus(e.target.value)}
+                                    className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border appearance-none cursor-pointer ${
+                                        status === 'graded' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                        status === 'submitted' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                                        status === 'late' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                                        'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                                    }`}>
+                                    <option value="submitted">Submitted</option>
+                                    <option value="graded">Graded</option>
+                                    <option value="late">Late</option>
+                                    <option value="missing">Missing</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
@@ -139,16 +178,32 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
                     </button>
                 </div>
 
-                <div className="p-6 space-y-5">
-                    {/* Submission content */}
-                    {sub.submission_text && (
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 max-h-40 overflow-y-auto">
-                            <p className="text-xs text-white/30 uppercase tracking-wider mb-2">Student Submission</p>
-                            <p className="text-sm text-white/70 whitespace-pre-wrap">{sub.submission_text}</p>
+                <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+                    {/* Submission content (editable for staff) */}
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+                        <div>
+                            <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5">Submitted Work / Text</label>
+                            <textarea value={subText} rows={4}
+                                onChange={e => setSubText(e.target.value)}
+                                className="w-full bg-transparent text-sm text-white/70 focus:outline-none resize-none leading-relaxed"
+                                placeholder="Student typed submission..."
+                            />
                         </div>
-                    )}
+                        {sub.file_url && (
+                             <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-400 hover:text-blue-300">
+                                <PaperClipIcon className="w-3.5 h-3.5" /> View attached file
+                             </a>
+                        )}
+                        <button onClick={handleDelete} disabled={deleting}
+                            className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-rose-400/40 hover:text-rose-400 hover:bg-rose-400/10 rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent hover:border-rose-400/20">
+                            <TrashIcon className="w-3.5 h-3.5" />
+                            {deleting ? 'Deleting...' : 'Delete Submission'}
+                        </button>
+                    </div>
+
                     {questions && questions.length > 0 && sub.answers && (
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 max-h-60 overflow-y-auto space-y-4">
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-4">
                             <p className="text-xs text-white/30 uppercase tracking-wider mb-2">Student Answers</p>
                             {questions.map((q: any, idx: number) => (
                                 <div key={idx} className="bg-white/3 rounded-lg p-3 border border-white/5">
@@ -187,17 +242,6 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
                                     )}
                                 </div>
                             ))}
-                        </div>
-                    )}
-                    {sub.file_url && (
-                        <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 underline">
-                            📎 View attached file
-                        </a>
-                    )}
-                    {!sub.submission_text && !sub.file_url && (!sub.answers || Object.keys(sub.answers as object).length === 0) && sub.status !== 'missing' && (
-                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-sm text-amber-400">
-                            No text, file, or answers submitted — grade based on verbal/in-person work if applicable.
                         </div>
                     )}
 

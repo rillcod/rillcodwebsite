@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       activity_logs: {
@@ -119,6 +144,7 @@ export type Database = {
       }
       assignment_submissions: {
         Row: {
+          answers: Json | null
           assignment_id: string | null
           feedback: string | null
           file_url: string | null
@@ -135,6 +161,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          answers?: Json | null
           assignment_id?: string | null
           feedback?: string | null
           file_url?: string | null
@@ -151,6 +178,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          answers?: Json | null
           assignment_id?: string | null
           feedback?: string | null
           file_url?: string | null
@@ -238,7 +266,10 @@ export type Database = {
           instructions: string | null
           is_active: boolean | null
           max_points: number | null
+          metadata: Json | null
           questions: Json | null
+          school_id: string | null
+          school_name: string | null
           title: string
           updated_at: string | null
         }
@@ -254,7 +285,10 @@ export type Database = {
           instructions?: string | null
           is_active?: boolean | null
           max_points?: number | null
+          metadata?: Json | null
           questions?: Json | null
+          school_id?: string | null
+          school_name?: string | null
           title: string
           updated_at?: string | null
         }
@@ -270,7 +304,10 @@ export type Database = {
           instructions?: string | null
           is_active?: boolean | null
           max_points?: number | null
+          metadata?: Json | null
           questions?: Json | null
+          school_id?: string | null
+          school_name?: string | null
           title?: string
           updated_at?: string | null
         }
@@ -302,6 +339,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "assignments_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -484,6 +528,7 @@ export type Database = {
       }
       cbt_exams: {
         Row: {
+          course_id: string | null
           created_at: string | null
           description: string | null
           duration_minutes: number
@@ -498,6 +543,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          course_id?: string | null
           created_at?: string | null
           description?: string | null
           duration_minutes: number
@@ -512,6 +558,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          course_id?: string | null
           created_at?: string | null
           description?: string | null
           duration_minutes?: number
@@ -527,6 +574,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "cbt_exams_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "cbt_exams_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
@@ -541,6 +595,7 @@ export type Database = {
           created_at: string | null
           exam_id: string | null
           id: string
+          metadata: Json | null
           options: Json | null
           order_index: number | null
           points: number | null
@@ -553,6 +608,7 @@ export type Database = {
           created_at?: string | null
           exam_id?: string | null
           id?: string
+          metadata?: Json | null
           options?: Json | null
           order_index?: number | null
           points?: number | null
@@ -565,6 +621,7 @@ export type Database = {
           created_at?: string | null
           exam_id?: string | null
           id?: string
+          metadata?: Json | null
           options?: Json | null
           order_index?: number | null
           points?: number | null
@@ -588,7 +645,10 @@ export type Database = {
           created_at: string | null
           end_time: string | null
           exam_id: string | null
+          grading_notes: string | null
           id: string
+          manual_scores: Json | null
+          needs_grading: boolean | null
           score: number | null
           start_time: string | null
           status: string | null
@@ -600,7 +660,10 @@ export type Database = {
           created_at?: string | null
           end_time?: string | null
           exam_id?: string | null
+          grading_notes?: string | null
           id?: string
+          manual_scores?: Json | null
+          needs_grading?: boolean | null
           score?: number | null
           start_time?: string | null
           status?: string | null
@@ -612,7 +675,10 @@ export type Database = {
           created_at?: string | null
           end_time?: string | null
           exam_id?: string | null
+          grading_notes?: string | null
           id?: string
+          manual_scores?: Json | null
+          needs_grading?: boolean | null
           score?: number | null
           start_time?: string | null
           status?: string | null
@@ -1077,6 +1143,7 @@ export type Database = {
           order_index: number | null
           program_id: string | null
           school_id: string | null
+          school_name: string | null
           teacher_id: string | null
           title: string
           updated_at: string | null
@@ -1091,6 +1158,7 @@ export type Database = {
           order_index?: number | null
           program_id?: string | null
           school_id?: string | null
+          school_name?: string | null
           teacher_id?: string | null
           title: string
           updated_at?: string | null
@@ -1105,6 +1173,7 @@ export type Database = {
           order_index?: number | null
           program_id?: string | null
           school_id?: string | null
+          school_name?: string | null
           teacher_id?: string | null
           title?: string
           updated_at?: string | null
@@ -1870,6 +1939,89 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          amount: number
+          created_at: string | null
+          currency: string | null
+          due_date: string | null
+          id: string
+          invoice_number: string
+          items: Json | null
+          metadata: Json | null
+          notes: string | null
+          payment_link: string | null
+          payment_transaction_id: string | null
+          portal_user_id: string | null
+          school_id: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string | null
+          currency?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number: string
+          items?: Json | null
+          metadata?: Json | null
+          notes?: string | null
+          payment_link?: string | null
+          payment_transaction_id?: string | null
+          portal_user_id?: string | null
+          school_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          currency?: string | null
+          due_date?: string | null
+          id?: string
+          invoice_number?: string
+          items?: Json | null
+          metadata?: Json | null
+          notes?: string | null
+          payment_link?: string | null
+          payment_transaction_id?: string | null
+          portal_user_id?: string | null
+          school_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_payment_transaction_id_fkey"
+            columns: ["payment_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_portal_user_id_fkey"
+            columns: ["portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "invoices_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leaderboards: {
         Row: {
           course_id: string | null
@@ -1975,6 +2127,7 @@ export type Database = {
           lesson_id: string | null
           objectives: string | null
           staff_notes: string | null
+          summary_notes: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1985,6 +2138,7 @@ export type Database = {
           lesson_id?: string | null
           objectives?: string | null
           staff_notes?: string | null
+          summary_notes?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1995,6 +2149,7 @@ export type Database = {
           lesson_id?: string | null
           objectives?: string | null
           staff_notes?: string | null
+          summary_notes?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -2078,8 +2233,8 @@ export type Database = {
           description: string | null
           duration_minutes: number | null
           id: string
-          lesson_type: string | null
           lesson_notes: string | null
+          lesson_type: string | null
           order_index: number | null
           school_id: string | null
           school_name: string | null
@@ -2098,8 +2253,8 @@ export type Database = {
           description?: string | null
           duration_minutes?: number | null
           id?: string
-          lesson_type?: string | null
           lesson_notes?: string | null
+          lesson_type?: string | null
           order_index?: number | null
           school_id?: string | null
           school_name?: string | null
@@ -2118,8 +2273,8 @@ export type Database = {
           description?: string | null
           duration_minutes?: number | null
           id?: string
-          lesson_type?: string | null
           lesson_notes?: string | null
+          lesson_type?: string | null
           order_index?: number | null
           school_id?: string | null
           school_name?: string | null
@@ -2150,6 +2305,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "lessons_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2195,13 +2357,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
-          },
-          {
-            foreignKeyName: "live_session_attendance_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "live_sessions"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -2299,13 +2454,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
-          },
-          {
-            foreignKeyName: "live_session_breakout_rooms_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "live_sessions"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -2452,106 +2600,88 @@ export type Database = {
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
           },
-          {
-            foreignKeyName: "live_session_polls_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "live_sessions"
-            referencedColumns: ["id"]
-          },
         ]
       }
       live_sessions: {
         Row: {
-          actual_end: string | null
-          actual_start: string | null
-          allow_breakout_rooms: boolean | null
-          allow_polls: boolean | null
-          allow_screen_sharing: boolean | null
-          course_id: string | null
-          created_at: string | null
+          created_at: string
           description: string | null
+          duration_minutes: number
+          host_id: string
           id: string
-          instructor_id: string | null
-          meeting_id: string | null
-          meeting_password: string | null
-          meeting_url: string | null
-          provider: string | null
-          recording_enabled: boolean | null
+          notes: string | null
+          platform: string
+          program_id: string | null
           recording_url: string | null
-          scheduled_end: string
-          scheduled_start: string
-          status: string | null
+          scheduled_at: string
+          school_id: string | null
+          session_url: string | null
+          status: string
           title: string
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
-          actual_end?: string | null
-          actual_start?: string | null
-          allow_breakout_rooms?: boolean | null
-          allow_polls?: boolean | null
-          allow_screen_sharing?: boolean | null
-          course_id?: string | null
-          created_at?: string | null
+          created_at?: string
           description?: string | null
+          duration_minutes?: number
+          host_id: string
           id?: string
-          instructor_id?: string | null
-          meeting_id?: string | null
-          meeting_password?: string | null
-          meeting_url?: string | null
-          provider?: string | null
-          recording_enabled?: boolean | null
+          notes?: string | null
+          platform?: string
+          program_id?: string | null
           recording_url?: string | null
-          scheduled_end: string
-          scheduled_start: string
-          status?: string | null
+          scheduled_at: string
+          school_id?: string | null
+          session_url?: string | null
+          status?: string
           title: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
-          actual_end?: string | null
-          actual_start?: string | null
-          allow_breakout_rooms?: boolean | null
-          allow_polls?: boolean | null
-          allow_screen_sharing?: boolean | null
-          course_id?: string | null
-          created_at?: string | null
+          created_at?: string
           description?: string | null
+          duration_minutes?: number
+          host_id?: string
           id?: string
-          instructor_id?: string | null
-          meeting_id?: string | null
-          meeting_password?: string | null
-          meeting_url?: string | null
-          provider?: string | null
-          recording_enabled?: boolean | null
+          notes?: string | null
+          platform?: string
+          program_id?: string | null
           recording_url?: string | null
-          scheduled_end?: string
-          scheduled_start?: string
-          status?: string | null
+          scheduled_at?: string
+          school_id?: string | null
+          session_url?: string | null
+          status?: string
           title?: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "live_sessions_course_id_fkey"
-            columns: ["course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "live_sessions_instructor_id_fkey"
-            columns: ["instructor_id"]
+            foreignKeyName: "live_sessions_host_id_fkey"
+            columns: ["host_id"]
             isOneToOne: false
             referencedRelation: "portal_users"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "live_sessions_instructor_id_fkey"
-            columns: ["instructor_id"]
+            foreignKeyName: "live_sessions_host_id_fkey"
+            columns: ["host_id"]
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "live_sessions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_sessions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2863,11 +2993,13 @@ export type Database = {
           currency: string | null
           external_transaction_id: string | null
           id: string
+          invoice_id: string | null
           paid_at: string | null
           payment_gateway_response: Json | null
           payment_method: string | null
           payment_status: string | null
           portal_user_id: string | null
+          receipt_url: string | null
           refund_reason: string | null
           refunded_at: string | null
           school_id: string | null
@@ -2881,11 +3013,13 @@ export type Database = {
           currency?: string | null
           external_transaction_id?: string | null
           id?: string
+          invoice_id?: string | null
           paid_at?: string | null
           payment_gateway_response?: Json | null
           payment_method?: string | null
           payment_status?: string | null
           portal_user_id?: string | null
+          receipt_url?: string | null
           refund_reason?: string | null
           refunded_at?: string | null
           school_id?: string | null
@@ -2899,11 +3033,13 @@ export type Database = {
           currency?: string | null
           external_transaction_id?: string | null
           id?: string
+          invoice_id?: string | null
           paid_at?: string | null
           payment_gateway_response?: Json | null
           payment_method?: string | null
           payment_status?: string | null
           portal_user_id?: string | null
+          receipt_url?: string | null
           refund_reason?: string | null
           refunded_at?: string | null
           school_id?: string | null
@@ -2916,6 +3052,13 @@ export type Database = {
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
           {
@@ -3065,6 +3208,7 @@ export type Database = {
       }
       portal_users: {
         Row: {
+          avatar_url: string | null
           bio: string | null
           created_at: string | null
           created_by: string | null
@@ -3091,6 +3235,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          avatar_url?: string | null
           bio?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -3117,6 +3262,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          avatar_url?: string | null
           bio?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -3170,6 +3316,63 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "students"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      portfolio_projects: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_featured: boolean
+          project_url: string | null
+          tags: string[]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_featured?: boolean
+          project_url?: string | null
+          tags?: string[]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_featured?: boolean
+          project_url?: string | null
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_projects_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portfolio_projects_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
           },
         ]
       }
@@ -3296,6 +3499,74 @@ export type Database = {
             columns: ["school_id"]
             isOneToOne: false
             referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      receipts: {
+        Row: {
+          amount: number
+          currency: string | null
+          id: string
+          issued_at: string | null
+          metadata: Json | null
+          pdf_url: string | null
+          receipt_number: string
+          school_id: string | null
+          student_id: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          currency?: string | null
+          id?: string
+          issued_at?: string | null
+          metadata?: Json | null
+          pdf_url?: string | null
+          receipt_number: string
+          school_id?: string | null
+          student_id?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          currency?: string | null
+          id?: string
+          issued_at?: string | null
+          metadata?: Json | null
+          pdf_url?: string | null
+          receipt_number?: string
+          school_id?: string | null
+          student_id?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "receipts_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -3615,6 +3886,7 @@ export type Database = {
           course_name: string | null
           created_at: string | null
           current_module: string | null
+          engagement_metrics: Json | null
           fee_amount: string | null
           fee_label: string | null
           fee_status: string | null
@@ -3631,7 +3903,6 @@ export type Database = {
           overall_score: number | null
           participation_grade: string | null
           participation_score: number | null
-          engagement_metrics: Json | null
           photo_url: string | null
           practical_score: number | null
           proficiency_level: string | null
@@ -3662,6 +3933,7 @@ export type Database = {
           course_name?: string | null
           created_at?: string | null
           current_module?: string | null
+          engagement_metrics?: Json | null
           fee_amount?: string | null
           fee_label?: string | null
           fee_status?: string | null
@@ -3678,7 +3950,6 @@ export type Database = {
           overall_score?: number | null
           participation_grade?: string | null
           participation_score?: number | null
-          engagement_metrics?: Json | null
           photo_url?: string | null
           practical_score?: number | null
           proficiency_level?: string | null
@@ -3709,6 +3980,7 @@ export type Database = {
           course_name?: string | null
           created_at?: string | null
           current_module?: string | null
+          engagement_metrics?: Json | null
           fee_amount?: string | null
           fee_label?: string | null
           fee_status?: string | null
@@ -3725,7 +3997,6 @@ export type Database = {
           overall_score?: number | null
           participation_grade?: string | null
           participation_score?: number | null
-          engagement_metrics?: Json | null
           photo_url?: string | null
           practical_score?: number | null
           proficiency_level?: string | null
@@ -4623,118 +4894,121 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-  : never = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-  ? R
-  : never
+    ? R
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])
-  ? (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : never
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
+      Insert: infer I
+    }
+    ? I
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Update: infer U
-  }
-  ? U
-  : never
+      Update: infer U
+    }
+    ? U
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Update: infer U
-  }
-  ? U
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-  | keyof DefaultSchema["Enums"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-  : never
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-  | keyof DefaultSchema["CompositeTypes"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
