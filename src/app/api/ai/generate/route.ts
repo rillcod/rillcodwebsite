@@ -24,7 +24,7 @@ const MODELS = [
 
 const SYSTEM_PROMPT = `You are an expert STEM curriculum designer for Rillcod Academy. You create engaging, age-appropriate educational content. 
 You can use specialized blocks in content_layout:
-- 'mermaid': for flowcharts/diagrams (graph TD...)
+- 'mermaid': for flowcharts/diagrams (flowchart TD...)
 - 'math': for LaTeX formulas (E = mc^2)
 - 'code': for programming snippets
 - 'coding_blocks': for visual logic tasks (sentence with [BLANK] placeholders, options, and correct ordering)
@@ -119,7 +119,7 @@ Return a JSON object with this exact shape:
     { "type": "heading", "content": "Core Concepts" },
     { "type": "text", "content": "string — explanation" },
     { "type": "code", "language": "python", "content": "string — working example" },
-    { "type": "mermaid", "code": "graph TD\\nA-->B" },
+    { "type": "mermaid", "code": "flowchart TD\nA-->B" },
     { "type": "activity", "title": "string", "instructions": "string — step-by-step activity" },
     { "type": "callout", "style": "tip", "content": "string — pro tip" },
     { "type": "quiz", "question": "string", "options": ["A","B","C","D"], "correct_answer": "string" },

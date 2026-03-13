@@ -245,7 +245,7 @@ export async function generateReportPDF(element: HTMLElement, filename: string):
 // never clips or leaves whitespace.
 const CARD_W = 794;
 
-export function ScaledReportCard({ report, orgSettings }: { report: any; orgSettings: any }) {
+export function ScaledReportCard({ children, report }: { children: React.ReactNode; report?: any }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const innerRef     = useRef<HTMLDivElement>(null);
     const [scale, setScale]         = useState(1);
@@ -270,7 +270,7 @@ export function ScaledReportCard({ report, orgSettings }: { report: any; orgSett
         ro.observe(outer);
         ro.observe(inner);
         return () => ro.disconnect();
-    }, [report]); // re-run when report changes so height recalculates
+    }, [report, children]); // re-run when report or children changes
 
     return (
         <div
@@ -289,7 +289,7 @@ export function ScaledReportCard({ report, orgSettings }: { report: any; orgSett
                     width: CARD_W,
                 }}
             >
-                <ReportCard report={report} orgSettings={orgSettings} />
+                {children}
             </div>
         </div>
     );

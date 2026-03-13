@@ -110,6 +110,8 @@ export default function LessonsPage() {
         activities,
         assessment_methods: planResult.assessment_strategy ?? '',
         staff_notes: `Grade: ${planResult.grade_level} | Duration: ${planResult.duration}\nMaterials: ${(planResult.materials ?? []).join(', ')}`,
+        plan_data: planResult,
+        covers_full_course: true
       });
       if (planErr) throw planErr;
 

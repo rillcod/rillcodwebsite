@@ -420,13 +420,15 @@ for i in range(1, 6):
 </body>
 </html>`,
 
-  scratch: `// SCRATCH 3 MODE
-// A fresh Scratch editor is open on the right — start building!
-// To load a shared public project, paste its Project ID below:
-// e.g.  60917032
+  scratch: `// 🎮 SCRATCH 3 MODE
+// A full Scratch blocks editor is open on the right.
+// You can drag blocks there to build your games!
+// 
+// 💡 To load a specific project by ID, type it below:
+// Project ID: 60917032
 `,
 
-  robotics: `# Rillcod Robotics Lab
+  robotics: `# 🤖 Rillcod Robotics Lab
 # Control the robot using commands:
 #   robot.move_forward(steps)
 #   robot.turn_right(degrees)
@@ -452,6 +454,8 @@ const CHALLENGES = [
   { label: 'FizzBuzz', code: `for (let i = 1; i <= 20; i++) {\n  if (i % 15 === 0) console.log("FizzBuzz");\n  else if (i % 3 === 0) console.log("Fizz");\n  else if (i % 5 === 0) console.log("Buzz");\n  else console.log(i);\n}`, lang: 'javascript' },
   { label: 'Robot Square', code: `for i in range(4):\n    robot.move_forward(100)\n    robot.turn_right(90)`, lang: 'robotics' },
   { label: 'Robot Spiral', code: `length = 10\nfor i in range(20):\n    robot.move_forward(length)\n    robot.turn_right(45)\n    length += 10`, lang: 'robotics' },
+  { label: 'Scratch: Cat Chase', code: `// Scratch Challenge: Cat Chase\nProject ID: 60917032`, lang: 'scratch' },
+  { label: 'Scratch: Platformer', code: `// Scratch Challenge: Platformer\nProject ID: 10128407`, lang: 'scratch' },
 ];
 
 type Lang = 'javascript' | 'python' | 'html' | 'scratch' | 'robotics';
@@ -507,7 +511,7 @@ export default function PlaygroundPage() {
       setMobileTab('output');
       const c = stored ?? STARTER_CODE[l];
       const match = c.match(/\b(\d{7,12})\b/);
-      setScratchUrl(match ? `https://turbowarp.org/${match[1]}/embed` : 'https://turbowarp.org/editor');
+      setScratchUrl(match ? `https://turbowarp.org/${match[1]}/editor` : 'https://turbowarp.org/editor');
     } else if (l === 'robotics') {
       setActiveTab('preview');
       setMobileTab('output');
@@ -529,7 +533,7 @@ export default function PlaygroundPage() {
       if (lang === 'html' && iframeRef.current) iframeRef.current.srcdoc = code;
       if (lang === 'scratch') {
         const match = code.match(/\b(\d{7,12})\b/);
-        const target = match ? `https://turbowarp.org/${match[1]}/embed` : 'https://turbowarp.org/editor';
+        const target = match ? `https://turbowarp.org/${match[1]}/editor` : 'https://turbowarp.org/editor';
         if (scratchUrl !== target) setScratchUrl(target);
       }
       setRunning(false);

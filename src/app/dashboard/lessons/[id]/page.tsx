@@ -12,7 +12,7 @@ import {
   PhotoIcon, BoltIcon, CheckBadgeIcon, LockClosedIcon,
   InformationCircleIcon, ExclamationTriangleIcon, RocketLaunchIcon,
   QuestionMarkCircleIcon, ChevronRightIcon, XMarkIcon,
-  RectangleGroupIcon, ClipboardIcon,
+  RectangleGroupIcon, ClipboardIcon, TrophyIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 import Script from 'next/script';
@@ -31,15 +31,65 @@ const TYPE_COLOR: Record<string, string> = {
 // --- Sub-components ---
 
 function MermaidRenderer({ code }: { code: string }) {
+  const [svg, setSvg] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const chartId = useMemo(() => `mermaid-${Math.random().toString(36).slice(2, 9)}`, []);
+
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).mermaid) {
+    if (typeof window === 'undefined') return;
+
+    const renderDiagram = async () => {
+      // Ensure mermaid is loaded
+      const mermaid = (window as any).mermaid;
+      if (!mermaid) return;
+
       try {
-        (window as any).mermaid.contentLoaded();
-      } catch (e) {
-        console.error("Mermaid error:", e);
+        // Strip any accidental markdown formatting the AI might have saved
+        let processedCode = code.trim();
+        processedCode = processedCode.replace(/^```mermaid\s*\n?/i, '');
+        processedCode = processedCode.replace(/^```\s*\n?/i, '');
+        processedCode = processedCode.replace(/\n?```$/i, '');
+        processedCode = processedCode.trim();
+
+        if (processedCode.startsWith('graph')) {
+          processedCode = processedCode.replace(/^graph/, 'flowchart');
+        }
+
+        const { svg } = await mermaid.render(chartId, processedCode);
+        setSvg(svg);
+        setError(null);
+      } catch (e: any) {
+        console.error("Mermaid Render Error:", e);
+        // Mermaid throws errors as strings sometimes or as objects with a 'str' property
+        const msg = typeof e === 'string' ? e : e.message || e.str || "Diagram Syntax Error";
+        setError(msg);
       }
-    }
-  }, [code]);
+    };
+
+    // Small delay to ensure initialization is done if called from Script onLoad
+    const timer = setTimeout(renderDiagram, 100);
+    return () => clearTimeout(timer);
+  }, [code, chartId]);
+
+  if (error) {
+    return (
+      <div className="my-12 p-8 sm:p-12 bg-rose-500/5 border-2 border-rose-500/10 rounded-[40px] sm:rounded-[60px] text-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="p-4 rounded-2xl bg-rose-500/20 text-rose-400">
+            <ExclamationTriangleIcon className="w-8 h-8" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[10px] font-black text-rose-500/60 uppercase tracking-widest">Syntactic Anomaly Detected</p>
+            <p className="text-sm font-bold text-white/80">Mermaid Engine v11 Render Failure</p>
+          </div>
+          <pre className="mt-4 w-full p-6 bg-black/40 rounded-2xl text-[10px] font-mono text-white/30 text-left overflow-x-auto border border-white/5 italic">
+            {code}
+          </pre>
+          <p className="text-[10px] text-rose-400/40 font-bold uppercase tracking-widest">Check diagram syntax or refresh module</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="my-12 space-y-4">
@@ -47,9 +97,19 @@ function MermaidRenderer({ code }: { code: string }) {
         <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
         <p className="text-[10px] font-black text-cyan-500/60 uppercase tracking-[0.3em]">System Architecture Diagram</p>
       </div>
-      <div className="mermaid bg-white p-8 sm:p-12 rounded-[40px] sm:rounded-[60px] flex justify-center overflow-x-auto shadow-2xl border-4 border-white/5 relative group">
+      <div className="bg-white/95 p-8 sm:p-12 rounded-[40px] sm:rounded-[60px] flex justify-center overflow-x-auto shadow-2xl border-4 border-white/5 relative group min-h-[100px]">
         <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-        {code}
+        {svg ? (
+          <div 
+            className="w-full h-full flex justify-center" 
+            dangerouslySetInnerHTML={{ __html: svg }} 
+          />
+        ) : (
+          <div className="flex items-center gap-3">
+             <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+             <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Synthesizing Diagram...</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -230,6 +290,83 @@ function InteractiveQuiz({ block }: { block: any }) {
   );
 }
 
+function CompletionCelebration({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-6"
+    >
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+         {[...Array(30)].map((_, i) => (
+           <motion.div
+             key={i}
+             initial={{ 
+               x: "50%", 
+               y: "50%", 
+               scale: 0,
+               rotate: 0 
+             }}
+             animate={{ 
+               x: `${Math.random() * 100}%`, 
+               y: `${Math.random() * 100}%`, 
+               scale: [0, 1, 0.5],
+               rotate: 360,
+               opacity: [0, 1, 0]
+             }}
+             transition={{ 
+               duration: 3 + Math.random() * 2, 
+               repeat: Infinity,
+               ease: "easeOut"
+             }}
+             className={`absolute w-4 h-4 rounded-full ${['bg-cyan-500', 'bg-violet-500', 'bg-amber-500', 'bg-emerald-500'][i % 4]}`}
+           />
+         ))}
+      </div>
+
+      <motion.div 
+        initial={{ scale: 0.8, opacity: 0, y: 40 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        className="max-w-2xl w-full bg-[#0a0a20] border border-white/10 rounded-[4rem] p-12 sm:p-20 text-center space-y-12 shadow-[0_50px_100px_rgba(6,182,212,0.15)] relative"
+      >
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+           <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-br from-cyan-600 to-indigo-600 flex items-center justify-center text-white shadow-3xl rotate-12">
+              <TrophyIcon className="w-16 h-16" />
+           </div>
+        </div>
+
+        <div className="space-y-6 pt-10">
+           <div className="flex items-center justify-center gap-4">
+              <div className="h-px w-12 bg-white/10" />
+              <p className="text-[12px] font-black text-cyan-400 uppercase tracking-[0.6em]">Academic Milestone</p>
+              <div className="h-px w-12 bg-white/10" />
+           </div>
+           <h2 className="text-5xl sm:text-8xl font-black text-white leading-none tracking-tighter">SUCCESS SYNCED</h2>
+           <p className="text-xl sm:text-3xl text-white/40 font-medium italic">You've successfully integrated the fundamental constructs of this module.</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
+           <div className="bg-white/5 border border-white/5 rounded-3xl p-8">
+              <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-2">Mastery Points</p>
+              <p className="text-3xl font-black text-cyan-400">+250 XP</p>
+           </div>
+           <div className="bg-white/5 border border-white/5 rounded-3xl p-8">
+              <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-2">Efficiency</p>
+              <p className="text-3xl font-black text-violet-400">OPTIMAL</p>
+           </div>
+        </div>
+
+        <button 
+          onClick={onDismiss}
+          className="w-full py-8 bg-white text-black font-black uppercase tracking-[0.4em] text-xs rounded-3xl hover:bg-cyan-500 hover:text-white transition-all shadow-2xl active:scale-95"
+        >
+          Return to Hub
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: string }) {
   if (!blocks || blocks.length === 0) return null;
 
@@ -394,6 +531,22 @@ export default function LessonDetailPage() {
   const startTimeRef = useState<number>(() => Date.now())[0];
   const [notesRead, setNotesRead] = useState(false);
   const [isCinemaMode, setIsCinemaMode] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  useEffect(() => {
+    const mainEl = document.querySelector('main');
+    if (!mainEl) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = mainEl;
+      const progress = (scrollTop / (scrollHeight - clientHeight)) * 100;
+      setScrollProgress(progress);
+    };
+
+    mainEl.addEventListener('scroll', handleScroll);
+    return () => mainEl.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const nextLesson = useMemo(() => {
     if (!id || courseLessons.length === 0) return null;
@@ -477,6 +630,7 @@ export default function LessonDetailPage() {
       if (!res.ok) throw new Error('Failed to mark complete');
       setCompleted(true);
       setCompletedIds(prev => new Set([...prev, id]));
+      setShowCelebration(true);
     } catch (e: any) {
       setMarkError(e.message);
     } finally {
@@ -489,7 +643,16 @@ export default function LessonDetailPage() {
       <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
       <p className="text-white/20 text-xs font-black uppercase tracking-widest">Loading Learning Environment...</p>
       <Script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js" strategy="afterInteractive" onLoad={() => {
-        (window as any).mermaid?.initialize({ startOnLoad: true, theme: 'neutral' });
+        (window as any).mermaid?.initialize({ 
+          startOnLoad: false, 
+          theme: 'neutral',
+          securityLevel: 'loose',
+          flowchart: { 
+            htmlLabels: true,
+            useMaxWidth: true,
+            curve: 'basis'
+          }
+        });
       }} />
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
       <Script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" strategy="afterInteractive" />
@@ -511,6 +674,9 @@ export default function LessonDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#070710] text-white flex flex-col md:flex-row h-screen overflow-hidden">
+      <AnimatePresence>
+        {showCelebration && <CompletionCelebration onDismiss={() => setShowCelebration(false)} />}
+      </AnimatePresence>
       {/* Mobile Header (Techy & Clean) */}
       <div className="md:hidden p-5 border-b border-white/5 bg-[#0a0a1a]/80 backdrop-blur-xl flex items-center justify-between z-50 sticky top-0">
         <div className="flex items-center gap-4">
@@ -594,6 +760,13 @@ export default function LessonDetailPage() {
       </aside>
 
       <main className={`flex-1 overflow-y-auto relative ${isCinemaMode ? 'bg-black' : 'bg-[#070710]'} custom-scrollbar scroll-smooth`}>
+        {/* Dynamic Progress Indicator */}
+        <div className="fixed top-0 left-0 right-0 h-1.5 z-[100] md:left-[0px]">
+           <motion.div 
+             className="h-full bg-gradient-to-r from-cyan-500 via-indigo-500 to-violet-600 shadow-[0_0_15px_rgba(6,182,212,0.5)]"
+             style={{ width: `${scrollProgress}%` }}
+           />
+        </div>
         {/* Cinema Mode Toggle (for video) */}
         {lesson.lesson_type === 'video' && heroVideo && (
           <div className={`transition-all duration-700 ${isCinemaMode ? 'h-screen w-full' : 'h-0 overflow-hidden'}`}>
@@ -825,16 +998,119 @@ export default function LessonDetailPage() {
                 </div>
               )}
 
-               {activeTab === 'plan' && (
-                <div className="max-w-4xl mx-auto bg-white/5 border border-white/10 rounded-3xl sm:rounded-[48px] p-8 sm:p-16 space-y-12 sm:space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-                  <div className="relative">
-                    <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-500 to-transparent rounded-full opacity-20"></div>
-                    <PlanBlock title="Target Outcomes & Goals" content={plans?.objectives} />
-                  </div>
-                  <div className="relative">
-                    <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-violet-500 to-transparent rounded-full opacity-20"></div>
-                    <PlanBlock title="Applied Learning Activities" content={plans?.activities} />
-                  </div>
+              {activeTab === 'plan' && (
+                <div className="max-w-4xl mx-auto space-y-12 sm:space-y-24 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                  {/* If it's a full course plan (structured) */}
+                  {plans?.plan_data && Object.keys(plans.plan_data).length > 0 ? (
+                    <div className="space-y-20">
+                      <div className="bg-[#0a0a20]/40 backdrop-blur-xl border border-white/10 rounded-[3rem] p-10 sm:p-20 relative overflow-hidden group shadow-3xl">
+                        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-600/5 blur-[120px] -mr-48 -mt-48 group-hover:bg-cyan-600/10 transition-all duration-1000" />
+                        <div className="relative z-10 space-y-8">
+                           <div className="flex items-center gap-4">
+                              <div className="px-5 py-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.4em] rounded-2xl">Executive Summary</div>
+                              <div className="h-px flex-1 bg-white/5" />
+                           </div>
+                           <h2 className="text-4xl sm:text-7xl font-black text-white leading-tight tracking-tight">{plans.plan_data.course_title}</h2>
+                           <p className="text-xl sm:text-3xl text-white/50 font-medium italic leading-relaxed border-l-4 border-cyan-500/30 pl-8">{plans.plan_data.description}</p>
+                           <div className="flex flex-wrap gap-6 pt-6">
+                              <div className="bg-white/5 px-8 py-4 rounded-3xl border border-white/5">
+                                 <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-1">Grade Level</p>
+                                 <p className="text-lg font-black text-white">{plans.plan_data.grade_level}</p>
+                              </div>
+                              <div className="bg-white/5 px-8 py-4 rounded-3xl border border-white/5">
+                                 <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-1">Duration</p>
+                                 <p className="text-lg font-black text-white">{plans.plan_data.duration}</p>
+                              </div>
+                           </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-12">
+                        <div className="flex items-center gap-6">
+                           <h3 className="text-2xl font-black text-white tracking-widest uppercase italic">Curriculum Timeline</h3>
+                           <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-8 relative pb-20">
+                           <div className="absolute left-7 sm:left-12 top-0 bottom-0 w-1 bg-white/5" />
+                           {plans.plan_data.weeks?.map((week: any, wIdx: number) => (
+                             <motion.div 
+                               initial={{ opacity: 0, x: -20 }}
+                               whileInView={{ opacity: 1, x: 0 }}
+                               transition={{ delay: wIdx * 0.1 }}
+                               key={wIdx} 
+                               className="relative pl-20 sm:pl-32 group"
+                             >
+                                <div className="absolute left-0 top-6 sm:top-8 w-14 sm:w-24 h-px bg-white/10 group-hover:bg-cyan-500/50 transition-colors" />
+                                <div className={`absolute left-4 sm:left-8 top-1 sm:top-2 w-8 h-8 sm:w-12 sm:h-12 rounded-2xl border-2 flex items-center justify-center text-[10px] sm:text-[12px] font-black z-10 transition-all ${wIdx % 2 === 0 ? 'bg-cyan-600 border-cyan-400 text-white shadow-[0_0_20px_rgba(6,182,212,0.3)]' : 'bg-[#0a0a1a] border-white/10 text-white/40'}`}>
+                                   {week.week}
+                                </div>
+                                <div className="bg-white/5 border border-white/5 rounded-[2.5rem] p-8 sm:p-12 hover:bg-white/[0.08] hover:border-cyan-500/20 transition-all shadow-2xl">
+                                   <div className="space-y-6">
+                                      <div className="space-y-1">
+                                         <p className="text-[10px] font-black text-cyan-400/60 uppercase tracking-[0.3em]">Week Focus</p>
+                                         <h4 className="text-2xl sm:text-4xl font-black text-white group-hover:text-cyan-400 transition-colors">{week.theme}</h4>
+                                      </div>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-4">
+                                         <div className="space-y-4">
+                                            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">Core Topics</p>
+                                            <div className="space-y-2">
+                                               {week.topics?.map((t: string, ti: number) => (
+                                                 <div key={ti} className="flex items-center gap-3 text-sm text-white/60 font-medium">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-500/40" /> {t}
+                                                 </div>
+                                               ))}
+                                            </div>
+                                         </div>
+                                         <div className="space-y-4">
+                                            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">Active Synthesis</p>
+                                            <div className="space-y-2">
+                                               {week.activities?.map((a: string, ai: number) => (
+                                                 <div key={ai} className="flex items-center gap-3 text-sm text-white/40 font-medium italic">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-violet-500/40" /> {a}
+                                                 </div>
+                                               ))}
+                                            </div>
+                                         </div>
+                                      </div>
+                                   </div>
+                                </div>
+                             </motion.div>
+                           ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pb-32">
+                         <div className="bg-white/5 border border-white/5 rounded-[3rem] p-10 sm:p-16 space-y-6">
+                            <h5 className="text-[11px] font-black text-violet-400 uppercase tracking-[0.4em]">Validation Protocol</h5>
+                            <p className="text-lg sm:text-2xl text-white/70 font-medium leading-relaxed italic">{plans.plan_data.assessment_strategy}</p>
+                         </div>
+                         <div className="bg-white/5 border border-white/5 rounded-[3rem] p-10 sm:p-16 space-y-6">
+                            <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-[0.4em]">Required Artifacts</h5>
+                            <div className="flex flex-wrap gap-2">
+                               {plans.plan_data.materials?.map((m: string, mi: number) => (
+                                 <span key={mi} className="px-5 py-2.5 bg-white/5 rounded-2xl text-[10px] sm:text-[11px] font-black text-white/30 uppercase tracking-widest border border-white/5">{m}</span>
+                               ))}
+                            </div>
+                         </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-12 sm:space-y-16">
+                      <div className="relative">
+                        <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-500 to-transparent rounded-full opacity-20"></div>
+                        <PlanBlock title="Target Outcomes & Goals" content={plans?.objectives} />
+                      </div>
+                      <div className="relative">
+                        <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-violet-500 to-transparent rounded-full opacity-20"></div>
+                        <PlanBlock title="Applied Learning Activities" content={plans?.activities} />
+                      </div>
+                      <div className="relative">
+                        <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-500 to-transparent rounded-full opacity-20"></div>
+                        <PlanBlock title="Assessment Strategy" content={plans?.assessment_methods} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

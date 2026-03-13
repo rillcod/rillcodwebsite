@@ -257,6 +257,78 @@ export default function TimetablePage() {
     setSlots(prev => prev.filter(s => s.id !== id));
   };
 
+  const handlePrint = () => {
+    if (!active) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const daysHtml = DAYS.map(day => {
+      const daySlots = slotsByDay[day] || [];
+      const slotsHtml = daySlots.map(slot => `
+        <div style="margin-bottom: 10px; padding: 12px; border: 1px solid #eee; border-radius: 12px; background: #fff;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
+            <div style="font-weight: 900; color: #111; font-size: 14px; text-transform: uppercase; letter-spacing: -0.5px;">${slot.subject}</div>
+            <div style="font-size: 11px; color: #7c3aed; font-weight: 800; margin-left: auto; background: #f5f3ff; px: 8px; py: 2px; border-radius: 4px;">${slot.start_time} – ${slot.end_time}</div>
+          </div>
+          <div style="display: flex; gap: 15px;">
+            ${slot.teacher_name ? `<div style="font-size: 11px; color: #444; font-weight: 600;">👤 ${slot.teacher_name}</div>` : ''}
+            ${slot.room ? `<div style="font-size: 11px; color: #888; font-weight: 600;">📍 ${slot.room}</div>` : ''}
+          </div>
+        </div>
+      `).join('');
+
+      return `
+        <div style="break-inside: avoid; margin-bottom: 30px;">
+          <h2 style="font-size: 14px; font-weight: 900; text-transform: uppercase; color: #111; border-left: 4px solid #7c3aed; padding-left: 12px; margin-bottom: 15px; letter-spacing: 1px;">${day}</h2>
+          <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+            ${daySlots.length === 0 ? '<p style="color: #999; font-size: 11px; font-style: italic; margin-left: 12px;">No classes scheduled</p>' : slotsHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const html = `
+      <html>
+      <head>
+        <title>Timetable - ${active.title}</title>
+        <style>
+          @page { size: portrait; margin: 15mm; }
+          body { font-family: 'Segoe UI', system-ui, sans-serif; color: #111; line-height: 1.4; padding: 0; margin: 0; background: #fff; }
+          .header { text-align: center; border-bottom: 2px solid #eee; padding-bottom: 40px; margin-bottom: 50px; }
+          .brand { font-size: 36px; font-weight: 900; letter-spacing: -2px; color: #000; margin-bottom: 5px; }
+          .brand span { color: #7c3aed; }
+          .doc-type { font-size: 12px; color: #999; font-weight: 800; text-transform: uppercase; letter-spacing: 5px; margin-bottom: 30px; }
+          .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; text-align: left; background: #eee; border: 1px solid #eee; border-radius: 16px; overflow: hidden; }
+          .meta-item { background: #fff; padding: 20px; }
+          .meta-item label { display: block; font-size: 9px; color: #aaa; text-transform: uppercase; font-weight: 900; margin-bottom: 6px; letter-spacing: 1px; }
+          .meta-item span { font-size: 14px; font-weight: 800; color: #111; }
+          .grid { display: grid; grid-template-columns: 1fr; gap: 0; }
+          .footer { margin-top: 60px; text-align: center; font-size: 10px; color: #aaa; border-top: 1px solid #eee; padding-top: 30px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+          @media print { .no-print { display: none; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="brand">RILLCOD <span>ACADEMY</span></div>
+          <div class="doc-type">Official Schedule Telemetry</div>
+          <div class="meta-grid">
+            <div class="meta-item"><label>Cluster ID</label><span>${active.title}</span></div>
+            <div class="meta-item"><label>Node School</label><span>${(active as any).schools?.name ?? 'General'}</span></div>
+            <div class="meta-item"><label>Cycle / Phase</label><span>${active.term ?? '—'} <span style="color: #eee">/</span> ${active.academic_year ?? '—'}</span></div>
+          </div>
+        </div>
+        <div class="grid">${daysHtml}</div>
+        <div class="footer">
+          System Generated Document — ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+          <br/><button class="no-print" onclick="window.print()" style="margin-top:40px; padding: 16px 40px; background: #7c3aed; color: white; border: none; border-radius: 14px; cursor: pointer; font-weight: 900; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 10px 25px rgba(124, 58, 237, 0.3); transition: all 0.3s;">Initiate Print Sequence</button>
+        </div>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   // ── Derived ───────────────────────────────────────────────────────────────
   const slotsByDay: Record<string, Slot[]> = {};
   DAYS.forEach(d => {
@@ -312,7 +384,7 @@ export default function TimetablePage() {
           </div>
           <div className="flex items-center gap-2 print:hidden flex-wrap">
             <button
-              onClick={() => window.print()}
+              onClick={handlePrint}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 font-bold text-sm rounded-xl transition-all"
             >
               <CalendarDaysIcon className="w-4 h-4" /> Print Schedule

@@ -21,7 +21,9 @@
       "Bash(python3:*)",
       "Bash(npm ls:*)",
       "Bash(grep \"\"sharp\"\":*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(mv:*)",
+      "Bash(echo SELECT policyname, cmd, qual FROM pg_policies WHERE tablename = ''portal_users'' ORDER BY policyname;:*)"
     ]
   }
 }

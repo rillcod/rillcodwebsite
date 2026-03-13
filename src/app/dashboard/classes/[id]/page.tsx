@@ -13,9 +13,10 @@ import {
   ClipboardDocumentListIcon, ChevronRightIcon, UserIcon,
   CloudArrowDownIcon,
   PencilSquareIcon as PencilSquareIconOutline, CheckIcon as CheckIconOutline,
-  CloudArrowUpIcon
+  CloudArrowUpIcon, UserPlusIcon
 } from '@heroicons/react/24/outline';
 import { gradeSubmission } from '@/services/dashboard.service';
+import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 
 
 export default function ClassDetailPage() {
@@ -39,9 +40,10 @@ export default function ClassDetailPage() {
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [availableStudents, setAvailableStudents] = useState<any[]>([]);
   const [processingStudent, setProcessingStudent] = useState<string | null>(null);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
-  const [viewingItem, setViewingItem] = useState<{ type: 'lesson' | 'assignment' | 'cbt', id: string } | null>(null);
+  const [viewingItem, setViewingItem] = useState<{ type: 'lesson' | 'assignment' | 'cbt' | 'attendance', id: string } | null>(null);
 
   const fetchData = async () => {
     if (!id || !profile) return;
@@ -49,7 +51,7 @@ export default function ClassDetailPage() {
     const supabase = createClient();
     try {
       const [clsRes, sessRes] = await Promise.all([
-        supabase.from('classes').select('*, programs(name, difficulty_level), portal_users(full_name)').eq('id', id!).maybeSingle(),
+        supabase.from('classes').select('*, programs(name, difficulty_level), portal_users(full_name), schools(name, logo_url)').eq('id', id!).maybeSingle(),
         supabase.from('class_sessions').select('*').eq('class_id', id!).order('session_date', { ascending: false }).limit(10),
       ]);
 
@@ -211,58 +213,63 @@ export default function ClassDetailPage() {
       <head>
         <title>Student Credentials - ${cls.name}</title>
         <style>
-          body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #111; max-width: 800px; margin: 0 auto; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .logo { max-width: 150px; margin-bottom: 20px; }
-          .brand-title { font-size: 24px; font-weight: 900; color: #000; text-transform: uppercase; letter-spacing: 2px; }
-          .brand-subtitle { font-size: 14px; color: #555; font-weight: 600; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
-          h1 { font-size: 22px; margin: 0 0 10px 0; text-align: center; }
-          .meta { font-size: 14px; color: #555; margin-bottom: 30px; text-align: center; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ccc; padding: 12px; text-align: left; font-size: 14px; }
-          th { background: #f4f4f4; font-weight: bold; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
-          .pass-field { display: inline-block; width: 150px; height: 1px; background: #ccc; margin-top: 10px; }
-          .note { margin-top: 40px; text-align: center; color: #666; font-size: 12px; font-style: italic; }
-          .print-btn { display: block; margin: 30px auto; padding: 10px 20px; background: #0f0f1a; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-          @media print {
-            body { padding: 0; }
-            .print-btn { display: none; }
-          }
+          body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #111; max-width: 900px; margin: 0 auto; line-height: 1.5; }
+          .header-container { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 30px; }
+          .company-brand { text-align: left; }
+          .company-name { font-size: 20px; font-weight: 900; color: #000; letter-spacing: 1px; }
+          .company-tag { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 2px; }
+          .school-info { text-align: right; }
+          .school-name { font-size: 18px; font-weight: 800; color: #4F46E5; text-transform: uppercase; }
+          .school-logo { max-height: 50px; margin-bottom: 5px; }
+          h1 { font-size: 24px; margin: 20px 0 10px 0; text-align: center; color: #111; text-transform: uppercase; letter-spacing: 1px; }
+          .meta { font-size: 13px; color: #444; margin-bottom: 30px; text-align: center; background: #f9fafb; padding: 15px; border-radius: 12px; border: 1px solid #f1f5f9; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+          th, td { border: 1px solid #e2e8f0; padding: 14px; text-align: left; font-size: 13px; }
+          th { background: #f8fafc; font-weight: 800; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; color: #64748b; }
+          .student-cell { color: #1e293b; font-weight: 700; }
+          .pass-field { display: inline-block; width: 140px; height: 1px; background: #cbd5e1; margin-top: 12px; }
+          .note { margin-top: 40px; text-align: center; color: #64748b; font-size: 11px; font-style: italic; }
+          .print-btn { display: block; margin: 30px auto; padding: 12px 24px; background: #0f172a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; }
+          @media print { body { padding: 20px; } .print-btn { display: none; } .meta { border: 1px solid #ddd; } }
         </style>
       </head>
       <body>
-        <div class="header">
-          <!-- <img src="/logo.png" alt="Logo" class="logo" /> -->
-          <div class="brand-title">RILLCOD ACADEMY</div>
-          <div class="brand-subtitle">Student Login Credentials</div>
+        <div class="header-container">
+          <div class="company-brand">
+            <div class="company-name">RILLCOD ACADEMY</div>
+            <div class="company-tag">Future-Proof Education</div>
+          </div>
+          <div class="school-info">
+            ${cls.schools?.logo_url ? `<img src="${cls.schools.logo_url}" alt="School Logo" class="school-logo" />` : ''}
+            <div class="school-name">${cls.schools?.name || 'Academic Partner'}</div>
+          </div>
         </div>
-        
-        <h1>${cls.name}</h1>
+        <h1>Student Security Registry</h1>
         <div class="meta">
-          <strong>Programme:</strong> ${cls.programs?.name || 'N/A'} &nbsp;|&nbsp;
-          <strong>Teacher:</strong> ${cls.portal_users?.full_name || 'N/A'} &nbsp;|&nbsp;
-          <strong>Date:</strong> ${new Date().toLocaleDateString()}
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div><strong>CLASS:</strong> ${cls.name}</div>
+            <div><strong>PROGRAMME:</strong> ${cls.programs?.name}</div>
+            <div><strong>FACILITATOR:</strong> ${cls.portal_users?.full_name}</div>
+            <div><strong>DATE ISSUED:</strong> ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+          </div>
         </div>
-
         <table>
           <thead>
             <tr>
-              <th>Student Name</th>
-              <th>Class</th>
-              <th>Login Email</th>
-              <th>Password</th>
+              <th>Full Name</th>
+              <th>Class Reference</th>
+              <th>Login Identifier (Email)</th>
+              <th>Assigned Key (Password)</th>
             </tr>
           </thead>
           <tbody>
             ${enrRows}
           </tbody>
         </table>
-        
         <div class="note">
-          Passwords are encrypted in our database for security. Please fill in the temporary passwords here before distributing or instruct students to use the "Forgot Password" feature.
+          Please keep these credentials secure. Change your password after first login.
         </div>
-        
-        <button class="print-btn" onclick="window.print()">Print Document</button>
+        <button class="print-btn" onclick="window.print()">Print Official Registry</button>
       </body>
       </html>
     `;
@@ -303,6 +310,34 @@ export default function ClassDetailPage() {
       </Link>
     </div>
   );
+
+  const renderMinimalPage = (url: string) => (
+    <div className="fixed inset-0 z-[100] bg-[#050a17] flex flex-col">
+      <div className="flex items-center justify-between p-4 border-b border-white/10 bg-[#0B132B]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+            <BoltIcon className="w-4 h-4 text-violet-400" />
+          </div>
+          <h3 className="text-white font-black uppercase tracking-[0.2em] text-[10px]">Operation: {viewingItem?.type.replace('_', ' ')}</h3>
+        </div>
+        <button onClick={() => setViewingItem(null)} className="p-2 hover:bg-white/5 rounded-xl text-white/40 hover:text-white transition-all">
+          <XMarkIcon className="w-6 h-6" />
+        </button>
+      </div>
+      <div className="flex-1 overflow-hidden relative">
+        <iframe 
+          src={`${url}${url.includes('?') ? '&' : '?'}minimal=true`} 
+          className="w-full h-full border-none" 
+          title="Operation Frame"
+        />
+      </div>
+    </div>
+  );
+
+  if (viewingItem?.type === 'assignment') return renderMinimalPage('/dashboard/assignments/new');
+  if (viewingItem?.type === 'lesson') return renderMinimalPage('/dashboard/lessons/add');
+  if (viewingItem?.type === 'cbt') return renderMinimalPage('/dashboard/cbt/new');
+  if (viewingItem?.type === 'attendance') return renderMinimalPage(`/dashboard/attendance?class_id=${id}`);
 
   return (
     <div className="min-h-screen bg-[#050a17] text-white">
@@ -588,7 +623,7 @@ export default function ClassDetailPage() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {items.cbt.map(ex => (
-                      <Link key={ex.id} href={`/dashboard/exams/${ex.id}`} 
+                      <Link key={ex.id} href={`/dashboard/cbt/${ex.id}`} 
                         className="bg-white/5 border border-white/10 rounded-3xl p-6 group hover:bg-white/10 hover:border-amber-500/50 transition-all">
                         <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-white/20 group-hover:text-amber-400 group-hover:bg-amber-600/10 transition-all mb-4">
                           <AcademicCapIcon className="w-6 h-6" />
@@ -787,7 +822,7 @@ export default function ClassDetailPage() {
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">Operations Deck</h3>
                 <div className="grid grid-cols-1 gap-3">
                   {[
-                    { label: 'Roll Call', sub: 'SYNC REGISTRY', icon: CheckCircleIcon, color: 'blue', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
+                    { label: 'Roll Call', sub: 'SYNC REGISTRY', icon: CheckCircleIcon, color: 'blue', action: () => setViewingItem({ type: 'attendance', id: id }) },
                     { label: 'Quick Task', sub: 'INITIATE ASSIGNMENT', icon: ClipboardDocumentListIcon, color: 'amber', action: () => setViewingItem({ type: 'assignment', id: 'add' }) },
                     { label: 'Add Lesson', sub: 'AUGMENT CURRICULUM', icon: BookOpenIcon, color: 'cyan', action: () => setViewingItem({ type: 'lesson', id: 'add' }) },
                     { label: 'Apply CBT', sub: 'SYSTEM TESTING', icon: AcademicCapIcon, color: 'violet', action: () => setViewingItem({ type: 'cbt', id: 'add' }) },
@@ -815,12 +850,22 @@ export default function ClassDetailPage() {
                     <span className="text-[9px] font-black text-violet-400 tracking-widest">{enrollments.length} <span className="text-white/20">/</span> {cls.max_students}</span>
                   </div>
                   {isStaff && (
-                    <button
-                      onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }}
-                      className="w-8 h-8 rounded-xl bg-violet-600/20 hover:bg-violet-600/40 border border-violet-600/30 text-violet-400 flex items-center justify-center transition-all active:scale-90"
-                    >
-                      <PlusIcon className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }}
+                        title="Enroll Existing Student"
+                        className="w-8 h-8 rounded-xl bg-violet-600/20 hover:bg-violet-600/40 border border-violet-600/30 text-violet-400 flex items-center justify-center transition-all active:scale-90"
+                      >
+                        <PlusIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setShowRegisterModal(true)}
+                        title="Register New Student"
+                        className="w-8 h-8 rounded-xl bg-blue-600/20 hover:bg-blue-600/40 border border-blue-600/30 text-blue-400 flex items-center justify-center transition-all active:scale-90"
+                      >
+                        <UserPlusIcon className="w-4 h-4" />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -965,9 +1010,8 @@ export default function ClassDetailPage() {
                 <div className="w-full h-full bg-[#050a17] rounded-[2.5rem] border border-white/5 overflow-hidden shadow-inner">
                   <iframe
                     src={`/dashboard/${viewingItem.type === 'lesson' ? 'lessons' : viewingItem.type === 'assignment' ? 'assignments' : 'cbt'}/${viewingItem.id === 'add' ? (viewingItem.type === 'lesson' ? 'add' : 'new') : viewingItem.id}?minimal=true&program_id=${cls.program_id}`}
-                    className="w-full h-full border-none opacity-0 animate-in fade-in duration-1000 delay-300"
+                    className="w-full h-full border-none opacity-100"
                     title="Content Protocol Frame"
-                    onLoad={(e: any) => e.target.style.opacity = '1'}
                   />
                 </div>
               </div>
@@ -1001,6 +1045,14 @@ export default function ClassDetailPage() {
           100% { transform: scale(1); opacity: 1; }
         }
       `}</style>
+      <AddStudentModal
+        isOpen={showRegisterModal}
+        onClose={() => setShowRegisterModal(false)}
+        onSuccess={() => {
+          setShowRegisterModal(false);
+          fetchData();
+        }}
+      />
     </div>
   );
 }

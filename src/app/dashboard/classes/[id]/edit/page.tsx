@@ -321,6 +321,14 @@ export default function EditClassPage() {
                             className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" />
                     </div>
 
+                    <div>
+                        <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Description</label>
+                        <textarea value={form.description} rows={3}
+                            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                            placeholder="Optional — brief description of this class"
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors resize-none" />
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
@@ -329,6 +337,7 @@ export default function EditClassPage() {
                             <select required value={form.program_id}
                                 onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}
                                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500">
+                                <option value="">— Select Programme —</option>
                                 {programs.map(p => (
                                     <option key={p.id} value={p.id}>{p.name}</option>
                                 ))}
@@ -415,9 +424,9 @@ export default function EditClassPage() {
                         )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
-                            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Initial Status</label>
+                            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Status</label>
                             <select value={form.status}
                                 onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
                                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500">
@@ -431,7 +440,29 @@ export default function EditClassPage() {
                             <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Schedule</label>
                             <input type="text" value={form.schedule}
                                 onChange={e => setForm(f => ({ ...f, schedule: e.target.value }))}
+                                placeholder="e.g. Mon / Wed 9am"
                                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Max Students</label>
+                            <input type="number" min="1" max="500" value={form.max_students}
+                                onChange={e => setForm(f => ({ ...f, max_students: e.target.value }))}
+                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Start Date</label>
+                            <input type="date" value={form.start_date}
+                                onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
+                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 [color-scheme:dark]" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">End Date</label>
+                            <input type="date" value={form.end_date}
+                                onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 [color-scheme:dark]" />
                         </div>
                     </div>
 

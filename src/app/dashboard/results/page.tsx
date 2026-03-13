@@ -22,46 +22,85 @@ type PortalUser = Database['public']['Tables']['portal_users']['Row'];
 type OrgSettings = Database['public']['Tables']['report_settings']['Row'];
 
 function GradeDistribution({ students, reportsMap }: { students: PortalUser[], reportsMap: Record<string, any> }) {
-    const counts = { A: 0, B: 0, C: 0, D: 0, E: 0, none: 0 };
+    const counts = { A: 0, B: 0, C: 0, D: 0, F: 0, none: 0 };
     students.forEach(s => {
         const r = reportsMap[s.id];
         if (r?.overall_grade) {
-            const g = r.overall_grade[0].toUpperCase() as keyof typeof counts;
-            if (counts[g] !== undefined) counts[g]++;
-            else counts.E++;
+            const gradeChar = r.overall_grade[0].toUpperCase();
+            if (gradeChar === 'A') counts.A++;
+            else if (gradeChar === 'B') counts.B++;
+            else if (gradeChar === 'C') counts.C++;
+            else if (gradeChar === 'D') counts.D++;
+            else if (gradeChar === 'F') counts.F++;
+            else counts.F++; // Map E or others to F for consistency
         } else {
             counts.none++;
         }
     });
 
-    const max = Math.max(...Object.values(counts), 1);
+    const max = Math.max(...Object.values(counts).slice(0, 5), 1);
+    const totalWithGrades = students.length - counts.none;
 
     return (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-4">
-            <div className="flex items-center justify-between mb-3 px-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 italic">Grade Distribution Analysis</p>
-                <div className="flex gap-3">
-                   {['A','B','C','D','E'].map(g => (
-                       <span key={g} className="text-[9px] font-bold text-white/20">{g}: {counts[g as keyof typeof counts]}</span>
+        <div className="bg-[#0a0a1a]/60 border border-white/10 rounded-2xl p-4 mb-4 shadow-xl overflow-hidden relative group">
+            {/* Background Glow */}
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-violet-600/10 blur-[50px] rounded-full pointer-events-none" />
+            
+            <div className="flex items-center justify-between mb-4 px-1">
+                <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400 italic">Grade Distribution</p>
+                    <p className="text-[8px] font-bold text-white/20 uppercase">Telemetry Analysis</p>
+                </div>
+                <div className="flex gap-2">
+                   {['A','B','C','D','F'].map(g => (
+                       <div key={g} className="flex flex-col items-center">
+                           <span className="text-[8px] font-black text-white/30">{g}</span>
+                           <span className="text-[10px] font-black text-white/60">{counts[g as keyof typeof counts]}</span>
+                       </div>
                    ))}
                 </div>
             </div>
-            <div className="flex items-end gap-1.5 h-16">
-                {(['A', 'B', 'C', 'D', 'E'] as const).map(g => {
-                    const h = (counts[g] / max) * 100;
-                    const colors = { A: 'bg-emerald-500', B: 'bg-blue-500', C: 'bg-amber-500', D: 'bg-indigo-500', E: 'bg-rose-500' };
+
+            <div className="flex items-end gap-2 h-24 mb-1">
+                {(['A', 'B', 'C', 'D', 'F'] as const).map(g => {
+                    const count = counts[g];
+                    const h = totalWithGrades > 0 ? (count / max) * 100 : 0;
+                    const colors = { 
+                        A: 'from-emerald-600 to-emerald-400 shadow-emerald-500/20', 
+                        B: 'from-blue-600 to-blue-400 shadow-blue-500/20', 
+                        C: 'from-amber-600 to-amber-400 shadow-amber-500/20', 
+                        D: 'from-indigo-600 to-indigo-400 shadow-indigo-500/20', 
+                        F: 'from-rose-600 to-rose-400 shadow-rose-500/20' 
+                    };
                     return (
-                        <div key={g} className="flex-1 flex flex-col items-center gap-1.5 group">
-                            <div className="w-full bg-white/5 rounded-t-md overflow-hidden flex flex-col justify-end h-full">
-                                <div 
-                                    className={`w-full ${colors[g]} opacity-60 group-hover:opacity-100 transition-all duration-700`} 
-                                    style={{ height: `${h}%` }}
-                                />
+                        <div key={g} className="flex-1 flex flex-col items-center gap-2 group/bar">
+                            <div className="w-full bg-white/[0.03] rounded-t-lg overflow-hidden flex flex-col justify-end h-full relative border border-white/5">
+                                {count > 0 && (
+                                    <div 
+                                        className={`w-full bg-gradient-to-t ${colors[g]} opacity-80 group-hover/bar:opacity-100 transition-all duration-1000 ease-out shadow-lg relative`} 
+                                        style={{ height: `${h}%` }}
+                                    >
+                                        {/* Animated Shine */}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-transparent translate-y-full group-hover/bar:translate-y-[-100%] transition-transform duration-1000" />
+                                        
+                                        {/* Top Glow Dot */}
+                                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] opacity-0 group-hover/bar:opacity-100 transition-opacity" />
+                                    </div>
+                                )}
                             </div>
-                            <span className="text-[9px] font-black text-white/30">{g}</span>
+                            <span className="text-[10px] font-black text-white/20 group-hover/bar:text-white/60 transition-colors uppercase">{g}</span>
                         </div>
                     );
                 })}
+            </div>
+
+            {/* Total Indicator */}
+            <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Active Monitoring</span>
+                </div>
+                <span className="text-[9px] font-bold text-white/20 italic">{totalWithGrades} Reports Analyzed</span>
             </div>
         </div>
     );
@@ -686,16 +725,25 @@ function ResultsPageInner() {
                                                     </Link>
                                                 )}
                                                 {selectedReport && (
-                                                    <button
-                                                        onClick={downloadSinglePDF}
-                                                        disabled={isDownloadingPdf}
-                                                        className="h-full inline-flex items-center gap-2 px-4 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-violet-900/40 whitespace-nowrap"
-                                                    >
-                                                        {isDownloadingPdf
-                                                            ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                            : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
-                                                        {isDownloadingPdf ? 'PDF…' : 'Save PDF'}
-                                                    </button>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => window.print()}
+                                                            className="h-full inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all"
+                                                        >
+                                                            <PrinterIcon className="w-3.5 h-3.5" />
+                                                            Print
+                                                        </button>
+                                                        <button
+                                                            onClick={downloadSinglePDF}
+                                                            disabled={isDownloadingPdf}
+                                                            className="h-full inline-flex items-center gap-2 px-4 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-violet-900/40 whitespace-nowrap"
+                                                        >
+                                                            {isDownloadingPdf
+                                                                ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                                : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
+                                                            {isDownloadingPdf ? 'Downloading…' : 'Download PDF'}
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
@@ -708,13 +756,13 @@ function ResultsPageInner() {
                                         </div>
                                     ) : selectedReport ? (
                                         <div className="overflow-auto bg-gray-100 p-4 sm:p-6 lg:p-8" style={{ maxHeight: '75vh' }}>
-                                            {template === 'standard' ? (
-                                                <ScaledReportCard report={selectedReport} orgSettings={orgSettings} />
-                                            ) : (
-                                                <div className="flex flex-col items-center">
+                                            <ScaledReportCard report={selectedReport}>
+                                                {template === 'standard' ? (
+                                                    <ReportCard report={selectedReport} orgSettings={orgSettings} />
+                                                ) : (
                                                     <ModernReportCard report={selectedReport} orgSettings={orgSettings} />
-                                                </div>
-                                            )}
+                                                )}
+                                            </ScaledReportCard>
                                         </div>
                                     ) : null}
                                 </div>

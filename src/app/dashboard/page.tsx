@@ -6,6 +6,7 @@ import {
   BuildingOfficeIcon, ClipboardDocumentListIcon, PresentationChartLineIcon,
   ClockIcon, CheckCircleIcon, BellIcon, ArrowRightIcon, TrophyIcon,
   ArrowPathIcon, ExclamationTriangleIcon, ShieldCheckIcon, DocumentTextIcon,
+  BoltIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -221,12 +222,13 @@ async function loadTeacherActivity(supabase: ReturnType<typeof createClient>, us
 }
 
 async function loadStudentStats(supabase: ReturnType<typeof createClient>, userId: string) {
-  const [enr, subs, graded] = await Promise.allSettled([
+  const [enr, subs, graded, points] = await Promise.allSettled([
     supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('user_id', userId),
     supabase.from('assignment_submissions').select('id', { count: 'exact', head: true })
       .or(`portal_user_id.eq.${userId},user_id.eq.${userId}`),
     supabase.from('assignment_submissions').select('grade, assignments(max_points)')
       .or(`portal_user_id.eq.${userId},user_id.eq.${userId}`).not('grade', 'is', null).limit(50),
+    supabase.from('user_points').select('*').eq('portal_user_id', userId).maybeSingle(),
   ]);
   const enrolled = enr.status === 'fulfilled' ? (enr.value.count ?? 0) : 0;
   const totalSubs = subs.status === 'fulfilled' ? (subs.value.count ?? 0) : 0;
@@ -239,12 +241,33 @@ async function loadStudentStats(supabase: ReturnType<typeof createClient>, userI
     : 0;
   const { letter } = avgPct >= 90 ? { letter: 'A' } : avgPct >= 80 ? { letter: 'B' } :
     avgPct >= 70 ? { letter: 'C' } : avgPct >= 60 ? { letter: 'D' } : { letter: 'F' };
+  const ptsData = points.status === 'fulfilled' ? (points.value as any).data : null;
+  const xp = ptsData?.total_points || 0;
+  const streak = ptsData?.current_streak || 0;
+  const level = ptsData?.achievement_level || 'Bronze';
+
   return [
     { label: 'Enrolled Courses', value: enrolled, icon: BookOpenIcon, gradient: 'from-blue-600 to-blue-400' },
-    { label: 'Assignments Done', value: totalSubs, icon: ClipboardDocumentListIcon, gradient: 'from-violet-600 to-violet-400' },
-    { label: 'Graded Work', value: gradedData.length, icon: CheckCircleIcon, gradient: 'from-emerald-600 to-emerald-400' },
-    { label: 'Overall Grade', value: gradedData.length ? `${letter} (${avgPct}%)` : '—', icon: TrophyIcon, gradient: 'from-amber-600 to-amber-400' },
+    { label: 'XP Points', value: xp, icon: TrophyIcon, gradient: 'from-amber-600 to-amber-400' },
+    { label: 'Daily Streak', value: `${streak}d 🔥`, icon: BoltIcon, gradient: 'from-rose-600 to-rose-400' },
+    { label: 'Current Level', value: level, icon: AcademicCapIcon, gradient: 'from-violet-600 to-violet-400' },
   ] as DashStats[];
+}
+
+async function loadLeaderboard(supabase: ReturnType<typeof createClient>) {
+  const { data: lpRes } = await supabase
+    .from('user_points')
+    .select('portal_user_id, total_points, achievement_level, portal_users(full_name, profile_image_url)')
+    .order('total_points', { ascending: false })
+    .limit(5);
+  
+  return (lpRes ?? []).map((item: any, idx: number) => ({
+    rank: idx + 1,
+    name: item.portal_users?.full_name || 'Anonymous',
+    points: item.total_points,
+    level: item.achievement_level,
+    avatar: item.portal_users?.profile_image_url
+  }));
 }
 
 async function loadStudentActivity(supabase: ReturnType<typeof createClient>, userId: string): Promise<Activity[]> {
@@ -340,6 +363,8 @@ async function loadSchoolActivity(supabase: ReturnType<typeof createClient>, sch
     }));
 }
 
+
+
 /* ── Quick actions by role ────────────────────────────── */
 const QUICK_ACTIONS = {
   admin: [
@@ -375,6 +400,7 @@ export default function DashboardPage() {
   const [now, setNow] = useState<Date | null>(null);
   const [stats, setStats] = useState<DashStats[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [upcomingSlots, setUpcomingSlots] = useState<Slot[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
@@ -423,7 +449,7 @@ export default function DashboardPage() {
     try {
       const supabase = createClient();
       const role = profile.role;
-      const [s, a] = await Promise.all([
+      const [s, a, l] = await Promise.all([
         role === 'admin' ? loadAdminStats(supabase) :
           role === 'teacher' ? loadTeacherStats(supabase, profile?.id || '') :
             role === 'school' ? loadSchoolStats(supabase, profile?.school_id || '', profile?.school_name) :
@@ -432,9 +458,11 @@ export default function DashboardPage() {
           role === 'teacher' ? loadTeacherActivity(supabase, profile?.id || '') :
             role === 'school' ? loadSchoolActivity(supabase, profile?.school_id || '', profile?.school_name) :
               loadStudentActivity(supabase, profile?.id || ''),
+        role === 'student' ? loadLeaderboard(supabase) : Promise.resolve([])
       ]);
-      setStats(s);
+      setStats(s as any[]);
       setActivities(a);
+      setLeaderboard(l);
       await loadUpcomingSlots(supabase, role, profile.id, profile.school_id || undefined);
     } catch { /* silent */ } finally {
       setDataLoading(false);
@@ -723,6 +751,41 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {role === 'student' && leaderboard.length > 0 && (
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-amber-500/10 transition-all" />
+               <div className="flex items-center justify-between mb-8 relative z-10">
+                  <h2 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-3">
+                    <TrophyIcon className="w-6 h-6 text-amber-500" /> Hall of Fame
+                  </h2>
+                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Global Rank</span>
+               </div>
+               <div className="space-y-1 relative z-10">
+                  {leaderboard.map((u, i) => (
+                    <div key={i} className={`flex items-center justify-between p-3 rounded-xl transition-all ${u.name === profile.full_name ? 'bg-violet-600/20 border border-violet-500/20' : 'hover:bg-white/5'}`}>
+                      <div className="flex items-center gap-4">
+                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${i === 0 ? 'bg-amber-500 text-black' : i === 1 ? 'bg-slate-300 text-black' : i === 2 ? 'bg-orange-400 text-black' : 'text-white/20'}`}>
+                          {u.rank}
+                        </div>
+                        <div className="w-8 h-8 rounded-full border border-white/10 bg-[#0a0a20] flex items-center justify-center text-[10px] font-bold text-white/40 overflow-hidden">
+                          {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" alt="" /> : u.name[0]}
+                        </div>
+                        <div className="min-w-0">
+                           <p className="text-xs font-black text-white/90 truncate max-w-[100px]">{u.name}</p>
+                           <p className="text-[8px] font-black text-white/20 uppercase tracking-widest">{u.level}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-black text-white tabular-nums">{u.points}</p>
+                        <p className="text-[8px] font-black text-white/20 uppercase tracking-widest">XP</p>
+                      </div>
+                    </div>
+                  ))}
+               </div>
+               <Link href="/dashboard/leaderboard" className="mt-8 w-full block text-center py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[9px] font-black text-white/30 hover:text-white uppercase tracking-widest transition-all">View All Champions</Link>
             </div>
           )}
 

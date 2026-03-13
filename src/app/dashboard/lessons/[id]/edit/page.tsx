@@ -43,11 +43,12 @@ export default function EditLessonPage() {
     });
 
     // Plan State
-    const [plan, setPlan] = useState({
+    const [plan, setPlan] = useState<any>({
         objectives: '',
         activities: '',
         assessment_methods: '',
-        staff_notes: ''
+        staff_notes: '',
+        plan_data: null
     });
 
     // Materials State
@@ -60,7 +61,7 @@ export default function EditLessonPage() {
         try {
             const [lessonRes, planRes, materialsRes] = await Promise.all([
                 db.from('lessons').select('*').eq('id', id).single(),
-                db.from('lesson_plans').select('*').eq('lesson_id', id).maybeSingle(),
+                db.from('lesson_plans').select('*, plan_data, covers_full_course').eq('lesson_id', id).maybeSingle(),
                 db.from('lesson_materials').select('*').eq('lesson_id', id).order('created_at', { ascending: true })
             ]);
 
@@ -96,11 +97,13 @@ export default function EditLessonPage() {
             });
 
             if (planRes.data) {
+                const pd = planRes.data as any;
                 setPlan({
-                    objectives: planRes.data.objectives || '',
-                    activities: planRes.data.activities || '',
-                    assessment_methods: planRes.data.assessment_methods || '',
-                    staff_notes: planRes.data.staff_notes || ''
+                    objectives: pd.objectives || '',
+                    activities: pd.activities || '',
+                    assessment_methods: pd.assessment_methods || '',
+                    staff_notes: pd.staff_notes || '',
+                    plan_data: pd.plan_data || null
                 });
             }
         } catch (err: any) {
@@ -346,7 +349,7 @@ export default function EditLessonPage() {
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
                                     <Sparkles className="w-6 h-6 text-amber-400" />
-                                    <h2 className="text-xl font-black uppercase tracking-tight">Instructor Guidelines</h2>
+                                    <h2 className="text-xl font-black uppercase tracking-tight">Structured Lesson Plan</h2>
                                 </div>
                                 <button
                                     onClick={generateAiPlan}
@@ -358,9 +361,20 @@ export default function EditLessonPage() {
                                     ) : (
                                         <Sparkles className="w-3 h-3" />
                                     )}
-                                    {aiGeneratingPlan ? 'GENERATING...' : 'MAGIC AI PLAN'}
+                                    {aiGeneratingPlan ? 'GENERATING...' : 'SYNC WITH AI'}
                                 </button>
                             </div>
+
+                            {plan.plan_data && Object.keys(plan.plan_data).length > 0 && (
+                                <div className="p-6 bg-cyan-500/5 border border-cyan-500/20 rounded-2xl space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Active Structured Data Detected</p>
+                                        <button onClick={() => setPlan({ ...plan, plan_data: null })} className="text-[9px] text-white/20 hover:text-rose-400 uppercase font-black">Clear Structural Data</button>
+                                    </div>
+                                    <p className="text-xs text-white/40">This lesson is linked to a full course plan ({plan.plan_data.course_title}). The curriculum timeline will be rendered in the lesson viewer.</p>
+                                </div>
+                            )}
+
                             <Field label="Learning Objectives" value={plan.objectives} textarea rows={4} onChange={v => setPlan({ ...plan, objectives: v })} />
                             <Field label="Activities Sequence" value={plan.activities} textarea rows={6} onChange={v => setPlan({ ...plan, activities: v })} />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

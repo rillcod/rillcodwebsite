@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   HomeIcon,
@@ -33,6 +33,8 @@ import {
   CalendarDaysIcon,
   BanknotesIcon,
   VideoCameraIcon,
+  UserPlusIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -47,12 +49,16 @@ function isDivider(e: NavEntry): e is NavDivider {
 export default function DashboardNavigation() {
   const { profile, signOut } = useAuth();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isMinimal = searchParams.get('minimal') === 'true';
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  if (isMinimal) return null;
 
   useEffect(() => {
     if (mobileOpen) {
@@ -100,6 +106,9 @@ export default function DashboardNavigation() {
           { name: 'Schools',          href: '/dashboard/schools',          icon: BuildingOfficeIcon },
           { name: 'Teachers',         href: '/dashboard/teachers',         icon: AcademicCapIcon },
           { name: 'Students',         href: '/dashboard/students',         icon: UserGroupIcon },
+          { name: 'Register Students',href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
+          { name: 'Enrol Students',   href: '/dashboard/students/bulk-enroll',   icon: AcademicCapIcon },
+          { name: 'Wipe Students',    href: '/dashboard/students/bulk-delete',   icon: TrashIcon },
           { name: 'Users',            href: '/dashboard/users',            icon: ShieldCheckIcon },
           { name: 'Approvals',        href: '/dashboard/approvals',        icon: ClipboardDocumentCheckIcon },
           { divider: true, label: 'Academics' },
@@ -137,6 +146,8 @@ export default function DashboardNavigation() {
           { name: 'Timetable',        href: '/dashboard/timetable',        icon: CalendarDaysIcon },
           { divider: true, label: 'Students' },
           { name: 'Students',         href: '/dashboard/students',         icon: UserGroupIcon },
+          { name: 'Register Students',href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
+          { name: 'Enrol Students',   href: '/dashboard/students/bulk-enroll',   icon: AcademicCapIcon },
           { name: 'Grades',           href: '/dashboard/grades',           icon: ClipboardDocumentCheckIcon },
           { divider: true, label: 'Reports' },
           { name: 'Report Builder',   href: '/dashboard/reports/builder',  icon: DocumentTextIcon },

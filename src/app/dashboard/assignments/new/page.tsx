@@ -147,7 +147,7 @@ export default function NewAssignmentPage() {
     });
   };
 
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

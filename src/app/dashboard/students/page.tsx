@@ -95,7 +95,7 @@ export default function StudentsPage() {
           query = query.or(filters.join(','));
         } else {
           // No school affiliation — return nothing
-          query = query.eq('id', 'no-match');
+          query = query.eq('id', '00000000-0000-0000-0000-000000000000');
         }
       }
 
@@ -112,7 +112,7 @@ export default function StudentsPage() {
   useEffect(() => {
     if (authLoading || !profile) return;
     load();
-    if (isStaff) checkGaps();
+    if (profile?.role === 'admin') checkGaps();
   }, [profile?.id, isStaff, authLoading, load]); // eslint-disable-line
 
   // ── Approve ────────────────────────────────────────────────

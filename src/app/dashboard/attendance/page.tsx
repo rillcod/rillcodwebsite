@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -21,8 +21,10 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 export default function AttendancePage() {
   const { profile, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
+  const isMinimal = searchParams.get('minimal') === 'true';
   const router = useRouter();
-  const classIdFromQuery = searchParams.get('class_id');
+  const rawClassId = searchParams.get('class_id');
+  const classIdFromQuery = React.useMemo(() => rawClassId, [rawClassId]);
   const [activeTab, setActiveTab] = useState<'mark' | 'log'>('mark');
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>('');
@@ -78,16 +80,24 @@ export default function AttendancePage() {
   useEffect(() => {
     if (!selectedClass) return;
     setLoading(true);
-    createClient().from('class_sessions')
+    const db = createClient();
+    db.from('class_sessions')
       .select('*')
       .eq('class_id', selectedClass)
       .order('session_date', { ascending: false })
       .then(({ data }) => {
-        setSessions(data ?? []);
+        const sess = data ?? [];
+        setSessions(sess);
         setSelectedSession('');
         setStudents([]);
         setAttendance({});
-        setLoading(false);
+        
+        // If we entered via direct link, try to find/init today's session
+        if (classIdFromQuery === selectedClass && sess.length === 0) {
+           quickMarkToday();
+        } else {
+           setLoading(false);
+        }
       });
   }, [selectedClass]);
 
@@ -137,7 +147,7 @@ export default function AttendancePage() {
       .select('*, class_sessions!inner(*)')
       .eq('class_sessions.class_id', selectedClass)
       .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
+      .then(({ data }) => {
         setFullAttendanceData(data ?? []);
         setLoading(false);
       });
@@ -390,30 +400,32 @@ export default function AttendancePage() {
     <div className="min-h-screen bg-[#0f0f1a] text-white">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-        <div className="flex flex-col md:flex-row md:items-center gap-6">
-          <button onClick={() => router.back()}
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors flex-shrink-0">
-            <ArrowLeftIcon className="w-5 h-5 text-white/60" />
-          </button>
-          <div className="flex-1">
-            <div className="flex items-center justify-between gap-4 mb-1">
-              <div className="flex items-center gap-2">
-                <ClipboardDocumentCheckIcon className="w-5 h-5 text-teal-400" />
-                <span className="text-xs font-bold text-teal-400 uppercase tracking-widest">Attendance Manager</span>
+        {!isMinimal && (
+          <div className="flex flex-col md:flex-row md:items-center gap-6">
+            <button onClick={() => router.back()}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors flex-shrink-0">
+              <ArrowLeftIcon className="w-5 h-5 text-white/60" />
+            </button>
+            <div className="flex-1">
+              <div className="flex items-center justify-between gap-4 mb-1">
+                <div className="flex items-center gap-2">
+                  <ClipboardDocumentCheckIcon className="w-5 h-5 text-teal-400" />
+                  <span className="text-xs font-bold text-teal-400 uppercase tracking-widest">Attendance Manager</span>
+                </div>
+                {selectedClass && (
+                  <button
+                    onClick={() => router.push(`/dashboard/classes/${selectedClass}`)}
+                    className="text-xs font-black text-white/40 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-colors"
+                  >
+                    <ArrowLeftIcon className="w-3 h-3" /> Return to Class
+                  </button>
+                )}
               </div>
-              {selectedClass && (
-                <button
-                  onClick={() => router.push(`/dashboard/classes/${selectedClass}`)}
-                  className="text-xs font-black text-white/40 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-colors"
-                >
-                  <ArrowLeftIcon className="w-3 h-3" /> Return to Class
-                </button>
-              )}
+              <h1 className="text-3xl font-extrabold">{selectedClass ? 'Class Attendance' : 'Attendance Tracking'}</h1>
+              <p className="text-white/40 text-sm mt-1">Mark and review student attendance per session</p>
             </div>
-            <h1 className="text-3xl font-extrabold">{selectedClass ? 'Class Attendance' : 'Attendance Tracking'}</h1>
-            <p className="text-white/40 text-sm mt-1">Mark and review student attendance per session</p>
           </div>
-        </div>
+        )}
 
         {/* Tabs */}
         {selectedClass && (
