@@ -30,6 +30,8 @@ export interface ListFilters {
     query?: string | null;
     sort?: 'created_at' | 'rating_average' | 'usage_count';
     order?: 'asc' | 'desc';
+    page?: number;
+    pageSize?: number;
 }
 
 export class LibraryService {
@@ -62,9 +64,14 @@ export class LibraryService {
 
     async listContent(tenantId: string | undefined, filters: ListFilters = {}) {
         const supabase = await createClient();
+        const pageSize = Math.min(filters.pageSize ?? 50, 100);
+        const page = Math.max(filters.page ?? 0, 0);
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+
         let query = supabase
             .from('content_library')
-            .select('*, files(public_url, file_type, thumbnail_url, file_size, mime_type)');
+            .select('id, title, description, content_type, category, tags, subject, grade_level, rating_average, rating_count, usage_count, is_active, is_approved, created_at, created_by, file_id, files(public_url, file_type, thumbnail_url, file_size)');
 
         // If tenantId is provided, scope to that school + global content; otherwise return all
         if (tenantId) {
@@ -76,8 +83,7 @@ export class LibraryService {
         if (filters.subject) query = query.eq('subject', filters.subject);
         if (filters.gradeLevel) query = query.eq('grade_level', filters.gradeLevel);
         if (filters.query) {
-            const q = `%${filters.query}%`;
-            query = query.or(`title.ilike.${q},description.ilike.${q}`);
+            query = query.ilike('title', `%${filters.query}%`);
         }
 
         // Only return active, approved content
@@ -86,7 +92,7 @@ export class LibraryService {
         const sortColumn = filters.sort ?? 'created_at';
         const ascending = (filters.order ?? 'desc') === 'asc';
 
-        const { data, error } = await query.order(sortColumn, { ascending }).limit(200);
+        const { data, error } = await query.order(sortColumn, { ascending }).range(from, to);
         if (error) throw new AppError(error.message, 500);
         return data ?? [];
     }

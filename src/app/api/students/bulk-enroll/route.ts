@@ -72,13 +72,13 @@ export async function POST(request: Request) {
     const enrollments = safeIds.map((userId) => ({
       user_id:    userId,
       program_id,
-      role:       'student',
       status:     'active',
+      role:       'student',
     }));
 
     const { error: enrollErr } = await supabaseAdmin
       .from('enrollments')
-      .upsert(enrollments, { onConflict: 'user_id,program_id,role' });
+      .upsert(enrollments, { onConflict: 'user_id,program_id' });
 
     if (enrollErr) {
       return NextResponse.json({ error: `Enrollment failed: ${enrollErr.message}` }, { status: 500 });

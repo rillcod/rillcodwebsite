@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeftIcon, AcademicCapIcon, ClockIcon, CheckCircleIcon,
   XCircleIcon, UserGroupIcon, ChartBarIcon, PencilIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 export default function ExamDetailPage() {
   const params = useParams() as { id?: string };

@@ -1,7 +1,7 @@
 // @refresh reset
 import { Metadata } from 'next';
 import Image from 'next/image';
-import { 
+import {
   CodeBracketIcon,
   GlobeAltIcon,
   DevicePhoneMobileIcon,
@@ -12,7 +12,7 @@ import {
   TrophyIcon,
   HeartIcon,
   EyeIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 export const metadata: Metadata = {
   title: 'Student Projects - RILLCOD Academy | Showcase of Student Work',

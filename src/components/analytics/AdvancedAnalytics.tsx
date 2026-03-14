@@ -21,7 +21,7 @@ import {
   PlayIcon,
   PauseIcon,
   StopIcon
-} from '@heroicons/react/24/outline'
+} from '@/lib/icons'
 import dynamic from 'next/dynamic'
 
 const Line = dynamic(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })

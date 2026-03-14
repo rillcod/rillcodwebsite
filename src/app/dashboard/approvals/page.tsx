@@ -9,7 +9,7 @@ import {
     ClockIcon, BuildingOfficeIcon, AcademicCapIcon,
     EnvelopeIcon, PhoneIcon, UserGroupIcon, ExclamationTriangleIcon,
     SunIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 function StatusBadge({ status }: { status: string }) {
     const map: Record<string, string> = {

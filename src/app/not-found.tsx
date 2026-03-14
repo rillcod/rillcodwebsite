@@ -1,13 +1,13 @@
 // @refresh reset
 import Link from 'next/link';
-import { 
-  HomeIcon, 
-  AcademicCapIcon, 
-  UserGroupIcon, 
+import {
+  HomeIcon,
+  AcademicCapIcon,
+  UserGroupIcon,
   BuildingOfficeIcon,
   ArrowLeftIcon,
   ExclamationTriangleIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 export default function NotFound() {
   const quickLinks = [

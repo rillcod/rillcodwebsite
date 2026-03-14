@@ -9,7 +9,7 @@ import {
   TrophyIcon, BookOpenIcon, ClipboardDocumentCheckIcon,
   ArrowTrendingUpIcon, StarIcon, ExclamationTriangleIcon,
   SparklesIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, Tooltip as ReTooltip

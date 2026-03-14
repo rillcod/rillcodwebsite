@@ -803,12 +803,12 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                     </div>
 
                     {/* Middle: Deployment Status View */}
-                    <div className="flex flex-wrap items-center gap-2 lg:min-w-[200px]">
+                    <div className="flex flex-wrap items-center gap-2 lg:min-w-[200px] min-w-0">
                       {staffDeployment[t.id]?.length > 0 ? (
                         staffDeployment[t.id].map(a => (
-                          <div key={a.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400 uppercase tracking-widest whitespace-nowrap">
-                            <BuildingOfficeIcon className="w-3.5 h-3.5" />
-                            {a.schools?.name ?? 'Assigned'}
+                          <div key={a.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400 uppercase tracking-widest max-w-[220px]">
+                            <BuildingOfficeIcon className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">{a.schools?.name ?? 'Assigned'}</span>
                           </div>
                         ))
                       ) : (
@@ -952,7 +952,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                 {/* ─── Personal Info ─── */}
                 <div>
                   <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="h-px flex-1 bg-white/5" />Personal Information<span className="h-px flex-1 bg-white/5" />
+                    <span className="h-px flex-1 bg-white/5" /><span className="shrink-0">Personal Information</span><span className="h-px flex-1 bg-white/5" />
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="col-span-2">
@@ -997,7 +997,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                 {/* ─── Account Setup ─── */}
                 <div>
                   <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="h-px flex-1 bg-white/5" />Account Setup<span className="h-px flex-1 bg-white/5" />
+                    <span className="h-px flex-1 bg-white/5" /><span className="shrink-0">Account Setup</span><span className="h-px flex-1 bg-white/5" />
                   </p>
                   <div className="space-y-3">
                     <div>
@@ -1035,7 +1035,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                 {/* ─── School Assignment ─── */}
                 <div>
                   <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="h-px flex-1 bg-white/5" />School Assignment<span className="h-px flex-1 bg-white/5" />
+                    <span className="h-px flex-1 bg-white/5" /><span className="shrink-0">School Assignment</span><span className="h-px flex-1 bg-white/5" />
                   </p>
                   {schools.length === 0 ? (
                     <div className="px-4 py-6 bg-white/3 border border-white/8 rounded-xl text-center">

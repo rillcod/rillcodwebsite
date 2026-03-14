@@ -169,13 +169,13 @@ export async function POST(request: Request) {
         const enrollments = successIds.map((userId) => ({
           user_id:    userId,
           program_id: programId,
-          role:       'student',
           status:     'active',
+          role:       'student',
         }));
 
         await supabaseAdmin
           .from('enrollments')
-          .upsert(enrollments, { onConflict: 'user_id,program_id,role' });
+          .upsert(enrollments, { onConflict: 'user_id,program_id' });
       }
     }
 

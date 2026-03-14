@@ -13,7 +13,7 @@ import {
   EyeSlashIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon
-} from '@heroicons/react/24/outline'
+} from '@/lib/icons'
 import Link from 'next/link'
 
 interface PortalAccessProps {

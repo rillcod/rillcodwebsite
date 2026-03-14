@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   TrophyIcon, StarIcon, BoltIcon, FireIcon,
   AcademicCapIcon, ClipboardDocumentCheckIcon, SparklesIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 interface LeaderEntry {
   id: string;

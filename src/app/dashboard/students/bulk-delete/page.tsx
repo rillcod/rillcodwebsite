@@ -14,7 +14,7 @@ import {
   XMarkIcon,
   ArrowPathIcon,
   ShieldExclamationIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 interface StudentRow {
   id: string;

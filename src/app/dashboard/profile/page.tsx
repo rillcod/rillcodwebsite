@@ -272,9 +272,9 @@ export default function ProfilePage() {
                     <div className="p-8 grid grid-cols-1 sm:grid-cols-2 gap-10">
                         <div className="space-y-3">
                             <label className="text-[10px] font-black text-white/20 uppercase tracking-widest block">Primary Email</label>
-                            <div className="flex items-center gap-4 text-xl font-bold group">
-                                <EnvelopeIcon className="w-6 h-6 text-indigo-400 group-hover:scale-110 transition-transform" />
-                                <span className="selection:bg-indigo-500">{profile.email}</span>
+                            <div className="flex items-center gap-4 text-xl font-bold group min-w-0">
+                                <EnvelopeIcon className="w-6 h-6 text-indigo-400 group-hover:scale-110 transition-transform shrink-0" />
+                                <span className="selection:bg-indigo-500 truncate">{profile.email}</span>
                             </div>
                         </div>
                         <div className="space-y-3">
@@ -306,7 +306,7 @@ export default function ProfilePage() {
                             <div className="w-14 h-14 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 group-hover:scale-110 transition-transform">
                                 <BuildingOfficeIcon className="w-6 h-6" />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <p className="text-xl font-black text-white/90 truncate">{s.name}</p>
                               {s.city && <p className="text-xs font-bold text-white/30 uppercase tracking-widest mt-1">{s.city}</p>}
                             </div>

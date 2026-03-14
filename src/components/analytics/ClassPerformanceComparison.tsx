@@ -11,7 +11,7 @@ import {
   StarIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon
-} from '@heroicons/react/24/outline'
+} from '@/lib/icons'
 import dynamic from 'next/dynamic'
 
 const Bar = dynamic(() => import('react-chartjs-2').then(mod => mod.Bar), { ssr: false })

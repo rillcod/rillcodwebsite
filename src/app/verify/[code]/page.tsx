@@ -10,7 +10,7 @@ import {
   ArrowLeftIcon, CheckBadgeIcon,
   AcademicCapIcon, CalendarIcon, DocumentTextIcon,
   ArrowDownTrayIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import { ScaledReportCard } from '@/lib/pdf-utils';
 import ReportCard from '@/components/reports/ReportCard';
 

@@ -9,7 +9,7 @@ import {
   StarIcon,
   ChevronDownIcon,
   ChevronUpIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 interface CurriculumModule {
   title: string;

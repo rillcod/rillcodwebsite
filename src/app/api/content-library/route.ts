@@ -26,6 +26,8 @@ async function listHandler(req: Request, ctx: ApiContext) {
     const gradeLevel = searchParams.get('gradeLevel');
     const sort = searchParams.get('sort') as any;
     const order = searchParams.get('order') as any;
+    const page = parseInt(searchParams.get('page') ?? '0', 10);
+    const pageSize = parseInt(searchParams.get('pageSize') ?? '50', 10);
 
     const tenantId = ctx.user?.tenantId;
 
@@ -36,7 +38,9 @@ async function listHandler(req: Request, ctx: ApiContext) {
         subject,
         gradeLevel,
         sort,
-        order
+        order,
+        page,
+        pageSize,
     });
 
     return NextResponse.json({ success: true, data: items });

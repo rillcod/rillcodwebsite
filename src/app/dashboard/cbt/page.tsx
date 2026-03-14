@@ -10,7 +10,7 @@ import {
   ExclamationTriangleIcon, EyeIcon, TrashIcon, PlayIcon,
   MagnifyingGlassIcon, DocumentCheckIcon, ChartBarIcon, PencilIcon,
   BookOpenIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 export default function CBTPage() {
   const { profile, loading: authLoading } = useAuth();

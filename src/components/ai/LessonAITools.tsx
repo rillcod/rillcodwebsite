@@ -8,7 +8,7 @@ import {
   ArrowDownTrayIcon,
   XMarkIcon,
   ExclamationCircleIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 /* ── types ──────────────────────────────────────────────── */
 interface LessonAIToolsProps {

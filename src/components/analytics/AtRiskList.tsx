@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ExclamationTriangleIcon, UserCircleIcon, ClockIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon, UserCircleIcon, ClockIcon, ChartBarIcon } from '@/lib/icons';
 import { fetchAtRiskStudents } from '@/services/dashboard.service';
 
 interface Student {

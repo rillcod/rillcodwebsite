@@ -52,10 +52,11 @@ export default function ClassDetailPage() {
     const supabase = createClient();
     try {
       const [clsRes, sessRes] = await Promise.all([
-        supabase.from('classes').select('*, programs(name, difficulty_level), portal_users(full_name), schools(name, logo_url)').eq('id', id!).maybeSingle(),
+        supabase.from('classes').select('*, programs(name, difficulty_level), portal_users!classes_teacher_id_fkey(full_name), schools(name)').eq('id', id!).maybeSingle(),
         supabase.from('class_sessions').select('*').eq('class_id', id!).order('session_date', { ascending: false }).limit(10),
       ]);
 
+      if (clsRes.error) throw new Error(clsRes.error.message);
       if (!clsRes.data) throw new Error('Class not found');
       setCls(clsRes.data);
       setSessions(sessRes.data ?? []);
@@ -679,17 +680,17 @@ export default function ClassDetailPage() {
                     <table className="w-full text-left border-collapse min-w-[600px]">
                       <thead>
                         <tr className="border-b border-white/5 bg-white/[0.02]">
-                          <th className="px-8 py-6 text-[9px] font-black text-white/20 uppercase tracking-[0.3em] sticky left-0 bg-[#0B132B] z-20">Student Pioneers</th>
+                          <th className="px-8 py-6 text-[9px] font-black text-white/50 uppercase tracking-[0.3em] sticky left-0 bg-[#0B132B] z-20">Student Pioneers</th>
                           {items.assignments.map(a => (
-                            <th key={a.id} className="px-6 py-6 text-[9px] font-black text-white/20 uppercase tracking-[0.2em] text-center min-w-[140px] bg-amber-500/[0.03]">
+                            <th key={a.id} className="px-6 py-6 text-[9px] font-black text-white/60 uppercase tracking-[0.2em] text-center min-w-[140px] bg-amber-500/[0.03]">
                               <div className="line-clamp-1 mb-1" title={a.title}>{a.title}</div>
-                              <div className="text-[8px] opacity-40 lowercase font-medium">{a.max_points}pts</div>
+                              <div className="text-[8px] text-amber-400/70 lowercase font-medium">{a.max_points}pts</div>
                             </th>
                           ))}
                           {items.cbt.map(c => (
-                            <th key={c.id} className="px-6 py-6 text-[9px] font-black text-white/20 uppercase tracking-[0.2em] text-center min-w-[140px] bg-violet-600/[0.03]">
+                            <th key={c.id} className="px-6 py-6 text-[9px] font-black text-white/60 uppercase tracking-[0.2em] text-center min-w-[140px] bg-violet-600/[0.03]">
                               <div className="line-clamp-1 mb-1" title={c.title}>{c.title}</div>
-                              <div className="text-[8px] opacity-40 lowercase font-medium">{c.total_questions} Qs</div>
+                              <div className="text-[8px] text-violet-400/70 lowercase font-medium">{c.total_questions} Qs</div>
                             </th>
                           ))}
                         </tr>

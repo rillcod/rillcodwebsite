@@ -14,9 +14,8 @@ import {
     UserGroupIcon, DocumentTextIcon, EyeIcon, XMarkIcon,
     Cog6ToothIcon, ArrowUpTrayIcon, ChevronDownIcon, ChevronUpIcon,
     PhotoIcon, RocketLaunchIcon, CloudArrowUpIcon, ChevronRightIcon,
-    CheckCircleIcon, PrinterIcon,
-} from '@heroicons/react/24/outline';
-import { Sparkles } from 'lucide-react';
+    CheckCircleIcon, PrinterIcon, SparklesIcon,
+} from '@/lib/icons';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -951,7 +950,7 @@ function ReportBuilderInner() {
                             <>
                                 <button onClick={() => setShowPreview(true)}
                                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition-colors">
-                                    <Sparkles className="w-3.5 h-3.5" /> Preview
+                                    <SparklesIcon className="w-3.5 h-3.5" /> Preview
                                 </button>
                                 <Link href={`/dashboard/results?student=${selectedStudent.id}`}
                                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 text-xs font-bold rounded-xl transition-colors">
@@ -1465,7 +1464,7 @@ function ReportBuilderInner() {
                                                     <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{label}</label>
                                                     <button onClick={() => handleAIGenerate(key as any)} disabled={!!generating}
                                                         className="flex items-center gap-1.5 text-[10px] font-bold text-violet-400 hover:text-violet-300 disabled:opacity-50 transition-all hover:translate-x-1">
-                                                        {generating === key ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                                                        {generating === key ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
                                                         Generate Realistic Status
                                                     </button>
                                                 </div>
@@ -1499,7 +1498,7 @@ function ReportBuilderInner() {
                                                             className="flex items-center gap-1.5 text-[10px] font-bold text-violet-400 hover:text-violet-300 disabled:opacity-50 transition-all hover:translate-x-1">
                                                             {generating === field
                                                                 ? <ArrowPathIcon className="w-3 h-3 animate-spin" />
-                                                                : <Sparkles className="w-3 h-3" />}
+                                                                : <SparklesIcon className="w-3 h-3" />}
                                                             {generating === field ? 'Thinking...' : 'AI Draft'}
                                                         </button>
                                                     </div>

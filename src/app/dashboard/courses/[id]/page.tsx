@@ -10,7 +10,7 @@ import {
   ArrowLeftIcon, BookOpenIcon, UserGroupIcon, ClockIcon,
   AcademicCapIcon, PencilIcon, CheckCircleIcon, PlayIcon,
   DocumentTextIcon, CalendarIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 export default function CourseDetailPage() {
   const params = useParams();

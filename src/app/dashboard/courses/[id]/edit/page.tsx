@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowLeftIcon, BookOpenIcon, CheckIcon,
   ExclamationTriangleIcon, ArrowPathIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 export default function EditCoursePage() {
   const router = useRouter();

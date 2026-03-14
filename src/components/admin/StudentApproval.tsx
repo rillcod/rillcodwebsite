@@ -12,7 +12,7 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   BuildingOfficeIcon
-} from '@heroicons/react/24/outline'
+} from '@/lib/icons'
 
 interface ProspectiveStudent {
   id: string

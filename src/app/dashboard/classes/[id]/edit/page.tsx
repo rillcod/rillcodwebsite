@@ -10,7 +10,7 @@ import {
     ArrowLeftIcon, BookOpenIcon, CheckIcon,
     ExclamationTriangleIcon, ArrowPathIcon, UserIcon,
     BuildingOfficeIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 export default function EditClassPage() {
     const router = useRouter();
@@ -260,10 +260,10 @@ export default function EditClassPage() {
                 const enrollments = selectedStudents.map(userId => ({
                     user_id: userId,
                     program_id: form.program_id,
+                    status: 'active',
                     role: 'student',
-                    status: 'active'
                 }));
-                await db.from('enrollments').upsert(enrollments, { onConflict: 'user_id,program_id,role' });
+                await db.from('enrollments').upsert(enrollments, { onConflict: 'user_id,program_id' });
             }
 
             router.push(`/dashboard/classes/${id}`);

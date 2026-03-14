@@ -3,17 +3,17 @@
 
 import React from 'react';
 import QRCode from 'react-qr-code';
-import { 
-  TrophyIcon, 
-  AcademicCapIcon, 
-  UserCircleIcon, 
-  BoltIcon, 
+import {
+  TrophyIcon,
+  AcademicCapIcon,
+  UserCircleIcon,
+  BoltIcon,
   SparklesIcon,
   CheckBadgeIcon,
   ClockIcon,
   CalendarDaysIcon,
   UserGroupIcon
-} from '@heroicons/react/24/solid';
+} from '@/lib/icons';
 
 export interface ReportCardData {
     id?: string | null;
@@ -97,8 +97,8 @@ export default function ModernReportCard({ report, orgSettings }: {
     return (
         <div 
           id="modern-report-card"
-          className="bg-white text-gray-900 font-sans relative overflow-hidden flex flex-col p-12"
-          style={{ width: 794, height: 1123, margin: '0 auto', fontSize: 13, border: '1px solid #f1f5f9', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+          className="bg-white text-gray-900 font-sans relative overflow-hidden flex flex-col p-8"
+          style={{ width: 794, height: 1123, margin: '0 auto', fontSize: 12, border: '1px solid #f1f5f9', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
         >
             {/* Ambient Background Elements */}
             <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[150px] rounded-full -mr-40 -mt-40 pointer-events-none" />
@@ -106,7 +106,7 @@ export default function ModernReportCard({ report, orgSettings }: {
             <div className="absolute inset-0 border-2 border-indigo-500/5 m-6 pointer-events-none rounded-[3.5rem]" />
 
             {/* HEADER SECTION */}
-            <div className="relative z-10 flex justify-between items-center mb-6 pb-6 border-b border-gray-100">
+            <div className="relative z-10 flex justify-between items-center mb-4 pb-4 border-b border-gray-100">
                 <div className="flex items-center gap-6">
                     <div className="p-3 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50">
                         <img 
@@ -145,15 +145,15 @@ export default function ModernReportCard({ report, orgSettings }: {
             </div>
 
             {/* IDENTITY GRID */}
-            <div className="grid grid-cols-2 gap-6 mb-6 relative z-10">
-                <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-[2rem] p-6 shadow-sm relative overflow-hidden group">
+            <div className="grid grid-cols-2 gap-4 mb-4 relative z-10">
+                <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-[2rem] p-4 shadow-sm relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl -mr-16 -mt-16 group-hover:scale-110 transition-transform" />
-                    <p className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.3em] mb-3 opacity-60 flex items-center gap-2">
+                    <p className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.3em] mb-2 opacity-60 flex items-center gap-2">
                         <UserCircleIcon className="w-3 h-3" /> Candidate Profile
                     </p>
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                         <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-tight truncate">{report.student_name || '—'}</h3>
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Academic Level</p>
                                 <p className="text-[12px] font-bold text-gray-600 uppercase italic truncate">{report.section_class || '—'}</p>
@@ -166,14 +166,14 @@ export default function ModernReportCard({ report, orgSettings }: {
                     </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-[2rem] p-6 shadow-sm relative overflow-hidden group">
+                <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-[2rem] p-4 shadow-sm relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-3xl -mr-16 -mt-16 group-hover:scale-110 transition-transform" />
-                    <p className="text-[9px] font-black text-cyan-500 uppercase tracking-[0.3em] mb-3 opacity-60 flex items-center gap-2">
+                    <p className="text-[9px] font-black text-cyan-500 uppercase tracking-[0.3em] mb-2 opacity-60 flex items-center gap-2">
                         <AcademicCapIcon className="w-3 h-3" /> Operational Details
                     </p>
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                         <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-tight truncate">{report.course_name || '—'}</h3>
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Term/Duration</p>
                                 <p className="text-[12px] font-bold text-gray-600 uppercase italic truncate">{report.report_term || report.course_duration || '—'}</p>
@@ -188,17 +188,17 @@ export default function ModernReportCard({ report, orgSettings }: {
             </div>
 
             {/* MAIN METRIC HUB */}
-            <div className="relative z-10 flex flex-col gap-5 mb-6">
+            <div className="relative z-10 flex flex-col gap-3 mb-4">
                 <div className="flex items-center gap-4">
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
                     <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-[0.6em] leading-none italic">Intelligence Matrix</p>
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
                 </div>
 
-                <div className="grid grid-cols-12 gap-6 items-stretch">
+                <div className="grid grid-cols-12 gap-4 items-stretch">
                    {/* Qualitative Bars */}
-                   <div className="col-span-7 bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm flex flex-col justify-between">
-                      <div className="space-y-6">
+                   <div className="col-span-7 bg-white border border-gray-100 rounded-[2.5rem] p-6 shadow-sm flex flex-col justify-between">
+                      <div className="space-y-4">
                          {[
                            { label: 'Theory Protocols', value: theory, color: 'rgb(79, 70, 229)', icon: AcademicCapIcon, glow: 'rgba(79, 70, 229, 0.2)' },
                            { label: 'Practical Synthesis', value: practical, color: 'rgb(6, 182, 212)', icon: BoltIcon, glow: 'rgba(6, 182, 212, 0.2)' },
@@ -223,7 +223,7 @@ export default function ModernReportCard({ report, orgSettings }: {
                              </div>
                            </div>
                          ))}
-                         <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-50 mt-2">
+                         <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-50 mt-1">
                             {[
                                 { l: 'Project Grade', v: report.projects_grade, c: 'violet' },
                                 { l: 'Homework Hub', v: report.homework_grade, c: 'cyan' }
@@ -238,7 +238,7 @@ export default function ModernReportCard({ report, orgSettings }: {
                    </div>
 
                    {/* Master Grade */}
-                   <div className="col-span-5 bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 border border-indigo-100/30 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-center relative overflow-hidden group shadow-sm">
+                   <div className="col-span-5 bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 border border-indigo-100/30 rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group shadow-sm">
                         <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] opacity-20" />
                         <div className="relative z-10">
                             <div className="p-4 rounded-3xl bg-white shadow-2xl mb-4 border border-indigo-50/50 group-hover:scale-110 transition-transform duration-700">
@@ -256,7 +256,7 @@ export default function ModernReportCard({ report, orgSettings }: {
             </div>
 
             {/* MODULES & EVALUATION */}
-            <div className="grid grid-cols-12 gap-6 mb-6 relative z-10">
+            <div className="grid grid-cols-12 gap-4 mb-4 relative z-10">
                 <div className="col-span-4 space-y-3">
                     <div className="bg-gradient-to-br from-indigo-50 to-white border-l-4 border-indigo-500 p-5 rounded-2xl shadow-sm">
                         <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -300,10 +300,10 @@ export default function ModernReportCard({ report, orgSettings }: {
 
             {/* VALIDATION DECREE */}
             {(overall >= 45 || report.has_certificate) && (
-                <div className="relative z-10 mb-6 bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-[2.5rem] p-8 flex flex-col items-center text-center overflow-hidden shadow-2xl">
+                <div className="relative z-10 mb-4 bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-[2.5rem] p-5 flex flex-col items-center text-center overflow-hidden shadow-2xl">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[80px] -mr-32 -mt-32" />
                     <div className="absolute left-0 bottom-0 w-64 h-64 bg-cyan-400/10 blur-[80px] -ml-32 -mb-32" />
-                    <TrophyIcon className="w-10 h-10 text-white/20 mb-3" />
+                    <TrophyIcon className="w-8 h-8 text-white/20 mb-2" />
                     <h4 className="text-[11px] font-black text-white uppercase tracking-[0.5em] mb-3">Official Certification Decree</h4>
                     <p className="text-[12px] font-bold text-white/70 uppercase tracking-[0.1em] max-w-2xl leading-relaxed italic">
                         {report.certificate_text || `This document validates that ${report.student_name} has demonstrated technical proficiency and successfully synthesized all required protocols within the ${report.course_name} curriculum.`}
@@ -312,7 +312,7 @@ export default function ModernReportCard({ report, orgSettings }: {
             )}
 
             {/* SIGNATURE & AUTHENTICATION */}
-            <div className="mt-auto relative z-10 bg-gray-50/50 border border-gray-100 rounded-[2.5rem] p-8">
+            <div className="mt-auto relative z-10 bg-gray-50/50 border border-gray-100 rounded-[2.5rem] p-5">
                 <div className="flex items-end justify-between px-4">
                     <div className="flex flex-col gap-6">
                         <div className="space-y-4">
@@ -352,7 +352,7 @@ export default function ModernReportCard({ report, orgSettings }: {
                     </div>
                 </div>
 
-                <div className="mt-12 flex items-center justify-between text-[9px] font-black text-gray-300 uppercase tracking-[0.5em] pb-2 border-t border-gray-100 pt-6">
+                <div className="mt-4 flex items-center justify-between text-[9px] font-black text-gray-300 uppercase tracking-[0.5em] pb-2 border-t border-gray-100 pt-4">
                     <span className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500/30" />
                         Nucleus Engine v2.5 Deployment Ready

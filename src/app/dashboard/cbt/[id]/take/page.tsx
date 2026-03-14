@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   ClockIcon, CheckCircleIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon,
   CodeBracketIcon, SparklesIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 function CodingBlocksChallenge({ 
   question, 

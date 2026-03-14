@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import Image from "next/image";
 import { Camera, Image as ImageIcon, Users, Award, Code, Filter, Search, Calendar, MapPin, Star, Heart, Share2, Download, Eye } from "lucide-react";
 import Link from "next/link";
-import { 
+import {
   ComputerDesktopIcon,
   CodeBracketIcon,
   BeakerIcon,
@@ -20,7 +20,7 @@ import {
   LightBulbIcon,
   GlobeAltIcon,
   CogIcon
-} from '@heroicons/react/24/outline'
+} from '@/lib/icons'
 
 const galleryData = [
   {

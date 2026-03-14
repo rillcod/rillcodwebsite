@@ -10,7 +10,7 @@ import {
   ArrowLeftIcon, BookOpenIcon, CheckIcon,
   ExclamationTriangleIcon, ArrowPathIcon, UserIcon,
   BuildingOfficeIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 export default function AddClassPage() {
   const router = useRouter();
@@ -209,13 +209,11 @@ export default function AddClassPage() {
         const enrollments = selectedStudents.map(userId => ({
           user_id: userId,
           program_id: form.program_id,
+          status: 'active',
           role: 'student',
-          status: 'active'
         }));
 
-        // Use upsert to avoid duplicates, requires a unique constraint or primary key 
-        // In our schema, we'll try to insert. If it fails due to duplicates, it's fine.
-        await db.from('enrollments').upsert(enrollments, { onConflict: 'user_id,program_id,role' });
+        await db.from('enrollments').upsert(enrollments, { onConflict: 'user_id,program_id' });
       }
 
       router.push('/dashboard/classes');

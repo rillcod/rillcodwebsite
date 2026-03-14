@@ -10,7 +10,7 @@ import {
     CheckBadgeIcon,
     LockClosedIcon,
     AcademicCapIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 export default function VerifyLandingPage() {
     const [code, setCode] = useState('');

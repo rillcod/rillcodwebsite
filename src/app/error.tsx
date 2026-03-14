@@ -3,11 +3,11 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  ExclamationTriangleIcon, 
+import {
+  ExclamationTriangleIcon,
   ArrowPathIcon,
-  HomeIcon 
-} from '@heroicons/react/24/outline';
+  HomeIcon
+} from '@/lib/icons';
 
 export default function Error({
   error,
