@@ -10,7 +10,7 @@ import {
   CheckIcon, KeyIcon, EnvelopeIcon, PhoneIcon,
   ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon,
   BuildingOfficeIcon, MapPinIcon, StarIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 const BASE_TABS = [
   { id: 'profile', label: 'Profile', icon: UserIcon },

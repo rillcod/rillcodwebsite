@@ -12,7 +12,7 @@ import {
   PresentationChartBarIcon, BoltIcon, ArrowDownTrayIcon,
   AcademicCapIcon, UserIcon, GlobeAltIcon, BuildingOfficeIcon,
   ArchiveBoxIcon, StarIcon, ArrowPathIcon, ExclamationTriangleIcon
-} from "@heroicons/react/24/outline";
+} from "@/lib/icons";
 
 type ContentItem = {
   id: string;

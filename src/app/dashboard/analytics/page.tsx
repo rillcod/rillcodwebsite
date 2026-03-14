@@ -8,7 +8,7 @@ import {
   ChartBarIcon, UserGroupIcon, AcademicCapIcon, CheckCircleIcon,
   ArrowTrendingUpIcon, StarIcon, GlobeAltIcon, ClockIcon, BoltIcon,
   BuildingOfficeIcon, ArrowDownTrayIcon, ExclamationTriangleIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import { createClient } from '@/lib/supabase/client';
 import { AtRiskList } from '@/components/analytics/AtRiskList';
 

@@ -2,24 +2,13 @@
 'use client';
 
 import { useAuth } from '@/contexts/auth-context';
-import UserGroupIcon from '@heroicons/react/24/outline/UserGroupIcon';
-import AcademicCapIcon from '@heroicons/react/24/outline/AcademicCapIcon';
-import BookOpenIcon from '@heroicons/react/24/outline/BookOpenIcon';
-import ChartBarIcon from '@heroicons/react/24/outline/ChartBarIcon';
-import CogIcon from '@heroicons/react/24/outline/CogIcon';
-import BuildingOfficeIcon from '@heroicons/react/24/outline/BuildingOfficeIcon';
-import ClipboardDocumentListIcon from '@heroicons/react/24/outline/ClipboardDocumentListIcon';
-import PresentationChartLineIcon from '@heroicons/react/24/outline/PresentationChartLineIcon';
-import ClockIcon from '@heroicons/react/24/outline/ClockIcon';
-import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
-import BellIcon from '@heroicons/react/24/outline/BellIcon';
-import ArrowRightIcon from '@heroicons/react/24/outline/ArrowRightIcon';
-import TrophyIcon from '@heroicons/react/24/outline/TrophyIcon';
-import ArrowPathIcon from '@heroicons/react/24/outline/ArrowPathIcon';
-import ExclamationTriangleIcon from '@heroicons/react/24/outline/ExclamationTriangleIcon';
-import ShieldCheckIcon from '@heroicons/react/24/outline/ShieldCheckIcon';
-import DocumentTextIcon from '@heroicons/react/24/outline/DocumentTextIcon';
-import BoltIcon from '@heroicons/react/24/outline/BoltIcon';
+import {
+  UserGroupIcon, AcademicCapIcon, BookOpenIcon, ChartBarIcon,
+  CogIcon, BuildingOfficeIcon, ClipboardDocumentListIcon,
+  PresentationChartLineIcon, ClockIcon, CheckCircleIcon,
+  BellIcon, ArrowRightIcon, TrophyIcon, ArrowPathIcon,
+  ExclamationTriangleIcon, ShieldCheckIcon, DocumentTextIcon, BoltIcon
+} from '@/lib/icons';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';

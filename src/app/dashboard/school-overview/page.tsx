@@ -10,7 +10,7 @@ import {
   DocumentArrowDownIcon, ClipboardDocumentCheckIcon, ArrowTrendingUpIcon,
   StarIcon, BookOpenIcon, CalendarDaysIcon, CheckCircleIcon,
   ExclamationCircleIcon, ClockIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 

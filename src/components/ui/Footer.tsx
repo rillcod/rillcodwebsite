@@ -11,7 +11,7 @@ import {
   BuildingOfficeIcon,
   UserGroupIcon,
   ComputerDesktopIcon
-} from "@heroicons/react/24/outline";
+} from "@/lib/icons";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();

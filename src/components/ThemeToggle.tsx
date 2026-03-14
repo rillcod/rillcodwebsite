@@ -1,7 +1,7 @@
 // @refresh reset
 'use client'
 
-import { SunIcon, MoonIcon, ComputerDesktopIcon } from '@heroicons/react/24/outline'
+import { SunIcon, MoonIcon, ComputerDesktopIcon } from '@/lib/icons'
 
 export default function ThemeToggle() {
   // Get theme context safely

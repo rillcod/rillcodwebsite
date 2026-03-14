@@ -9,10 +9,8 @@ import Link from 'next/link';
 import {
     PrinterIcon, AcademicCapIcon, MagnifyingGlassIcon,
     TrophyIcon, DocumentTextIcon, PencilSquareIcon, CheckCircleIcon,
-} from '@heroicons/react/24/solid';
-import {
     ArrowDownTrayIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import { ScaledReportCard, generateReportPDF } from '@/lib/pdf-utils';

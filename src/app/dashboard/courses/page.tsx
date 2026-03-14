@@ -9,7 +9,7 @@ import {
   BookOpenIcon, AcademicCapIcon, UserGroupIcon, ClockIcon, ChartBarIcon,
   PlusIcon, PlayIcon, CheckCircleIcon, StarIcon, MagnifyingGlassIcon,
   EyeIcon, PencilIcon, TrashIcon, BoltIcon, RocketLaunchIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 const GRADIENTS = [
   'from-violet-600 to-violet-400', 'from-blue-600 to-blue-400',

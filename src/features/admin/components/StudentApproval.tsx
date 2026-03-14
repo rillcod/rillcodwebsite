@@ -6,7 +6,7 @@ import {
     CheckCircleIcon, XCircleIcon, ClockIcon, UserIcon,
     AcademicCapIcon, PhoneIcon, EnvelopeIcon, BuildingOfficeIcon,
     ArrowPathIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import { useStudentApproval } from '../hooks/useStudentApproval';
 import type { ProspectiveStudent } from '@/types';
 

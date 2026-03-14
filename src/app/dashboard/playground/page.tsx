@@ -11,7 +11,7 @@ import {
   ChevronDownIcon, BeakerIcon, CodeBracketIcon, BookOpenIcon,
   ClipboardDocumentListIcon, XMarkIcon, ArrowsPointingOutIcon,
   CheckCircleIcon, CubeIcon, ClockIcon, AcademicCapIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 // ── Monaco (code editor) ───────────────────────────────────────
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {

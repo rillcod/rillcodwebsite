@@ -9,7 +9,7 @@ import {
   CheckCircleIcon, XCircleIcon, ClockIcon, BanknotesIcon,
   UserGroupIcon, ChartBarIcon, MagnifyingGlassIcon,
   ArrowPathIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 const DIFFICULTIES = ['beginner', 'intermediate', 'advanced'];
 

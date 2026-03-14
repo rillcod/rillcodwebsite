@@ -10,7 +10,7 @@ import {
   AcademicCapIcon, PlayCircleIcon, CheckBadgeIcon,
   SparklesIcon, ArrowRightIcon, TrophyIcon,
   FireIcon, BoltIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 const GREETINGS = ['Welcome back', 'Keep it up', 'Ready to study?', 'Looking sharp'];
 

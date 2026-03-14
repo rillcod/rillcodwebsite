@@ -16,7 +16,7 @@ import {
   BookOpenIcon,
   ExclamationTriangleIcon,
   ChevronDownIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 interface StudentRow {
   id: string;

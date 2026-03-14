@@ -9,7 +9,7 @@ import {
   BuildingOfficeIcon,
   BookOpenIcon,
   XMarkIcon
-} from '@heroicons/react/24/outline'
+} from '@/lib/icons'
 
 export default function FloatingRegistrationButton() {
   const [isOpen, setIsOpen] = useState(false)

@@ -6,19 +6,11 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { fetchAssignments, fetchStudentAssignments } from '@/services/dashboard.service';
 import { createClient } from '@/lib/supabase/client';
-import ClipboardDocumentListIcon from '@heroicons/react/24/outline/ClipboardDocumentListIcon';
-import PlusIcon from '@heroicons/react/24/outline/PlusIcon';
-import MagnifyingGlassIcon from '@heroicons/react/24/outline/MagnifyingGlassIcon';
-import ClockIcon from '@heroicons/react/24/outline/ClockIcon';
-import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
-import EyeIcon from '@heroicons/react/24/outline/EyeIcon';
-import PencilIcon from '@heroicons/react/24/outline/PencilIcon';
-import TrashIcon from '@heroicons/react/24/outline/TrashIcon';
-import CalendarIcon from '@heroicons/react/24/outline/CalendarIcon';
-import ArrowUpTrayIcon from '@heroicons/react/24/outline/ArrowUpTrayIcon';
-import ExclamationTriangleIcon from '@heroicons/react/24/outline/ExclamationTriangleIcon';
-import AcademicCapIcon from '@heroicons/react/24/outline/AcademicCapIcon';
-import DocumentTextIcon from '@heroicons/react/24/outline/DocumentTextIcon';
+import {
+  ClipboardDocumentListIcon, PlusIcon, MagnifyingGlassIcon, ClockIcon,
+  CheckCircleIcon, EyeIcon, PencilIcon, TrashIcon, CalendarIcon,
+  ArrowUpTrayIcon, ExclamationTriangleIcon, AcademicCapIcon, DocumentTextIcon
+} from '@/lib/icons';
 
 const TYPE_BADGE: Record<string, string> = {
   quiz: 'bg-blue-500/20 text-blue-400 border-blue-500/30',

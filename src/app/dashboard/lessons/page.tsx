@@ -6,25 +6,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import BookOpenIcon from '@heroicons/react/24/outline/BookOpenIcon';
-import PlusIcon from '@heroicons/react/24/outline/PlusIcon';
-import MagnifyingGlassIcon from '@heroicons/react/24/outline/MagnifyingGlassIcon';
-import EyeIcon from '@heroicons/react/24/outline/EyeIcon';
-import PencilIcon from '@heroicons/react/24/outline/PencilIcon';
-import TrashIcon from '@heroicons/react/24/outline/TrashIcon';
-import ClockIcon from '@heroicons/react/24/outline/ClockIcon';
-import UserGroupIcon from '@heroicons/react/24/outline/UserGroupIcon';
-import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
-import VideoCameraIcon from '@heroicons/react/24/outline/VideoCameraIcon';
-import PlayIcon from '@heroicons/react/24/outline/PlayIcon';
-import DocumentTextIcon from '@heroicons/react/24/outline/DocumentTextIcon';
-import BoltIcon from '@heroicons/react/24/outline/BoltIcon';
-import SparklesIcon from '@heroicons/react/24/outline/SparklesIcon';
-import ChevronDownIcon from '@heroicons/react/24/outline/ChevronDownIcon';
-import ChevronUpIcon from '@heroicons/react/24/outline/ChevronUpIcon';
-import BuildingOfficeIcon from '@heroicons/react/24/outline/BuildingOfficeIcon';
-import ChevronRightIcon from '@heroicons/react/24/outline/ChevronRightIcon';
-import CalendarIcon from '@heroicons/react/24/outline/CalendarIcon';
+import {
+  BookOpenIcon, PlusIcon, MagnifyingGlassIcon, EyeIcon, PencilIcon,
+  TrashIcon, ClockIcon, UserGroupIcon, CheckCircleIcon,
+  VideoCameraIcon, PlayIcon, DocumentTextIcon, BoltIcon,
+  SparklesIcon, ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon,
+  ChevronRightIcon, CalendarIcon
+} from '@/lib/icons';
 
 const STATUS_BADGE: Record<string, string> = {
   completed: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',

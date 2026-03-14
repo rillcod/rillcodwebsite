@@ -10,7 +10,7 @@ import {
     ArrowPathIcon, EnvelopeIcon, PhoneIcon,
     PencilIcon, TrashIcon, XMarkIcon, CheckIcon, PlusIcon,
     BoltIcon, ExclamationTriangleIcon, KeyIcon, CheckCircleIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 type PortalUser = {
     id: string;

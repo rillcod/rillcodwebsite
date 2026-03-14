@@ -8,7 +8,7 @@ import {
   CalendarDaysIcon, PlusIcon, PencilIcon, TrashIcon,
   ClockIcon, BuildingOfficeIcon, XMarkIcon, CheckIcon,
   BellAlertIcon, UserGroupIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TODAY = new Date().toLocaleDateString('en-US', { weekday: 'long' }) as typeof DAYS[number];

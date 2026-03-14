@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowUpTrayIcon, DocumentArrowDownIcon, CheckCircleIcon,
   ExclamationCircleIcon, XMarkIcon, UserGroupIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import Link from 'next/link';
 
 interface ParsedStudent {

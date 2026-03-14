@@ -10,7 +10,7 @@ import {
   InformationCircleIcon, ClockIcon, CreditCardIcon, ArrowTrendingUpIcon,
   MagnifyingGlassIcon, DocumentTextIcon, ReceiptPercentIcon,
   ArrowPathIcon, EnvelopeIcon, ArrowDownTrayIcon, CheckBadgeIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import SmartDocument from '@/components/finance/SmartDocument';
 
 type PaymentAccount = {

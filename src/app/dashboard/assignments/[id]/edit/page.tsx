@@ -10,7 +10,7 @@ import {
     ArrowLeftIcon, ClipboardDocumentListIcon, CalendarIcon,
     CheckIcon, ExclamationTriangleIcon, ArrowPathIcon, TrashIcon,
     PlusIcon, ChevronUpIcon, ChevronDownIcon, AcademicCapIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 interface Question {
     question_text: string;

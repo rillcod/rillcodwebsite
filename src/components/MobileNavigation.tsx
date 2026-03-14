@@ -18,7 +18,7 @@ import {
   PresentationChartLineIcon,
   PlusIcon,
   XMarkIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import { UserRole } from '@/types';
 
 interface MobileNavigationProps {

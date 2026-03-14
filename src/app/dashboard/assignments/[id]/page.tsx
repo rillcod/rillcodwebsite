@@ -12,7 +12,7 @@ import {
     CheckCircleIcon, ExclamationTriangleIcon, ArrowUpTrayIcon,
     PaperClipIcon, AcademicCapIcon, StarIcon, XMarkIcon, ArrowPathIcon, CheckIcon, PencilIcon,
     CodeBracketIcon, CommandLineIcon, TrashIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 function pctInfo(grade: number, max: number) {
     const pct = Math.round((grade / max) * 100);

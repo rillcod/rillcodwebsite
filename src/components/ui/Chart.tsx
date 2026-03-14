@@ -10,7 +10,7 @@ import {
   ArrowTrendingDownIcon,
   ArrowUpIcon,
   ArrowDownIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 import { cn } from "@/lib/utils"
 

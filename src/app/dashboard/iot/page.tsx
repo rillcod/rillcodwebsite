@@ -10,7 +10,7 @@ import {
   ArrowPathIcon, BoltIcon, CpuChipIcon, ServerIcon,
   DeviceTabletIcon, ChevronDownIcon, ChevronUpIcon,
   InformationCircleIcon, BeakerIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 // ─── Types ────────────────────────────────────────────────────
 interface Device {

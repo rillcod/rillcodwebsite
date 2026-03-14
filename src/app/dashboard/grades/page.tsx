@@ -13,7 +13,7 @@ import {
     TrophyIcon, BoltIcon, FireIcon, ChevronDownIcon, ChevronUpIcon,
     ArrowsUpDownIcon, SparklesIcon,
     PaperClipIcon, TrashIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 // ─── Grade helpers ────────────────────────────────────────────
 function pctInfo(grade: number, max: number) {

@@ -8,7 +8,7 @@ import {
     XMarkIcon, UserIcon, EnvelopeIcon, PhoneIcon,
     BuildingOfficeIcon, BookOpenIcon, CheckIcon, ArrowPathIcon,
     ExclamationTriangleIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 const GRADE_LEVELS = ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
     'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'] as const;

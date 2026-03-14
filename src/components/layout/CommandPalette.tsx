@@ -22,7 +22,7 @@ import {
   DocumentTextIcon,
   RocketLaunchIcon,
   CommandLineIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 

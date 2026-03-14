@@ -4,21 +4,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import ClipboardDocumentCheckIcon from '@heroicons/react/24/outline/ClipboardDocumentCheckIcon';
-import UserGroupIcon from '@heroicons/react/24/outline/UserGroupIcon';
-import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
-import XCircleIcon from '@heroicons/react/24/outline/XCircleIcon';
-import ClockIcon from '@heroicons/react/24/outline/ClockIcon';
-import ExclamationCircleIcon from '@heroicons/react/24/outline/ExclamationCircleIcon';
-import PlusIcon from '@heroicons/react/24/outline/PlusIcon';
-import ChevronDownIcon from '@heroicons/react/24/outline/ChevronDownIcon';
-import CheckIcon from '@heroicons/react/24/outline/CheckIcon';
-import ArrowPathIcon from '@heroicons/react/24/outline/ArrowPathIcon';
-import ArrowLeftIcon from '@heroicons/react/24/outline/ArrowLeftIcon';
-import PrinterIcon from '@heroicons/react/24/outline/PrinterIcon';
-import TableCellsIcon from '@heroicons/react/24/outline/TableCellsIcon';
-import ChartPieIcon from '@heroicons/react/24/outline/ChartPieIcon';
-import CalendarIcon from '@heroicons/react/24/outline/CalendarIcon';
+import {
+  ClipboardDocumentCheckIcon, UserGroupIcon, CheckCircleIcon, XCircleIcon,
+  ClockIcon, ExclamationCircleIcon, PlusIcon, ChevronDownIcon, CheckIcon,
+  ArrowPathIcon, ArrowLeftIcon, PrinterIcon, TableCellsIcon, ChartPieIcon,
+  CalendarIcon
+} from '@/lib/icons';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
@@ -114,38 +105,52 @@ export default function AttendancePage() {
   // Load attendance when session selected
   useEffect(() => {
     if (!selectedSession || !selectedClass) return;
-    setLoading(true);
-    const db = createClient();
-    db.from('classes').select('name, program_id, school_id').eq('id', selectedClass).single()
-      .then(({ data: cls }) => {
-        if (!cls || !cls.program_id) return;
+    
+    async function loadAttendance() {
+      setLoading(true);
+      const db = createClient();
+      try {
+        const { data: cls } = await db.from('classes').select('name, program_id, school_id').eq('id', selectedClass).single();
+        if (!cls || !cls.program_id) {
+           setLoading(false);
+           return;
+        }
+
         let enrQuery = db.from('enrollments')
-          .select('id, status, portal_users!inner(id, full_name, email, school_id, section_class)')
-          .eq('program_id', cls.program_id);
+          .select('id, status, portal_users!inner(id, full_name, email, school_id, section_class, is_deleted)')
+          .eq('program_id', cls.program_id)
+          .neq('portal_users.is_deleted', true);
+        
         if (cls.school_id) enrQuery = enrQuery.eq('portal_users.school_id', cls.school_id);
         if (cls.name) enrQuery = enrQuery.eq('portal_users.section_class', cls.name);
 
-        return Promise.all([
+        const [enrRes, attRes] = await Promise.all([
           enrQuery,
           db.from('attendance').select('*').eq('session_id', selectedSession),
         ]);
-      })
-      .then(res => {
-        if (!res) { setLoading(false); return; }
-        const [enrRes, attRes] = res;
+
         const studs = (enrRes.data ?? []).map((e: any) => e.portal_users).filter(Boolean);
         setStudents(studs);
+        
         const attMap: Record<string, { status: string; notes: string }> = {};
         (attRes.data ?? []).forEach((a: any) => {
           attMap[a.user_id] = { status: a.status, notes: a.notes ?? '' };
         });
+        
         studs.forEach((s: any) => {
           if (!attMap[s.id]) attMap[s.id] = { status: 'present', notes: '' };
         });
+        
         setAttendance(attMap);
-        setLoading(false);
         setSaved(false);
-      });
+      } catch (err) {
+        console.error('Attendance Load Error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadAttendance();
   }, [selectedSession]); // eslint-disable-line
 
   // Load ALL records for the Log view
@@ -568,6 +573,7 @@ export default function AttendancePage() {
                         const next: Record<string, { status: string; notes: string }> = {};
                         students.forEach((st: any) => next[st.id] = { status: s, notes: attendance[st.id]?.notes ?? '' });
                         setAttendance(next);
+                        setSaved(false);
                       }}
                         className="px-3 py-1.5 text-xs font-bold text-white/50 bg-white/5 hover:bg-white/10 rounded-xl transition-colors capitalize">
                         All {s}
@@ -602,13 +608,13 @@ export default function AttendancePage() {
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           {Object.entries(STATUS_CONFIG).map(([val, c]) => (
-                            <button key={val} onClick={() => setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], status: val } }))}
+                          <button key={val} onClick={() => { setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], status: val } })); setSaved(false); }}
                               className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${att.status === val ? `${c.color} scale-105` : 'bg-white/5 border-white/10 text-white/30 hover:bg-white/10'}`}>
                               {c.label}
                             </button>
                           ))}
                           <input type="text" value={att.notes} placeholder="Notes"
-                            onChange={e => setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], notes: e.target.value } }))}
+                            onChange={e => { setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], notes: e.target.value } })); setSaved(false); }}
                             className="hidden sm:block w-28 px-2 py-1.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none focus:border-teal-500 transition-colors" />
                         </div>
                       </div>

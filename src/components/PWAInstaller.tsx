@@ -7,7 +7,7 @@ import {
   ComputerDesktopIcon,
   XMarkIcon,
   ArrowDownTrayIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 export default function PWAInstaller() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);

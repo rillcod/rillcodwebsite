@@ -10,7 +10,7 @@ import {
   ClockIcon, ExclamationTriangleIcon, PrinterIcon, StarIcon,
   UserIcon, BuildingOfficeIcon, BookOpenIcon, TrophyIcon,
   ArrowLeftIcon, SparklesIcon, LightBulbIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import Link from 'next/link';
 
 function letterGrade(pct: number) {

@@ -13,7 +13,7 @@ import {
   XMarkIcon, ClipboardIcon,
   UserGroupIcon, AcademicCapIcon, ChartBarIcon, TrophyIcon, ArrowPathIcon,
   ArrowRightIcon, DocumentTextIcon, ClipboardDocumentListIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import { generateTempPassword } from '@/lib/utils/password';
 
 function StatusBadge({ status }: { status: string }) {

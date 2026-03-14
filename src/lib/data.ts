@@ -14,7 +14,7 @@ import {
   StarIcon,
   UsersIcon,
   TrophyIcon
-} from '@heroicons/react/24/outline'
+} from '@/lib/icons'
 import { UserRole } from '@/types'
 
 // Stats data for homepage and analytics

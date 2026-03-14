@@ -8,7 +8,7 @@ import {
   InformationCircleIcon,
   XCircleIcon,
   XMarkIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 export interface Notification {
   id: string;

@@ -14,7 +14,7 @@ import {
   UserGroupIcon,
   LightBulbIcon,
   ComputerDesktopIcon,
-} from '@heroicons/react/24/outline'
+} from '@/lib/icons'
 
 const achievements = [
   { id: 1, title: 'National Coding Competition', description: 'Students from Lagos State Model College won first place in the 2024 National Youth Coding Challenge.', icon: CodeBracketIcon, location: 'Lagos, Nigeria', date: 'March 2024', participants: 15, badge: '1st Place', color: 'bg-[#FF914D]' },

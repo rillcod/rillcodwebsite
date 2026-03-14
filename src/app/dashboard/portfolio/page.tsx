@@ -9,9 +9,8 @@ import {
   SparklesIcon, XMarkIcon, PaintBrushIcon, ArrowDownTrayIcon,
   CloudArrowUpIcon, PencilIcon, MagnifyingGlassIcon,
   PhotoIcon, UserGroupIcon, StarIcon, CalendarIcon,
-  ExclamationTriangleIcon,
-} from '@heroicons/react/24/outline';
-import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
+  ExclamationTriangleIcon, StarIconSolid as StarSolid
+} from '@/lib/icons';
 import Link from 'next/link';
 
 // ─── Types ────────────────────────────────────────────────

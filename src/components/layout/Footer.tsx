@@ -8,7 +8,7 @@ import {
   MapPinIcon,
   ArrowUpIcon,
   AcademicCapIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 /* ── Inline SVGs for social icons (heroicons has no social icons) ── */
 function FacebookIcon({ className }: { className?: string }) {

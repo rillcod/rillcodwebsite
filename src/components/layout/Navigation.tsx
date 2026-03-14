@@ -10,7 +10,7 @@ import {
   ChatBubbleOvalLeftIcon, ArrowLeftOnRectangleIcon, UserIcon,
   BuildingOffice2Icon, HomeIcon, InformationCircleIcon,
   PhoneIcon, AcademicCapIcon, Squares2X2Icon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 type NavIcon = React.ComponentType<{ className?: string }>;
 

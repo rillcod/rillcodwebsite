@@ -13,7 +13,7 @@ import {
   CalendarIcon, UserIcon, ExclamationTriangleIcon, StarIcon,
   BookOpenIcon, ClipboardDocumentListIcon, KeyIcon, ShieldCheckIcon,
   XMarkIcon, ClipboardIcon, PencilSquareIcon, BoltIcon, SparklesIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 
 // ─── Status badge ─────────────────────────────────────────────

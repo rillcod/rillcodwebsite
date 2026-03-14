@@ -12,7 +12,7 @@ import {
   BuildingOfficeIcon, PencilSquareIcon, DocumentTextIcon, EnvelopeIcon, MagnifyingGlassIcon,
   XMarkIcon, ArrowPathIcon, KeyIcon, ShieldCheckIcon,
   ClipboardIcon, ExclamationTriangleIcon, TrashIcon, PhoneIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import { generateTempPassword } from '@/lib/utils/password';
 
 interface TeacherStats {

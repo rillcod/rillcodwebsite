@@ -11,7 +11,7 @@ import {
   CheckIcon, ExclamationTriangleIcon, ArrowPathIcon, PlusIcon, TrashIcon,
   ChevronUpIcon, ChevronDownIcon, AcademicCapIcon,
   CodeBracketIcon, CommandLineIcon, SparklesIcon as SparklesIconOutline
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 interface Question {
   question_text: string;

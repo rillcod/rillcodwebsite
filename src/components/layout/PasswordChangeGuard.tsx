@@ -10,7 +10,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
   ShieldCheckIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 /**
  * Renders a full-screen, non-dismissible modal whenever the logged-in user's

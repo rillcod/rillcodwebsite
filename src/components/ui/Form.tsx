@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, forwardRef } from 'react';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon } from '@/lib/icons';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 // Input component

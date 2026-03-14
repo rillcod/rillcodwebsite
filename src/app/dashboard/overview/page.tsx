@@ -5,21 +5,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import ChartBarIcon from '@heroicons/react/24/outline/ChartBarIcon';
-import UserGroupIcon from '@heroicons/react/24/outline/UserGroupIcon';
-import AcademicCapIcon from '@heroicons/react/24/outline/AcademicCapIcon';
-import BookOpenIcon from '@heroicons/react/24/outline/BookOpenIcon';
-import ClipboardDocumentListIcon from '@heroicons/react/24/outline/ClipboardDocumentListIcon';
-import BuildingOfficeIcon from '@heroicons/react/24/outline/BuildingOfficeIcon';
-import ArrowTrendingUpIcon from '@heroicons/react/24/outline/ArrowTrendingUpIcon';
-import ClockIcon from '@heroicons/react/24/outline/ClockIcon';
-import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
-import BellIcon from '@heroicons/react/24/outline/BellIcon';
-import ArrowRightIcon from '@heroicons/react/24/outline/ArrowRightIcon';
-import TrophyIcon from '@heroicons/react/24/outline/TrophyIcon';
-import CalendarIcon from '@heroicons/react/24/outline/CalendarIcon';
-import ShieldCheckIcon from '@heroicons/react/24/outline/ShieldCheckIcon';
-import DocumentTextIcon from '@heroicons/react/24/outline/DocumentTextIcon';
+import {
+  ChartBarIcon, UserGroupIcon, AcademicCapIcon, BookOpenIcon,
+  ClipboardDocumentListIcon, BuildingOfficeIcon, ArrowTrendingUpIcon,
+  ClockIcon, CheckCircleIcon, BellIcon, ArrowRightIcon, TrophyIcon,
+  CalendarIcon, ShieldCheckIcon, DocumentTextIcon
+} from '@/lib/icons';
 
 export default function OverviewPage() {
   const { profile, loading: authLoading } = useAuth();

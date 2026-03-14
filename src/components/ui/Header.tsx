@@ -12,7 +12,7 @@ import {
   UserGroupIcon,
   BuildingOfficeIcon,
   ComputerDesktopIcon
-} from "@heroicons/react/24/outline";
+} from "@/lib/icons";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);

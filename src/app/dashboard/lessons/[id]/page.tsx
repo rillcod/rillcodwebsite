@@ -13,9 +13,8 @@ import {
   PhotoIcon, BoltIcon, CheckBadgeIcon, LockClosedIcon,
   InformationCircleIcon, ExclamationTriangleIcon, RocketLaunchIcon,
   QuestionMarkCircleIcon, ChevronRightIcon, XMarkIcon,
-  RectangleGroupIcon, ClipboardIcon, TrophyIcon,
-} from '@heroicons/react/24/outline';
-import { StarIcon } from '@heroicons/react/24/solid';
+  RectangleGroupIcon, ClipboardIcon, TrophyIcon, StarIcon
+} from '@/lib/icons';
 import Script from 'next/script';
 import { motion, AnimatePresence } from 'framer-motion';
 import Editor from '@monaco-editor/react';
@@ -682,7 +681,7 @@ export default function LessonDetailPage() {
       <div className="md:hidden p-5 border-b border-white/5 bg-[#0a0a1a]/80 backdrop-blur-xl flex items-center justify-between z-50 sticky top-0">
         <div className="flex items-center gap-4">
           <button onClick={() => setSidebarOpen(true)} className="p-3 bg-white/5 rounded-2xl text-cyan-400 hover:bg-cyan-500/10 transition-all border border-white/5 active:scale-95 shadow-xl">
-            <LayoutIcon className="w-5 h-5" />
+            <RectangleGroupIcon className="w-5 h-5" />
           </button>
           <div className="min-w-0">
             <p className="text-[9px] font-black text-cyan-500/60 uppercase tracking-[0.2em] leading-none mb-1">In Session</p>

@@ -21,7 +21,7 @@ import {
   BuildingOffice2Icon,
   BookOpenIcon,
   ChevronDownIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 // ─── Class detection ─────────────────────────────────────────────────────────
 //

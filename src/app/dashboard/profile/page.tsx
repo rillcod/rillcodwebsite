@@ -12,7 +12,7 @@ import {
   BuildingOfficeIcon, ChartBarIcon, PencilSquareIcon,
   CheckIcon, ArrowPathIcon, ChevronRightIcon, RocketLaunchIcon,
   CameraIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 export default function ProfilePage() {
   const { profile, refreshProfile } = useAuth();

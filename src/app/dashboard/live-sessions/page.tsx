@@ -19,7 +19,7 @@ import {
   UserCircleIcon,
   AcademicCapIcon,
   CalendarIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

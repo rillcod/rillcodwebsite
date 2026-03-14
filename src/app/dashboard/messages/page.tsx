@@ -8,7 +8,7 @@ import {
   EnvelopeIcon, PaperAirplaneIcon, MegaphoneIcon, PlusIcon,
   ArrowPathIcon, CheckIcon, TrashIcon, UserIcon,
   ExclamationTriangleIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 type Tab = 'inbox' | 'sent' | 'compose' | 'announcements';
 

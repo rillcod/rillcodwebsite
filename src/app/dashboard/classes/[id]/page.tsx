@@ -15,7 +15,7 @@ import {
   CloudArrowDownIcon,
   PencilSquareIcon as PencilSquareIconOutline, CheckIcon as CheckIconOutline,
   CloudArrowUpIcon, UserPlusIcon
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 import { gradeSubmission } from '@/services/dashboard.service';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 
