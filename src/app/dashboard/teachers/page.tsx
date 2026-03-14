@@ -1,3 +1,4 @@
+// @refresh reset
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -459,7 +460,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showInvite, setShowInvite] = useState(false);
-  const [inviteForm, setInviteForm] = useState({ full_name: '', email: '', phone: '' });
+  const [inviteForm, setInviteForm] = useState({ full_name: '', email: '', phone: '', subject: '', password: '' });
   const [inviting, setInviting] = useState(false);
   const [inviteErr, setInviteErr] = useState('');
   const [inviteOk, setInviteOk] = useState('');
@@ -549,6 +550,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
         phone: inviteForm.phone || null,
         role: 'teacher',
         is_active: true,
+        ...(inviteForm.subject ? { bio: `Subject: ${inviteForm.subject}` } : {}),
       };
 
       let newTeacherId = '';
@@ -563,7 +565,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
         newTeacherId = editingTeacher.id;
         setEditingTeacher(null);
       } else {
-        const tempPassword = generateTempPassword();
+        const tempPassword = inviteForm.password.trim() || generateTempPassword();
         const res = await fetch('/api/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -587,7 +589,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
         setInviteOk(`Teacher account created for ${inviteForm.full_name}.`);
       }
 
-      setInviteForm({ full_name: '', email: '', phone: '' });
+      setInviteForm({ full_name: '', email: '', phone: '', subject: '', password: '' });
       setSelectedSchools([]);
       setShowInvite(false);
 
@@ -639,6 +641,8 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
       full_name: t.full_name || '',
       email: t.email || '',
       phone: t.phone || '',
+      subject: '',
+      password: '',
     });
     setSelectedSchools((staffDeployment[t.id] ?? []).map(a => a.school_id));
     setShowInvite(true);
@@ -899,78 +903,204 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
         </div>
       )}
 
-      {/* Invite Modal */}
+      {/* ── Add / Edit Teacher Modal ── */}
       {showInvite && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowInvite(false)} />
-          <div className="relative w-full max-w-md bg-[#0f0f1a] border border-white/10 rounded-3xl shadow-2xl">
-            <div className="flex items-center justify-between p-6 border-b border-white/10">
-              <div>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <AcademicCapIcon className="w-4 h-4 text-violet-400" />
-                  <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Staff</span>
+          <div className="relative w-full sm:max-w-lg bg-[#0b1020] border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh]">
+
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/10 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-violet-600/20 flex items-center justify-center">
+                  <AcademicCapIcon className="w-5 h-5 text-violet-400" />
                 </div>
-                <h2 className="text-lg font-extrabold text-white">{editingTeacher ? 'Edit Teacher' : 'Add Teacher'}</h2>
+                <div>
+                  <h2 className="text-base font-extrabold text-white">
+                    {editingTeacher ? 'Edit Teacher' : 'Add Teacher'}
+                  </h2>
+                  <p className="text-xs text-white/30 mt-0.5">
+                    {editingTeacher ? 'Update staff information' : 'Create a new staff account'}
+                  </p>
+                </div>
               </div>
-              <button onClick={() => { setShowInvite(false); setEditingTeacher(null); setInviteErr(''); setInviteOk(''); }}
-                className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+              <button
+                onClick={() => { setShowInvite(false); setEditingTeacher(null); setInviteErr(''); setInviteOk(''); }}
+                className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+              >
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={sendInvite} className="p-6 space-y-4">
-              {inviteErr && <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-400 text-sm">{inviteErr}</div>}
-              {inviteOk && <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 text-emerald-400 text-sm">{inviteOk}</div>}
-              {[
-                { label: 'Full Name *', name: 'full_name', type: 'text', placeholder: "Teacher's full name", required: true },
-                { label: 'Email *', name: 'email', type: 'email', placeholder: 'teacher@email.com', required: true },
-                { label: 'Phone', name: 'phone', type: 'tel', placeholder: '+234 800 000 0000', required: false },
-              ].map(f => (
-                <div key={f.name}>
-                  <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">{f.label}</label>
-                  <input name={f.name} type={f.type} required={f.required} placeholder={f.placeholder}
-                    value={(inviteForm as any)[f.name]}
-                    onChange={e => setInviteForm(p => ({ ...p, [f.name]: e.target.value }))}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/25" />
-                </div>
-              ))}
 
-              {/* School Assignment */}
-              <div>
-                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                  <BuildingOfficeIcon className="w-3.5 h-3.5" /> Assign Schools
-                </label>
-                <div className="bg-white/5 border border-white/10 rounded-xl p-3 space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
-                  {schools.length === 0 ? (
-                    <p className="text-white/20 text-xs text-center py-2 italic">No schools found. Create a school first.</p>
-                  ) : (
-                    schools.map(s => (
-                      <label key={s.id} className="flex items-center gap-3 px-3 py-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
-                        <input
-                          type="checkbox"
-                          checked={selectedSchools.includes(s.id)}
-                          onChange={e => {
-                            if (e.target.checked) setSelectedSchools(p => [...p, s.id]);
-                            else setSelectedSchools(p => p.filter(id => id !== s.id));
-                          }}
-                          className="w-4 h-4 rounded border-white/10 bg-white/5 text-violet-600 focus:ring-violet-500 flex-shrink-0"
-                        />
-                        <span className={`text-sm font-medium transition-colors ${selectedSchools.includes(s.id) ? 'text-white' : 'text-white/40 group-hover:text-white/60'}`}>
-                          {s.name}
-                        </span>
+            {/* Modal body — scrollable */}
+            <form onSubmit={sendInvite} className="overflow-y-auto flex-1">
+              <div className="px-6 py-5 space-y-5">
+
+                {/* Alerts */}
+                {inviteErr && (
+                  <div className="flex items-start gap-2 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-400 text-sm">
+                    <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    {inviteErr}
+                  </div>
+                )}
+                {inviteOk && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 text-emerald-400 text-sm">
+                    {inviteOk}
+                  </div>
+                )}
+
+                {/* ─── Personal Info ─── */}
+                <div>
+                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-white/5" />Personal Information<span className="h-px flex-1 bg-white/5" />
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                        Full Name <span className="text-rose-400">*</span>
                       </label>
-                    ))
-                  )}
+                      <input
+                        name="full_name" type="text" required
+                        placeholder="e.g. Adeola Johnson"
+                        value={inviteForm.full_name}
+                        onChange={e => setInviteForm(p => ({ ...p, full_name: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                        Phone
+                      </label>
+                      <input
+                        name="phone" type="tel"
+                        placeholder="+234 800 000 0000"
+                        value={inviteForm.phone}
+                        onChange={e => setInviteForm(p => ({ ...p, phone: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                        Subject / Specialisation
+                      </label>
+                      <input
+                        name="subject" type="text"
+                        placeholder="e.g. Robotics, Python"
+                        value={inviteForm.subject}
+                        onChange={e => setInviteForm(p => ({ ...p, subject: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <p className="text-[10px] text-white/20 mt-1.5 italic">Teachers assigned to schools can manage results and students for those schools.</p>
+
+                {/* ─── Account Setup ─── */}
+                <div>
+                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-white/5" />Account Setup<span className="h-px flex-1 bg-white/5" />
+                  </p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                        Email Address <span className="text-rose-400">*</span>
+                      </label>
+                      <input
+                        name="email" type="email" required
+                        placeholder="teacher@email.com"
+                        value={inviteForm.email}
+                        onChange={e => setInviteForm(p => ({ ...p, email: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20"
+                      />
+                    </div>
+                    {!editingTeacher && (
+                      <div>
+                        <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                          Password <span className="text-white/20 normal-case font-normal">(leave blank to auto-generate)</span>
+                        </label>
+                        <input
+                          name="password" type="text"
+                          placeholder="Min 8 characters — auto-generated if empty"
+                          value={inviteForm.password}
+                          onChange={e => setInviteForm(p => ({ ...p, password: e.target.value }))}
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white font-mono focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20"
+                        />
+                        <p className="text-[10px] text-white/20 mt-1.5">
+                          The teacher will be prompted to change their password on first login.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ─── School Assignment ─── */}
+                <div>
+                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-white/5" />School Assignment<span className="h-px flex-1 bg-white/5" />
+                  </p>
+                  {schools.length === 0 ? (
+                    <div className="px-4 py-6 bg-white/3 border border-white/8 rounded-xl text-center">
+                      <BuildingOfficeIcon className="w-8 h-8 text-white/15 mx-auto mb-2" />
+                      <p className="text-white/25 text-sm">No schools yet — create a school first.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {schools.map(s => {
+                        const checked = selectedSchools.includes(s.id);
+                        return (
+                          <label
+                            key={s.id}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all border ${
+                              checked
+                                ? 'bg-violet-600/10 border-violet-500/30 text-white'
+                                : 'bg-white/3 border-white/8 text-white/50 hover:bg-white/6 hover:text-white/80'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={e => {
+                                if (e.target.checked) setSelectedSchools(p => [...p, s.id]);
+                                else setSelectedSchools(p => p.filter(id => id !== s.id));
+                              }}
+                              className="w-4 h-4 rounded border-white/10 bg-white/5 text-violet-600 focus:ring-violet-500 flex-shrink-0 accent-violet-500"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-semibold truncate ${checked ? 'text-white' : 'text-white/60'}`}>
+                                {s.name}
+                              </p>
+                            </div>
+                            {checked && (
+                              <CheckCircleIcon className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-white/20 mt-2">
+                    Teachers assigned to schools can manage results and students for those schools.
+                  </p>
+                </div>
+
               </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowInvite(false)}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/60 text-sm font-bold rounded-xl border border-white/10 transition-all">
+
+              {/* Modal footer */}
+              <div className="flex gap-3 px-6 py-4 border-t border-white/10 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => { setShowInvite(false); setEditingTeacher(null); setInviteErr(''); setInviteOk(''); }}
+                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/60 text-sm font-bold rounded-xl border border-white/10 transition-all"
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={inviting}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
-                  {inviting ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</> : <><CheckCircleIcon className="w-4 h-4" /> {editingTeacher ? 'Update Teacher' : 'Create Teacher'}</>}
+                <button
+                  type="submit"
+                  disabled={inviting}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50"
+                >
+                  {inviting
+                    ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</>
+                    : <><CheckCircleIcon className="w-4 h-4" /> {editingTeacher ? 'Update Teacher' : 'Create Teacher'}</>}
                 </button>
               </div>
             </form>

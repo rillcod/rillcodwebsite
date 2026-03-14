@@ -5,7 +5,6 @@ const nextConfig: NextConfig = {
   experimental: {
     // Reduce duplicate module instances
     optimizePackageImports: [
-      '@heroicons/react',
       '@supabase/supabase-js',
     ],
   },

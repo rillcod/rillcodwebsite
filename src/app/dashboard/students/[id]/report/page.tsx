@@ -1,3 +1,4 @@
+// @refresh reset
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -161,25 +162,109 @@ export default function StudentProgressReportPage() {
           </button>
         </div>
 
-        {/* ── Rillcod header (print-only) ── */}
-        <div className="hidden print:block text-center border-b pb-6 mb-6">
-          <h2 className="text-2xl font-extrabold text-blue-700">RILLCOD TECHNOLOGIES</h2>
-          <p className="text-sm text-gray-500 mt-1">Coding Today, Innovating Tomorrow</p>
-          <p className="text-xs text-gray-400 mt-1">26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City · 08116600091 · rillcod@gmail.com</p>
-          <h3 className="text-lg font-bold text-center text-blue-600 uppercase mt-4">Student Progress Report</h3>
+        {/* ── Rillcod branded letterhead (print-only) ── */}
+        <div className="hidden print:block">
+          {/* Letterhead */}
+          <div style={{ borderBottom: '3px solid #1d4ed8', paddingBottom: '16px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="Rillcod Technologies" style={{ width: '72px', height: '72px', objectFit: 'contain', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '22px', fontWeight: 900, color: '#1d4ed8', letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+                  RILLCOD TECHNOLOGIES
+                </div>
+                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '3px' }}>
+                  Coding Today, Innovating Tomorrow
+                </div>
+                <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>
+                  26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; rillcod@gmail.com
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1.5px' }}>
+                  Document Type
+                </div>
+                <div style={{ fontSize: '14px', fontWeight: 800, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Progress Report
+                </div>
+                <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '4px' }}>
+                  {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Student identity card */}
+          <div style={{
+            background: 'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%)',
+            borderRadius: '12px',
+            padding: '20px 24px',
+            marginBottom: '24px',
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '20px',
+          }}>
+            {/* Avatar initial */}
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '12px',
+              background: 'rgba(255,255,255,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '28px', fontWeight: 900, color: '#fff', flexShrink: 0,
+              border: '2px solid rgba(255,255,255,0.3)',
+            }}>
+              {(student.full_name ?? 'S')[0]}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+                {student.full_name}
+              </div>
+              <div style={{ display: 'flex', gap: '24px', marginTop: '8px', flexWrap: 'wrap' }}>
+                {student.school_name && (
+                  <div>
+                    <div style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.65 }}>School</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700 }}>{student.school_name}</div>
+                  </div>
+                )}
+                {student.current_class && (
+                  <div>
+                    <div style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.65 }}>Class / Grade</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700 }}>{student.current_class}</div>
+                  </div>
+                )}
+                {student.status && (
+                  <div>
+                    <div style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.65 }}>Status</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, textTransform: 'capitalize' }}>{student.status}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Overall badge */}
+            <div style={{
+              textAlign: 'center', flexShrink: 0,
+              background: 'rgba(255,255,255,0.15)',
+              borderRadius: '10px', padding: '10px 18px',
+              border: '1.5px solid rgba(255,255,255,0.25)',
+            }}>
+              <div style={{ fontSize: '36px', fontWeight: 900, lineHeight: 1 }}>{grade.letter}</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, opacity: 0.8, marginTop: '2px' }}>{avgPct}%</div>
+              <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.6, marginTop: '2px' }}>Overall</div>
+            </div>
+          </div>
         </div>
 
         {/* ── Student info card ── */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 print:border-gray-200 print:bg-white">
           <div className="flex items-start gap-5 flex-wrap">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-2xl font-black text-white flex-shrink-0">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-2xl font-black text-white flex-shrink-0 print:hidden">
               {(student.full_name ?? 'S')[0]}
             </div>
             <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-3 text-sm">
               {[
-                { label: 'Full Name', value: student.full_name, icon: UserIcon },
-                { label: 'School', value: student.school_name, icon: BuildingOfficeIcon },
-                { label: 'Class / Grade', value: student.current_class, icon: AcademicCapIcon },
+                { label: 'Full Name', value: student.full_name, icon: UserIcon, printHide: true },
+                { label: 'School', value: student.school_name, icon: BuildingOfficeIcon, printHide: true },
+                { label: 'Class / Grade', value: student.current_class, icon: AcademicCapIcon, printHide: true },
                 { label: 'Parent', value: student.parent_name, icon: UserIcon },
                 { label: 'Parent Email', value: student.parent_email, icon: null },
                 { label: 'Location', value: [student.city, student.state].filter(Boolean).join(', '), icon: null },
@@ -188,8 +273,8 @@ export default function StudentProgressReportPage() {
                 { label: 'Course Interest', value: student.course_interest, icon: null },
                 { label: 'Registered', value: student.created_at ? new Date(student.created_at).toLocaleDateString() : '—', icon: null },
                 { label: 'Status', value: student.status, icon: null },
-              ].map(({ label, value, icon: Icon }) => value ? (
-                <div key={label}>
+              ].map(({ label, value, icon: Icon, printHide }: { label: string; value: any; icon: any; printHide?: boolean }) => value ? (
+                <div key={label} className={printHide ? 'print:hidden' : ''}>
                   <p className="text-white/30 text-xs uppercase tracking-widest mb-0.5">{label}</p>
                   <p className="text-white font-semibold text-sm print:text-black">{value}</p>
                 </div>

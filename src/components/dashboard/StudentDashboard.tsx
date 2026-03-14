@@ -1,3 +1,4 @@
+// @refresh reset
 import { useAuth } from '@/contexts/auth-context';
 import { BookOpenIcon, TrophyIcon, StarIcon, RocketLaunchIcon, PuzzlePieceIcon, SparklesIcon, LightBulbIcon, HeartIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';

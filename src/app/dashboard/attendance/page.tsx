@@ -1,14 +1,24 @@
+// @refresh reset
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import {
-  ClipboardDocumentCheckIcon, UserGroupIcon, CalendarIcon,
-  CheckCircleIcon, XCircleIcon, ClockIcon, ExclamationCircleIcon,
-  PlusIcon, ChevronDownIcon, CheckIcon, ArrowPathIcon, ArrowLeftIcon, PrinterIcon,
-  TableCellsIcon, ChartPieIcon
-} from '@heroicons/react/24/outline';
+import ClipboardDocumentCheckIcon from '@heroicons/react/24/outline/ClipboardDocumentCheckIcon';
+import UserGroupIcon from '@heroicons/react/24/outline/UserGroupIcon';
+import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
+import XCircleIcon from '@heroicons/react/24/outline/XCircleIcon';
+import ClockIcon from '@heroicons/react/24/outline/ClockIcon';
+import ExclamationCircleIcon from '@heroicons/react/24/outline/ExclamationCircleIcon';
+import PlusIcon from '@heroicons/react/24/outline/PlusIcon';
+import ChevronDownIcon from '@heroicons/react/24/outline/ChevronDownIcon';
+import CheckIcon from '@heroicons/react/24/outline/CheckIcon';
+import ArrowPathIcon from '@heroicons/react/24/outline/ArrowPathIcon';
+import ArrowLeftIcon from '@heroicons/react/24/outline/ArrowLeftIcon';
+import PrinterIcon from '@heroicons/react/24/outline/PrinterIcon';
+import TableCellsIcon from '@heroicons/react/24/outline/TableCellsIcon';
+import ChartPieIcon from '@heroicons/react/24/outline/ChartPieIcon';
+import CalendarIcon from '@heroicons/react/24/outline/CalendarIcon';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {

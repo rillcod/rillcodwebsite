@@ -169,7 +169,7 @@ export default function ReportCard({ report, orgSettings }: {
             <div className="absolute inset-0 border-[1px] border-gray-100 m-4 pointer-events-none" />
 
             {/* HEADER */}
-            <div className="relative pt-8 pb-6 px-12 bg-white border-b border-gray-200" style={{ borderBottom: '2px solid #e5e7eb', borderLeft: '6px solid #1a1a2e' }}>
+            <div className="relative pt-5 pb-3 px-10 bg-white border-b border-gray-200" style={{ borderBottom: '2px solid #e5e7eb', borderLeft: '6px solid #1a1a2e' }}>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 skew-x-12 -mr-16" />
                 <div className="flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-6">
@@ -177,11 +177,11 @@ export default function ReportCard({ report, orgSettings }: {
                             src={org.logo_url!}
                             alt="Logo"
                             crossOrigin="anonymous"
-                            className="w-20 h-20 object-contain"
+                            className="w-16 h-16 object-contain"
                             onError={e => { (e.target as HTMLImageElement).src = '/logo.png'; }}
                         />
                         <div>
-                            <h1 className="text-2xl font-black tracking-tighter uppercase leading-none mb-1 text-gray-900">
+                            <h1 className="text-xl font-black tracking-tighter uppercase leading-none mb-1 text-gray-900">
                                 {org.org_name || 'Rillcod Academy'}
                             </h1>
                             <p className="text-[11px] font-bold text-violet-600 uppercase tracking-[0.3em]">
@@ -200,13 +200,13 @@ export default function ReportCard({ report, orgSettings }: {
                         <div className="inline-block px-3 py-1 bg-amber-50 border border-amber-200 rounded-full mb-2">
                             <span className="text-[11px] font-black text-amber-700 uppercase tracking-widest">Official Record</span>
                         </div>
-                        <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">Progress Report</h2>
+                        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Progress Report</h2>
                     </div>
                 </div>
             </div>
 
             {/* STATS BAR */}
-            <div className="bg-gray-50 border-y border-gray-100 px-12 py-3 flex justify-between items-center">
+            <div className="bg-gray-50 border-y border-gray-100 px-10 py-2 flex justify-between items-center">
                 <div className="flex gap-8">
                     <div>
                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">ID</p>
@@ -243,14 +243,14 @@ export default function ReportCard({ report, orgSettings }: {
                 </div>
             </div>
 
-            <div className="flex-1 px-10 py-6 flex flex-col gap-4" style={{ minHeight: 0 }}>
+            <div className="flex-1 px-8 py-4 flex flex-col gap-3" style={{ minHeight: 0 }}>
                 {/* PROFILE & PERFORMANCE */}
                 <div className="grid grid-cols-12 gap-6" style={{ alignItems: 'stretch' }}>
                     {/* Identity */}
                     <div className="col-span-4 flex flex-col gap-2">
 
                         {/* Student Participant panel */}
-                        <div className="bg-white rounded-3xl px-6 py-5 border border-gray-200" style={{ borderLeft: '5px solid #1a1a2e' }}>
+                        <div className="bg-white rounded-3xl px-5 py-3 border border-gray-200" style={{ borderLeft: '5px solid #1a1a2e' }}>
                             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 mb-2">Student Participant</p>
                             <p className="text-lg font-black text-gray-900 leading-tight mb-1">{report.student_name ?? '—'}</p>
                             <div className="h-px bg-gray-200 my-2.5" />
@@ -277,12 +277,12 @@ export default function ReportCard({ report, orgSettings }: {
                         </div>
 
                         {/* Modules — stacked, always visible */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            <div style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 12, padding: '8px 14px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <div style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 12, padding: '6px 12px' }}>
                                 <p style={{ fontSize: 9, fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>Current Module</p>
                                 <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', lineHeight: 1.3 }}>{report.current_module || '—'}</p>
                             </div>
-                            <div style={{ backgroundColor: '#ede9fe', border: '1px solid #c4b5fd', borderRadius: 12, padding: '8px 14px' }}>
+                            <div style={{ backgroundColor: '#ede9fe', border: '1px solid #c4b5fd', borderRadius: 12, padding: '6px 12px' }}>
                                 <p style={{ fontSize: 9, fontWeight: 900, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>Upcoming Module</p>
                                 <p style={{ fontSize: 13, fontWeight: 700, color: '#4c1d95', lineHeight: 1.3 }}>{report.next_module || '—'}</p>
                             </div>
@@ -310,15 +310,15 @@ export default function ReportCard({ report, orgSettings }: {
                             </div>
 
                             {/* Right — weighted grade display */}
-                            <div className="flex flex-col items-center justify-center bg-gray-50 rounded-[32px] p-6 relative overflow-hidden border border-gray-200" style={{ borderLeft: '4px solid #1a1a2e' }}>
+                            <div className="flex flex-col items-center justify-center bg-gray-50 rounded-[32px] p-4 relative overflow-hidden border border-gray-200" style={{ borderLeft: '4px solid #1a1a2e' }}>
                                 <div className="relative z-10 text-center">
                                     <SparklesIcon className="w-10 h-10 text-amber-500 mx-auto mb-2" />
                                     <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Final Weighted Grade</p>
-                                    <h3 className="text-8xl font-black" style={{ color: grade.color }}>{grade.g}</h3>
+                                    <h3 className="text-7xl font-black" style={{ color: grade.color }}>{grade.g}</h3>
                                     <div className="mt-4 px-4 py-1.5 bg-white rounded-full border border-gray-200">
                                         <span className="text-xs font-black uppercase tracking-widest text-gray-700">{grade.label}</span>
                                     </div>
-                                    <p className="text-2xl font-black text-gray-500 mt-3">{overall}%</p>
+                                    <p className="text-xl font-black text-gray-500 mt-3">{overall}%</p>
                                 </div>
                             </div>
 
@@ -328,19 +328,19 @@ export default function ReportCard({ report, orgSettings }: {
 
 
                 {/* EVALUATION */}
-                <div className="flex-1 grid grid-cols-2 gap-5" style={{ minHeight: 0 }}>
+                <div className="flex-1 grid grid-cols-2 gap-4 overflow-hidden" style={{ minHeight: 0, maxHeight: 160 }}>
                     <div className="flex flex-col gap-1.5">
                         <SectionHeaderPremium title="Core Strengths" />
-                        <div className="flex-1 p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl overflow-hidden">
-                            <p className="text-[12px] leading-relaxed text-emerald-900/80 font-medium line-clamp-4">
+                        <div className="flex-1 p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl">
+                            <p className="text-[12px] leading-relaxed text-emerald-900/80 font-medium line-clamp-6">
                                 {report.key_strengths || 'The student shows consistent effort and a dedicated approach to theoretical concepts, displaying high focus during complex sessions.'}
                             </p>
                         </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
                         <SectionHeaderPremium title="Growth Focus" />
-                        <div className="flex-1 p-4 bg-amber-50/50 border border-amber-100 rounded-2xl overflow-hidden">
-                            <p className="text-[12px] leading-relaxed text-amber-900/80 font-medium line-clamp-4">
+                        <div className="flex-1 p-4 bg-amber-50/50 border border-amber-100 rounded-2xl">
+                            <p className="text-[12px] leading-relaxed text-amber-900/80 font-medium line-clamp-6">
                                 {report.areas_for_growth || 'Further immersion in practical projects will help build implementation confidence and speed in real-world environments.'}
                             </p>
                         </div>
@@ -349,7 +349,7 @@ export default function ReportCard({ report, orgSettings }: {
 
                 {/* CERTIFICATE */}
                 {showCertificate && (
-                    <div style={{ background: 'linear-gradient(135deg, #fffbeb 0%, #fef9e7 100%)', border: '1px solid #fde68a', borderRadius: 24, padding: '14px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden', marginTop: 4 }}>
+                    <div style={{ background: 'linear-gradient(135deg, #fffbeb 0%, #fef9e7 100%)', border: '1px solid #fde68a', borderRadius: 24, padding: '10px 20px', textAlign: 'center', position: 'relative', overflow: 'hidden', marginTop: 2 }}>
                         <div style={{ position: 'absolute', inset: 0, borderRadius: 24, background: 'linear-gradient(135deg, rgba(253,230,138,0.25) 0%, transparent 60%)', pointerEvents: 'none' }} />
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
                             <div style={{ height: 1, width: 32, background: 'linear-gradient(to right, transparent, #e4a817)', opacity: 0.6 }} />
@@ -366,7 +366,7 @@ export default function ReportCard({ report, orgSettings }: {
                 )}
 
                 {/* SIGNATURES & QR */}
-                <div className="pt-4 border-t-2 border-gray-100">
+                <div className="pt-2 border-t-2 border-gray-100">
                     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
 
                         {/* Left — signature */}

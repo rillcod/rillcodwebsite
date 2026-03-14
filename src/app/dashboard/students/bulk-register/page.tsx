@@ -1,8 +1,10 @@
+// @refresh reset
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { fetchClasses } from '@/services/dashboard.service';
 import Link from 'next/link';
 import {
   UserGroupIcon,
@@ -188,16 +190,33 @@ export default function BulkRegisterPage() {
   const [step,        setStep]        = useState<'input' | 'preview' | 'done'>('input');
 
   // ── Batch Settings ───────────────────────────────────────────────────────
-  const [schools,      setSchools]      = useState<School[]>([]);
-  const [programmes,   setProgrammes]   = useState<Programme[]>([]);
-  const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
-  const [selectedSchoolId,   setSelectedSchoolId]   = useState('');
-  const [selectedSchoolName, setSelectedSchoolName] = useState('');
-  const [selectedProgramId,  setSelectedProgramId]  = useState('');
-  const [defaultClass, setDefaultClass] = useState('');
-  const [settingsOpen, setSettingsOpen] = useState(true);
+  const [schools,        setSchools]        = useState<School[]>([]);
+  const [programmes,     setProgrammes]     = useState<Programme[]>([]);
+  const [classOptions,   setClassOptions]   = useState<ClassOption[]>(STANDARD_CLASSES); // standard codes
+  const [registryClasses,setRegistryClasses]= useState<ClassOption[]>([]); // teacher's created classes
+
+  const [selectedSchoolId,      setSelectedSchoolId]      = useState('');
+  const [selectedSchoolName,    setSelectedSchoolName]    = useState('');
+  const [selectedProgramId,     setSelectedProgramId]     = useState('');
+  const [selectedRegistryClass, setSelectedRegistryClass] = useState(''); // class id
+  const [defaultClass,          setDefaultClass]          = useState(''); // fallback class code
+  const [settingsOpen,          setSettingsOpen]          = useState(true);
 
   const isAdmin = profile?.role === 'admin';
+
+  /**
+   * The fallback class code applied to students whose names don't contain a class:
+   * - Registry class section_class takes priority if selected
+   * - Otherwise the manually picked standard code is used
+   * Both fields can be set independently; registry class wins if both are filled
+   */
+  const effectiveClassCode = (() => {
+    if (selectedRegistryClass) {
+      const rc = registryClasses.find((c) => c.id === selectedRegistryClass);
+      return rc?.section_class ?? rc?.name ?? defaultClass;
+    }
+    return defaultClass;
+  })();
 
   const canAccess = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -206,37 +225,19 @@ export default function BulkRegisterPage() {
     if (!profile || !canAccess) return;
 
     async function loadData() {
+      // Load registry classes via shared service (has fallback on RLS errors)
+      const teacherId = profile?.role === 'teacher' ? profile?.id : undefined;
+      const clsData = await fetchClasses(teacherId, undefined);
+      setRegistryClasses(clsData.map((c: any) => ({ id: c.id, name: c.name, section_class: c.section_class ?? null, isRegistry: true })));
+
       if (profile?.role === 'admin') {
-        // Admin sees all approved schools (for school selector)
+        // Admin sees all approved schools
         const { data } = await supabase
           .from('schools')
           .select('id, name')
           .eq('status', 'approved')
           .order('name');
         setSchools(data ?? []);
-
-        // Admin sees all registry classes
-        const { data: cls } = await supabase
-          .from('classes')
-          .select('id, name, section_class')
-          .order('name');
-        const registry: ClassOption[] = (cls ?? []).map((c: any) => ({ ...c, isRegistry: true }));
-        // Merge: registry first, then standard codes not already covered
-        const registryKeys = new Set(registry.map((c) => c.section_class?.toUpperCase()));
-        const extras = STANDARD_CLASSES.filter((s) => !registryKeys.has(s.section_class?.toUpperCase() ?? ''));
-        setClassOptions([...registry, ...extras]);
-      } else {
-        // Teacher: school comes from their profile — no selector needed
-        // Load only classes this teacher owns from the registry
-        const { data: cls } = await supabase
-          .from('classes')
-          .select('id, name, section_class')
-          .eq('teacher_id', profile!.id)
-          .order('name');
-        const registry: ClassOption[] = (cls ?? []).map((c: any) => ({ ...c, isRegistry: true }));
-        const registryKeys = new Set(registry.map((c) => c.section_class?.toUpperCase()));
-        const extras = STANDARD_CLASSES.filter((s) => !registryKeys.has(s.section_class?.toUpperCase() ?? ''));
-        setClassOptions([...registry, ...extras]);
       }
 
       // Load programmes
@@ -248,7 +249,7 @@ export default function BulkRegisterPage() {
     }
 
     loadData();
-  }, [profile, canAccess]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile?.id, profile?.role, canAccess]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Detect duplicate emails in the current preview ───────────────────────
   function dupEmails(rows: GeneratedStudent[]): Set<string> {
@@ -306,11 +307,14 @@ export default function BulkRegisterPage() {
 
   // ── Build preview ────────────────────────────────────────────────────────
   const handlePreview = useCallback(() => {
+    // Use only the standard class code (defaultClass) as the fallback arm label.
+    // The registry class (Hilltop etc.) is an internal grouping — it must NOT
+    // bleed into the printed credentials or the class_name field.
     const built = buildStudentList(namesText.split('\n'), defaultClass.trim() || undefined);
     if (!built.length) return;
     setPreview(built);
     setStep('preview');
-  }, [namesText, defaultClass]);
+  }, [namesText, defaultClass]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Register ─────────────────────────────────────────────────────────────
   const handleRegister = async () => {
@@ -443,94 +447,163 @@ export default function BulkRegisterPage() {
               </button>
 
               {settingsOpen && (
-                <div className={`px-6 pb-6 pt-2 border-t border-white/10 grid gap-5 ${isAdmin ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+                <div className="px-4 sm:px-6 pb-6 pt-3 border-t border-white/10 space-y-5">
 
-                  {/* School selector — admin only (teachers use their own school automatically) */}
-                  {isAdmin && (
+                  {/* Row 1: School (admin only) + Programme */}
+                  <div className={`grid gap-5 ${isAdmin ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+
+                    {/* School — admin only */}
+                    {isAdmin && (
+                      <div>
+                        <label className="block text-white/50 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                          <BuildingOffice2Icon className="w-3.5 h-3.5" /> School
+                        </label>
+                        <select
+                          value={selectedSchoolId}
+                          onChange={(e) => {
+                            const opt = e.target.options[e.target.selectedIndex];
+                            setSelectedSchoolId(e.target.value);
+                            setSelectedSchoolName(e.target.value ? opt.text : '');
+                          }}
+                          className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
+                        >
+                          <option value="">— Select a school —</option>
+                          {schools.map((s) => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                        <p className="text-white/25 text-[11px] mt-1.5">
+                          {selectedSchoolId ? 'Students will be assigned to this school.' : 'Leave blank to use your own school.'}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Programme */}
                     <div>
                       <label className="block text-white/50 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                        <BuildingOffice2Icon className="w-3.5 h-3.5" /> School
+                        <BookOpenIcon className="w-3.5 h-3.5" /> Programme
                       </label>
                       <select
-                        value={selectedSchoolId}
-                        onChange={(e) => {
-                          const opt = e.target.options[e.target.selectedIndex];
-                          setSelectedSchoolId(e.target.value);
-                          setSelectedSchoolName(e.target.value ? opt.text : '');
-                        }}
+                        value={selectedProgramId}
+                        onChange={(e) => setSelectedProgramId(e.target.value)}
                         className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
                       >
-                        <option value="">— Select a school —</option>
-                        {schools.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
+                        <option value="">— No auto-enrolment —</option>
+                        {programmes.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
                         ))}
                       </select>
                       <p className="text-white/25 text-[11px] mt-1.5">
-                        {selectedSchoolId ? 'Students will be assigned to this school.' : 'Leave blank to use your own school.'}
+                        {selectedProgramId
+                          ? `Auto-enrolled into "${selectedProgLabel}" after registration.`
+                          : 'Leave blank to skip auto-enrolment.'}
                       </p>
                     </div>
-                  )}
-
-                  {/* Programme selector */}
-                  <div>
-                    <label className="block text-white/50 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                      <BookOpenIcon className="w-3.5 h-3.5" /> Programme
-                    </label>
-                    <select
-                      value={selectedProgramId}
-                      onChange={(e) => setSelectedProgramId(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
-                    >
-                      <option value="">— No auto-enrolment —</option>
-                      {programmes.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
-                    <p className="text-white/25 text-[11px] mt-1.5">
-                      {selectedProgramId
-                        ? `Students will be auto-enrolled into "${selectedProgLabel}".`
-                        : 'Leave blank to skip auto-enrolment.'}
-                    </p>
                   </div>
 
-                  {/* Default class — loaded from classes table */}
-                  <div>
-                    <label className="block text-white/50 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                      <AcademicCapIcon className="w-3.5 h-3.5" /> Default Class
-                    </label>
-                    <select
-                      value={defaultClass}
-                      onChange={(e) => setDefaultClass(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
-                    >
-                      <option value="">— No default class —</option>
-                      {/* Teacher's registered classes come first */}
-                      {classOptions.some((c) => c.isRegistry) && (
-                        <optgroup label="── My Class Registry ──">
-                          {classOptions
-                            .filter((c) => c.isRegistry)
-                            .map((c) => (
-                              <option key={c.id} value={c.section_class ?? c.name}>
-                                {c.name}{c.section_class && c.section_class !== c.name ? ` · ${c.section_class}` : ''}
-                              </option>
-                            ))}
-                        </optgroup>
-                      )}
-                      {/* Standard Nigerian class codes */}
-                      <optgroup label="── Standard Class Codes ──">
-                        {classOptions
-                          .filter((c) => !c.isRegistry)
-                          .map((c) => (
-                            <option key={c.id} value={c.section_class ?? c.name}>
-                              {c.name}
+                  {/* Divider */}
+                  <div className="border-t border-white/5" />
+
+                  {/* Row 2: Registry class (primary) + Standard code fallback */}
+                  <div className="sm:grid sm:grid-cols-2 gap-5 space-y-5 sm:space-y-0">
+
+                    {/* Teacher's created class — primary class assignment */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-white/50 text-xs font-bold uppercase tracking-widest flex items-center gap-1.5">
+                          <AcademicCapIcon className="w-3.5 h-3.5" />
+                          My Class <span className="text-cyan-400/70 ml-1 normal-case font-normal">(from class registry)</span>
+                        </label>
+                        <Link
+                          href="/dashboard/classes/add"
+                          className="flex items-center gap-1 px-2 py-0.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 rounded-lg text-cyan-400 text-[10px] font-bold transition-colors"
+                          title="Create a new class"
+                        >
+                          <PlusIcon className="w-3 h-3" /> New Class
+                        </Link>
+                      </div>
+                      <p className="text-white/25 text-[11px] mb-2">
+                        Pick one of your created classes — registered students will be placed in it.
+                      </p>
+                      {registryClasses.length > 0 ? (
+                        <select
+                          value={selectedRegistryClass}
+                          onChange={(e) => setSelectedRegistryClass(e.target.value)}
+                          className="w-full px-3 py-2.5 bg-cyan-500/5 border border-cyan-500/20 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors"
+                        >
+                          <option value="">— No class selected —</option>
+                          {registryClasses.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}{c.section_class ? ` (${c.section_class})` : ''}
                             </option>
                           ))}
-                      </optgroup>
-                    </select>
-                    <p className="text-white/25 text-[11px] mt-1.5">
-                      Applied to students whose names don&apos;t include a class code.
-                    </p>
+                        </select>
+                      ) : (
+                        <div className="px-3 py-2.5 bg-white/3 border border-white/8 rounded-xl text-white/25 text-sm italic">
+                          No classes yet — use the <span className="text-cyan-400/60 font-bold">New Class</span> button above.
+                        </div>
+                      )}
+                      {selectedRegistryClass && (() => {
+                        const rc = registryClasses.find((c) => c.id === selectedRegistryClass);
+                        return rc ? (
+                          <p className="text-cyan-400/70 text-[11px] mt-1.5">
+                            Students will be tagged as <span className="font-mono font-bold">{rc.section_class ?? rc.name}</span>
+                          </p>
+                        ) : null;
+                      })()}
+                    </div>
+
+                    {/* Fallback standard class code */}
+                    <div>
+                      <label className="block text-white/50 text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                        <AcademicCapIcon className="w-3.5 h-3.5" />
+                        Default Class / Arm <span className="text-white/30 normal-case font-normal ml-1">(optional)</span>
+                      </label>
+                      <p className="text-white/25 text-[11px] mb-2">
+                        Select a class or arm — students without an inline class will be placed here (e.g. JSS2A, SS1B).
+                      </p>
+                      <select
+                        value={defaultClass}
+                        onChange={(e) => setDefaultClass(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
+                      >
+                        <option value="">— No default code —</option>
+                        <optgroup label="Primary School">
+                          {classOptions.filter((c) => c.id.startsWith('std-kg') || c.id.startsWith('std-b')).map((c) => (
+                            <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Junior Secondary (JSS)">
+                          {classOptions.filter((c) => c.id.startsWith('std-jss')).map((c) => (
+                            <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Senior Secondary (SS / SSS)">
+                          {classOptions.filter((c) => c.id.startsWith('std-ss')).map((c) => (
+                            <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
+                          ))}
+                        </optgroup>
+                      </select>
+                      {defaultClass && !selectedRegistryClass && (
+                        <p className="text-emerald-400/60 text-[11px] mt-1.5">
+                          Students will be placed in <span className="font-mono font-bold">{defaultClass}</span>.
+                        </p>
+                      )}
+                      {selectedRegistryClass && defaultClass && (
+                        <p className="text-white/25 text-[11px] mt-1.5 italic">Registry class takes priority — this code is a secondary fallback.</p>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Effective class preview */}
+                  {effectiveClassCode && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-white/30">Students without inline class will be tagged:</span>
+                      <span className="px-2 py-0.5 bg-cyan-500/15 text-cyan-300 font-mono font-bold rounded-full border border-cyan-500/20">
+                        {effectiveClassCode}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -884,6 +957,7 @@ Yusuf Ibrahim SS1A`}
             &nbsp;&nbsp;|&nbsp;&nbsp;
             {successCount} account{successCount !== 1 ? 's' : ''} created
             {selectedSchoolName && <>&nbsp;&nbsp;|&nbsp;&nbsp;School: <strong>{selectedSchoolName}</strong></>}
+            {defaultClass && <>&nbsp;&nbsp;|&nbsp;&nbsp;Class: <strong>{defaultClass}</strong></>}
             {selectedProgLabel  && <>&nbsp;&nbsp;|&nbsp;&nbsp;Programme: <strong>{selectedProgLabel}</strong></>}
             &nbsp;&nbsp;|&nbsp;&nbsp;
             Portal: <strong>academy.rillcod.com</strong>
@@ -904,7 +978,7 @@ Yusuf Ibrahim SS1A`}
                 <tr key={i}>
                   <td>{i + 1}</td>
                   <td>{r.full_name}</td>
-                  <td>{r.class_name ? <span className="cls-badge">{r.class_name}</span> : '—'}</td>
+                  <td>{(defaultClass || r.class_name) ? <span className="cls-badge">{defaultClass || r.class_name}</span> : '—'}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.email}</td>
                   <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{r.status !== 'failed' ? r.password : '—'}</td>
                   <td>

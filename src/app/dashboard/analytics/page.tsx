@@ -1,3 +1,4 @@
+// @refresh reset
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -90,6 +91,72 @@ export default function AnalyticsPage() {
     <div className="min-h-screen bg-[#0f0f1a] text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
+        {/* ── Branded letterhead (print-only) ── */}
+        <div className="hidden print:block">
+          {/* Top letterhead bar */}
+          <div style={{ borderBottom: '3px solid #1d4ed8', paddingBottom: '14px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Rillcod Technologies" style={{ width: '64px', height: '64px', objectFit: 'contain', flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '20px', fontWeight: 900, color: '#1d4ed8', letterSpacing: '-0.5px', lineHeight: 1.1 }}>RILLCOD TECHNOLOGIES</div>
+              <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>Coding Today, Innovating Tomorrow</div>
+              <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; rillcod@gmail.com</div>
+            </div>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Document Type</div>
+              <div style={{ fontSize: '14px', fontWeight: 800, color: '#1d4ed8', textTransform: 'uppercase' }}>Analytics Report</div>
+              <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '4px' }}>
+                {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+              </div>
+            </div>
+          </div>
+
+          {/* Report title strip */}
+          <div style={{
+            background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)',
+            borderRadius: '10px', padding: '12px 20px', marginBottom: '18px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <div>
+              <div style={{ fontSize: '16px', fontWeight: 900, color: '#fff', letterSpacing: '-0.3px' }}>
+                {isAdmin ? 'Global Analytics' : `${profile?.school_name || 'School'} Analytics`}
+              </div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>Live performance and engagement metrics</div>
+            </div>
+            <div style={{ textAlign: 'right', color: '#fff', opacity: 0.7, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              {profile?.role}
+            </div>
+          </div>
+
+          {/* KPI summary row (print version of the hidden cards) */}
+          {overview && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '18px' }}>
+              {[
+                { label: 'Total Students', value: overview.totalStudents.toLocaleString(), color: '#7c3aed' },
+                { label: 'Active Students', value: overview.activeStudents.toLocaleString(), color: '#059669' },
+                { label: 'Teachers', value: overview.totalTeachers, color: '#2563eb' },
+                { label: 'Avg Progress', value: `${overview.avgProgress}%`, color: '#d97706' },
+              ].map((kpi) => (
+                <div key={kpi.label} style={{
+                  border: `2px solid ${kpi.color}30`, borderRadius: '10px',
+                  padding: '12px 14px', textAlign: 'center',
+                  background: `${kpi.color}08`,
+                }}>
+                  <div style={{ fontSize: '24px', fontWeight: 900, color: kpi.color, lineHeight: 1 }}>{kpi.value}</div>
+                  <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{kpi.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Quick stats inline */}
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '18px', fontSize: '12px', color: '#374151' }}>
+            <div><span style={{ color: '#6b7280' }}>Active Programs: </span><strong style={{ color: '#0891b2' }}>{programs.length}</strong></div>
+            <div><span style={{ color: '#6b7280' }}>Pending Students: </span><strong style={{ color: '#dc2626' }}>{overview ? overview.totalStudents - overview.activeStudents : 0}</strong></div>
+            <div><span style={{ color: '#6b7280' }}>Grading Rate: </span><strong style={{ color: '#059669' }}>94%</strong></div>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="flex items-center justify-between print:hidden">
           <div>
@@ -123,7 +190,7 @@ export default function AnalyticsPage() {
 
         {/* KPI Cards */}
         {overview && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden" aria-hidden="true">
             {[
               { label: 'Total Students', value: overview.totalStudents.toLocaleString(), icon: UserGroupIcon, gradient: 'from-violet-600 to-violet-400', change: 'Live from DB' },
               { label: 'Active Students', value: overview.activeStudents.toLocaleString(), icon: CheckCircleIcon, gradient: 'from-emerald-600 to-emerald-400', change: 'Live from DB' },
@@ -249,18 +316,32 @@ export default function AnalyticsPage() {
         {/* Global Print Styles */}
         <style jsx global>{`
           @media print {
-            body { background: white !important; color: black !important; }
-            .bg-[#0f0f1a] { background: white !important; }
-            .bg-white\/5, .bg-white\/8, .bg-white\/10 { background: #f9fafb !important; border-color: #e5e7eb !important; }
-            .text-white, .text-white\/60, .text-white\/40 { color: #111827 !important; }
-            .border-white\/10, .border-white\/20 { border-color: #e5e7eb !important; }
+            @page { margin: 14mm 12mm; }
+            body { background: white !important; color: #111827 !important; }
+            .bg-\\[\\#0f0f1a\\] { background: white !important; }
+            .min-h-screen { min-height: unset !important; }
+            .bg-white\\/5, .bg-white\\/8, .bg-white\\/10 { background: #f9fafb !important; border-color: #e5e7eb !important; }
+            .bg-gradient-to-br { background: #f3f4f6 !important; }
+            .text-white { color: #111827 !important; }
+            .text-white\\/60, .text-white\\/50, .text-white\\/40, .text-white\\/30 { color: #6b7280 !important; }
+            .border-white\\/10, .border-white\\/20, .border-white\\/5 { border-color: #e5e7eb !important; }
+            .divide-white\\/5 > * + * { border-color: #e5e7eb !important; }
             .max-w-7xl { max-width: 100% !important; padding: 0 !important; }
-            .shadow-xl, .shadow-lg { shadow: none !important; }
-            .print\:hidden { display: none !important; }
+            .print\\:hidden { display: none !important; }
             button { display: none !important; }
             input, select { display: none !important; }
-            .divide-white\/5 { divide-color: #e5e7eb !important; }
-            h1, h2, h3 { color: black !important; }
+            h1, h2, h3 { color: #111827 !important; }
+            .text-violet-400, .text-violet-600 { color: #7c3aed !important; }
+            .text-blue-400 { color: #2563eb !important; }
+            .text-emerald-400 { color: #059669 !important; }
+            .text-amber-400 { color: #d97706 !important; }
+            .text-rose-400 { color: #dc2626 !important; }
+            .text-cyan-400 { color: #0891b2 !important; }
+            .rounded-2xl, .rounded-xl, .rounded-lg { border-radius: 8px !important; }
+            .max-h-\\[400px\\] { max-height: unset !important; overflow: visible !important; }
+            .overflow-y-auto { overflow: visible !important; }
+            .space-y-8 > * + * { margin-top: 16px !important; }
+            .grid.grid-cols-1.lg\\:grid-cols-3 { display: grid !important; grid-template-columns: 2fr 1fr !important; gap: 16px !important; }
           }
         `}</style>
       </div>

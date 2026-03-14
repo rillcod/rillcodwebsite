@@ -1,3 +1,4 @@
+// @refresh reset
 'use client';
 
 import { useState, useEffect, useRef, Suspense } from 'react';
@@ -431,6 +432,8 @@ function ResultsPageInner() {
 
     // ── Render ─────────────────────────────────────────────────────────────────
     return (
+        <>
+        <style>{`@media print { @page { margin: 14mm 12mm; } body { background: white !important; } .print\\:hidden { display: none !important; } }`}</style>
         <div className="min-h-screen bg-[#0f0f1a] text-white print:bg-white print:text-black print:min-h-0">
 
             {/* ══ Screen UI ══ */}
@@ -808,7 +811,111 @@ function ResultsPageInner() {
                 </div>
             </div>
 
-            {/* ══ Print view — full page, no chrome ══ */}
+            {/* ══ Print view — branded letterhead + performance table (list only, no report selected) ══ */}
+            <div className={selectedReport ? 'hidden' : 'hidden print:block'} style={{ fontFamily: 'system-ui, sans-serif', color: '#111827' }}>
+
+              {/* Letterhead */}
+              <div style={{ borderBottom: '3px solid #1d4ed8', paddingBottom: '14px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="Rillcod Technologies" style={{ width: '64px', height: '64px', objectFit: 'contain', flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#1d4ed8', letterSpacing: '-0.5px', lineHeight: 1.1 }}>RILLCOD TECHNOLOGIES</div>
+                  <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>Coding Today, Innovating Tomorrow</div>
+                  <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; rillcod@gmail.com</div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Document</div>
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#1d4ed8', textTransform: 'uppercase' }}>Performance Report</div>
+                  <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '4px' }}>
+                    {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Summary strip + student table */}
+              <>
+                  <div style={{
+                    background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)',
+                    borderRadius: '10px', padding: '12px 20px', marginBottom: '16px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '16px', fontWeight: 900, color: '#fff' }}>Student Progress Reports</div>
+                      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
+                        {filterSchool && `School: ${filterSchool}  ·  `}
+                        {filterClass && `Class: ${filterClass}  ·  `}
+                        {filtered.length} student{filtered.length !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                      {(['A','B','C','D','F'] as const).map(g => {
+                        const cnt = filtered.filter(s => reportsMap[s.id]?.overall_grade?.[0]?.toUpperCase() === g).length;
+                        const colors: Record<string,string> = { A:'#059669', B:'#2563eb', C:'#d97706', D:'#7c3aed', F:'#dc2626' };
+                        return cnt > 0 ? (
+                          <div key={g} style={{ textAlign: 'center', color: '#fff' }}>
+                            <div style={{ fontSize: '18px', fontWeight: 900, lineHeight: 1 }}>{cnt}</div>
+                            <div style={{ fontSize: '9px', fontWeight: 700, color: colors[g], background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 4px', marginTop: '2px' }}>{g}</div>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Students table */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                    <thead>
+                      <tr style={{ background: '#1e3a8a', color: '#fff' }}>
+                        <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700, width: '4%' }}>#</th>
+                        <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700, width: '28%' }}>Student Name</th>
+                        <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700, width: '20%' }}>School</th>
+                        <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700, width: '12%' }}>Class</th>
+                        <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 700, width: '10%' }}>Grade</th>
+                        <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 700, width: '12%' }}>Status</th>
+                        <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700, width: '14%' }}>Last Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((s, i) => {
+                        const r = reportsMap[s.id];
+                        const grade = r?.overall_grade?.[0]?.toUpperCase();
+                        const gradeColors: Record<string,string> = { A:'#059669', B:'#2563eb', C:'#d97706', D:'#7c3aed', F:'#dc2626' };
+                        return (
+                          <tr key={s.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                            <td style={{ padding: '6px 10px', color: '#9ca3af' }}>{i + 1}</td>
+                            <td style={{ padding: '6px 10px', fontWeight: 600 }}>{(s as any).full_name ?? '—'}</td>
+                            <td style={{ padding: '6px 10px', color: '#6b7280' }}>{(s as any).school_name ?? '—'}</td>
+                            <td style={{ padding: '6px 10px', color: '#6b7280' }}>{(s as any).section_class ?? '—'}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                              {grade ? (
+                                <span style={{ fontWeight: 900, fontSize: '13px', color: gradeColors[grade] ?? '#374151' }}>{grade}</span>
+                              ) : <span style={{ color: '#d1d5db' }}>—</span>}
+                            </td>
+                            <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                              {!r ? (
+                                <span style={{ fontSize: '9px', fontWeight: 700, background: '#f3f4f6', color: '#9ca3af', borderRadius: '9999px', padding: '2px 7px' }}>No Report</span>
+                              ) : r.is_published ? (
+                                <span style={{ fontSize: '9px', fontWeight: 700, background: '#d1fae5', color: '#065f46', borderRadius: '9999px', padding: '2px 7px' }}>Published</span>
+                              ) : (
+                                <span style={{ fontSize: '9px', fontWeight: 700, background: '#fef9c3', color: '#92400e', borderRadius: '9999px', padding: '2px 7px' }}>Draft</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '6px 10px', color: '#9ca3af', fontSize: '10px' }}>
+                              {r?.updated_at ? new Date(r.updated_at).toLocaleDateString('en-GB') : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  <div style={{ marginTop: '16px', fontSize: '10px', color: '#9ca3af', borderTop: '1px solid #e5e7eb', paddingTop: '10px' }}>
+                    Printed from Rillcod Academy portal — academy.rillcod.com &nbsp;·&nbsp; Confidential
+                  </div>
+              </>
+
+            </div>
+
+            {/* ══ Print view — individual report card (untouched) ══ */}
             {selectedReport && (
                 <div className="hidden print:block print:w-[794px] print:mx-auto">
                     {template === 'standard' ? (
@@ -845,6 +952,7 @@ function ResultsPageInner() {
                 </div>
             </div>
         </div>
+        </>
     );
 }
 

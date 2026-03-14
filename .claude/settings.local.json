@@ -23,7 +23,9 @@
       "Bash(grep \"\"sharp\"\":*)",
       "Bash(git:*)",
       "Bash(mv:*)",
-      "Bash(echo SELECT policyname, cmd, qual FROM pg_policies WHERE tablename = ''portal_users'' ORDER BY policyname;:*)"
+      "Bash(echo SELECT policyname, cmd, qual FROM pg_policies WHERE tablename = ''portal_users'' ORDER BY policyname;:*)",
+      "Bash(grep -rL \"@refresh reset\" \"C:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/src/app/dashboard\" --include=\"page.tsx\" | xargs -I{} sed -i \"s/^'use client';/\\\\/\\\\/ @refresh reset\\\\n'use client';/\" \"{}\")",
+      "Bash(grep -rl \"@heroicons/react\" \"C:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/src\" --include=\"*.tsx\" --include=\"*.ts\" | xargs grep -L \"@refresh reset\" 2>/dev/null | xargs -I{} sed -i '1s/^/\\\\/\\\\/ @refresh reset\\\\n/' \"{}\")"
     ]
   }
 }
