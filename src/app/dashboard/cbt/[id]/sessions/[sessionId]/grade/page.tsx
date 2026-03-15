@@ -127,18 +127,20 @@ export default function GradeSessionPage() {
             const finalScore = totalMaxPoints > 0 ? Math.round((totalEarned / totalMaxPoints) * 100) : 0;
             const passed = finalScore >= (exam.passing_score ?? 70);
 
-            const { data: saved, error } = await db.from('cbt_sessions').update({
-                score: finalScore,
-                status: passed ? 'passed' : 'failed',
-                manual_scores: manualScores,
-                grading_notes: gradingNotes,
-                needs_grading: false,
-                updated_at: new Date().toISOString()
-            }).eq('id', params.sessionId).select('id, score, status');
-
-            if (error) throw error;
-            if (!saved || saved.length === 0) {
-                throw new Error('Grade could not be saved — permission denied. Make sure you are logged in as a teacher or admin.');
+            const gradeRes = await fetch(`/api/cbt/sessions/${params.sessionId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    score: finalScore,
+                    status: passed ? 'passed' : 'failed',
+                    manual_scores: manualScores,
+                    grading_notes: gradingNotes,
+                    needs_grading: false,
+                }),
+            });
+            if (!gradeRes.ok) {
+                const j = await gradeRes.json();
+                throw new Error(j.error || 'Grade could not be saved.');
             }
 
             // AUTO-ASSIGN CERTIFICATE IF PASSED

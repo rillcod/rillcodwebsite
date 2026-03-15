@@ -68,3 +68,22 @@ export async function GET() {
     return NextResponse.json({ error: err.message ?? 'Unexpected error' }, { status: 500 });
   }
 }
+
+// POST /api/auth/me — stamps last_login for the current authenticated user.
+// Self-only, uses service role to bypass RLS.
+export async function POST() {
+  try {
+    const supabase = await createServerClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    await adminClient()
+      .from('portal_users')
+      .update({ last_login: new Date().toISOString() })
+      .eq('id', user.id);
+
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message ?? 'Unexpected error' }, { status: 500 });
+  }
+}

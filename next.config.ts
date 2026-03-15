@@ -6,8 +6,6 @@ const nextConfig: NextConfig = {
     // Reduce duplicate module instances
     optimizePackageImports: [
       '@supabase/supabase-js',
-      '@heroicons/react/24/outline',
-      '@heroicons/react/24/solid',
     ],
   },
 

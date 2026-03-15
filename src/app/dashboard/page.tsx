@@ -1,4 +1,5 @@
 // @refresh reset
+// Last fix: 2026-03-14 11:00
 'use client';
 
 import { useAuth } from '@/contexts/auth-context';
@@ -11,7 +12,7 @@ import {
 } from '@/lib/icons';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 /* ── Types ────────────────────────────────────────────── */
@@ -396,7 +397,7 @@ const QUICK_ACTIONS = {
 
 /* ── Main Component ───────────────────────────────────── */
 export default function DashboardPage() {
-  const { user, profile, loading, profileLoading } = useAuth();
+  const { user, profile, loading, profileLoading, refreshProfile } = useAuth();
   const router = useRouter();
   const [now, setNow] = useState<Date | null>(null);
   const [stats, setStats] = useState<DashStats[]>([]);
@@ -404,6 +405,8 @@ export default function DashboardPage() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [upcomingSlots, setUpcomingSlots] = useState<Slot[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+  // Track how many auto-retries we've done before showing the "not found" error
+  const profileRetryCount = useRef(0);
 
   // Helper to load upcoming slots
   const loadUpcomingSlots = async (supabase: any, role: string, userId: string, schoolId?: string) => {
@@ -472,6 +475,16 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchDashData(); }, [fetchDashData]);
 
+  // Auto-retry profile fetch if it came back null (up to 2 extra attempts, short delays)
+  useEffect(() => {
+    if (!profileLoading && !profile && user && profileRetryCount.current < 2) {
+      profileRetryCount.current += 1;
+      const delay = profileRetryCount.current * 500; // 500 ms, then 1000 ms
+      const t = setTimeout(() => { refreshProfile(); }, delay);
+      return () => clearTimeout(t);
+    }
+  }, [profileLoading, profile, user, refreshProfile]);
+
   // ── Loading / guard screens ────────────────────────────────────
 
   // Auth session resolving (fresh visit or expired token being refreshed)
@@ -503,8 +516,8 @@ export default function DashboardPage() {
 
   // User is authenticated but profile row is still being fetched — show spinner, NOT an error
   if (profileLoading || !profile) {
-    // Profile fetch finished but returned null → account is inactive or missing portal_users row
-    if (!profileLoading && !profile) return (
+    // Profile fetch finished but returned null → show error only after retries exhausted
+    if (!profileLoading && !profile && profileRetryCount.current >= 2) return (
       <div className="min-h-screen bg-[#050a17] flex flex-col items-center justify-center p-6 text-center">
         <div className="flex flex-col items-center gap-6">
           <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-rose-500/10 mb-2">

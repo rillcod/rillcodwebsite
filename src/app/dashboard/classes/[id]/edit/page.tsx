@@ -24,7 +24,7 @@ export default function EditClassPage() {
     const [availableStudents, setAvailableStudents] = useState<any[]>([]);
     const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
     const [initialStudents, setInitialStudents] = useState<string[]>([]);
-    const [originalName, setOriginalName] = useState('');
+    // originalName removed — student assignment now uses class_id FK instead of name matching
 
     const [loading, setLoading] = useState(true);
     const [loadingStudents, setLoadingStudents] = useState(false);
@@ -52,11 +52,12 @@ export default function EditClassPage() {
         async function loadData() {
             setLoading(true);
             try {
-                // 1. Fetch class data
-                const { data: cls, error: clsErr } = await db.from('classes').select('*').eq('id', id).single();
-                if (clsErr) throw clsErr;
+                // 1. Fetch class data via admin API (bypasses RLS)
+                const clsApiRes = await fetch(`/api/classes/${id}`, { cache: 'no-store' });
+                if (!clsApiRes.ok) { const j = await clsApiRes.json(); throw new Error(j.error || 'Class not found'); }
+                const { data: cls } = await clsApiRes.json();
 
-                setOriginalName(cls.name || '');
+                // class_id FK is the enrollment key — no need to track originalName
                 setForm({
                     name: cls.name || '',
                     description: cls.description || '',
@@ -87,11 +88,11 @@ export default function EditClassPage() {
                 }
                 const { data: sData } = await schoolsQuery;
 
-                // 4. Fetch currently assigned students (those with matching section_class)
+                // 4. Fetch currently assigned students (those with class_id = this class)
                 const { data: currentStuds } = await db.from('portal_users')
                     .select('id')
                     .eq('role', 'student')
-                    .eq('section_class', cls.name);
+                    .eq('class_id', id);
 
                 const currentIds = (currentStuds ?? []).map(s => s.id);
                 setSelectedStudents(currentIds);
@@ -134,33 +135,38 @@ export default function EditClassPage() {
                     .eq('role', 'student')
                     .neq('is_deleted', true);
 
+                // Jurisdiction rule:
+                //   Admin:   school_id match + school_name match + truly unassigned (both null)
+                //   Teacher: school_id match + school_name match ONLY — no unclaimed students
                 if (profile?.role === 'admin') {
-                    // Admins see all students in selected school
                     if (form.school_id) {
                         const sName = schools.find(s => s.id === form.school_id)?.name;
+                        const unassigned = 'and(school_id.is.null,school_name.is.null)';
                         if (sName) {
-                            poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}"`);
+                            poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}",${unassigned}`);
                         } else {
-                            poolQuery = poolQuery.eq('school_id', form.school_id);
+                            poolQuery = poolQuery.or(`school_id.eq.${form.school_id},${unassigned}`);
                         }
                     }
                 } else {
-                    // Staff/Teachers see students in their school
+                    // Teachers only see students from schools within their jurisdiction
                     if (form.school_id) {
                         const sName = schools.find(s => s.id === form.school_id)?.name;
                         if (sName) {
                             poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}"`);
                         } else {
-                            poolQuery = poolQuery.eq('school_id', form.school_id);
+                            poolQuery = poolQuery.in('school_id', [form.school_id]);
                         }
                     } else if (assignedSchoolIds.length > 0) {
-                        // Match any assigned school ID or matching school name
-                        const names = schools.filter(s => assignedSchoolIds.includes(s.id)).map(s => `"${s.name}"`);
-                        if (names.length > 0) {
-                            poolQuery = poolQuery.or(`school_id.in.(${assignedSchoolIds.join(',')}),school_name.in.(${names.join(',')})`);
-                        } else {
-                            poolQuery = poolQuery.in('school_id', assignedSchoolIds);
-                        }
+                        const schoolNames = schools.filter(s => assignedSchoolIds.includes(s.id)).map(s => s.name).filter(Boolean);
+                        const idPart = `school_id.in.(${assignedSchoolIds.join(',')})`;
+                        const namePart = schoolNames.map(n => `school_name.eq.${n}`).join(',');
+                        poolQuery = (poolQuery as any).or(namePart ? `${idPart},${namePart}` : idPart);
+                    } else {
+                        // Teacher with no school assignment — show nothing
+                        setAvailableStudents([]);
+                        setLoadingStudents(false);
+                        return;
                     }
                 }
 
@@ -210,7 +216,6 @@ export default function EditClassPage() {
         setSaving(true);
         setError(null);
         try {
-            const db = createClient();
             const newName = form.name.trim();
             const payload: any = {
                 name: newName,
@@ -227,43 +232,46 @@ export default function EditClassPage() {
             if (form.start_date) payload.start_date = form.start_date;
             if (form.end_date) payload.end_date = form.end_date;
 
-            const { error: err } = await db.from('classes').update(payload).eq('id', id);
-            if (err) throw err;
+            const patchRes = await fetch(`/api/classes/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!patchRes.ok) { const j = await patchRes.json(); throw new Error(j.error || 'Failed to update class'); }
 
-            // Update student assignments
-            // 1. Remove students who were unselected (set section_class to null if it was the old name)
+            // Update student assignments via API (bypasses RLS — teachers can't update other users)
+            // 1. Remove students who were unselected (clear their class_id)
             const removed = initialStudents.filter(sid => !selectedStudents.includes(sid));
             if (removed.length > 0) {
-                await db.from('portal_users')
-                    .update({ section_class: null })
-                    .in('id', removed)
-                    .eq('section_class', originalName);
+                await fetch('/api/portal-users', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: removed, update: { class_id: null } }),
+                });
             }
 
-            // 2. Clear old name for ALL students if name changed (to prevent orphaned students if they weren't in initialList)
-            if (originalName && originalName !== newName) {
-                await db.from('portal_users')
-                    .update({ section_class: null })
-                    .eq('section_class', originalName);
-            }
-
-            // 3. Add newly selected students and ensure enrollment
+            // 2. Assign newly selected students (and all kept) via class_id FK
             if (selectedStudents.length > 0) {
-                const updatePayload: any = { section_class: newName };
-                if (form.school_id) updatePayload.school_id = form.school_id;
+                const patchUpdate: Record<string, string | null> = { class_id: id };
+                if (form.school_id) patchUpdate.school_id = form.school_id;
 
-                await db.from('portal_users')
-                    .update(updatePayload)
-                    .in('id', selectedStudents);
+                await fetch('/api/portal-users', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: selectedStudents, update: patchUpdate }),
+                });
 
                 // Ensure enrollment exists for each student in this program
-                const enrollments = selectedStudents.map(userId => ({
-                    user_id: userId,
-                    program_id: form.program_id,
-                    status: 'active',
-                    role: 'student',
-                }));
-                await db.from('enrollments').upsert(enrollments, { onConflict: 'user_id,program_id' });
+                await fetch('/api/students/bulk-enroll', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userIds: selectedStudents,
+                        program_id: form.program_id,
+                        class_id: id,
+                        school_id: form.school_id || undefined,
+                    }),
+                });
             }
 
             router.push(`/dashboard/classes/${id}`);
@@ -413,8 +421,8 @@ export default function EditClassPage() {
                                             <div className="min-w-0">
                                                 <p className="text-sm font-semibold text-white truncate">{student.full_name}</p>
                                                 <p className="text-xs text-white/30 truncate">
-                                                    {student.email} {student.section_class && student.section_class !== form.name && (
-                                                        <span className="ml-2 text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-white/40 uppercase">In: {student.section_class}</span>
+                                                    {student.email} {student.class_id && student.class_id !== id && (
+                                                        <span className="ml-2 text-[10px] bg-amber-500/10 px-1.5 py-0.5 rounded text-amber-400 uppercase">In another class</span>
                                                     )}
                                                 </p>
                                             </div>

@@ -195,12 +195,21 @@ export default function TimetablePage() {
         title: ttForm.title.trim(), section: ttForm.section || null,
         academic_year: ttForm.academic_year || null, term: ttForm.term || null,
         school_id: ttForm.school_id || null, is_active: ttForm.is_active,
-        created_by: profile?.id || '',
       };
       if (editingTT) {
-        await anyDb.from('timetables').update(payload).eq('id', editingTT.id);
+        const res = await fetch(`/api/timetables/${editingTT.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save'); }
       } else {
-        await anyDb.from('timetables').insert(payload);
+        const res = await fetch('/api/timetables', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save'); }
       }
       await loadTimetables();
       setShowTTForm(false);
@@ -209,7 +218,7 @@ export default function TimetablePage() {
   };
   const deleteTT = async (id: string) => {
     if (!confirm('Delete this timetable and ALL its slots?')) return;
-    await anyDb.from('timetables').delete().eq('id', id);
+    await fetch(`/api/timetables/${id}`, { method: 'DELETE' });
     setTimetables(prev => prev.filter(t => t.id !== id));
     if (activeTimetable === id) { setActiveTimetable(null); setSlots([]); }
   };
@@ -243,9 +252,19 @@ export default function TimetablePage() {
         course_id: slotForm.course_id || null,
       };
       if (editingSlot) {
-        await anyDb.from('timetable_slots').update(payload).eq('id', editingSlot.id);
+        const res = await fetch(`/api/timetable-slots/${editingSlot.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save slot'); }
       } else {
-        await anyDb.from('timetable_slots').insert(payload);
+        const res = await fetch('/api/timetable-slots', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save slot'); }
       }
       await loadSlots(activeTimetable);
       setShowSlotForm(false);
@@ -254,7 +273,7 @@ export default function TimetablePage() {
   };
   const deleteSlot = async (id: string) => {
     if (!confirm('Delete this slot?')) return;
-    await anyDb.from('timetable_slots').delete().eq('id', id);
+    await fetch(`/api/timetable-slots/${id}`, { method: 'DELETE' });
     setSlots(prev => prev.filter(s => s.id !== id));
   };
 

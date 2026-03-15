@@ -40,6 +40,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
+        if (role === 'student' && !school_id) {
+            return NextResponse.json({ error: 'Students must be assigned to a school' }, { status: 400 });
+        }
+
         let authUserId: string | null = null;
         let authErrorBody: any = null;
 

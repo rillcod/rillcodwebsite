@@ -60,15 +60,15 @@ export default function EditLessonPage() {
         if (!profile || !id) return;
         const db = createClient();
         try {
-            const [lessonRes, planRes, materialsRes] = await Promise.all([
-                db.from('lessons').select('*').eq('id', id).single(),
-                db.from('lesson_plans').select('*, plan_data, covers_full_course').eq('lesson_id', id).maybeSingle(),
-                db.from('lesson_materials').select('*').eq('lesson_id', id).order('created_at', { ascending: true })
+            const [lessonApiRes, materialsRes] = await Promise.all([
+                fetch(`/api/lessons/${id}`, { cache: 'no-store' }).then(r => r.json()),
+                db.from('lesson_materials').select('*').eq('lesson_id', id).order('created_at', { ascending: true }),
             ]);
 
-            if (lessonRes.error) throw lessonRes.error;
-            const l = lessonRes.data;
+            if (lessonApiRes.error) throw new Error(lessonApiRes.error);
+            const l = lessonApiRes.data;
             setLesson(l);
+            const planRes = l?.lesson_plans?.[0] ?? null;
             setMaterials(materialsRes.data ?? []);
 
             // Handle courses with school context
@@ -97,8 +97,8 @@ export default function EditLessonPage() {
                 content_layout: (l.content_layout as any[]) || []
             });
 
-            if (planRes.data) {
-                const pd = planRes.data as any;
+            if (planRes) {
+                const pd = planRes as any;
                 setPlan({
                     objectives: pd.objectives || '',
                     activities: pd.activities || '',
@@ -179,31 +179,26 @@ export default function EditLessonPage() {
         if (!id || !profile?.id) return;
         setSaving(true);
         setError(null);
-        const db = createClient();
         try {
-            // 1. Update Lesson
-            const { error: lErr } = await db.from('lessons').update({
-                title: form.title,
-                description: form.description,
-                lesson_notes: form.lesson_notes,
-                course_id: form.course_id,
-                lesson_type: form.lesson_type,
-                status: form.status,
-                duration_minutes: parseInt(form.duration_minutes),
-                order_index: form.order_index ? parseInt(form.order_index) : null,
-                session_date: form.session_date ? new Date(form.session_date).toISOString() : null,
-                video_url: form.video_url,
-                content_layout: form.content_layout
-            }).eq('id', id);
-            if (lErr) throw lErr;
-
-            // 2. Upsert Plan
-            const { error: pErr } = await db.from('lesson_plans').upsert({
-                lesson_id: id,
-                ...plan,
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'lesson_id' });
-            if (pErr) throw pErr;
+            const res = await fetch(`/api/lessons/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: form.title,
+                    description: form.description,
+                    lesson_notes: form.lesson_notes,
+                    course_id: form.course_id,
+                    lesson_type: form.lesson_type,
+                    status: form.status,
+                    duration_minutes: parseInt(form.duration_minutes),
+                    order_index: form.order_index ? parseInt(form.order_index) : null,
+                    session_date: form.session_date ? new Date(form.session_date).toISOString() : null,
+                    video_url: form.video_url,
+                    content_layout: form.content_layout,
+                    lesson_plan: plan,
+                }),
+            });
+            if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Update failed'); }
 
             alert('Lesson updated successfully!');
         } catch (err: any) {
@@ -215,20 +210,20 @@ export default function EditLessonPage() {
 
     const addMaterial = async () => {
         if (!newMaterial.title || !newMaterial.file_url) return;
-        const db = createClient();
-        const { data, error } = await db.from('lesson_materials').insert({
-            lesson_id: id,
-            ...newMaterial
-        }).select().single();
-        if (error) { alert(error.message); return; }
-        setMaterials([...materials, data]);
+        const res = await fetch(`/api/lessons/${id}/materials`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newMaterial),
+        });
+        const json = await res.json();
+        if (!res.ok) { alert(json.error || 'Failed to add material'); return; }
+        setMaterials([...materials, json.data]);
         setNewMaterial({ title: '', file_url: '', file_type: 'pdf' });
     };
 
     const deleteMaterial = async (mid: string) => {
-        const db = createClient();
-        const { error } = await db.from('lesson_materials').delete().eq('id', mid);
-        if (error) { alert(error.message); return; }
+        const res = await fetch(`/api/lessons/${id}/materials/${mid}`, { method: 'DELETE' });
+        if (!res.ok) { const j = await res.json(); alert(j.error || 'Failed to delete'); return; }
         setMaterials(materials.filter(m => m.id !== mid));
     };
 

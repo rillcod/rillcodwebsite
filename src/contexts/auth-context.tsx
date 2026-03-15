@@ -62,23 +62,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cached = profileCache.get(userId);
     if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    // Retry only on network/server errors (not on empty profile — that means no account)
+    // Keep delays short so normal users never notice the retry path
+    const MAX_RETRIES = 3;
+    const RETRY_DELAYS = [0, 400, 900]; // ms between retries (total max ~1.3 s)
 
-      const res = await fetch('/api/auth/me', { signal: controller.signal });
-      clearTimeout(timeoutId);
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]));
+      }
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8_000);
 
-      if (!res.ok) return null;
-      const json = await res.json();
-      if (!json.profile) return null;
+        const res = await fetch('/api/auth/me', { signal: controller.signal });
+        clearTimeout(timeoutId);
 
-      const p = json.profile as UserProfile;
-      profileCache.set(userId, { data: p, ts: Date.now() });
-      return p;
-    } catch {
-      return null;
+        if (!res.ok) {
+          // 401 = cookie not yet propagated after fresh login → worth retrying
+          if (res.status === 401 && attempt < MAX_RETRIES - 1) continue;
+          return null;
+        }
+        const json = await res.json();
+        if (!json.profile) {
+          // 200 but no profile = account genuinely missing; one quick retry in case
+          // the auto-heal in /api/auth/me races with the insert
+          if (attempt === 0) continue;
+          return null;
+        }
+
+        const p = json.profile as UserProfile;
+        profileCache.set(userId, { data: p, ts: Date.now() });
+        return p;
+      } catch {
+        if (attempt < MAX_RETRIES - 1) continue;
+        return null;
+      }
     }
+    return null;
   }, []);
 
   const invalidateCache = useCallback((userId?: string) => {

@@ -76,11 +76,15 @@ export default function ProfilePage() {
   const handleSave = async () => {
     if (!profile) return;
     setSaving(true);
-    await createClient().from('portal_users').update({
-      full_name: form.full_name.trim(),
-      phone: form.phone.trim() || null,
-      bio: form.bio.trim() || null,
-    }).eq('id', profile.id);
+    await fetch(`/api/portal-users/${profile.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name: form.full_name.trim(),
+        phone: form.phone.trim() || null,
+        bio: form.bio.trim() || null,
+      }),
+    });
     await refreshProfile?.();
     setSaving(false);
     setEditing(false);
@@ -105,7 +109,11 @@ export default function ProfilePage() {
     if (upErr) { setAvatarError(upErr.message); setUploadingAvatar(false); return; }
     const { data } = db.storage.from('avatars').getPublicUrl(path);
     const url = `${data.publicUrl}?t=${Date.now()}`;
-    await db.from('portal_users').update({ avatar_url: url } as any).eq('id', profile.id);
+    await fetch(`/api/portal-users/${profile.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avatar_url: url }),
+    });
     setAvatarUrl(url);
     await refreshProfile?.();
     setUploadingAvatar(false);

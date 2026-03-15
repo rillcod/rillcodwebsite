@@ -4,8 +4,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
-import { fetchClasses } from '@/services/dashboard.service';
-import { createClient } from '@/lib/supabase/client';
 import {
   BookOpenIcon, PlusIcon, MagnifyingGlassIcon, AcademicCapIcon,
   ClockIcon, UserGroupIcon, ChartBarIcon, CalendarIcon,
@@ -31,8 +29,8 @@ export default function ClassesPage() {
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to permanently delete the class "${name}"?`)) return;
     setDeleting(id);
-    const { error } = await createClient().from('classes').delete().eq('id', id);
-    if (error) { alert(error.message); }
+    const res = await fetch(`/api/classes/${id}`, { method: 'DELETE' });
+    if (!res.ok) { const j = await res.json(); alert(j.error || 'Delete failed'); }
     else { setClasses(prev => prev.filter(c => c.id !== id)); }
     setDeleting(null);
   };
@@ -44,10 +42,10 @@ export default function ClassesPage() {
       setLoading(true);
       setError(null);
       try {
-        const teacherId = profile?.role === 'teacher' ? profile?.id : undefined;
-        const schoolId = profile?.role === 'school' ? (profile?.school_id ?? undefined) : undefined;
-        const data = await fetchClasses(teacherId, schoolId);
-        if (!cancelled) setClasses(data);
+        const res = await fetch('/api/classes', { cache: 'no-store' });
+        if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to load classes'); }
+        const { data: enriched } = await res.json();
+        if (!cancelled) setClasses(enriched ?? []);
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load classes');
       } finally {

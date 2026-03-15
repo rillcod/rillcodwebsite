@@ -25,29 +25,29 @@ export default function CBTPage() {
   useEffect(() => {
     if (authLoading || !profile) return;
     setLoading(true);
-    const db = createClient();
     if (isStaff) {
-      db.from('cbt_exams')
-        .select('*, programs(name), courses(title), cbt_sessions(id, score, status)')
-        .order('created_at', { ascending: false })
-        .then(({ data }) => { setExams(data ?? []); setLoading(false); });
+      fetch('/api/cbt/exams', { cache: 'no-store' })
+        .then(r => r.json())
+        .then(json => { setExams(json.data ?? []); setLoading(false); })
+        .catch(() => setLoading(false));
     } else {
+      const db = createClient();
       Promise.all([
-        db.from('cbt_exams').select('*, programs(name), courses(title)').eq('is_active', true).order('start_date'),
+        fetch('/api/cbt/exams', { cache: 'no-store' }).then(r => r.json()),
         db.from('cbt_sessions').select('*').eq('user_id', profile.id),
-      ]).then(([exmRes, sesRes]) => {
-        setExams(exmRes.data ?? []);
+      ]).then(([exmJson, sesRes]) => {
+        setExams(exmJson.data ?? []);
         setSessions(sesRes.data ?? []);
         setLoading(false);
-      });
+      }).catch(() => setLoading(false));
     }
   }, [profile?.id, authLoading]); // eslint-disable-line
 
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete exam "${title}"? All sessions and questions will also be deleted.`)) return;
     setDeleting(id);
-    const { error } = await createClient().from('cbt_exams').delete().eq('id', id);
-    if (error) { alert(error.message); }
+    const res = await fetch(`/api/cbt/exams/${id}`, { method: 'DELETE' });
+    if (!res.ok) { const j = await res.json(); alert(j.error || 'Delete failed'); }
     else { setExams(prev => prev.filter(e => e.id !== id)); }
     setDeleting(null);
   };

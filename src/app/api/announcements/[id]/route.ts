@@ -1,67 +1,67 @@
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
-import { announcementsService } from '@/services/announcements.service';
-import { withValidation } from '@/proxies/validation.proxy';
-import { AppError } from '@/lib/errors';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
-const updateAnnouncementSchema = z.object({
-    title: z.string().min(3).max(200).optional(),
-    content: z.string().min(5).optional(),
-    target_audience: z.enum(['all', 'students', 'teachers', 'admins']).optional(),
-    is_active: z.boolean().optional(),
-});
-
-async function getHandler(req: Request, ctx: ApiContext) {
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Announcement ID missing', 400);
-
-    const tenantId = ctx.user?.tenantId;
-    const data = await announcementsService.getAnnouncement(id, tenantId);
-
-    return NextResponse.json({
-        success: true,
-        data
-    });
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
 }
 
-async function putHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'school' && ctx.user?.role !== 'teacher') {
-        throw new AppError('Not authorized to edit announcements', 403, true);
-    }
-
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Announcement ID missing', 400);
-
-    const { data, errorResponse } = await withValidation(req as any, updateAnnouncementSchema);
-    if (errorResponse) return errorResponse;
-
-    const tenantId = ctx.user?.tenantId;
-    const updated = await announcementsService.updateAnnouncement(id, data!, tenantId);
-
-    return NextResponse.json({
-        success: true,
-        data: updated
-    });
+async function requireStaff() {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  const { data: profile } = await supabase
+    .from('portal_users')
+    .select('id, role')
+    .eq('id', user.id)
+    .single();
+  if (!profile || profile.role === 'student') return null;
+  return profile;
 }
 
-async function deleteHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'school' && ctx.user?.role !== 'teacher') {
-        throw new AppError('Not authorized to delete announcements', 403, true);
-    }
+// PATCH /api/announcements/[id] — update (e.g. soft-delete: is_active=false)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Announcement ID missing', 400);
+  const { id } = await params;
+  const body = await request.json();
 
-    const tenantId = ctx.user?.tenantId;
-    await announcementsService.deleteAnnouncement(id, tenantId);
+  const update: Record<string, any> = {};
+  const fields = ['title', 'content', 'target_audience', 'is_active'];
+  for (const f of fields) {
+    if (body[f] !== undefined) update[f] = body[f];
+  }
 
-    return NextResponse.json({
-        success: true,
-        message: 'Announcement deleted successfully'
-    });
+  const admin = adminClient();
+  const { data, error } = await admin
+    .from('announcements')
+    .update(update)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ data });
 }
 
-export const GET = (req: any, ctx: any) => withApiProxy(getHandler, { requireAuth: true })(req, ctx);
-export const PUT = (req: any, ctx: any) => withApiProxy(putHandler, { requireAuth: true })(req, ctx);
-export const DELETE = (req: any, ctx: any) => withApiProxy(deleteHandler, { requireAuth: true })(req, ctx);
+// DELETE /api/announcements/[id] — hard delete
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const { id } = await params;
+  const admin = adminClient();
+  const { error } = await admin.from('announcements').delete().eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}

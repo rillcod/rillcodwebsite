@@ -86,15 +86,16 @@ export default function SettingsPage() {
   const saveProfile = async () => {
     setSaving(true);
     try {
-      const { error } = await createClient()
-        .from('portal_users')
-        .update({
+      const res = await fetch(`/api/portal-users/${profile?.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           full_name: profileData.full_name,
           phone: profileData.phone,
           bio: profileData.bio,
-        })
-        .eq('id', profile?.id || '');
-      if (error) throw error;
+        }),
+      });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save profile'); }
       await refreshProfile();
       setEditing(false);
       showToast('Profile updated successfully');

@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import {
   AcademicCapIcon, PlusIcon, PencilIcon, TrashIcon,
   CheckCircleIcon, XCircleIcon, ClockIcon, BanknotesIcon,
@@ -38,10 +37,10 @@ export default function ProgramsPage() {
   async function load() {
     setLoading(true); setError(null);
     try {
-      const db = createClient();
-      const { data, error: err } = await db.from('programs').select('*').order('name');
-      if (err) throw err;
-      setPrograms(data ?? []);
+      const res = await fetch('/api/programs', { cache: 'no-store' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to load');
+      setPrograms(json.data ?? []);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load programs');
     } finally {
@@ -59,7 +58,6 @@ export default function ProgramsPage() {
     if (!form.name.trim()) return;
     setSaving(true);
     try {
-      const db = createClient();
       const payload = {
         name: form.name.trim(),
         description: form.description.trim() || null,
@@ -71,11 +69,19 @@ export default function ProgramsPage() {
       };
 
       if (editing) {
-        const { error: err } = await db.from('programs').update(payload).eq('id', editing.id);
-        if (err) throw err;
+        const res = await fetch(`/api/programs/${editing.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Update failed'); }
       } else {
-        const { error: err } = await db.from('programs').insert(payload);
-        if (err) throw err;
+        const res = await fetch('/api/programs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Create failed'); }
       }
       await load();
       setShowForm(false);
@@ -103,8 +109,8 @@ export default function ProgramsPage() {
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Delete program "${name}"? This will delete all associated courses.`)) return;
     try {
-      const { error: err } = await createClient().from('programs').delete().eq('id', id);
-      if (err) throw err;
+      const res = await fetch(`/api/programs/${id}`, { method: 'DELETE' });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to delete'); }
       setPrograms(prev => prev.filter(p => p.id !== id));
     } catch (e: any) {
       alert(e.message);

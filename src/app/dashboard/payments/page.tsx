@@ -259,17 +259,21 @@ export default function PaymentsPage() {
     if (!invForm.student_id) return;
     setLoadingTx(true);
     const selectedStudent = allStudents.find(s => s.id === invForm.student_id);
-    const { error: invErr } = await (db as any).from('invoices').insert([{
-      school_id: isSchool ? profile?.school_id : (selectedStudent?.school_id || null),
-      portal_user_id: invForm.student_id,
-      amount: parseFloat(invForm.amount) || 0,
-      notes: invForm.notes,
-      due_date: invForm.due_date,
-      items: invForm.items,
-      status: 'sent'
-    }]);
-
-    if (invErr) setError(invErr.message);
+    const res = await fetch('/api/invoices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        school_id: isSchool ? profile?.school_id : (selectedStudent?.school_id || null),
+        portal_user_id: invForm.student_id,
+        amount: parseFloat(invForm.amount) || 0,
+        notes: invForm.notes,
+        due_date: invForm.due_date,
+        items: invForm.items,
+        status: 'sent',
+      }),
+    });
+    const j = await res.json();
+    if (!res.ok) setError(j.error || 'Failed to create invoice');
     else {
       setShowInvoiceForm(false);
       loadTransactions();
@@ -375,20 +379,27 @@ export default function PaymentsPage() {
       ...form,
       payment_note: form.payment_note || null,
       school_id: form.owner_type === 'rillcod' ? null : (form.school_id || null),
-      created_by: profile!.id,
     };
-    const q = editing
-      ? (db as any).from('payment_accounts').update(payload).eq('id', editing.id)
-      : (db as any).from('payment_accounts').insert(payload);
-    const { error: err } = await q;
-    if (err) setError(err.message);
+    const res = editing
+      ? await fetch(`/api/payment-accounts/${editing.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      : await fetch('/api/payment-accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+    const j = await res.json();
+    if (!res.ok) setError(j.error || 'Failed to save');
     else { await load(); setShowForm(false); }
     setSaving(false);
   };
 
   const del = async (id: string) => {
     if (!confirm('Remove this payment account?')) return;
-    await (db as any).from('payment_accounts').delete().eq('id', id);
+    await fetch(`/api/payment-accounts/${id}`, { method: 'DELETE' });
     setAccounts(prev => prev.filter(a => a.id !== id));
   };
 

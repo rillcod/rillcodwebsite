@@ -630,6 +630,13 @@ export default function SchoolsPage() {
                         {(s.lga || s.state) && <span className="flex items-center gap-1"><MapPinIcon className="w-3.5 h-3.5" />{[s.lga, s.state].filter(Boolean).join(', ')}</span>}
                         {s.student_count > 0 && <span className="flex items-center gap-1"><UsersIcon className="w-3.5 h-3.5" />{s.student_count} students</span>}
                       </div>
+                      {s.enrollment_types?.length > 0 && (
+                        <div className="flex gap-1.5 mt-2 flex-wrap">
+                          {s.enrollment_types.map((t: string) => (
+                            <span key={t} className="text-[10px] font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full capitalize">{t}</span>
+                          ))}
+                        </div>
+                      )}
                       {s.program_interest?.length > 0 && (
                         <div className="flex gap-1.5 mt-2 flex-wrap">
                           {s.program_interest.map((p: string) => (
@@ -696,7 +703,7 @@ export default function SchoolsPage() {
                 {assignTab === 'info' && (
                   <div className="p-6 space-y-4 text-sm">
                     {[
-                      { label: 'Type', value: detail.school_type },
+                      { label: 'School Type', value: detail.school_type },
                       { label: 'Contact Person', value: detail.contact_person },
                       { label: 'Email', value: detail.email },
                       { label: 'Phone', value: detail.phone },
@@ -711,6 +718,16 @@ export default function SchoolsPage() {
                         <span className="text-white/80 min-w-0 break-words">{value}</span>
                       </div>
                     ) : null)}
+                    {detail.enrollment_types?.length > 0 && (
+                      <div className="flex items-start gap-3 py-2 border-b border-white/5">
+                        <span className="text-white/30 w-28 flex-shrink-0 text-xs uppercase tracking-wider font-semibold pt-0.5">Enrol Types</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {detail.enrollment_types.map((t: string) => (
+                            <span key={t} className="text-[10px] font-bold px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full capitalize">{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

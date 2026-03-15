@@ -56,8 +56,8 @@ export default function LessonsPage() {
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete lesson "${title}"? This cannot be undone.`)) return;
     setDeleting(id);
-    const { error } = await createClient().from('lessons').delete().eq('id', id);
-    if (error) { alert(error.message); }
+    const res = await fetch(`/api/lessons/${id}`, { method: 'DELETE' });
+    if (!res.ok) { const j = await res.json(); alert(j.error || 'Delete failed'); }
     else { setLessons(prev => prev.filter(l => l.id !== id)); }
     setDeleting(null);
   };
@@ -89,34 +89,33 @@ export default function LessonsPage() {
     setSavingPlan(true);
     setPlanSaveError(null);
     try {
-      const db = createClient();
-      // Create a new lesson record for this plan
-      const { data: newLesson, error: lessonErr } = await db.from('lessons').insert({
-        title: planResult.course_title || planTopic,
-        description: planResult.description,
-        lesson_type: 'interactive',
-        status: 'draft',
-        course_id: planCourseId,
-        created_by: profile.id,
-      }).select('id').single();
-      if (lessonErr) throw lessonErr;
-
-      // Save the lesson plan record attached to the lesson
+      // Build lesson plan data for API
       const objectives = (planResult.objectives ?? []).join('\n');
       const activities = (planResult.weeks ?? []).map((w: any) =>
         `Week ${w.week} — ${w.theme}:\n${(w.activities ?? []).map((a: string) => `• ${a}`).join('\n')}`
       ).join('\n\n');
 
-      const { error: planErr } = await db.from('lesson_plans').insert({
-        lesson_id: newLesson.id,
-        objectives,
-        activities,
-        assessment_methods: planResult.assessment_strategy ?? '',
-        staff_notes: `Grade: ${planResult.grade_level} | Duration: ${planResult.duration}\nMaterials: ${(planResult.materials ?? []).join(', ')}`,
-        plan_data: planResult,
-        covers_full_course: true
+      const res = await fetch('/api/lessons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: planResult.course_title || planTopic,
+          description: planResult.description,
+          lesson_type: 'interactive',
+          status: 'draft',
+          course_id: planCourseId,
+          lesson_plan: {
+            objectives,
+            activities,
+            assessment_methods: planResult.assessment_strategy ?? '',
+            staff_notes: `Grade: ${planResult.grade_level} | Duration: ${planResult.duration}\nMaterials: ${(planResult.materials ?? []).join(', ')}`,
+            plan_data: planResult,
+            covers_full_course: true,
+          },
+        }),
       });
-      if (planErr) throw planErr;
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save plan'); }
+      const { data: newLesson } = await res.json();
 
       setPlanSaved(true);
       // Refresh lessons list
@@ -168,54 +167,35 @@ export default function LessonsPage() {
       setLoading(true);
       setError(null);
       try {
-        const supabase = createClient();
-        let q = supabase
-          .from('lessons')
-          .select(`id, title, description, lesson_type, status, duration_minutes,
-            session_date, video_url, created_by, created_at,
-            courses ( id, title, programs ( name ) )`)
-          .order('created_at', { ascending: false });
-
-        if (profile!.role === 'teacher') {
-          q = (q as any).eq('created_by', profile!.id);
-        } else if (profile!.role === 'student') {
-          // 1. Get enrollments to find valid courses
+        let lessons: any[];
+        if (profile!.role === 'student') {
+          // Students use client Supabase filtered by their enrollments
+          const supabase = createClient();
           const { data: enr } = await supabase
             .from('enrollments').select('program_id').eq('user_id', profile!.id);
           const programIds = (enr ?? []).map((e: any) => e.program_id);
-
-          if (programIds.length) {
-            const { data: courseData } = await supabase
-              .from('courses').select('id').in('program_id', programIds);
-            const ids = (courseData ?? []).map((c: any) => c.id);
-            if (ids.length) q = (q as any).in('course_id', ids);
-          }
-
-          // 2. Filter by creators: only admins OR teachers from my school
-          const { data: teachersAtSchool } = await supabase
-            .from('portal_users')
-            .select('id')
-            .eq('school_id', profile!.school_id as string)
-            .eq('role', 'teacher');
-
-          const { data: admins } = await supabase
-            .from('portal_users')
-            .select('id')
-            .eq('role', 'admin');
-
-          const validCreatorIds = [
-            ...(teachersAtSchool ?? []).map(t => t.id),
-            ...(admins ?? []).map(a => a.id)
-          ];
-
-          if (validCreatorIds.length > 0) {
-            q = (q as any).in('created_by', validCreatorIds);
-          }
+          if (!programIds.length) { if (!cancelled) setLessons([]); return; }
+          const { data: courseData } = await supabase
+            .from('courses').select('id').in('program_id', programIds);
+          const courseIds = (courseData ?? []).map((c: any) => c.id);
+          if (!courseIds.length) { if (!cancelled) setLessons([]); return; }
+          const { data, error: err } = await supabase
+            .from('lessons')
+            .select(`id, title, description, lesson_type, status, duration_minutes,
+              session_date, video_url, created_by, created_at,
+              courses ( id, title, programs ( name ) )`)
+            .in('course_id', courseIds)
+            .order('created_at', { ascending: false });
+          if (err) throw err;
+          lessons = data ?? [];
+        } else {
+          // Staff: use admin API to bypass RLS
+          const res = await fetch('/api/lessons', { cache: 'no-store' });
+          if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to load lessons'); }
+          const json = await res.json();
+          lessons = json.data ?? [];
         }
-
-        const { data, error: err } = await q;
-        if (err) throw err;
-        if (!cancelled) setLessons(data ?? []);
+        if (!cancelled) setLessons(lessons);
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load lessons');
       } finally {

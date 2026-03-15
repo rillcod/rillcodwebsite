@@ -531,7 +531,11 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
 
   const toggleActive = async (id: string, current: boolean) => {
     setToggling(id);
-    await createClient().from('portal_users').update({ is_active: !current }).eq('id', id);
+    await fetch(`/api/portal-users/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !current }),
+    });
     setTeachers(prev => prev.map(t => t.id === id ? { ...t, is_active: !current } : t));
     setToggling(null);
   };
@@ -543,7 +547,6 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
     }
     setInviting(true); setInviteErr(''); setInviteOk('');
     try {
-      const db = createClient();
       const payload = {
         full_name: inviteForm.full_name,
         email: inviteForm.email,
@@ -556,11 +559,12 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
       let newTeacherId = '';
 
       if (editingTeacher) {
-        const { error } = await db
-          .from('portal_users')
-          .update({ ...payload, updated_at: new Date().toISOString() })
-          .eq('id', editingTeacher.id);
-        if (error) throw error;
+        const res = await fetch(`/api/portal-users/${editingTeacher.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...payload, updated_at: new Date().toISOString() }),
+        });
+        if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Update failed'); }
         setInviteOk(`Teacher ${inviteForm.full_name} updated successfully.`);
         newTeacherId = editingTeacher.id;
         setEditingTeacher(null);
@@ -600,13 +604,17 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
         const toAdd = selectedSchools.filter(sid => !existingAssignments.some(a => a.school_id === sid));
 
         for (const a of toRemove) {
-          await db.from('teacher_schools').delete().eq('id', a.id);
+          await fetch('/api/teacher-schools', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: a.id }),
+          });
         }
         for (const sid of toAdd) {
-          await db.from('teacher_schools').insert({
-            teacher_id: newTeacherId,
-            school_id: sid,
-            assigned_by: profile?.id,
+          await fetch('/api/teacher-schools', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ teacher_id: newTeacherId, school_id: sid }),
           });
         }
       }
@@ -622,11 +630,12 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
     if (!confirm('Are you sure you want to delete this teacher? This will soft-delete the profile.')) return;
     setDeleting(id);
     try {
-      const { error } = await createClient()
-        .from('portal_users')
-        .update({ is_deleted: true, is_active: false, updated_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) throw error;
+      const res = await fetch(`/api/portal-users/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_deleted: true, is_active: false }),
+      });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to delete'); }
       setTeachers(prev => prev.filter(t => t.id !== id));
     } catch (err: any) {
       alert(err.message ?? 'Failed to delete teacher');

@@ -1,75 +1,68 @@
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
-import { liveSessionService } from '@/services/live-session.service';
-import { AppError } from '@/lib/errors';
-import { withValidation } from '@/proxies/validation.proxy';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
-const updateSessionSchema = z.object({
-    status: z.enum(['scheduled', 'live', 'completed', 'cancelled']).optional(),
-    title: z.string().min(3).optional(),
-    description: z.string().optional(),
-    scheduledAt: z.string().optional(),
-    durationMinutes: z.number().int().positive().optional(),
-    platform: z.enum(['zoom', 'google_meet', 'teams', 'discord', 'other']).optional(),
-    sessionUrl: z.string().optional(),
-    programId: z.string().uuid().optional(),
-    schoolId: z.string().uuid().optional(),
-    recordingUrl: z.string().optional(),
-    notes: z.string().optional(),
-});
-
-async function getHandler(req: Request, ctx: ApiContext) {
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Session ID missing', 400);
-
-    const session = await liveSessionService.getSession(id);
-    return NextResponse.json({ success: true, data: session });
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
 }
 
-async function putHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role === 'student') throw new AppError('Forbidden', 403);
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Session ID missing', 400);
-
-    const { data, errorResponse } = await withValidation(req as any, updateSessionSchema);
-    if (errorResponse) return errorResponse;
-
-    let updated = null;
-
-    if (data?.status) {
-        updated = await liveSessionService.updateSessionStatus(id, data.status);
-    }
-
-    const hasDetailUpdates = ['title', 'description', 'scheduledAt', 'durationMinutes', 'platform', 'sessionUrl', 'programId', 'schoolId', 'recordingUrl', 'notes'].some((key) => (data as Record<string, unknown>)?.[key] !== undefined);
-    if (hasDetailUpdates) {
-        updated = await liveSessionService.updateSessionDetails(id, {
-            title: data?.title,
-            description: data?.description,
-            scheduledAt: data?.scheduledAt,
-            durationMinutes: data?.durationMinutes,
-            platform: data?.platform,
-            sessionUrl: data?.sessionUrl,
-            programId: data?.programId,
-            schoolId: data?.schoolId,
-            recordingUrl: data?.recordingUrl,
-            notes: data?.notes,
-            status: data?.status,
-        });
-    }
-
-    return NextResponse.json({ success: true, data: updated });
+async function requireStaff() {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  const { data: profile } = await supabase
+    .from('portal_users')
+    .select('id, role')
+    .eq('id', user.id)
+    .single();
+  if (!profile || profile.role === 'student' || profile.role === 'school') return null;
+  return profile;
 }
 
-async function deleteHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role === 'student') throw new AppError('Forbidden', 403);
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Session ID missing', 400);
+// PATCH /api/live-sessions/[id] — update session
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const session = await liveSessionService.updateSessionStatus(id, 'cancelled');
-    return NextResponse.json({ success: true, data: session });
+  const { id } = await params;
+  const body = await request.json();
+
+  const allowed: Record<string, any> = { updated_at: new Date().toISOString() };
+  const fields = ['title', 'description', 'platform', 'session_url', 'scheduled_at',
+    'duration_minutes', 'school_id', 'program_id', 'status', 'recording_url', 'notes'];
+  for (const f of fields) {
+    if (body[f] !== undefined) allowed[f] = body[f];
+  }
+
+  const admin = adminClient();
+  const { data, error } = await admin
+    .from('live_sessions')
+    .update(allowed)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ data });
 }
 
-export const GET = (req: any, ctx: any) => withApiProxy(getHandler)(req, ctx);
-export const PUT = (req: any, ctx: any) => withApiProxy(putHandler)(req, ctx);
-export const DELETE = (req: any, ctx: any) => withApiProxy(deleteHandler)(req, ctx);
+// DELETE /api/live-sessions/[id] — delete session
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const { id } = await params;
+  const admin = adminClient();
+  const { error } = await admin.from('live_sessions').delete().eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}

@@ -45,17 +45,25 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const supabaseAuth = await createServerClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { data: caller } = await supabaseAuth.from('portal_users').select('role').eq('id', user.id).single();
-  if (!caller || !['admin', 'school'].includes(caller.role)) {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-  }
-
-  const supabase = adminClient(); // service role — bypasses RLS for school creation
+  const supabase = adminClient(); // service role — bypasses RLS
   try {
     const body = await request.json();
+
+    // Determine if this is an authenticated admin request or a public application
+    let callerRole: string | null = null;
+    try {
+      const supabaseAuth = await createServerClient();
+      const { data: { user } } = await supabaseAuth.auth.getUser();
+      if (user) {
+        const { data: caller } = await supabaseAuth.from('portal_users').select('role').eq('id', user.id).single();
+        callerRole = caller?.role ?? null;
+      }
+    } catch { /* public request — no session */ }
+
+    const isAdminRequest = callerRole === 'admin' || callerRole === 'school';
+
+    // Public applications are always 'pending'; admin can set any status
+    const status = isAdminRequest ? (body.status || 'pending') : 'pending';
 
     const payload = {
       name: body.name || body.schoolName,
@@ -70,7 +78,7 @@ export async function POST(request: Request) {
       student_count: body.student_count ?? (body.studentCount ? parseInt(body.studentCount, 10) : null),
       program_interest: body.program_interest || (body.programInterest ? [body.programInterest] : []),
       enrollment_types: body.enrollment_types || ['school'],
-      status: body.status || 'pending',
+      status,
       is_active: true,
     };
 

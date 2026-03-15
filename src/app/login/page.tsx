@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { createClient } from '@/lib/supabase/client';
 import { logger } from '@/lib/logger';
 import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, Building2, ArrowRight, Loader2, ArrowLeft } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from 'next/link';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
@@ -79,11 +79,8 @@ export default function LoginPage() {
 
       logger.info('AUTH_SUCCESS', { userId: authData.user.id, role: profileData.role });
 
-      // Update last_login in the background (non-blocking)
-      supabase.from('portal_users')
-        .update({ last_login: new Date().toISOString() })
-        .eq('id', authData.user.id)
-        .then(() => { });
+      // Update last_login in the background (non-blocking, uses admin API to bypass RLS)
+      fetch('/api/auth/me', { method: 'POST' }).catch(() => { });
 
       // Step 3: Redirect — router.push for soft navigation (faster)
       const redirectTo = searchParams?.get('redirectedFrom') || '/dashboard';
@@ -296,5 +293,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   );
 }

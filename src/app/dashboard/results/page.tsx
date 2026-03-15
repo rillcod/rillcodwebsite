@@ -203,11 +203,12 @@ function ResultsPageInner() {
             if (!isAdmin) {
                 finalQuery = finalQuery.eq('role', 'student');
                 if (assignedSchoolIds.length > 0) {
-                    const namesSegment = assignedSchoolNames.length > 0
-                        ? `,school_name.in.(${assignedSchoolNames.map(n => `"${n}"`).join(',')})`
+                    const idPart = `school_id.in.(${assignedSchoolIds.join(',')})`;
+                    const namePart = assignedSchoolNames.length > 0
+                        ? assignedSchoolNames.map(n => `school_name.eq.${n}`).join(',')
                         : '';
-                    const filter = `school_id.in.(${assignedSchoolIds.join(',')})${namesSegment}`;
-                    finalQuery = finalQuery.or(filter);
+                    const filter = namePart ? `${idPart},${namePart}` : idPart;
+                    finalQuery = (finalQuery as any).or(filter);
                 } else {
                     finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
                 }

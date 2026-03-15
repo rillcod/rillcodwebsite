@@ -9,6 +9,37 @@ function adminClient() {
     );
 }
 
+// PATCH /api/students/[id] — update a pre-portal student record (admin/teacher/school)
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> },
+) {
+    const supabase = await createServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { data: caller } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+    if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const body = await req.json();
+
+    // Whitelist updatable fields
+    const allowed: Record<string, any> = {};
+    const fields = ['full_name', 'name', 'parent_name', 'parent_email', 'parent_phone',
+        'school_name', 'school_id', 'grade_level', 'city', 'state',
+        'gender', 'date_of_birth', 'enrollment_type', 'status'];
+    fields.forEach(f => { if (f in body) allowed[f] = body[f]; });
+    if (body.full_name) allowed.name = body.full_name; // keep name in sync
+    allowed.updated_at = new Date().toISOString();
+
+    const { data, error } = await adminClient().from('students').update(allowed).eq('id', id).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data });
+}
+
 export async function DELETE(
     _req: NextRequest,
     { params }: { params: Promise<{ id: string }> },

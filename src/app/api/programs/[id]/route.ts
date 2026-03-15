@@ -1,75 +1,96 @@
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
-import { programsService } from '@/services/programs.service';
-import { withValidation } from '@/proxies/validation.proxy';
-import { AppError } from '@/lib/errors';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
-const updateProgramSchema = z.object({
-    name: z.string().min(3).optional(),
-    description: z.string().optional(),
-    duration_weeks: z.number().int().positive().optional(),
-    difficulty_level: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
-    price: z.number().min(0).optional(),
-    max_students: z.number().int().positive().optional(),
-    is_active: z.boolean().optional(),
-});
-
-async function getHandler(req: Request, ctx: ApiContext) {
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Program ID missing', 400);
-
-    const tenantId = ctx.user?.tenantId;
-    const data = await programsService.getProgram(id, tenantId);
-
-    return NextResponse.json({
-        success: true,
-        data
-    });
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
 }
 
-async function putHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'school') {
-        throw new AppError('Not authorized to edit programs', 403, true);
-    }
-
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Program ID missing', 400);
-
-    const { data, errorResponse } = await withValidation(req as any, updateProgramSchema);
-    if (errorResponse) return errorResponse;
-
-    const tenantId = ctx.user?.tenantId;
-
-    if (ctx.user?.role === 'school' && !tenantId) {
-        throw new AppError('Tenant context missing', 403, true);
-    }
-
-    const updated = await programsService.updateProgram(id, data!, tenantId);
-
-    return NextResponse.json({
-        success: true,
-        data: updated
-    });
+async function requireStaff() {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  const { data: caller } = await adminClient()
+    .from('portal_users').select('role, id').eq('id', user.id).single();
+  if (!caller || !['admin', 'school'].includes(caller.role)) return null;
+  return caller;
 }
 
-async function deleteHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'school') {
-        throw new AppError('Not authorized to delete programs', 403, true);
-    }
+// GET /api/programs/[id]
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const { data, error } = await adminClient()
+      .from('programs')
+      .select('*, courses ( id, title, is_active )')
+      .eq('id', id)
+      .maybeSingle();
 
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Program ID missing', 400);
-
-    const tenantId = ctx.user?.tenantId;
-    await programsService.deleteProgram(id, tenantId);
-
-    return NextResponse.json({
-        success: true,
-        message: 'Program deleted successfully'
-    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data) return NextResponse.json({ error: 'Program not found' }, { status: 404 });
+    return NextResponse.json({ success: true, data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  }
 }
 
-export const GET = (req: any, ctx: any) => withApiProxy(getHandler, { requireAuth: true })(req, ctx);
-export const PUT = (req: any, ctx: any) => withApiProxy(putHandler, { requireAuth: true })(req, ctx);
-export const DELETE = (req: any, ctx: any) => withApiProxy(deleteHandler, { requireAuth: true })(req, ctx);
+// PUT /api/programs/[id] — update program
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const caller = await requireStaff();
+    if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+
+    const { id } = await params;
+    const body = await request.json();
+
+    const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const fields = ['name', 'description', 'duration_weeks', 'difficulty_level', 'price', 'max_students', 'is_active'];
+    for (const f of fields) {
+      if (f in body) allowed[f] = body[f] ?? null;
+    }
+
+    const { data, error } = await adminClient()
+      .from('programs')
+      .update(allowed)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  }
+}
+
+// DELETE /api/programs/[id]
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const caller = await requireStaff();
+    if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    if (caller.role !== 'admin') return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+
+    const { id } = await params;
+    const { error } = await adminClient()
+      .from('programs')
+      .delete()
+      .eq('id', id);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  }
+}

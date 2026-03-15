@@ -30,7 +30,7 @@ const emptyQuestion = (): Question => ({
 
 export default function NewExamPage() {
   const router = useRouter();
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, profileLoading } = useAuth();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const preProgramId = searchParams?.get('program_id');
   const preCourseId = searchParams?.get('course_id');
@@ -146,7 +146,6 @@ export default function NewExamPage() {
     setSaving(true);
     setError(null);
     try {
-      const db = createClient();
       const examPayload: any = {
         title: form.title.trim(),
         description: form.description.trim() || null,
@@ -156,24 +155,24 @@ export default function NewExamPage() {
         passing_score: parseInt(form.passing_score) || 70,
         total_questions: validQuestions.length,
         is_active: form.is_active,
+        questions: validQuestions.map((q, i) => ({
+          question_text: q.question_text.trim(),
+          question_type: q.question_type,
+          options: q.question_type === 'multiple_choice' ? q.options.filter((o: string) => o.trim()) : null,
+          correct_answer: q.correct_answer.trim(),
+          points: q.points,
+          order_index: i + 1,
+        })),
       };
       if (form.start_date) examPayload.start_date = new Date(form.start_date).toISOString();
       if (form.end_date) examPayload.end_date = new Date(form.end_date).toISOString();
 
-      const { data: examData, error: examErr } = await db.from('cbt_exams').insert(examPayload).select('id').single();
-      if (examErr) throw examErr;
-
-      const qPayloads = validQuestions.map((q, i) => ({
-        exam_id: examData.id,
-        question_text: q.question_text.trim(),
-        question_type: q.question_type,
-        options: q.question_type === 'multiple_choice' ? q.options.filter(o => o.trim()) : null,
-        correct_answer: q.correct_answer.trim(),
-        points: q.points,
-        order_index: i + 1,
-      }));
-      const { error: qErr } = await db.from('cbt_questions').insert(qPayloads);
-      if (qErr) throw qErr;
+      const res = await fetch('/api/cbt/exams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(examPayload),
+      });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to create exam'); }
 
       router.push('/dashboard/cbt');
     } catch (e: any) {
@@ -183,7 +182,7 @@ export default function NewExamPage() {
     }
   };
 
-  if (authLoading) return (
+  if (authLoading || profileLoading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
     </div>

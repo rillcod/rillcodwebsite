@@ -147,25 +147,18 @@ export default function ContentLibraryPage() {
       
       // Handle external resource URL
       if (form.externalUrl && !finalFileId) {
-        const db = createClient();
-        const { data: fileRecord, error: fErr } = await db
-          .from('files')
-          .insert([{
-            school_id: profile?.school_id || null,
-            uploaded_by: profile?.id,
-            filename: form.title,
-            original_filename: form.title,
-            file_type: form.contentType,
-            file_size: 0,
-            mime_type: 'text/url',
-            storage_path: form.externalUrl,
-            storage_provider: 'cloudinary',
-            public_url: form.externalUrl
-          }])
-          .select()
-          .single();
-        if (fErr) throw fErr;
-        finalFileId = fileRecord.id;
+        const res = await fetch('/api/files/external', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: form.externalUrl,
+            title: form.title,
+            contentType: form.contentType,
+          }),
+        });
+        const j = await res.json();
+        if (!res.ok) throw new Error(j.error || 'Failed to register file');
+        finalFileId = j.data.id;
       }
 
       const res = await fetch("/api/content-library", {

@@ -1,50 +1,51 @@
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
-import { announcementsService } from '@/services/announcements.service';
-import { withValidation } from '@/proxies/validation.proxy';
-import { AppError } from '@/lib/errors';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
-export const createAnnouncementSchema = z.object({
-    title: z.string().min(3).max(200),
-    content: z.string().min(5),
-    target_audience: z.enum(['all', 'students', 'teachers', 'admins']).default('all'),
-    is_active: z.boolean().default(true),
-});
-
-async function getHandler(req: Request, ctx: ApiContext) {
-    const url = new URL(req.url);
-    const audience = url.searchParams.get('audience') || undefined;
-    const limitParam = parseInt(url.searchParams.get('limit') || '20');
-
-    const tenantId = ctx.user?.tenantId;
-    const data = await announcementsService.listAnnouncements(tenantId, audience, limitParam);
-
-    return NextResponse.json({
-        success: true,
-        data
-    });
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
 }
 
-async function postHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'school' && ctx.user?.role !== 'teacher') {
-        throw new AppError('Not authorized to post announcements', 403, true);
-    }
-
-    const { data, errorResponse } = await withValidation(req as any, createAnnouncementSchema);
-    if (errorResponse) return errorResponse;
-
-    const result = await announcementsService.createAnnouncement(
-        data!,
-        ctx.user!.id,
-        ctx.user?.tenantId
-    );
-
-    return NextResponse.json({
-        success: true,
-        data: result
-    }, { status: 201 });
+async function requireStaff() {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  const { data: profile } = await supabase
+    .from('portal_users')
+    .select('id, role')
+    .eq('id', user.id)
+    .single();
+  if (!profile || profile.role === 'student') return null;
+  return profile;
 }
 
-export const GET = (req: any, ctx: any) => withApiProxy(getHandler, { requireAuth: true, requireTenant: false })(req, ctx);
-export const POST = (req: any, ctx: any) => withApiProxy(postHandler, { requireAuth: true, requireTenant: false })(req, ctx);
+// POST /api/announcements — create announcement (staff only)
+export async function POST(request: NextRequest) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const body = await request.json();
+  const { title, content, target_audience } = body;
+
+  if (!title?.trim() || !content?.trim())
+    return NextResponse.json({ error: 'title and content are required' }, { status: 400 });
+
+  const admin = adminClient();
+  const { data, error } = await admin
+    .from('announcements')
+    .insert({
+      title: title.trim(),
+      content: content.trim(),
+      target_audience: target_audience || 'all',
+      author_id: caller.id,
+      is_active: true,
+    })
+    .select('*, portal_users!announcements_author_id_fkey(full_name)')
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ data });
+}

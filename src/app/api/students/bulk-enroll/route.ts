@@ -30,7 +30,8 @@ export async function POST(request: Request) {
       userIds,       // string[]  — students to enroll
       program_id,    // string    — target program
       school_id,     // string?   — optionally (re-)set school on student profiles
-      section_class, // string?   — optionally (re-)set class on student profiles
+      class_id,      // string?   — optionally assign to a class (FK to classes table)
+      section_class, // string?   — optionally set section/class label on the profile
     } = body;
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
@@ -43,20 +44,55 @@ export async function POST(request: Request) {
     // Verify all IDs are student accounts
     const { data: verified } = await supabaseAdmin
       .from('portal_users')
-      .select('id')
+      .select('id, school_id')
       .in('id', userIds)
       .eq('role', 'student');
 
-    const safeIds = (verified ?? []).map((u) => u.id);
+    let safeStudents = verified ?? [];
+
+    // School boundary check — if a class_id is specified, enforce school scoping for non-admins
+    if (caller.role !== 'admin' && class_id) {
+      const { data: targetClass } = await supabaseAdmin
+        .from('classes')
+        .select('school_id')
+        .eq('id', class_id)
+        .single();
+
+      if (targetClass?.school_id) {
+        safeStudents = safeStudents.filter(
+          (s: any) => s.school_id && s.school_id === targetClass.school_id,
+        );
+      }
+    }
+
+    // Also enforce when school_id is explicitly passed — students must belong to that school
+    if (caller.role !== 'admin' && school_id) {
+      safeStudents = safeStudents.filter(
+        (s: any) => s.school_id && s.school_id === school_id,
+      );
+    }
+
+    const safeIds = safeStudents.map((u: any) => u.id);
     if (safeIds.length === 0) {
       return NextResponse.json({ error: 'No valid student accounts found for the given IDs' }, { status: 400 });
     }
 
-    // Optionally update school and/or class on the student profiles
-    if (school_id || section_class) {
-      const profileUpdate: Record<string, string> = {};
-      if (school_id)     profileUpdate.school_id     = school_id;
+    // Optionally update school, class, and/or section_class on the student profiles
+    if (school_id || class_id || section_class) {
+      const profileUpdate: Record<string, string | null> = {};
+      if (class_id)      profileUpdate.class_id      = class_id;
       if (section_class) profileUpdate.section_class = section_class;
+
+      if (school_id) {
+        profileUpdate.school_id = school_id;
+        // Also sync school_name so the column stays accurate after refresh
+        const { data: schoolRow } = await supabaseAdmin
+          .from('schools')
+          .select('name')
+          .eq('id', school_id)
+          .single();
+        if (schoolRow?.name) profileUpdate.school_name = schoolRow.name;
+      }
 
       const { error: profileErr } = await supabaseAdmin
         .from('portal_users')
@@ -68,28 +104,31 @@ export async function POST(request: Request) {
       }
     }
 
-    // Upsert enrollment records
-    const enrollments = safeIds.map((userId) => ({
-      user_id:    userId,
-      program_id,
-      status:     'active',
-      role:       'student',
-    }));
-
-    const { error: enrollErr } = await supabaseAdmin
+    // Check which students are already enrolled to avoid duplicates
+    const { data: alreadyEnrolled } = await supabaseAdmin
       .from('enrollments')
-      .upsert(enrollments, { onConflict: 'user_id,program_id' });
+      .select('user_id')
+      .eq('program_id', program_id)
+      .in('user_id', safeIds);
 
-    if (enrollErr) {
-      return NextResponse.json({ error: `Enrollment failed: ${enrollErr.message}` }, { status: 500 });
+    const enrolledIds = new Set((alreadyEnrolled ?? []).map((e: any) => e.user_id));
+    const toInsert = safeIds
+      .filter((uid) => !enrolledIds.has(uid))
+      .map((userId) => ({ user_id: userId, program_id, status: 'active', role: 'student' }));
+
+    if (toInsert.length > 0) {
+      const { error: enrollErr } = await supabaseAdmin.from('enrollments').insert(toInsert);
+      if (enrollErr) {
+        return NextResponse.json({ error: `Enrollment failed: ${enrollErr.message}` }, { status: 500 });
+      }
     }
 
     return NextResponse.json({
       enrolled: safeIds.length,
       skipped:  userIds.length - safeIds.length,
       program_id,
-      section_class: section_class ?? null,
-      school_id:     school_id ?? null,
+      class_id:  class_id  ?? null,
+      school_id: school_id ?? null,
     });
 
   } catch (err: any) {

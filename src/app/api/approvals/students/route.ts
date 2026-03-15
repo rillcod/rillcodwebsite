@@ -68,6 +68,25 @@ export async function POST(request: Request) {
   const password = crypto.randomBytes(8).toString('base64url').slice(0, 10);
   const normalizedEmail = loginEmail.trim().toLowerCase();
 
+  // ── Resolve school — every student must belong to one ────────────────────
+  let resolvedSchoolId: string | null = student.school_id || null;
+  let resolvedSchoolName: string | null = student.school_name || null;
+
+  if (!resolvedSchoolId) {
+    const { data: onlineSchool } = await admin
+      .from('schools')
+      .select('id, name')
+      .ilike('name', '%online%')
+      .eq('status', 'approved')
+      .limit(1)
+      .maybeSingle();
+
+    if (onlineSchool) {
+      resolvedSchoolId = onlineSchool.id;
+      resolvedSchoolName = onlineSchool.name;
+    }
+  }
+
   // ── Step 1: Check portal_users by email FIRST ────────────────────────────
   const { data: existingPortal } = await admin
     .from('portal_users')
@@ -80,8 +99,8 @@ export async function POST(request: Request) {
     const { error: updateErr } = await admin.from('portal_users').update({
       role: 'student',
       full_name: student.full_name,
-      school_name: student.school_name || null,
-      school_id: student.school_id || null,
+      school_name: resolvedSchoolName,
+      school_id: resolvedSchoolId,
       date_of_birth: student.date_of_birth || null,
       is_active: true,
       updated_at: new Date().toISOString(),
@@ -156,8 +175,8 @@ export async function POST(request: Request) {
     email: normalizedEmail,
     full_name: student.full_name,
     role: 'student',
-    school_name: student.school_name || null,
-    school_id: student.school_id || null,
+    school_name: resolvedSchoolName,
+    school_id: resolvedSchoolId,
     date_of_birth: student.date_of_birth || null,
     is_active: true,
     updated_at: new Date().toISOString(),

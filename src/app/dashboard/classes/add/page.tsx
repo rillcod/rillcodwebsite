@@ -101,33 +101,38 @@ export default function AddClassPage() {
           .eq('role', 'student')
           .neq('is_deleted', true);
 
+        // Jurisdiction rule:
+        //   Admin:   school_id match + school_name match + truly unassigned (both null)
+        //   Teacher: school_id match + school_name match ONLY — no unclaimed students
         if (profile?.role === 'admin') {
-          // Admins see all students in selected school
           if (form.school_id) {
             const sName = schools.find(s => s.id === form.school_id)?.name;
+            const unassigned = 'and(school_id.is.null,school_name.is.null)';
             if (sName) {
-              poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}"`);
+              poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}",${unassigned}`);
             } else {
-              poolQuery = poolQuery.eq('school_id', form.school_id);
+              poolQuery = poolQuery.or(`school_id.eq.${form.school_id},${unassigned}`);
             }
           }
         } else {
-          // Staff/Teachers see students in their school
+          // Teachers only see students from schools within their jurisdiction
           if (form.school_id) {
             const sName = schools.find(s => s.id === form.school_id)?.name;
             if (sName) {
               poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}"`);
             } else {
-              poolQuery = poolQuery.eq('school_id', form.school_id);
+              poolQuery = poolQuery.in('school_id', [form.school_id]);
             }
           } else if (assignedSchoolIds.length > 0) {
-            // Match any assigned school ID or matching school name
-            const names = schools.filter(s => assignedSchoolIds.includes(s.id)).map(s => `"${s.name}"`);
-            if (names.length > 0) {
-              poolQuery = poolQuery.or(`school_id.in.(${assignedSchoolIds.join(',')}),school_name.in.(${names.join(',')})`);
-            } else {
-              poolQuery = poolQuery.in('school_id', assignedSchoolIds);
-            }
+            const schoolNames = schools.filter(s => assignedSchoolIds.includes(s.id)).map(s => s.name).filter(Boolean);
+            const idPart = `school_id.in.(${assignedSchoolIds.join(',')})`;
+            const namePart = schoolNames.map(n => `school_name.eq.${n}`).join(',');
+            poolQuery = (poolQuery as any).or(namePart ? `${idPart},${namePart}` : idPart);
+          } else {
+            // Teacher with no school assignment — show nothing
+            setAvailableStudents([]);
+            setLoadingStudents(false);
+            return;
           }
         }
 
@@ -191,29 +196,38 @@ export default function AddClassPage() {
       if (form.start_date) payload.start_date = form.start_date;
       if (form.end_date) payload.end_date = form.end_date;
 
-      const db = createClient();
-      const { error: err } = await db.from('classes').insert(payload);
-      if (err) throw err;
+      const classRes = await fetch('/api/classes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const classJson = await classRes.json();
+      if (!classRes.ok) throw new Error(classJson.error || 'Failed to create class');
+      const newClass = classJson.data;
 
-      // 2. Update students' section_class and ensure they are enrolled in the program
-      if (selectedStudents.length > 0) {
-        // Update class assignment and school_id sync
-        const updatePayload: any = { section_class: form.name.trim() };
-        if (form.school_id) updatePayload.school_id = form.school_id;
+      // 2. Assign students via class_id FK and enroll in program
+      if (selectedStudents.length > 0 && newClass?.id) {
+        // Update class_id via API (bypasses RLS — teachers can't update other users)
+        const patchUpdate: Record<string, string | null> = { class_id: newClass.id };
+        if (form.school_id) patchUpdate.school_id = form.school_id;
 
-        await db.from('portal_users')
-          .update(updatePayload)
-          .in('id', selectedStudents);
+        await fetch('/api/portal-users', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: selectedStudents, update: patchUpdate }),
+        });
 
         // Ensure enrollment exists for each student in this program
-        const enrollments = selectedStudents.map(userId => ({
-          user_id: userId,
-          program_id: form.program_id,
-          status: 'active',
-          role: 'student',
-        }));
-
-        await db.from('enrollments').upsert(enrollments, { onConflict: 'user_id,program_id' });
+        await fetch('/api/students/bulk-enroll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userIds: selectedStudents,
+            program_id: form.program_id,
+            class_id: newClass.id,
+            school_id: form.school_id || undefined,
+          }),
+        });
       }
 
       router.push('/dashboard/classes');

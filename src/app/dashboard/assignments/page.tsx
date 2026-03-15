@@ -4,8 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
-import { fetchAssignments, fetchStudentAssignments } from '@/services/dashboard.service';
-import { createClient } from '@/lib/supabase/client';
+import { fetchStudentAssignments } from '@/services/dashboard.service';
 import {
   ClipboardDocumentListIcon, PlusIcon, MagnifyingGlassIcon, ClockIcon,
   CheckCircleIcon, EyeIcon, PencilIcon, TrashIcon, CalendarIcon,
@@ -65,8 +64,8 @@ export default function AssignmentsPage() {
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete assignment "${title}"? This cannot be undone.`)) return;
     setDeleting(id);
-    const { error } = await createClient().from('assignments').delete().eq('id', id);
-    if (error) { alert(error.message); }
+    const res = await fetch(`/api/assignments/${id}`, { method: 'DELETE' });
+    if (!res.ok) { const j = await res.json(); alert(j.error || 'Delete failed'); }
     else { setItems(prev => prev.filter((a: any) => a.id !== id)); }
     setDeleting(null);
   };
@@ -81,13 +80,15 @@ export default function AssignmentsPage() {
       setLoading(true);
       setError(null);
       try {
-        const data = isStaff
-          ? await fetchAssignments({
-            teacherId: role === 'teacher' ? profile?.id : undefined,
-            schoolId: role === 'school' ? profile?.school_id : undefined,
-            schoolName: role === 'school' ? profile?.school_name : undefined,
-          })
-          : await fetchStudentAssignments(profile?.id || '');
+        let data: any[];
+        if (isStaff) {
+          const res = await fetch('/api/assignments', { cache: 'no-store' });
+          if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to load'); }
+          const json = await res.json();
+          data = json.data ?? [];
+        } else {
+          data = await fetchStudentAssignments(profile?.id || '');
+        }
         if (!cancelled) setItems(data);
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load');

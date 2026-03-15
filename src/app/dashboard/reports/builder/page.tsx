@@ -251,22 +251,25 @@ function ReportBuilderInner() {
             const { data: schData } = await schoolsQuery;
             schoolsList = schData || [];
 
-            // 2. Fetch the "Pool" from portal_users
+            // 2. Fetch the "Pool" from portal_users — always scoped to assigned schools for non-admins
             let studentQuery = db.from('portal_users')
                 .select('*')
                 .neq('is_deleted', true);
 
-            // Admins see everyone; others see their assigned schools/students + restricted to 'student' role
             if (!isAdmin) {
                 studentQuery = studentQuery.eq('role', 'student');
                 if (assignedSchoolIds.length > 0) {
-                    const names = schoolsList.map(s => `"${s.name}"`);
-                    if (names.length > 0) {
-                        studentQuery = studentQuery.or(`school_id.in.(${assignedSchoolIds.join(',')}),school_name.in.(${names.join(',')})`);
-                    } else {
-                        studentQuery = studentQuery.in('school_id', assignedSchoolIds);
-                    }
+                    // Build or-filter: match by school_id (primary) OR by school_name for legacy records
+                    // NOTE: school names must NOT be quoted in PostgREST in() syntax
+                    const schoolNames = schoolsList.map(s => s.name).filter(Boolean);
+                    const idPart = `school_id.in.(${assignedSchoolIds.join(',')})`;
+                    const namePart = schoolNames.length > 0
+                        ? schoolNames.map(n => `school_name.eq.${n}`).join(',')
+                        : '';
+                    const orClause = namePart ? `${idPart},${namePart}` : idPart;
+                    studentQuery = (studentQuery as any).or(orClause);
                 } else {
+                    // No schools assigned — show nothing
                     studentQuery = studentQuery.eq('id', '00000000-0000-0000-0000-000000000000');
                 }
             }
@@ -305,11 +308,15 @@ function ReportBuilderInner() {
     const filteredStudents = students.filter(s => {
         const matchesSearch = !search || s.full_name?.toLowerCase().includes(search.toLowerCase()) || s.email?.toLowerCase().includes(search.toLowerCase());
 
-        // Filter by school name if selected in Step 1 (Admins can bypass if searching)
-        const matchesSchool = !sessionConfig.school_name || s.school_name === sessionConfig.school_name || (isAdmin && !!search);
+        // School filter: for non-admins the DB query already scopes to their schools,
+        // but if they've also picked a specific school in Step 1 narrow it further.
+        // Admins can bypass the school filter when searching.
+        const matchesSchool = isAdmin
+            ? (!sessionConfig.school_name || s.school_name === sessionConfig.school_name || !!search)
+            : (!sessionConfig.school_name || s.school_name === sessionConfig.school_name);
 
-        // Filter by class if selected in Step 1 (Admins can bypass if searching)
-        const matchesClass = !sessionConfig.section_class || (s as any).section_class === sessionConfig.section_class || (isAdmin && !!search);
+        // Filter by class if selected in Step 1
+        const matchesClass = !sessionConfig.section_class || (s as any).section_class === sessionConfig.section_class;
 
         return matchesSearch && matchesSchool && matchesClass;
     });
@@ -407,8 +414,8 @@ function ReportBuilderInner() {
             const sessionIds = sessions?.map(x => x.id) || [];
 
             const [attRes, subRes, allAssignments] = await Promise.all([
-                sessionIds.length > 0 ? db.from('attendance').select('id').eq('student_id', s.id).in('session_id', sessionIds).eq('status', 'present') : { data: [] },
-                db.from('assignment_submissions').select('id').eq('student_id', s.id).eq('status', 'graded'),
+                sessionIds.length > 0 ? db.from('attendance').select('id').eq('user_id', s.id).in('session_id', sessionIds).eq('status', 'present') : { data: [] },
+                db.from('assignment_submissions').select('id').eq('portal_user_id', s.id).eq('status', 'graded'),
                 db.from('assignments').select('id').eq('course_id', sessionConfig.course_id).eq('is_active', true)
             ]);
 
@@ -479,7 +486,7 @@ function ReportBuilderInner() {
 
                 const [attRes, subRes, allAsgn, cbtRes] = await Promise.all([
                     sessionIds.length > 0 ? db.from('attendance').select('id').eq('user_id', s.id).in('session_id', sessionIds).eq('status', 'present') : { data: [] },
-                    db.from('assignment_submissions').select('grade').eq('user_id', s.id).eq('status', 'graded'),
+                    db.from('assignment_submissions').select('grade').eq('portal_user_id', s.id).eq('status', 'graded'),
                     db.from('assignments').select('id').eq('course_id', sessionConfig.course_id).eq('is_active', true),
                     programId ? db.from('cbt_sessions').select('score').eq('user_id', s.id).eq('exam_id', programId).order('score', { ascending: false }).limit(1) : { data: [] }
                 ]);
@@ -526,10 +533,14 @@ function ReportBuilderInner() {
                     updated_at: new Date().toISOString(),
                 };
 
-                if (existing) {
-                    await db.from('student_progress_reports').update(payload).eq('id', existing.id);
-                } else {
-                    await db.from('student_progress_reports').insert(payload);
+                const bulkRes = await fetch('/api/progress-reports', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...payload, existing_id: existing?.id ?? null }),
+                });
+                if (!bulkRes.ok) {
+                    const j = await bulkRes.json();
+                    throw new Error(j.error || 'Failed to save report');
                 }
             }
             setSuccess(`Successfully generated ${filteredStudents.length} report drafts!`);
@@ -549,10 +560,8 @@ function ReportBuilderInner() {
         setError(''); setSuccess('');
 
         try {
-            const db = createClient();
-            const payload: Database['public']['Tables']['student_progress_reports']['Insert'] = {
+            const payload = {
                 student_id: selectedStudent.id,
-                teacher_id: profile!.id,
                 school_id: sessionConfig.school_id || (selectedStudent as any).school_id || profile?.school_id || null,
                 course_id: sessionConfig.course_id || null,
                 student_name: form.student_name,
@@ -585,7 +594,6 @@ function ReportBuilderInner() {
                 proficiency_level: form.proficiency_level as 'beginner' | 'intermediate' | 'advanced',
                 is_published: publish ? true : form.is_published,
                 photo_url: form.photo_url || null,
-                updated_at: new Date().toISOString(),
                 // Payment / school section fields
                 school_section: sessionConfig.school_section || null,
                 fee_label: sessionConfig.fee_label || null,
@@ -599,13 +607,15 @@ function ReportBuilderInner() {
                 },
             };
 
-            if (existingReport) {
-                const { error: updErr } = await db.from('student_progress_reports').update(payload).eq('id', existingReport.id);
-                if (updErr) throw updErr;
-            } else {
-                const { data: created, error: insErr } = await db.from('student_progress_reports').insert(payload).select('id').single();
-                if (insErr) throw insErr;
-                setExistingReport({ ...payload, id: created.id } as StudentReport);
+            const res = await fetch('/api/progress-reports', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...payload, existing_id: existingReport?.id ?? null }),
+            });
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.error || 'Failed to save');
+            if (!existingReport) {
+                setExistingReport({ ...payload, id: j.data.id } as unknown as StudentReport);
             }
 
             setSuccess(publish ? 'Report published — visible to student!' : 'Draft saved!');
@@ -1646,14 +1656,12 @@ function ReportBuilderInner() {
                                 <button onClick={async () => {
                                     setSaving(true);
                                     try {
-                                        const db = createClient();
-                                        const { error: setErr } = await db.from('report_settings').upsert({
-                                            ...branding,
-                                            teacher_id: profile?.id,
-                                            school_id: profile?.school_id || null,
-                                            updated_at: new Date().toISOString(),
-                                        }, { onConflict: 'teacher_id' });
-                                        if (setErr) throw setErr;
+                                        const res = await fetch('/api/report-settings', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify(branding),
+                                        });
+                                        if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save'); }
                                         setSuccess('Branding settings saved!');
                                         setShowSettings(false);
                                     } catch (err: any) {

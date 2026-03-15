@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
-import { fetchSubmissionsForGrading, fetchStudentGrades, gradeSubmission, updateSubmission, deleteSubmission } from '@/services/dashboard.service';
+import { fetchSubmissionsForGrading, fetchStudentGrades } from '@/services/dashboard.service';
 import {
     ClipboardDocumentCheckIcon, CheckCircleIcon, ClockIcon, ChartBarIcon,
     ExclamationTriangleIcon, MagnifyingGlassIcon, PencilSquareIcon,
@@ -111,16 +111,21 @@ function GradeModal({ sub, onClose, onSaved }: {
         if (grade !== '' && (isNaN(g) || g < 0 || g > max)) { setErr(`Enter a score between 0 and ${max}`); return; }
         setSaving(true); setErr('');
         try {
-            const payload: any = { 
-                grade: grade === '' ? null : g, 
-                feedback, 
+            const payload: any = {
+                grade: grade === '' ? null : g,
+                feedback,
                 status,
                 submission_text: subText || null,
-                graded_by: profile?.id
             };
             if (status === 'graded') payload.graded_at = new Date().toISOString();
-            
-            await updateSubmission(sub.id, payload);
+
+            const res = await fetch(`/api/submissions/${sub.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error ?? 'Failed to save grade');
             onSaved();
             onClose();
         } catch (e: any) {
@@ -134,7 +139,9 @@ function GradeModal({ sub, onClose, onSaved }: {
         if (!window.confirm('Are you sure you want to delete this submission? The student will need to submit again.')) return;
         setDeleting(true); setErr('');
         try {
-            await deleteSubmission(sub.id);
+            const res = await fetch(`/api/submissions/${sub.id}`, { method: 'DELETE' });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error ?? 'Failed to delete submission');
             onSaved();
             onClose();
         } catch (e: any) {

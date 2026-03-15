@@ -102,27 +102,31 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: Add
         setLoading(true);
         setError('');
         try {
-            const client = createClient();
             if (initialData) {
-                const { error: updateError } = await client
-                    .from('students')
-                    .update({ ...form, name: form.full_name })
-                    .eq('id', initialData.id);
-                if (updateError) throw updateError;
+                const res = await fetch(`/api/students/${initialData.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...form, name: form.full_name }),
+                });
+                const json = await res.json();
+                if (!res.ok) throw new Error(json.error || 'Failed to update student');
             } else {
                 const schoolId = profile?.role === 'school'
                     ? profile.school_id
                     : schools.find(s => s.name === form.school_name)?.id;
-                const { error: insertError } = await client
-                    .from('students')
-                    .insert([{
+                const res = await fetch('/api/students', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
                         ...form,
                         name: form.full_name,
                         status: 'pending',
                         school_id: schoolId || null,
-                        created_by: profile?.id
-                    }]);
-                if (insertError) throw insertError;
+                        created_by: profile?.id,
+                    }),
+                });
+                const json = await res.json();
+                if (!res.ok) throw new Error(json.error || 'Failed to add student');
             }
             setForm(DEFAULT_FORM);
             onSuccess();

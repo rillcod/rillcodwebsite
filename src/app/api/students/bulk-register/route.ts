@@ -60,6 +60,13 @@ export async function POST(request: Request) {
       resolvedSchoolName = (body.school_name as string | undefined) ?? caller.school_name ?? null;
     }
 
+    if (!resolvedSchoolId) {
+      return NextResponse.json(
+        { error: 'A school must be selected before registering students. Create or select a school first.' },
+        { status: 400 },
+      );
+    }
+
     const programId: string | null = (body.program_id as string | undefined) ?? null;
 
     const results: Array<{
@@ -173,9 +180,17 @@ export async function POST(request: Request) {
           role:       'student',
         }));
 
-        await supabaseAdmin
+        // Insert only those not already enrolled
+        const { data: alreadyEnrolled } = await supabaseAdmin
           .from('enrollments')
-          .upsert(enrollments, { onConflict: 'user_id,program_id' });
+          .select('user_id')
+          .eq('program_id', programId)
+          .in('user_id', successIds);
+        const enrolledSet = new Set((alreadyEnrolled ?? []).map((e: any) => e.user_id));
+        const toInsert = enrollments.filter((e) => !enrolledSet.has(e.user_id));
+        if (toInsert.length > 0) {
+          await supabaseAdmin.from('enrollments').insert(toInsert);
+        }
       }
     }
 

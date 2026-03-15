@@ -187,6 +187,7 @@ export default function BulkRegisterPage() {
   const [preview,     setPreview]     = useState<GeneratedStudent[]>([]);
   const [registering, setRegistering] = useState(false);
   const [results,     setResults]     = useState<RegisterResult[] | null>(null);
+  const [registerProgress, setRegisterProgress] = useState<{ done: number; total: number; current: string } | null>(null);
   const [step,        setStep]        = useState<'input' | 'preview' | 'done'>('input');
 
   // ── Batch Settings ───────────────────────────────────────────────────────
@@ -238,6 +239,39 @@ export default function BulkRegisterPage() {
           .eq('status', 'approved')
           .order('name');
         setSchools(data ?? []);
+      } else if (profile?.role === 'teacher') {
+        // Teacher: load only their allocated schools
+        const schoolMap = new Map<string, string>(); // id → name
+
+        // 1. Primary school from teacher's own profile
+        if (profile.school_id) {
+          const { data: primarySchool } = await supabase
+            .from('schools')
+            .select('id, name')
+            .eq('id', profile.school_id)
+            .single();
+          if (primarySchool?.id) schoolMap.set(primarySchool.id, primarySchool.name);
+        }
+
+        // 2. Additional schools from teacher_schools junction table
+        const { data: ts } = await supabase
+          .from('teacher_schools')
+          .select('school_id, schools(id, name)')
+          .eq('teacher_id', profile.id);
+        (ts ?? []).forEach((r: any) => {
+          if (r.schools?.id) schoolMap.set(r.schools.id, r.schools.name);
+        });
+
+        const sorted = [...schoolMap.entries()]
+          .map(([id, name]) => ({ id, name }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setSchools(sorted);
+
+        // Auto-select if teacher only has one school
+        if (sorted.length === 1 && !selectedSchoolId) {
+          setSelectedSchoolId(sorted[0].id);
+          setSelectedSchoolName(sorted[0].name);
+        }
       }
 
       // Load programmes
@@ -248,7 +282,7 @@ export default function BulkRegisterPage() {
       setProgrammes(progs ?? []);
     }
 
-    loadData();
+    loadData().catch(console.error);
   }, [profile?.id, profile?.role, canAccess]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Detect duplicate emails in the current preview ───────────────────────
@@ -321,24 +355,32 @@ export default function BulkRegisterPage() {
     const valid = preview.filter((s) => s.full_name.trim() && s.email.trim());
     if (!valid.length) return;
     setRegistering(true);
+    setRegisterProgress({ done: 0, total: valid.length, current: valid[0]?.full_name ?? '' });
     try {
-      const body: Record<string, any> = { students: valid };
-      if (selectedSchoolId)  { body.school_id = selectedSchoolId; body.school_name = selectedSchoolName; }
-      if (selectedProgramId) { body.program_id = selectedProgramId; }
-
-      const res = await fetch('/api/students/bulk-register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Registration failed');
-      setResults(data.results);
+      const BATCH = 10;
+      const allResults: RegisterResult[] = [];
+      for (let i = 0; i < valid.length; i += BATCH) {
+        const batch = valid.slice(i, i + BATCH);
+        setRegisterProgress({ done: i, total: valid.length, current: batch[0]?.full_name ?? '' });
+        const body: Record<string, any> = { students: batch };
+        if (selectedSchoolId)  { body.school_id = selectedSchoolId; body.school_name = selectedSchoolName; }
+        if (selectedProgramId) { body.program_id = selectedProgramId; }
+        const res = await fetch('/api/students/bulk-register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Registration failed');
+        allResults.push(...(data.results ?? []));
+      }
+      setResults(allResults);
       setStep('done');
     } catch (err: any) {
       alert(err.message);
     } finally {
       setRegistering(false);
+      setRegisterProgress(null);
     }
   };
 
@@ -449,14 +491,15 @@ export default function BulkRegisterPage() {
               {settingsOpen && (
                 <div className="px-4 sm:px-6 pb-6 pt-3 border-t border-white/10 space-y-5">
 
-                  {/* Row 1: School (admin only) + Programme */}
-                  <div className={`grid gap-5 ${isAdmin ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+                  {/* Row 1: School + Programme */}
+                  <div className={`grid gap-5 ${schools.length > 0 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
 
-                    {/* School — admin only */}
-                    {isAdmin && (
+                    {/* School — admin (all schools) or teacher (their allocated schools) */}
+                    {schools.length > 0 && (
                       <div>
                         <label className="block text-white/50 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
                           <BuildingOffice2Icon className="w-3.5 h-3.5" /> School
+                          {!isAdmin && <span className="text-violet-400/60 normal-case font-normal text-[10px] ml-1">(your allocated schools)</span>}
                         </label>
                         <select
                           value={selectedSchoolId}
@@ -473,7 +516,7 @@ export default function BulkRegisterPage() {
                           ))}
                         </select>
                         <p className="text-white/25 text-[11px] mt-1.5">
-                          {selectedSchoolId ? 'Students will be assigned to this school.' : 'Leave blank to use your own school.'}
+                          {selectedSchoolId ? `Students will be assigned to ${selectedSchoolName}.` : 'Select the school to register students into.'}
                         </p>
                       </div>
                     )}
@@ -851,17 +894,32 @@ Yusuf Ibrahim SS1A`}
               >
                 ← Edit Names
               </button>
-              <button
-                onClick={handleRegister}
-                disabled={registering || dups.size > 0 || validCount === 0}
-                className="flex-1 py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors text-sm"
-              >
-                {registering
-                  ? 'Registering...'
-                  : dups.size > 0
-                  ? 'Fix duplicate emails first'
-                  : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
-              </button>
+              <div className="flex-1 flex flex-col gap-2">
+                <button
+                  onClick={handleRegister}
+                  disabled={registering || dups.size > 0 || validCount === 0}
+                  className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors text-sm"
+                >
+                  {registering
+                    ? `Registering ${registerProgress?.done ?? 0} / ${registerProgress?.total ?? validCount}...`
+                    : dups.size > 0
+                    ? 'Fix duplicate emails first'
+                    : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
+                </button>
+                {registering && registerProgress && (
+                  <div className="space-y-1">
+                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#7a0606] rounded-full transition-all duration-300"
+                        style={{ width: `${(registerProgress.done / registerProgress.total) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-white/30 truncate">
+                      Processing: {registerProgress.current}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -91,7 +91,7 @@ export default function CourseDetailPage() {
           let enrollRes;
           if (isStaff) {
             let q = supabase.from('enrollments')
-              .select('id, status, enrollment_date, portal_users!inner(full_name, email, school_id)')
+              .select('id, status, enrollment_date, portal_users!enrollments_user_id_fkey(full_name, email, school_id)')
               .eq('program_id', programId)
               .order('enrollment_date', { ascending: false });
 

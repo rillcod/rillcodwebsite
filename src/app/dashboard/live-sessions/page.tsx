@@ -755,7 +755,6 @@ export default function LiveSessionsPage() {
     setSaving(true);
     setModalError(null);
     try {
-      const supabase = createClient();
       const scheduled_at = new Date(`${form.scheduled_date}T${form.scheduled_time}`).toISOString();
 
       const payload = {
@@ -773,16 +772,19 @@ export default function LiveSessionsPage() {
       };
 
       if (editingSession) {
-        const { error: upErr } = await supabase
-          .from('live_sessions')
-          .update(payload)
-          .eq('id', editingSession.id);
-        if (upErr) throw upErr;
+        const res = await fetch(`/api/live-sessions/${editingSession.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save'); }
       } else {
-        const { error: insErr } = await supabase
-          .from('live_sessions')
-          .insert({ ...payload, host_id: profile.id });
-        if (insErr) throw insErr;
+        const res = await fetch('/api/live-sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save'); }
       }
 
       setShowModal(false);
@@ -797,9 +799,8 @@ export default function LiveSessionsPage() {
   async function handleDelete(id: string) {
     if (!confirm('Delete this live session? This action cannot be undone.')) return;
     try {
-      const supabase = createClient();
-      const { error: delErr } = await supabase.from('live_sessions').delete().eq('id', id);
-      if (delErr) throw delErr;
+      const res = await fetch(`/api/live-sessions/${id}`, { method: 'DELETE' });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to delete'); }
       setSessions(prev => prev.filter(s => s.id !== id));
     } catch (err: any) {
       alert(err?.message ?? 'Failed to delete session');

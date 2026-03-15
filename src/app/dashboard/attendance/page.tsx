@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -20,7 +20,19 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 };
 
 export default function AttendancePage() {
-  const { profile, loading: authLoading } = useAuth();
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <AttendanceContent />
+    </Suspense>
+  );
+}
+
+function AttendanceContent() {
+  const { profile, loading: authLoading, profileLoading } = useAuth();
   const searchParams = useSearchParams();
   const isMinimal = searchParams.get('minimal') === 'true';
   const router = useRouter();
@@ -52,7 +64,7 @@ export default function AttendancePage() {
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
   useEffect(() => {
-    if (authLoading || !profile) return;
+    if (authLoading || profileLoading || !profile) return;
     const db = createClient();
     if (isStaff) {
       const q = profile.role === 'teacher'
@@ -110,26 +122,14 @@ export default function AttendancePage() {
       setLoading(true);
       const db = createClient();
       try {
-        const { data: cls } = await db.from('classes').select('name, program_id, school_id').eq('id', selectedClass).single();
-        if (!cls || !cls.program_id) {
-           setLoading(false);
-           return;
-        }
-
-        let enrQuery = db.from('enrollments')
-          .select('id, status, portal_users!inner(id, full_name, email, school_id, section_class, is_deleted)')
-          .eq('program_id', cls.program_id)
-          .neq('portal_users.is_deleted', true);
-        
-        if (cls.school_id) enrQuery = enrQuery.eq('portal_users.school_id', cls.school_id);
-        if (cls.name) enrQuery = enrQuery.eq('portal_users.section_class', cls.name);
-
-        const [enrRes, attRes] = await Promise.all([
-          enrQuery,
+        // Use the admin-client API route to reliably get enrolled students (bypasses RLS)
+        const [studsHttpRes, attRes] = await Promise.all([
+          fetch(`/api/classes/${selectedClass}/students`, { cache: 'no-store' }),
           db.from('attendance').select('*').eq('session_id', selectedSession),
         ]);
 
-        const studs = (enrRes.data ?? []).map((e: any) => e.portal_users).filter(Boolean);
+        const studsJson = await studsHttpRes.json();
+        const studs: any[] = studsJson.students ?? [];
         setStudents(studs);
         
         const attMap: Record<string, { status: string; notes: string }> = {};
@@ -300,15 +300,18 @@ export default function AttendancePage() {
   const handleSave = async () => {
     if (!selectedSession) return;
     setSaving(true);
-    const db = createClient();
     const records = Object.entries(attendance).map(([user_id, val]) => ({
       session_id: selectedSession,
       user_id,
       status: val.status,
       notes: val.notes || null,
     }));
-    const { error } = await db.from('attendance').upsert(records, { onConflict: 'session_id,user_id' });
-    if (error) { alert(error.message); }
+    const res = await fetch('/api/attendance/upsert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records }),
+    });
+    if (!res.ok) { const j = await res.json(); alert(j.error || 'Save failed'); }
     else { setSaved(true); }
     setSaving(false);
   };
@@ -319,7 +322,7 @@ export default function AttendancePage() {
     const db = createClient();
     const today = new Date().toISOString().split('T')[0];
 
-    // Check if today's session already exists
+    // Check if today's session already exists (read-only — OK for teachers)
     const { data: existing } = await db.from('class_sessions')
       .select('*')
       .eq('class_id', selectedClass)
@@ -329,25 +332,26 @@ export default function AttendancePage() {
     if (existing) {
       setSelectedSession(existing.id);
     } else {
-      // Create new session for today
-      const { data: created, error } = await db.from('class_sessions').insert({
-        class_id: selectedClass,
-        session_date: today,
-        topic: `Session on ${new Date().toLocaleDateString()}`
-      }).select().single();
-
-      if (error) {
-        alert(error.message);
+      // Create via API (bypasses RLS)
+      const res = await fetch('/api/class-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ class_id: selectedClass, session_date: today, topic: `Session on ${new Date().toLocaleDateString()}` }),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        alert(j.error || 'Failed to create session');
         setLoading(false);
         return;
       }
+      const { data: created } = await res.json();
       setSessions(prev => [created, ...prev]);
       setSelectedSession(created.id);
     }
     setLoading(false);
   };
 
-  if (authLoading) return (
+  if (authLoading || profileLoading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
     </div>
@@ -515,15 +519,20 @@ export default function AttendancePage() {
                         <button onClick={async () => {
                           if (!newSession.session_date) return;
                           setLoading(true);
-                          const { data, error } = await createClient().from('class_sessions').insert({
-                            class_id: selectedClass,
-                            session_date: newSession.session_date,
-                            topic: newSession.topic || `Session on ${newSession.session_date}`,
-                            start_time: newSession.start_time || null,
-                            end_time: newSession.end_time || null,
-                          }).select().single();
-                          if (error) alert(error.message);
+                          const res = await fetch('/api/class-sessions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              class_id: selectedClass,
+                              session_date: newSession.session_date,
+                              topic: newSession.topic || `Session on ${newSession.session_date}`,
+                              start_time: newSession.start_time || null,
+                              end_time: newSession.end_time || null,
+                            }),
+                          });
+                          if (!res.ok) { const j = await res.json(); alert(j.error || 'Failed'); }
                           else {
+                            const { data } = await res.json();
                             setSessions(prev => [data, ...prev]);
                             setSelectedSession(data.id);
                             setShowNewSession(false);
@@ -552,7 +561,16 @@ export default function AttendancePage() {
             {!loading && selectedSession && students.length === 0 && (
               <div className="text-center py-16 bg-white/5 border border-white/10 rounded-2xl">
                 <UserGroupIcon className="w-12 h-12 mx-auto text-white/10 mb-3" />
-                <p className="text-white/30">No enrolled students found for this class.</p>
+                <p className="text-white/30 font-semibold">No enrolled students found for this class.</p>
+                <p className="text-white/20 text-sm mt-1">Enroll students first from the class detail page.</p>
+                {selectedClass && (
+                  <a
+                    href={`/dashboard/classes/${selectedClass}`}
+                    className="inline-block mt-4 px-4 py-2 bg-teal-600/20 text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all"
+                  >
+                    Go to Class → Enroll Students
+                  </a>
+                )}
               </div>
             )}
 

@@ -60,6 +60,15 @@ export default function StudentsPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<any | null>(null);
 
+  // Enrolled portal students (portal_users role=student) — same source as class counts
+  const [activeTab, setActiveTab] = useState<'applications' | 'enrolled'>('applications');
+  const [portalStudents, setPortalStudents] = useState<any[]>([]);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [classMap, setClassMap] = useState<Record<string, string>>({}); // class_id → name
+  const [enrolledSearch, setEnrolledSearch] = useState('');
+  const [schoolList, setSchoolList] = useState<{ id: string; name: string }[]>([]);
+  const [assigningSchool, setAssigningSchool] = useState<string | null>(null); // portal student id being assigned
+
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
   // ── Fetch ──────────────────────────────────────────────────
@@ -67,42 +76,14 @@ export default function StudentsPage() {
     if (!profile || !isStaff) return;
     setLoading(true); setError(null);
     try {
-      let query = createClient()
-        .from('students')
-        .select(`
-          id, full_name, school_name, school_id, user_id,
-          student_email, enrollment_type,
-          parent_name, parent_email, parent_phone, parent_relationship,
-          grade_level, gender, date_of_birth, city, state,
-          interests, goals, heard_about_us,
-          course_interest, preferred_schedule,
-          status, created_at, approved_at, approved_by
-        `);
-
-      if (profile?.role === 'school') {
-        const filters = [];
-        if (profile.id) filters.push(`school_id.eq.${profile.id}`);
-        if (profile.school_id) filters.push(`school_id.eq.${profile.school_id}`);
-        if (profile.school_name) filters.push(`school_name.eq."${profile.school_name}"`);
-        
-        if (filters.length > 0) {
-          query = query.or(filters.join(','));
-        }
-      } else if (profile?.role === 'teacher') {
-        const filters: string[] = [];
-        if (profile.school_id) filters.push(`school_id.eq.${profile.school_id}`);
-        if (profile.school_name) filters.push(`school_name.eq."${profile.school_name}"`);
-        if (filters.length > 0) {
-          query = query.or(filters.join(','));
-        } else {
-          // No school affiliation — return nothing
-          query = query.eq('id', '00000000-0000-0000-0000-000000000000');
-        }
+      // Use API route — bypasses RLS, includes teacher_schools for multi-school access
+      const res = await fetch('/api/students', { cache: 'no-store' });
+      if (!res.ok) {
+        const j = await res.json();
+        throw new Error(j.error ?? 'Failed to load students');
       }
-
-      const { data, error: err } = await query.order('created_at', { ascending: false });
-      if (err) throw err;
-      setStudents(data ?? []);
+      const json = await res.json();
+      setStudents(json.data ?? []);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load students');
     } finally {
@@ -110,9 +91,56 @@ export default function StudentsPage() {
     }
   }, [profile, isStaff]);
 
+  const loadPortalStudents = useCallback(async () => {
+    if (!profile || !isStaff) return;
+    setPortalLoading(true);
+    try {
+      const db = createClient();
+      const [stuRes, clsRes, schRes] = await Promise.all([
+        fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }),
+        db.from('classes').select('id, name').order('name'),
+        db.from('schools').select('id, name').eq('status', 'approved').order('name'),
+      ]);
+      const stuJson = await stuRes.json();
+      setPortalStudents(stuJson.data ?? []);
+      const map: Record<string, string> = {};
+      (clsRes.data ?? []).forEach((c: any) => { map[c.id] = c.name; });
+      setClassMap(map);
+      setSchoolList(schRes.data ?? []);
+    } catch { /* ignore */ } finally {
+      setPortalLoading(false);
+    }
+  }, [profile, isStaff]);
+
+  // ── Assign portal student to a school ──────────────────────
+  const assignStudentSchool = async (studentId: string, schoolId: string) => {
+    setAssigningSchool(studentId);
+    try {
+      const res = await fetch('/api/portal-users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [studentId], update: { school_id: schoolId || null } }),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        alert(j.error || 'Failed to assign school');
+        return;
+      }
+      const school = schoolList.find(s => s.id === schoolId);
+      setPortalStudents(prev => prev.map(s =>
+        s.id === studentId ? { ...s, school_id: schoolId || null, school_name: school?.name ?? s.school_name } : s
+      ));
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to assign school');
+    } finally {
+      setAssigningSchool(null);
+    }
+  };
+
   useEffect(() => {
     if (authLoading || !profile) return;
     load();
+    loadPortalStudents();
     if (profile?.role === 'admin') checkGaps();
   }, [profile?.id, isStaff, authLoading, load]); // eslint-disable-line
 
@@ -436,7 +464,7 @@ export default function StudentsPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <button onClick={load} title="Refresh"
+                <button onClick={() => { load(); loadPortalStudents(); }} title="Refresh"
                   className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/40 hover:text-white transition-all">
                   <ArrowPathIcon className="w-4 h-4" />
                 </button>
@@ -485,12 +513,17 @@ export default function StudentsPage() {
 
           {/* ── Stats ──────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden px-1 sm:px-0">
-            {[
+            {(activeTab === 'enrolled' ? [
+              { label: 'Enrolled', value: portalStudents.length, icon: AcademicCapIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', active: false, onClick: () => {} },
+              { label: 'Active', value: portalStudents.filter(s => s.is_active).length, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', active: false, onClick: () => {} },
+              { label: 'In a Class', value: portalStudents.filter(s => s.class_id).length, icon: BookOpenIcon, color: 'text-violet-400', bg: 'bg-violet-500/10', active: false, onClick: () => {} },
+              { label: 'Unassigned', value: portalStudents.filter(s => !s.class_id).length, icon: UserIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', active: false, onClick: () => {} },
+            ] : [
               { label: 'Total', value: students.length, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', active: filter === 'all', onClick: () => setFilter('all') },
               { label: 'Approved', value: approved, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', active: filter === 'approved', onClick: () => setFilter(filter === 'approved' ? 'all' : 'approved') },
               { label: 'Pending', value: pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', active: filter === 'pending', onClick: () => setFilter(filter === 'pending' ? 'all' : 'pending') },
               { label: 'Rejected', value: rejected, icon: XCircleIcon, color: 'text-rose-400', bg: 'bg-rose-500/10', active: filter === 'rejected', onClick: () => setFilter(filter === 'rejected' ? 'all' : 'rejected') },
-            ].map(s => (
+            ]).map(s => (
               <button key={s.label} onClick={s.onClick}
                 className={`group relative text-left bg-white/5 border rounded-2xl sm:rounded-3xl p-5 sm:p-6 transition-all hover:bg-white/8 overflow-hidden ${s.active ? 'border-white/30 ring-1 ring-white/10' : 'border-white/10'}`}>
                 <div className={`absolute top-0 right-0 w-24 h-24 ${s.bg} rounded-full blur-3xl opacity-20 -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
@@ -504,7 +537,7 @@ export default function StudentsPage() {
           </div>
 
           {/* ── Pending alert ───────────────────────────────── */}
-          {pending > 0 && (
+          {activeTab === 'applications' && pending > 0 && (
             <div className="flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
               <ClockIcon className="w-6 h-6 text-amber-400 flex-shrink-0" />
               <div className="flex-1">
@@ -526,6 +559,130 @@ export default function StudentsPage() {
             </p>
           </div>
 
+          {/* ── Tab Toggle ─────────────────────────────────── */}
+          <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl w-fit print:hidden">
+            {([
+              { key: 'enrolled', label: `Enrolled Students (${portalStudents.length})`, icon: AcademicCapIcon },
+              { key: 'applications', label: `Applications (${students.length})`, icon: ClipboardDocumentListIcon },
+            ] as const).map(t => (
+              <button key={t.key} onClick={() => setActiveTab(t.key)}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${activeTab === t.key ? 'bg-blue-600 text-white shadow-lg' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
+                <t.icon className="w-4 h-4" /> {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── ENROLLED STUDENTS TAB ─────────────────────────── */}
+          {activeTab === 'enrolled' && (
+            <>
+              <div className="flex flex-col sm:flex-row gap-3 print:hidden">
+                <div className="relative flex-1">
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                  <input type="text" placeholder="Search name, email, school, class…"
+                    value={enrolledSearch} onChange={e => setEnrolledSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500 transition-colors" />
+                </div>
+                <button onClick={loadPortalStudents}
+                  className="px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/40 hover:text-white transition-all">
+                  <ArrowPathIcon className="w-4 h-4" />
+                </button>
+              </div>
+
+              {portalLoading ? (
+                <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
+              ) : (() => {
+                const q = enrolledSearch.toLowerCase();
+                const filtered2 = portalStudents.filter(s =>
+                  (s.full_name ?? '').toLowerCase().includes(q) ||
+                  (s.email ?? '').toLowerCase().includes(q) ||
+                  (s.school_name ?? '').toLowerCase().includes(q) ||
+                  (classMap[s.class_id] ?? '').toLowerCase().includes(q) ||
+                  (s.section_class ?? '').toLowerCase().includes(q)
+                );
+                if (filtered2.length === 0) return (
+                  <div className="text-center py-20 bg-white/5 border border-white/10 rounded-2xl">
+                    <AcademicCapIcon className="w-14 h-14 mx-auto text-white/10 mb-4" />
+                    <p className="text-lg font-semibold text-white/30">No enrolled students found</p>
+                    <p className="text-sm text-white/20 mt-1">Enroll students via Classes → Edit Class, or use Bulk Register</p>
+                  </div>
+                );
+                return (
+                  <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                    <div className="p-5 border-b border-white/10 flex items-center justify-between">
+                      <h3 className="font-bold text-white flex items-center gap-2">
+                        <AcademicCapIcon className="w-5 h-5 text-blue-400" /> Portal Students
+                      </h3>
+                      <span className="text-xs text-white/30">{filtered2.length} of {portalStudents.length} shown</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-white/10 bg-white/[0.02]">
+                            {['Student', 'Email', 'School', 'Class', 'Grade', 'Status',
+                              ...(profile?.role !== 'school' ? ['Assign School'] : [])
+                            ].map(h => (
+                              <th key={h} className="px-5 py-3 text-left text-[10px] font-black text-white/30 uppercase tracking-widest">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {filtered2.map((s: any) => (
+                            <tr key={s.id} className="hover:bg-white/[0.03] transition-colors">
+                              <td className="px-5 py-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
+                                    {(s.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                  </div>
+                                  <span className="font-semibold text-white text-sm">{s.full_name}</span>
+                                </div>
+                              </td>
+                              <td className="px-5 py-3 text-sm text-white/50">{s.email}</td>
+                              <td className="px-5 py-3 text-sm text-white/50">{s.school_name || '—'}</td>
+                              <td className="px-5 py-3">
+                                {s.class_id && classMap[s.class_id] ? (
+                                  <span className="px-2 py-0.5 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-lg text-xs font-bold">{classMap[s.class_id]}</span>
+                                ) : (
+                                  <span className="text-white/20 text-xs">Unassigned</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-3 text-sm text-white/50">{s.section_class || '—'}</td>
+                              <td className="px-5 py-3">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${s.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
+                                  {s.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                              </td>
+                              {profile?.role !== 'school' && (
+                                <td className="px-5 py-3">
+                                  <select
+                                    value={s.school_id ?? ''}
+                                    disabled={assigningSchool === s.id}
+                                    onChange={e => assignStudentSchool(s.id, e.target.value)}
+                                    className="px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-blue-500 cursor-pointer disabled:opacity-40 min-w-[130px]"
+                                  >
+                                    <option value="">— No School —</option>
+                                    {schoolList.map(sc => (
+                                      <option key={sc.id} value={sc.id}>{sc.name}</option>
+                                    ))}
+                                  </select>
+                                  {assigningSchool === s.id && (
+                                    <span className="ml-2 text-[10px] text-white/30">saving…</span>
+                                  )}
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+
+          {/* ── APPLICATIONS TAB ─────────────────────────────── */}
+          {activeTab === 'applications' && (
+            <>
           {/* ── Search + Filter ─────────────────────────────── */}
           <div className="flex flex-col sm:flex-row gap-3 print:hidden">
             <div className="relative flex-1">
@@ -772,6 +929,8 @@ export default function StudentsPage() {
               </div>
             </div>
           )}
+            </>
+          )}
 
         </div>
       </div>
@@ -779,7 +938,7 @@ export default function StudentsPage() {
       <AddStudentModal
         isOpen={showAdd}
         onClose={() => { setShowAdd(false); setEditingStudent(null); }}
-        onSuccess={() => { setShowAdd(false); setEditingStudent(null); load(); }}
+        onSuccess={() => { setShowAdd(false); setEditingStudent(null); load(); loadPortalStudents(); }}
         initialData={editingStudent}
       />
 

@@ -38,24 +38,25 @@ export default function DashboardNavigation() {
     setMobileOpen(false);
   }, [pathname]);
 
-  if (isMinimal) return null;
-
   useEffect(() => {
+    if (isMinimal) return;
     if (mobileOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
-  }, [mobileOpen]);
+  }, [mobileOpen, isMinimal]);
 
   useEffect(() => {
-    if (!profile) return;
+    if (isMinimal || !profile) return;
     createClient()
       .from('messages').select('id', { count: 'exact', head: true })
       .eq('recipient_id', profile.id).eq('is_read', false)
       .then(({ count }) => setUnreadCount(count ?? 0));
-  }, [profile?.id]); // eslint-disable-line
+  }, [profile?.id, isMinimal]); // eslint-disable-line
+
+  if (isMinimal) return null;
 
   if (!profile) return (
     <div className="fixed top-0 left-0 right-0 z-50 bg-[#0b0b18] border-b border-white/10 h-14 flex items-center justify-between px-4 sm:px-6">

@@ -57,11 +57,11 @@ export default function EditAssignmentPage() {
         if (authLoading || !profile || !id) return;
         const db = createClient();
         Promise.all([
-            db.from('assignments').select('*').eq('id', id).single(),
+            fetch(`/api/assignments/${id}`, { cache: 'no-store' }).then(r => r.json()),
             db.from('courses').select('id, title, programs(name)').eq('is_active', true).order('title'),
-        ]).then(([aRes, cRes]) => {
-            if (aRes.data) {
-                const a = aRes.data;
+        ]).then(([aJson, cRes]) => {
+            const a = aJson.data;
+            if (a) {
                 setForm({
                     title: a.title ?? '',
                     description: a.description ?? '',
@@ -74,7 +74,7 @@ export default function EditAssignmentPage() {
                 });
                 setQuestions(Array.isArray(a.questions) ? a.questions as any as Question[] : []);
             } else {
-                setError('Assignment not found.');
+                setError(aJson.error || 'Assignment not found.');
             }
             setCourses(cRes.data ?? []);
             setLoading(false);
@@ -120,8 +120,12 @@ export default function EditAssignmentPage() {
             if (form.due_date) payload.due_date = new Date(form.due_date).toISOString();
             else payload.due_date = null;
 
-            const { error: err } = await createClient().from('assignments').update(payload).eq('id', id);
-            if (err) throw err;
+            const res = await fetch(`/api/assignments/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to update'); }
             router.push(`/dashboard/assignments/${id}`);
         } catch (e: any) {
             setError(e.message ?? 'Failed to update assignment');
@@ -134,8 +138,8 @@ export default function EditAssignmentPage() {
         if (!confirm('Delete this assignment? All submissions will also be deleted. This cannot be undone.')) return;
         setDeleting(true);
         try {
-            const { error: err } = await createClient().from('assignments').delete().eq('id', id);
-            if (err) throw err;
+            const res = await fetch(`/api/assignments/${id}`, { method: 'DELETE' });
+            if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to delete'); }
             router.push('/dashboard/assignments');
         } catch (e: any) {
             setError(e.message ?? 'Failed to delete');

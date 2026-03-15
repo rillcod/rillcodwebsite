@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
 function adminClient() {
   return createClient(
@@ -67,14 +68,34 @@ export async function POST(request: Request) {
     if (body.parent_relationship) newStudentData.parent_relationship = body.parent_relationship;
     if (body.school_id) newStudentData.school_id = body.school_id;
 
-    // For partner school students: try to link to the schools table record
-    if (body.enrollment_type === 'school' && body.school_name) {
-      const { data: schoolMatch } = await supabase
-        .from('schools')
-        .select('id')
-        .ilike('name', body.school_name.trim())
-        .maybeSingle();
-      if (schoolMatch?.id) newStudentData.school_id = schoolMatch.id;
+    // Resolve school_id if not already set — every student must belong to a school
+    if (!newStudentData.school_id) {
+      if (body.enrollment_type === 'school' && body.school_name) {
+        // Partner school student: find by exact name match first, then fuzzy
+        const { data: exactMatch } = await supabase
+          .from('schools')
+          .select('id, name')
+          .ilike('name', body.school_name.trim())
+          .eq('status', 'approved')
+          .maybeSingle();
+        if (exactMatch?.id) {
+          newStudentData.school_id = exactMatch.id;
+          newStudentData.school_name = exactMatch.name; // normalise casing
+        }
+      } else {
+        // Online / bootcamp / unknown: assign to the "Online" fallback school
+        const { data: onlineSchool } = await supabase
+          .from('schools')
+          .select('id, name')
+          .ilike('name', '%online%')
+          .eq('status', 'approved')
+          .limit(1)
+          .maybeSingle();
+        if (onlineSchool?.id) {
+          newStudentData.school_id = onlineSchool.id;
+          newStudentData.school_name = onlineSchool.name;
+        }
+      }
     }
 
     // Create new student registration
@@ -115,40 +136,103 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const parentEmail = searchParams.get('parentEmail');
 
-    if (!parentEmail) {
-      return NextResponse.json(
-        { error: 'Parent email parameter is required' },
-        { status: 400 }
-      );
+    // ── Public single-student lookup by parentEmail (registration form) ──
+    if (parentEmail) {
+      const { data: student, error } = await supabase
+        .from('students')
+        .select('id, full_name, status, enrollment_type, created_at, school_name')
+        .eq('parent_email', parentEmail)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return NextResponse.json({ error: 'No student registration found with this email' }, { status: 404 });
+        }
+        console.error('Error fetching student:', error);
+        return NextResponse.json({ error: 'Failed to fetch student registration' }, { status: 500 });
+      }
+      return NextResponse.json({ student });
     }
 
-    const { data: student, error } = await supabase
-      .from('students')
-      .select('id, full_name, status, enrollment_type, created_at, school_name')
-      .eq('parent_email', parentEmail)
+    // ── Staff dashboard listing — requires auth ──
+    const serverClient = await createServerClient();
+    const { data: { user }, error: authErr } = await serverClient.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { data: caller } = await supabase
+      .from('portal_users')
+      .select('role, school_id, school_name, id')
+      .eq('id', user.id)
       .single();
 
-    if (error) {
-      if (error.code === 'PGRST116') { // No rows returned
-        return NextResponse.json(
-          { error: 'No student registration found with this email' },
-          { status: 404 }
-        );
-      }
-      console.error('Error fetching student:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch student registration' },
-        { status: 500 }
-      );
+    if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
+      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
 
-    return NextResponse.json({ student });
+    let query = supabase
+      .from('students')
+      .select(`
+        id, full_name, school_name, school_id, user_id,
+        student_email, enrollment_type,
+        parent_name, parent_email, parent_phone, parent_relationship,
+        grade_level, gender, date_of_birth, city, state,
+        interests, goals, heard_about_us,
+        course_interest, preferred_schedule,
+        status, created_at, approved_at, approved_by
+      `)
+      .order('created_at', { ascending: false });
+
+    if (caller.role === 'admin') {
+      // Admin sees all — no filter
+    } else if (caller.role === 'school') {
+      // Filter by school profile id or school_id
+      const ids: string[] = [];
+      if (caller.id) ids.push(caller.id);
+      if (caller.school_id) ids.push(caller.school_id);
+      if (ids.length > 0) {
+        query = query.in('school_id', ids) as any;
+      }
+    } else if (caller.role === 'teacher') {
+      // Collect all school IDs from teacher_schools + teacher's own school_id
+      const schoolIds: string[] = [];
+      if (caller.school_id) schoolIds.push(caller.school_id);
+
+      const { data: ts } = await supabase
+        .from('teacher_schools')
+        .select('school_id')
+        .eq('teacher_id', caller.id);
+      (ts ?? []).forEach((r: any) => {
+        if (r.school_id && !schoolIds.includes(r.school_id)) schoolIds.push(r.school_id);
+      });
+
+      if (schoolIds.length > 0) {
+        // Filter by school_id UUID OR school_name text match
+        const schoolNames: string[] = [];
+        if (caller.school_name) schoolNames.push(caller.school_name);
+        const { data: schoolRows } = await supabase
+          .from('schools')
+          .select('id, name')
+          .in('id', schoolIds);
+        (schoolRows ?? []).forEach((s: any) => { if (s.name) schoolNames.push(s.name); });
+
+        // Build OR filter: school_id in list OR school_name in list
+        const parts: string[] = [`school_id.in.(${schoolIds.join(',')})`];
+        if (schoolNames.length > 0) {
+          schoolNames.forEach(n => parts.push(`school_name.eq."${n}"`));
+        }
+        query = query.or(parts.join(',')) as any;
+      } else {
+        // Teacher has no school affiliation — return empty
+        return NextResponse.json({ data: [] });
+      }
+    }
+
+    const { data, error } = await query;
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data: data ?? [] });
 
   } catch (error) {
     console.error('Unexpected error in student lookup:', error);
-    return NextResponse.json(
-      { error: 'An unexpected error occurred' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
   }
 } 

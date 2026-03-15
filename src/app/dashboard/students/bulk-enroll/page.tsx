@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -36,12 +36,12 @@ interface EnrollResult {
 }
 
 export default function BulkEnrollPage() {
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, profileLoading } = useAuth();
 
   const [students,    setStudents]    = useState<StudentRow[]>([]);
   const [programs,    setPrograms]    = useState<any[]>([]);
   const [schools,     setSchools]     = useState<any[]>([]);
-  const [loading,     setLoading]     = useState(false);
+  const [loading,     setLoading]     = useState(true);
   const [selected,    setSelected]    = useState<Set<string>>(new Set());
   const [search,      setSearch]      = useState('');
   const [classFilter, setClassFilter] = useState('');
@@ -53,36 +53,85 @@ export default function BulkEnrollPage() {
   const [sectionClass, setSectionClass] = useState('');
   const [showSettings, setShowSettings] = useState(true);
 
-  const canAccess = profile?.role === 'admin' || profile?.role === 'teacher';
+  const isAdmin   = profile?.role === 'admin';
+  const canAccess = isAdmin || profile?.role === 'teacher';
+
+  // Active school filter chip (empty = show all schools in scope)
+  const [schoolFilter, setSchoolFilter] = useState('');
 
   async function load() {
     setLoading(true);
     const db = createClient();
-    const [studRes, progRes, schoolRes] = await Promise.all([
-      db.from('portal_users')
-        .select('id, full_name, email, section_class, school_name, school_id')
-        .eq('role', 'student')
-        .order('full_name'),
+
+    // For teachers: scope students to their allocated schools only
+    const studentsUrl = isAdmin
+      ? '/api/portal-users?role=student'
+      : '/api/portal-users?role=student&scoped=true';
+
+    const [studRes, progRes, schoolRes, tsRes, primarySchoolRes] = await Promise.all([
+      fetch(studentsUrl, { cache: 'no-store' }).then(r => r.json()),
       db.from('programs').select('id, name').order('name'),
-      db.from('schools').select('id, name').eq('status', 'approved').order('name'),
+      // Admin: all approved schools.
+      isAdmin
+        ? db.from('schools').select('id, name').eq('status', 'approved').order('name')
+        : Promise.resolve({ data: [] }),
+      // Teacher: schools from teacher_schools junction
+      !isAdmin && profile?.id
+        ? db.from('teacher_schools').select('school_id, schools(id, name)').eq('teacher_id', profile.id)
+        : Promise.resolve({ data: [] }),
+      // Teacher: primary school from profile.school_id
+      !isAdmin && profile?.school_id
+        ? db.from('schools').select('id, name').eq('id', profile.school_id).maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
-    
-    const mappedStudents = (studRes.data ?? []).map(s => ({
-      ...s,
-      section_class: s.section_class ?? '',
-      school_name: s.school_name ?? '',
-      school_id: s.school_id ?? ''
-    }));
+
+    const allUsers: any[] = studRes.data ?? [];
+    const mappedStudents = allUsers
+      .sort((a: any, b: any) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
+      .map((s: any) => ({
+        id: s.id,
+        full_name: s.full_name ?? '',
+        email: s.email ?? '',
+        section_class: s.section_class ?? '',
+        school_name: s.school_name ?? '',
+        school_id: s.school_id ?? '',
+      }));
 
     setStudents(mappedStudents);
     setPrograms(progRes.data ?? []);
-    setSchools(schoolRes.data ?? []);
+
+    if (isAdmin) {
+      setSchools(schoolRes.data ?? []);
+    } else {
+      // Merge: schools from student list + directly allocated schools (teacher_schools + primary)
+      const schoolMap = new Map<string, string>(); // id → name
+
+      // From allocated teacher_schools junction
+      (tsRes.data ?? []).forEach((r: any) => {
+        if (r.schools?.id) schoolMap.set(r.schools.id, r.schools.name);
+      });
+
+      // From primary school on teacher's profile
+      if (primarySchoolRes.data?.id) {
+        schoolMap.set(primarySchoolRes.data.id, primarySchoolRes.data.name);
+      }
+
+      // From scoped student list (covers legacy school_name-only records)
+      mappedStudents.forEach((s: StudentRow) => {
+        if (s.school_id && s.school_name) schoolMap.set(s.school_id, s.school_name);
+      });
+
+      setSchools([...schoolMap.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)));
+    }
+
     setLoading(false);
   }
 
   useEffect(() => {
+    if (authLoading || profileLoading) return;
     if (profile && canAccess) load();
-  }, [profile?.id]); // eslint-disable-line
+    else setLoading(false);
+  }, [profile?.id, authLoading, profileLoading]); // eslint-disable-line
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -94,14 +143,27 @@ export default function BulkEnrollPage() {
         (s.school_name ?? '').toLowerCase().includes(q);
       const matchClass =
         !classFilter || (s.section_class ?? '').toLowerCase() === classFilter.toLowerCase();
-      return matchSearch && matchClass;
+      const matchSchool =
+        !schoolFilter || s.school_name === schoolFilter;
+      return matchSearch && matchClass && matchSchool;
     });
-  }, [students, search, classFilter]);
+  }, [students, search, classFilter, schoolFilter]);
 
   const allClasses = useMemo(
     () => [...new Set(students.map((s) => s.section_class).filter(Boolean) as string[])].sort(),
     [students],
   );
+
+  // Group filtered students by school; hide schools where every student is enrolled (none remain)
+  const groupedBySchool = useMemo(() => {
+    const map = new Map<string, StudentRow[]>();
+    for (const s of filtered) {
+      const key = s.school_name || '(No School)';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [filtered]);
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((s) => selected.has(s.id));
 
@@ -140,20 +202,9 @@ export default function BulkEnrollPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Enrollment failed');
       setResult(data);
-      if (schoolId || sectionClass) {
-        setStudents((prev) =>
-          prev.map((s) =>
-            selected.has(s.id)
-              ? {
-                  ...s,
-                  school_id:     schoolId     || s.school_id,
-                  school_name:   schools.find((sc) => sc.id === schoolId)?.name ?? s.school_name,
-                  section_class: sectionClass || s.section_class,
-                }
-              : s,
-          ),
-        );
-      }
+      const enrolledIds = new Set([...selected]);
+      // Remove enrolled students from the list — complete school groups vanish automatically
+      setStudents((prev) => prev.filter((s) => !enrolledIds.has(s.id)));
       setSelected(new Set());
     } catch (err: any) {
       alert(err.message);
@@ -164,7 +215,7 @@ export default function BulkEnrollPage() {
 
   const selectedProgram = programs.find((p) => p.id === programId);
 
-  if (authLoading || !profile) return (
+  if (authLoading || profileLoading || !profile || loading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
     </div>
@@ -324,6 +375,43 @@ export default function BulkEnrollPage() {
         </div>
       </div>
 
+      {/* School filter chips — for teachers this shows their allocated schools */}
+      {schools.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button
+            onClick={() => setSchoolFilter('')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+              !schoolFilter
+                ? 'bg-violet-600 text-white border-violet-500'
+                : 'bg-white/5 text-white/40 border-white/10 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            All Schools
+          </button>
+          {schools.map((sc) => {
+            const count = students.filter(s => s.school_name === sc.name).length;
+            const active = schoolFilter === sc.name;
+            return (
+              <button
+                key={sc.id}
+                onClick={() => setSchoolFilter(active ? '' : sc.name)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                  active
+                    ? 'bg-blue-600 text-white border-blue-500'
+                    : 'bg-white/5 text-white/50 border-white/10 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <BuildingOfficeIcon className="w-3 h-3 flex-shrink-0" />
+                {sc.name}
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${active ? 'bg-white/20' : 'bg-white/10'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Selection action bar */}
       {selected.size > 0 && (
         <div className="flex items-center justify-between px-4 py-3 mb-4 bg-violet-500/10 border border-violet-500/30 rounded-xl gap-3 flex-wrap">
@@ -356,7 +444,7 @@ export default function BulkEnrollPage() {
         </div>
       )}
 
-      {/* Student table */}
+      {/* Student table — grouped by school; complete schools hidden automatically */}
       <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -369,7 +457,7 @@ export default function BulkEnrollPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
+            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
               <table className="w-full text-xs min-w-[300px]">
                 <thead className="sticky top-0 bg-[#0b1020] z-10">
                   <tr className="border-b border-white/10 text-white/40 uppercase tracking-wider text-[10px]">
@@ -384,48 +472,77 @@ export default function BulkEnrollPage() {
                     <th className="text-left px-3 py-3">Name</th>
                     <th className="text-left px-3 py-3 hidden sm:table-cell">Email</th>
                     <th className="text-left px-3 py-3">Class</th>
-                    <th className="text-left px-3 py-3 hidden md:table-cell">School</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((s) => {
-                    const isSel = selected.has(s.id);
+                  {groupedBySchool.map(([schoolName, schoolStudents]) => {
+                    const allSchoolSelected = schoolStudents.every((s) => selected.has(s.id));
+                    const someSchoolSelected = schoolStudents.some((s) => selected.has(s.id));
                     return (
-                      <tr
-                        key={s.id}
-                        onClick={() => toggleOne(s.id)}
-                        className={`border-b border-white/5 cursor-pointer transition-colors ${
-                          isSel ? 'bg-violet-500/10 hover:bg-violet-500/15' : 'hover:bg-white/[0.02]'
-                        }`}
-                      >
-                        <td className="px-3 sm:px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={isSel}
-                            onChange={() => toggleOne(s.id)}
-                            className="w-3.5 h-3.5 rounded border-white/20 accent-violet-500 cursor-pointer"
-                          />
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <span className={`font-medium ${isSel ? 'text-violet-200' : 'text-white'}`}>
-                            {s.full_name}
-                          </span>
-                          <span className="block sm:hidden text-white/30 font-mono text-[10px] mt-0.5 truncate max-w-[160px]">
-                            {s.email}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5 text-white/50 font-mono hidden sm:table-cell">{s.email}</td>
-                        <td className="px-3 py-2.5">
-                          {s.section_class
-                            ? <span className="inline-block px-2 py-0.5 bg-cyan-500/15 text-cyan-300 text-[10px] font-bold rounded-full border border-cyan-500/20">{s.section_class}</span>
-                            : <span className="text-white/20">—</span>}
-                        </td>
-                        <td className="px-3 py-2.5 text-white/40 hidden md:table-cell">
-                          {s.school_name
-                            ? <span className="flex items-center gap-1"><BuildingOfficeIcon className="w-3 h-3 flex-shrink-0" />{s.school_name}</span>
-                            : <span className="text-white/20">—</span>}
-                        </td>
-                      </tr>
+                      <React.Fragment key={schoolName}>
+                        {/* School group header */}
+                        <tr key={`hdr-${schoolName}`} className="bg-[#0b1020] border-b border-white/10">
+                          <td className="px-3 sm:px-4 py-2 text-center">
+                            <input
+                              type="checkbox"
+                              checked={allSchoolSelected}
+                              ref={(el) => { if (el) el.indeterminate = someSchoolSelected && !allSchoolSelected; }}
+                              onChange={() => {
+                                const next = new Set(selected);
+                                if (allSchoolSelected) schoolStudents.forEach((s) => next.delete(s.id));
+                                else schoolStudents.forEach((s) => next.add(s.id));
+                                setSelected(next);
+                              }}
+                              className="w-3.5 h-3.5 rounded border-white/20 accent-violet-500 cursor-pointer"
+                            />
+                          </td>
+                          <td colSpan={3} className="px-3 py-2">
+                            <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40">
+                              <BuildingOfficeIcon className="w-3 h-3 flex-shrink-0" />
+                              {schoolName}
+                              <span className="text-white/20 font-normal normal-case tracking-normal">
+                                {schoolStudents.length} student{schoolStudents.length !== 1 ? 's' : ''}
+                              </span>
+                            </span>
+                          </td>
+                        </tr>
+                        {/* School students */}
+                        {schoolStudents.map((s) => {
+                          const isSel = selected.has(s.id);
+                          return (
+                            <tr
+                              key={s.id}
+                              onClick={() => toggleOne(s.id)}
+                              className={`border-b border-white/5 cursor-pointer transition-colors ${
+                                isSel ? 'bg-violet-500/10 hover:bg-violet-500/15' : 'hover:bg-white/[0.02]'
+                              }`}
+                            >
+                              <td className="px-3 sm:px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="checkbox"
+                                  checked={isSel}
+                                  onChange={() => toggleOne(s.id)}
+                                  className="w-3.5 h-3.5 rounded border-white/20 accent-violet-500 cursor-pointer"
+                                />
+                              </td>
+                              <td className="px-3 py-2.5">
+                                <span className={`font-medium ${isSel ? 'text-violet-200' : 'text-white'}`}>
+                                  {s.full_name}
+                                </span>
+                                <span className="block sm:hidden text-white/30 font-mono text-[10px] mt-0.5 truncate max-w-[160px]">
+                                  {s.email}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2.5 text-white/50 font-mono hidden sm:table-cell">{s.email}</td>
+                              <td className="px-3 py-2.5">
+                                {s.section_class
+                                  ? <span className="inline-block px-2 py-0.5 bg-cyan-500/15 text-cyan-300 text-[10px] font-bold rounded-full border border-cyan-500/20">{s.section_class}</span>
+                                  : <span className="text-white/20">—</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>

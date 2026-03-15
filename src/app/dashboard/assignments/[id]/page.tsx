@@ -6,7 +6,6 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import { submitAssignment, gradeSubmission, updateSubmission, deleteSubmission } from '@/services/dashboard.service';
 import {
     ArrowLeftIcon, CalendarIcon, ClockIcon, DocumentTextIcon,
     CheckCircleIcon, ExclamationTriangleIcon, ArrowUpTrayIcon,
@@ -122,7 +121,12 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
             };
             if (status === 'graded') payload.graded_at = new Date().toISOString();
             
-            await updateSubmission(sub.id, payload);
+            const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save'); }
             onSaved();
         } catch (e: any) {
             setErr(e.message ?? 'Failed to save grade');
@@ -134,7 +138,8 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
         if (!window.confirm('Delete this submission? Student will need to retry.')) return;
         setDeleting(true); setErr('');
         try {
-            await deleteSubmission(sub.id);
+            const res = await fetch(`/api/assignment-submissions/${sub.id}`, { method: 'DELETE' });
+            if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to delete'); }
             onSaved();
             onClose();
         } catch (e: any) {
@@ -358,47 +363,27 @@ export default function AssignmentDetailPage() {
     useEffect(() => {
         if (authLoading || !profile || !id) return;
         let cancelled = false;
-        const supabase = createClient();
 
         async function load() {
             setLoading(true);
             setError(null);
             try {
                 if (isStaff) {
-                    // Staff can see all submissions — fetch assignment + all submissions separately
-                    const [asgnRes, subsRes] = await Promise.all([
-                        supabase.from('assignments').select(`
-                            id, title, description, instructions, due_date, max_points,
-                            assignment_type, is_active, created_at, questions,
-                            courses ( id, title, programs ( name ) )
-                        `).eq('id', id).single(),
-                        supabase.from('assignment_submissions').select(`
-                            id, status, grade, feedback, submitted_at, graded_at,
-                            portal_user_id, submission_text, file_url, answers,
-                            portal_users!assignment_submissions_portal_user_id_fkey ( full_name, email )
-                        `).eq('assignment_id', id)
-                    ]);
-                    if (asgnRes.error) throw asgnRes.error;
-                    const asgn = { ...asgnRes.data, assignment_submissions: subsRes.data ?? [] };
-                    if (!cancelled) setAssignment(asgn);
+                    // Staff: use admin-client API — returns all submissions with student names
+                    const res = await fetch(`/api/assignments/${id}`, { cache: 'no-store' });
+                    const json = await res.json();
+                    if (!res.ok) throw new Error(json.error || 'Failed to load');
+                    if (!cancelled) setAssignment(json.data);
                 } else {
-                    // Student: fetch their own submission only
-                    const [asgnRes, mySubRes] = await Promise.all([
-                        supabase.from('assignments').select(`
-                            id, title, description, instructions, due_date, max_points,
-                            assignment_type, is_active, created_at, questions,
-                            courses ( id, title, programs ( name ) )
-                        `).eq('id', id).single(),
-                        supabase.from('assignment_submissions').select(`
-                            id, status, grade, feedback, submitted_at, graded_at,
-                            portal_user_id, submission_text, file_url, answers
-                        `).eq('assignment_id', id).eq('portal_user_id', profile!.id).maybeSingle()
-                    ]);
-                    if (asgnRes.error) throw asgnRes.error;
-                    const asgn = { ...asgnRes.data, assignment_submissions: mySubRes.data ? [mySubRes.data] : [] };
+                    // Student: use admin-client API with student query param to get own submission
+                    const res = await fetch(`/api/assignments/${id}/student`, { cache: 'no-store' });
+                    const json = await res.json();
+                    if (!res.ok) throw new Error(json.error || 'Failed to load');
+                    const asgn = json.data;
                     if (!cancelled) {
                         setAssignment(asgn);
-                        setSubmission(mySubRes.data ?? null);
+                        const mySub = asgn?.assignment_submissions?.[0] ?? null;
+                        setSubmission(mySub);
                     }
                 }
             } catch (e: any) {
@@ -441,14 +426,19 @@ export default function AssignmentDetailPage() {
         if (uploadingFile) return; // wait for upload to finish
         setSubmitting(true);
         try {
-            const result = await submitAssignment({
-                assignment_id: assignment.id,
-                portal_user_id: profile.id,
-                submission_text: text,
-                answers: Object.keys(answers).length > 0 ? answers : null,
-                file_url: fileUrl ?? undefined,
-            } as any);
-            setSubmission(result);
+            const res = await fetch(`/api/assignments/${assignment.id}/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    portal_user_id: profile.id,
+                    submission_text: text,
+                    answers: Object.keys(answers).length > 0 ? answers : null,
+                    file_url: fileUrl ?? undefined,
+                }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed to submit');
+            setSubmission(json.data);
             setSubmitDone(true);
             setText('');
         } catch (e: any) {

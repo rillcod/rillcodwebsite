@@ -1,76 +1,102 @@
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
-import { lessonsService } from '@/services/lessons.service';
-import { withValidation } from '@/proxies/validation.proxy';
-import { AppError } from '@/lib/errors';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
-const updateLessonSchema = z.object({
-    title: z.string().min(3).optional(),
-    description: z.string().optional(),
-    content: z.string().optional(),
-    lesson_type: z.enum(['video', 'reading', 'interactive', 'hands-on', 'workshop', 'coding']).optional(),
-    duration_minutes: z.number().int().positive().optional(),
-    order_index: z.number().int().optional(),
-    video_url: z.string().url().optional(),
-    is_active: z.boolean().optional(),
-});
-
-async function getHandler(req: Request, ctx: ApiContext) {
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Lesson ID missing', 400);
-
-    const tenantId = ctx.user?.tenantId;
-    const data = await lessonsService.getLesson(id, tenantId);
-
-    return NextResponse.json({
-        success: true,
-        data
-    });
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
 }
 
-async function putHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'school' && ctx.user?.role !== 'teacher') {
-        throw new AppError('Not authorized to edit lessons', 403, true);
-    }
-
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Lesson ID missing', 400);
-
-    const { data, errorResponse } = await withValidation(req as any, updateLessonSchema);
-    if (errorResponse) return errorResponse;
-
-    const tenantId = ctx.user?.tenantId;
-
-    if (ctx.user?.role === 'school' && !tenantId) {
-        throw new AppError('Tenant context missing', 403, true);
-    }
-
-    const updated = await lessonsService.updateLesson(id, data!, tenantId);
-
-    return NextResponse.json({
-        success: true,
-        data: updated
-    });
+async function requireStaff() {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  const { data: caller } = await adminClient()
+    .from('portal_users')
+    .select('role, id')
+    .eq('id', user.id)
+    .single();
+  if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
+  return caller;
 }
 
-async function deleteHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'school' && ctx.user?.role !== 'teacher') {
-        throw new AppError('Not authorized to delete lessons', 403, true);
-    }
+// GET /api/lessons/[id]
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Lesson ID missing', 400);
+  const { id } = await params;
+  const { data, error } = await adminClient()
+    .from('lessons')
+    .select('*, courses ( id, title, programs ( name ) ), lesson_plans (*)')
+    .eq('id', id)
+    .maybeSingle();
 
-    const tenantId = ctx.user?.tenantId;
-    await lessonsService.deleteLesson(id, tenantId);
-
-    return NextResponse.json({
-        success: true,
-        message: 'Lesson deleted successfully'
-    });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
+  return NextResponse.json({ data });
 }
 
-export const GET = (req: any, ctx: any) => withApiProxy(getHandler, { requireAuth: true })(req, ctx);
-export const PUT = (req: any, ctx: any) => withApiProxy(putHandler, { requireAuth: true })(req, ctx);
-export const DELETE = (req: any, ctx: any) => withApiProxy(deleteHandler, { requireAuth: true })(req, ctx);
+// PATCH /api/lessons/[id] — update lesson
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+  if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+
+  const { id } = await params;
+  const body = await request.json();
+
+  const allowed: Record<string, unknown> = {};
+  const allowedFields = ['title', 'description', 'content', 'lesson_notes', 'lesson_type', 'status',
+    'duration_minutes', 'order_index', 'video_url', 'is_active', 'session_date', 'content_layout', 'course_id'];
+  for (const f of allowedFields) {
+    if (f in body) allowed[f] = body[f] ?? null;
+  }
+  allowed.updated_at = new Date().toISOString();
+
+  const admin = adminClient();
+  const { error } = await admin.from('lessons').update(allowed).eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Optionally upsert lesson_plan if included in body
+  if (body.lesson_plan && typeof body.lesson_plan === 'object') {
+    await admin.from('lesson_plans').upsert(
+      { ...body.lesson_plan, lesson_id: id, updated_at: new Date().toISOString() },
+      { onConflict: 'lesson_id' },
+    );
+  }
+
+  return NextResponse.json({ success: true });
+}
+
+// PUT /api/lessons/[id] — alias for PATCH
+export async function PUT(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return PATCH(request, ctx);
+}
+
+// DELETE /api/lessons/[id]
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+  if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+
+  const { id } = await params;
+  const { error } = await adminClient()
+    .from('lessons')
+    .delete()
+    .eq('id', id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}

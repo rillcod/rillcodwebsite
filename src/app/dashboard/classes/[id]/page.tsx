@@ -16,7 +16,6 @@ import {
   PencilSquareIcon as PencilSquareIconOutline, CheckIcon as CheckIconOutline,
   CloudArrowUpIcon, UserPlusIcon
 } from '@/lib/icons';
-import { gradeSubmission } from '@/services/dashboard.service';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 
 
@@ -24,7 +23,7 @@ export default function ClassDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const router = useRouter();
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, profileLoading } = useAuth();
 
   const [cls, setCls] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
@@ -40,34 +39,41 @@ export default function ClassDetailPage() {
   // Student Management State
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [availableStudents, setAvailableStudents] = useState<any[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
   const [processingStudent, setProcessingStudent] = useState<string | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
-  const [viewingItem, setViewingItem] = useState<{ type: 'lesson' | 'assignment' | 'cbt' | 'attendance', id: string } | null>(null);
 
   const fetchData = async () => {
     if (!id || !profile) return;
     setLoading(true);
     const supabase = createClient();
     try {
-      const [clsRes, sessRes] = await Promise.all([
-        supabase.from('classes').select('*, programs(name, difficulty_level), portal_users!classes_teacher_id_fkey(full_name), schools(name)').eq('id', id!).maybeSingle(),
+      const [clsApiRes, sessRes] = await Promise.all([
+        fetch(`/api/classes/${id}`, { cache: 'no-store' }),
         supabase.from('class_sessions').select('*').eq('class_id', id!).order('session_date', { ascending: false }).limit(10),
       ]);
 
-      if (clsRes.error) throw new Error(clsRes.error.message);
-      if (!clsRes.data) throw new Error('Class not found');
-      setCls(clsRes.data);
+      if (!clsApiRes.ok) {
+        let errMsg = 'Class not found';
+        try { const j = await clsApiRes.json(); errMsg = j.error || errMsg; } catch {}
+        throw new Error(errMsg);
+      }
+      const { data: clsData } = await clsApiRes.json();
+      setCls(clsData);
       setSessions(sessRes.data ?? []);
 
-      const program_id = clsRes.data.program_id;
-      const [enrRes, lessonRes, asgnRes, cbtRes] = await Promise.all([
-        supabase.from('enrollments')
-          .select('id, status, portal_users!inner(id, full_name, email, school_id, section_class, is_deleted)')
-          .eq('program_id', program_id!)
-          .eq('portal_users.section_class', clsRes.data.name)
-          .neq('portal_users.is_deleted', true),
+      const program_id = clsData.program_id;
+      const studentsHttpRes = await fetch(`/api/classes/${id}/students`, { cache: 'no-store' });
+      let studentsRes: any = { students: [] };
+      try { studentsRes = await studentsHttpRes.json(); } catch {}
+      if (!studentsHttpRes.ok) {
+        console.error('[students API]', studentsHttpRes.status, studentsRes);
+      }
+      setEnrollments(studentsRes.students ?? []);
+
+      const [lessonRes, asgnRes, cbtRes] = await Promise.all([
         supabase.from('lessons').select('id, title, lesson_type, status, courses!inner(program_id)').eq('courses.program_id', program_id!),
         supabase.from('assignments').select('id, title, assignment_type, due_date, course_id, courses!inner(program_id)').eq('courses.program_id', program_id!),
         supabase.from('cbt_exams').select('id, title, duration_minutes, total_questions, is_active').eq('program_id', program_id!)
@@ -99,7 +105,6 @@ export default function ClassDetailPage() {
         cbtSessions = subResults[resIdx]?.data ?? [];
       }
 
-      setEnrollments(enrRes.data ?? []);
       setItems({
         lessons: lessonRes.data ?? [],
         assignments: assignments,
@@ -115,51 +120,24 @@ export default function ClassDetailPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && profile && id) fetchData();
-  }, [id, profile?.id, authLoading]);
+    if (authLoading || profileLoading) return;
+    if (profile && id) fetchData();
+    else setLoading(false);
+  }, [id, profile?.id, authLoading, profileLoading]);
 
   const loadAvailableStudents = async () => {
-    if (!cls || !profile) return;
+    if (!cls) return;
     setProcessingStudent('loading');
-    const supabase = createClient();
     try {
-      // 1. Fetch all students enrolled in this program
-      // 2. Filter by school_id to ensure teachers only see their own school's students
-      let query = supabase
-        .from('enrollments')
-        .select(`
-          user_id,
-          portal_users!inner(id, full_name, email, school_id, section_class)
-        `)
-        .eq('program_id', cls.program_id);
-
-      // Multi-tenancy: Only show students from the same school
-      if (profile.role === 'school' && profile.school_id) {
-        query = query.eq('portal_users.school_id', profile.school_id as string);
-      } else if (profile.role === 'teacher') {
-        if (profile.school_id) {
-          query = query.eq('portal_users.school_id', profile.school_id as string);
-        }
-      }
-
-      const { data, error: err } = await query;
-      if (err) throw err;
-
-      // Filter out students already in THIS class
-      // We also prioritize students who have NO class assigned (section_class is null)
-      const filtered = (data ?? [])
-        .map((e: any) => e.portal_users)
-        .filter((u: any) => u.section_class !== cls.name)
-        .sort((a: any, b: any) => {
-          if (!a.section_class && b.section_class) return -1;
-          if (a.section_class && !b.section_class) return 1;
-          return 0;
-        });
-
-      setAvailableStudents(filtered);
+      const res = await fetch(`/api/classes/${id}/enroll`, { cache: 'no-store' });
+      let json: any = {};
+      try { json = await res.json(); } catch {}
+      if (!res.ok) throw new Error(json.error ?? 'Failed to load students');
+      setAvailableStudents(json.students ?? []);
+      setSelectedStudentIds(new Set()); // reset selection on fresh load
     } catch (e: any) {
       console.error(e);
-      setError('Failed to load available students for enrollment.');
+      setError(e.message ?? 'Failed to load available students for enrollment.');
     } finally {
       setProcessingStudent(null);
     }
@@ -168,12 +146,40 @@ export default function ClassDetailPage() {
   const assignStudent = async (studentId: string) => {
     if (!cls) return;
     setProcessingStudent(studentId);
-    const supabase = createClient();
     try {
-      const { error: err } = await supabase.from('portal_users').update({ section_class: cls.name }).eq('id', studentId);
-      if (err) throw err;
+      const res = await fetch(`/api/classes/${id}/enroll`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Failed to enroll student');
       await fetchData();
       await loadAvailableStudents();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setProcessingStudent(null);
+    }
+  };
+
+  const syncSelectedStudents = async (idsToEnroll?: string[]) => {
+    const ids = idsToEnroll ?? (selectedStudentIds.size > 0
+      ? Array.from(selectedStudentIds)
+      : availableStudents.map((s: any) => s.id));
+    if (ids.length === 0) return;
+    setProcessingStudent('loading');
+    try {
+      const res = await fetch(`/api/classes/${id}/enroll`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentIds: ids }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Sync failed');
+      await fetchData();
+      setAvailableStudents(prev => prev.filter((s: any) => !ids.includes(s.id)));
+      setSelectedStudentIds(new Set());
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -184,10 +190,14 @@ export default function ClassDetailPage() {
   const removeStudent = async (studentId: string) => {
     if (!confirm('Remove student from this class?')) return;
     setProcessingStudent(studentId);
-    const supabase = createClient();
     try {
-      const { error: err } = await supabase.from('portal_users').update({ section_class: null }).eq('id', studentId);
-      if (err) throw err;
+      const res = await fetch(`/api/classes/${id}/enroll`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Failed to remove student');
       await fetchData();
     } catch (e: any) {
       alert(e.message);
@@ -202,9 +212,9 @@ export default function ClassDetailPage() {
 
     const enrRows = enrollments.map((enr: any) => `
       <tr>
-        <td><strong>${enr.portal_users?.full_name || 'Unknown'}</strong></td>
+        <td><strong>${enr.full_name || 'Unknown'}</strong></td>
         <td>${cls.name}</td>
-        <td>${enr.portal_users?.email || 'N/A'}</td>
+        <td>${enr.email || 'N/A'}</td>
         <td style="text-align: center;"><div class="pass-field"></div></td>
       </tr>
     `).join('');
@@ -280,7 +290,7 @@ export default function ClassDetailPage() {
     printWindow.document.close();
   };
 
-  if (authLoading || loading) return (
+  if (authLoading || profileLoading || loading) return (
     <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
@@ -312,34 +322,6 @@ export default function ClassDetailPage() {
       </Link>
     </div>
   );
-
-  const renderMinimalPage = (url: string) => (
-    <div className="fixed inset-0 z-[100] bg-[#050a17] flex flex-col">
-      <div className="flex items-center justify-between p-4 border-b border-white/10 bg-[#0B132B]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-            <BoltIcon className="w-4 h-4 text-violet-400" />
-          </div>
-          <h3 className="text-white font-black uppercase tracking-[0.2em] text-[10px]">Operation: {viewingItem?.type.replace('_', ' ')}</h3>
-        </div>
-        <button onClick={() => setViewingItem(null)} className="p-2 hover:bg-white/5 rounded-xl text-white/40 hover:text-white transition-all">
-          <XMarkIcon className="w-6 h-6" />
-        </button>
-      </div>
-      <div className="flex-1 overflow-hidden relative">
-        <iframe 
-          src={`${url}${url.includes('?') ? '&' : '?'}minimal=true`} 
-          className="w-full h-full border-none" 
-          title="Operation Frame"
-        />
-      </div>
-    </div>
-  );
-
-  if (viewingItem?.type === 'assignment') return renderMinimalPage('/dashboard/assignments/new');
-  if (viewingItem?.type === 'lesson') return renderMinimalPage('/dashboard/lessons/add');
-  if (viewingItem?.type === 'cbt') return renderMinimalPage('/dashboard/cbt/new');
-  if (viewingItem?.type === 'attendance') return renderMinimalPage(`/dashboard/attendance?class_id=${id}`);
 
   return (
     <div className="min-h-screen bg-[#050a17] text-white">
@@ -701,16 +683,16 @@ export default function ClassDetailPage() {
                             <td className="px-8 py-6 sticky left-0 bg-[#0D1630] z-10 border-r border-white/5 group-hover:bg-[#121D3D] transition-colors shadow-2xl">
                               <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-600/20 to-blue-600/20 border border-white/5 flex items-center justify-center text-[10px] font-black text-violet-400 group-hover:scale-110 transition-transform">
-                                  {(enr.portal_users?.full_name ?? '?')[0]}
+                                  {(enr.full_name ?? '?')[0]}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-white font-black text-[11px] uppercase tracking-tighter truncate group-hover:text-violet-400 transition-colors">{enr.portal_users?.full_name}</p>
-                                  <p className="text-[9px] text-white/20 truncate font-medium">{enr.portal_users?.email}</p>
+                                  <p className="text-white font-black text-[11px] uppercase tracking-tighter truncate group-hover:text-violet-400 transition-colors">{enr.full_name}</p>
+                                  <p className="text-[9px] text-white/20 truncate font-medium">{enr.email}</p>
                                 </div>
                               </div>
                             </td>
                             {items.assignments.map(a => {
-                              const sub = items.submissions.find(s => s.assignment_id === a.id && s.portal_user_id === enr.portal_users?.id);
+                              const sub = items.submissions.find(s => s.assignment_id === a.id && s.portal_user_id === enr.id);
                               const score = sub?.grade;
                               const percentage = a.max_points > 0 ? (score ?? 0) / a.max_points : 0;
                               return (
@@ -724,27 +706,25 @@ export default function ClassDetailPage() {
                                           const val = e.target.value;
                                           if (val !== '' && isNaN(Number(val))) return;
                                           const numVal = val === '' ? null : Math.min(Number(val), a.max_points);
-                                          const key = `asm-${a.id}-${enr.portal_users?.id}`;
+                                          const key = `asm-${a.id}-${enr.id}`;
                                           if (numVal === score) return;
 
                                           setMatrixSaving(p => ({ ...p, [key]: true }));
                                           try {
                                             if (sub) {
-                                              await gradeSubmission(sub.id, numVal, sub.feedback || '', profile!.id);
+                                              const res = await fetch(`/api/assignment-submissions/${sub.id}`, {
+                                                method: 'PATCH',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ grade: numVal, status: 'graded', feedback: sub.feedback || null }),
+                                              });
+                                              if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
                                             } else {
-                                              const supabase = createClient();
-                                              const { error } = await supabase
-                                                .from('assignment_submissions')
-                                                .insert({
-                                                  assignment_id: a.id,
-                                                  portal_user_id: enr.portal_users?.id,
-                                                  grade: numVal,
-                                                  status: 'graded',
-                                                  graded_by: profile!.id,
-                                                  graded_at: new Date().toISOString(),
-                                                  submitted_at: new Date().toISOString(),
-                                                });
-                                              if (error) throw error;
+                                              const res = await fetch(`/api/assignments/${a.id}/grade`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ student_id: enr.id, grade: numVal, status: 'graded' }),
+                                              });
+                                              if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
                                             }
                                             await fetchData();
                                           } catch (err) {
@@ -755,7 +735,7 @@ export default function ClassDetailPage() {
                                         }}
                                         className="w-14 h-10 bg-white/5 border border-white/10 rounded-xl text-center text-xs font-black text-white focus:border-emerald-500 focus:bg-white/10 outline-none transition-all"
                                       />
-                                      {matrixSaving[`asm-${a.id}-${enr.portal_users?.id}`] && (
+                                      {matrixSaving[`asm-${a.id}-${enr.id}`] && (
                                         <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
                                       )}
                                     </div>
@@ -779,7 +759,7 @@ export default function ClassDetailPage() {
                               );
                             })}
                             {items.cbt.map(c => {
-                              const sess = items.cbtSessions.find(s => s.exam_id === c.id && s.user_id === enr.portal_users?.id);
+                              const sess = items.cbtSessions.find(s => s.exam_id === c.id && s.user_id === enr.id);
                               const score = sess?.score;
                               const percentage = c.total_questions > 0 ? (score ?? 0) / c.total_questions : 0;
                               return (
@@ -823,19 +803,19 @@ export default function ClassDetailPage() {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600 opacity-[0.03] blur-3xl rounded-full" />
                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">Operations Deck</h3>
                 <div className="grid grid-cols-1 gap-3">
-                  {[
-                    { label: 'Roll Call', sub: 'SYNC REGISTRY', icon: CheckCircleIcon, color: 'blue', action: () => setViewingItem({ type: 'attendance', id: id }) },
-                    { label: 'Quick Task', sub: 'INITIATE ASSIGNMENT', icon: ClipboardDocumentListIcon, color: 'amber', action: () => setViewingItem({ type: 'assignment', id: 'add' }) },
-                    { label: 'Add Lesson', sub: 'AUGMENT CURRICULUM', icon: BookOpenIcon, color: 'cyan', action: () => setViewingItem({ type: 'lesson', id: 'add' }) },
-                    { label: 'Apply CBT', sub: 'SYSTEM TESTING', icon: AcademicCapIcon, color: 'violet', action: () => setViewingItem({ type: 'cbt', id: 'add' }) },
-                  ].map(btn => (
-                    <button key={btn.label} onClick={btn.action} className={`group flex items-center gap-4 w-full p-4 bg-${btn.color}-600/5 hover:bg-${btn.color}-600/10 border border-${btn.color}-600/10 hover:border-${btn.color}-600/30 rounded-[1.5rem] text-left transition-all active:scale-[0.98]`}>
-                      <div className={`w-12 h-12 rounded-2xl bg-${btn.color}-600/10 flex items-center justify-center text-${btn.color}-400 group-hover:scale-110 transition-transform shadow-lg`}>
+                  {([
+                    { label: 'Roll Call', sub: 'SYNC REGISTRY', icon: CheckCircleIcon, btnCls: 'bg-blue-600/5 hover:bg-blue-600/10 border-blue-600/10 hover:border-blue-600/30', iconCls: 'bg-blue-600/10 text-blue-400', subCls: 'text-blue-400/60', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
+                    { label: 'Quick Task', sub: 'INITIATE ASSIGNMENT', icon: ClipboardDocumentListIcon, btnCls: 'bg-amber-600/5 hover:bg-amber-600/10 border-amber-600/10 hover:border-amber-600/30', iconCls: 'bg-amber-600/10 text-amber-400', subCls: 'text-amber-400/60', action: () => router.push('/dashboard/assignments/new') },
+                    { label: 'Add Lesson', sub: 'AUGMENT CURRICULUM', icon: BookOpenIcon, btnCls: 'bg-cyan-600/5 hover:bg-cyan-600/10 border-cyan-600/10 hover:border-cyan-600/30', iconCls: 'bg-cyan-600/10 text-cyan-400', subCls: 'text-cyan-400/60', action: () => router.push('/dashboard/lessons/add') },
+                    { label: 'Apply CBT', sub: 'SYSTEM TESTING', icon: AcademicCapIcon, btnCls: 'bg-violet-600/5 hover:bg-violet-600/10 border-violet-600/10 hover:border-violet-600/30', iconCls: 'bg-violet-600/10 text-violet-400', subCls: 'text-violet-400/60', action: () => router.push('/dashboard/cbt/new') },
+                  ] as const).map(btn => (
+                    <button key={btn.label} onClick={btn.action} className={`group flex items-center gap-4 w-full p-4 border rounded-[1.5rem] text-left transition-all active:scale-[0.98] ${btn.btnCls}`}>
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg ${btn.iconCls}`}>
                         <btn.icon className="w-6 h-6" />
                       </div>
                       <div>
                         <p className="text-[11px] font-black text-white uppercase tracking-tighter">{btn.label}</p>
-                        <p className={`text-[8px] text-${btn.color}-400/60 font-black uppercase tracking-widest`}>{btn.sub}</p>
+                        <p className={`text-[8px] font-black uppercase tracking-widest ${btn.subCls}`}>{btn.sub}</p>
                       </div>
                     </button>
                   ))}
@@ -882,12 +862,30 @@ export default function ClassDetailPage() {
                   {enrollments.map((enr: any) => (
                     <div key={enr.id} className="px-8 py-5 flex items-center gap-4 hover:bg-white/[0.03] transition-all group">
                       <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500/10 to-violet-600/10 border border-white/5 flex items-center justify-center text-[10px] font-black text-white/40 group-hover:text-violet-400 transition-all">
-                        {(enr.portal_users?.full_name ?? '?')[0]}
+                        {(enr.full_name ?? '?')[0]}
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-black text-white group-hover:text-violet-400 transition-colors truncate uppercase tracking-tighter">{enr.portal_users?.full_name}</p>
-                        <p className="text-[9px] text-white/30 truncate font-medium">{enr.portal_users?.email}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-black text-white group-hover:text-violet-400 transition-colors truncate uppercase tracking-tighter">{enr.full_name}</p>
+                        <p className="text-[9px] text-white/30 truncate font-medium">{enr.email}</p>
                       </div>
+                      {isStaff && (
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Remove ${enr.full_name} from this class?`)) return;
+                            const res = await fetch(`/api/classes/${id}/enroll`, {
+                              method: 'DELETE',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ studentId: enr.id }),
+                            });
+                            if (!res.ok) { const j = await res.json(); alert(j.error); return; }
+                            setEnrollments(prev => prev.filter(e => e.id !== enr.id));
+                          }}
+                          title="Unenroll student"
+                          className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg bg-rose-600/10 hover:bg-rose-600/30 border border-rose-600/20 text-rose-400 flex items-center justify-center transition-all active:scale-90 flex-shrink-0"
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -926,8 +924,38 @@ export default function ClassDetailPage() {
 
             <div className="p-10 space-y-8">
               <div className="flex items-center justify-between px-2">
-                <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em]">Discovered Signatures</span>
-                <div className="h-1.5 w-1.5 bg-violet-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
+                <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em]">
+                  Discovered Signatures
+                  {availableStudents.length > 0 && (
+                    <span className="ml-2 text-violet-400/60">({availableStudents.length})</span>
+                  )}
+                </span>
+                <div className="flex items-center gap-2">
+                  {availableStudents.length > 0 && (
+                    <>
+                      <button
+                        onClick={() => setSelectedStudentIds(
+                          selectedStudentIds.size === availableStudents.length
+                            ? new Set()
+                            : new Set(availableStudents.map((s: any) => s.id))
+                        )}
+                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white rounded-lg transition-all"
+                      >
+                        {selectedStudentIds.size === availableStudents.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                      {selectedStudentIds.size > 0 && (
+                        <button
+                          onClick={() => syncSelectedStudents()}
+                          disabled={!!processingStudent}
+                          className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-[9px] font-black uppercase tracking-widest text-white rounded-lg transition-all disabled:opacity-50"
+                        >
+                          Enroll ({selectedStudentIds.size})
+                        </button>
+                      )}
+                    </>
+                  )}
+                  <div className="h-1.5 w-1.5 bg-violet-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
+                </div>
               </div>
 
               {processingStudent === 'loading' ? (
@@ -942,10 +970,26 @@ export default function ClassDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
-                  {availableStudents.map(student => (
-                    <div key={student.id} className="flex items-center justify-between p-5 bg-white/5 border border-white/5 rounded-[1.5rem] hover:bg-violet-600/5 hover:border-violet-500/30 transition-all group">
-                      <div className="min-w-0">
-                        <p className="text-sm font-black text-white group-hover:text-violet-400 transition-colors uppercase tracking-tighter truncate">{student.full_name}</p>
+                  {availableStudents.map(student => {
+                    const isChecked = selectedStudentIds.has(student.id);
+                    return (
+                    <div
+                      key={student.id}
+                      onClick={() => {
+                        setSelectedStudentIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(student.id)) next.delete(student.id);
+                          else next.add(student.id);
+                          return next;
+                        });
+                      }}
+                      className={`flex items-center gap-4 p-5 border rounded-[1.5rem] cursor-pointer transition-all group ${isChecked ? 'bg-violet-600/15 border-violet-500/50' : 'bg-white/5 border-white/5 hover:bg-violet-600/5 hover:border-violet-500/20'}`}
+                    >
+                      <div className={`flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-violet-600 border-violet-400' : 'border-white/20'}`}>
+                        {isChecked && <CheckIconOutline className="w-3 h-3 text-white" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-sm font-black uppercase tracking-tighter truncate transition-colors ${isChecked ? 'text-violet-400' : 'text-white group-hover:text-violet-400'}`}>{student.full_name}</p>
                         <p className="text-[9px] text-white/30 font-medium truncate">{student.email}</p>
                         {student.section_class && (
                           <div className="mt-2 flex items-center gap-1.5">
@@ -954,15 +998,9 @@ export default function ClassDetailPage() {
                           </div>
                         )}
                       </div>
-                      <button
-                        onClick={() => assignStudent(student.id)}
-                        disabled={!!processingStudent}
-                        className="flex-shrink-0 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
-                      >
-                        {processingStudent === student.id ? 'Syncing...' : 'Enroll'}
-                      </button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -979,48 +1017,6 @@ export default function ClassDetailPage() {
         </div>
       )}
 
-      {/* ── Slide-over Panel for Content ── */}
-      {viewingItem && (
-        <div className="fixed inset-0 z-[110] overflow-hidden">
-          <div className="absolute inset-0 bg-[#050a17]/90 backdrop-blur-3xl animate-in fade-in duration-500" onClick={() => setViewingItem(null)} />
-          <div className="absolute inset-y-0 right-0 max-w-4xl w-full flex">
-            <div className="h-full w-full bg-[#0D1630] border-l border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col animate-in slide-in-from-right duration-500">
-              <div className="px-10 py-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                <div className="flex items-center gap-6">
-                  <div className="w-12 h-12 rounded-2xl bg-violet-600 flex items-center justify-center shadow-xl shadow-violet-900/40">
-                    {viewingItem.type === 'lesson' ? <BookOpenIcon className="w-6 h-6" /> : viewingItem.type === 'assignment' ? <ClipboardDocumentListIcon className="w-6 h-6" /> : <AcademicCapIcon className="w-6 h-6" />}
-                  </div>
-                  <div>
-                    <h3 className="text-[10px] font-black text-violet-400 uppercase tracking-[0.3em]">{viewingItem.id === 'add' ? 'Initialize' : 'Telemetry'} {viewingItem.type}</h3>
-                    <p className="text-[11px] text-white uppercase font-black tracking-tight mt-0.5">Context Protocol: {cls.name}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {viewingItem.id !== 'add' && (
-                    <Link href={`/dashboard/${viewingItem.type === 'lesson' ? 'lessons' : viewingItem.type === 'assignment' ? 'assignments' : 'cbt'}/${viewingItem.id}/edit`}
-                      className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-violet-500/50 hover:text-violet-400 transition-all group">
-                      <PencilIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                    </Link>
-                  )}
-                  <button onClick={() => setViewingItem(null)} className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-rose-500/20 hover:text-rose-400 transition-all active:scale-90">
-                    <XMarkIcon className="w-6 h-6" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-hidden p-8">
-                <div className="w-full h-full bg-[#050a17] rounded-[2.5rem] border border-white/5 overflow-hidden shadow-inner">
-                  <iframe
-                    src={`/dashboard/${viewingItem.type === 'lesson' ? 'lessons' : viewingItem.type === 'assignment' ? 'assignments' : 'cbt'}/${viewingItem.id === 'add' ? (viewingItem.type === 'lesson' ? 'add' : 'new') : viewingItem.id}?minimal=true&program_id=${cls.program_id}`}
-                    className="w-full h-full border-none opacity-100"
-                    title="Content Protocol Frame"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {

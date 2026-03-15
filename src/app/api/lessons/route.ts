@@ -1,57 +1,97 @@
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
-import { lessonsService } from '@/services/lessons.service';
-import { withValidation } from '@/proxies/validation.proxy';
-import { AppError } from '@/lib/errors';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
-const createLessonSchema = z.object({
-    course_id: z.string().uuid("Invalid course ID"),
-    title: z.string().min(3, "Title must be at least 3 characters"),
-    description: z.string().optional(),
-    content: z.string().optional(),
-    lesson_type: z.enum(['video', 'reading', 'interactive', 'hands-on', 'workshop', 'coding']).optional(),
-    duration_minutes: z.number().int().positive().optional(),
-    order_index: z.number().int().optional(),
-    video_url: z.string().url().optional(),
-    is_active: z.boolean().optional(),
-});
-
-async function getHandler(req: Request, ctx: ApiContext) {
-    const url = new URL(req.url);
-    const courseId = url.searchParams.get('course_id');
-    if (!courseId) {
-        throw new AppError('course_id is required', 400);
-    }
-
-    const tenantId = ctx.user?.tenantId;
-    const data = await lessonsService.listLessons(courseId, tenantId);
-
-    return NextResponse.json({
-        success: true,
-        data
-    });
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
 }
 
-async function postHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'school' && ctx.user?.role !== 'teacher') {
-        throw new AppError('Not authorized to create lessons', 403, true);
-    }
-
-    const { data, errorResponse } = await withValidation(req as any, createLessonSchema);
-    if (errorResponse) return errorResponse;
-
-    if (ctx.user?.role === 'school' && !ctx.user?.tenantId) {
-        throw new AppError('Tenant context missing', 403, true);
-    }
-
-    const lesson = await lessonsService.createLesson(data!, ctx.user?.id as string, ctx.user?.tenantId as string);
-
-    return NextResponse.json({
-        success: true,
-        data: lesson
-    }, { status: 201 });
+async function requireStaff() {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  const { data: caller } = await adminClient()
+    .from('portal_users')
+    .select('role, id, school_id')
+    .eq('id', user.id)
+    .single();
+  if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
+  return caller;
 }
 
-export const GET = (req: any, ctx: any) => withApiProxy(getHandler, { requireAuth: true, requireTenant: false })(req, ctx);
-export const POST = (req: any, ctx: any) => withApiProxy(postHandler, { requireAuth: true, requireTenant: false })(req, ctx);
+// GET /api/lessons — list lessons visible to current user
+export async function GET(request: NextRequest) {
+  try {
+    const caller = await requireStaff();
+    if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+
+    const admin = adminClient();
+    let query = admin
+      .from('lessons')
+      .select(`
+        id, title, description, lesson_type, status, duration_minutes,
+        session_date, video_url, created_by, created_at,
+        courses ( id, title, programs ( name ) )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (caller.role === 'teacher') {
+      query = query.eq('created_by', caller.id) as any;
+    }
+    // admin/school: no filter — all lessons visible
+
+    const { data, error } = await query;
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data: data ?? [] });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  }
+}
+
+// POST /api/lessons — create a lesson (bypasses RLS)
+export async function POST(request: NextRequest) {
+  try {
+    const caller = await requireStaff();
+    if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized to create lessons' }, { status: 403 });
+
+    const body = await request.json();
+    const allowed = ['title', 'description', 'content', 'lesson_type', 'status',
+      'duration_minutes', 'order_index', 'video_url', 'is_active', 'course_id',
+      'session_date', 'content_layout'];
+    const payload: Record<string, unknown> = { created_by: caller.id };
+    for (const f of allowed) {
+      if (f in body) payload[f] = body[f] ?? null;
+    }
+    payload.created_at = new Date().toISOString();
+
+    const { data, error } = await adminClient()
+      .from('lessons')
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // If lesson_plan data is included, save it too
+    if (body.lesson_plan && data?.id) {
+      const plan = body.lesson_plan;
+      await adminClient().from('lesson_plans').insert({
+        lesson_id: data.id,
+        objectives: plan.objectives ?? null,
+        activities: plan.activities ?? null,
+        assessment_methods: plan.assessment_methods ?? null,
+        staff_notes: plan.staff_notes ?? null,
+        plan_data: plan.plan_data ?? null,
+        covers_full_course: plan.covers_full_course ?? false,
+      });
+    }
+
+    return NextResponse.json({ data }, { status: 201 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  }
+}

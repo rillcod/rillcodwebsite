@@ -54,7 +54,11 @@ export default function MessagesPage() {
 
   const markRead = async (msg: any) => {
     if (!msg.is_read) {
-      await createClient().from('messages').update({ is_read: true }).eq('id', msg.id);
+      await fetch(`/api/messages/${msg.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_read: true }),
+      });
       setInbox(prev => prev.map(m => m.id === msg.id ? { ...m, is_read: true } : m));
     }
     setSelected(msg);
@@ -63,13 +67,17 @@ export default function MessagesPage() {
   const handleSend = async () => {
     if (!compose.recipient_id || !compose.message.trim()) return;
     setSending(true);
-    const { error } = await createClient().from('messages').insert({
-      sender_id: profile!.id,
-      recipient_id: compose.recipient_id,
-      subject: compose.subject.trim() || null,
-      message: compose.message.trim(),
+    const res = await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipient_id: compose.recipient_id,
+        subject: compose.subject.trim() || null,
+        message: compose.message.trim(),
+      }),
     });
-    if (error) { alert(error.message); }
+    const j = await res.json();
+    if (!res.ok) { alert(j.error || 'Failed to send'); }
     else {
       setSent2(true);
       setCompose({ recipient_id: '', subject: '', message: '' });
@@ -81,16 +89,19 @@ export default function MessagesPage() {
   const handleAnnouncement = async () => {
     if (!announcement.title.trim() || !announcement.content.trim()) return;
     setPosting(true);
-    const { data, error } = await createClient().from('announcements').insert({
-      title: announcement.title.trim(),
-      content: announcement.content.trim(),
-      target_audience: announcement.target_audience,
-      author_id: profile!.id,
-      is_active: true,
-    }).select('*, portal_users!announcements_author_id_fkey(full_name)').single();
-    if (error) { alert(error.message); }
+    const res = await fetch('/api/announcements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: announcement.title.trim(),
+        content: announcement.content.trim(),
+        target_audience: announcement.target_audience,
+      }),
+    });
+    const j = await res.json();
+    if (!res.ok) { alert(j.error || 'Failed to post'); }
     else {
-      setAnnouncements(prev => [data, ...prev]);
+      setAnnouncements(prev => [j.data, ...prev]);
       setPosted(true);
       setAnnouncement({ title: '', content: '', target_audience: 'all' });
       setTimeout(() => { setPosted(false); setTab('announcements'); }, 1500);
@@ -100,7 +111,11 @@ export default function MessagesPage() {
 
   const deleteAnnouncement = async (id: string) => {
     if (!confirm('Delete this announcement?')) return;
-    await createClient().from('announcements').update({ is_active: false }).eq('id', id);
+    await fetch(`/api/announcements/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: false }),
+    });
     setAnnouncements(prev => prev.filter(a => a.id !== id));
   };
 

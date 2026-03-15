@@ -1,75 +1,100 @@
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
-import { assignmentsService } from '@/services/assignments.service';
-import { withValidation } from '@/proxies/validation.proxy';
-import { AppError } from '@/lib/errors';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
-const updateAssignmentSchema = z.object({
-    title: z.string().min(3).optional(),
-    description: z.string().optional(),
-    instructions: z.string().optional(),
-    due_date: z.string().optional(),
-    max_points: z.number().int().positive().optional(),
-    assignment_type: z.enum(['homework', 'project', 'quiz', 'exam', 'presentation']).optional(),
-    is_active: z.boolean().optional(),
-});
-
-async function getHandler(req: Request, ctx: ApiContext) {
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Assignment ID missing', 400);
-
-    const tenantId = ctx.user?.tenantId;
-    const data = await assignmentsService.getAssignment(id, tenantId);
-
-    return NextResponse.json({
-        success: true,
-        data
-    });
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
 }
 
-async function putHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'school' && ctx.user?.role !== 'teacher') {
-        throw new AppError('Not authorized to edit assignments', 403, true);
-    }
-
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Assignment ID missing', 400);
-
-    const { data, errorResponse } = await withValidation(req as any, updateAssignmentSchema);
-    if (errorResponse) return errorResponse;
-
-    const tenantId = ctx.user?.tenantId;
-
-    if (ctx.user?.role === 'school' && !tenantId) {
-        throw new AppError('Tenant context missing', 403, true);
-    }
-
-    const updated = await assignmentsService.updateAssignment(id, data!, tenantId);
-
-    return NextResponse.json({
-        success: true,
-        data: updated
-    });
+async function requireStaff() {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  const { data: caller } = await adminClient()
+    .from('portal_users')
+    .select('role, id')
+    .eq('id', user.id)
+    .single();
+  if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
+  return caller;
 }
 
-async function deleteHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'school' && ctx.user?.role !== 'teacher') {
-        throw new AppError('Not authorized to delete assignments', 403, true);
-    }
+// GET /api/assignments/[id]
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Assignment ID missing', 400);
+  const { id } = await params;
+  const { data, error } = await adminClient()
+    .from('assignments')
+    .select(`
+      *, courses ( id, title, programs ( name ) ),
+      assignment_submissions ( id, status, grade, portal_user_id,
+        portal_users!assignment_submissions_portal_user_id_fkey ( full_name, email ) )
+    `)
+    .eq('id', id)
+    .maybeSingle();
 
-    const tenantId = ctx.user?.tenantId;
-    await assignmentsService.deleteAssignment(id, tenantId);
-
-    return NextResponse.json({
-        success: true,
-        message: 'Assignment deleted successfully'
-    });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
+  return NextResponse.json({ data });
 }
 
-export const GET = (req: any, ctx: any) => withApiProxy(getHandler, { requireAuth: true })(req, ctx);
-export const PUT = (req: any, ctx: any) => withApiProxy(putHandler, { requireAuth: true })(req, ctx);
-export const DELETE = (req: any, ctx: any) => withApiProxy(deleteHandler, { requireAuth: true })(req, ctx);
+// PATCH /api/assignments/[id] — update assignment
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+  if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+
+  const { id } = await params;
+  const body = await request.json();
+
+  const allowed: Record<string, unknown> = {};
+  const allowedFields = ['title', 'description', 'instructions', 'course_id', 'due_date',
+    'max_points', 'assignment_type', 'is_active', 'questions'];
+  for (const f of allowedFields) {
+    if (f in body) allowed[f] = body[f] ?? null;
+  }
+  allowed.updated_at = new Date().toISOString();
+
+  const { error } = await adminClient()
+    .from('assignments')
+    .update(allowed)
+    .eq('id', id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
+
+// PUT /api/assignments/[id] — alias for PATCH
+export async function PUT(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return PATCH(request, ctx);
+}
+
+// DELETE /api/assignments/[id]
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+  if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+
+  const { id } = await params;
+  const { error } = await adminClient()
+    .from('assignments')
+    .delete()
+    .eq('id', id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}

@@ -55,32 +55,31 @@ export default function EditExamPage() {
         if (authLoading || !profile || !id) return;
         const db = createClient();
         
-        // Fetch Exam, Questions, Programs
+        // Fetch Exam + Questions via admin API; Programs via client
         Promise.all([
-            db.from('cbt_exams').select('*').eq('id', id).single(),
-            db.from('cbt_questions').select('*').eq('exam_id', id).order('order_index'),
+            fetch(`/api/cbt/exams/${id}`, { cache: 'no-store' }).then(r => r.json()),
             db.from('programs').select('id, name').eq('is_active', true).order('name'),
-        ]).then(([examRes, qRes, progRes]) => {
-            if (examRes.data) {
-                const e = examRes.data;
+        ]).then(([examJson, progRes]) => {
+            const e = examJson.data;
+            if (e) {
                 setForm({
                     title: e.title ?? '',
                     description: e.description ?? '',
                     program_id: e.program_id ?? '',
-                    course_id: (e as any).course_id ?? '',
+                    course_id: e.course_id ?? '',
                     duration_minutes: String(e.duration_minutes ?? 60),
                     passing_score: String(e.passing_score ?? 70),
                     start_date: e.start_date ? new Date(e.start_date).toISOString().slice(0, 16) : '',
                     end_date: e.end_date ? new Date(e.end_date).toISOString().slice(0, 16) : '',
                     is_active: e.is_active ?? true,
                 });
+                setQuestions((e.cbt_questions ?? []).map((q: any) => ({
+                    ...q,
+                    options: Array.isArray(q.options) ? q.options : ['', '', '', ''],
+                })));
             } else {
                 setError('Exam not found.');
             }
-            setQuestions((qRes.data ?? []).map((q: any) => ({
-                ...q,
-                options: Array.isArray(q.options) ? q.options : ['', '', '', ''],
-            })));
             setPrograms(progRes.data ?? []);
             setLoading(false);
         });
@@ -146,10 +145,8 @@ export default function EditExamPage() {
         setError(null);
         setSuccess('');
         try {
-            const db = createClient();
-
-            // Update exam
-            const examPayload: any = {
+            const deletedIds = questions.filter((q: any) => q._deleted && q.id).map((q: any) => q.id);
+            const payload = {
                 title: form.title.trim(),
                 description: form.description.trim() || null,
                 program_id: form.program_id,
@@ -158,50 +155,26 @@ export default function EditExamPage() {
                 passing_score: parseInt(form.passing_score) || 70,
                 total_questions: activeQuestions.length,
                 is_active: form.is_active,
-                updated_at: new Date().toISOString(),
+                start_date: form.start_date ? new Date(form.start_date).toISOString() : null,
+                end_date: form.end_date ? new Date(form.end_date).toISOString() : null,
+                deletedQuestionIds: deletedIds,
+                questions: activeQuestions.map((q: any, i: number) => ({
+                    id: q._new ? undefined : q.id,
+                    question_text: q.question_text.trim(),
+                    question_type: q.question_type,
+                    options: q.question_type === 'multiple_choice' ? q.options.filter((o: string) => o.trim()) : null,
+                    correct_answer: q.correct_answer.trim(),
+                    points: q.points,
+                    order_index: q.order_index ?? i + 1,
+                })),
             };
-            if (form.start_date) examPayload.start_date = new Date(form.start_date).toISOString();
-            else examPayload.start_date = null;
-            if (form.end_date) examPayload.end_date = new Date(form.end_date).toISOString();
-            else examPayload.end_date = null;
 
-            const { error: examErr } = await db.from('cbt_exams').update(examPayload).eq('id', id);
-            if (examErr) throw examErr;
-
-            // Handle deleted questions
-            const deletedIds = questions.filter(q => q._deleted && q.id).map(q => q.id!);
-            if (deletedIds.length > 0) {
-                await db.from('cbt_questions').delete().in('id', deletedIds);
-            }
-
-            // Insert new questions
-            const newQs = activeQuestions.filter(q => q._new);
-            if (newQs.length > 0) {
-                const { error: newQErr } = await db.from('cbt_questions').insert(newQs.map((q, i) => ({
-                    exam_id: id,
-                    question_text: q.question_text.trim(),
-                    question_type: q.question_type,
-                    options: q.question_type === 'multiple_choice' ? q.options.filter(o => o.trim()) : null,
-                    correct_answer: q.correct_answer.trim(),
-                    points: q.points,
-                    order_index: q.order_index,
-                })));
-                if (newQErr) throw newQErr;
-            }
-
-            // Update existing questions
-            const existingQs = activeQuestions.filter(q => q.id && !q._new);
-            for (const q of existingQs) {
-                await db.from('cbt_questions').update({
-                    question_text: q.question_text.trim(),
-                    question_type: q.question_type,
-                    options: q.question_type === 'multiple_choice' ? q.options.filter(o => o.trim()) : null,
-                    correct_answer: q.correct_answer.trim(),
-                    points: q.points,
-                    order_index: q.order_index,
-                    updated_at: new Date().toISOString(),
-                }).eq('id', q.id!);
-            }
+            const res = await fetch(`/api/cbt/exams/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to update exam'); }
 
             setSuccess('Exam updated successfully!');
             setTimeout(() => router.push(`/dashboard/cbt/${id}`), 1200);

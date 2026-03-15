@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       activity_logs: {
@@ -3210,6 +3185,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          class_id: string | null
           created_at: string | null
           created_by: string | null
           current_module: string | null
@@ -3237,6 +3213,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          class_id?: string | null
           created_at?: string | null
           created_by?: string | null
           current_module?: string | null
@@ -3264,6 +3241,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          class_id?: string | null
           created_at?: string | null
           created_by?: string | null
           current_module?: string | null
@@ -3289,6 +3267,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "portal_users_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "portal_users_created_by_fkey"
             columns: ["created_by"]
@@ -4868,6 +4853,8 @@ export type Database = {
         Args: { p_course_id: string }
         Returns: number
       }
+      get_my_role: { Args: never; Returns: string }
+      get_my_school_id: { Args: never; Returns: string }
       get_timetable_ids_by_school: {
         Args: { p_school_id: string }
         Returns: string[]
@@ -5006,9 +4993,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

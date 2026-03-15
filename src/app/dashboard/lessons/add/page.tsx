@@ -15,7 +15,7 @@ import LessonAITools from '@/components/ai/LessonAITools';
 
 export default function AddLessonPage() {
   const router = useRouter();
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, profileLoading } = useAuth();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const preProgramId = searchParams?.get('program_id');
   const preCourseId = searchParams?.get('course_id');
@@ -198,8 +198,13 @@ export default function AddLessonPage() {
       if (form.order_index) payload.order_index = parseInt(form.order_index) || null;
       if (form.session_date) payload.session_date = new Date(form.session_date).toISOString();
 
-      const { data, error: err } = await createClient().from('lessons').insert(payload).select().single();
-      if (err) throw err;
+      const res = await fetch('/api/lessons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to create lesson'); }
+      const { data } = await res.json();
       router.push(`/dashboard/lessons/${data.id}/edit`);
     } catch (e: any) {
       setError(e.message ?? 'Failed to create lesson');
@@ -208,7 +213,7 @@ export default function AddLessonPage() {
     }
   };
 
-  if (authLoading) return (
+  if (authLoading || profileLoading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
     </div>

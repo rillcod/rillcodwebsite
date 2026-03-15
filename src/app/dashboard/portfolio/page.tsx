@@ -637,47 +637,47 @@ export default function PortfolioPage() {
     if (!profile) return;
     setSaving(true);
     setSaveError(null);
-    const db = createClient();
 
     if (editing) {
-      const { error } = await db.from('portfolio_projects')
-        .update({
+      const res = await fetch(`/api/portfolio-projects/${editing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           title: data.title,
           description: data.description,
           category: data.category,
           tags: data.tags,
           project_url: data.project_url || null,
           image_url: data.image_url || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', editing.id);
-
-      if (error) {
-        setSaveError(error.message);
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        setSaveError(j.error || 'Failed to update');
       } else {
         setProjects(prev => prev.map(p => p.id === editing.id ? { ...p, ...data } : p));
       }
     } else {
-      const { data: inserted, error } = await db.from('portfolio_projects')
-        .insert({
-          user_id: profile.id,
+      const res = await fetch('/api/portfolio-projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           title: data.title,
           description: data.description,
           category: data.category,
           tags: data.tags,
           project_url: data.project_url || null,
           image_url: data.image_url || null,
-          is_featured: false,
-        })
-        .select()
-        .single();
-
-      if (error) {
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
         setSaveError('Saved locally (DB unavailable)');
         const newProject: Project = { ...data, id: crypto.randomUUID(), created_at: new Date().toISOString() };
         setProjects(prev => [newProject, ...prev]);
         localStorage.setItem(`portfolio_${profile.id}`, JSON.stringify([newProject, ...projects]));
       } else {
+        const inserted = j.data;
         const newProject: Project = {
           id: inserted.id,
           title: inserted.title,
@@ -703,16 +703,18 @@ export default function PortfolioPage() {
     setProjects(prev => prev.map(p => p.id === id ? { ...p, is_featured: newVal } : p).sort((a, b) =>
       Number(b.is_featured) - Number(a.is_featured)
     ));
-    const db = createClient();
-    await db.from('portfolio_projects').update({ is_featured: newVal }).eq('id', id);
+    await fetch(`/api/portfolio-projects/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_featured: newVal }),
+    });
   }, [projects]);
 
   // ── Delete project ──
   const deleteProject = useCallback(async (id: string) => {
     if (!confirm('Delete this project?')) return;
     setSaving(true);
-    const db = createClient();
-    await db.from('portfolio_projects').delete().eq('id', id);
+    await fetch(`/api/portfolio-projects/${id}`, { method: 'DELETE' });
     setProjects(prev => prev.filter(p => p.id !== id));
     setSaving(false);
   }, []);

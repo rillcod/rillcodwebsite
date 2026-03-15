@@ -10,69 +10,69 @@ import {
   CodeBracketIcon, SparklesIcon
 } from '@/lib/icons';
 
-function CodingBlocksChallenge({ 
-  question, 
-  value, 
-  onChange 
-}: { 
-  question: any, 
-  value: string, 
-  onChange: (val: string) => void 
+function CodingBlocksChallenge({
+  question,
+  value,
+  onChange
+}: {
+  question: any,
+  value: string,
+  onChange: (val: string) => void
 }) {
   const sentence = question.metadata?.logic_sentence || "Logic: [BLANK]";
   const parts = sentence.split('[BLANK]');
   const blocks = question.metadata?.logic_blocks || [];
-  
+
   const currentAnswers = value ? value.split(',').map(s => s.trim()) : [];
-  
+
   const updateAt = (idx: number, newVal: string) => {
-      const newAns = [...currentAnswers];
-      for (let i=0; i < parts.length - 1; i++) {
-          if (newAns[i] === undefined) newAns[i] = '';
-      }
-      newAns[idx] = newVal;
-      onChange(newAns.slice(0, parts.length - 1).join(', '));
+    const newAns = [...currentAnswers];
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (newAns[i] === undefined) newAns[i] = '';
+    }
+    newAns[idx] = newVal;
+    onChange(newAns.slice(0, parts.length - 1).join(', '));
   };
 
   return (
-      <div className="space-y-6">
-          <div className="p-6 bg-white/[0.03] border border-white/10 rounded-[2rem] flex flex-wrap items-center gap-x-3 gap-y-4 leading-[3rem]">
-              {parts.map((p: string, pi: number) => (
-                  <div key={pi} className="contents">
-                      <span className="text-lg font-medium text-white/80">{p}</span>
-                      {pi < parts.length - 1 && (
-                          <div className="inline-block min-w-[100px] h-10 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-xl px-4 text-sm font-black text-emerald-400 flex items-center justify-center italic shadow-[0_0_20px_rgba(16,185,129,0.1)]">
-                              {currentAnswers[pi] || "???"}
-                          </div>
-                      )}
-                  </div>
-              ))}
+    <div className="space-y-6">
+      <div className="p-6 bg-white/[0.03] border border-white/10 rounded-[2rem] flex flex-wrap items-center gap-x-3 gap-y-4 leading-[3rem]">
+        {parts.map((p: string, pi: number) => (
+          <div key={pi} className="contents">
+            <span className="text-lg font-medium text-white/80">{p}</span>
+            {pi < parts.length - 1 && (
+              <div className="inline-block min-w-[100px] h-10 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-xl px-4 text-sm font-black text-emerald-400 flex items-center justify-center italic shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+                {currentAnswers[pi] || "???"}
+              </div>
+            )}
           </div>
-          
-          <div className="flex flex-wrap gap-3">
-              {blocks.map((block: string, bi: number) => (
-                  <button
-                      key={bi}
-                      type="button"
-                      onClick={() => {
-                          const firstEmpty = currentAnswers.findIndex((a, i) => i < parts.length - 1 && !a);
-                          const targetIdx = firstEmpty === -1 ? 0 : firstEmpty;
-                          if (targetIdx < parts.length - 1) updateAt(targetIdx, block);
-                      }}
-                      className="px-5 py-3 bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/30 rounded-2xl text-sm font-bold text-white/70 hover:text-emerald-400 transition-all active:scale-95"
-                  >
-                      {block}
-                  </button>
-              ))}
-              <button 
-                  type="button" 
-                  onClick={() => onChange('')}
-                  className="px-4 py-3 bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/30 rounded-2xl text-[10px] uppercase font-black text-white/30 hover:text-rose-400 ml-auto transition-all"
-              >
-                  Clear Blocks
-              </button>
-          </div>
+        ))}
       </div>
+
+      <div className="flex flex-wrap gap-3">
+        {blocks.map((block: string, bi: number) => (
+          <button
+            key={bi}
+            type="button"
+            onClick={() => {
+              const firstEmpty = currentAnswers.findIndex((a, i) => i < parts.length - 1 && !a);
+              const targetIdx = firstEmpty === -1 ? 0 : firstEmpty;
+              if (targetIdx < parts.length - 1) updateAt(targetIdx, block);
+            }}
+            className="px-5 py-3 bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/30 rounded-2xl text-sm font-bold text-white/70 hover:text-emerald-400 transition-all active:scale-95"
+          >
+            {block}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className="px-4 py-3 bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/30 rounded-2xl text-[10px] uppercase font-black text-white/30 hover:text-rose-400 ml-auto transition-all"
+        >
+          Clear Blocks
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -97,20 +97,20 @@ export default function TakeExamPage() {
     if (profile.role !== 'student') { router.push('/dashboard/cbt'); return; }
     const id = params?.id as string;
     if (!id) return;
-    const db = createClient();
-    // Check if already attempted
-    db.from('cbt_sessions').select('id').eq('exam_id', id).eq('user_id', profile.id).maybeSingle()
+    // Check if already attempted (via admin-client API)
+    fetch(`/api/cbt/sessions?exam_id=${id}`, { cache: 'no-store' })
+      .then(r => r.json())
       .then(({ data: existing }) => {
         if (existing) { router.push(`/dashboard/cbt/${id}`); return; }
-        Promise.all([
-          db.from('cbt_exams').select('*').eq('id', id).single(),
-          db.from('cbt_questions').select('*').eq('exam_id', id).order('order_index'),
-        ]).then(([examRes, qRes]) => {
-          setExam(examRes.data);
-          setQuestions(qRes.data ?? []);
-          setTimeLeft((examRes.data?.duration_minutes ?? 60) * 60);
-          setLoading(false);
-        });
+        fetch(`/api/cbt/exams/${id}`, { cache: 'no-store' })
+          .then(r => r.json())
+          .then(({ data: examData }) => {
+            if (!examData) { router.push('/dashboard/cbt'); return; }
+            setExam(examData);
+            setQuestions(examData.cbt_questions ?? []);
+            setTimeLeft((examData.duration_minutes ?? 60) * 60);
+            setLoading(false);
+          });
       });
   }, [profile?.id, authLoading]); // eslint-disable-line
 
@@ -129,7 +129,7 @@ export default function TakeExamPage() {
         }
 
         const isCorrect = (answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase();
-        
+
         if (isCorrect) {
           if (q.question_type !== 'essay') {
             correct++;
@@ -151,31 +151,31 @@ export default function TakeExamPage() {
 
       if (manualGradingRequired) {
         try {
-           const aiRes = await fetch('/api/ai/generate', {
-             method: 'POST',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({
-               type: 'cbt-grading',
-               topic: exam?.title || 'CBT Grading',
-               questions: questions.filter(q => q.question_type === 'essay' || q.question_type === 'fill_blank').map(q => ({
-                  id: q.id,
-                  text: q.question_text,
-                  type: q.question_type,
-                  points: q.points,
-                  correct_answer: q.correct_answer
-               })),
-               studentAnswers: answers
-             })
-           });
-           if (aiRes.ok) {
-             const aiPayload = await aiRes.json();
-             aiScores = aiPayload.data.scores || {};
-             aiFeedback = aiPayload.data.feedback || '';
-             // Add AI scores to points
-             Object.values(aiScores).forEach(s => { autoPoints += s; });
-           }
+          const aiRes = await fetch('/api/ai/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'cbt-grading',
+              topic: exam?.title || 'CBT Grading',
+              questions: questions.filter(q => q.question_type === 'essay' || q.question_type === 'fill_blank').map(q => ({
+                id: q.id,
+                text: q.question_text,
+                type: q.question_type,
+                points: q.points,
+                correct_answer: q.correct_answer
+              })),
+              studentAnswers: answers
+            })
+          });
+          if (aiRes.ok) {
+            const aiPayload = await aiRes.json();
+            aiScores = aiPayload.data.scores || {};
+            aiFeedback = aiPayload.data.feedback || '';
+            // Add AI scores to points
+            Object.values(aiScores).forEach(s => { autoPoints += s; });
+          }
         } catch (e) {
-           console.error("AI Grading failed during submission:", e);
+          console.error("AI Grading failed during submission:", e);
         }
       }
 
@@ -183,18 +183,25 @@ export default function TakeExamPage() {
       const passed = score >= (exam?.passing_score ?? 70);
       const finalStatus = manualGradingRequired ? 'pending_grading' : (passed ? 'passed' : 'failed');
 
-      await createClient().from('cbt_sessions').insert({
-        exam_id: exam.id,
-        user_id: profile!.id,
-        start_time: startTimeRef.current.toISOString(),
-        end_time: new Date().toISOString(),
-        score,
-        status: finalStatus,
-        answers,
-        manual_scores: aiScores,
-        grading_notes: aiFeedback ? `AI Preliminary Evaluation: ${aiFeedback}` : null,
-        needs_grading: manualGradingRequired,
+      const sessionRes = await fetch('/api/cbt/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exam_id: exam.id,
+          start_time: startTimeRef.current.toISOString(),
+          end_time: new Date().toISOString(),
+          score,
+          status: finalStatus,
+          answers,
+          manual_scores: aiScores,
+          grading_notes: aiFeedback ? `AI Preliminary Evaluation: ${aiFeedback}` : null,
+          needs_grading: manualGradingRequired,
+        }),
       });
+      if (!sessionRes.ok) {
+        const j = await sessionRes.json();
+        throw new Error(j.error || 'Failed to submit exam');
+      }
 
       setResult({ score, passed, correct: manualGradingRequired ? -2 : correct }); // -2 means AI graded
       setSubmitted(true);
@@ -205,11 +212,11 @@ export default function TakeExamPage() {
           const db = createClient();
           // 1. Get first course for this program
           const { data: course } = await db.from('courses').select('id').eq('program_id', exam.program_id).order('order_index').limit(1).single();
-          
+
           if (course) {
             // 2. Check if student already has a certificate for this course
             const { data: existing } = await db.from('certificates').select('id').eq('portal_user_id', profile.id).eq('course_id', course.id).maybeSingle();
-            
+
             if (!existing) {
               await fetch('/api/certificates', {
                 method: 'POST',
@@ -275,7 +282,7 @@ export default function TakeExamPage() {
             <div className={`w-32 h-32 mx-auto rounded-[2rem] flex items-center justify-center border-2 rotate-3 transition-transform hover:rotate-0 duration-500 ${isPending ? 'border-amber-500/50 bg-amber-500/10' : (result.passed ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-rose-500/50 bg-rose-500/10')}`}>
               {isPending ? <ClockIcon className="w-16 h-16 text-amber-400" /> : (result.passed ? <CheckCircleIcon className="w-16 h-16 text-emerald-400" /> : <XCircleIcon className="w-16 h-16 text-rose-400" />)}
             </div>
-            
+
             <div className="space-y-2">
               <h1 className={`text-5xl font-black italic tracking-tighter ${isPending ? 'text-amber-400' : (result.passed ? 'text-emerald-400' : 'text-rose-400')}`}>
                 {isPending ? 'SUBMITTED' : (result.passed ? 'EXCELLENT' : 'COMPLETE')}
@@ -291,38 +298,38 @@ export default function TakeExamPage() {
                   Your performance review is in progress.
                 </p>
                 <div className="flex flex-col gap-2">
-                    <span className="px-4 py-2 rounded-xl bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 w-fit mx-auto">
-                        Awaiting Manual Evaluation
-                    </span>
-                    <p className="text-sm text-white/30 italic">
-                        Essays & Subjective answers are being reviewed by your instructor.
-                    </p>
+                  <span className="px-4 py-2 rounded-xl bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 w-fit mx-auto">
+                    Awaiting Manual Evaluation
+                  </span>
+                  <p className="text-sm text-white/30 italic">
+                    Essays & Subjective answers are being reviewed by your instructor.
+                  </p>
                 </div>
               </div>
             ) : (
               <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-6">
                 <div className="space-y-2">
-                   <div className="flex justify-between items-end">
-                     <span className="text-white/40 text-xs font-black uppercase tracking-widest">
-                       {isAiGraded ? 'Preliminary Grade' : 'Final Grade'}
-                     </span>
-                     <span className={`text-4xl font-black ${result.passed ? 'text-emerald-400' : 'text-rose-400'}`}>{result.score}%</span>
-                   </div>
-                   <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5">
-                     <div className={`h-full rounded-full transition-all duration-1000 ease-out ${result.passed ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-rose-600 to-rose-400'}`}
-                       style={{ width: `${Math.min(result.score, 100)}%` }} />
-                   </div>
+                  <div className="flex justify-between items-end">
+                    <span className="text-white/40 text-xs font-black uppercase tracking-widest">
+                      {isAiGraded ? 'Preliminary Grade' : 'Final Grade'}
+                    </span>
+                    <span className={`text-4xl font-black ${result.passed ? 'text-emerald-400' : 'text-rose-400'}`}>{result.score}%</span>
+                  </div>
+                  <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5">
+                    <div className={`h-full rounded-full transition-all duration-1000 ease-out ${result.passed ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-rose-600 to-rose-400'}`}
+                      style={{ width: `${Math.min(result.score, 100)}%` }} />
+                  </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                        <p className="text-[10px] text-white/30 font-black uppercase mb-1">Status</p>
-                        <p className="text-sm font-bold">{result.passed ? 'PASSED' : 'FAILED'}</p>
-                    </div>
-                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                        <p className="text-[10px] text-white/30 font-black uppercase mb-1">Requirement</p>
-                        <p className="text-xl font-bold text-white/50">{exam?.passing_score ?? 70}%</p>
-                    </div>
+                  <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                    <p className="text-[10px] text-white/30 font-black uppercase mb-1">Status</p>
+                    <p className="text-sm font-bold">{result.passed ? 'PASSED' : 'FAILED'}</p>
+                  </div>
+                  <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                    <p className="text-[10px] text-white/30 font-black uppercase mb-1">Requirement</p>
+                    <p className="text-xl font-bold text-white/50">{exam?.passing_score ?? 70}%</p>
+                  </div>
                 </div>
                 {isAiGraded && (
                   <div className="flex items-center gap-2 px-4 py-2 bg-violet-600/10 rounded-xl border border-violet-500/20 w-fit mx-auto">
@@ -355,8 +362,8 @@ export default function TakeExamPage() {
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-8">
           <div className="flex-1 flex items-center gap-6">
             <div className="flex-shrink-0">
-               <div className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-1">Live Examination</div>
-               <h2 className="text-sm font-bold text-white/80 truncate max-w-[200px] sm:max-w-md">{exam?.title}</h2>
+              <div className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-1">Live Examination</div>
+              <h2 className="text-sm font-bold text-white/80 truncate max-w-[200px] sm:max-w-md">{exam?.title}</h2>
             </div>
             <div className="hidden sm:flex flex-1 items-center gap-3">
               <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden max-w-[120px]">
@@ -365,7 +372,7 @@ export default function TakeExamPage() {
               <span className="text-[10px] font-black text-white/20 tracking-tighter uppercase">{current + 1} of {questions.length}</span>
             </div>
           </div>
-          
+
           <div className={`flex items-center gap-3 px-5 py-2.5 rounded-2xl border transition-all duration-500 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 animate-pulse' : 'bg-white/3 border-white/10 text-white/60'}`}>
             <ClockIcon className={`w-4 h-4 ${timeLeft < 120 ? 'text-rose-500' : 'text-emerald-500/50'}`} />
             <span className="text-lg font-black tracking-widest leading-none">{formatTime(timeLeft)}</span>
@@ -381,13 +388,13 @@ export default function TakeExamPage() {
         <div className="max-w-4xl w-full space-y-8 relative z-10 py-12">
           <div className="space-y-8 min-h-[400px]">
             <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                    <span className="px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 tracking-widest uppercase">Question {current + 1}</span>
-                    <span className="text-[10px] text-white/20 font-bold uppercase tracking-widest">{q?.points} Points</span>
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-br from-white to-white/60 bg-clip-text text-transparent leading-tight">
-                    {q?.question_text}
-                </h1>
+              <div className="flex items-center gap-3">
+                <span className="px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 tracking-widest uppercase">Question {current + 1}</span>
+                <span className="text-[10px] text-white/20 font-bold uppercase tracking-widest">{q?.points} Points</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-br from-white to-white/60 bg-clip-text text-transparent leading-tight">
+                {q?.question_text}
+              </h1>
             </div>
 
             <div className="grid grid-cols-1 gap-4 pt-4">
@@ -443,10 +450,10 @@ export default function TakeExamPage() {
               )}
 
               {q?.question_type === 'coding_blocks' && (
-                <CodingBlocksChallenge 
-                  question={q} 
-                  value={answers[q.id] ?? ''} 
-                  onChange={(val) => setAnswers(a => ({ ...a, [q.id]: val }))} 
+                <CodingBlocksChallenge
+                  question={q}
+                  value={answers[q.id] ?? ''}
+                  onChange={(val) => setAnswers(a => ({ ...a, [q.id]: val }))}
                 />
               )}
             </div>
@@ -456,16 +463,16 @@ export default function TakeExamPage() {
           <div className="flex items-center justify-between pt-12 border-t border-white/5">
             <button onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}
               className="group flex items-center gap-3 px-6 py-3 text-sm font-bold text-white/40 hover:text-white transition-all disabled:opacity-0">
-              <ChevronLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /> 
+              <ChevronLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
               <span className="uppercase tracking-widest italic">Previous</span>
             </button>
 
             <div className="flex-1 flex justify-center">
-                <div className="bg-white/5 border border-white/10 rounded-full px-4 py-2 flex items-center gap-4">
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{answered} Submitted</span>
-                    <div className="w-1 h-1 bg-white/10 rounded-full" />
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{questions.length - answered} Remaining</span>
-                </div>
+              <div className="bg-white/5 border border-white/10 rounded-full px-4 py-2 flex items-center gap-4">
+                <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{answered} Submitted</span>
+                <div className="w-1 h-1 bg-white/10 rounded-full" />
+                <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">{questions.length - answered} Remaining</span>
+              </div>
             </div>
 
             {current < questions.length - 1 ? (

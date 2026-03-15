@@ -61,9 +61,33 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [selectedRole, setRole] = useState<UserRole | null>(null);
 
+  const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState("");
+  const [schoolsLoading, setSchoolsLoading] = useState(false);
+
+  const handleRoleSelect = async (role: UserRole) => {
+    setRole(role);
+    if (role === 'student' && schools.length === 0) {
+      setSchoolsLoading(true);
+      try {
+        const res = await fetch('/api/schools/public');
+        if (res.ok) {
+          const { schools: list } = await res.json();
+          setSchools(list ?? []);
+        }
+      } finally {
+        setSchoolsLoading(false);
+      }
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRole) { toast.error("Please select a role to continue"); return; }
+    if (selectedRole === 'student' && !selectedSchoolId) {
+      toast.error("Please select your school to continue");
+      return;
+    }
     if (password.length < 8) { toast.error("Password must be at least 8 characters"); return; }
 
     setLoading(true);
@@ -83,6 +107,24 @@ export default function SignUpPage() {
       // Email confirmation is disabled — sign in immediately
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw new Error(signInError.message);
+
+      // For students, write school_id to their profile row
+      if (selectedRole === 'student' && selectedSchoolId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const school = schools.find(s => s.id === selectedSchoolId);
+          await supabase.from('portal_users').upsert({
+            id: user.id,
+            email: email.trim().toLowerCase(),
+            full_name: fullName,
+            role: 'student',
+            school_id: selectedSchoolId,
+            school_name: school?.name ?? null,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+        }
+      }
 
       toast.success("Account created! Welcome to Rillcod Academy.");
       router.push('/dashboard');
@@ -148,7 +190,7 @@ export default function SignUpPage() {
                 <button
                   key={r.id}
                   type="button"
-                  onClick={() => setRole(r.id)}
+                  onClick={() => handleRoleSelect(r.id)}
                   className={`relative flex flex-col items-center gap-2 p-3.5 rounded-2xl border-2 transition-all duration-200
                     ${selectedRole === r.id
                       ? `bg-gradient-to-br ${r.gradient} ${r.border} shadow-lg ${r.glow}`
@@ -178,6 +220,38 @@ export default function SignUpPage() {
                   className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-violet-500 focus:bg-white/8 transition-all" />
               </div>
             </div>
+
+            {/* School selector — required for students */}
+            {selectedRole === 'student' && (
+              <div>
+                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                  Your School <span className="text-rose-400">*</span>
+                </label>
+                {schoolsLoading ? (
+                  <div className="flex items-center gap-2 py-3 px-4 bg-white/5 border border-white/10 rounded-xl text-white/30 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Loading schools…
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25 pointer-events-none" />
+                    <select
+                      required
+                      value={selectedSchoolId}
+                      onChange={e => setSelectedSchoolId(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 focus:bg-white/8 transition-all appearance-none"
+                    >
+                      <option value="">— Select your school —</option>
+                      {schools.map(s => (
+                        <option key={s.id} value={s.id} className="bg-[#0a0a14] text-white">{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {!schoolsLoading && schools.length === 0 && (
+                  <p className="text-[11px] text-amber-400/80 mt-1">No schools found. Contact your administrator.</p>
+                )}
+              </div>
+            )}
 
             {/* Email */}
             <div>
@@ -219,7 +293,7 @@ export default function SignUpPage() {
             </div>
 
             {/* Submit */}
-            <button type="submit" disabled={loading || !selectedRole}
+            <button type="submit" disabled={loading || !selectedRole || (selectedRole === 'student' && !selectedSchoolId)}
               className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-violet-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
               {loading ? 'Creating account…' : 'Create Account'}

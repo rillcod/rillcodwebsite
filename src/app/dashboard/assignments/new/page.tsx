@@ -36,7 +36,7 @@ const emptyQuestion = (): Question => ({
 
 export default function NewAssignmentPage() {
   const router = useRouter();
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, profileLoading } = useAuth();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const preProgramId = searchParams?.get('program_id');
   const preCourseId = searchParams?.get('course_id');
@@ -172,8 +172,12 @@ export default function NewAssignmentPage() {
       };
       if (form.due_date) payload.due_date = new Date(form.due_date).toISOString();
 
-      const { error: err } = await createClient().from('assignments').insert(payload);
-      if (err) throw err;
+      const res = await fetch('/api/assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to create assignment'); }
       router.push('/dashboard/assignments');
     } catch (e: any) {
       setError(e.message ?? 'Failed to create assignment');
@@ -182,7 +186,7 @@ export default function NewAssignmentPage() {
     }
   };
 
-  if (authLoading) return (
+  if (authLoading || profileLoading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
     </div>

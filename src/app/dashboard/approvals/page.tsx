@@ -128,12 +128,11 @@ export default function ApprovalsPage() {
     const handleProspective = async (id: string, action: 'approved' | 'rejected') => {
         setActing(id);
         try {
-            const supabase = createClient();
-            if (action === 'rejected') {
-                await supabase.from('prospective_students').update({ is_deleted: true, is_active: false }).eq('id', id);
-            } else {
-                await supabase.from('prospective_students').update({ is_active: true }).eq('id', id);
-            }
+            await fetch('/api/approvals/prospective', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, action }),
+            });
             setProspective(prev => prev.filter(s => s.id !== id));
         } catch { /* ignore */ }
         setActing(null);
@@ -263,7 +262,7 @@ export default function ApprovalsPage() {
                                             <div className="flex flex-wrap gap-3 mt-1 text-xs text-white/40">
                                                 {s.parent_email && <span className="flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" />{s.parent_email}</span>}
                                                 {s.parent_phone && <span className="flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{s.parent_phone}</span>}
-                                                {s.school_name && <span className="flex items-center gap-1"><BuildingOfficeIcon className="w-3.5 h-3.5" />{s.school_name}</span>}
+                                                {s.school_name && <span className="flex items-center gap-1"><BuildingOfficeIcon className="w-3.5 h-3.5" />{s.school_name}{s.school_id ? <span className="text-emerald-500/60 ml-0.5">✓</span> : <span className="text-amber-400/70 ml-0.5" title="No school ID resolved">!</span>}</span>}
                                                 {s.current_class && <span className="flex items-center gap-1"><AcademicCapIcon className="w-3.5 h-3.5" />Class: {s.current_class}</span>}
                                             </div>
                                             {s.goals && <p className="text-xs text-white/30 mt-2 line-clamp-2">Goal: {s.goals}</p>}

@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { toPng } from 'html-to-image';
-import jsPDF from 'jspdf';
-import ReportCard from '@/components/reports/ReportCard';
+// NOTE: html-to-image and jspdf are browser-only. Do NOT import them here at the
+// module level — that causes a 56 s SSR hang + 404. They are loaded lazily inside
+// generateReportPDF() via dynamic import() so the server never touches them.
 
 // ─── Legacy color converters (kept for reference, no longer used) ─────────────
 // html-to-image uses the browser's native renderer so no conversion is needed.
@@ -215,6 +215,12 @@ export const OKLCH_HEX_OVERRIDES = `
 // Uses html-to-image which renders via the browser's native foreignObject SVG
 // renderer — no custom CSS parser, so oklch/lab/lch/display-p3 all work natively.
 export async function generateReportPDF(element: HTMLElement, filename: string): Promise<void> {
+    // Lazy-load browser-only libs to prevent SSR crash
+    const [{ toPng }, { default: jsPDF }] = await Promise.all([
+        import('html-to-image'),
+        import('jspdf'),
+    ]);
+
     // Wait for all images to finish loading
     const imgs = element.querySelectorAll('img');
     await Promise.allSettled(

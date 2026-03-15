@@ -32,13 +32,17 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await request.json();
-  const { full_name, role, phone, is_active } = body;
+  const { full_name, role, phone, is_active, bio, email, is_deleted, avatar_url } = body;
 
   const update: Record<string, any> = { updated_at: new Date().toISOString() };
-  if (full_name !== undefined) update.full_name = full_name;
-  if (role !== undefined) update.role = role;
-  if (phone !== undefined) update.phone = phone;
-  if (is_active !== undefined) update.is_active = is_active;
+  if (full_name  !== undefined) update.full_name  = full_name;
+  if (role       !== undefined) update.role       = role;
+  if (phone      !== undefined) update.phone      = phone;
+  if (is_active  !== undefined) update.is_active  = is_active;
+  if (bio        !== undefined) update.bio        = bio ?? null;
+  if (email      !== undefined) update.email      = email?.trim().toLowerCase() ?? null;
+  if (is_deleted !== undefined) update.is_deleted = is_deleted;
+  if (avatar_url !== undefined) update.avatar_url = avatar_url ?? null;
 
   const admin = adminClient();
 
