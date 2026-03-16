@@ -198,6 +198,11 @@ export default function PaymentsPage() {
     rillcod_quota_percent: '',
     notes: '',
     due_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    deposit_amount: '',
+    pay_to_account_id: '',
+    manual_student_count: '',
+    show_revenue_share: true,
+    show_whatsapp_option: true,
   });
   const [schoolInvStudentCount, setSchoolInvStudentCount] = useState<number | null>(null);
   const [loadingSchoolCount, setLoadingSchoolCount] = useState(false);
@@ -349,6 +354,7 @@ export default function PaymentsPage() {
       .eq('school_id', schoolId)
       .eq('is_active', true);
     setSchoolInvStudentCount(count ?? 0);
+    setSchoolInvForm(prev => ({ ...prev, manual_student_count: String(count ?? 0) }));
     // Pre-fill quota percent from school record
     const sch = schools.find(s => s.id === schoolId);
     if (sch?.rillcod_quota_percent != null) {
@@ -360,12 +366,19 @@ export default function PaymentsPage() {
   function handlePrintSchoolInvoice() {
     const sch = schools.find(s => s.id === schoolInvForm.school_id);
     if (!sch) { alert('Select a school first.'); return; }
-    const count = schoolInvStudentCount ?? 0;
+    const count = parseInt(schoolInvForm.manual_student_count) || schoolInvStudentCount || 0;
     const ratePerChild = parseFloat(schoolInvForm.rate_per_child) || 0;
     const quotaPct = parseFloat(schoolInvForm.rillcod_quota_percent) || 0;
     const subtotal = ratePerChild * count;
+    
+    const deposit = parseFloat(schoolInvForm.deposit_amount) || 0;
+    const balance = subtotal - deposit;
+    
     const rillcodShare = Math.round(subtotal * (quotaPct / 100));
     const schoolShare = subtotal - rillcodShare;
+    
+    const payToAcc = accounts.find(a => a.id === schoolInvForm.pay_to_account_id);
+
     if (ratePerChild === 0) { alert('Enter a rate per child first.'); return; }
 
     const docRef = `SINV-${Date.now().toString(36).toUpperCase()}`;
@@ -406,12 +419,15 @@ thead th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;text-tr
 tbody tr{border-bottom:1px solid #e5e7eb}
 tbody tr:nth-child(even){background:#f9fafb}
 tbody td{padding:8px 12px;font-size:12px;color:#374151}
-.totals-box{background:#f3f0ff;border:1px solid #7c3aed22;border-radius:8px;padding:16px;margin-bottom:20px;display:flex;flex-direction:column;gap:8px}
+.totals-box{background:#f3f0ff;border:1px solid #7c3aed22;border-radius:8px;padding:16px;margin-bottom:12px;display:flex;flex-direction:column;gap:6px}
 .totals-row{display:flex;justify-content:space-between;align-items:center}
 .totals-label{font-size:11px;color:#6b7280}
 .totals-val{font-size:12px;font-weight:700;color:#374151}
 .totals-grand-label{font-size:14px;font-weight:900;color:#4c1d95}
 .totals-grand-val{font-size:20px;font-weight:900;color:#4c1d95}
+.balance-box{background:#fff7ed;border:2px solid #ea580c;padding:12px 16px;border-radius:8px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.balance-label{font-size:12px;font-weight:900;color:#9a3412;text-transform:uppercase;letter-spacing:1px}
+.balance-val{font-size:22px;font-weight:950;color:#ea580c}
 .revenue-split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
 .split-box{border-radius:8px;padding:12px 16px;text-align:center}
 .split-rillcod{background:linear-gradient(135deg,#7c3aed11,#4f46e511);border:1px solid #7c3aed44}
@@ -420,6 +436,12 @@ tbody td{padding:8px 12px;font-size:12px;color:#374151}
 .split-pct{font-size:14px;font-weight:900}
 .split-amount{font-size:18px;font-weight:900;margin-top:2px}
 .split-sub{font-size:9px;color:#9ca3af;margin-top:2px}
+.bank-box{background:#f8fafc;border:1px solid #33415522;border-radius:8px;padding:14px;margin-bottom:18px}
+.bank-title{font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.bank-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bank-cell{font-size:11px}
+.bank-label{color:#94a3b8;font-weight:700;display:block;margin-bottom:1px;font-size:9px}
+.bank-val{color:#334155;font-weight:800}
 .notes-box{background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:11px;color:#92400e}
 .footer{border-top:1px solid #e5e7eb;padding-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:8px}
 .sig-box{text-align:center}
@@ -444,7 +466,7 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
     <div class="inv-number">${docRef}</div>
     <div style="font-size:10px;color:#6b7280;margin-top:4px"><b>Date:</b> ${dateStr}</div>
     <div style="font-size:10px;color:#6b7280"><b>Due:</b> ${dueStr}</div>
-    <div style="margin-top:6px"><span class="status-due">Awaiting Payment</span></div>
+    <div style="margin-top:6px"><span class="${balance <= 0 ? 'status-paid' : 'status-due'}">${balance <= 0 ? 'Fully Paid' : 'Awaiting Payment'}</span></div>
   </div>
 </div>
 <div class="parties">
@@ -477,10 +499,20 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
 </tbody>
 </table>
 <div class="totals-box">
-  <div class="totals-row"><span class="totals-label">Subtotal (${count} students × ${fmtNGN(ratePerChild)})</span><span class="totals-val">${fmtNGN(subtotal)}</span></div>
+  <div class="totals-row"><span class="totals-label">Total Fee (${count} students × ${fmtNGN(ratePerChild)})</span><span class="totals-val">${fmtNGN(subtotal)}</span></div>
+  <div class="totals-row"><span class="totals-label">Less Deposit / Previous Payment</span><span class="totals-val" style="color:#059669">(${fmtNGN(deposit)})</span></div>
   <hr/>
-  <div class="totals-row"><span class="totals-grand-label">Total Invoice Amount</span><span class="totals-grand-val">${fmtNGN(subtotal)}</span></div>
+  <div class="totals-row"><span class="totals-grand-label">Total Payable Amount</span><span class="totals-grand-val">${fmtNGN(balance)}</span></div>
 </div>
+
+${balance > 0 ? `
+<div class="balance-box">
+  <div class="balance-label">Outstanding Balance</div>
+  <div class="balance-val">${fmtNGN(balance)}</div>
+</div>
+` : ''}
+
+${schoolInvForm.show_revenue_share ? `
 <div style="font-size:11px;font-weight:800;color:#4c1d95;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Revenue Allocation &amp; Split</div>
 <div class="revenue-split">
   <div class="split-box split-rillcod">
@@ -496,6 +528,26 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
     <div class="split-sub">School's share of the programme fee</div>
   </div>
 </div>
+` : ''}
+
+${payToAcc ? `
+<div class="bank-box">
+  <div class="bank-title">Payment Instructions (Pay To)</div>
+  <div class="bank-grid">
+    <div class="bank-cell"><span class="bank-label">Bank Name</span><span class="bank-val">${payToAcc.bank_name}</span></div>
+    <div class="bank-cell"><span class="bank-label">Account Number</span><span class="bank-val" style="font-size:14px;letter-spacing:1px">${payToAcc.account_number}</span></div>
+    <div class="bank-cell" style="grid-column: span 2"><span class="bank-label">Account Name</span><span class="bank-val">${payToAcc.account_name}</span></div>
+  </div>
+</div>
+` : ''}
+
+${schoolInvForm.show_whatsapp_option ? `
+<div style="background:#dcfce7; border:1px solid #16a34a33; border-radius:8px; padding:10px 14px; margin-bottom:18px; font-size:11px; color:#166534; display:flex; align-items:center; gap:8px">
+  <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.414 0 .018 5.393 0 12.03c0 2.12.554 4.189 1.604 6.046L0 24l6.109-1.603a11.803 11.803 0 005.937 1.597h.005c6.632 0 12.029-5.392 12.032-12.029a11.77 11.77 0 00-3.517-8.482z"/></svg>
+  <span><b>WhatsApp Receipt:</b> Digital receipt will be sent to the school principal's registered WhatsApp number upon payment confirmation.</span>
+</div>
+` : ''}
+
 ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.notes}</div>` : ''}
 <div class="footer">
   <div class="sig-box"><div class="sig-line"></div><div class="sig-label">School Principal / Authority</div></div>
@@ -956,9 +1008,18 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">
-                      Rate per Child (₦)
-                    </label>
+                    <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Student Count Override</label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Manual count"
+                      value={schoolInvForm.manual_student_count}
+                      onChange={e => setSchoolInvForm(prev => ({ ...prev, manual_student_count: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Rate per Child (₦)</label>
                     <input
                       type="number"
                       min="0"
@@ -1001,6 +1062,50 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                       className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500"
                     />
                   </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Deposit Made (₦)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Amount already paid"
+                      value={schoolInvForm.deposit_amount}
+                      onChange={e => setSchoolInvForm(prev => ({ ...prev, deposit_amount: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 font-bold text-emerald-400"
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Pay To (Rillcod Account)</label>
+                    <select
+                      value={schoolInvForm.pay_to_account_id}
+                      onChange={e => setSchoolInvForm(prev => ({ ...prev, pay_to_account_id: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500"
+                    >
+                      <option value="">— Select Payment Account —</option>
+                      {rillcodAccounts.map(a => (
+                        <option key={a.id} value={a.id}>{a.label} ({a.bank_name})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-4 py-2">
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                      <div 
+                        onClick={() => setSchoolInvForm(prev => ({ ...prev, show_revenue_share: !prev.show_revenue_share }))}
+                        className={`w-10 h-6 rounded-full transition-all flex items-center px-1 ${schoolInvForm.show_revenue_share ? 'bg-violet-600' : 'bg-white/10'}`}
+                      >
+                        <div className={`w-4 h-4 rounded-full bg-white transition-all ${schoolInvForm.show_revenue_share ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </div>
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest group-hover:text-white transition-colors">Revenue Share</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                      <div 
+                        onClick={() => setSchoolInvForm(prev => ({ ...prev, show_whatsapp_option: !prev.show_whatsapp_option }))}
+                        className={`w-10 h-6 rounded-full transition-all flex items-center px-1 ${schoolInvForm.show_whatsapp_option ? 'bg-emerald-600' : 'bg-white/10'}`}
+                      >
+                        <div className={`w-4 h-4 rounded-full bg-white transition-all ${schoolInvForm.show_whatsapp_option ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </div>
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest group-hover:text-white transition-colors">WhatsApp Receipt</span>
+                    </label>
+                  </div>
                 </div>
 
                 {/* Live computation preview */}
@@ -1015,7 +1120,7 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                       <div className="flex flex-wrap gap-6 items-center">
                         <div>
                           <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">Active Students</p>
-                          <p className="text-2xl font-black text-violet-400">{schoolInvStudentCount ?? 0}</p>
+                          <p className="text-2xl font-black text-violet-400">{schoolInvForm.manual_student_count || schoolInvStudentCount || 0}</p>
                         </div>
                         <div>
                           <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">Rate / Child</p>
@@ -1024,21 +1129,29 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                         <div className="flex-1">
                           <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">Total Invoice</p>
                           <p className="text-2xl font-black text-emerald-400">
-                            ₦{((schoolInvStudentCount ?? 0) * (parseFloat(schoolInvForm.rate_per_child) || 0)).toLocaleString()}
+                            ₦{((parseInt(schoolInvForm.manual_student_count) || schoolInvStudentCount || 0) * (parseFloat(schoolInvForm.rate_per_child) || 0)).toLocaleString()}
                           </p>
                         </div>
-                        {schoolInvForm.rillcod_quota_percent && (
+                        {schoolInvForm.deposit_amount && parseFloat(schoolInvForm.deposit_amount) > 0 && (
+                          <div className="bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20">
+                            <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Balance Payable</p>
+                            <p className="text-2xl font-black text-emerald-300">
+                              ₦{(((parseInt(schoolInvForm.manual_student_count) || schoolInvStudentCount || 0) * (parseFloat(schoolInvForm.rate_per_child) || 0)) - parseFloat(schoolInvForm.deposit_amount)).toLocaleString()}
+                            </p>
+                          </div>
+                        )}
+                        {schoolInvForm.rillcod_quota_percent && schoolInvForm.show_revenue_share && (
                           <>
                             <div>
                               <p className="text-[9px] font-black text-violet-400/60 uppercase tracking-widest">Rillcod {schoolInvForm.rillcod_quota_percent}%</p>
                               <p className="text-lg font-black text-violet-400">
-                                ₦{Math.round((schoolInvStudentCount ?? 0) * (parseFloat(schoolInvForm.rate_per_child) || 0) * (parseFloat(schoolInvForm.rillcod_quota_percent) / 100)).toLocaleString()}
+                                ₦{Math.round((parseInt(schoolInvForm.manual_student_count) || schoolInvStudentCount || 0) * (parseFloat(schoolInvForm.rate_per_child) || 0) * (parseFloat(schoolInvForm.rillcod_quota_percent) / 100)).toLocaleString()}
                               </p>
                             </div>
                             <div>
                               <p className="text-[9px] font-black text-emerald-400/60 uppercase tracking-widest">School {100 - parseFloat(schoolInvForm.rillcod_quota_percent)}%</p>
                               <p className="text-lg font-black text-emerald-400">
-                                ₦{Math.round((schoolInvStudentCount ?? 0) * (parseFloat(schoolInvForm.rate_per_child) || 0) * ((100 - parseFloat(schoolInvForm.rillcod_quota_percent)) / 100)).toLocaleString()}
+                                ₦{Math.round((parseInt(schoolInvForm.manual_student_count) || schoolInvStudentCount || 0) * (parseFloat(schoolInvForm.rate_per_child) || 0) * ((100 - parseFloat(schoolInvForm.rillcod_quota_percent)) / 100)).toLocaleString()}
                               </p>
                             </div>
                           </>

@@ -112,41 +112,71 @@ async function loadAdminActivity(supabase: ReturnType<typeof createClient>): Pro
 }
 
 async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userId: string) {
-  // Step 1: get this teacher's assignment IDs
-  const { data: myAsgns } = await supabase
-    .from('assignments').select('id').eq('created_by', userId);
-  const aIds = (myAsgns ?? []).map((a: any) => a.id);
-
-  // Get schools this teacher is assigned to
+  // Step 1: get teacher's profile and assigned schools
+  const { data: profile } = await supabase.from('portal_users').select('school_id, school_name').eq('id', userId).single();
   const { data: teacherSchools } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', userId);
-  const schoolIds = teacherSchools?.map((s: any) => s.school_id).filter(Boolean) || [];
+  // Also include schools from classes this teacher is currently instructing
+  const { data: classSchools } = await supabase.from('classes').select('school_id').eq('teacher_id', userId);
+  
+  const schoolIds = [...new Set([
+    profile?.school_id, 
+    ...(teacherSchools?.map(s => s.school_id) || []),
+    ...(classSchools?.map(c => c.school_id) || [])
+  ])].filter(Boolean) as string[];
 
-  // Count classes: only directly assigned to this teacher
-  const classQuery = supabase.from('classes').select('id', { count: 'exact', head: true }).eq('teacher_id', userId);
-
-  // Count portal students in teacher's assigned schools; fallback to teacher's own classes
-  let studentQuery: any;
+  // Get school names for the text-based filtering in 'students' table
+  let schoolNames: string[] = [];
+  if (profile?.school_name) schoolNames.push(profile.school_name);
   if (schoolIds.length > 0) {
-    studentQuery = supabase.from('portal_users')
+    const { data: schools } = await supabase.from('schools').select('name').in('id', schoolIds);
+    (schools ?? []).forEach(s => { if (s.name && !schoolNames.includes(s.name)) schoolNames.push(s.name); });
+  }
+
+  // 1. Classes Count (Instructing OR in assigned schools)
+  let classQuery = supabase.from('classes').select('id', { count: 'exact', head: true });
+  if (schoolIds.length > 0) {
+    classQuery = classQuery.or(`teacher_id.eq.${userId},school_id.in.(${schoolIds.join(',')})`);
+  } else {
+    classQuery = classQuery.eq('teacher_id', userId);
+  }
+
+  // 2. Portal Students Count (Unified with Registry 'Enrolled' count)
+  let portalStudentQuery: any;
+  if (schoolIds.length > 0) {
+    portalStudentQuery = supabase.from('portal_users')
       .select('id', { count: 'exact', head: true })
       .eq('role', 'student')
       .in('school_id', schoolIds);
   } else {
-    // No school assignment — count students in classes this teacher owns
+    // Only count students in classes this teacher owns
     const { data: teacherClasses } = await supabase.from('classes').select('id').eq('teacher_id', userId);
     const classIds = (teacherClasses ?? []).map((c: any) => c.id);
     if (classIds.length > 0) {
-      studentQuery = supabase.from('portal_users')
-        .select('id', { count: 'exact', head: true })
-        .eq('role', 'student')
-        .in('class_id', classIds);
+      portalStudentQuery = supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student').in('class_id', classIds);
     } else {
-      studentQuery = Promise.resolve({ count: 0 });
+      portalStudentQuery = Promise.resolve({ count: 0 });
     }
   }
 
-  const [classes, pendingAsgn, pendingCbt, subsAsgn, studentsHead] = await Promise.allSettled([
+  // 3. Applications Count (Unified with Registry 'Applications' count)
+  let appsQuery: any;
+  if (schoolIds.length > 0 || schoolNames.length > 0) {
+    const orParts: string[] = [];
+    if (schoolIds.length > 0) orParts.push(`school_id.in.(${schoolIds.join(',')})`);
+    if (schoolNames.length > 0) schoolNames.forEach(n => orParts.push(`school_name.eq."${n}"`));
+    appsQuery = supabase.from('students').select('id', { count: 'exact', head: true }).or(orParts.join(','));
+  } else {
+    appsQuery = Promise.resolve({ count: 0 });
+  }
+
+  // 4. Assignments Performance (Instructor assignments)
+  const { data: myAsgns } = await supabase.from('assignments').select('id').eq('created_by', userId);
+  const aIds = (myAsgns ?? []).map((a: any) => a.id);
+
+  const [classes, portalStus, apps, pendingAsgn, pendingCbt, subsAsgn] = await Promise.allSettled([
     classQuery,
+    portalStudentQuery,
+    appsQuery,
     aIds.length > 0
       ? supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('status', 'submitted').in('assignment_id', aIds)
       : Promise.resolve({ count: 0 }),
@@ -154,15 +184,18 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
     aIds.length > 0
       ? supabase.from('assignment_submissions').select('grade').not('grade', 'is', null).in('assignment_id', aIds).limit(200)
       : Promise.resolve({ data: [] }),
-    studentQuery
   ]);
-  const myClasses = classes.status === 'fulfilled' ? (classes.value.count ?? 0) : 0;
-  const pendingCbtCount = pendingCbt.status === 'fulfilled' ? (pendingCbt.value.count ?? 0) : 0;
-  const pendingAsgnCount = pendingAsgn.status === 'fulfilled' ? ((pendingAsgn.value as any).count ?? 0) : 0;
-  const pendingGrade = pendingAsgnCount + pendingCbtCount;
-  const asgnGrades = subsAsgn.status === 'fulfilled' ? ((subsAsgn.value as any).data ?? []) : [];
-  const totalStudents = studentsHead.status === 'fulfilled' ? (studentsHead.value.count ?? 0) : 0;
 
+  const myClasses = (classes.status === 'fulfilled' ? classes.value.count : 0) ?? 0;
+  const enrolledCount = (portalStus.status === 'fulfilled' ? portalStus.value.count : 0) ?? 0;
+  const applicationsCount = (apps.status === 'fulfilled' ? apps.value.count : 0) ?? 0;
+  const totalStudents = enrolledCount + applicationsCount;
+
+  const pendingCbtCount = (pendingCbt.status === 'fulfilled' ? pendingCbt.value.count : 0) ?? 0;
+  const pendingAsgnCount = (pendingAsgn.status === 'fulfilled' ? (pendingAsgn.value as any).count : 0) ?? 0;
+  const pendingGrade = pendingAsgnCount + pendingCbtCount;
+  
+  const asgnGrades = (subsAsgn.status === 'fulfilled' ? (subsAsgn.value as any).data : []) ?? [];
   const allGrades = asgnGrades.map((g: any) => g.grade).filter((g: any) => g != null);
   const avg = allGrades.length > 0
     ? Math.round(allGrades.reduce((s: number, g: any) => s + (g ?? 0), 0) / allGrades.length)
