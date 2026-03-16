@@ -51,14 +51,22 @@ export default function OverviewPage() {
             setRecentStudents(recStudents.status === 'fulfilled' ? (recStudents.value.data ?? []) : []);
           }
         } else if (role === 'teacher') {
-          // 2-step: get teacher's assignment IDs first
-          const { data: myAsgns } = await supabase.from('assignments').select('id, title').eq('created_by', profile!.id);
-          const aIds = (myAsgns ?? []).map((a: any) => a.id);
-          const aTitleMap: Record<string, string> = {};
-          (myAsgns ?? []).forEach((a: any) => { aTitleMap[a.id] = a.title; });
+          // Fetch classes via API (same scoping as classes page: teacher_id OR teacher_schools)
+          const [myAsgnsRes, classesRes] = await Promise.all([
+            supabase.from('assignments').select('id, title').eq('created_by', profile!.id),
+            fetch('/api/classes', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
+          ]);
 
-          const [classes, subs, pending] = await Promise.allSettled([
-            supabase.from('classes').select('id', { count: 'exact', head: true }).eq('teacher_id', profile!.id),
+          const myAsgns = myAsgnsRes.data ?? [];
+          const myClasses: any[] = classesRes.data ?? [];
+          const aIds = myAsgns.map((a: any) => a.id);
+          const aTitleMap: Record<string, string> = {};
+          myAsgns.forEach((a: any) => { aTitleMap[a.id] = a.title; });
+
+          // Total students across all teacher's classes
+          const totalStudents = myClasses.reduce((sum: number, c: any) => sum + (c.current_students ?? 0), 0);
+
+          const [subs, pending] = await Promise.allSettled([
             aIds.length > 0
               ? supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).in('assignment_id', aIds)
               : Promise.resolve({ count: 0 }),
@@ -89,9 +97,11 @@ export default function OverviewPage() {
 
           if (!cancelled) {
             setCounts({
-              classes: classes.status === 'fulfilled' ? ((classes.value as any).count ?? 0) : 0,
+              classes: myClasses.length,
+              students: totalStudents,
               submissions: subs.status === 'fulfilled' ? ((subs.value as any).count ?? 0) : 0,
               pending: pending.status === 'fulfilled' ? ((pending.value as any).count ?? 0) : 0,
+              assignments: myAsgns.length,
             });
             setRecentSubmissions(recSubsData);
           }
@@ -178,9 +188,9 @@ export default function OverviewPage() {
 
   const teacherStats = [
     { label: 'My Classes', value: counts.classes ?? 0, icon: BookOpenIcon, color: 'text-violet-400', bg: 'bg-violet-500/10', href: '/dashboard/classes' },
-    { label: 'Submissions', value: counts.submissions ?? 0, icon: ClipboardDocumentListIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/grades' },
+    { label: 'My Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', href: '/dashboard/students' },
     { label: 'Needs Grading', value: counts.pending ?? 0, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', href: '/dashboard/grades' },
-    { label: 'Assignments', value: 0, icon: ClipboardDocumentListIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/assignments' },
+    { label: 'Assignments', value: counts.assignments ?? 0, icon: ClipboardDocumentListIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/assignments' },
   ];
 
   const studentStats = [

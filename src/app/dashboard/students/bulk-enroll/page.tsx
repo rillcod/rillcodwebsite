@@ -215,7 +215,7 @@ export default function BulkEnrollPage() {
         setResult({ enrolled: data.enrolled ?? studentIds.length, skipped: data.skipped ?? 0, className: cls?.name ?? 'class' });
         setEnrolledIds(prev => { const n = new Set(prev); studentIds.forEach(id => n.add(id)); return n; });
         setSelected(new Set());
-        setClassId('');
+        // keep classId so user can enrol more students into the same class
       } catch (err: any) {
         alert(err.message);
       } finally {
@@ -250,8 +250,11 @@ export default function BulkEnrollPage() {
         setResult({ enrolled: enrJson.enrolled ?? studentIds.length, skipped: enrJson.skipped ?? 0, className });
         setEnrolledIds(prev => { const n = new Set(prev); studentIds.forEach(id => n.add(id)); return n; });
         setSelected(new Set());
+        // Optimistically add the new class to the list and switch to pick mode
+        setClassesList(prev => [...prev, clsJson.data]);
+        setClassId(newClassId);
+        setClassMode('pick');
         setNewClass({ grade_level: '', name: '', school_id: '' });
-        await load(); // refresh class list
       } catch (err: any) {
         alert(err.message ?? 'Failed');
       } finally {
