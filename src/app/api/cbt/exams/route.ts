@@ -44,12 +44,31 @@ export async function GET(_request: NextRequest) {
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ data: data ?? [] });
     } else {
-      // Student: only active exams
-      const { data, error } = await admin
+      // Student: active exams scoped to their enrolled programs
+      // 1. Get student's enrolled program IDs
+      const { data: enrollments } = await admin
+        .from('enrollments')
+        .select('program_id')
+        .eq('user_id', caller.id);
+      const programIds = (enrollments ?? []).map((e: any) => e.program_id).filter(Boolean);
+
+      let examQuery = admin
         .from('cbt_exams')
         .select('*, programs(name), courses(title)')
         .eq('is_active', true)
         .order('start_date');
+
+      // If student has enrolled programs, scope to those; otherwise return empty
+      if (programIds.length > 0) {
+        examQuery = examQuery.or(
+          `program_id.in.(${programIds.join(',')}),program_id.is.null`
+        ) as any;
+      } else {
+        // No enrollments — only show exams not tied to any specific program
+        examQuery = examQuery.is('program_id', null) as any;
+      }
+
+      const { data, error } = await examQuery;
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ data: data ?? [] });
     }

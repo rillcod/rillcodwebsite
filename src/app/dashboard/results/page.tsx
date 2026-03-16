@@ -173,32 +173,25 @@ function ResultsPageInner() {
         }
 
         async function loadStaffData() {
-            // 1. Resolve school metadata for non-admins
+            // 1. Fetch assigned schools via API (service role — bypasses RLS for teachers)
+            const isAdmin = profile?.role === 'admin';
             let assignedSchoolIds: string[] = [];
             let assignedSchoolNames: string[] = [];
 
-            if (profile?.role === 'school' && profile.school_id) {
-                assignedSchoolIds = [profile.school_id];
-                const { data: sData } = await db.from('schools').select('name').eq('id', profile.school_id).maybeSingle();
-                if (sData?.name) assignedSchoolNames = [sData.name];
-            } else if (profile?.role === 'teacher') {
-                const { data: assignments } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
-                const ids = assignments?.map((a: any) => a.school_id).filter(Boolean) || [];
-                if (profile.school_id) ids.push(profile.school_id);
-                assignedSchoolIds = Array.from(new Set(ids));
-
-                if (assignedSchoolIds.length > 0) {
-                    const { data: namesData } = await db.from('schools').select('name').in('id', assignedSchoolIds);
-                    assignedSchoolNames = namesData?.map(s => s.name).filter(Boolean) || [];
+            if (!isAdmin) {
+                const schRes = await fetch('/api/schools', { cache: 'no-store' });
+                if (schRes.ok) {
+                    const schJson = await schRes.json();
+                    const schools = schJson.data ?? [];
+                    assignedSchoolIds = schools.map((s: any) => s.id).filter(Boolean);
+                    assignedSchoolNames = schools.map((s: any) => s.name).filter(Boolean);
                 }
             }
 
-            // 2. Build student query
+            // 2. Build student query — join classes + schools for proper display names
             let finalQuery = db.from('portal_users')
-                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url')
+                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url, class_id, classes:class_id(id, name), schools:school_id(id, name)')
                 .neq('is_deleted', true);
-
-            const isAdmin = profile?.role === 'admin';
 
             if (!isAdmin) {
                 finalQuery = finalQuery.eq('role', 'student');
@@ -221,7 +214,7 @@ function ResultsPageInner() {
 
             if (sRes.error) throw sRes.error;
 
-            const studs = (sRes.data ?? []) as PortalUser[];
+            const studs = (sRes.data ?? []) as unknown as PortalUser[];
             setStudents(studs);
             setOrgSettings(orgRes.data);
 
@@ -275,20 +268,24 @@ function ResultsPageInner() {
     }
 
     // ── Derived data ───────────────────────────────────────────────────────────
+    // Helpers: prefer joined FK name over legacy text fields
+    const studentClassName = (s: any): string => s.classes?.name ?? s.section_class ?? '';
+    const studentSchoolName = (s: any): string => s.schools?.name ?? s.school_name ?? '';
+
     const distinctSchools = [...new Set(
-        students.map(s => (s as any).school_name).filter(Boolean)
+        students.map(s => studentSchoolName(s)).filter(Boolean)
     )].sort() as string[];
 
     const distinctClasses = [...new Set(
-        students.map(s => (s as any).section_class).filter(Boolean)
+        students.map(s => studentClassName(s)).filter(Boolean)
     )].sort() as string[];
 
     const filtered = students.filter(s => {
         const matchSearch = !search
             || (s.full_name ?? '').toLowerCase().includes(search.toLowerCase())
             || (s.email ?? '').toLowerCase().includes(search.toLowerCase());
-        const matchSchool = !filterSchool || (s as any).school_name === filterSchool;
-        const matchClass = !filterClass || (s as any).section_class === filterClass;
+        const matchSchool = !filterSchool || studentSchoolName(s) === filterSchool;
+        const matchClass = !filterClass || studentClassName(s) === filterClass;
         const r = reportsMap[s.id];
         const matchStatus =
             filterStatus === 'all' ? true :
@@ -299,15 +296,25 @@ function ResultsPageInner() {
     });
 
     const stats = {
-        total: students.length,
-        published: Object.values(reportsMap).filter(r => r.is_published).length,
-        draft: Object.values(reportsMap).filter(r => !r.is_published).length,
-        none: students.length - Object.keys(reportsMap).length,
+        total: filtered.length,
+        published: filtered.filter(s => reportsMap[s.id]?.is_published === true).length,
+        draft: filtered.filter(s => reportsMap[s.id] && reportsMap[s.id].is_published === false).length,
+        none: filtered.filter(s => !reportsMap[s.id]).length,
     };
 
     const currentIdx = selectedStudent
         ? filtered.findIndex(s => s.id === selectedStudent.id)
         : -1;
+
+    // Merge student portal data as fallback for missing report fields
+    const reportToDisplay: StudentReport | null = selectedReport
+        ? {
+            ...selectedReport,
+            student_name: selectedReport.student_name || selectedStudent?.full_name || null,
+            school_name: (selectedReport.school_name || (selectedStudent ? studentSchoolName(selectedStudent) : null) || null) as any,
+            section_class: (selectedReport.section_class || (selectedStudent ? studentClassName(selectedStudent) : null) || null) as any,
+          }
+        : null;
 
     // ── Multi-select ───────────────────────────────────────────────────────────
     function toggleSelectAll() {
@@ -531,22 +538,14 @@ function ResultsPageInner() {
                             </div>
 
                             <div className="space-y-2">
-                                <select
-                                    value={filterSchool}
-                                    onChange={e => setFilterSchool(e.target.value)}
-                                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
-                                >
-                                    <option value="">All Schools</option>
-                                    {distinctSchools.map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
                                 <div className="grid grid-cols-2 gap-2">
                                     <select
-                                        value={filterClass}
-                                        onChange={e => setFilterClass(e.target.value)}
+                                        value={filterSchool}
+                                        onChange={e => { setFilterSchool(e.target.value); setFilterClass(''); }}
                                         className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
                                     >
-                                        <option value="">All Classes</option>
-                                        {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
+                                        <option value="">All Schools</option>
+                                        {distinctSchools.map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
                                     <select
                                         value={filterStatus}
@@ -559,6 +558,25 @@ function ResultsPageInner() {
                                         <option value="none">No Report</option>
                                     </select>
                                 </div>
+                                {/* Class filter chips */}
+                                {distinctClasses.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5 pt-1">
+                                        <button
+                                            onClick={() => setFilterClass('')}
+                                            className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!filterClass ? 'bg-violet-600 text-white border-violet-500' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+                                        >
+                                            All
+                                        </button>
+                                        {distinctClasses.map(c => (
+                                            <button key={c}
+                                                onClick={() => setFilterClass(filterClass === c ? '' : c)}
+                                                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${filterClass === c ? 'bg-violet-600 text-white border-violet-500' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+                                            >
+                                                {c}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Grade Distribution */}
@@ -589,8 +607,8 @@ function ResultsPageInner() {
                                     const r = reportsMap[s.id];
                                     const isActive = selectedStudent?.id === s.id;
                                     const isChecked = selectedIds.has(s.id);
-                                    const cls = (s as any).section_class as string | undefined;
-                                    const sch = (s as any).school_name as string | undefined;
+                                    const cls = studentClassName(s) || undefined;
+                                    const sch = studentSchoolName(s) || undefined;
 
                                     return (
                                         <div
@@ -756,13 +774,13 @@ function ResultsPageInner() {
                                         <div className="flex items-center justify-center h-72 bg-white/[0.02]">
                                             <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
                                         </div>
-                                    ) : selectedReport ? (
+                                    ) : reportToDisplay ? (
                                         <div className="overflow-auto bg-gray-100 p-4 sm:p-6 lg:p-8" style={{ maxHeight: '75vh' }}>
-                                            <ScaledReportCard report={selectedReport}>
+                                            <ScaledReportCard report={reportToDisplay}>
                                                 {template === 'standard' ? (
-                                                    <ReportCard report={selectedReport} orgSettings={orgSettings} />
+                                                    <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
                                                 ) : (
-                                                    <ModernReportCard report={selectedReport} orgSettings={orgSettings} />
+                                                    <ModernReportCard report={reportToDisplay} orgSettings={orgSettings} />
                                                 )}
                                             </ScaledReportCard>
                                         </div>
@@ -915,12 +933,12 @@ function ResultsPageInner() {
             </div>
 
             {/* ══ Print view — individual report card (untouched) ══ */}
-            {selectedReport && (
+            {reportToDisplay && (
                 <div className="hidden print:block print:w-[794px] print:mx-auto">
                     {template === 'standard' ? (
-                        <ReportCard report={selectedReport} orgSettings={orgSettings} />
+                        <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
                     ) : (
-                        <ModernReportCard report={selectedReport} orgSettings={orgSettings} />
+                        <ModernReportCard report={reportToDisplay} orgSettings={orgSettings} />
                     )}
                 </div>
             )}
@@ -928,11 +946,11 @@ function ResultsPageInner() {
             {/* ══ Off-screen div — single PDF capture ══ */}
             <div style={{ position: 'fixed', left: -9999, top: 0, width: 794, pointerEvents: 'none', zIndex: -1 }}>
                 <div ref={pdfRef}>
-                    {selectedReport && (
+                    {reportToDisplay && (
                         template === 'standard' ? (
-                            <ReportCard report={selectedReport} orgSettings={orgSettings} />
+                            <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
                         ) : (
-                            <ModernReportCard report={selectedReport} orgSettings={orgSettings} />
+                            <ModernReportCard report={reportToDisplay} orgSettings={orgSettings} />
                         )
                     )}
                 </div>

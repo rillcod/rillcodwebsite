@@ -67,8 +67,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/cbt/sessions — check if current user has submitted a specific exam
-// Query param: exam_id
+// GET /api/cbt/sessions — fetch current user's sessions
+// Query param: exam_id (optional) — if provided, returns single session for that exam
+//                                   if omitted, returns all sessions for the current user
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerClient();
@@ -77,16 +78,27 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const exam_id = searchParams.get('exam_id');
-    if (!exam_id) return NextResponse.json({ error: 'exam_id required' }, { status: 400 });
+    const admin = adminClient();
 
-    const { data } = await adminClient()
+    if (exam_id) {
+      const { data } = await admin
+        .from('cbt_sessions')
+        .select('id, score, status, exam_id')
+        .eq('exam_id', exam_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      return NextResponse.json({ data });
+    }
+
+    // No exam_id — return all sessions for this user
+    const { data, error } = await admin
       .from('cbt_sessions')
-      .select('id, score, status')
-      .eq('exam_id', exam_id)
+      .select('id, exam_id, score, status, end_time')
       .eq('user_id', user.id)
-      .maybeSingle();
+      .order('end_time', { ascending: false });
 
-    return NextResponse.json({ data });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data: data ?? [] });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }

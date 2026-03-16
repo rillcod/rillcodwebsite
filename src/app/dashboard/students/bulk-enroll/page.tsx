@@ -16,7 +16,14 @@ import {
   BookOpenIcon,
   ExclamationTriangleIcon,
   ChevronDownIcon,
+  PlusIcon,
 } from '@/lib/icons';
+
+const GRADE_PRESETS = [
+  'Primary 1','Primary 2','Primary 3','Primary 4','Primary 5','Primary 6',
+  'JSS1','JSS2','JSS3','SS1','SS2','SS3',
+  'Cohort A','Cohort B','Cohort C',
+];
 
 interface StudentRow {
   id: string;
@@ -27,62 +34,59 @@ interface StudentRow {
   school_id: string;
 }
 
-interface EnrollResult {
-  enrolled: number;
-  skipped: number;
-  program_id: string;
-  section_class: string | null;
-  school_id: string | null;
-}
-
 export default function BulkEnrollPage() {
   const { profile, loading: authLoading, profileLoading } = useAuth();
 
   const [students,    setStudents]    = useState<StudentRow[]>([]);
   const [programs,    setPrograms]    = useState<any[]>([]);
   const [schools,     setSchools]     = useState<any[]>([]);
+  const [classesList, setClassesList] = useState<any[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [selected,    setSelected]    = useState<Set<string>>(new Set());
+  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set()); // persists across refreshes
   const [search,      setSearch]      = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [enrolling,   setEnrolling]   = useState(false);
-  const [result,      setResult]      = useState<EnrollResult | null>(null);
+  const [result,      setResult]      = useState<{ enrolled: number; skipped: number; className: string } | null>(null);
 
-  const [programId,    setProgramId]    = useState('');
-  const [schoolId,     setSchoolId]     = useState('');
-  const [sectionClass, setSectionClass] = useState('');
+  // Enrolment settings
+  const [programId,   setProgramId]   = useState('');
+  const [schoolId,    setSchoolId]    = useState('');
   const [showSettings, setShowSettings] = useState(true);
+
+  // Class selection mode
+  const [classMode,     setClassMode]     = useState<'pick' | 'create'>('pick');
+  const [classId,       setClassId]       = useState('');
+  const [newClass,      setNewClass]      = useState({ grade_level: '', name: '', school_id: '' });
+  const [creatingClass, setCreatingClass] = useState(false);
+
+  // Active school filter chip
+  const [schoolFilter, setSchoolFilter] = useState('');
 
   const isAdmin   = profile?.role === 'admin';
   const canAccess = isAdmin || profile?.role === 'teacher';
-
-  // Active school filter chip (empty = show all schools in scope)
-  const [schoolFilter, setSchoolFilter] = useState('');
 
   async function load() {
     setLoading(true);
     const db = createClient();
 
-    // For teachers: scope students to their allocated schools only
     const studentsUrl = isAdmin
       ? '/api/portal-users?role=student'
       : '/api/portal-users?role=student&scoped=true';
 
-    const [studRes, progRes, schoolRes, tsRes, primarySchoolRes] = await Promise.all([
+    const [studRes, progRes, schoolRes, tsRes, primarySchoolRes, clsRes] = await Promise.all([
       fetch(studentsUrl, { cache: 'no-store' }).then(r => r.json()),
       db.from('programs').select('id, name').order('name'),
-      // Admin: all approved schools.
       isAdmin
         ? db.from('schools').select('id, name').eq('status', 'approved').order('name')
         : Promise.resolve({ data: [] }),
-      // Teacher: schools from teacher_schools junction
       !isAdmin && profile?.id
         ? db.from('teacher_schools').select('school_id, schools(id, name)').eq('teacher_id', profile.id)
         : Promise.resolve({ data: [] }),
-      // Teacher: primary school from profile.school_id
       !isAdmin && profile?.school_id
         ? db.from('schools').select('id, name').eq('id', profile.school_id).maybeSingle()
         : Promise.resolve({ data: null }),
+      fetch('/api/classes', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
     ]);
 
     const allUsers: any[] = studRes.data ?? [];
@@ -99,28 +103,15 @@ export default function BulkEnrollPage() {
 
     setStudents(mappedStudents);
     setPrograms(progRes.data ?? []);
+    setClassesList(clsRes.data ?? []);
 
     if (isAdmin) {
       setSchools(schoolRes.data ?? []);
     } else {
-      // Merge: schools from student list + directly allocated schools (teacher_schools + primary)
-      const schoolMap = new Map<string, string>(); // id → name
-
-      // From allocated teacher_schools junction
-      (tsRes.data ?? []).forEach((r: any) => {
-        if (r.schools?.id) schoolMap.set(r.schools.id, r.schools.name);
-      });
-
-      // From primary school on teacher's profile
-      if (primarySchoolRes.data?.id) {
-        schoolMap.set(primarySchoolRes.data.id, primarySchoolRes.data.name);
-      }
-
-      // From scoped student list (covers legacy school_name-only records)
-      mappedStudents.forEach((s: StudentRow) => {
-        if (s.school_id && s.school_name) schoolMap.set(s.school_id, s.school_name);
-      });
-
+      const schoolMap = new Map<string, string>();
+      (tsRes.data ?? []).forEach((r: any) => { if (r.schools?.id) schoolMap.set(r.schools.id, r.schools.name); });
+      if (primarySchoolRes.data?.id) schoolMap.set(primarySchoolRes.data.id, primarySchoolRes.data.name);
+      mappedStudents.forEach((s: StudentRow) => { if (s.school_id && s.school_name) schoolMap.set(s.school_id, s.school_name); });
       setSchools([...schoolMap.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)));
     }
 
@@ -136,15 +127,9 @@ export default function BulkEnrollPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return students.filter((s) => {
-      const matchSearch =
-        !q ||
-        s.full_name.toLowerCase().includes(q) ||
-        s.email.toLowerCase().includes(q) ||
-        (s.school_name ?? '').toLowerCase().includes(q);
-      const matchClass =
-        !classFilter || (s.section_class ?? '').toLowerCase() === classFilter.toLowerCase();
-      const matchSchool =
-        !schoolFilter || s.school_name === schoolFilter;
+      const matchSearch = !q || s.full_name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q) || (s.school_name ?? '').toLowerCase().includes(q);
+      const matchClass  = !classFilter || (s.section_class ?? '').toLowerCase() === classFilter.toLowerCase();
+      const matchSchool = !schoolFilter || s.school_name === schoolFilter;
       return matchSearch && matchClass && matchSchool;
     });
   }, [students, search, classFilter, schoolFilter]);
@@ -154,7 +139,6 @@ export default function BulkEnrollPage() {
     [students],
   );
 
-  // Group filtered students by school; hide schools where every student is enrolled (none remain)
   const groupedBySchool = useMemo(() => {
     const map = new Map<string, StudentRow[]>();
     for (const s of filtered) {
@@ -165,16 +149,17 @@ export default function BulkEnrollPage() {
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [filtered]);
 
-  const allFilteredSelected = filtered.length > 0 && filtered.every((s) => selected.has(s.id));
+  const enrollableFiltered = filtered.filter(s => !enrolledIds.has(s.id));
+  const allFilteredSelected = enrollableFiltered.length > 0 && enrollableFiltered.every((s) => selected.has(s.id));
 
   function toggleAll() {
     if (allFilteredSelected) {
       const next = new Set(selected);
-      filtered.forEach((s) => next.delete(s.id));
+      enrollableFiltered.forEach((s) => next.delete(s.id));
       setSelected(next);
     } else {
       const next = new Set(selected);
-      filtered.forEach((s) => next.add(s.id));
+      enrollableFiltered.forEach((s) => next.add(s.id));
       setSelected(next);
     }
   }
@@ -185,35 +170,97 @@ export default function BulkEnrollPage() {
     setSelected(next);
   }
 
+  // Scope classes to the selected school filter or selected students' schools
+  const scopedClasses = useMemo(() => {
+    if (classesList.length === 0) return [];
+    const selectedStudentObjs = students.filter(s => selected.has(s.id));
+    const relevantSchoolIds = new Set(selectedStudentObjs.map(s => s.school_id).filter(Boolean));
+    const relevantSchoolNames = new Set(selectedStudentObjs.map(s => s.school_name).filter(Boolean));
+    if (relevantSchoolIds.size === 0 && relevantSchoolNames.size === 0) return classesList;
+    return classesList.filter((c: any) => {
+      if (c.school_id && relevantSchoolIds.has(c.school_id)) return true;
+      const cName = c.schools?.name;
+      if (cName && relevantSchoolNames.has(cName)) return true;
+      return false;
+    });
+  }, [classesList, students, selected]);
+
+  // Group scoped classes by school name
+  const classGroups = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    scopedClasses.forEach((c: any) => {
+      const key = c.schools?.name ?? '— No School —';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(c);
+    });
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [scopedClasses]);
+
   async function handleEnroll() {
-    if (!programId || selected.size === 0) return;
-    setEnrolling(true);
-    try {
-      const res = await fetch('/api/students/bulk-enroll', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userIds:       [...selected],
-          program_id:    programId,
-          school_id:     schoolId     || undefined,
-          section_class: sectionClass || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Enrollment failed');
-      setResult(data);
-      const enrolledIds = new Set([...selected]);
-      // Remove enrolled students from the list — complete school groups vanish automatically
-      setStudents((prev) => prev.filter((s) => !enrolledIds.has(s.id)));
-      setSelected(new Set());
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setEnrolling(false);
+    if (selected.size === 0) return;
+    const studentIds = [...selected];
+
+    if (classMode === 'pick') {
+      if (!classId) { alert('Please pick a class or switch to Create New Class.'); return; }
+      setEnrolling(true);
+      try {
+        const res = await fetch(`/api/classes/${classId}/enroll`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentIds }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Enrollment failed');
+        const cls = classesList.find((c: any) => c.id === classId);
+        setResult({ enrolled: data.enrolled ?? studentIds.length, skipped: data.skipped ?? 0, className: cls?.name ?? 'class' });
+        setEnrolledIds(prev => { const n = new Set(prev); studentIds.forEach(id => n.add(id)); return n; });
+        setSelected(new Set());
+        setClassId('');
+      } catch (err: any) {
+        alert(err.message);
+      } finally {
+        setEnrolling(false);
+      }
+    } else {
+      // Create new class then enroll
+      const className = newClass.grade_level || newClass.name.trim();
+      if (!className || !programId) { alert('Class name (or grade) and programme are required.'); return; }
+      setCreatingClass(true);
+      try {
+        const body: any = { name: className, program_id: programId, status: 'active' };
+        const sid = newClass.school_id || schoolId;
+        if (sid) body.school_id = sid;
+        const clsRes = await fetch('/api/classes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const clsJson = await clsRes.json();
+        if (!clsRes.ok) throw new Error(clsJson.error ?? 'Failed to create class');
+        const newClassId = clsJson.data.id;
+
+        const enrRes = await fetch(`/api/classes/${newClassId}/enroll`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentIds }),
+        });
+        const enrJson = await enrRes.json();
+        if (!enrRes.ok) throw new Error(enrJson.error ?? 'Failed to enrol students');
+
+        setResult({ enrolled: enrJson.enrolled ?? studentIds.length, skipped: enrJson.skipped ?? 0, className });
+        setEnrolledIds(prev => { const n = new Set(prev); studentIds.forEach(id => n.add(id)); return n; });
+        setSelected(new Set());
+        setNewClass({ grade_level: '', name: '', school_id: '' });
+        await load(); // refresh class list
+      } catch (err: any) {
+        alert(err.message ?? 'Failed');
+      } finally {
+        setCreatingClass(false);
+      }
     }
   }
 
-  const selectedProgram = programs.find((p) => p.id === programId);
+  const selectedClass = classesList.find((c: any) => c.id === classId);
 
   if (authLoading || profileLoading || !profile || loading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
@@ -236,13 +283,9 @@ export default function BulkEnrollPage() {
             <AcademicCapIcon className="w-5 h-5 sm:w-6 sm:h-6 text-violet-400 flex-shrink-0" />
             Bulk Enrol Students
           </h1>
-          <p className="text-white/40 text-xs sm:text-sm mt-1">
-            Select students → assign programme &amp; class → enrol
-          </p>
+          <p className="text-white/40 text-xs sm:text-sm mt-1">Select students → pick or create a class → enrol</p>
         </div>
-        <Link href="/dashboard/students" className="text-white/40 hover:text-white text-xs sm:text-sm transition-colors flex-shrink-0">
-          ← Back
-        </Link>
+        <Link href="/dashboard/students" className="text-white/40 hover:text-white text-xs sm:text-sm transition-colors flex-shrink-0">← Back</Link>
       </div>
 
       {/* Result banner */}
@@ -252,11 +295,10 @@ export default function BulkEnrollPage() {
           <div className="flex-1 min-w-0">
             <p className="text-white font-bold text-sm">
               {result.enrolled} student{result.enrolled !== 1 ? 's' : ''} enrolled into{' '}
-              <span className="text-violet-300">{selectedProgram?.name ?? result.program_id}</span>
-              {result.section_class && <> · <span className="text-cyan-300">{result.section_class}</span></>}
+              <span className="text-cyan-300">{result.className}</span>
             </p>
             {result.skipped > 0 && (
-              <p className="text-amber-400 text-xs mt-1">{result.skipped} skipped (not student accounts).</p>
+              <p className="text-amber-400 text-xs mt-1">{result.skipped} skipped (outside school boundary).</p>
             )}
           </div>
           <button onClick={() => setResult(null)} className="text-white/30 hover:text-white flex-shrink-0">
@@ -265,23 +307,19 @@ export default function BulkEnrollPage() {
         </div>
       )}
 
-      {/* Enrolment settings card */}
+      {/* Enrolment settings */}
       <div className="bg-[#0d1526] border border-white/10 rounded-2xl mb-5 overflow-hidden">
         <button
-          onClick={() => setShowSettings((v) => !v)}
+          onClick={() => setShowSettings(v => !v)}
           className="w-full flex items-center justify-between px-4 sm:px-5 py-4 hover:bg-white/[0.02] transition-colors"
         >
           <div className="flex items-center gap-2 flex-wrap">
             <BookOpenIcon className="w-4 h-4 text-violet-400 flex-shrink-0" />
             <span className="text-white font-bold text-sm">Enrolment Settings</span>
-            {programId && (
-              <span className="text-violet-300 text-xs bg-violet-500/15 px-2 py-0.5 rounded-full border border-violet-500/20 font-bold truncate max-w-[120px] sm:max-w-none">
-                {selectedProgram?.name}
-              </span>
-            )}
-            {sectionClass && (
-              <span className="text-cyan-300 text-xs bg-cyan-500/15 px-2 py-0.5 rounded-full border border-cyan-500/20 font-bold font-mono">
-                {sectionClass}
+            {selectedClass && <span className="text-cyan-300 text-xs bg-cyan-500/15 px-2 py-0.5 rounded-full border border-cyan-500/20 font-bold">{selectedClass.name}</span>}
+            {classMode === 'create' && (newClass.grade_level || newClass.name) && (
+              <span className="text-emerald-300 text-xs bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold">
+                New: {newClass.grade_level || newClass.name}
               </span>
             )}
           </div>
@@ -289,54 +327,151 @@ export default function BulkEnrollPage() {
         </button>
 
         {showSettings && (
-          <div className="px-4 sm:px-5 pb-5 border-t border-white/10 pt-4 grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-
-            {/* Programme — required */}
-            <div className="sm:col-span-2 md:col-span-1">
-              <label className="block text-white/60 text-xs font-bold uppercase tracking-widest mb-2">
-                Programme <span className="text-rose-400">*</span>
-              </label>
-              <select
-                value={programId}
-                onChange={(e) => setProgramId(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
+          <div className="border-t border-white/10">
+            {/* Class mode tabs */}
+            <div className="px-4 sm:px-5 pt-4 pb-3 flex gap-2">
+              <button
+                onClick={() => setClassMode('pick')}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${classMode === 'pick' ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-white/10'}`}
               >
-                <option value="">— Select a programme —</option>
-                {programs.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+                Pick Existing Class
+              </button>
+              <button
+                onClick={() => setClassMode('create')}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${classMode === 'create' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-white/10'}`}
+              >
+                <PlusIcon className="w-3.5 h-3.5" /> Create New Class
+              </button>
             </div>
 
-            {/* Class override */}
-            <div>
-              <label className="block text-white/60 text-xs font-bold uppercase tracking-widest mb-2">
-                Assign Class <span className="text-white/30 normal-case font-normal text-[10px]">(optional)</span>
-              </label>
-              <input
-                value={sectionClass}
-                onChange={(e) => setSectionClass(e.target.value.toUpperCase())}
-                placeholder="e.g. JSS2A, SS1B…"
-                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white font-mono focus:outline-none focus:border-cyan-500/50 placeholder-white/20 transition-colors"
-              />
-              <p className="text-white/20 text-[10px] mt-1">Leave blank to keep current class.</p>
-            </div>
+            <div className="px-4 sm:px-5 pb-5 space-y-3">
+              {classMode === 'pick' ? (
+                <>
+                  {/* Programme — required for programme enrollment tracking */}
+                  <div>
+                    <label className="block text-white/60 text-xs font-bold uppercase tracking-widest mb-1.5">
+                      Programme <span className="text-white/30 normal-case font-normal text-[10px]">(optional — taken from class if not set)</span>
+                    </label>
+                    <select
+                      value={programId}
+                      onChange={e => setProgramId(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
+                    >
+                      <option value="">— Select a programme —</option>
+                      {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
 
-            {/* School override */}
-            <div>
-              <label className="block text-white/60 text-xs font-bold uppercase tracking-widest mb-2">
-                Assign School <span className="text-white/30 normal-case font-normal text-[10px]">(optional)</span>
-              </label>
-              <select
-                value={schoolId}
-                onChange={(e) => setSchoolId(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500/50 transition-colors"
-              >
-                <option value="">— Keep current school —</option>
-                {schools.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+                  {/* Class picker — grouped by school */}
+                  <div>
+                    <label className="block text-white/60 text-xs font-bold uppercase tracking-widest mb-1.5">
+                      Class <span className="text-rose-400">*</span>
+                    </label>
+                    {scopedClasses.length === 0 ? (
+                      <div className="py-6 text-center bg-white/5 border border-white/10 rounded-xl">
+                        <p className="text-sm text-white/30">No classes found for the selected students' school.</p>
+                        <button onClick={() => setClassMode('create')} className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors mt-2">
+                          Create a new class →
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                        {classGroups.map(([schoolName, classes]) => (
+                          <div key={schoolName}>
+                            <p className="text-[10px] font-black text-blue-400/60 uppercase tracking-widest mb-1.5 px-1">{schoolName}</p>
+                            <div className="space-y-1">
+                              {classes.map((c: any) => (
+                                <div
+                                  key={c.id}
+                                  onClick={() => setClassId(c.id)}
+                                  className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${classId === c.id ? 'bg-violet-600/15 border-violet-500/40' : 'bg-white/5 border-white/5 hover:border-violet-500/20 hover:bg-white/[0.07]'}`}
+                                >
+                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${classId === c.id ? 'border-violet-400 bg-violet-600' : 'border-white/20'}`}>
+                                    {classId === c.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-white truncate">{c.name}</p>
+                                    {c.programs?.name && <p className="text-[9px] text-white/30 mt-0.5">{c.programs.name}</p>}
+                                  </div>
+                                  <span className="text-[10px] font-bold text-white/30 flex-shrink-0 tabular-nums">
+                                    {c.current_students ?? 0}{c.max_students ? `/${c.max_students}` : ''} <span className="text-white/15">stu.</span>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* School override */}
+                  <div>
+                    <label className="block text-white/60 text-xs font-bold uppercase tracking-widest mb-1.5">
+                      Assign School <span className="text-white/30 normal-case font-normal text-[10px]">(optional)</span>
+                    </label>
+                    <select value={schoolId} onChange={e => setSchoolId(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500/50 transition-colors">
+                      <option value="">— Keep current school —</option>
+                      {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                </>
+              ) : (
+                /* Create new class form */
+                <div className="space-y-3">
+                  <p className="text-xs text-white/30">Create a new class and immediately enrol {selected.size > 0 ? `${selected.size} selected` : 'selected'} students into it.</p>
+
+                  {/* Grade preset */}
+                  <div>
+                    <label className="block text-white/60 text-xs font-bold uppercase tracking-widest mb-1.5">Grade / Section</label>
+                    <select
+                      value={newClass.grade_level}
+                      onChange={e => setNewClass(q => ({ ...q, grade_level: e.target.value, name: e.target.value ? '' : q.name }))}
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500/50 cursor-pointer transition-colors"
+                    >
+                      <option value="">— Pick grade level —</option>
+                      {GRADE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-white/60 text-xs font-bold uppercase tracking-widest mb-1.5">
+                      Custom Name {!newClass.grade_level && <span className="text-rose-400">*</span>}
+                    </label>
+                    <input
+                      value={newClass.name}
+                      onChange={e => setNewClass(q => ({ ...q, name: e.target.value, grade_level: e.target.value ? '' : q.grade_level }))}
+                      placeholder={newClass.grade_level ? `Leave blank to use "${newClass.grade_level}"` : 'e.g. JSS1A, Coding Club…'}
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-white/60 text-xs font-bold uppercase tracking-widest mb-1.5">
+                      Programme <span className="text-rose-400">*</span>
+                    </label>
+                    <select value={programId} onChange={e => setProgramId(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500/50 cursor-pointer transition-colors">
+                      <option value="">— Select a programme —</option>
+                      {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-white/60 text-xs font-bold uppercase tracking-widest mb-1.5">
+                      School <span className="text-white/30 normal-case font-normal text-[10px]">(optional)</span>
+                    </label>
+                    <select
+                      value={newClass.school_id || schoolId}
+                      onChange={e => { setNewClass(q => ({ ...q, school_id: e.target.value })); setSchoolId(e.target.value); }}
+                      className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500/50 cursor-pointer transition-colors">
+                      <option value="">— Select school —</option>
+                      {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -348,64 +483,43 @@ export default function BulkEnrollPage() {
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={e => setSearch(e.target.value)}
             placeholder="Search by name, email or school…"
             className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
           />
         </div>
         <div className="flex gap-2">
           {allClasses.length > 0 && (
-            <select
-              value={classFilter}
-              onChange={(e) => setClassFilter(e.target.value)}
-              className="flex-1 sm:flex-none px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
-            >
+            <select value={classFilter} onChange={e => setClassFilter(e.target.value)}
+              className="flex-1 sm:flex-none px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors">
               <option value="">All classes</option>
-              {allClasses.map((c) => <option key={c} value={c}>{c}</option>)}
+              {allClasses.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           )}
-          <button
-            onClick={load}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-          >
+          <button onClick={load} disabled={loading}
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/10 transition-colors">
             <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </div>
 
-      {/* School filter chips — for teachers this shows their allocated schools */}
+      {/* School filter chips */}
       {schools.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
-          <button
-            onClick={() => setSchoolFilter('')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-              !schoolFilter
-                ? 'bg-violet-600 text-white border-violet-500'
-                : 'bg-white/5 text-white/40 border-white/10 hover:text-white hover:bg-white/10'
-            }`}
-          >
+          <button onClick={() => setSchoolFilter('')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${!schoolFilter ? 'bg-violet-600 text-white border-violet-500' : 'bg-white/5 text-white/40 border-white/10 hover:text-white hover:bg-white/10'}`}>
             All Schools
           </button>
-          {schools.map((sc) => {
+          {schools.map(sc => {
             const count = students.filter(s => s.school_name === sc.name).length;
             const active = schoolFilter === sc.name;
             return (
-              <button
-                key={sc.id}
-                onClick={() => setSchoolFilter(active ? '' : sc.name)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                  active
-                    ? 'bg-blue-600 text-white border-blue-500'
-                    : 'bg-white/5 text-white/50 border-white/10 hover:text-white hover:bg-white/10'
-                }`}
-              >
+              <button key={sc.id} onClick={() => setSchoolFilter(active ? '' : sc.name)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${active ? 'bg-blue-600 text-white border-blue-500' : 'bg-white/5 text-white/50 border-white/10 hover:text-white hover:bg-white/10'}`}>
                 <BuildingOfficeIcon className="w-3 h-3 flex-shrink-0" />
                 {sc.name}
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${active ? 'bg-white/20' : 'bg-white/10'}`}>
-                  {count}
-                </span>
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${active ? 'bg-white/20' : 'bg-white/10'}`}>{count}</span>
               </button>
             );
           })}
@@ -418,11 +532,19 @@ export default function BulkEnrollPage() {
           <div className="flex items-center gap-2 text-sm">
             <UserGroupIcon className="w-4 h-4 text-violet-400" />
             <span className="text-violet-300 font-bold">{selected.size} selected</span>
-            <button onClick={() => setSelected(new Set())} className="text-white/30 hover:text-white text-xs underline">
-              Clear
-            </button>
+            <button onClick={() => setSelected(new Set())} className="text-white/30 hover:text-white text-xs underline">Clear</button>
           </div>
-          {!programId ? (
+          {classMode === 'pick' && !classId ? (
+            <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
+              <ExclamationTriangleIcon className="w-4 h-4" />
+              <span>Select a class above first</span>
+            </div>
+          ) : classMode === 'create' && (!newClass.grade_level && !newClass.name.trim()) ? (
+            <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
+              <ExclamationTriangleIcon className="w-4 h-4" />
+              <span>Set class name above first</span>
+            </div>
+          ) : classMode === 'create' && !programId ? (
             <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
               <ExclamationTriangleIcon className="w-4 h-4" />
               <span>Select a programme above first</span>
@@ -430,21 +552,23 @@ export default function BulkEnrollPage() {
           ) : (
             <button
               onClick={handleEnroll}
-              disabled={enrolling}
+              disabled={enrolling || creatingClass}
               className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors"
             >
               <AcademicCapIcon className="w-4 h-4" />
               <span>
-                {enrolling
-                  ? 'Enrolling…'
-                  : `Enrol ${selected.size} into ${selectedProgram?.title ?? '…'}`}
+                {(enrolling || creatingClass)
+                  ? classMode === 'create' ? 'Creating & Enrolling…' : 'Enrolling…'
+                  : classMode === 'create'
+                    ? `Create Class & Enrol ${selected.size}`
+                    : `Enrol ${selected.size} into ${selectedClass?.name ?? '…'}`}
               </span>
             </button>
           )}
         </div>
       )}
 
-      {/* Student table — grouped by school; complete schools hidden automatically */}
+      {/* Student table */}
       <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -462,12 +586,8 @@ export default function BulkEnrollPage() {
                 <thead className="sticky top-0 bg-[#0b1020] z-10">
                   <tr className="border-b border-white/10 text-white/40 uppercase tracking-wider text-[10px]">
                     <th className="px-3 sm:px-4 py-3 w-10">
-                      <input
-                        type="checkbox"
-                        checked={allFilteredSelected}
-                        onChange={toggleAll}
-                        className="w-3.5 h-3.5 rounded border-white/20 accent-violet-500 cursor-pointer"
-                      />
+                      <input type="checkbox" checked={allFilteredSelected} onChange={toggleAll}
+                        className="w-3.5 h-3.5 rounded border-white/20 accent-violet-500 cursor-pointer" />
                     </th>
                     <th className="text-left px-3 py-3">Name</th>
                     <th className="text-left px-3 py-3 hidden sm:table-cell">Email</th>
@@ -476,25 +596,22 @@ export default function BulkEnrollPage() {
                 </thead>
                 <tbody>
                   {groupedBySchool.map(([schoolName, schoolStudents]) => {
-                    const allSchoolSelected = schoolStudents.every((s) => selected.has(s.id));
-                    const someSchoolSelected = schoolStudents.some((s) => selected.has(s.id));
+                    const enrollable = schoolStudents.filter(s => !enrolledIds.has(s.id));
+                    const allSchoolSelected = enrollable.length > 0 && enrollable.every(s => selected.has(s.id));
+                    const someSchoolSelected = enrollable.some(s => selected.has(s.id));
                     return (
                       <React.Fragment key={schoolName}>
-                        {/* School group header */}
-                        <tr key={`hdr-${schoolName}`} className="bg-[#0b1020] border-b border-white/10">
+                        <tr className="bg-[#0b1020] border-b border-white/10">
                           <td className="px-3 sm:px-4 py-2 text-center">
-                            <input
-                              type="checkbox"
-                              checked={allSchoolSelected}
-                              ref={(el) => { if (el) el.indeterminate = someSchoolSelected && !allSchoolSelected; }}
+                            <input type="checkbox" checked={allSchoolSelected}
+                              ref={el => { if (el) el.indeterminate = someSchoolSelected && !allSchoolSelected; }}
                               onChange={() => {
                                 const next = new Set(selected);
-                                if (allSchoolSelected) schoolStudents.forEach((s) => next.delete(s.id));
-                                else schoolStudents.forEach((s) => next.add(s.id));
+                                if (allSchoolSelected) enrollable.forEach(s => next.delete(s.id));
+                                else enrollable.forEach(s => next.add(s.id));
                                 setSelected(next);
                               }}
-                              className="w-3.5 h-3.5 rounded border-white/20 accent-violet-500 cursor-pointer"
-                            />
+                              className="w-3.5 h-3.5 rounded border-white/20 accent-violet-500 cursor-pointer" />
                           </td>
                           <td colSpan={3} className="px-3 py-2">
                             <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40">
@@ -506,32 +623,29 @@ export default function BulkEnrollPage() {
                             </span>
                           </td>
                         </tr>
-                        {/* School students */}
-                        {schoolStudents.map((s) => {
+                        {schoolStudents.map(s => {
                           const isSel = selected.has(s.id);
+                          const isEnrolled = enrolledIds.has(s.id);
                           return (
-                            <tr
-                              key={s.id}
-                              onClick={() => toggleOne(s.id)}
-                              className={`border-b border-white/5 cursor-pointer transition-colors ${
-                                isSel ? 'bg-violet-500/10 hover:bg-violet-500/15' : 'hover:bg-white/[0.02]'
-                              }`}
-                            >
-                              <td className="px-3 sm:px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
-                                <input
-                                  type="checkbox"
-                                  checked={isSel}
-                                  onChange={() => toggleOne(s.id)}
-                                  className="w-3.5 h-3.5 rounded border-white/20 accent-violet-500 cursor-pointer"
-                                />
+                            <tr key={s.id}
+                              onClick={() => !isEnrolled && toggleOne(s.id)}
+                              className={`border-b border-white/5 transition-colors ${isEnrolled ? 'opacity-60' : isSel ? 'bg-violet-500/10 hover:bg-violet-500/15 cursor-pointer' : 'hover:bg-white/[0.02] cursor-pointer'}`}>
+                              <td className="px-3 sm:px-4 py-2.5 text-center" onClick={e => e.stopPropagation()}>
+                                {isEnrolled
+                                  ? <CheckCircleIcon className="w-4 h-4 text-emerald-400 mx-auto" />
+                                  : <input type="checkbox" checked={isSel} onChange={() => toggleOne(s.id)}
+                                      className="w-3.5 h-3.5 rounded border-white/20 accent-violet-500 cursor-pointer" />}
                               </td>
                               <td className="px-3 py-2.5">
-                                <span className={`font-medium ${isSel ? 'text-violet-200' : 'text-white'}`}>
-                                  {s.full_name}
-                                </span>
-                                <span className="block sm:hidden text-white/30 font-mono text-[10px] mt-0.5 truncate max-w-[160px]">
-                                  {s.email}
-                                </span>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`font-medium ${isEnrolled ? 'text-white/50' : isSel ? 'text-violet-200' : 'text-white'}`}>{s.full_name}</span>
+                                  {isEnrolled && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/15 text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20">
+                                      <CheckCircleIcon className="w-2.5 h-2.5" /> Enrolled
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="block sm:hidden text-white/30 font-mono text-[10px] mt-0.5 truncate max-w-[160px]">{s.email}</span>
                               </td>
                               <td className="px-3 py-2.5 text-white/50 font-mono hidden sm:table-cell">{s.email}</td>
                               <td className="px-3 py-2.5">
@@ -548,7 +662,6 @@ export default function BulkEnrollPage() {
                 </tbody>
               </table>
             </div>
-
             <div className="px-4 py-3 border-t border-white/10 flex items-center justify-between text-xs text-white/30">
               <span>{filtered.length} shown · {students.length} total</span>
               {selected.size > 0 && <span className="text-violet-400 font-bold">{selected.size} selected</span>}

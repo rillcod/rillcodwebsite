@@ -4,7 +4,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import {
   AcademicCapIcon, PlusIcon, ClockIcon, CheckCircleIcon,
   ExclamationTriangleIcon, EyeIcon, TrashIcon, PlayIcon,
@@ -31,13 +30,12 @@ export default function CBTPage() {
         .then(json => { setExams(json.data ?? []); setLoading(false); })
         .catch(() => setLoading(false));
     } else {
-      const db = createClient();
       Promise.all([
         fetch('/api/cbt/exams', { cache: 'no-store' }).then(r => r.json()),
-        db.from('cbt_sessions').select('*').eq('user_id', profile.id),
-      ]).then(([exmJson, sesRes]) => {
+        fetch('/api/cbt/sessions', { cache: 'no-store' }).then(r => r.json()),
+      ]).then(([exmJson, sesJson]) => {
         setExams(exmJson.data ?? []);
-        setSessions(sesRes.data ?? []);
+        setSessions(sesJson.data ?? []);
         setLoading(false);
       }).catch(() => setLoading(false));
     }

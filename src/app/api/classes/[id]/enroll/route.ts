@@ -76,7 +76,7 @@ export async function GET(
 
   let query = admin
     .from('portal_users')
-    .select('id, full_name, email, school_id, school_name, section_class, class_id')
+    .select('id, full_name, email, school_id, school_name, section_class, class_id, classes:class_id(id, name)')
     .eq('role', 'student')
     .or('is_active.eq.true,is_active.is.null');
 
@@ -152,13 +152,17 @@ export async function POST(
 
   // School boundary check — non-admins cannot enroll a student from a different school
   if (caller.role !== 'admin' && cls.school_id) {
+    // Fetch the class's school name for legacy school_name-only student matching
+    const { data: clsSchool } = await admin.from('schools').select('name').eq('id', cls.school_id).single();
     const { data: student } = await admin
       .from('portal_users')
-      .select('school_id')
+      .select('school_id, school_name')
       .eq('id', studentId)
       .single();
 
-    if (!student?.school_id || student.school_id !== cls.school_id) {
+    const sameById = student?.school_id === cls.school_id;
+    const sameByName = clsSchool?.name && student?.school_name === clsSchool.name;
+    if (!sameById && !sameByName) {
       return NextResponse.json(
         { error: 'School boundary violation: this student belongs to a different school and cannot be enrolled in this class.' },
         { status: 403 },
@@ -166,19 +170,39 @@ export async function POST(
     }
   }
 
-  // Assign student to this class via class_id FK
+  // Capture student's current class before moving (to resync old class count)
+  const { data: studentBefore } = await admin
+    .from('portal_users')
+    .select('class_id')
+    .eq('id', studentId)
+    .single();
+  const prevClassId = studentBefore?.class_id ?? null;
+
+  // Assign student to this class via class_id FK; also sync section_class to class name
   const { error: updateErr } = await admin
     .from('portal_users')
-    .update({ class_id: classId })
+    .update({ class_id: classId, section_class: cls.name })
     .eq('id', studentId);
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
-  // Bump current_students count
-  await admin
-    .from('classes')
-    .update({ current_students: (cls.current_students ?? 0) + 1 })
-    .eq('id', classId);
+  // Sync current_students count for this class (exact — never drift)
+  const { count: newCount } = await admin
+    .from('portal_users')
+    .select('id', { count: 'exact', head: true })
+    .eq('class_id', classId)
+    .eq('role', 'student');
+  await admin.from('classes').update({ current_students: newCount ?? 0 }).eq('id', classId);
+
+  // Also resync the old class count if student was moved from elsewhere
+  if (prevClassId && prevClassId !== classId) {
+    const { count: oldCount } = await admin
+      .from('portal_users')
+      .select('id', { count: 'exact', head: true })
+      .eq('class_id', prevClassId)
+      .eq('role', 'student');
+    await admin.from('classes').update({ current_students: oldCount ?? 0 }).eq('id', prevClassId);
+  }
 
   // Ensure program enrollment exists
   if (cls.program_id) {
@@ -221,20 +245,28 @@ export async function PUT(
   }
 
   const admin = adminClient();
-  const { data: cls } = await admin.from('classes').select('id, program_id, current_students, school_id').eq('id', classId).single();
+  const { data: cls } = await admin.from('classes').select('id, name, program_id, current_students, school_id').eq('id', classId).single();
   if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
 
   // School boundary check — silently exclude students from a different school
   let allowedIds = studentIds;
   if (caller.role !== 'admin' && cls.school_id) {
+    // Fetch class school name for legacy school_name-only student matching
+    const { data: clsSchool } = await admin.from('schools').select('name').eq('id', cls.school_id).single();
+    const clsSchoolName = clsSchool?.name ?? null;
+
     const { data: studentRows } = await admin
       .from('portal_users')
-      .select('id, school_id')
+      .select('id, school_id, school_name')
       .in('id', studentIds)
       .eq('role', 'student');
 
     allowedIds = (studentRows ?? [])
-      .filter((s: any) => s.school_id && s.school_id === cls.school_id)
+      .filter((s: any) => {
+        const sameById = s.school_id === cls.school_id;
+        const sameByName = clsSchoolName && s.school_name === clsSchoolName;
+        return sameById || sameByName;
+      })
       .map((s: any) => s.id);
 
     if (allowedIds.length === 0) {
@@ -242,22 +274,42 @@ export async function PUT(
     }
   }
 
-  // Batch-assign class_id
+  // Capture students' previous classes before moving (to resync old class counts)
+  const { data: studentsBefore } = await admin
+    .from('portal_users')
+    .select('id, class_id')
+    .in('id', allowedIds)
+    .eq('role', 'student');
+  const prevClassIds = [...new Set(
+    (studentsBefore ?? []).map((s: any) => s.class_id).filter((cid: any) => cid && cid !== classId)
+  )];
+
+  // Batch-assign class_id and sync section_class to class name
   const { error: updateErr } = await admin
     .from('portal_users')
-    .update({ class_id: classId })
+    .update({ class_id: classId, section_class: cls.name })
     .in('id', allowedIds)
     .eq('role', 'student');
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
-  // Sync current_students count
+  // Sync current_students count for this class (exact — never drift)
   const { count } = await admin
     .from('portal_users')
     .select('id', { count: 'exact', head: true })
     .eq('class_id', classId)
     .eq('role', 'student');
   await admin.from('classes').update({ current_students: count ?? 0 }).eq('id', classId);
+
+  // Resync counts on all old classes students were moved from
+  for (const prevCid of prevClassIds) {
+    const { count: oldCount } = await admin
+      .from('portal_users')
+      .select('id', { count: 'exact', head: true })
+      .eq('class_id', prevCid)
+      .eq('role', 'student');
+    await admin.from('classes').update({ current_students: oldCount ?? 0 }).eq('id', prevCid);
+  }
 
   // Ensure program enrollments exist
   if (cls.program_id) {
@@ -314,10 +366,13 @@ export async function DELETE(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await admin
-    .from('classes')
-    .update({ current_students: Math.max(0, (cls?.current_students ?? 1) - 1) })
-    .eq('id', classId);
+  // Sync current_students count (exact — never drift)
+  const { count: afterCount } = await admin
+    .from('portal_users')
+    .select('id', { count: 'exact', head: true })
+    .eq('class_id', classId)
+    .eq('role', 'student');
+  await admin.from('classes').update({ current_students: afterCount ?? 0 }).eq('id', classId);
 
   return NextResponse.json({ success: true });
 }

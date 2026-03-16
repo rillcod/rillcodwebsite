@@ -300,14 +300,16 @@ export default function ModernReportCard({ report, orgSettings }: {
 
             {/* VALIDATION DECREE */}
             {(overall >= 45 || report.has_certificate) && (
-                <div className="relative z-10 mb-4 bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-[2.5rem] p-5 flex flex-col items-center text-center overflow-hidden shadow-2xl">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[80px] -mr-32 -mt-32" />
-                    <div className="absolute left-0 bottom-0 w-64 h-64 bg-cyan-400/10 blur-[80px] -ml-32 -mb-32" />
-                    <TrophyIcon className="w-8 h-8 text-white/20 mb-2" />
-                    <h4 className="text-[11px] font-black text-white uppercase tracking-[0.5em] mb-3">Official Certification Decree</h4>
-                    <p className="text-[12px] font-bold text-white/70 uppercase tracking-[0.1em] max-w-2xl leading-relaxed italic">
-                        {report.certificate_text || `This document validates that ${report.student_name} has demonstrated technical proficiency and successfully synthesized all required protocols within the ${report.course_name} curriculum.`}
-                    </p>
+                <div className="relative z-10 mb-3 bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-2xl px-5 py-3 flex items-center gap-4 overflow-hidden shadow-xl">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[80px] -mr-32 -mt-32 pointer-events-none" />
+                    <div className="absolute left-0 bottom-0 w-64 h-64 bg-cyan-400/10 blur-[80px] -ml-32 -mb-32 pointer-events-none" />
+                    <TrophyIcon className="w-8 h-8 text-white/25 flex-shrink-0 relative z-10" />
+                    <div className="relative z-10 flex-1 min-w-0">
+                        <h4 className="text-[9px] font-black text-white/60 uppercase tracking-[0.4em] mb-1">Official Certification Decree</h4>
+                        <p className="text-[10px] font-semibold text-white leading-snug italic line-clamp-2">
+                            {report.certificate_text || `This document officially recognizes that ${report.student_name} has successfully completed the intensive study programme in ${report.course_name}.`}
+                        </p>
+                    </div>
                 </div>
             )}
 

@@ -43,9 +43,11 @@ export async function GET(request: NextRequest) {
     if (caller.role === 'teacher') {
       query = query.eq('created_by', caller.id) as any;
     } else if (caller.role === 'school') {
-      const filters = [`school_id.eq.${caller.id}`];
+      // school role: see assignments scoped to their school
+      const filters: string[] = [];
       if (caller.school_id) filters.push(`school_id.eq.${caller.school_id}`);
-      query = query.or(filters.join(',')) as any;
+      if (caller.school_name) filters.push(`school_name.eq.${caller.school_name}`);
+      if (filters.length > 0) query = query.or(filters.join(',')) as any;
     }
 
     const { data, error } = await query;

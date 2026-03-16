@@ -9,7 +9,7 @@ function adminClient() {
   );
 }
 
-async function requireAdmin() {
+async function requireTeacherOrAdmin() { // admin or teacher only
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
@@ -18,7 +18,7 @@ async function requireAdmin() {
     .select('id, role')
     .eq('id', user.id)
     .single();
-  if (!profile || profile.role !== 'admin') return null;
+  if (!profile || !['admin', 'teacher'].includes(profile.role)) return null;
   return profile;
 }
 
@@ -27,8 +27,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireAdmin();
-  if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  const caller = await requireTeacherOrAdmin();
+  if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
   const { id } = await params;
   const body = await request.json();
@@ -57,8 +57,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireAdmin();
-  if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  const caller = await requireTeacherOrAdmin();
+  if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
   const { id } = await params;
   const admin = adminClient();

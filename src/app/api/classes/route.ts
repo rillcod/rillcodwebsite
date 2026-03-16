@@ -37,7 +37,8 @@ export async function GET(_request: NextRequest) {
         id, name, description, status, max_students, current_students,
         start_date, end_date, schedule, teacher_id, program_id, school_id, created_at,
         programs ( id, name ),
-        portal_users!classes_teacher_id_fkey ( id, full_name )
+        portal_users!classes_teacher_id_fkey ( id, full_name ),
+        schools ( id, name )
       `)
       .order('created_at', { ascending: false });
 

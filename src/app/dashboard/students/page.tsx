@@ -60,14 +60,26 @@ export default function StudentsPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<any | null>(null);
 
-  // Enrolled portal students (portal_users role=student) — same source as class counts
-  const [activeTab, setActiveTab] = useState<'applications' | 'enrolled'>('applications');
+  // Enrolled portal students (portal_users role=student)
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'applications' | 'enrolled'>('all');
   const [portalStudents, setPortalStudents] = useState<any[]>([]);
   const [portalLoading, setPortalLoading] = useState(false);
   const [classMap, setClassMap] = useState<Record<string, string>>({}); // class_id → name
-  const [enrolledSearch, setEnrolledSearch] = useState('');
   const [schoolList, setSchoolList] = useState<{ id: string; name: string }[]>([]);
   const [assigningSchool, setAssigningSchool] = useState<string | null>(null); // portal student id being assigned
+
+  // Bulk enrol
+  const [selectedForEnrol, setSelectedForEnrol] = useState<Set<string>>(new Set());
+  const [showBulkEnrolModal, setShowBulkEnrolModal] = useState(false);
+  const [classList, setClassList] = useState<any[]>([]);
+  const [bulkEnrolClassId, setBulkEnrolClassId] = useState('');
+  const [bulkEnrolling, setBulkEnrolling] = useState(false);
+
+  // Quick create class inside enrol modal
+  const [bulkEnrolMode, setBulkEnrolMode] = useState<'pick' | 'create'>('pick');
+  const [programsList, setProgramsList] = useState<any[]>([]);
+  const [quickClass, setQuickClass] = useState({ name: '', grade_level: '', program_id: '', school_id: '', max_students: '' });
+  const [creatingClass, setCreatingClass] = useState(false);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
@@ -95,18 +107,19 @@ export default function StudentsPage() {
     if (!profile || !isStaff) return;
     setPortalLoading(true);
     try {
-      const db = createClient();
       const [stuRes, clsRes, schRes] = await Promise.all([
         fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }),
-        db.from('classes').select('id, name').order('name'),
-        db.from('schools').select('id, name').eq('status', 'approved').order('name'),
+        fetch('/api/classes', { cache: 'no-store' }),
+        fetch('/api/schools', { cache: 'no-store' }),
       ]);
       const stuJson = await stuRes.json();
       setPortalStudents(stuJson.data ?? []);
+      const clsJson = await clsRes.json();
       const map: Record<string, string> = {};
-      (clsRes.data ?? []).forEach((c: any) => { map[c.id] = c.name; });
+      (clsJson.data ?? []).forEach((c: any) => { map[c.id] = c.name; });
       setClassMap(map);
-      setSchoolList(schRes.data ?? []);
+      const schJson = await schRes.json();
+      setSchoolList(schJson.data ?? []);
     } catch { /* ignore */ } finally {
       setPortalLoading(false);
     }
@@ -134,6 +147,96 @@ export default function StudentsPage() {
       alert(e.message ?? 'Failed to assign school');
     } finally {
       setAssigningSchool(null);
+    }
+  };
+
+  // ── Bulk enrol ─────────────────────────────────────────────
+  const openBulkEnrol = async () => {
+    if (selectedForEnrol.size === 0) return;
+    setShowBulkEnrolModal(true);
+    setBulkEnrolMode('pick');
+    const fetches: Promise<any>[] = [];
+    if (classList.length === 0) {
+      fetches.push(
+        fetch('/api/classes', { cache: 'no-store' }).then(r => r.json()).then(j => setClassList(j.data ?? [])).catch(() => {})
+      );
+    }
+    if (programsList.length === 0) {
+      fetches.push(
+        fetch('/api/programs?is_active=true', { cache: 'no-store' }).then(r => r.json()).then(j => setProgramsList(j.data ?? [])).catch(() => {})
+      );
+    }
+    if (fetches.length > 0) await Promise.all(fetches);
+  };
+
+  const createAndEnrol = async () => {
+    if ((!quickClass.name.trim() && !quickClass.grade_level) || !quickClass.program_id) {
+      alert('Class name (or grade level) and program are required');
+      return;
+    }
+    setCreatingClass(true);
+    try {
+      // 1. Create class
+      // If grade_level chosen, use it as class name; otherwise use the typed name
+      const className = quickClass.grade_level || quickClass.name.trim();
+      const body: any = { name: className, program_id: quickClass.program_id, status: 'active' };
+      if (quickClass.school_id) body.school_id = quickClass.school_id;
+      if (quickClass.max_students) body.max_students = parseInt(quickClass.max_students);
+      const clsRes = await fetch('/api/classes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const clsJson = await clsRes.json();
+      if (!clsRes.ok) throw new Error(clsJson.error ?? 'Failed to create class');
+      const classId = clsJson.data.id;
+
+      // 2. Enrol selected students into new class
+      const enrolRes = await fetch(`/api/classes/${classId}/enroll`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentIds: [...selectedForEnrol] }),
+      });
+      const enrolJson = await enrolRes.json();
+      if (!enrolRes.ok) throw new Error(enrolJson.error ?? 'Failed to enrol students');
+
+      // 3. Close & refresh
+      setShowBulkEnrolModal(false);
+      setBulkEnrolMode('pick');
+      setSelectedForEnrol(new Set());
+      setBulkEnrolClassId('');
+      setQuickClass({ name: '', grade_level: '', program_id: '', school_id: '', max_students: '' });
+      setClassList([]);      // force refresh next open
+      await loadPortalStudents();
+      alert(`Class "${clsJson.data.name}" created — ${enrolJson.enrolled ?? selectedForEnrol.size} student${(enrolJson.enrolled ?? selectedForEnrol.size) !== 1 ? 's' : ''} enrolled.`);
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to create class and enrol students');
+    } finally {
+      setCreatingClass(false);
+    }
+  };
+
+  const executeBulkEnrol = async () => {
+    if (!bulkEnrolClassId || selectedForEnrol.size === 0) return;
+    setBulkEnrolling(true);
+    try {
+      const res = await fetch(`/api/classes/${bulkEnrolClassId}/enroll`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentIds: [...selectedForEnrol] }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Failed to enrol');
+      setShowBulkEnrolModal(false);
+      setBulkEnrolMode('pick');
+      setSelectedForEnrol(new Set());
+      setBulkEnrolClassId('');
+      await loadPortalStudents();
+      alert(`Enrolled ${json.enrolled ?? selectedForEnrol.size} student${(json.enrolled ?? selectedForEnrol.size) !== 1 ? 's' : ''}${json.skipped ? ` (${json.skipped} skipped — school boundary)` : ''}.`);
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to enrol students');
+    } finally {
+      setBulkEnrolling(false);
     }
   };
 
@@ -268,20 +371,33 @@ export default function StudentsPage() {
     a.click();
   };
 
-  // ── Filter ─────────────────────────────────────────────────
-  const filtered = students.filter(s => {
+  // ── Unified combined list ───────────────────────────────────
+  const normalizedApplications = students.map(s => ({ ...s, _source: 'application' as const }));
+  const normalizedEnrolled = portalStudents.map(s => ({
+    ...s, _source: 'enrolled' as const,
+    status: s.is_active ? 'active' : 'inactive',
+  }));
+  const combined = [...normalizedApplications, ...normalizedEnrolled];
+
+  const filtered = combined.filter(s => {
     const q = search.toLowerCase();
     const ms = (s.full_name ?? '').toLowerCase().includes(q) ||
       (s.parent_email ?? '').toLowerCase().includes(q) ||
+      (s.email ?? '').toLowerCase().includes(q) ||
       (s.parent_name ?? '').toLowerCase().includes(q) ||
       (s.school_name ?? '').toLowerCase().includes(q) ||
-      (s.city ?? '').toLowerCase().includes(q);
-    return ms && (filter === 'all' || s.status === filter);
+      (s.city ?? '').toLowerCase().includes(q) ||
+      (s.section_class ?? '').toLowerCase().includes(q);
+    const matchSource = sourceFilter === 'all' ||
+      (sourceFilter === 'enrolled' && s._source === 'enrolled') ||
+      (sourceFilter === 'applications' && s._source === 'application');
+    const matchStatus = filter === 'all' || s.status === filter;
+    return ms && matchSource && matchStatus;
   });
 
-  const pending = students.filter(s => s.status === 'pending').length;
-  const approved = students.filter(s => s.status === 'approved').length;
-  const rejected = students.filter(s => s.status === 'rejected').length;
+  const pending = normalizedApplications.filter(s => s.status === 'pending').length;
+  const approved = normalizedApplications.filter(s => s.status === 'approved').length;
+  const rejected = normalizedApplications.filter(s => s.status === 'rejected').length;
 
   // ── Calculate age ──────────────────────────────────────────
   const calcAge = (dob?: string) => {
@@ -319,6 +435,186 @@ export default function StudentsPage() {
 
   return (
     <>
+      {/* ── Bulk Enrol Modal ────────────────────────────── */}
+      {showBulkEnrolModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-[#0f0f1a] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+
+            {/* Header */}
+            <div className="p-6 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="font-bold text-white">Enrol Students</h2>
+                <p className="text-xs text-white/40 mt-0.5">{selectedForEnrol.size} student{selectedForEnrol.size !== 1 ? 's' : ''} selected</p>
+              </div>
+              <button onClick={() => { setShowBulkEnrolModal(false); setBulkEnrolMode('pick'); }} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all">
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Mode tabs */}
+            <div className="px-6 pt-5 pb-1 flex gap-2 flex-shrink-0">
+              <button
+                onClick={() => setBulkEnrolMode('pick')}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${bulkEnrolMode === 'pick' ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-white/10'}`}
+              >
+                Pick Existing Class
+              </button>
+              <button
+                onClick={() => setBulkEnrolMode('create')}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${bulkEnrolMode === 'create' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-white/10'}`}
+              >
+                + Create New Class
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+
+              {bulkEnrolMode === 'pick' ? (() => {
+                  // Filter classes to only schools of selected students (match by school_id OR school name)
+                  const selectedStudentObjs = portalStudents.filter(s => selectedForEnrol.has(s.id));
+                  const relevantSchoolIds = new Set(selectedStudentObjs.map(s => s.school_id).filter(Boolean));
+                  const relevantSchoolNames = new Set(selectedStudentObjs.map(s => s.school_name).filter(Boolean));
+                  const scopedClasses = classList.length === 0 ? [] :
+                    (relevantSchoolIds.size > 0 || relevantSchoolNames.size > 0)
+                      ? classList.filter((c: any) => {
+                          if (c.school_id && relevantSchoolIds.has(c.school_id)) return true;
+                          const cName = c.schools?.name;
+                          if (cName && relevantSchoolNames.has(cName)) return true;
+                          return false;
+                        })
+                      : classList;
+                  // Group by school name, sorted A→Z
+                  const groups: Record<string, any[]> = {};
+                  scopedClasses.forEach((c: any) => {
+                    const key = c.schools?.name ?? '— No School —';
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(c);
+                  });
+                  const groupEntries = Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+                  return (
+                <>
+                  {scopedClasses.length === 0 ? (
+                    <div className="py-10 text-center space-y-3">
+                      <AcademicCapIcon className="w-10 h-10 mx-auto text-white/10" />
+                      <p className="text-sm text-white/30">
+                        {classList.length === 0 ? 'No classes found.' : 'No classes match the selected students\' school.'}
+                      </p>
+                      <button onClick={() => setBulkEnrolMode('create')} className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors">
+                        Create a new class →
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
+                      {groupEntries.map(([schoolName, classes]) => (
+                        <div key={schoolName}>
+                          <p className="text-[10px] font-black text-blue-400/60 uppercase tracking-widest mb-2 px-1">{schoolName}</p>
+                          <div className="space-y-1.5">
+                            {classes.map((c: any) => (
+                              <div
+                                key={c.id}
+                                onClick={() => setBulkEnrolClassId(c.id)}
+                                className={`flex items-center gap-3 p-3.5 border rounded-xl cursor-pointer transition-all ${bulkEnrolClassId === c.id ? 'bg-violet-600/15 border-violet-500/40' : 'bg-white/5 border-white/5 hover:border-violet-500/20 hover:bg-white/[0.07]'}`}
+                              >
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${bulkEnrolClassId === c.id ? 'border-violet-400 bg-violet-600' : 'border-white/20'}`}>
+                                  {bulkEnrolClassId === c.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-semibold text-white truncate">{c.name}</p>
+                                  {c.programs?.name && (
+                                    <p className="text-[9px] text-white/30 mt-0.5">{c.programs.name}</p>
+                                  )}
+                                </div>
+                                <span className="text-[10px] font-bold text-white/30 flex-shrink-0 tabular-nums">
+                                  {c.current_students ?? 0}{c.max_students ? `/${c.max_students}` : ''} <span className="text-white/15">students</span>
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300">
+                    Students already in another class will be <strong>reassigned</strong>. Students outside your school boundary will be skipped.
+                  </div>
+                  <button
+                    onClick={executeBulkEnrol}
+                    disabled={!bulkEnrolClassId || bulkEnrolling}
+                    className="w-full py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                  >
+                    {bulkEnrolling
+                      ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Enrolling…</>
+                      : `Enrol ${selectedForEnrol.size} Student${selectedForEnrol.size !== 1 ? 's' : ''}`}
+                  </button>
+                </>
+              );})() : (
+                <>
+                  <p className="text-xs text-white/30 leading-relaxed">
+                    Register a new class and immediately enrol the {selectedForEnrol.size} selected student{selectedForEnrol.size !== 1 ? 's' : ''} into it.
+                  </p>
+                  <div className="space-y-3">
+                    {/* Grade / Section preset — sets the class name automatically */}
+                    <select
+                      value={quickClass.grade_level}
+                      onChange={e => setQuickClass(q => ({ ...q, grade_level: e.target.value, name: e.target.value ? '' : q.name }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
+                    >
+                      <option value="">— Grade / Section (pick or type below) —</option>
+                      {['Primary 1','Primary 2','Primary 3','Primary 4','Primary 5','Primary 6',
+                        'JSS1','JSS2','JSS3','SS1','SS2','SS3',
+                        'Cohort A','Cohort B','Cohort C'].map(g => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      placeholder={quickClass.grade_level ? `Custom name (or use "${quickClass.grade_level}" above)` : 'Custom class name *'}
+                      value={quickClass.name}
+                      onChange={e => setQuickClass(q => ({ ...q, name: e.target.value, grade_level: e.target.value ? '' : q.grade_level }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-emerald-500 transition-colors"
+                    />
+                    <select
+                      value={quickClass.program_id}
+                      onChange={e => setQuickClass(q => ({ ...q, program_id: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
+                    >
+                      <option value="">— Programme *—</option>
+                      {programsList.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    <select
+                      value={quickClass.school_id}
+                      onChange={e => setQuickClass(q => ({ ...q, school_id: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
+                    >
+                      <option value="">— School (optional) —</option>
+                      {schoolList.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <input
+                      type="number"
+                      placeholder="Max students (optional)"
+                      value={quickClass.max_students}
+                      onChange={e => setQuickClass(q => ({ ...q, max_students: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-emerald-500 transition-colors"
+                    />
+                  </div>
+                  <button
+                    onClick={createAndEnrol}
+                    disabled={creatingClass || (!quickClass.name.trim() && !quickClass.grade_level) || !quickClass.program_id}
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                  >
+                    {creatingClass
+                      ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Creating & Enrolling…</>
+                      : `Create Class & Enrol ${selectedForEnrol.size} Student${selectedForEnrol.size !== 1 ? 's' : ''}`}
+                  </button>
+                </>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Sync Result Modal ────────────────────────────── */}
       {syncResult && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -513,16 +809,11 @@ export default function StudentsPage() {
 
           {/* ── Stats ──────────────────────────────────────── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden px-1 sm:px-0">
-            {(activeTab === 'enrolled' ? [
-              { label: 'Enrolled', value: portalStudents.length, icon: AcademicCapIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', active: false, onClick: () => {} },
-              { label: 'Active', value: portalStudents.filter(s => s.is_active).length, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', active: false, onClick: () => {} },
-              { label: 'In a Class', value: portalStudents.filter(s => s.class_id).length, icon: BookOpenIcon, color: 'text-violet-400', bg: 'bg-violet-500/10', active: false, onClick: () => {} },
-              { label: 'Unassigned', value: portalStudents.filter(s => !s.class_id).length, icon: UserIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', active: false, onClick: () => {} },
-            ] : [
-              { label: 'Total', value: students.length, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', active: filter === 'all', onClick: () => setFilter('all') },
-              { label: 'Approved', value: approved, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', active: filter === 'approved', onClick: () => setFilter(filter === 'approved' ? 'all' : 'approved') },
+            {([
+              { label: 'Total', value: combined.length, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', active: sourceFilter === 'all' && filter === 'all', onClick: () => { setSourceFilter('all'); setFilter('all'); } },
+              { label: 'Enrolled', value: normalizedEnrolled.length, icon: AcademicCapIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', active: sourceFilter === 'enrolled', onClick: () => setSourceFilter(sourceFilter === 'enrolled' ? 'all' : 'enrolled') },
+              { label: 'Applications', value: normalizedApplications.length, icon: ClipboardDocumentListIcon, color: 'text-violet-400', bg: 'bg-violet-500/10', active: sourceFilter === 'applications', onClick: () => setSourceFilter(sourceFilter === 'applications' ? 'all' : 'applications') },
               { label: 'Pending', value: pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', active: filter === 'pending', onClick: () => setFilter(filter === 'pending' ? 'all' : 'pending') },
-              { label: 'Rejected', value: rejected, icon: XCircleIcon, color: 'text-rose-400', bg: 'bg-rose-500/10', active: filter === 'rejected', onClick: () => setFilter(filter === 'rejected' ? 'all' : 'rejected') },
             ]).map(s => (
               <button key={s.label} onClick={s.onClick}
                 className={`group relative text-left bg-white/5 border rounded-2xl sm:rounded-3xl p-5 sm:p-6 transition-all hover:bg-white/8 overflow-hidden ${s.active ? 'border-white/30 ring-1 ring-white/10' : 'border-white/10'}`}>
@@ -530,21 +821,21 @@ export default function StudentsPage() {
                 <div className={`w-10 h-10 sm:w-12 sm:h-12 ${s.bg} rounded-xl sm:rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                   <s.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${s.color}`} />
                 </div>
-                <p className={`text-2xl sm:text-4xl font-black ${s.color} lowercase' tabular-nums`}>{s.value}</p>
+                <p className={`text-2xl sm:text-4xl font-black ${s.color} tabular-nums`}>{s.value}</p>
                 <p className="text-[10px] sm:text-xs text-white/30 font-black uppercase tracking-widest mt-1.5">{s.label}</p>
               </button>
             ))}
           </div>
 
           {/* ── Pending alert ───────────────────────────────── */}
-          {activeTab === 'applications' && pending > 0 && (
+          {pending > 0 && (
             <div className="flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
               <ClockIcon className="w-6 h-6 text-amber-400 flex-shrink-0" />
               <div className="flex-1">
                 <p className="font-bold text-amber-400">{pending} student{pending !== 1 ? 's' : ''} awaiting approval</p>
-                <p className="text-xs text-white/30 mt-0.5">Click a student row to expand parent info before approving</p>
+                <p className="text-xs text-white/30 mt-0.5">Click a student row to expand and approve</p>
               </div>
-              <button onClick={() => setFilter('pending')}
+              <button onClick={() => { setSourceFilter('applications'); setFilter('pending'); }}
                 className="px-4 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold rounded-xl transition-colors print:hidden">
                 Show Pending
               </button>
@@ -559,142 +850,25 @@ export default function StudentsPage() {
             </p>
           </div>
 
-          {/* ── Tab Toggle ─────────────────────────────────── */}
-          <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl w-fit print:hidden">
-            {([
-              { key: 'enrolled', label: `Enrolled Students (${portalStudents.length})`, icon: AcademicCapIcon },
-              { key: 'applications', label: `Applications (${students.length})`, icon: ClipboardDocumentListIcon },
-            ] as const).map(t => (
-              <button key={t.key} onClick={() => setActiveTab(t.key)}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${activeTab === t.key ? 'bg-blue-600 text-white shadow-lg' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
-                <t.icon className="w-4 h-4" /> {t.label}
-              </button>
-            ))}
-          </div>
-
-          {/* ── ENROLLED STUDENTS TAB ─────────────────────────── */}
-          {activeTab === 'enrolled' && (
-            <>
-              <div className="flex flex-col sm:flex-row gap-3 print:hidden">
-                <div className="relative flex-1">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                  <input type="text" placeholder="Search name, email, school, class…"
-                    value={enrolledSearch} onChange={e => setEnrolledSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500 transition-colors" />
-                </div>
-                <button onClick={loadPortalStudents}
-                  className="px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/40 hover:text-white transition-all">
-                  <ArrowPathIcon className="w-4 h-4" />
-                </button>
-              </div>
-
-              {portalLoading ? (
-                <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
-              ) : (() => {
-                const q = enrolledSearch.toLowerCase();
-                const filtered2 = portalStudents.filter(s =>
-                  (s.full_name ?? '').toLowerCase().includes(q) ||
-                  (s.email ?? '').toLowerCase().includes(q) ||
-                  (s.school_name ?? '').toLowerCase().includes(q) ||
-                  (classMap[s.class_id] ?? '').toLowerCase().includes(q) ||
-                  (s.section_class ?? '').toLowerCase().includes(q)
-                );
-                if (filtered2.length === 0) return (
-                  <div className="text-center py-20 bg-white/5 border border-white/10 rounded-2xl">
-                    <AcademicCapIcon className="w-14 h-14 mx-auto text-white/10 mb-4" />
-                    <p className="text-lg font-semibold text-white/30">No enrolled students found</p>
-                    <p className="text-sm text-white/20 mt-1">Enroll students via Classes → Edit Class, or use Bulk Register</p>
-                  </div>
-                );
-                return (
-                  <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-                    <div className="p-5 border-b border-white/10 flex items-center justify-between">
-                      <h3 className="font-bold text-white flex items-center gap-2">
-                        <AcademicCapIcon className="w-5 h-5 text-blue-400" /> Portal Students
-                      </h3>
-                      <span className="text-xs text-white/30">{filtered2.length} of {portalStudents.length} shown</span>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-white/10 bg-white/[0.02]">
-                            {['Student', 'Email', 'School', 'Class', 'Grade', 'Status',
-                              ...(profile?.role !== 'school' ? ['Assign School'] : [])
-                            ].map(h => (
-                              <th key={h} className="px-5 py-3 text-left text-[10px] font-black text-white/30 uppercase tracking-widest">{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                          {filtered2.map((s: any) => (
-                            <tr key={s.id} className="hover:bg-white/[0.03] transition-colors">
-                              <td className="px-5 py-3">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
-                                    {(s.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                                  </div>
-                                  <span className="font-semibold text-white text-sm">{s.full_name}</span>
-                                </div>
-                              </td>
-                              <td className="px-5 py-3 text-sm text-white/50">{s.email}</td>
-                              <td className="px-5 py-3 text-sm text-white/50">{s.school_name || '—'}</td>
-                              <td className="px-5 py-3">
-                                {s.class_id && classMap[s.class_id] ? (
-                                  <span className="px-2 py-0.5 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-lg text-xs font-bold">{classMap[s.class_id]}</span>
-                                ) : (
-                                  <span className="text-white/20 text-xs">Unassigned</span>
-                                )}
-                              </td>
-                              <td className="px-5 py-3 text-sm text-white/50">{s.section_class || '—'}</td>
-                              <td className="px-5 py-3">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${s.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
-                                  {s.is_active ? 'Active' : 'Inactive'}
-                                </span>
-                              </td>
-                              {profile?.role !== 'school' && (
-                                <td className="px-5 py-3">
-                                  <select
-                                    value={s.school_id ?? ''}
-                                    disabled={assigningSchool === s.id}
-                                    onChange={e => assignStudentSchool(s.id, e.target.value)}
-                                    className="px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-blue-500 cursor-pointer disabled:opacity-40 min-w-[130px]"
-                                  >
-                                    <option value="">— No School —</option>
-                                    {schoolList.map(sc => (
-                                      <option key={sc.id} value={sc.id}>{sc.name}</option>
-                                    ))}
-                                  </select>
-                                  {assigningSchool === s.id && (
-                                    <span className="ml-2 text-[10px] text-white/30">saving…</span>
-                                  )}
-                                </td>
-                              )}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                );
-              })()}
-            </>
-          )}
-
-          {/* ── APPLICATIONS TAB ─────────────────────────────── */}
-          {activeTab === 'applications' && (
-            <>
-          {/* ── Search + Filter ─────────────────────────────── */}
+          {/* ── Search + Filters ─────────────────────────────── */}
           <div className="flex flex-col sm:flex-row gap-3 print:hidden">
             <div className="relative flex-1">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
               <input type="text"
-                placeholder="Search name, parent, school, email, city…"
+                placeholder="Search name, email, school, class, city…"
                 value={search} onChange={e => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500 transition-colors" />
             </div>
+            <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value as any)}
+              className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
+              <option value="all">All Students</option>
+              <option value="enrolled">Enrolled Portal</option>
+              <option value="applications">Applications</option>
+            </select>
             <select value={filter} onChange={e => setFilter(e.target.value)}
               className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
               <option value="all">All Status</option>
+              <option value="active">Active</option>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
               <option value="rejected">Rejected</option>
@@ -707,41 +881,54 @@ export default function StudentsPage() {
               <UserGroupIcon className="w-14 h-14 mx-auto text-white/10 mb-4" />
               <p className="text-lg font-semibold text-white/30">No students found</p>
               <p className="text-sm text-white/20 mt-1">
-                {search ? 'Try a different search term' : 'Students will appear here once they register'}
+                {search ? 'Try a different search term' : 'Students will appear here once they register or enrol'}
               </p>
             </div>
           )}
 
-          {/* ── Student List ─────────────────────────────────── */}
+          {/* ── Unified Student List ──────────────────────────── */}
           {filtered.length > 0 && (
             <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
               <div className="p-5 border-b border-white/10 flex items-center justify-between">
                 <h3 className="font-bold text-white flex items-center gap-2">
                   <AcademicCapIcon className="w-5 h-5 text-blue-400" /> Student Records
                 </h3>
-                <span className="text-xs text-white/30">{filtered.length} of {students.length} shown</span>
+                <span className="text-xs text-white/30">{filtered.length} of {combined.length} shown</span>
               </div>
 
               <div className="divide-y divide-white/5">
                 {filtered.map((s: any) => {
                   const isExpanded = expanded === s.id;
+                  const isEnrolled = s._source === 'enrolled';
                   const age = calcAge(s.date_of_birth);
                   return (
-                    <div key={s.id}>
+                    <div key={`${s._source}-${s.id}`}>
                       {/* ── Row ─── */}
                       <div
                         className="flex items-start gap-4 p-5 hover:bg-white/5 transition-colors cursor-pointer group"
                         onClick={() => setExpanded(isExpanded ? null : s.id)}>
 
+                        {/* Checkbox (enrolled students only) */}
+                        {isEnrolled && (
+                          <div
+                            onClick={e => { e.stopPropagation(); setSelectedForEnrol(prev => { const n = new Set(prev); if (n.has(s.id)) n.delete(s.id); else n.add(s.id); return n; }); }}
+                            className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-3 transition-all cursor-pointer ${selectedForEnrol.has(s.id) ? 'bg-violet-600 border-violet-400' : 'border-white/20 hover:border-violet-400'}`}>
+                            {selectedForEnrol.has(s.id) && <CheckCircleIcon className="w-3 h-3 text-white" />}
+                          </div>
+                        )}
+
                         {/* Avatar */}
-                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center text-sm font-black text-white flex-shrink-0 mt-0.5">
+                        <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${isEnrolled ? 'from-emerald-600 to-teal-600' : 'from-blue-600 to-violet-600'} flex items-center justify-center text-sm font-black text-white flex-shrink-0 mt-0.5`}>
                           {(s.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          {/* Name + badge */}
+                          {/* Name + badges */}
                           <div className="flex items-center gap-2 flex-wrap mb-1.5">
                             <span className="font-bold text-white">{s.full_name}</span>
+                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isEnrolled ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-violet-500/10 text-violet-400 border-violet-500/20'}`}>
+                              {isEnrolled ? 'Enrolled' : 'Application'}
+                            </span>
                             <StatusBadge status={s.status} />
                             {s.gender && (
                               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/5 text-white/30 border border-white/10">
@@ -753,14 +940,26 @@ export default function StudentsPage() {
                           {/* Chips row */}
                           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                             <Chip icon={BuildingOfficeIcon} text={s.school_name} />
-                            <Chip icon={AcademicCapIcon} text={s.grade_level} />
-                            <Chip icon={MapPinIcon} text={[s.city, s.state].filter(Boolean).join(', ')} />
-                            <Chip icon={BookOpenIcon} text={s.enrollment_type ? `${s.enrollment_type} enrolment` : ''} />
-                            <Chip icon={CalendarIcon} text={s.created_at ? `Reg ${new Date(s.created_at).toLocaleDateString('en-GB')}` : ''} />
+                            {isEnrolled ? (
+                              <>
+                                <Chip icon={AcademicCapIcon} text={s.section_class} />
+                                {s.class_id && classMap[s.class_id] && (
+                                  <Chip icon={BookOpenIcon} text={classMap[s.class_id]} />
+                                )}
+                                <Chip icon={EnvelopeIcon} text={s.email} />
+                              </>
+                            ) : (
+                              <>
+                                <Chip icon={AcademicCapIcon} text={s.grade_level} />
+                                <Chip icon={MapPinIcon} text={[s.city, s.state].filter(Boolean).join(', ')} />
+                                <Chip icon={BookOpenIcon} text={s.enrollment_type ? `${s.enrollment_type} enrolment` : ''} />
+                                <Chip icon={CalendarIcon} text={s.created_at ? `Reg ${new Date(s.created_at).toLocaleDateString('en-GB')}` : ''} />
+                              </>
+                            )}
                           </div>
 
-                          {/* Parent summary (always visible) */}
-                          {s.parent_name && (
+                          {/* Parent summary (applications only) */}
+                          {!isEnrolled && s.parent_name && (
                             <div className="mt-2 flex items-center gap-2 text-xs text-white/30">
                               <UserIcon className="w-3 h-3" />
                               <span>Parent: <span className="text-white/50 font-semibold">{s.parent_name}</span></span>
@@ -773,7 +972,7 @@ export default function StudentsPage() {
                         {/* Right side: actions + expand */}
                         <div className="flex items-center gap-2 flex-shrink-0 print:hidden ml-auto">
                           <div className="hidden sm:flex items-center gap-2">
-                            {s.status === 'pending' && (profile?.role === 'admin' || profile?.role === 'teacher') && (
+                            {!isEnrolled && s.status === 'pending' && (profile?.role === 'admin' || profile?.role === 'teacher') && (
                               <>
                                 <button
                                   onClick={e => { e.stopPropagation(); approve(s.id); }}
@@ -793,17 +992,21 @@ export default function StudentsPage() {
                             )}
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={e => { e.stopPropagation(); startEdit(s); }}
-                              className="p-2 rounded-xl bg-white/5 border border-white/10 hover:border-violet-500/30 text-white/40 hover:text-white transition-all">
-                              <PencilSquareIcon className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={e => { e.stopPropagation(); handleDeleteStudent(s.id); }}
-                              disabled={deleting === s.id}
-                              className="p-2 rounded-xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
-                              <XMarkIcon className="w-4 h-4" />
-                            </button>
+                            {!isEnrolled && (
+                              <button
+                                onClick={e => { e.stopPropagation(); startEdit(s); }}
+                                className="p-2 rounded-xl bg-white/5 border border-white/10 hover:border-violet-500/30 text-white/40 hover:text-white transition-all">
+                                <PencilSquareIcon className="w-4 h-4" />
+                              </button>
+                            )}
+                            {!isEnrolled && (
+                              <button
+                                onClick={e => { e.stopPropagation(); handleDeleteStudent(s.id); }}
+                                disabled={deleting === s.id}
+                                className="p-2 rounded-xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
+                                <XMarkIcon className="w-4 h-4" />
+                              </button>
+                            )}
                             <div className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/40">
                               {isExpanded
                                 ? <ChevronUpIcon className="w-4 h-4" />
@@ -816,57 +1019,89 @@ export default function StudentsPage() {
                       {/* ── Expanded Detail Panel ─── */}
                       {isExpanded && (
                         <div className="bg-white/[0.03] border-t border-white/5 p-4 sm:p-8">
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-
-                            {/* Parent / Guardian */}
-                            <div className="bg-white/5 rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-white/10 shadow-2xl">
-                              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
-                                <UserIcon className="w-4 h-4 text-blue-500" /> Parent / Guardian
-                              </p>
-                              <div className="space-y-3.5">
-                                <InfoRow label="Name" value={s.parent_name} />
-                                <InfoRow label="Relationship" value={s.parent_relationship} />
-                                <InfoRow label="Phone" value={s.parent_phone} icon={<PhoneIcon className="w-3 h-3 text-white/20" />} />
-                                <InfoRow label="Email" value={s.parent_email} icon={<EnvelopeIcon className="w-3 h-3 text-white/20" />} />
+                          {isEnrolled ? (
+                            /* Enrolled student detail */
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
+                                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
+                                  <AcademicCapIcon className="w-4 h-4 text-emerald-500" /> Portal Account
+                                </p>
+                                <div className="space-y-3.5">
+                                  <InfoRow label="Email" value={s.email} icon={<EnvelopeIcon className="w-3 h-3 text-white/20" />} />
+                                  <InfoRow label="School" value={s.school_name} />
+                                  <InfoRow label="Grade / Class" value={s.section_class} />
+                                  <InfoRow label="Enrolled Class" value={s.class_id && classMap[s.class_id] ? classMap[s.class_id] : undefined} />
+                                  <InfoRow label="Status" value={s.is_active ? 'Active' : 'Inactive'} />
+                                </div>
+                              </div>
+                              {profile?.role !== 'school' && (
+                                <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
+                                  <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Assign School</p>
+                                  <select
+                                    value={s.school_id ?? ''}
+                                    disabled={assigningSchool === s.id}
+                                    onChange={e => assignStudentSchool(s.id, e.target.value)}
+                                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer disabled:opacity-40"
+                                  >
+                                    <option value="">— No School —</option>
+                                    {schoolList.map(sc => (
+                                      <option key={sc.id} value={sc.id}>{sc.name}</option>
+                                    ))}
+                                  </select>
+                                  {assigningSchool === s.id && (
+                                    <p className="mt-2 text-[10px] text-white/30">Saving…</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            /* Application student detail */
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+                              <div className="bg-white/5 rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-white/10 shadow-2xl">
+                                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
+                                  <UserIcon className="w-4 h-4 text-blue-500" /> Parent / Guardian
+                                </p>
+                                <div className="space-y-3.5">
+                                  <InfoRow label="Name" value={s.parent_name} />
+                                  <InfoRow label="Relationship" value={s.parent_relationship} />
+                                  <InfoRow label="Phone" value={s.parent_phone} icon={<PhoneIcon className="w-3 h-3 text-white/20" />} />
+                                  <InfoRow label="Email" value={s.parent_email} icon={<EnvelopeIcon className="w-3 h-3 text-white/20" />} />
+                                </div>
+                              </div>
+                              <div className="bg-white/5 rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-white/10 shadow-2xl">
+                                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
+                                  <AcademicCapIcon className="w-4 h-4 text-violet-500" /> Identity
+                                </p>
+                                <div className="space-y-3.5">
+                                  <InfoRow label="Full Name" value={s.full_name} />
+                                  <InfoRow label="Gender" value={s.gender} />
+                                  <InfoRow label="Age" value={age ? `${age} yrs` : undefined} />
+                                  <InfoRow label="Grade" value={s.grade_level} />
+                                  <InfoRow label="School" value={s.school_name} />
+                                  <InfoRow label="Location" value={[s.city, s.state].filter(Boolean).join(', ')} />
+                                </div>
+                              </div>
+                              <div className="bg-[#0a0a1a] rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-white/10 shadow-2xl">
+                                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
+                                  <BookOpenIcon className="w-4 h-4 text-emerald-500" /> Programme
+                                </p>
+                                <div className="space-y-3.5">
+                                  <InfoRow label="Interests" value={s.interests} />
+                                  <InfoRow label="Course Interest" value={s.course_interest} />
+                                  <InfoRow label="Schedule" value={s.preferred_schedule} />
+                                  <InfoRow label="Enrollment" value={s.enrollment_type} />
+                                  <InfoRow label="Applied" value={new Date(s.created_at).toLocaleDateString('en-GB')} />
+                                  {s.approved_at && (
+                                    <InfoRow label="Approved" value={new Date(s.approved_at).toLocaleDateString('en-GB')} />
+                                  )}
+                                </div>
                               </div>
                             </div>
-
-                            {/* Student Details */}
-                            <div className="bg-white/5 rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-white/10 shadow-2xl">
-                              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
-                                <AcademicCapIcon className="w-4 h-4 text-violet-500" /> Identity
-                              </p>
-                              <div className="space-y-3.5">
-                                <InfoRow label="Full Name" value={s.full_name} />
-                                <InfoRow label="Gender" value={s.gender} />
-                                <InfoRow label="Age" value={age ? `${age} yrs` : undefined} />
-                                <InfoRow label="Grade" value={s.grade_level} />
-                                <InfoRow label="School" value={s.school_name} />
-                                <InfoRow label="Location" value={[s.city, s.state].filter(Boolean).join(', ')} />
-                              </div>
-                            </div>
-
-                            {/* Programme & Status */}
-                            <div className="bg-[#0a0a1a] rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-white/10 shadow-2xl">
-                              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
-                                <BookOpenIcon className="w-4 h-4 text-emerald-500" /> Programme
-                              </p>
-                              <div className="space-y-3.5">
-                                <InfoRow label="Interests" value={s.interests} />
-                                <InfoRow label="Course Interest" value={s.course_interest} />
-                                <InfoRow label="Schedule" value={s.preferred_schedule} />
-                                <InfoRow label="Enrollment" value={s.enrollment_type} />
-                                <InfoRow label="Applied" value={new Date(s.created_at).toLocaleDateString('en-GB')} />
-                                {s.approved_at && (
-                                  <InfoRow label="Approved" value={new Date(s.approved_at).toLocaleDateString('en-GB')} />
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                          )}
 
                           {/* Action bar at bottom of expanded */}
                           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mt-8 pt-8 border-t border-white/5">
-                            {s.status === 'pending' && (profile?.role === 'admin' || profile?.role === 'teacher') && (
+                            {!isEnrolled && s.status === 'pending' && (profile?.role === 'admin' || profile?.role === 'teacher') && (
                               <div className="flex items-center gap-3">
                                 <button onClick={() => approve(s.id)} disabled={acting === s.id}
                                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 shadow-2xl shadow-emerald-600/20 active:scale-95">
@@ -880,7 +1115,7 @@ export default function StudentsPage() {
                                 </button>
                               </div>
                             )}
-                            {s.status === 'approved' && (
+                            {!isEnrolled && s.status === 'approved' && (
                               <div className="flex flex-wrap items-center gap-4">
                                 <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
                                   <CheckCircleIcon className="w-3.5 h-3.5" />
@@ -902,19 +1137,27 @@ export default function StudentsPage() {
                                 )}
                               </div>
                             )}
-                            {s.status === 'rejected' && (
+                            {!isEnrolled && s.status === 'rejected' && (
                               <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest">
                                 <XCircleIcon className="w-3.5 h-3.5" />
                                 Registration Rejected
                               </div>
                             )}
                             <div className="ml-auto flex items-center gap-5">
-                              <Link href={`/dashboard/students/${s.id}/report`}
-                                className="flex items-center gap-2 text-[10px] font-black text-violet-400 hover:text-white uppercase tracking-widest transition-colors">
-                                <ClipboardDocumentListIcon className="w-4 h-4" /> Report
-                              </Link>
+                              {!isEnrolled && (
+                                <Link href={`/dashboard/students/${s.id}/report`}
+                                  className="flex items-center gap-2 text-[10px] font-black text-violet-400 hover:text-white uppercase tracking-widest transition-colors">
+                                  <ClipboardDocumentListIcon className="w-4 h-4" /> Report
+                                </Link>
+                              )}
                               {s.parent_email && (
                                 <a href={`mailto:${s.parent_email}`}
+                                  className="flex items-center gap-2 text-[10px] font-black text-white/30 hover:text-white uppercase tracking-widest transition-colors">
+                                  <EnvelopeIcon className="w-4 h-4" /> Mail
+                                </a>
+                              )}
+                              {isEnrolled && s.email && (
+                                <a href={`mailto:${s.email}`}
                                   className="flex items-center gap-2 text-[10px] font-black text-white/30 hover:text-white uppercase tracking-widest transition-colors">
                                   <EnvelopeIcon className="w-4 h-4" /> Mail
                                 </a>
@@ -929,11 +1172,30 @@ export default function StudentsPage() {
               </div>
             </div>
           )}
-            </>
-          )}
 
         </div>
       </div>
+
+      {/* ── Floating Bulk Enrol Bar ───────────────────────── */}
+      {selectedForEnrol.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 print:hidden">
+          <div className="flex items-center gap-3 bg-[#0f0f1a] border border-violet-500/40 rounded-2xl px-5 py-3 shadow-2xl shadow-violet-500/20">
+            <span className="text-sm font-bold text-white">{selectedForEnrol.size} selected</span>
+            <button
+              onClick={openBulkEnrol}
+              className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all flex items-center gap-2"
+            >
+              <AcademicCapIcon className="w-4 h-4" /> Enrol in Class
+            </button>
+            <button
+              onClick={() => setSelectedForEnrol(new Set())}
+              className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"
+            >
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <AddStudentModal
         isOpen={showAdd}

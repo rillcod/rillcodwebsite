@@ -110,6 +110,7 @@ function ReportBuilderInner() {
     const [courses, setCourses] = useState<Course[]>([]);
     const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
     const [search, setSearch] = useState('');
+    const [classFilter, setClassFilter] = useState('');
 
     // ── Step: 'session' | 'pick' | 'edit' ────────────────────────────────────
     const [step, setStep] = useState<'session' | 'pick' | 'edit'>('session');
@@ -230,26 +231,15 @@ function ReportBuilderInner() {
         const db = createClient();
 
         async function loadData() {
-            // 1. Fetch assigned schools first to build names mapping (non-admins)
-            let assignedSchoolIds: string[] = [];
+            // 1. Fetch assigned schools via API (service role — bypasses RLS for teachers)
             let schoolsList: { id: string; name: string }[] = [];
 
-            if (profile?.role === 'school' && profile?.school_id) {
-                assignedSchoolIds = [profile.school_id];
-            } else if (profile?.role === 'teacher') {
-                const { data: assignments } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile?.id);
-                assignedSchoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
-                if (profile?.school_id && !assignedSchoolIds.includes(profile.school_id)) assignedSchoolIds.push(profile.school_id);
+            // Fetch schools via API (uses service role — bypasses RLS for teachers)
+            const schRes = await fetch('/api/schools', { cache: 'no-store' });
+            if (schRes.ok) {
+                const schJson = await schRes.json();
+                schoolsList = (schJson.data ?? []).map((s: any) => ({ id: s.id, name: s.name }));
             }
-
-            // Always fetch schools the user is allowed to see
-            let schoolsQuery = db.from('schools').select('id, name').order('name');
-            if (!isAdmin) {
-                if (assignedSchoolIds.length > 0) schoolsQuery = schoolsQuery.in('id', assignedSchoolIds);
-                else schoolsQuery = schoolsQuery.eq('id', '00000000-0000-0000-0000-000000000000');
-            }
-            const { data: schData } = await schoolsQuery;
-            schoolsList = schData || [];
 
             // 2. Fetch the "Pool" from portal_users — always scoped to assigned schools for non-admins
             let studentQuery = db.from('portal_users')
@@ -258,11 +248,11 @@ function ReportBuilderInner() {
 
             if (!isAdmin) {
                 studentQuery = studentQuery.eq('role', 'student');
-                if (assignedSchoolIds.length > 0) {
+                if (schoolsList.length > 0) {
                     // Build or-filter: match by school_id (primary) OR by school_name for legacy records
-                    // NOTE: school names must NOT be quoted in PostgREST in() syntax
+                    const schoolIds = schoolsList.map(s => s.id).filter(Boolean);
                     const schoolNames = schoolsList.map(s => s.name).filter(Boolean);
-                    const idPart = `school_id.in.(${assignedSchoolIds.join(',')})`;
+                    const idPart = `school_id.in.(${schoolIds.join(',')})`;
                     const namePart = schoolNames.length > 0
                         ? schoolNames.map(n => `school_name.eq.${n}`).join(',')
                         : '';
@@ -283,6 +273,7 @@ function ReportBuilderInner() {
             setStudents(sRes.data ?? []);
             setCourses(cRes.data ?? []);
             setSchools(schoolsList);
+            // Note: school auto-fill is handled below in the instructor_name setSessionConfig call
             if (bRes.data) {
                 setBranding({
                     org_name: bRes.data.org_name ?? '',
@@ -294,7 +285,13 @@ function ReportBuilderInner() {
                     logo_url: bRes.data.logo_url ?? '',
                 });
             }
-            setSessionConfig(s => ({ ...s, instructor_name: s.instructor_name || profile?.full_name || '' }));
+            setSessionConfig(s => ({
+                ...s,
+                instructor_name: s.instructor_name || profile?.full_name || '',
+                // Auto-fill school from profile if not already set
+                school_name: s.school_name || profile?.school_name || (schoolsList.length === 1 ? schoolsList[0].name : ''),
+                school_id: s.school_id || profile?.school_id || (schoolsList.length === 1 ? schoolsList[0].id : ''),
+            }));
 
             if (prefStudentId) {
                 const s = (sRes.data ?? []).find(x => x.id === prefStudentId);
@@ -315,8 +312,9 @@ function ReportBuilderInner() {
             ? (!sessionConfig.school_name || s.school_name === sessionConfig.school_name || !!search)
             : (!sessionConfig.school_name || s.school_name === sessionConfig.school_name);
 
-        // Filter by class if selected in Step 1
-        const matchesClass = !sessionConfig.section_class || (s as any).section_class === sessionConfig.section_class;
+        // Class filter: classFilter (step-2 dropdown) takes precedence over session class
+        const effectiveClass = classFilter || sessionConfig.section_class;
+        const matchesClass = !effectiveClass || (s as any).section_class === effectiveClass;
 
         return matchesSearch && matchesSchool && matchesClass;
     });
@@ -565,8 +563,8 @@ function ReportBuilderInner() {
                 school_id: sessionConfig.school_id || (selectedStudent as any).school_id || profile?.school_id || null,
                 course_id: sessionConfig.course_id || null,
                 student_name: form.student_name,
-                school_name: sessionConfig.school_name || null,
-                section_class: form.section_class || sessionConfig.section_class || null,
+                school_name: sessionConfig.school_name || (selectedStudent as any).school_name || null,
+                section_class: form.section_class || sessionConfig.section_class || (selectedStudent as any).section_class || null,
                 course_name: sessionConfig.course_name,
                 report_date: sessionConfig.report_date,
                 report_term: sessionConfig.report_term,
@@ -888,8 +886,8 @@ function ReportBuilderInner() {
                                 onChange={e => setSessionConfig(s => ({ ...s, section_class: e.target.value }))}
                                 className={INPUT}>
                                 <option value="">— Select class —</option>
-                                {CLASS_PRESETS.map(c => <option key={c} value={c}>{c}</option>)}
-                                {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
+                                {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
+                                {CLASS_PRESETS.filter(c => !distinctClasses.includes(c)).map(c => <option key={`preset-${c}`} value={c}>{c}</option>)}
                             </select>
                         </Field>
                         <Field label="Current Module">
@@ -1077,8 +1075,8 @@ function ReportBuilderInner() {
                                         onChange={e => setSessionConfig(s => ({ ...s, section_class: e.target.value }))}
                                         className={INPUT}>
                                         <option value="">— Select class —</option>
-                                        {CLASS_PRESETS.map(c => <option key={c} value={c}>{c}</option>)}
-                                        {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
+                                        {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
+                                        {CLASS_PRESETS.filter(c => !distinctClasses.includes(c)).map(c => <option key={`preset-${c}`} value={c}>{c}</option>)}
                                     </select>
                                 </Field>
                             </div>
@@ -1177,6 +1175,7 @@ function ReportBuilderInner() {
                             onClick={() => {
                                 setSessionDone(true);
                                 setSessionExpanded(false);
+                                setClassFilter(sessionConfig.section_class); // pre-filter by selected class
                                 setStep('pick');
                             }}
                             className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white font-black text-base rounded-2xl transition-all shadow-lg shadow-violet-900/30 flex items-center justify-center gap-2">
@@ -1224,31 +1223,79 @@ function ReportBuilderInner() {
                                         )}
                                     </button>
                                 )}
-                                <input
-                                    type="search" placeholder="Search…"
-                                    value={search} onChange={e => setSearch(e.target.value)}
-                                    className="ml-auto bg-white/5 border border-white/10 text-white text-sm px-3 py-1.5 rounded-xl placeholder:text-white/30 focus:outline-none focus:border-violet-500 w-44" />
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {filteredStudents.map((s, idx) => (
-                                    <button key={s.id} onClick={() => selectStudent(s as PortalUser, idx)}
-                                        className="text-left p-4 bg-white/5 border border-white/10 hover:border-violet-500/50 hover:bg-violet-600/10 rounded-xl transition-all">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
-                                                {s.full_name ? s.full_name[0] : '?'}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="font-semibold text-white text-sm truncate">{s.full_name ?? 'Unnamed'}</p>
-                                                <p className="text-xs text-white/40 truncate">{(s as any).section_class ?? s.email}</p>
-                                            </div>
-                                            <span className="ml-auto text-[10px] text-white/20 font-mono flex-shrink-0">#{idx + 1}</span>
-                                        </div>
+                                {/* Quick-filter chips per class */}
+                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                    <button
+                                        onClick={() => setClassFilter('')}
+                                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!classFilter ? 'bg-violet-600 text-white border-violet-500' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+                                    >
+                                        All ({students.filter(s => !sessionConfig.school_name || s.school_name === sessionConfig.school_name).length})
                                     </button>
-                                ))}
-                                {filteredStudents.length === 0 && (
-                                    <p className="text-white/30 text-sm col-span-3 py-8 text-center">No students found.</p>
-                                )}
+                                    {distinctClasses.map(c => (
+                                        <button key={c}
+                                            onClick={() => setClassFilter(classFilter === c ? '' : c)}
+                                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${classFilter === c ? 'bg-violet-600 text-white border-violet-500' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+                                        >
+                                            {c} ({students.filter(s => (s as any).section_class === c && (!sessionConfig.school_name || s.school_name === sessionConfig.school_name)).length})
+                                        </button>
+                                    ))}
+                                </div>
+                                <input
+                                    type="search" placeholder="Search student…"
+                                    value={search} onChange={e => setSearch(e.target.value)}
+                                    className="w-full mb-4 bg-white/5 border border-white/10 text-white text-sm px-4 py-2 rounded-xl placeholder:text-white/30 focus:outline-none focus:border-violet-500" />
                             </div>
+                            {/* Grouped student grid */}
+                            {(() => {
+                                const schoolScopedFiltered = filteredStudents;
+                                if (schoolScopedFiltered.length === 0) {
+                                    return <p className="text-white/30 text-sm py-8 text-center">No students found.</p>;
+                                }
+                                // Group by section_class; ungrouped falls under '— Unassigned —'
+                                const groups: Record<string, typeof filteredStudents> = {};
+                                let globalIdx = 0;
+                                const withIdx = schoolScopedFiltered.map(s => ({ s, idx: globalIdx++ }));
+                                withIdx.forEach(({ s, idx }) => {
+                                    const key = (s as any).section_class || '— Unassigned —';
+                                    if (!groups[key]) groups[key] = [];
+                                    (groups[key] as any[]).push({ s, idx });
+                                });
+                                const sortedGroups = Object.entries(groups).sort(([a], [b]) => {
+                                    if (a === '— Unassigned —') return 1;
+                                    if (b === '— Unassigned —') return -1;
+                                    return a.localeCompare(b);
+                                });
+                                return (
+                                    <div className="space-y-5">
+                                        {sortedGroups.map(([groupName, items]) => (
+                                            <div key={groupName}>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className="text-[10px] font-black text-violet-400/80 uppercase tracking-widest">{groupName}</span>
+                                                    <span className="text-[9px] text-white/20 bg-white/5 px-2 py-0.5 rounded-full">{(items as any[]).length}</span>
+                                                    <div className="flex-1 h-px bg-white/5" />
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                    {(items as any[]).map(({ s, idx }) => (
+                                                        <button key={s.id} onClick={() => selectStudent(s as PortalUser, idx)}
+                                                            className="text-left p-4 bg-white/5 border border-white/10 hover:border-violet-500/50 hover:bg-violet-600/10 rounded-xl transition-all">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
+                                                                    {s.full_name ? s.full_name[0] : '?'}
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="font-semibold text-white text-sm truncate">{s.full_name ?? 'Unnamed'}</p>
+                                                                    <p className="text-xs text-white/40 truncate">{s.school_name ?? s.email}</p>
+                                                                </div>
+                                                                <span className="ml-auto text-[10px] text-white/20 font-mono flex-shrink-0">#{idx + 1}</span>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 )}

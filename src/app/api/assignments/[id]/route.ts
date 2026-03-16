@@ -35,8 +35,12 @@ export async function GET(
     .from('assignments')
     .select(`
       *, courses ( id, title, programs ( name ) ),
-      assignment_submissions ( id, status, grade, portal_user_id,
-        portal_users!assignment_submissions_portal_user_id_fkey ( full_name, email ) )
+      assignment_submissions (
+        id, status, grade, portal_user_id,
+        submission_text, answers, file_url,
+        submitted_at, graded_at, feedback,
+        portal_users!assignment_submissions_portal_user_id_fkey ( full_name, email )
+      )
     `)
     .eq('id', id)
     .maybeSingle();

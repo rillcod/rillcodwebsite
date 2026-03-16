@@ -18,6 +18,8 @@ interface AddStudentModalProps {
     onClose: () => void;
     onSuccess: () => void;
     initialData?: any;
+    /** If provided, the student is auto-activated and enrolled into this class after registration */
+    classId?: string;
 }
 
 const DEFAULT_FORM = {
@@ -25,12 +27,13 @@ const DEFAULT_FORM = {
     school_name: '', grade_level: '', city: '', state: '',
 };
 
-export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: AddStudentModalProps) {
+export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, classId }: AddStudentModalProps) {
     const { profile } = useAuth();
     const [form, setForm] = useState(DEFAULT_FORM);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+    const [credentials, setCredentials] = useState<{ email: string; tempPassword: string; name: string } | null>(null);
 
     // Fetch partner schools for dropdown (not needed for school role — locked to their own school)
     useEffect(() => {
@@ -127,6 +130,30 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: Add
                 });
                 const json = await res.json();
                 if (!res.ok) throw new Error(json.error || 'Failed to add student');
+
+                // If called from a class page, auto-activate and enroll into the class
+                if (classId && json.student?.id) {
+                    const actRes = await fetch('/api/students/activate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ studentId: json.student.id }),
+                    });
+                    const actJson = await actRes.json();
+                    if (actRes.ok && actJson.portalUserId) {
+                        // Enroll the new portal user into the class
+                        await fetch(`/api/classes/${classId}/enroll`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ studentIds: [actJson.portalUserId] }),
+                        });
+                        // Show credentials to teacher (modal stays open until Done clicked)
+                        if (!actJson.alreadyActivated && actJson.tempPassword) {
+                            setForm(DEFAULT_FORM);
+                            setCredentials({ email: actJson.email, tempPassword: actJson.tempPassword, name: form.full_name });
+                            return; // don't fall through to onSuccess/onClose yet
+                        }
+                    }
+                }
             }
             setForm(DEFAULT_FORM);
             onSuccess();
@@ -139,6 +166,39 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData }: Add
     };
 
     if (!isOpen) return null;
+
+    // Credentials display after class auto-enrolment
+    if (credentials) {
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setCredentials(null); onSuccess(); onClose(); }} />
+                <div className="relative w-full max-w-md bg-[#0f0f1a] border border-emerald-500/30 rounded-3xl shadow-2xl p-8 space-y-5">
+                    <div className="flex items-center gap-3 mb-2">
+                        <CheckIcon className="w-6 h-6 text-emerald-400" />
+                        <h2 className="text-lg font-extrabold text-white">Student Registered & Enrolled!</h2>
+                    </div>
+                    <p className="text-sm text-white/50">Share these login credentials with <span className="text-white font-semibold">{credentials.name}</span> or their parent/guardian.</p>
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-3">
+                        <div>
+                            <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1">Email / Login</p>
+                            <p className="text-sm font-mono font-bold text-blue-300">{credentials.email}</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1">Temporary Password</p>
+                            <p className="text-sm font-mono font-bold text-amber-300">{credentials.tempPassword}</p>
+                        </div>
+                    </div>
+                    <p className="text-xs text-white/30">The student should change their password on first login.</p>
+                    <button
+                        onClick={() => { setCredentials(null); onSuccess(); onClose(); }}
+                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all"
+                    >
+                        Done
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">

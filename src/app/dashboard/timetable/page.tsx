@@ -1,14 +1,15 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   CalendarDaysIcon, PlusIcon, PencilIcon, TrashIcon,
   ClockIcon, BuildingOfficeIcon, XMarkIcon, CheckIcon,
-  BellAlertIcon, UserGroupIcon,
+  BellAlertIcon, UserGroupIcon, UserIcon,
 } from '@/lib/icons';
+import { EllipsisVerticalIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/outline';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TODAY = new Date().toLocaleDateString('en-US', { weekday: 'long' }) as typeof DAYS[number];
@@ -35,75 +36,204 @@ function Badge({ text, color }: { text: string; color: string }) {
   );
 }
 
-function SlotCell({ slot, onEdit, onDelete, isAdmin, highlight, isCurrent }: {
-  slot: Slot; onEdit: (s: Slot) => void; onDelete: (id: string) => void;
-  isAdmin: boolean; highlight?: boolean; isCurrent?: boolean;
+// ── Slot action menu ──────────────────────────────────────────────────────────
+function SlotMenu({
+  slot, teachers, canEdit, onEdit, onDelete, onReassign, onMove,
+}: {
+  slot: Slot;
+  teachers: { id: string; full_name: string | null }[];
+  canEdit: boolean;
+  onEdit: (s: Slot) => void;
+  onDelete: (id: string) => void;
+  onReassign: (slotId: string, teacherId: string, teacherName: string) => void;
+  onMove: (slotId: string, day: string) => void;
 }) {
-  const isPractical = slot.subject.toLowerCase().includes('lab') || slot.subject.toLowerCase().includes('practical') || slot.subject.toLowerCase().includes('coding') || slot.subject.toLowerCase().includes('robotics');
-  const isExam = slot.subject.toLowerCase().includes('exam') || slot.subject.toLowerCase().includes('test') || slot.subject.toLowerCase().includes('quiz');
+  const [open, setOpen] = useState(false);
+  const [sub, setSub] = useState<'reassign' | 'move' | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
-  const cardCls = isCurrent 
-    ? 'bg-violet-600 border-violet-400 shadow-[0_0_20px_rgba(139,92,246,0.3)] ring-2 ring-violet-500/50' 
-    : isPractical 
-      ? 'bg-cyan-500/10 border-cyan-500/20' 
-      : isExam 
-        ? 'bg-rose-500/10 border-rose-500/20' 
-        : 'bg-violet-500/10 border-violet-500/20';
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false); setSub(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  if (!canEdit) return null;
 
   return (
-    <div className={`border rounded-xl p-3 group relative transition-all duration-300 ${cardCls}`}>
-      <div className="flex justify-between items-start gap-2">
-        <p className="text-[12px] font-black text-white leading-tight uppercase tracking-tight">{slot.subject}</p>
-        {isCurrent && (
-          <span className="flex h-2 w-2 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-        )}
-      </div>
-      
-      <p className={`text-[10px] mt-1 font-bold ${isCurrent ? 'text-white/70' : 'text-white/40'}`}>
-        {slot.start_time}–{slot.end_time}
-      </p>
-      
-      {slot.teacher_name && (
-        <p className={`text-[10px] mt-2 font-medium truncate ${isCurrent ? 'text-white/90' : 'text-violet-300/60'}`}>
-          👤 {slot.teacher_name}
-        </p>
-      )}
-      
-      {slot.room && (
-        <p className={`text-[10px] mt-0.5 font-bold ${isCurrent ? 'text-white/80' : 'text-white/30'}`}>
-          📍 {slot.room}
-        </p>
-      )}
+    <div ref={ref} className="relative flex-shrink-0">
+      <button
+        onClick={() => { setOpen(v => !v); setSub(null); }}
+        className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/40 hover:text-white"
+        title="Slot actions"
+      >
+        <EllipsisVerticalIcon className="w-4 h-4" />
+      </button>
 
-      {isCurrent && (
-        <p className="text-[9px] font-black text-emerald-400 mt-2 uppercase tracking-widest animate-pulse">Now Ongoing</p>
-      )}
+      {open && (
+        <div className="absolute right-0 top-7 z-50 w-44 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+          {sub === null && (
+            <>
+              <button
+                onClick={() => { setOpen(false); onEdit(slot); }}
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+              >
+                <PencilIcon className="w-3.5 h-3.5 text-blue-400" /> Edit Slot
+              </button>
+              <button
+                onClick={() => setSub('reassign')}
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+              >
+                <UserIcon className="w-3.5 h-3.5 text-violet-400" /> Reassign Teacher
+              </button>
+              <button
+                onClick={() => setSub('move')}
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+              >
+                <ArrowsRightLeftIcon className="w-3.5 h-3.5 text-amber-400" /> Move to Day
+              </button>
+              <div className="border-t border-white/10" />
+              <button
+                onClick={() => { setOpen(false); onDelete(slot.id); }}
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-rose-400 hover:bg-rose-500/10 transition-colors"
+              >
+                <TrashIcon className="w-3.5 h-3.5" /> Delete Slot
+              </button>
+            </>
+          )}
 
-      {isAdmin && (
-        <div className="absolute top-1 right-1 hidden group-hover:flex gap-1 bg-[#1a1a2e]/80 backdrop-blur rounded-lg p-0.5">
-          <button onClick={() => onEdit(slot)}
-            className="p-1 hover:bg-white/10 rounded-lg transition-colors">
-            <PencilIcon className="w-3 h-3 text-white/60 hover:text-white" />
-          </button>
-          <button onClick={() => onDelete(slot.id)}
-            className="p-1 hover:bg-rose-500/20 rounded-lg transition-colors">
-            <TrashIcon className="w-3 h-3 text-rose-400" />
-          </button>
+          {sub === 'reassign' && (
+            <>
+              <div className="px-4 py-2 border-b border-white/10 flex items-center gap-2">
+                <button onClick={() => setSub(null)} className="text-white/40 hover:text-white text-xs">←</button>
+                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Reassign Teacher</span>
+              </div>
+              <div className="max-h-48 overflow-y-auto">
+                <button
+                  onClick={() => { onReassign(slot.id, '', ''); setOpen(false); setSub(null); }}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-white/50 hover:bg-white/10 hover:text-white transition-colors"
+                >
+                  — Unassign
+                </button>
+                {teachers.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => { onReassign(slot.id, t.id, t.full_name ?? ''); setOpen(false); setSub(null); }}
+                    className={`flex items-center gap-2 w-full px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${slot.teacher_id === t.id ? 'text-violet-400 font-bold' : 'text-white/70 hover:text-white'}`}
+                  >
+                    {slot.teacher_id === t.id && <CheckIcon className="w-3 h-3 flex-shrink-0" />}
+                    {t.full_name ?? 'Unnamed'}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {sub === 'move' && (
+            <>
+              <div className="px-4 py-2 border-b border-white/10 flex items-center gap-2">
+                <button onClick={() => setSub(null)} className="text-white/40 hover:text-white text-xs">←</button>
+                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Move to Day</span>
+              </div>
+              {DAYS.filter(d => d !== slot.day_of_week).map(day => (
+                <button
+                  key={day}
+                  onClick={() => { onMove(slot.id, day); setOpen(false); setSub(null); }}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                >
+                  <ArrowsRightLeftIcon className="w-3.5 h-3.5 text-amber-400" /> {day}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
   );
 }
 
+// ── Slot card ─────────────────────────────────────────────────────────────────
+function SlotCell({
+  slot, teachers, onEdit, onDelete, onReassign, onMove, canEdit, isCurrent,
+}: {
+  slot: Slot;
+  teachers: { id: string; full_name: string | null }[];
+  onEdit: (s: Slot) => void;
+  onDelete: (id: string) => void;
+  onReassign: (slotId: string, teacherId: string, teacherName: string) => void;
+  onMove: (slotId: string, day: string) => void;
+  canEdit: boolean;
+  isCurrent?: boolean;
+}) {
+  const isPractical = /lab|practical|coding|robotics/i.test(slot.subject);
+  const isExam = /exam|test|quiz/i.test(slot.subject);
+
+  const cardCls = isCurrent
+    ? 'bg-violet-600 border-violet-400 shadow-[0_0_20px_rgba(139,92,246,0.3)] ring-2 ring-violet-500/50'
+    : isPractical
+      ? 'bg-cyan-500/10 border-cyan-500/20'
+      : isExam
+        ? 'bg-rose-500/10 border-rose-500/20'
+        : 'bg-violet-500/10 border-violet-500/20';
+
+  return (
+    <div className={`border rounded-xl p-3 transition-all duration-300 ${cardCls}`}>
+      {/* Top row: subject + menu */}
+      <div className="flex items-start justify-between gap-1">
+        <div className="flex-1 min-w-0">
+          <p className="text-[12px] font-black text-white leading-tight uppercase tracking-tight truncate">{slot.subject}</p>
+          <p className={`text-[10px] mt-0.5 font-bold ${isCurrent ? 'text-white/70' : 'text-white/40'}`}>
+            {slot.start_time}–{slot.end_time}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {isCurrent && (
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+          )}
+          <SlotMenu
+            slot={slot}
+            teachers={teachers}
+            canEdit={canEdit}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onReassign={onReassign}
+            onMove={onMove}
+          />
+        </div>
+      </div>
+
+      {slot.teacher_name && (
+        <p className={`text-[10px] mt-2 font-medium truncate ${isCurrent ? 'text-white/90' : 'text-violet-300/60'}`}>
+          👤 {slot.teacher_name}
+        </p>
+      )}
+      {slot.room && (
+        <p className={`text-[10px] mt-0.5 font-bold ${isCurrent ? 'text-white/80' : 'text-white/30'}`}>
+          📍 {slot.room}
+        </p>
+      )}
+      {isCurrent && (
+        <p className="text-[9px] font-black text-emerald-400 mt-2 uppercase tracking-widest animate-pulse">Now Ongoing</p>
+      )}
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 export default function TimetablePage() {
   const { profile, loading: authLoading } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
   const isSchool = profile?.role === 'school';
   const isStudent = profile?.role === 'student';
+  const canEdit = isAdmin || isTeacher;
 
   const [timetables, setTimetables] = useState<Timetable[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -140,7 +270,6 @@ export default function TimetablePage() {
       if (err) throw err;
       const list = (data ?? []) as Timetable[];
       setTimetables(list);
-      // prefer active timetable; fall back to first
       const preferred = list.find(t => t.is_active) ?? list[0];
       if (preferred && !activeTimetable) {
         setActiveTimetable(preferred.id);
@@ -224,9 +353,11 @@ export default function TimetablePage() {
   };
 
   // ── Slot CRUD ─────────────────────────────────────────────────────────────
-  const openNewSlot = () => {
+  const openNewSlot = (day?: string) => {
     if (!activeTimetable) return;
-    setEditingSlot(null); setSlotForm({ ...BLANK_SLOT }); setShowSlotForm(true);
+    setEditingSlot(null);
+    setSlotForm({ ...BLANK_SLOT, day_of_week: day || 'Monday' });
+    setShowSlotForm(true);
   };
   const openEditSlot = (slot: Slot) => {
     setEditingSlot(slot);
@@ -258,6 +389,7 @@ export default function TimetablePage() {
           body: JSON.stringify(payload),
         });
         if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save slot'); }
+        setSlots(prev => prev.map(s => s.id === editingSlot.id ? { ...s, ...payload, id: s.id, timetable_id: s.timetable_id } : s));
       } else {
         const res = await fetch('/api/timetable-slots', {
           method: 'POST',
@@ -265,8 +397,10 @@ export default function TimetablePage() {
           body: JSON.stringify(payload),
         });
         if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save slot'); }
+        const { data: newSlot } = await res.json();
+        if (newSlot) setSlots(prev => [...prev, newSlot].sort((a, b) => a.start_time.localeCompare(b.start_time)));
+        else await loadSlots(activeTimetable);
       }
-      await loadSlots(activeTimetable);
       setShowSlotForm(false);
     } catch (e: any) { setError(e.message); }
     finally { setSaving(false); }
@@ -275,6 +409,31 @@ export default function TimetablePage() {
     if (!confirm('Delete this slot?')) return;
     await fetch(`/api/timetable-slots/${id}`, { method: 'DELETE' });
     setSlots(prev => prev.filter(s => s.id !== id));
+  };
+
+  // ── Quick reassign teacher ────────────────────────────────────────────────
+  const handleReassign = async (slotId: string, teacherId: string, teacherName: string) => {
+    const res = await fetch(`/api/timetable-slots/${slotId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacher_id: teacherId || null, teacher_name: teacherName || null }),
+    });
+    if (!res.ok) { const j = await res.json(); setError(j.error || 'Reassign failed'); return; }
+    setSlots(prev => prev.map(s => s.id === slotId
+      ? { ...s, teacher_id: teacherId || null, teacher_name: teacherName || null }
+      : s
+    ));
+  };
+
+  // ── Quick move to day ─────────────────────────────────────────────────────
+  const handleMove = async (slotId: string, day: string) => {
+    const res = await fetch(`/api/timetable-slots/${slotId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ day_of_week: day }),
+    });
+    if (!res.ok) { const j = await res.json(); setError(j.error || 'Move failed'); return; }
+    setSlots(prev => prev.map(s => s.id === slotId ? { ...s, day_of_week: day } : s));
   };
 
   const handlePrint = () => {
@@ -287,64 +446,41 @@ export default function TimetablePage() {
       const slotsHtml = daySlots.map(slot => `
         <div style="margin-bottom: 10px; padding: 12px; border: 1px solid #eee; border-radius: 12px; background: #fff;">
           <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
-            <div style="font-weight: 900; color: #111; font-size: 14px; text-transform: uppercase; letter-spacing: -0.5px;">${slot.subject}</div>
-            <div style="font-size: 11px; color: #7c3aed; font-weight: 800; margin-left: auto; background: #f5f3ff; px: 8px; py: 2px; border-radius: 4px;">${slot.start_time} – ${slot.end_time}</div>
+            <div style="font-weight: 900; color: #111; font-size: 14px; text-transform: uppercase;">${slot.subject}</div>
+            <div style="font-size: 11px; color: #7c3aed; font-weight: 800;">${slot.start_time} – ${slot.end_time}</div>
           </div>
           <div style="display: flex; gap: 15px;">
-            ${slot.teacher_name ? `<div style="font-size: 11px; color: #444; font-weight: 600;">👤 ${slot.teacher_name}</div>` : ''}
-            ${slot.room ? `<div style="font-size: 11px; color: #888; font-weight: 600;">📍 ${slot.room}</div>` : ''}
+            ${slot.teacher_name ? `<div style="font-size: 11px; color: #444;">👤 ${slot.teacher_name}</div>` : ''}
+            ${slot.room ? `<div style="font-size: 11px; color: #888;">📍 ${slot.room}</div>` : ''}
           </div>
         </div>
       `).join('');
-
       return `
         <div style="break-inside: avoid; margin-bottom: 30px;">
-          <h2 style="font-size: 14px; font-weight: 900; text-transform: uppercase; color: #111; border-left: 4px solid #7c3aed; padding-left: 12px; margin-bottom: 15px; letter-spacing: 1px;">${day}</h2>
-          <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
-            ${daySlots.length === 0 ? '<p style="color: #999; font-size: 11px; font-style: italic; margin-left: 12px;">No classes scheduled</p>' : slotsHtml}
-          </div>
+          <h2 style="font-size: 14px; font-weight: 900; text-transform: uppercase; color: #111; border-left: 4px solid #7c3aed; padding-left: 12px; margin-bottom: 15px;">${day}</h2>
+          ${daySlots.length === 0 ? '<p style="color: #999; font-size: 11px; font-style: italic; margin-left: 12px;">No classes scheduled</p>' : slotsHtml}
         </div>
       `;
     }).join('');
 
-    const html = `
-      <html>
-      <head>
-        <title>Timetable - ${active.title}</title>
-        <style>
-          @page { size: portrait; margin: 15mm; }
-          body { font-family: 'Segoe UI', system-ui, sans-serif; color: #111; line-height: 1.4; padding: 0; margin: 0; background: #fff; }
-          .header { text-align: center; border-bottom: 2px solid #eee; padding-bottom: 40px; margin-bottom: 50px; }
-          .brand { font-size: 36px; font-weight: 900; letter-spacing: -2px; color: #000; margin-bottom: 5px; }
-          .brand span { color: #7c3aed; }
-          .doc-type { font-size: 12px; color: #999; font-weight: 800; text-transform: uppercase; letter-spacing: 5px; margin-bottom: 30px; }
-          .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; text-align: left; background: #eee; border: 1px solid #eee; border-radius: 16px; overflow: hidden; }
-          .meta-item { background: #fff; padding: 20px; }
-          .meta-item label { display: block; font-size: 9px; color: #aaa; text-transform: uppercase; font-weight: 900; margin-bottom: 6px; letter-spacing: 1px; }
-          .meta-item span { font-size: 14px; font-weight: 800; color: #111; }
-          .grid { display: grid; grid-template-columns: 1fr; gap: 0; }
-          .footer { margin-top: 60px; text-align: center; font-size: 10px; color: #aaa; border-top: 1px solid #eee; padding-top: 30px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-          @media print { .no-print { display: none; } }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="brand">RILLCOD <span>ACADEMY</span></div>
-          <div class="doc-type">Official Schedule Telemetry</div>
-          <div class="meta-grid">
-            <div class="meta-item"><label>Cluster ID</label><span>${active.title}</span></div>
-            <div class="meta-item"><label>Node School</label><span>${(active as any).schools?.name ?? 'General'}</span></div>
-            <div class="meta-item"><label>Cycle / Phase</label><span>${active.term ?? '—'} <span style="color: #eee">/</span> ${active.academic_year ?? '—'}</span></div>
-          </div>
+    const html = `<html><head><title>Timetable - ${active.title}</title>
+      <style>@page { size: portrait; margin: 15mm; } body { font-family: 'Segoe UI', system-ui, sans-serif; color: #111; }</style>
+      </head><body>
+      <div style="text-align:center; border-bottom: 2px solid #eee; padding-bottom: 30px; margin-bottom: 40px;">
+        <div style="font-size: 30px; font-weight: 900; margin-bottom: 4px;">RILLCOD <span style="color:#7c3aed">ACADEMY</span></div>
+        <div style="font-size: 12px; color: #999; font-weight: 800; text-transform: uppercase; letter-spacing: 4px; margin-bottom: 20px;">Official Timetable</div>
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background:#eee; border-radius: 12px; overflow: hidden;">
+          <div style="background:#fff; padding:16px;"><div style="font-size:9px;color:#aaa;text-transform:uppercase;font-weight:900;margin-bottom:4px;">Timetable</div><div style="font-size:14px;font-weight:800;">${active.title}</div></div>
+          <div style="background:#fff; padding:16px;"><div style="font-size:9px;color:#aaa;text-transform:uppercase;font-weight:900;margin-bottom:4px;">School</div><div style="font-size:14px;font-weight:800;">${(active as any).schools?.name ?? 'General'}</div></div>
+          <div style="background:#fff; padding:16px;"><div style="font-size:9px;color:#aaa;text-transform:uppercase;font-weight:900;margin-bottom:4px;">Term / Year</div><div style="font-size:14px;font-weight:800;">${active.term ?? '—'} / ${active.academic_year ?? '—'}</div></div>
         </div>
-        <div class="grid">${daysHtml}</div>
-        <div class="footer">
-          System Generated Document — ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
-          <br/><button class="no-print" onclick="window.print()" style="margin-top:40px; padding: 16px 40px; background: #7c3aed; color: white; border: none; border-radius: 14px; cursor: pointer; font-weight: 900; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; box-shadow: 0 10px 25px rgba(124, 58, 237, 0.3); transition: all 0.3s;">Initiate Print Sequence</button>
-        </div>
-      </body>
-      </html>
-    `;
+      </div>
+      ${daysHtml}
+      <div style="margin-top:50px; text-align:center; font-size:10px; color:#aaa; border-top:1px solid #eee; padding-top:20px;">
+        Generated ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+        <br/><button onclick="window.print()" style="margin-top:20px; padding:12px 30px; background:#7c3aed; color:white; border:none; border-radius:10px; cursor:pointer; font-weight:900;">Print</button>
+      </div>
+      </body></html>`;
     printWindow.document.write(html);
     printWindow.document.close();
   };
@@ -402,12 +538,12 @@ export default function TimetablePage() {
                     'Create and manage school timetables'}
             </p>
           </div>
-          <div className="flex items-center gap-2 print:hidden flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handlePrint}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 font-bold text-sm rounded-xl transition-all"
             >
-              <CalendarDaysIcon className="w-4 h-4" /> Print Schedule
+              <CalendarDaysIcon className="w-4 h-4" /> Print
             </button>
             {isAdmin && (
               <button onClick={openNewTT}
@@ -428,8 +564,6 @@ export default function TimetablePage() {
         {/* ── Teacher: today's alert + full schedule ── */}
         {isTeacher && (
           <div className="space-y-5">
-
-            {/* Today's classes callout */}
             {teacherTodaySlots.length > 0 ? (
               <div className="bg-violet-600/10 border border-violet-500/30 rounded-2xl p-5">
                 <div className="flex items-center gap-3 mb-4">
@@ -471,7 +605,6 @@ export default function TimetablePage() {
               </div>
             )}
 
-            {/* Full weekly schedule */}
             <div className="space-y-3">
               <p className="text-xs font-black uppercase tracking-widest text-white/30">Full Weekly Schedule</p>
               {DAYS.map(day => {
@@ -522,7 +655,7 @@ export default function TimetablePage() {
         {/* ── Admin / School / Student: timetable grid view ── */}
         {!isTeacher && (
           <>
-            {/* Today's highlight for student/school */}
+            {/* Today's highlight */}
             {(isStudent || isSchool) && timetables.length > 0 && todaySlots.length > 0 && (
               <div className="bg-violet-600/10 border border-violet-500/30 rounded-2xl p-4 flex items-center gap-4">
                 <BellAlertIcon className="w-5 h-5 text-violet-400 flex-shrink-0" />
@@ -563,11 +696,11 @@ export default function TimetablePage() {
                       {isAdmin && (
                         <span className="flex items-center gap-1 ml-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
                           <button onClick={() => openEditTT(tt)}
-                            className="p-1 hover:bg-white/10 rounded-lg transition-colors">
+                            className="p-1 hover:bg-white/10 rounded-lg transition-colors" title="Edit timetable">
                             <PencilIcon className="w-3 h-3 text-white/40 hover:text-white" />
                           </button>
                           <button onClick={() => deleteTT(tt.id)}
-                            className="p-1 hover:bg-rose-500/20 rounded-lg transition-colors">
+                            className="p-1 hover:bg-rose-500/20 rounded-lg transition-colors" title="Delete timetable">
                             <TrashIcon className="w-3 h-3 text-rose-400/60 hover:text-rose-400" />
                           </button>
                         </span>
@@ -585,21 +718,15 @@ export default function TimetablePage() {
                   <BuildingOfficeIcon className="w-3.5 h-3.5" />
                   <span className="text-white/70 font-bold">{(active as any).schools?.name ?? 'All Schools'}</span>
                 </span>
-                {active.section && (
-                  <span><span className="text-white/20">Section:</span> <span className="text-white/70">{active.section}</span></span>
-                )}
-                {active.term && (
-                  <span><span className="text-white/20">Term:</span> <span className="text-white/70">{active.term}</span></span>
-                )}
-                {active.academic_year && (
-                  <span><span className="text-white/20">Year:</span> <span className="text-white/70">{active.academic_year}</span></span>
-                )}
+                {active.section && <span><span className="text-white/20">Section:</span> <span className="text-white/70">{active.section}</span></span>}
+                {active.term && <span><span className="text-white/20">Term:</span> <span className="text-white/70">{active.term}</span></span>}
+                {active.academic_year && <span><span className="text-white/20">Year:</span> <span className="text-white/70">{active.academic_year}</span></span>}
                 <span className="flex items-center gap-1.5">
                   <UserGroupIcon className="w-3.5 h-3.5" />
                   <span>{slots.length} slot{slots.length !== 1 ? 's' : ''}</span>
                 </span>
-                {isAdmin && (
-                  <button onClick={openNewSlot}
+                {canEdit && (
+                  <button onClick={() => openNewSlot()}
                     className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 rounded-xl transition-colors font-bold">
                     <PlusIcon className="w-3.5 h-3.5" /> Add Slot
                   </button>
@@ -609,12 +736,12 @@ export default function TimetablePage() {
 
             {/* Mobile Day Selector */}
             {activeTimetable && (
-              <div className="flex sm:hidden gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl overflow-x-auto no-scrollbar">
+              <div className="flex sm:hidden gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl overflow-x-auto">
                 {DAYS.map(day => (
                   <button
                     key={day}
                     onClick={() => setMobileDay(day)}
-                    className={`flex-1 min-w-[80px] py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileDay === day ? 'bg-violet-600 text-white shadow-lg' : 'text-white/30'}`}
+                    className={`flex-1 min-w-[60px] py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileDay === day ? 'bg-violet-600 text-white shadow-lg' : 'text-white/30'}`}
                   >
                     {day.slice(0, 3)}
                     {day === TODAY && <span className="block text-[8px] opacity-60">Today</span>}
@@ -627,48 +754,81 @@ export default function TimetablePage() {
             {activeTimetable && (
               <div className="overflow-x-auto sm:overflow-visible">
                 <div className="min-w-0 sm:min-w-[700px] grid grid-cols-1 sm:grid-cols-5 gap-3">
-                  {DAYS.map(day => (
-                    <div key={day} className={`space-y-2 ${mobileDay === day ? 'block' : 'hidden sm:block'}`}>
-                      <div className={`border rounded-xl px-3 py-2 text-center ${day === TODAY
-                        ? 'bg-violet-600/30 border-violet-500/40'
-                        : 'bg-violet-600/10 border-violet-500/10'}`}>
-                        <p className={`text-xs font-black uppercase tracking-widest ${day === TODAY ? 'text-violet-200' : 'text-violet-300/60'}`}>
-                          {day.slice(0, 3)}
-                        </p>
-                        {day === TODAY && <p className="text-[9px] text-violet-300/60">Today</p>}
-                      </div>
-                      <div className="space-y-2 min-h-[120px]">
-                        {slotsByDay[day]?.length === 0 && (
-                          <div className="border border-dashed border-white/5 rounded-xl p-4 text-center">
-                            {isAdmin && (
+                  {DAYS.map(day => {
+                    const daySlotList = slotsByDay[day] ?? [];
+                    return (
+                      <div key={day} className={`space-y-2 ${mobileDay === day ? 'block' : 'hidden sm:block'}`}>
+                        {/* Day header */}
+                        <div className={`border rounded-xl px-3 py-2 flex items-center justify-between ${day === TODAY
+                          ? 'bg-violet-600/30 border-violet-500/40'
+                          : 'bg-violet-600/10 border-violet-500/10'}`}>
+                          <div>
+                            <p className={`text-xs font-black uppercase tracking-widest ${day === TODAY ? 'text-violet-200' : 'text-violet-300/60'}`}>
+                              {day.slice(0, 3)}
+                            </p>
+                            {day === TODAY && <p className="text-[9px] text-violet-300/60">Today</p>}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {daySlotList.length > 0 && (
+                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${day === TODAY ? 'bg-violet-500/40 text-violet-200' : 'bg-white/10 text-white/30'}`}>
+                                {daySlotList.length}
+                              </span>
+                            )}
+                            {canEdit && (
                               <button
-                                onClick={() => { setSlotForm({ ...BLANK_SLOT, day_of_week: day }); setEditingSlot(null); setShowSlotForm(true); }}
-                                className="text-[10px] text-white/20 hover:text-violet-400 transition-colors">
-                                + Add
+                                onClick={() => openNewSlot(day)}
+                                className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                                title={`Add slot for ${day}`}
+                              >
+                                <PlusIcon className={`w-3.5 h-3.5 ${day === TODAY ? 'text-violet-300' : 'text-white/30 hover:text-white'}`} />
                               </button>
                             )}
                           </div>
-                        )}
-                        {slotsByDay[day]?.map(slot => {
-                          const now = new Date();
-                          const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
-                          const currentTime = now.getHours() * 60 + now.getMinutes();
-                          
-                          const [h1, m1] = slot.start_time.split(':').map(Number);
-                          const [h2, m2] = slot.end_time.split(':').map(Number);
-                          const start = h1 * 60 + m1;
-                          const end = h2 * 60 + m2;
-                          
-                          const isCurrent = day === currentDay && currentTime >= start && currentTime < end;
-                          
-                          return (
-                            <SlotCell key={slot.id} slot={slot} onEdit={openEditSlot}
-                              onDelete={deleteSlot} isAdmin={isAdmin} highlight={day === TODAY} isCurrent={isCurrent} />
-                          );
-                        })}
+                        </div>
+
+                        {/* Slots */}
+                        <div className="space-y-2 min-h-[80px]">
+                          {daySlotList.length === 0 && (
+                            <div className="border border-dashed border-white/5 rounded-xl p-4 text-center">
+                              {canEdit ? (
+                                <button
+                                  onClick={() => openNewSlot(day)}
+                                  className="text-[10px] text-white/20 hover:text-violet-400 transition-colors flex items-center gap-1 mx-auto">
+                                  <PlusIcon className="w-3 h-3" /> Add slot
+                                </button>
+                              ) : (
+                                <p className="text-[10px] text-white/10">No classes</p>
+                              )}
+                            </div>
+                          )}
+                          {daySlotList.map(slot => {
+                            const now = new Date();
+                            const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
+                            const currentTime = now.getHours() * 60 + now.getMinutes();
+                            const [h1, m1] = slot.start_time.split(':').map(Number);
+                            const [h2, m2] = slot.end_time.split(':').map(Number);
+                            const start = h1 * 60 + m1;
+                            const end = h2 * 60 + m2;
+                            const isCurrent = day === currentDay && currentTime >= start && currentTime < end;
+
+                            return (
+                              <SlotCell
+                                key={slot.id}
+                                slot={slot}
+                                teachers={teachers}
+                                onEdit={openEditSlot}
+                                onDelete={deleteSlot}
+                                onReassign={handleReassign}
+                                onMove={handleMove}
+                                canEdit={canEdit}
+                                isCurrent={isCurrent}
+                              />
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -712,7 +872,6 @@ export default function TimetablePage() {
             </div>
 
             <div className="space-y-4">
-              {/* School — full width, prominent */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-white/40">
                   Partner School <span className="text-rose-400">*</span>
@@ -722,12 +881,8 @@ export default function TimetablePage() {
                   <option value="">— Select partner school —</option>
                   {schools.map(sc => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
                 </select>
-                {!ttForm.school_id && (
-                  <p className="text-[10px] text-rose-400/70">Required — determines which school sees this timetable</p>
-                )}
               </div>
 
-              {/* Title */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-white/40">
                   Timetable Title <span className="text-rose-400">*</span>
@@ -805,6 +960,7 @@ export default function TimetablePage() {
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1 col-span-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Subject / Activity <span className="text-rose-400">*</span></label>
@@ -823,7 +979,7 @@ export default function TimetablePage() {
                 <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Assigned Teacher</label>
                 <select value={slotForm.teacher_id} onChange={e => setSlotForm(s => ({ ...s, teacher_id: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500">
-                  <option value="">— Select teacher —</option>
+                  <option value="">— Unassigned —</option>
                   {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
                 </select>
               </div>
@@ -850,6 +1006,7 @@ export default function TimetablePage() {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500" />
               </div>
             </div>
+
             <div className="flex justify-end gap-3">
               <button onClick={() => setShowSlotForm(false)} className="px-4 py-2 text-sm text-white/40 hover:text-white transition-colors">Cancel</button>
               <button onClick={saveSlot} disabled={saving || !slotForm.subject.trim()}

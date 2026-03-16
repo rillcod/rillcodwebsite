@@ -9,7 +9,7 @@ function adminClient() {
   );
 }
 
-async function requireAdmin() {
+async function requireTeacherOrAdmin() {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
@@ -18,14 +18,14 @@ async function requireAdmin() {
     .select('id, role')
     .eq('id', user.id)
     .single();
-  if (!profile || profile.role !== 'admin') return null;
+  if (!profile || !['admin', 'teacher'].includes(profile.role)) return null;
   return profile;
 }
 
 // POST /api/timetable-slots — create slot
 export async function POST(request: NextRequest) {
-  const caller = await requireAdmin();
-  if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  const caller = await requireTeacherOrAdmin();
+  if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
   const body = await request.json();
   const { timetable_id, day_of_week, start_time, end_time, subject,

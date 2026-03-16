@@ -26,16 +26,47 @@ export async function GET(request: Request) {
     return NextResponse.json({ school: data });
   }
 
-  // Admin-only: full list
+  // Staff: full list (admin/school) or assigned-only list (teacher)
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { data: caller } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
-  if (!caller || !['admin', 'school'].includes(caller.role)) {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  const { data: caller } = await supabase.from('portal_users').select('role, id, school_id').eq('id', user.id).single();
+  if (!caller || !['admin', 'school', 'teacher'].includes(caller.role)) {
+    return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
   }
 
-  const { data, error } = await adminClient()
+  const admin = adminClient();
+
+  // School partner: return only their own school
+  if (caller.role === 'school') {
+    if (!caller.school_id) return NextResponse.json({ data: [] });
+    const { data, error } = await admin
+      .from('schools')
+      .select('id, name, status')
+      .eq('id', caller.school_id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data: data ?? [] });
+  }
+
+  // Teacher: return only their assigned schools (from teacher_schools + profile.school_id)
+  if (caller.role === 'teacher') {
+    const { data: ts } = await admin
+      .from('teacher_schools')
+      .select('school_id')
+      .eq('teacher_id', caller.id);
+    const ids: string[] = (ts ?? []).map((r: any) => r.school_id).filter(Boolean);
+    if (caller.school_id && !ids.includes(caller.school_id)) ids.push(caller.school_id);
+    if (ids.length === 0) return NextResponse.json({ data: [] });
+    const { data, error } = await admin
+      .from('schools')
+      .select('id, name, status')
+      .in('id', ids)
+      .order('name');
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data: data ?? [] });
+  }
+
+  const { data, error } = await admin
     .from('schools')
     .select('*, portal_users(id, email, full_name), teacher_schools(id, teacher_id, portal_users:teacher_id(id, full_name, email))')
     .or('is_deleted.eq.false,is_deleted.is.null')

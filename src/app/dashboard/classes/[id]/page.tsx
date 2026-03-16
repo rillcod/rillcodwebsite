@@ -38,10 +38,17 @@ export default function ClassDetailPage() {
 
   // Student Management State
   const [showStudentModal, setShowStudentModal] = useState(false);
+  const [enrolMode, setEnrolMode] = useState<'current' | 'create'>('current');
   const [availableStudents, setAvailableStudents] = useState<any[]>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
   const [processingStudent, setProcessingStudent] = useState<string | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+
+  // Create-new-class inside enrol modal
+  const [programsList, setProgramsList] = useState<any[]>([]);
+  const [schoolsList, setSchoolsList] = useState<any[]>([]);
+  const [newClassForm, setNewClassForm] = useState({ name: '', program_id: '', school_id: '', max_students: '' });
+  const [creatingNewClass, setCreatingNewClass] = useState(false);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
@@ -128,13 +135,19 @@ export default function ClassDetailPage() {
   const loadAvailableStudents = async () => {
     if (!cls) return;
     setProcessingStudent('loading');
+    setEnrolMode('current');
     try {
-      const res = await fetch(`/api/classes/${id}/enroll`, { cache: 'no-store' });
-      let json: any = {};
-      try { json = await res.json(); } catch {}
-      if (!res.ok) throw new Error(json.error ?? 'Failed to load students');
-      setAvailableStudents(json.students ?? []);
-      setSelectedStudentIds(new Set()); // reset selection on fresh load
+      const [enrollRes, progRes, schRes] = await Promise.all([
+        fetch(`/api/classes/${id}/enroll`, { cache: 'no-store' }),
+        programsList.length === 0 ? fetch('/api/programs?is_active=true', { cache: 'no-store' }) : Promise.resolve(null),
+        schoolsList.length === 0 ? fetch('/api/schools', { cache: 'no-store' }) : Promise.resolve(null),
+      ]);
+      const enrollJson = await enrollRes.json();
+      if (!enrollRes.ok) throw new Error(enrollJson.error ?? 'Failed to load students');
+      setAvailableStudents(enrollJson.students ?? []);
+      setSelectedStudentIds(new Set());
+      if (progRes) { const j = await progRes.json(); setProgramsList(j.data ?? []); }
+      if (schRes) { const j = await schRes.json(); setSchoolsList(j.data ?? []); }
     } catch (e: any) {
       console.error(e);
       setError(e.message ?? 'Failed to load available students for enrollment.');
@@ -177,13 +190,59 @@ export default function ClassDetailPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Sync failed');
-      await fetchData();
-      setAvailableStudents(prev => prev.filter((s: any) => !ids.includes(s.id)));
+      setShowStudentModal(false);
       setSelectedStudentIds(new Set());
+      setAvailableStudents([]);
+      await fetchData();
     } catch (e: any) {
       alert(e.message);
     } finally {
       setProcessingStudent(null);
+    }
+  };
+
+  const createClassAndEnrol = async () => {
+    if (!newClassForm.name.trim() || !newClassForm.program_id) {
+      alert('Class name and programme are required');
+      return;
+    }
+    if (selectedStudentIds.size === 0) {
+      alert('Select at least one student first');
+      return;
+    }
+    setCreatingNewClass(true);
+    try {
+      const body: any = { name: newClassForm.name.trim(), program_id: newClassForm.program_id, status: 'active' };
+      if (newClassForm.school_id) body.school_id = newClassForm.school_id;
+      if (newClassForm.max_students) body.max_students = parseInt(newClassForm.max_students);
+      const clsRes = await fetch('/api/classes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const clsJson = await clsRes.json();
+      if (!clsRes.ok) throw new Error(clsJson.error ?? 'Failed to create class');
+      const newClassId = clsJson.data.id;
+
+      const enrolRes = await fetch(`/api/classes/${newClassId}/enroll`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentIds: Array.from(selectedStudentIds) }),
+      });
+      const enrolJson = await enrolRes.json();
+      if (!enrolRes.ok) throw new Error(enrolJson.error ?? 'Failed to enrol students');
+
+      setShowStudentModal(false);
+      setEnrolMode('current');
+      setSelectedStudentIds(new Set());
+      setAvailableStudents([]);
+      setNewClassForm({ name: '', program_id: '', school_id: '', max_students: '' });
+      await fetchData();
+      alert(`Class "${clsJson.data.name}" created — ${enrolJson.enrolled ?? selectedStudentIds.size} student${(enrolJson.enrolled ?? selectedStudentIds.size) !== 1 ? 's' : ''} enrolled.`);
+    } catch (e: any) {
+      alert(e.message ?? 'Failed');
+    } finally {
+      setCreatingNewClass(false);
     }
   };
 
@@ -881,7 +940,7 @@ export default function ClassDetailPage() {
                             setEnrollments(prev => prev.filter(e => e.id !== enr.id));
                           }}
                           title="Unenroll student"
-                          className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg bg-rose-600/10 hover:bg-rose-600/30 border border-rose-600/20 text-rose-400 flex items-center justify-center transition-all active:scale-90 flex-shrink-0"
+                          className="w-7 h-7 rounded-lg bg-rose-600/10 hover:bg-rose-600/30 border border-rose-600/20 text-rose-400 flex items-center justify-center transition-all active:scale-90 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100"
                         >
                           <TrashIcon className="w-3.5 h-3.5" />
                         </button>
@@ -909,113 +968,212 @@ export default function ClassDetailPage() {
         </div>
       </div>
 
-      {/* Student Management Modal */}
-      {showStudentModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-12 animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setShowStudentModal(false)} />
-          <div className="bg-[#0D1630] border border-white/10 rounded-[3rem] w-full max-w-xl shadow-[0_0_100px_rgba(139,92,246,0.15)] overflow-hidden relative z-10 scale-in-center">
-            <div className="px-10 py-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-              <div>
-                <h3 className="font-black uppercase tracking-[0.3em] text-xs text-white">Cluster Roster Sync</h3>
-                <p className="text-[9px] font-black text-violet-400 uppercase tracking-[0.2em] mt-1">Manual enrollment portal</p>
-              </div>
-              <button onClick={() => setShowStudentModal(false)} className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-2xl text-white/20 hover:text-white transition-colors">&times;</button>
-            </div>
+      {/* Student Enrol Modal */}
+      {showStudentModal && (() => {
+        const unassigned = availableStudents.filter((s: any) => !s.class_id);
+        const inOtherClass = availableStudents.filter((s: any) => s.class_id);
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowStudentModal(false)} />
+            <div className="bg-[#0D1630] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[90vh]">
 
-            <div className="p-10 space-y-8">
-              <div className="flex items-center justify-between px-2">
-                <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em]">
-                  Discovered Signatures
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h3 className="font-bold text-white">Enrol Students</h3>
+                  <p className="text-xs text-white/40 mt-0.5">{availableStudents.length} eligible · {selectedStudentIds.size} selected</p>
+                </div>
+                <button onClick={() => { setShowStudentModal(false); setEnrolMode('current'); }} className="w-8 h-8 flex items-center justify-center bg-white/5 rounded-xl text-white/40 hover:text-white transition-colors text-lg">&times;</button>
+              </div>
+
+              {/* Mode tabs */}
+              <div className="px-6 pt-4 pb-1 flex gap-2 flex-shrink-0">
+                <button
+                  onClick={() => setEnrolMode('current')}
+                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'current' ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-white/10'}`}
+                >
+                  Enrol into {cls?.name ?? 'this class'}
+                </button>
+                <button
+                  onClick={() => setEnrolMode('create')}
+                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'create' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-white/10'}`}
+                >
+                  + Create New Class
+                </button>
+              </div>
+
+              {/* Current-class mode: select students */}
+              {enrolMode === 'current' && (
+                <>
+                  {/* Toolbar */}
                   {availableStudents.length > 0 && (
-                    <span className="ml-2 text-violet-400/60">({availableStudents.length})</span>
-                  )}
-                </span>
-                <div className="flex items-center gap-2">
-                  {availableStudents.length > 0 && (
-                    <>
+                    <div className="px-6 pt-3 pb-2 flex items-center gap-2 flex-shrink-0">
                       <button
                         onClick={() => setSelectedStudentIds(
                           selectedStudentIds.size === availableStudents.length
                             ? new Set()
                             : new Set(availableStudents.map((s: any) => s.id))
                         )}
-                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white rounded-lg transition-all"
+                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold text-white/50 hover:text-white rounded-lg transition-all"
                       >
                         {selectedStudentIds.size === availableStudents.length ? 'Deselect All' : 'Select All'}
                       </button>
+                      <div className="flex-1" />
                       {selectedStudentIds.size > 0 && (
                         <button
                           onClick={() => syncSelectedStudents()}
                           disabled={!!processingStudent}
-                          className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-[9px] font-black uppercase tracking-widest text-white rounded-lg transition-all disabled:opacity-50"
+                          className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-[10px] font-bold text-white rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
                         >
-                          Enroll ({selectedStudentIds.size})
+                          {processingStudent === 'loading'
+                            ? <><ArrowPathIcon className="w-3 h-3 animate-spin" /> Enrolling…</>
+                            : <>Enrol {selectedStudentIds.size} student{selectedStudentIds.size !== 1 ? 's' : ''}</>}
                         </button>
                       )}
-                    </>
+                    </div>
                   )}
-                  <div className="h-1.5 w-1.5 bg-violet-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
-                </div>
-              </div>
 
-              {processingStudent === 'loading' ? (
-                <div className="py-24 text-center">
-                  <ArrowPathIcon className="w-12 h-12 text-violet-500 animate-spin mx-auto mb-6" />
-                  <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Decoding population matrix...</p>
-                </div>
-              ) : availableStudents.length === 0 ? (
-                <div className="py-24 text-center border border-dashed border-white/5 rounded-[2.5rem] bg-white/[0.01] px-12">
-                  <UserGroupIcon className="w-12 h-12 mx-auto mb-6 text-white/5" />
-                  <p className="text-xs font-black text-white/20 uppercase tracking-widest leading-relaxed">No unassigned student profiles matching this cluster criteria detected.</p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
-                  {availableStudents.map(student => {
-                    const isChecked = selectedStudentIds.has(student.id);
-                    return (
-                    <div
-                      key={student.id}
-                      onClick={() => {
-                        setSelectedStudentIds(prev => {
-                          const next = new Set(prev);
-                          if (next.has(student.id)) next.delete(student.id);
-                          else next.add(student.id);
-                          return next;
-                        });
-                      }}
-                      className={`flex items-center gap-4 p-5 border rounded-[1.5rem] cursor-pointer transition-all group ${isChecked ? 'bg-violet-600/15 border-violet-500/50' : 'bg-white/5 border-white/5 hover:bg-violet-600/5 hover:border-violet-500/20'}`}
-                    >
-                      <div className={`flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-violet-600 border-violet-400' : 'border-white/20'}`}>
-                        {isChecked && <CheckIconOutline className="w-3 h-3 text-white" />}
+                  {/* Student list */}
+                  <div className="flex-1 overflow-y-auto px-6 pb-6 custom-scrollbar space-y-4">
+                    {processingStudent === 'loading' ? (
+                      <div className="py-20 text-center">
+                        <ArrowPathIcon className="w-10 h-10 text-violet-500 animate-spin mx-auto mb-4" />
+                        <p className="text-xs text-white/30">Loading students…</p>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-sm font-black uppercase tracking-tighter truncate transition-colors ${isChecked ? 'text-violet-400' : 'text-white group-hover:text-violet-400'}`}>{student.full_name}</p>
-                        <p className="text-[9px] text-white/30 font-medium truncate">{student.email}</p>
-                        {student.section_class && (
-                          <div className="mt-2 flex items-center gap-1.5">
-                            <div className="w-1 h-1 bg-amber-500 rounded-full" />
-                            <p className="text-[8px] text-amber-500/60 uppercase font-black tracking-widest">Assigned to: {student.section_class}</p>
+                    ) : availableStudents.length === 0 ? (
+                      <div className="py-16 text-center space-y-3">
+                        <UserGroupIcon className="w-12 h-12 mx-auto text-white/10" />
+                        <p className="text-sm font-semibold text-white/30">No eligible students found</p>
+                        <p className="text-xs text-white/20">All students in your school are already enrolled here, or none are registered.</p>
+                        <button onClick={() => setEnrolMode('create')} className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors">
+                          Create a new class instead →
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        {unassigned.length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">Unassigned ({unassigned.length})</p>
+                            <div className="space-y-2">
+                              {unassigned.map((student: any) => {
+                                const isChecked = selectedStudentIds.has(student.id);
+                                return (
+                                  <div key={student.id} onClick={() => setSelectedStudentIds(prev => { const n = new Set(prev); n.has(student.id) ? n.delete(student.id) : n.add(student.id); return n; })}
+                                    className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${isChecked ? 'bg-violet-600/15 border-violet-500/40' : 'bg-white/5 border-white/5 hover:border-violet-500/20'}`}>
+                                    <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-violet-600 border-violet-400' : 'border-white/20'}`}>
+                                      {isChecked && <CheckIconOutline className="w-3 h-3 text-white" />}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-semibold text-white truncate">{student.full_name}</p>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="text-xs text-white/30 truncate">{student.email}</p>
+                                        {student.school_name && <span className="text-[9px] font-bold text-blue-400/70 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 flex-shrink-0">{student.school_name}</span>}
+                                      </div>
+                                    </div>
+                                    {student.section_class && <span className="text-[9px] font-bold text-amber-400/60 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 flex-shrink-0">{student.section_class}</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
-                      </div>
-                    </div>
-                    );
-                  })}
+                        {inOtherClass.length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-black text-amber-400/60 uppercase tracking-widest mb-2">In another class — will reassign ({inOtherClass.length})</p>
+                            <div className="space-y-2">
+                              {inOtherClass.map((student: any) => {
+                                const isChecked = selectedStudentIds.has(student.id);
+                                return (
+                                  <div key={student.id} onClick={() => setSelectedStudentIds(prev => { const n = new Set(prev); n.has(student.id) ? n.delete(student.id) : n.add(student.id); return n; })}
+                                    className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${isChecked ? 'bg-amber-500/10 border-amber-500/40' : 'bg-white/5 border-amber-500/10 hover:border-amber-500/20'}`}>
+                                    <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-amber-500 border-amber-400' : 'border-white/20'}`}>
+                                      {isChecked && <CheckIconOutline className="w-3 h-3 text-white" />}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-semibold text-white truncate">{student.full_name}</p>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="text-xs text-white/30 truncate">{student.email}</p>
+                                        {student.school_name && <span className="text-[9px] font-bold text-blue-400/70 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 flex-shrink-0">{student.school_name}</span>}
+                                      </div>
+                                      <p className="text-[9px] text-amber-400/70 mt-0.5">Currently in: {(student.classes as any)?.name ?? 'another class'}</p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="px-6 py-4 border-t border-white/10 flex-shrink-0 flex items-center justify-between">
+                    <span className="text-xs text-white/30">{selectedStudentIds.size} selected</span>
+                    <button onClick={() => { setShowStudentModal(false); setEnrolMode('current'); }} className="px-4 py-2 text-xs font-semibold text-white/40 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all">
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Create-new-class mode */}
+              {enrolMode === 'create' && (
+                <div className="flex-1 overflow-y-auto px-6 pb-6 pt-4 custom-scrollbar space-y-3">
+                  <p className="text-xs text-white/30 leading-relaxed">
+                    Register a new class and immediately enrol the {selectedStudentIds.size > 0 ? `${selectedStudentIds.size} selected` : 'selected'} student{selectedStudentIds.size !== 1 ? 's' : ''} into it.
+                    {selectedStudentIds.size === 0 && <span className="text-amber-400/70"> Select students first on the other tab.</span>}
+                  </p>
+                  <input
+                    type="text"
+                    placeholder="Class name (e.g. JSS1, SS2A) *"
+                    value={newClassForm.name}
+                    onChange={e => setNewClassForm(f => ({ ...f, name: e.target.value }))}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                  <select
+                    value={newClassForm.program_id}
+                    onChange={e => setNewClassForm(f => ({ ...f, program_id: e.target.value }))}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
+                  >
+                    <option value="">— Programme *—</option>
+                    {programsList.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <select
+                    value={newClassForm.school_id}
+                    onChange={e => setNewClassForm(f => ({ ...f, school_id: e.target.value }))}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
+                  >
+                    <option value="">— School (optional) —</option>
+                    {schoolsList.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  <input
+                    type="number"
+                    placeholder="Max students (optional)"
+                    value={newClassForm.max_students}
+                    onChange={e => setNewClassForm(f => ({ ...f, max_students: e.target.value }))}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                  <button
+                    onClick={createClassAndEnrol}
+                    disabled={creatingNewClass || !newClassForm.name.trim() || !newClassForm.program_id || selectedStudentIds.size === 0}
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                  >
+                    {creatingNewClass
+                      ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Creating & Enrolling…</>
+                      : `Create Class & Enrol ${selectedStudentIds.size} Student${selectedStudentIds.size !== 1 ? 's' : ''}`}
+                  </button>
+                  {selectedStudentIds.size === 0 && (
+                    <button onClick={() => setEnrolMode('current')} className="w-full py-2 text-xs text-violet-400 hover:text-violet-300 transition-colors font-semibold">
+                      ← Go back and select students first
+                    </button>
+                  )}
                 </div>
               )}
-            </div>
 
-            <div className="px-10 py-6 bg-white/[0.02] border-t border-white/5 flex justify-end">
-              <button
-                onClick={() => setShowStudentModal(false)}
-                className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/30 hover:text-white transition-all bg-white/5 hover:bg-white/10 rounded-2xl shadow-inner border border-white/5"
-              >
-                End Port Sessions
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
 
       <style jsx global>{`
@@ -1050,6 +1208,7 @@ export default function ClassDetailPage() {
           setShowRegisterModal(false);
           fetchData();
         }}
+        classId={id}
       />
     </div>
   );

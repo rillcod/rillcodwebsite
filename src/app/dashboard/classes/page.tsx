@@ -8,7 +8,7 @@ import {
   BookOpenIcon, PlusIcon, MagnifyingGlassIcon, AcademicCapIcon,
   ClockIcon, UserGroupIcon, ChartBarIcon, CalendarIcon,
   EyeIcon, PencilIcon, TrashIcon, VideoCameraIcon, DocumentTextIcon,
-  FireIcon, StarIcon, BoltIcon, ArrowRightIcon,
+  FireIcon, StarIcon, BoltIcon, ArrowRightIcon, BuildingOfficeIcon,
 } from '@/lib/icons';
 
 const GRADIENTS = [
@@ -170,6 +170,12 @@ export default function ClassesPage() {
                     {cls.programs?.name || 'Technical Course'}
                   </span>
                   <h3 className="text-3xl font-black text-white group-hover:text-violet-400 transition-colors tracking-tight">{cls.name}</h3>
+                  {cls.schools?.name && (
+                    <div className="flex items-center gap-1.5">
+                      <BuildingOfficeIcon className="w-3.5 h-3.5 text-blue-400/60" />
+                      <span className="text-xs font-black text-blue-300 tracking-wide">{cls.schools.name}</span>
+                    </div>
+                  )}
                   {cls.portal_users?.full_name && profile?.role !== 'school' && (
                     <div className="flex items-center gap-2 pt-2">
                       <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-[10px] font-black text-white uppercase shadow-lg">

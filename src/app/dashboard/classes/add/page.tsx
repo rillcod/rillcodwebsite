@@ -40,37 +40,33 @@ export default function AddClassPage() {
 
   useEffect(() => {
     if (authLoading || !profile) return;
-    const db = createClient();
+
+    const p = profile; // captured non-null ref for async closure
 
     async function loadData() {
-      // 1. Basic lookups
-      const [programsRes, teachersRes] = await Promise.all([
-        db.from('programs').select('id, name').eq('is_active', true).order('name'),
-        db.from('portal_users').select('id, full_name').eq('role', 'teacher').eq('is_active', true).order('full_name'),
+      const [programsRes, teachersRes, schRes] = await Promise.all([
+        fetch('/api/programs?is_active=true', { cache: 'no-store' }).then(r => r.json()),
+        // Only admins can pick any teacher; teachers are always locked to themselves
+        p.role === 'admin'
+          ? fetch('/api/portal-users?role=teacher', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] }))
+          : Promise.resolve({ data: [] }),
+        fetch('/api/schools', { cache: 'no-store' }).then(r => r.json()),
       ]);
 
-      // 2. Schools lookup (role-dependent)
-      let schoolsQuery = db.from('schools').select('id, name').eq('status', 'approved').order('name');
-
-      if (profile?.role === 'teacher') {
-        const { data: assignments } = await db
-          .from('teacher_schools')
-          .select('school_id')
-          .eq('teacher_id', profile?.id || '');
-
-        const schoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
-        if (profile?.school_id && !schoolIds.includes(profile.school_id)) schoolIds.push(profile.school_id);
-
-        if (schoolIds.length > 0) {
-          schoolsQuery = schoolsQuery.in('id', schoolIds);
-        }
-      }
-
-      const { data: sData } = await schoolsQuery;
-
+      const loadedSchools = schRes.data ?? [];
       setPrograms(programsRes.data ?? []);
       setTeachers(teachersRes.data ?? []);
-      setSchools(sData ?? []);
+      setSchools(loadedSchools);
+
+      // For teachers: lock teacher_id to self, auto-select school if only one
+      if (p.role === 'teacher') {
+        setForm(f => ({
+          ...f,
+          teacher_id: p.id,
+          // If only one school available, pre-select it
+          school_id: loadedSchools.length === 1 ? loadedSchools[0].id : f.school_id,
+        }));
+      }
     }
 
     loadData();
@@ -321,29 +317,45 @@ export default function AddClassPage() {
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">Curriculum Mentor</label>
-                  <select value={form.teacher_id}
-                    onChange={e => setForm(f => ({ ...f, teacher_id: e.target.value }))}
-                    className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[11px] font-black text-white/70 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all appearance-none cursor-pointer uppercase tracking-widest">
-                    <option value="" className="bg-[#0f0f1a]">SESSIONS LEAD (DEFAULT: ME)</option>
-                    {teachers.map(t => (
-                      <option key={t.id} value={t.id} className="bg-[#0f0f1a]">{t.full_name}</option>
-                    ))}
-                  </select>
+                  {profile?.role === 'teacher' ? (
+                    <div className="w-full px-6 py-5 bg-white/5 border border-violet-500/20 rounded-2xl flex items-center gap-3">
+                      <UserIcon className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                      <span className="text-[11px] font-black text-white/70 uppercase tracking-widest">{profile.full_name ?? 'YOU'}</span>
+                      <span className="ml-auto text-[9px] text-violet-400/60 font-bold uppercase tracking-widest">Locked</span>
+                    </div>
+                  ) : (
+                    <select value={form.teacher_id}
+                      onChange={e => setForm(f => ({ ...f, teacher_id: e.target.value }))}
+                      className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[11px] font-black text-white/70 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all appearance-none cursor-pointer uppercase tracking-widest">
+                      <option value="" className="bg-[#0f0f1a]">SESSIONS LEAD (DEFAULT: ME)</option>
+                      {teachers.map(t => (
+                        <option key={t.id} value={t.id} className="bg-[#0f0f1a]">{t.full_name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">
-                  Nexus Entity <span className="text-white/10 font-medium normal-case">(Optional: partner school)</span>
+                  Partner School <span className="text-white/10 font-medium normal-case">(required for school-linked classes)</span>
                 </label>
-                <select value={form.school_id}
-                  onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
-                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[11px] font-black text-white/70 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all appearance-none cursor-pointer uppercase tracking-widest">
-                  <option value="" className="bg-[#0f0f1a]">INDEPENDENT / ONLINE CLUSTER</option>
-                  {schools.map(s => (
-                    <option key={s.id} value={s.id} className="bg-[#0f0f1a]">{s.name}</option>
-                  ))}
-                </select>
+                {profile?.role === 'teacher' && schools.length === 1 ? (
+                  <div className="w-full px-6 py-5 bg-white/5 border border-blue-500/20 rounded-2xl flex items-center gap-3">
+                    <BuildingOfficeIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                    <span className="text-[11px] font-black text-white/70 uppercase tracking-widest">{schools[0].name}</span>
+                    <span className="ml-auto text-[9px] text-blue-400/60 font-bold uppercase tracking-widest">Locked</span>
+                  </div>
+                ) : (
+                  <select value={form.school_id}
+                    onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
+                    className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[11px] font-black text-white/70 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all appearance-none cursor-pointer uppercase tracking-widest">
+                    <option value="" className="bg-[#0f0f1a]">INDEPENDENT / ONLINE CLUSTER</option>
+                    {schools.map(s => (
+                      <option key={s.id} value={s.id} className="bg-[#0f0f1a]">{s.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
           </div>
