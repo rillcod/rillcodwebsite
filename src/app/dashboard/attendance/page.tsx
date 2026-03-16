@@ -67,12 +67,30 @@ function AttendanceContent() {
     if (authLoading || profileLoading || !profile) return;
     const db = createClient();
     if (isStaff) {
-      const q = profile.role === 'teacher'
-        ? db.from('classes').select('id, name, programs(name)').eq('teacher_id', profile.id).order('name')
-        : profile.role === 'school' && profile.school_id
-        ? db.from('classes').select('id, name, programs(name)').eq('school_id', profile.school_id).order('name')
-        : db.from('classes').select('id, name, programs(name)').order('name');
-      q.then(({ data }) => setClasses(data ?? []));
+      if (profile.role === 'teacher') {
+        // Get teacher's assigned school IDs so we show classes from their schools too
+        Promise.all([
+          db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id),
+        ]).then(async ([tsRes]) => {
+          const schoolIds: string[] = (tsRes.data ?? []).map((r: any) => r.school_id).filter(Boolean);
+          if (profile.school_id && !schoolIds.includes(profile.school_id)) schoolIds.push(profile.school_id);
+
+          let q = db.from('classes').select('id, name, programs(name)');
+          if (schoolIds.length > 0) {
+            // teacher's own classes OR any class in their assigned schools
+            q = (q as any).or(`teacher_id.eq.${profile.id},school_id.in.(${schoolIds.join(',')})`);
+          } else {
+            q = q.eq('teacher_id', profile.id);
+          }
+          const { data } = await q.order('name');
+          setClasses(data ?? []);
+        });
+      } else {
+        const q = profile.role === 'school' && profile.school_id
+          ? db.from('classes').select('id, name, programs(name)').eq('school_id', profile.school_id).order('name')
+          : db.from('classes').select('id, name, programs(name)').order('name');
+        q.then(({ data }) => setClasses(data ?? []));
+      }
     } else {
       // Student: get own attendance with sessions
       db.from('attendance')

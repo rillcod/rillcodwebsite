@@ -366,7 +366,7 @@ export default function PaymentsPage() {
     const subtotal = ratePerChild * count;
     const rillcodShare = Math.round(subtotal * (quotaPct / 100));
     const schoolShare = subtotal - rillcodShare;
-    if (subtotal === 0) { alert('Enter a rate per child first.'); return; }
+    if (ratePerChild === 0) { alert('Enter a rate per child first.'); return; }
 
     const docRef = `SINV-${Date.now().toString(36).toUpperCase()}`;
     const now = new Date();
@@ -1051,7 +1051,7 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                 <div className="flex justify-end">
                   <button
                     onClick={handlePrintSchoolInvoice}
-                    disabled={!schoolInvForm.school_id || !schoolInvForm.rate_per_child}
+                    disabled={!schoolInvForm.school_id || !(parseFloat(schoolInvForm.rate_per_child) > 0)}
                     className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-violet-900/40"
                   >
                     <DocumentTextIcon className="w-4 h-4" /> Generate &amp; Print Invoice

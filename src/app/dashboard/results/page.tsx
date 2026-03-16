@@ -159,6 +159,11 @@ function ResultsPageInner() {
     // ── Data loading ───────────────────────────────────────────────────────────
     useEffect(() => {
         if (authLoading || !profile) return;
+
+        // Reset stale state immediately so the UI shows spinner, not cached data
+        setStudents([]);
+        setLoading(true);
+
         const db = createClient();
 
         if (!isStaff) {
@@ -186,6 +191,7 @@ function ResultsPageInner() {
             const isSchoolRole = profile?.role === 'school';
             let assignedSchoolIds: string[] = [];
             let assignedSchoolNames: string[] = [];
+            let teacherClassIds: string[] = [];
 
             if (!isAdmin) {
                 if (isSchoolRole) {
@@ -193,22 +199,33 @@ function ResultsPageInner() {
                     if (profile?.school_id) assignedSchoolIds = [profile.school_id];
                     if (profile?.school_name) assignedSchoolNames = [profile.school_name];
                 } else {
-                    // Teacher: fetch assigned schools via API (service role bypasses RLS)
-                    const schRes = await fetch('/api/schools', { cache: 'no-store' });
+                    // Teacher: fetch assigned schools via API + class-based lookup
+                    const [schRes, classRes] = await Promise.all([
+                        fetch('/api/schools', { cache: 'no-store' }),
+                        db.from('classes').select('id, school_id').eq('teacher_id', profile!.id),
+                    ]);
+
                     if (schRes.ok) {
                         const schJson = await schRes.json();
                         const schools = schJson.data ?? [];
                         assignedSchoolIds = schools.map((s: any) => s.id).filter(Boolean);
                         assignedSchoolNames = schools.map((s: any) => s.name).filter(Boolean);
                     }
-                    // Always add teacher's own profile school as direct fallbacks
-                    // (API may return schools table name which differs from stored school_name text)
-                    if (profile?.school_id && !assignedSchoolIds.includes(profile.school_id)) {
+
+                    // Get class IDs teacher directly teaches — catches students via class_id
+                    teacherClassIds = (classRes.data ?? []).map((c: any) => c.id).filter(Boolean);
+
+                    // Pull school_ids from teacher's own classes (supplements API)
+                    (classRes.data ?? []).forEach((c: any) => {
+                        if (c.school_id && !assignedSchoolIds.includes(c.school_id))
+                            assignedSchoolIds.push(c.school_id);
+                    });
+
+                    // Profile school as direct text fallback
+                    if (profile?.school_id && !assignedSchoolIds.includes(profile.school_id))
                         assignedSchoolIds.push(profile.school_id);
-                    }
-                    if (profile?.school_name && !assignedSchoolNames.includes(profile.school_name)) {
+                    if (profile?.school_name && !assignedSchoolNames.includes(profile.school_name))
                         assignedSchoolNames.push(profile.school_name);
-                    }
                 }
             }
 
@@ -219,15 +236,17 @@ function ResultsPageInner() {
 
             if (!isAdmin) {
                 finalQuery = finalQuery.eq('role', 'student');
-                if (assignedSchoolIds.length > 0 || assignedSchoolNames.length > 0) {
-                    // Build OR filter: school_id UUID match OR school_name text match
-                    const parts: string[] = [];
-                    if (assignedSchoolIds.length > 0) {
-                        parts.push(`school_id.in.(${assignedSchoolIds.join(',')})`);
-                    }
-                    if (assignedSchoolNames.length > 0) {
-                        assignedSchoolNames.forEach(n => parts.push(`school_name.eq."${n.replace(/"/g, '\\"')}"`));
-                    }
+                const parts: string[] = [];
+                if (assignedSchoolIds.length > 0)
+                    parts.push(`school_id.in.(${assignedSchoolIds.join(',')})`);
+                assignedSchoolNames.forEach(n =>
+                    parts.push(`school_name.eq."${n.replace(/"/g, '\\"')}"`)
+                );
+                // Also match students directly enrolled in teacher's classes
+                if (teacherClassIds.length > 0)
+                    parts.push(`class_id.in.(${teacherClassIds.join(',')})`);
+
+                if (parts.length > 0) {
                     finalQuery = (finalQuery as any).or(parts.join(','));
                 } else {
                     finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');

@@ -46,6 +46,7 @@ interface GenerateRequest {
   attendance?: string;
   assignments?: string;
   currentContent?: any;
+  questionCount?: number;
   // For grading
   questions?: any[];
   studentAnswers?: Record<string, string>;
@@ -172,34 +173,37 @@ For 'coding_blocks', 'correct_answer' should be the sequence of blocks for [BLAN
 Include at least one coding challenge if the topic is technical.
 Include at least 5 relevant questions total.`;
 
-    case 'cbt':
+    case 'cbt': {
+      const qCount = req.questionCount ?? 10;
       return `Generate a Computer Based Test (CBT) for Rillcod Academy.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
 Subject: ${req.subject ?? 'Coding & Technology'}
+Number of questions required: EXACTLY ${qCount} questions. You MUST generate all ${qCount} questions — do not stop early.
 
 Return a JSON object with this exact shape:
 {
   "title": "string — exam title",
   "description": "string — brief exam description",
-  "duration_minutes": 60,
+  "duration_minutes": ${Math.max(30, qCount * 2)},
   "passing_score": 70,
   "questions": [
     {
-      "question_text": "string",
+      "question_text": "string — for code-based questions wrap the code snippet in triple backtick fences with the language, e.g. \`\`\`python\\nprint('hello')\\n\`\`\`",
       "question_type": "string — one of: multiple_choice, true_false, fill_blank, essay, coding_blocks",
       "options": ["string"],
       "correct_answer": "string",
       "points": 5,
       "metadata": {
-        "logic_sentence": "string — only for coding_blocks, e.g. 'When [BLANK] clicked, move [BLANK] steps'",
-        "logic_blocks": ["string"] 
+        "logic_sentence": "string — only for coding_blocks",
+        "logic_blocks": ["string"]
       }
     }
   ]
 }
 
-Include at least 10 high-quality questions covering the topic thoroughly. For technical topics, include coding logic questions.`;
+CRITICAL: The questions array MUST contain exactly ${qCount} items. Cover the topic comprehensively across different difficulty levels. For technical/coding topics, include at least ${Math.ceil(qCount * 0.3)} questions that show code snippets in triple-backtick fences.`;}
+
 
     case 'lesson-plan':
       return `Generate a term-long lesson plan for Rillcod Academy.
@@ -272,10 +276,12 @@ export async function POST(req: NextRequest) {
     let lastError = null;
 
     // Rich lesson types need more tokens to avoid truncated JSON
+    // For CBT scale tokens with question count: ~150 tokens per question minimum
+    const cbtTokens = type === 'cbt' ? Math.max(3000, (body.questionCount ?? 10) * 200) : 0;
     const maxTokens =
       type === 'lesson' ? 4000 :
       type === 'lesson-plan' ? 3500 :
-      type === 'cbt' ? 3000 :
+      type === 'cbt' ? cbtTokens :
       type === 'assignment' ? 3000 :
       2048;
 

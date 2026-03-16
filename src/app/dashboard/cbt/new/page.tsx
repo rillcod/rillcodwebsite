@@ -210,17 +210,31 @@ export default function NewExamPage() {
 
     const optLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
 
+    // Convert markdown code fences to styled <pre><code> blocks for print
+    function formatQuestionText(text: string): string {
+      // Escape HTML entities first (but not inside code blocks)
+      const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      // Replace ```lang\n...\n``` fences with styled pre blocks
+      return text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_match, lang, code) => {
+        const langLabel = lang ? `<span style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;display:block">${escHtml(lang)}</span>` : '';
+        return `<div style="margin:5px 0;background:#1e1e2e;border-radius:5px;padding:8px 10px;border-left:3px solid #7c3aed">${langLabel}<pre style="margin:0;font-family:'Courier New',monospace;font-size:10.5px;color:#cdd6f4;white-space:pre-wrap;word-break:break-all;line-height:1.5">${escHtml(code.trimEnd())}</pre></div>`;
+      })
+      // Inline backtick code
+      .replace(/`([^`\n]+)`/g, '<code style="font-family:\'Courier New\',monospace;font-size:10px;background:#f0f0f8;color:#4c1d95;padding:1px 4px;border-radius:3px;border:1px solid #ddd6fe">$1</code>');
+    }
+
     const questionRows = toPrint.map((q, i) => {
       const isChoice = q.question_type === 'multiple_choice';
       const opts = isChoice
         ? q.options.filter(o => o.trim()).map((o, j) => `<span style="margin-right:14px;white-space:nowrap"><b>${optLabels[j]}.</b> ${o}</span>`).join('')
         : '';
+      const formattedText = formatQuestionText(q.question_text);
       return `<div style="break-inside:avoid;margin-bottom:7px;padding:5px 8px;border-left:2px solid #7c3aed22;background:${i % 2 === 0 ? '#fafafa' : '#fff'}">
   <div style="display:flex;align-items:flex-start;gap:6px">
     <span style="font-weight:800;font-size:11px;color:#4c1d95;min-width:22px;padding-top:1px">${i + 1}.</span>
     <div style="flex:1">
-      <span style="font-size:11.5px;color:#1f2937;line-height:1.4">${q.question_text}</span>
-      ${isChoice ? `<div style="margin-top:4px;font-size:10.5px;color:#374151;display:flex;flex-wrap:wrap;gap:2px">${opts}</div>` : '<div style="margin-top:6px;border-bottom:1px solid #d1d5db;width:60%;height:1px"></div>'}
+      <div style="font-size:11.5px;color:#1f2937;line-height:1.5">${formattedText}</div>
+      ${isChoice ? `<div style="margin-top:5px;font-size:10.5px;color:#374151;display:flex;flex-wrap:wrap;gap:2px 0">${opts}</div>` : '<div style="margin-top:6px;border-bottom:1px solid #d1d5db;width:60%;height:1px"></div>'}
       <span style="font-size:9px;color:#9ca3af;float:right">[${q.points} pt${q.points !== 1 ? 's' : ''}]</span>
     </div>
   </div>
@@ -231,9 +245,12 @@ export default function NewExamPage() {
       const isChoice = q.question_type === 'multiple_choice';
       const optIdx = isChoice ? q.options.findIndex(o => o.trim() === q.correct_answer.trim()) : -1;
       const label = optIdx >= 0 ? optLabels[optIdx] : (q.correct_answer || '—');
+      // Strip code fences for the short summary in the marking guide table
+      const shortText = q.question_text.replace(/```[\s\S]*?```/g, '[code]').replace(/`[^`]+`/g, '[code]');
+      const truncated = shortText.length > 70 ? shortText.slice(0, 70) + '…' : shortText;
       return `<tr style="border-bottom:1px solid #e5e7eb">
         <td style="padding:3px 8px;text-align:center;font-weight:700;font-size:10.5px;color:#4c1d95">${i + 1}</td>
-        <td style="padding:3px 8px;font-size:10px;color:#111827;max-width:260px">${q.question_text.length > 60 ? q.question_text.slice(0, 60) + '…' : q.question_text}</td>
+        <td style="padding:3px 8px;font-size:10px;color:#111827;max-width:260px">${truncated}</td>
         <td style="padding:3px 8px;text-align:center;font-weight:800;font-size:11px;color:#059669">${isChoice ? label : '—'}</td>
         <td style="padding:3px 8px;font-size:10px;color:#374151;max-width:200px">${q.correct_answer || '—'}</td>
         <td style="padding:3px 8px;text-align:center;font-size:10px;color:#6b7280">${q.points}</td>
