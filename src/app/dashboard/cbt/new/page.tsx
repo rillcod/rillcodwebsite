@@ -193,6 +193,168 @@ export default function NewExamPage() {
     }
   };
 
+  // ── Print exam sheet (A4 — compact, 20-30 questions per page + marking guide) ──
+  const handlePrintExam = () => {
+    const hasSelection = selectedQuestions.size > 0;
+    const toPrint = questions.filter((q, i) =>
+      q.question_text.trim() && (!hasSelection || selectedQuestions.has(i))
+    );
+    if (toPrint.length === 0) { alert('No questions to print. Add questions first.'); return; }
+
+    const docRef = `CBT-${Date.now().toString(36).toUpperCase()}`;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' });
+    const prog = programs.find(p => p.id === form.program_id)?.name ?? '';
+    const course = courses.find(c => c.id === form.course_id)?.title ?? '';
+    const totalPts = toPrint.reduce((s, q) => s + (q.points || 0), 0);
+
+    const optLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    const questionRows = toPrint.map((q, i) => {
+      const isChoice = q.question_type === 'multiple_choice';
+      const opts = isChoice
+        ? q.options.filter(o => o.trim()).map((o, j) => `<span style="margin-right:14px;white-space:nowrap"><b>${optLabels[j]}.</b> ${o}</span>`).join('')
+        : '';
+      return `<div style="break-inside:avoid;margin-bottom:7px;padding:5px 8px;border-left:2px solid #7c3aed22;background:${i % 2 === 0 ? '#fafafa' : '#fff'}">
+  <div style="display:flex;align-items:flex-start;gap:6px">
+    <span style="font-weight:800;font-size:11px;color:#4c1d95;min-width:22px;padding-top:1px">${i + 1}.</span>
+    <div style="flex:1">
+      <span style="font-size:11.5px;color:#1f2937;line-height:1.4">${q.question_text}</span>
+      ${isChoice ? `<div style="margin-top:4px;font-size:10.5px;color:#374151;display:flex;flex-wrap:wrap;gap:2px">${opts}</div>` : '<div style="margin-top:6px;border-bottom:1px solid #d1d5db;width:60%;height:1px"></div>'}
+      <span style="font-size:9px;color:#9ca3af;float:right">[${q.points} pt${q.points !== 1 ? 's' : ''}]</span>
+    </div>
+  </div>
+</div>`;
+    }).join('');
+
+    const answerRows = toPrint.map((q, i) => {
+      const isChoice = q.question_type === 'multiple_choice';
+      const optIdx = isChoice ? q.options.findIndex(o => o.trim() === q.correct_answer.trim()) : -1;
+      const label = optIdx >= 0 ? optLabels[optIdx] : (q.correct_answer || '—');
+      return `<tr style="border-bottom:1px solid #e5e7eb">
+        <td style="padding:3px 8px;text-align:center;font-weight:700;font-size:10.5px;color:#4c1d95">${i + 1}</td>
+        <td style="padding:3px 8px;font-size:10px;color:#111827;max-width:260px">${q.question_text.length > 60 ? q.question_text.slice(0, 60) + '…' : q.question_text}</td>
+        <td style="padding:3px 8px;text-align:center;font-weight:800;font-size:11px;color:#059669">${isChoice ? label : '—'}</td>
+        <td style="padding:3px 8px;font-size:10px;color:#374151;max-width:200px">${q.correct_answer || '—'}</td>
+        <td style="padding:3px 8px;text-align:center;font-size:10px;color:#6b7280">${q.points}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<title>${form.title || 'CBT Exam'} — Exam Sheet</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:18px 20px}
+@page{size:A4;margin:12mm 14mm}
+@media print{body{padding:0}.no-print{display:none!important}}
+.header{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:3px solid #7c3aed;padding-bottom:12px;margin-bottom:14px}
+.logo-block{display:flex;align-items:center;gap:10px}
+.logo-circle{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;color:white;font-weight:900;font-size:17px}
+.org-name{font-size:18px;font-weight:900;color:#7c3aed}
+.org-sub{font-size:9px;color:#6b7280;margin-top:2px}
+.doc-meta{text-align:right;font-size:9px;color:#6b7280;line-height:1.6}
+.exam-title-box{background:linear-gradient(135deg,#4c1d9511,#4f46e511);border:1px solid #7c3aed44;border-radius:8px;padding:10px 16px;margin-bottom:12px}
+.exam-title{font-size:16px;font-weight:900;color:#4c1d95}
+.meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.meta-cell{background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;text-align:center}
+.meta-label{font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px}
+.meta-val{font-size:13px;font-weight:800;color:#111827;margin-top:2px}
+.instructions{background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;margin-bottom:14px;font-size:10px;color:#92400e}
+.section-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#4c1d95;border-bottom:1px solid #7c3aed33;padding-bottom:4px;margin-bottom:8px}
+.page-break{page-break-before:always;padding-top:16px}
+table{width:100%;border-collapse:collapse}
+thead tr{background:#4c1d95;color:white}
+thead th{padding:5px 8px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+tbody tr:nth-child(even){background:#f9fafb}
+.footer{margin-top:18px;border-top:1px solid #e5e7eb;padding-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.sig-box{text-align:center}
+.sig-line{border-bottom:1px solid #374151;height:32px;margin-bottom:5px}
+.sig-label{font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px}
+.watermark{text-align:center;margin-top:14px;font-size:8px;color:#9ca3af}
+.name-box{border:1px solid #d1d5db;border-radius:6px;padding:7px 14px;margin-bottom:12px;display:flex;gap:24px}
+.name-field{flex:1;border-bottom:1px solid #374151;font-size:11px;padding-bottom:2px;color:#111;min-width:120px}
+.name-label{font-size:9px;color:#6b7280;margin-bottom:2px}
+</style></head><body>
+<div class="header">
+  <div class="logo-block">
+    <div class="logo-circle">R</div>
+    <div>
+      <div class="org-name">Rillcod Academy</div>
+      <div class="org-sub">Technology &amp; Innovation in Education</div>
+    </div>
+  </div>
+  <div class="doc-meta">
+    <div><b>Exam Ref:</b> ${docRef}</div>
+    <div><b>Date:</b> ${dateStr}</div>
+    <div><b>Total Questions:</b> ${toPrint.length}</div>
+    <div><b>Total Points:</b> ${totalPts}</div>
+  </div>
+</div>
+<div class="exam-title-box">
+  <div class="exam-title">${form.title || 'Computer-Based Test'}</div>
+  ${form.description ? `<div style="font-size:11px;color:#374151;margin-top:4px">${form.description}</div>` : ''}
+  ${prog || course ? `<div style="font-size:10px;color:#7c3aed;margin-top:4px;font-weight:600">${[prog, course].filter(Boolean).join(' · ')}</div>` : ''}
+</div>
+<div class="meta-grid">
+  <div class="meta-cell"><div class="meta-label">Duration</div><div class="meta-val">${form.duration_minutes} min</div></div>
+  <div class="meta-cell"><div class="meta-label">Questions</div><div class="meta-val">${toPrint.length}</div></div>
+  <div class="meta-cell"><div class="meta-label">Total Points</div><div class="meta-val">${totalPts}</div></div>
+  <div class="meta-cell"><div class="meta-label">Pass Mark</div><div class="meta-val">${form.passing_score}%</div></div>
+</div>
+<div class="name-box">
+  <div><div class="name-label">Student Name</div><div class="name-field">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div></div>
+  <div><div class="name-label">Class / Grade</div><div class="name-field">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div></div>
+  <div><div class="name-label">Date</div><div class="name-field">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div></div>
+</div>
+<div class="instructions">
+  <b>Instructions:</b> Answer all questions. For multiple-choice questions, circle or underline the letter of your chosen answer.
+  Write clearly and legibly. No erasure on answers. Duration: <b>${form.duration_minutes} minutes</b>. Total marks: <b>${totalPts} points</b>.
+</div>
+<div class="section-title">Section A — Questions (${toPrint.length} Questions · ${totalPts} Marks)</div>
+${questionRows}
+<div class="page-break">
+  <div class="header" style="border-bottom:3px solid #dc2626;padding-bottom:10px;margin-bottom:14px">
+    <div class="logo-block">
+      <div class="logo-circle" style="background:linear-gradient(135deg,#dc2626,#b91c1c)">R</div>
+      <div>
+        <div class="org-name" style="color:#dc2626">Rillcod Academy — Marking Guide</div>
+        <div class="org-sub">CONFIDENTIAL — For Examiner Use Only · Do Not Distribute</div>
+      </div>
+    </div>
+    <div class="doc-meta"><div><b>Ref:</b> ${docRef}-MG</div><div><b>Exam:</b> ${form.title || 'CBT'}</div></div>
+  </div>
+  <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:8px 12px;margin-bottom:14px;font-size:10px;color:#7f1d1d">
+    <b>⚠ Restricted:</b> This marking guide is strictly for the use of the examining facilitator. It must not be shown to or shared with students before or during the examination.
+  </div>
+  <div class="section-title" style="color:#dc2626;border-bottom-color:#dc262633">Answer Key &amp; Marking Scheme</div>
+  <table>
+    <thead><tr>
+      <th style="width:40px;text-align:center">#</th>
+      <th>Question (truncated)</th>
+      <th style="width:60px;text-align:center">Answer</th>
+      <th>Full Answer / Expected Response</th>
+      <th style="width:50px;text-align:center">Points</th>
+    </tr></thead>
+    <tbody>${answerRows}</tbody>
+    <tfoot><tr style="background:#4c1d95;color:white"><td colspan="4" style="padding:5px 8px;font-weight:700;font-size:10px;text-align:right">TOTAL MARKS</td><td style="padding:5px 8px;text-align:center;font-weight:900">${totalPts}</td></tr></tfoot>
+  </table>
+  <div class="footer">
+    <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Examiner / Facilitator</div></div>
+    <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Academic Coordinator</div></div>
+    <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Head of Department / Stamp</div></div>
+  </div>
+</div>
+<div class="watermark">Rillcod Academy · ${docRef} · This is a computer-generated examination document.</div>
+</body></html>`;
+
+    const w = window.open('', '_blank', 'width=900,height=750');
+    if (!w) { alert('Pop-up blocked. Please allow pop-ups.'); return; }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 600);
+  };
+
   if (authLoading || profileLoading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -221,10 +383,21 @@ export default function NewExamPage() {
             <h1 className="text-3xl font-extrabold italic tracking-tight">Create CBT Exam</h1>
             {!isMinimal && <p className="text-white/40 text-sm mt-1 font-medium italic">Architect your assessment environment</p>}
           </div>
-          <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-emerald-900/40 transition-all disabled:opacity-50">
-            {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-            {saving ? 'Creating...' : (isMinimal ? 'CREATE' : 'PUBLISH EXAM')}
-          </button>
+          <div className="flex items-center gap-2">
+            {questions.some(q => q.question_text.trim()) && (
+              <button
+                type="button"
+                onClick={handlePrintExam}
+                className="flex items-center gap-2 px-5 py-3 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-400 font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all"
+              >
+                Print Exam
+              </button>
+            )}
+            <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-emerald-900/40 transition-all disabled:opacity-50">
+              {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+              {saving ? 'Creating...' : (isMinimal ? 'CREATE' : 'PUBLISH EXAM')}
+            </button>
+          </div>
         </div>
 
         {error && (

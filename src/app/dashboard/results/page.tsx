@@ -181,18 +181,34 @@ function ResultsPageInner() {
         }
 
         async function loadStaffData() {
-            // 1. Fetch assigned schools via API (service role — bypasses RLS for teachers)
+            // 1. Determine school scope
             const isAdmin = profile?.role === 'admin';
+            const isSchoolRole = profile?.role === 'school';
             let assignedSchoolIds: string[] = [];
             let assignedSchoolNames: string[] = [];
 
             if (!isAdmin) {
-                const schRes = await fetch('/api/schools', { cache: 'no-store' });
-                if (schRes.ok) {
-                    const schJson = await schRes.json();
-                    const schools = schJson.data ?? [];
-                    assignedSchoolIds = schools.map((s: any) => s.id).filter(Boolean);
-                    assignedSchoolNames = schools.map((s: any) => s.name).filter(Boolean);
+                if (isSchoolRole) {
+                    // School partner: use profile directly — no API call needed
+                    if (profile?.school_id) assignedSchoolIds = [profile.school_id];
+                    if (profile?.school_name) assignedSchoolNames = [profile.school_name];
+                } else {
+                    // Teacher: fetch assigned schools via API (service role bypasses RLS)
+                    const schRes = await fetch('/api/schools', { cache: 'no-store' });
+                    if (schRes.ok) {
+                        const schJson = await schRes.json();
+                        const schools = schJson.data ?? [];
+                        assignedSchoolIds = schools.map((s: any) => s.id).filter(Boolean);
+                        assignedSchoolNames = schools.map((s: any) => s.name).filter(Boolean);
+                    }
+                    // Always add teacher's own profile school as direct fallbacks
+                    // (API may return schools table name which differs from stored school_name text)
+                    if (profile?.school_id && !assignedSchoolIds.includes(profile.school_id)) {
+                        assignedSchoolIds.push(profile.school_id);
+                    }
+                    if (profile?.school_name && !assignedSchoolNames.includes(profile.school_name)) {
+                        assignedSchoolNames.push(profile.school_name);
+                    }
                 }
             }
 
@@ -203,13 +219,16 @@ function ResultsPageInner() {
 
             if (!isAdmin) {
                 finalQuery = finalQuery.eq('role', 'student');
-                if (assignedSchoolIds.length > 0) {
-                    const idPart = `school_id.in.(${assignedSchoolIds.join(',')})`;
-                    const namePart = assignedSchoolNames.length > 0
-                        ? assignedSchoolNames.map(n => `school_name.eq.${n}`).join(',')
-                        : '';
-                    const filter = namePart ? `${idPart},${namePart}` : idPart;
-                    finalQuery = (finalQuery as any).or(filter);
+                if (assignedSchoolIds.length > 0 || assignedSchoolNames.length > 0) {
+                    // Build OR filter: school_id UUID match OR school_name text match
+                    const parts: string[] = [];
+                    if (assignedSchoolIds.length > 0) {
+                        parts.push(`school_id.in.(${assignedSchoolIds.join(',')})`);
+                    }
+                    if (assignedSchoolNames.length > 0) {
+                        assignedSchoolNames.forEach(n => parts.push(`school_name.eq."${n.replace(/"/g, '\\"')}"`));
+                    }
+                    finalQuery = (finalQuery as any).or(parts.join(','));
                 } else {
                     finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
                 }
@@ -486,6 +505,142 @@ function ResultsPageInner() {
         }
     }
 
+    // ── Print group performance datasheet ─────────────────────────────────────
+    async function handlePrintPerformanceSheet() {
+        const db2 = createClient();
+        const studentsToSheet = filtered.length > 0 ? filtered : students;
+        if (studentsToSheet.length === 0) { alert('No students to print.'); return; }
+
+        // Fetch full reports for these students
+        const ids = studentsToSheet.map(s => s.id);
+        const { data: allReports } = await db2
+            .from('student_progress_reports')
+            .select('student_id, course_name, report_term, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, instructor_name')
+            .in('student_id', ids)
+            .order('is_published', { ascending: false })
+            .order('updated_at', { ascending: false });
+
+        // Latest report per student
+        const fullRMap: Record<string, any> = {};
+        (allReports ?? []).forEach(r => { if (!fullRMap[r.student_id]) fullRMap[r.student_id] = r; });
+
+        const org = orgSettings;
+        const titleLine = [filterClass, filterSchool].filter(Boolean).join(' — ');
+        const docRef = `RPT-${Date.now().toString(36).toUpperCase()}`;
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        const gradeColor = (g: string | null | undefined) => {
+            if (!g) return '#6b7280';
+            const c = g[0].toUpperCase();
+            if (c === 'A') return '#10b981';
+            if (c === 'B') return '#3b82f6';
+            if (c === 'C') return '#f59e0b';
+            if (c === 'D') return '#8b5cf6';
+            return '#ef4444';
+        };
+
+        const rows = studentsToSheet.map((s, i) => {
+            const r = fullRMap[s.id];
+            const cls = (s as any).classes?.name ?? s.section_class ?? '—';
+            const sch = (s as any).schools?.name ?? s.school_name ?? '—';
+            const hasTh = r?.theory_score != null;
+            const hasPr = r?.practical_score != null;
+            const hasAt = r?.attendance_score != null;
+            const gColor = gradeColor(r?.overall_grade);
+            return `<tr style="border-bottom:1px solid #e5e7eb">
+                <td style="padding:5px 6px;text-align:center;font-size:11px;color:#6b7280">${i + 1}</td>
+                <td style="padding:5px 6px;font-size:12px;font-weight:600;color:#111827">${s.full_name ?? '—'}</td>
+                <td style="padding:5px 6px;font-size:11px;color:#374151">${cls}</td>
+                <td style="padding:5px 6px;font-size:11px;color:#374151">${sch}</td>
+                <td style="padding:5px 6px;font-size:11px;text-align:center;color:#374151">${r?.course_name ?? '—'}</td>
+                <td style="padding:5px 6px;font-size:11px;text-align:center">${hasTh ? r.theory_score : '—'}</td>
+                <td style="padding:5px 6px;font-size:11px;text-align:center">${hasPr ? r.practical_score : '—'}</td>
+                <td style="padding:5px 6px;font-size:11px;text-align:center">${hasAt ? r.attendance_score : '—'}</td>
+                <td style="padding:5px 6px;font-size:11px;text-align:center;font-weight:700;color:#111827">${r?.overall_score ?? '—'}</td>
+                <td style="padding:5px 6px;text-align:center"><span style="display:inline-block;padding:2px 10px;border-radius:20px;font-weight:800;font-size:12px;color:white;background:${gColor}">${r?.overall_grade ?? 'N/A'}</span></td>
+                <td style="padding:5px 6px;text-align:center;font-size:10px;color:${r?.is_published ? '#10b981' : r ? '#f59e0b' : '#9ca3af'}">${r?.is_published ? '✓ Published' : r ? 'Draft' : 'No Report'}</td>
+            </tr>`;
+        }).join('');
+
+        const statsLine = `Total: ${studentsToSheet.length} | Published: ${studentsToSheet.filter(s => fullRMap[s.id]?.is_published).length} | Draft: ${studentsToSheet.filter(s => fullRMap[s.id] && !fullRMap[s.id].is_published).length} | No Report: ${studentsToSheet.filter(s => !fullRMap[s.id]).length}`;
+
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<title>Student Performance Sheet — ${titleLine || 'All Students'}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:20px}
+@page{size:A4 landscape;margin:14mm 12mm}
+@media print{body{padding:0}}
+.header{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:3px solid #7c3aed;padding-bottom:14px;margin-bottom:16px}
+.logo-block{display:flex;align-items:center;gap:12px}
+.logo-circle{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;color:white;font-weight:900;font-size:18px;letter-spacing:-1px}
+.org-name{font-size:20px;font-weight:900;color:#7c3aed;letter-spacing:-0.5px}
+.org-sub{font-size:10px;color:#6b7280;margin-top:2px}
+.doc-meta{text-align:right;font-size:10px;color:#6b7280;line-height:1.6}
+.doc-meta strong{color:#374151}
+.title-row{background:linear-gradient(135deg,#7c3aed11,#4f46e511);border:1px solid #7c3aed33;border-radius:8px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.title-main{font-size:15px;font-weight:900;color:#4c1d95;letter-spacing:-0.3px}
+.title-sub{font-size:10px;color:#7c3aed;margin-top:2px}
+.stats-bar{font-size:10px;color:#374151;background:#f3f4f6;border-radius:6px;padding:4px 12px;white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{background:#4c1d95;color:white}
+thead th{padding:7px 6px;text-align:left;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase}
+thead th:nth-child(1),thead th:nth-child(6),thead th:nth-child(7),thead th:nth-child(8),thead th:nth-child(9),thead th:nth-child(10),thead th:nth-child(11){text-align:center}
+tbody tr:nth-child(even){background:#f9fafb}
+tbody tr:hover{background:#f3f4f6}
+.footer{margin-top:24px;border-top:1px solid #e5e7eb;padding-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+.sig-box{text-align:center}
+.sig-line{border-bottom:1px solid #374151;height:36px;margin-bottom:6px}
+.sig-label{font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px}
+.watermark{text-align:center;margin-top:16px;font-size:9px;color:#9ca3af}
+</style></head><body>
+<div class="header">
+  <div class="logo-block">
+    <div class="logo-circle">R</div>
+    <div>
+      <div class="org-name">${org?.org_name ?? 'Rillcod Academy'}</div>
+      <div class="org-sub">${org?.org_address ?? 'Technology &amp; Innovation in Education'}</div>
+    </div>
+  </div>
+  <div class="doc-meta">
+    <div><strong>Document Ref:</strong> ${docRef}</div>
+    <div><strong>Generated:</strong> ${dateStr}</div>
+    <div><strong>Generated by:</strong> ${profile?.full_name ?? 'Staff'}</div>
+    <div><strong>Classification:</strong> Official — Confidential</div>
+  </div>
+</div>
+<div class="title-row">
+  <div>
+    <div class="title-main">Student Performance &amp; Score Sheet${titleLine ? ' — ' + titleLine : ''}</div>
+    <div class="title-sub">Academic Progress Report Summary · ${org?.org_name ?? 'Rillcod Academy'}</div>
+  </div>
+  <div class="stats-bar">${statsLine}</div>
+</div>
+<table>
+<thead><tr>
+  <th>#</th><th>Student Name</th><th>Class/Grade</th><th>School</th>
+  <th>Course</th><th>Theory</th><th>Practical</th><th>Attendance</th>
+  <th>Overall</th><th>Grade</th><th>Status</th>
+</tr></thead>
+<tbody>${rows}</tbody>
+</table>
+<div class="footer">
+  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Class Teacher / Facilitator</div></div>
+  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Academic Coordinator</div></div>
+  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">School Authority / Stamp</div></div>
+</div>
+<div class="watermark">This document is computer-generated and constitutes an official academic record of ${org?.org_name ?? 'Rillcod Academy'}. Document Reference: ${docRef}</div>
+</body></html>`;
+
+        const w = window.open('', '_blank', 'width=1100,height=800');
+        if (!w) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return; }
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+        setTimeout(() => { w.print(); }, 600);
+    }
+
     // ── Loading screen ─────────────────────────────────────────────────────────
     if (authLoading || loading) return (
         <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
@@ -533,6 +688,15 @@ function ResultsPageInner() {
                             >
                                 <PencilSquareIcon className="w-4 h-4" /> Create / Edit Report
                             </Link>
+                        )}
+                        {/* Print performance datasheet */}
+                        {isStaff && students.length > 0 && (
+                            <button
+                                onClick={handlePrintPerformanceSheet}
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/30 text-emerald-400 font-bold text-sm rounded-xl transition-all"
+                            >
+                                <PrinterIcon className="w-4 h-4" /> Performance Sheet
+                            </button>
                         )}
                         {/* Batch download button */}
                         {isStaff && selectedIds.size > 0 && (

@@ -121,21 +121,28 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
   const { data: teacherSchools } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', userId);
   const schoolIds = teacherSchools?.map((s: any) => s.school_id).filter(Boolean) || [];
 
-  // Count classes: teacher_id match OR school is in teacher's assigned schools
-  let classQuery = supabase.from('classes').select('id', { count: 'exact', head: true });
-  if (schoolIds.length > 0) {
-    classQuery = classQuery.or(`teacher_id.eq.${userId},school_id.in.(${schoolIds.join(',')})`) as any;
-  } else {
-    classQuery = classQuery.eq('teacher_id', userId);
-  }
+  // Count classes: only directly assigned to this teacher
+  const classQuery = supabase.from('classes').select('id', { count: 'exact', head: true }).eq('teacher_id', userId);
 
-  // Count students from registry: all students in teacher's schools (full registry count, not just created_by)
-  let studentQuery = supabase.from('students').select('id', { count: 'exact', head: true });
+  // Count portal students in teacher's assigned schools; fallback to teacher's own classes
+  let studentQuery: any;
   if (schoolIds.length > 0) {
-    studentQuery = studentQuery.or(`school_id.in.(${schoolIds.join(',')}),created_by.eq.${userId}`);
+    studentQuery = supabase.from('portal_users')
+      .select('id', { count: 'exact', head: true })
+      .eq('role', 'student')
+      .in('school_id', schoolIds);
   } else {
-    // Fallback: count all portal users with role=student when no school assigned
-    studentQuery = supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student') as any;
+    // No school assignment — count students in classes this teacher owns
+    const { data: teacherClasses } = await supabase.from('classes').select('id').eq('teacher_id', userId);
+    const classIds = (teacherClasses ?? []).map((c: any) => c.id);
+    if (classIds.length > 0) {
+      studentQuery = supabase.from('portal_users')
+        .select('id', { count: 'exact', head: true })
+        .eq('role', 'student')
+        .in('class_id', classIds);
+    } else {
+      studentQuery = Promise.resolve({ count: 0 });
+    }
   }
 
   const [classes, pendingAsgn, pendingCbt, subsAsgn, studentsHead] = await Promise.allSettled([
