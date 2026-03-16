@@ -398,9 +398,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:
 @media print{body{padding:0}}
 .header{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:4px solid #7c3aed;padding-bottom:14px;margin-bottom:18px}
 .logo-block{display:flex;align-items:center;gap:12px}
-.logo-circle{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;color:white;font-weight:900;font-size:20px}
-.org-name{font-size:22px;font-weight:900;color:#7c3aed;letter-spacing:-0.5px}
-.org-sub{font-size:10px;color:#6b7280;margin-top:2px}
+.logo-img{width:56px;height:56px;object-fit:contain}
+.org-name{font-size:22px;font-weight:900;color:#7c3aed;letter-spacing:-0.4px}
+.org-sub{font-size:10px;color:#6b7280;margin-top:1px;font-weight:600}
 .inv-badge{text-align:right}
 .inv-label{font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px}
 .inv-number{font-size:24px;font-weight:900;color:#4c1d95;letter-spacing:-0.5px}
@@ -409,8 +409,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:
 .party-label{font-size:9px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
 .party-name{font-size:15px;font-weight:900;color:#111827}
 .party-sub{font-size:11px;color:#6b7280;margin-top:2px;line-height:1.4}
-.meta-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
-.meta-cell{background:#f3f0ff;border:1px solid #7c3aed22;border-radius:8px;padding:10px 12px;text-align:center}
+.meta-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.meta-cell{flex:1;min-width:120px;background:#f3f0ff;border:1px solid #7c3aed22;border-radius:8px;padding:10px 12px;text-align:center}
 .meta-label{font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
 .meta-val{font-size:15px;font-weight:900;color:#4c1d95}
 table{width:100%;border-collapse:collapse;margin-bottom:20px;border-radius:8px;overflow:hidden}
@@ -454,11 +454,11 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
 </style></head><body>
 <div class="header">
   <div class="logo-block">
-    <div class="logo-circle">R</div>
+    <img src="/logo.png" class="logo-img" />
     <div>
-      <div class="org-name">Rillcod Academy</div>
-      <div class="org-sub">Technology &amp; Innovation in Education</div>
-      <div style="font-size:9px;color:#7c3aed;margin-top:2px">www.rillcod.com · hello@rillcod.com</div>
+      <div class="org-name">RILLCOD TECHNOLOGIES</div>
+      <div class="org-sub">STEM, Robotics &amp; AI Education Partner</div>
+      <div style="font-size:9px;color:#7c3aed;margin-top:2px;font-weight:700">www.rillcod.com · rillcod@gmail.com · 08116600091</div>
     </div>
   </div>
   <div class="inv-badge">
@@ -472,8 +472,8 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
 <div class="parties">
   <div class="party-box">
     <div class="party-label">From (Billed By)</div>
-    <div class="party-name">Rillcod Academy</div>
-    <div class="party-sub">Technology &amp; Innovation in Education<br/>STEM / AI / Coding Education Partner</div>
+    <div class="party-name">RILLCOD TECHNOLOGIES</div>
+    <div class="party-sub">STEM, Robotics &amp; AI Education Provider<br/>Technology &amp; Innovation Specialists</div>
   </div>
   <div class="party-box">
     <div class="party-label">To (Bill To)</div>
@@ -484,8 +484,10 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
 <div class="meta-row">
   <div class="meta-cell"><div class="meta-label">Students</div><div class="meta-val">${count}</div></div>
   <div class="meta-cell"><div class="meta-label">Rate / Child</div><div class="meta-val">${fmtNGN(ratePerChild)}</div></div>
+  ${schoolInvForm.show_revenue_share ? `
   <div class="meta-cell"><div class="meta-label">Rillcod %</div><div class="meta-val">${quotaPct}%</div></div>
   <div class="meta-cell"><div class="meta-label">School %</div><div class="meta-val">${100 - quotaPct}%</div></div>
+  ` : ''}
 </div>
 <table>
 <thead><tr><th>Description</th><th style="text-align:center">Students</th><th style="text-align:right">Rate / Child</th><th style="text-align:right">Amount</th></tr></thead>
@@ -516,10 +518,10 @@ ${schoolInvForm.show_revenue_share ? `
 <div style="font-size:11px;font-weight:800;color:#4c1d95;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Revenue Allocation &amp; Split</div>
 <div class="revenue-split">
   <div class="split-box split-rillcod">
-    <div class="split-label" style="color:#7c3aed">Rillcod Academy</div>
+    <div class="split-label" style="color:#7c3aed">RILLCOD TECHNOLOGIES</div>
     <div class="split-pct" style="color:#7c3aed">${quotaPct}%</div>
     <div class="split-amount" style="color:#4c1d95">${fmtNGN(rillcodShare)}</div>
-    <div class="split-sub">To be remitted to Rillcod Academy upon collection</div>
+    <div class="split-sub">To be remitted to RILLCOD TECHNOLOGIES upon collection</div>
   </div>
   <div class="split-box split-school">
     <div class="split-label" style="color:#059669">${sch.name}</div>
@@ -544,7 +546,7 @@ ${payToAcc ? `
 ${schoolInvForm.show_whatsapp_option ? `
 <div style="background:#dcfce7; border:1px solid #16a34a33; border-radius:8px; padding:10px 14px; margin-bottom:18px; font-size:11px; color:#166534; display:flex; align-items:center; gap:8px">
   <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.414 0 .018 5.393 0 12.03c0 2.12.554 4.189 1.604 6.046L0 24l6.109-1.603a11.803 11.803 0 005.937 1.597h.005c6.632 0 12.029-5.392 12.032-12.029a11.77 11.77 0 00-3.517-8.482z"/></svg>
-  <span><b>WhatsApp Receipt:</b> Digital receipt will be sent to the school principal's registered WhatsApp number upon payment confirmation.</span>
+  <span><b>WhatsApp Receipt:</b> Digital confirmation should be forwarded to the Tech Hub Admin or Director (08116600091) upon payment.</span>
 </div>
 ` : ''}
 
