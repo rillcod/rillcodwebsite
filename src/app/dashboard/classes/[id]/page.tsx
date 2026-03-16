@@ -43,6 +43,8 @@ export default function ClassDetailPage() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
   const [processingStudent, setProcessingStudent] = useState<string | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [studentSearch, setStudentSearch] = useState(''); // Search/filter in enrollment modal
+  const [showMoreStudents, setShowMoreStudents] = useState(false); // Pagination control
 
   // Create-new-class inside enrol modal
   const [programsList, setProgramsList] = useState<any[]>([]);
@@ -269,84 +271,194 @@ export default function ClassDetailPage() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const enrRows = enrollments.map((enr: any) => `
+    const issuedDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const docRef = `RC-${cls.id?.slice(0, 8).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+
+    const enrRows = enrollments.map((enr: any, idx: number) => `
       <tr>
-        <td><strong>${enr.full_name || 'Unknown'}</strong></td>
-        <td>${cls.name}</td>
-        <td>${enr.email || 'N/A'}</td>
-        <td style="text-align: center;"><div class="pass-field"></div></td>
+        <td style="text-align:center; font-weight:700; color:#64748b;">${idx + 1}</td>
+        <td>
+          <div style="font-weight:700; color:#1e293b; font-size:13px;">${enr.full_name || '—'}</div>
+          ${enr.section_class ? `<div style="font-size:10px; color:#94a3b8; margin-top:2px;">Section: ${enr.section_class}</div>` : ''}
+        </td>
+        <td style="font-size:12px; color:#334155;">${cls.name}</td>
+        <td style="font-size:12px; color:#334155;">${enr.email || 'N/A'}</td>
+        <td style="text-align:center;">
+          <div style="display:inline-block; width:130px; border-bottom:1.5px solid #94a3b8; margin-top:10px;">&nbsp;</div>
+        </td>
+        <td style="text-align:center;">
+          <div style="border:1px solid #e2e8f0; border-radius:4px; padding:6px 4px; font-size:10px; color:#94a3b8;">Received</div>
+        </td>
       </tr>
     `).join('');
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Student Credentials - ${cls.name}</title>
-        <style>
-          body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #111; max-width: 900px; margin: 0 auto; line-height: 1.5; }
-          .header-container { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 30px; }
-          .company-brand { text-align: left; }
-          .company-name { font-size: 20px; font-weight: 900; color: #000; letter-spacing: 1px; }
-          .company-tag { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 2px; }
-          .school-info { text-align: right; }
-          .school-name { font-size: 18px; font-weight: 800; color: #4F46E5; text-transform: uppercase; }
-          .school-logo { max-height: 50px; margin-bottom: 5px; }
-          h1 { font-size: 24px; margin: 20px 0 10px 0; text-align: center; color: #111; text-transform: uppercase; letter-spacing: 1px; }
-          .meta { font-size: 13px; color: #444; margin-bottom: 30px; text-align: center; background: #f9fafb; padding: 15px; border-radius: 12px; border: 1px solid #f1f5f9; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-          th, td { border: 1px solid #e2e8f0; padding: 14px; text-align: left; font-size: 13px; }
-          th { background: #f8fafc; font-weight: 800; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; color: #64748b; }
-          .student-cell { color: #1e293b; font-weight: 700; }
-          .pass-field { display: inline-block; width: 140px; height: 1px; background: #cbd5e1; margin-top: 12px; }
-          .note { margin-top: 40px; text-align: center; color: #64748b; font-size: 11px; font-style: italic; }
-          .print-btn { display: block; margin: 30px auto; padding: 12px 24px; background: #0f172a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; }
-          @media print { body { padding: 20px; } .print-btn { display: none; } .meta { border: 1px solid #ddd; } }
-        </style>
-      </head>
-      <body>
-        <div class="header-container">
-          <div class="company-brand">
-            <div class="company-name">RILLCOD ACADEMY</div>
-            <div class="company-tag">Future-Proof Education</div>
-          </div>
-          <div class="school-info">
-            ${cls.schools?.logo_url ? `<img src="${cls.schools.logo_url}" alt="School Logo" class="school-logo" />` : ''}
-            <div class="school-name">${cls.schools?.name || 'Academic Partner'}</div>
-          </div>
-        </div>
-        <h1>Student Security Registry</h1>
-        <div class="meta">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div><strong>CLASS:</strong> ${cls.name}</div>
-            <div><strong>PROGRAMME:</strong> ${cls.programs?.name}</div>
-            <div><strong>FACILITATOR:</strong> ${cls.portal_users?.full_name}</div>
-            <div><strong>DATE ISSUED:</strong> ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-          </div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Full Name</th>
-              <th>Class Reference</th>
-              <th>Login Identifier (Email)</th>
-              <th>Assigned Key (Password)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${enrRows}
-          </tbody>
-        </table>
-        <div class="note">
-          Please keep these credentials secure. Change your password after first login.
-        </div>
-        <button class="print-btn" onclick="window.print()">Print Official Registry</button>
-      </body>
-      </html>
-    `;
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Student Access Register — ${cls.name} — ${issuedDate}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    @page { size: A4; margin: 18mm 15mm 20mm 15mm; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; background: #fff; font-size: 12px; line-height: 1.5; }
+
+    /* ─ Letterhead ─ */
+    .letterhead { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 12px; border-bottom: 3px solid #1e293b; margin-bottom: 16px; }
+    .brand-logo { display: flex; align-items: center; gap: 10px; }
+    .brand-logo img { height: 52px; width: auto; object-fit: contain; }
+    .brand-text .name { font-size: 20px; font-weight: 900; color: #1e293b; letter-spacing: 0.5px; text-transform: uppercase; }
+    .brand-text .tag { font-size: 8.5px; font-weight: 700; color: #64748b; letter-spacing: 2.5px; text-transform: uppercase; }
+    .partner-block { text-align: right; }
+    .partner-block .school-logo { height: 48px; width: auto; max-width: 140px; object-fit: contain; margin-bottom: 4px; display: block; margin-left: auto; }
+    .partner-block .school-name { font-size: 12px; font-weight: 800; color: #4F46E5; text-transform: uppercase; letter-spacing: 0.5px; }
+    .partner-block .school-tag { font-size: 9px; color: #94a3b8; }
+
+    /* ─ Title block ─ */
+    .doc-title-block { text-align: center; margin: 14px 0 10px; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 6px; background: #f8fafc; }
+    .doc-title { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #0f172a; }
+    .doc-subtitle { font-size: 9.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+    .doc-ref { font-size: 9px; color: #94a3b8; margin-top: 4px; }
+
+    /* ─ Metadata grid ─ */
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin: 12px 0; }
+    .meta-cell { padding: 8px 12px; border-right: 1px solid #e2e8f0; }
+    .meta-cell:last-child { border-right: none; }
+    .meta-cell .meta-label { font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
+    .meta-cell .meta-value { font-size: 12px; font-weight: 700; color: #1e293b; margin-top: 2px; }
+
+    /* ─ Instruction box ─ */
+    .instruction { font-size: 10px; color: #64748b; background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; padding: 7px 12px; margin-bottom: 12px; }
+    .instruction strong { color: #92400e; }
+
+    /* ─ Table ─ */
+    table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+    thead { background: #1e293b; color: #fff; }
+    thead th { padding: 9px 10px; text-align: left; font-weight: 800; font-size: 9.5px; letter-spacing: 0.8px; text-transform: uppercase; }
+    thead th:first-child { text-align: center; width: 36px; }
+    tbody tr { border-bottom: 1px solid #f1f5f9; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    tbody td { padding: 9px 10px; vertical-align: middle; }
+
+    /* ─ Footer ─ */
+    .doc-footer { margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .signature-box { text-align: center; }
+    .sig-line { display: inline-block; width: 180px; border-bottom: 1.5px solid #334155; margin-bottom: 4px; }
+    .sig-label { font-size: 9px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+    .footer-note { font-size: 9px; color: #94a3b8; text-align: right; max-width: 300px; }
+    .footer-note strong { color: #64748b; }
+
+    /* ─ Print controls (screen only) ─ */
+    .screen-only { margin: 24px 0; text-align: center; }
+    .print-btn { padding: 12px 32px; background: #1e293b; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; letter-spacing: 0.5px; }
+    .print-btn:hover { background: #334155; }
+    @media print { .screen-only { display: none; } }
+  </style>
+</head>
+<body>
+
+  <!-- LETTERHEAD -->
+  <div class="letterhead">
+    <div class="brand-logo">
+      <img src="/images/logo.png" alt="Rillcod Academy Logo" onerror="this.style.display='none'" />
+      <div class="brand-text">
+        <div class="name">Rillcod Academy</div>
+        <div class="tag">Future-Proof STEM Education</div>
+      </div>
+    </div>
+    <div class="partner-block">
+      ${cls.schools?.logo_url ? `<img src="${cls.schools.logo_url}" alt="${cls.schools?.name || 'School'} Logo" class="school-logo" onerror="this.style.display='none'" />` : ''}
+      <div class="school-name">${cls.schools?.name || 'Partner Institution'}</div>
+      <div class="school-tag">Affiliated Academic Partner</div>
+    </div>
+  </div>
+
+  <!-- DOCUMENT TITLE -->
+  <div class="doc-title-block">
+    <div class="doc-title">Student Access Register</div>
+    <div class="doc-subtitle">Official Portal Login Credentials — Confidential</div>
+    <div class="doc-ref">Document Ref: ${docRef} &nbsp;|&nbsp; Issued: ${issuedDate}</div>
+  </div>
+
+  <!-- METADATA GRID -->
+  <div class="meta-grid">
+    <div class="meta-cell">
+      <div class="meta-label">Class / Group</div>
+      <div class="meta-value">${cls.name}</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-label">Programme</div>
+      <div class="meta-value">${cls.programs?.name || 'N/A'}</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-label">Facilitator</div>
+      <div class="meta-value">${cls.portal_users?.full_name || 'N/A'}</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-label">Total Students</div>
+      <div class="meta-value">${enrollments.length}</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-label">Class Status</div>
+      <div class="meta-value" style="text-transform:capitalize;">${cls.status || 'Active'}</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-label">Date Issued</div>
+      <div class="meta-value">${issuedDate}</div>
+    </div>
+  </div>
+
+  <!-- INSTRUCTION -->
+  <div class="instruction">
+    <strong>INSTRUCTIONS:</strong> Distribute this register to each student. Each student must write their assigned password in the designated field and sign the acknowledgement column upon receipt. This document is <strong>CONFIDENTIAL</strong> — do not share publicly. Passwords should be changed by students upon first login.
+  </div>
+
+  <!-- STUDENTS TABLE -->
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Student Full Name</th>
+        <th>Class / Group</th>
+        <th>Portal Email Address (Login ID)</th>
+        <th style="text-align:center; width:140px;">Assigned Password</th>
+        <th style="text-align:center; width:80px;">Signature</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${enrRows}
+    </tbody>
+  </table>
+
+  <!-- FOOTER / SIGNATURES -->
+  <div class="doc-footer">
+    <div class="signature-box">
+      <div class="sig-line">&nbsp;</div><br/>
+      <div class="sig-label">Facilitator Signature &amp; Date</div>
+    </div>
+    <div class="signature-box">
+      <div class="sig-line">&nbsp;</div><br/>
+      <div class="sig-label">School Authority / Stamp</div>
+    </div>
+    <div class="footer-note">
+      <strong>Rillcod Academy Portal</strong><br/>
+      Powered by Rillcod Academy — rillcod.com<br/>
+      This document is an official school record.<br/>
+      Ref: ${docRef}
+    </div>
+  </div>
+
+  <!-- PRINT BUTTON (screen only) -->
+  <div class="screen-only">
+    <button class="print-btn" onclick="window.print()">🖨 Print Official Register (A4)</button>
+  </div>
+
+</body>
+</html>`;
 
     printWindow.document.write(html);
     printWindow.document.close();
+    // Auto-trigger print dialog after load
+    printWindow.onload = () => { printWindow.focus(); };
   };
 
   if (authLoading || profileLoading || loading) return (
@@ -983,7 +1095,7 @@ export default function ClassDetailPage() {
                   <h3 className="font-bold text-white">Enrol Students</h3>
                   <p className="text-xs text-white/40 mt-0.5">{availableStudents.length} eligible · {selectedStudentIds.size} selected</p>
                 </div>
-                <button onClick={() => { setShowStudentModal(false); setEnrolMode('current'); }} className="w-8 h-8 flex items-center justify-center bg-white/5 rounded-xl text-white/40 hover:text-white transition-colors text-lg">&times;</button>
+                <button onClick={() => { setShowStudentModal(false); setEnrolMode('current'); setStudentSearch(''); setShowMoreStudents(false); }} className="w-8 h-8 flex items-center justify-center bg-white/5 rounded-xl text-white/40 hover:text-white transition-colors text-lg">&times;</button>
               </div>
 
               {/* Mode tabs */}
@@ -1005,9 +1117,21 @@ export default function ClassDetailPage() {
               {/* Current-class mode: select students */}
               {enrolMode === 'current' && (
                 <>
+                  {/* Search box */}
+                  {availableStudents.length > 0 && (
+                    <div className="px-6 pt-3 pb-1 flex-shrink-0">
+                      <input
+                        type="text"
+                        placeholder="Search by name, email or school..."
+                        value={studentSearch}
+                        onChange={e => { setStudentSearch(e.target.value); setShowMoreStudents(false); }}
+                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500 transition-colors"
+                      />
+                    </div>
+                  )}
                   {/* Toolbar */}
                   {availableStudents.length > 0 && (
-                    <div className="px-6 pt-3 pb-2 flex items-center gap-2 flex-shrink-0">
+                    <div className="px-6 pt-2 pb-2 flex items-center gap-2 flex-shrink-0">
                       <button
                         onClick={() => setSelectedStudentIds(
                           selectedStudentIds.size === availableStudents.length
@@ -1049,62 +1173,90 @@ export default function ClassDetailPage() {
                           Create a new class instead →
                         </button>
                       </div>
-                    ) : (
-                      <>
-                        {unassigned.length > 0 && (
-                          <div>
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">Unassigned ({unassigned.length})</p>
-                            <div className="space-y-2">
-                              {unassigned.map((student: any) => {
-                                const isChecked = selectedStudentIds.has(student.id);
-                                return (
-                                  <div key={student.id} onClick={() => setSelectedStudentIds(prev => { const n = new Set(prev); n.has(student.id) ? n.delete(student.id) : n.add(student.id); return n; })}
-                                    className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${isChecked ? 'bg-violet-600/15 border-violet-500/40' : 'bg-white/5 border-white/5 hover:border-violet-500/20'}`}>
-                                    <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-violet-600 border-violet-400' : 'border-white/20'}`}>
-                                      {isChecked && <CheckIconOutline className="w-3 h-3 text-white" />}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="text-sm font-semibold text-white truncate">{student.full_name}</p>
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="text-xs text-white/30 truncate">{student.email}</p>
-                                        {student.school_name && <span className="text-[9px] font-bold text-blue-400/70 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 flex-shrink-0">{student.school_name}</span>}
-                                      </div>
-                                    </div>
-                                    {student.section_class && <span className="text-[9px] font-bold text-amber-400/60 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 flex-shrink-0">{student.section_class}</span>}
-                                  </div>
-                                );
-                              })}
+                    ) : (() => {
+                      // Apply search filter across all students
+                      const q = studentSearch.trim().toLowerCase();
+                      const filtered = q
+                        ? availableStudents.filter((s: any) =>
+                            (s.full_name ?? '').toLowerCase().includes(q) ||
+                            (s.email ?? '').toLowerCase().includes(q) ||
+                            (s.school_name ?? '').toLowerCase().includes(q) ||
+                            (s.section_class ?? '').toLowerCase().includes(q)
+                          )
+                        : availableStudents;
+
+                      // Group: unassigned (no class_id) vs in another class
+                      const filtUnassigned = filtered.filter((s: any) => !s.class_id);
+                      const filtInOther = filtered.filter((s: any) => s.class_id);
+
+                      // Pagination: show first PAGE_SIZE, then offer "Show More"
+                      const PAGE_SIZE = 25;
+                      const visibleUnassigned = showMoreStudents ? filtUnassigned : filtUnassigned.slice(0, PAGE_SIZE);
+                      const visibleInOther = showMoreStudents ? filtInOther : filtInOther.slice(0, Math.max(0, PAGE_SIZE - filtUnassigned.length));
+                      const hasMore = filtUnassigned.length > visibleUnassigned.length || filtInOther.length > visibleInOther.length;
+
+                      const renderStudent = (student: any, color: 'violet' | 'amber') => {
+                        const isChecked = selectedStudentIds.has(student.id);
+                        return (
+                          <div key={student.id} onClick={() => setSelectedStudentIds(prev => { const n = new Set(prev); n.has(student.id) ? n.delete(student.id) : n.add(student.id); return n; })}
+                            className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all active:scale-[0.99] ${isChecked
+                              ? color === 'violet' ? 'bg-violet-600/15 border-violet-500/40' : 'bg-amber-500/10 border-amber-500/40'
+                              : color === 'violet' ? 'bg-white/5 border-white/5 hover:border-violet-500/20' : 'bg-white/5 border-amber-500/10 hover:border-amber-500/20'}`}>
+                            <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked
+                              ? color === 'violet' ? 'bg-violet-600 border-violet-400' : 'bg-amber-500 border-amber-400'
+                              : 'border-white/20'}`}>
+                              {isChecked && <CheckIconOutline className="w-3 h-3 text-white" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-white truncate">{student.full_name}</p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-xs text-white/30 truncate">{student.email}</p>
+                                {student.school_name && <span className="text-[9px] font-bold text-blue-400/70 bg-blue-500/10 px-1.5 py-0.5 rounded-full border border-blue-500/20 flex-shrink-0">{student.school_name}</span>}
+                                {student.section_class && <span className="text-[9px] font-bold text-amber-400/60 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20 flex-shrink-0">{student.section_class}</span>}
+                              </div>
+                              {student.class_id && <p className="text-[9px] text-amber-400/70 mt-0.5">Currently in: {(student.classes as any)?.name ?? 'another class'}</p>}
                             </div>
                           </div>
-                        )}
-                        {inOtherClass.length > 0 && (
-                          <div>
-                            <p className="text-[10px] font-black text-amber-400/60 uppercase tracking-widest mb-2">In another class — will reassign ({inOtherClass.length})</p>
-                            <div className="space-y-2">
-                              {inOtherClass.map((student: any) => {
-                                const isChecked = selectedStudentIds.has(student.id);
-                                return (
-                                  <div key={student.id} onClick={() => setSelectedStudentIds(prev => { const n = new Set(prev); n.has(student.id) ? n.delete(student.id) : n.add(student.id); return n; })}
-                                    className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${isChecked ? 'bg-amber-500/10 border-amber-500/40' : 'bg-white/5 border-amber-500/10 hover:border-amber-500/20'}`}>
-                                    <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-amber-500 border-amber-400' : 'border-white/20'}`}>
-                                      {isChecked && <CheckIconOutline className="w-3 h-3 text-white" />}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="text-sm font-semibold text-white truncate">{student.full_name}</p>
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="text-xs text-white/30 truncate">{student.email}</p>
-                                        {student.school_name && <span className="text-[9px] font-bold text-blue-400/70 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 flex-shrink-0">{student.school_name}</span>}
-                                      </div>
-                                      <p className="text-[9px] text-amber-400/70 mt-0.5">Currently in: {(student.classes as any)?.name ?? 'another class'}</p>
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                        );
+                      };
+
+                      if (filtered.length === 0) return (
+                        <div className="py-12 text-center">
+                          <p className="text-sm text-white/30">No students match "{studentSearch}"</p>
+                        </div>
+                      );
+
+                      return (
+                        <>
+                          {filtUnassigned.length > 0 && (
+                            <div>
+                              <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">
+                                Available ({filtUnassigned.length})
+                                {filtUnassigned.length > visibleUnassigned.length && <span className="text-white/20"> — showing {visibleUnassigned.length}</span>}
+                              </p>
+                              <div className="space-y-1.5">{visibleUnassigned.map(s => renderStudent(s, 'violet'))}</div>
                             </div>
-                          </div>
-                        )}
-                      </>
-                    )}
+                          )}
+                          {filtInOther.length > 0 && (
+                            <div>
+                              <p className="text-[10px] font-black text-amber-400/60 uppercase tracking-widest mb-2">
+                                In another class — will reassign ({filtInOther.length})
+                                {filtInOther.length > visibleInOther.length && <span className="text-amber-400/30"> — showing {visibleInOther.length}</span>}
+                              </p>
+                              <div className="space-y-1.5">{visibleInOther.map(s => renderStudent(s, 'amber'))}</div>
+                            </div>
+                          )}
+                          {hasMore && (
+                            <button
+                              onClick={() => setShowMoreStudents(true)}
+                              className="w-full py-3 text-xs font-bold text-white/40 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all"
+                            >
+                              Show all {filtered.length} students
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
 
                   <div className="px-6 py-4 border-t border-white/10 flex-shrink-0 flex items-center justify-between">

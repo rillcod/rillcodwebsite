@@ -505,6 +505,7 @@ export type Database = {
         Row: {
           course_id: string | null
           created_at: string | null
+          created_by: string | null
           description: string | null
           duration_minutes: number
           end_date: string | null
@@ -520,6 +521,7 @@ export type Database = {
         Insert: {
           course_id?: string | null
           created_at?: string | null
+          created_by?: string | null
           description?: string | null
           duration_minutes: number
           end_date?: string | null
@@ -535,6 +537,7 @@ export type Database = {
         Update: {
           course_id?: string | null
           created_at?: string | null
+          created_by?: string | null
           description?: string | null
           duration_minutes?: number
           end_date?: string | null
@@ -553,6 +556,13 @@ export type Database = {
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_exams_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
             referencedColumns: ["id"]
           },
           {

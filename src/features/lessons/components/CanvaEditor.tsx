@@ -69,12 +69,36 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
         onChange(next);
     };
 
+    const handleAiImage = async () => {
+        const prompt = window.prompt("What image should AI generate? (e.g. A robot soldering a circuit)");
+        if (!prompt) return;
+        const id = Date.now().toString();
+        const newBlock: Block = { id, type: 'image', content: '', caption: prompt, url: '' };
+        onChange([...layout, newBlock]);
+        try {
+            const res = await fetch('/api/ai/image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt }),
+            });
+            const data = await res.json();
+            if (data.url) {
+                updateBlock(id, { url: data.url });
+            } else {
+                updateBlock(id, { caption: `⚠ Image failed: ${data.error || 'unknown error'}` });
+            }
+        } catch (e: any) {
+            updateBlock(id, { caption: `⚠ Image failed: ${e.message}` });
+        }
+    };
+
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-white/40">Visual Content Builder</h3>
-                <div className="flex gap-2">
-                    <ToolbarButton onClick={() => addBlock('heading')} icon={HeadingIcon} label="H2" />
+        <div className="space-y-4">
+            {/* Toolbar — scrollable on mobile, wraps naturally on desktop */}
+            <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Content Blocks</p>
+                <div className="flex flex-wrap gap-1.5">
+                    <ToolbarButton onClick={() => addBlock('heading')} icon={HeadingIcon} label="Heading" />
                     <ToolbarButton onClick={() => addBlock('text')} icon={TypeIcon} label="Text" />
                     <ToolbarButton onClick={() => addBlock('code')} icon={CodeIcon} label="Code" />
                     <ToolbarButton onClick={() => addBlock('image')} icon={ImageIcon} label="Image" />
@@ -82,63 +106,41 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                     <ToolbarButton icon={FileTextIcon} label="File" onClick={() => addBlock('file')} />
                     <ToolbarButton icon={Share2Icon} label="Diagram" onClick={() => addBlock('mermaid')} />
                     <ToolbarButton icon={SigmaIcon} label="Math" onClick={() => addBlock('math')} />
-                    <div className="w-[1px] h-4 bg-white/10 mx-1" />
+                    <ToolbarButton onClick={() => addBlock('callout')} icon={InfoIcon} label="Tip" />
+                    <ToolbarButton onClick={() => addBlock('activity')} icon={ActivityIcon} label="Activity" />
+                    <ToolbarButton onClick={() => addBlock('quiz')} icon={HelpCircleIcon} label="Quiz" />
                     <button
-                        onClick={async () => {
-                            const prompt = window.prompt("What image should AI generate for this lesson? (e.g. A robot soldering a circuit)");
-                            if (!prompt) return;
-
-                            const id = Date.now().toString();
-                            const newBlock: Block = { id, type: 'image', content: '', caption: prompt, url: '' };
-                            onChange([...layout, newBlock]); // Use onChange to update layout
-
-                            try {
-                                const res = await fetch('/api/ai/image', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ prompt })
-                                });
-                                const data = await res.json();
-                                if (data.url) {
-                                    updateBlock(id, { url: data.url }); // Use updateBlock with id
-                                } else {
-                                    alert('AI image generation failed');
-                                }
-                            } catch (e) {
-                                console.error(e);
-                                alert('AI image generation failed');
-                            }
-                        }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 rounded-lg text-xs font-bold transition-all border border-violet-500/20"
+                        type="button"
+                        onClick={handleAiImage}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 rounded-lg text-[10px] font-bold transition-all border border-violet-500/20"
                     >
                         <Wand2Icon className="w-3.5 h-3.5" />
                         AI Image
                     </button>
-                    <ToolbarButton onClick={() => addBlock('callout')} icon={InfoIcon} label="Tip" />
-                    <ToolbarButton onClick={() => addBlock('activity')} icon={ActivityIcon} label="Activity" />
-                    <ToolbarButton onClick={() => addBlock('quiz')} icon={HelpCircleIcon} label="Quiz" />
                 </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
                 {layout.length === 0 && (
                     <div className="py-12 border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center text-white/20">
                         <PlusIcon className="w-8 h-8 mb-2" />
-                        <p className="text-xs font-bold uppercase tracking-widest">No visual blocks yet</p>
+                        <p className="text-xs font-bold uppercase tracking-widest">No visual blocks yet — add one above</p>
                     </div>
                 )}
                 {layout.map((block, i) => (
-                    <div key={i} className="group relative bg-white/[0.02] border border-white/10 rounded-2xl p-4 hover:border-cyan-500/30 transition-all">
-                        <div className="absolute -left-10 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <ControlBtn onClick={() => moveBlock(i, 'up')} icon={ChevronUpIcon} disabled={i === 0} />
-                            <ControlBtn onClick={() => moveBlock(i, 'down')} icon={ChevronDownIcon} disabled={i === layout.length - 1} />
-                        </div>
-
-                        <div className="flex items-start gap-4">
+                    <div key={i} className="group bg-white/[0.02] border border-white/10 rounded-2xl p-3 sm:p-4 hover:border-cyan-500/30 transition-all">
+                        <div className="flex items-start gap-3">
                             <div className="flex-1 space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-cyan-400/60">{block.type}</span>
-                                    <button onClick={() => removeBlock(i)} className="p-1 hover:text-rose-400 text-white/20 transition-colors">
+                                {/* Block header: type label + move up/down + delete */}
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-cyan-400/60">{block.type}</span>
+                                        <div className="flex items-center gap-1">
+                                            <ControlBtn onClick={() => moveBlock(i, 'up')} icon={ChevronUpIcon} disabled={i === 0} title="Move up" />
+                                            <ControlBtn onClick={() => moveBlock(i, 'down')} icon={ChevronDownIcon} disabled={i === layout.length - 1} title="Move down" />
+                                        </div>
+                                    </div>
+                                    <button onClick={() => removeBlock(i)} className="p-1.5 hover:text-rose-400 text-white/20 hover:bg-rose-500/10 rounded-lg transition-colors">
                                         <TrashIcon className="w-4 h-4" />
                                     </button>
                                 </div>
@@ -188,7 +190,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                 )}
 
                                 {block.type === 'image' && (
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <input
                                             type="text"
                                             value={block.url}

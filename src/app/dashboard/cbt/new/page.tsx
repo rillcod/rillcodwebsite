@@ -58,16 +58,20 @@ export default function NewExamPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiTopic, setAiTopic] = useState('');
+  const [aiQuestionCount, setAiQuestionCount] = useState('10');
+  // Track which questions are selected (all selected by default)
+  const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
 
   const handleAiGenerate = async () => {
     if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
     setAiGenerating(true);
     setAiError(null);
     try {
+      const count = Math.max(1, Math.min(50, parseInt(aiQuestionCount) || 10));
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'cbt', topic: aiTopic })
+        body: JSON.stringify({ type: 'cbt', topic: aiTopic, questionCount: count })
       });
       const result = await res.json();
       if (result.error) throw new Error(result.error);
@@ -81,13 +85,16 @@ export default function NewExamPage() {
         passing_score: (data.passing_score || 70).toString(),
       }));
       if (data.questions?.length > 0) {
-        setQuestions(data.questions.map((q: any) => ({
+        const qs = data.questions.map((q: any) => ({
           question_text: q.question_text || '',
           question_type: q.question_type || 'multiple_choice',
           options: q.options || ['', '', '', ''],
           correct_answer: q.correct_answer || '',
           points: q.points || 5,
-        })));
+        }));
+        setQuestions(qs);
+        // Select all generated questions by default
+        setSelectedQuestions(new Set(qs.map((_: any, i: number) => i)));
       }
       setAiOpen(false);
     } catch (e: any) {
@@ -138,9 +145,13 @@ export default function NewExamPage() {
       setError('Title and programme are required.');
       return;
     }
-    const validQuestions = questions.filter(q => q.question_text.trim());
+    // Use selected questions if any selection was made, otherwise use all filled questions
+    const hasSelection = selectedQuestions.size > 0;
+    const validQuestions = questions.filter((q, i) =>
+      q.question_text.trim() && (!hasSelection || selectedQuestions.has(i))
+    );
     if (validQuestions.length === 0) {
-      setError('Add at least one question.');
+      setError('Add at least one question (or tick the questions you want to include).');
       return;
     }
     setSaving(true);
@@ -244,27 +255,39 @@ export default function NewExamPage() {
 
           {aiOpen && (
             <div className="px-5 pb-5 space-y-4 border-t border-emerald-500/20 bg-white/5">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4">
-                <div className="space-y-1 md:col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4">
+                <div className="space-y-1 sm:col-span-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Topic / Subject Matter</label>
                   <input
                     value={aiTopic}
                     onChange={e => setAiTopic(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiGenerate(); } }}
                     placeholder="e.g. Fundamental Concepts of AI & Machine Learning"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-emerald-500"
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={handleAiGenerate}
-                  disabled={aiGenerating}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all self-end"
-                >
-                  {aiGenerating ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-                  {aiGenerating ? 'Generating...' : 'Generate'}
-                </button>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">No. of Questions</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={aiQuestionCount}
+                    onChange={e => setAiQuestionCount(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500"
+                  />
+                </div>
               </div>
-              {aiError && <p className="text-[10px] text-rose-400">{aiError}</p>}
+              <button
+                type="button"
+                onClick={handleAiGenerate}
+                disabled={aiGenerating}
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all"
+              >
+                {aiGenerating ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <SparklesIcon className="w-4 h-4" />}
+                {aiGenerating ? 'Generating...' : `Generate ${aiQuestionCount} Questions`}
+              </button>
+              {aiError && <p className="text-[10px] text-rose-400 mt-2">{aiError}</p>}
             </div>
           )}
         </div>
@@ -364,20 +387,54 @@ export default function NewExamPage() {
 
           {/* Questions */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-white/60 uppercase tracking-widest">
-                Questions ({questions.length})
-              </h2>
-              <button type="button" onClick={addQuestion}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors">
-                <PlusIcon className="w-3.5 h-3.5" /> Add Question
-              </button>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h2 className="text-sm font-bold text-white/60 uppercase tracking-widest">
+                  Questions ({selectedQuestions.size > 0 ? `${selectedQuestions.size} selected / ` : ''}{questions.length} total)
+                </h2>
+                {selectedQuestions.size > 0 && (
+                  <p className="text-[10px] text-emerald-400/60 mt-0.5">Only ticked questions will be included in the exam</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {questions.length > 0 && (
+                  <button type="button"
+                    onClick={() => {
+                      if (selectedQuestions.size === questions.length) {
+                        setSelectedQuestions(new Set());
+                      } else {
+                        setSelectedQuestions(new Set(questions.map((_, i) => i)));
+                      }
+                    }}
+                    className="text-xs font-bold text-white/40 hover:text-white transition-colors px-3 py-1.5 bg-white/5 rounded-xl border border-white/10">
+                    {selectedQuestions.size === questions.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                )}
+                <button type="button" onClick={addQuestion}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors">
+                  <PlusIcon className="w-3.5 h-3.5" /> Add Question
+                </button>
+              </div>
             </div>
 
-            {questions.map((q, qi) => (
-              <div key={qi} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden transition-all hover:bg-white/[0.07] group">
-                <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-white/10">
+            {questions.map((q, qi) => {
+              const isSelected = selectedQuestions.has(qi);
+              return (
+              <div key={qi} className={`border rounded-2xl overflow-hidden transition-all group ${isSelected ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-white/5 border-white/10 hover:bg-white/[0.07]'}`}>
+                <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-white/5">
                   <div className="flex items-center gap-3">
+                    {/* Selection checkbox */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = new Set(selectedQuestions);
+                        if (next.has(qi)) next.delete(qi); else next.add(qi);
+                        setSelectedQuestions(next);
+                      }}
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${isSelected ? 'bg-emerald-500 border-emerald-400' : 'border-white/20 hover:border-emerald-500/50'}`}
+                    >
+                      {isSelected && <CheckIcon className="w-3 h-3 text-white" />}
+                    </button>
                     <span className="text-xs font-black text-white/30 w-6 tracking-tighter italic">#{qi + 1}</span>
                     <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
                         {q.question_type === 'essay' || q.question_type === 'fill_blank' ? (
@@ -494,7 +551,8 @@ export default function NewExamPage() {
                 )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Actions */}

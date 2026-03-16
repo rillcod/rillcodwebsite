@@ -10,6 +10,7 @@ import {
     PrinterIcon, AcademicCapIcon, MagnifyingGlassIcon,
     TrophyIcon, DocumentTextIcon, PencilSquareIcon, CheckCircleIcon,
     ArrowDownTrayIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon,
+    TrashIcon, XMarkIcon,
 } from '@/lib/icons';
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
@@ -131,6 +132,13 @@ function ResultsPageInner() {
 
     // ── Multi-select ───────────────────────────────────────────────────────────
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+    // ── Edit / Delete state ────────────────────────────────────────────────────
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editCourseName, setEditCourseName] = useState('');
+    const [editTerm, setEditTerm] = useState('');
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
+    const [isDeletingReport, setIsDeletingReport] = useState(false);
 
     // ── PDF state ──────────────────────────────────────────────────────────────
     const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -427,6 +435,55 @@ function ResultsPageInner() {
     async function navigateTo(idx: number) {
         if (idx < 0 || idx >= filtered.length) return;
         await loadStudentReport(filtered[idx]);
+    }
+
+    // ── Delete report ──────────────────────────────────────────────────────────
+    async function handleDeleteReport() {
+        if (!selectedReport) return;
+        if (!confirm(`Delete this report for ${selectedReport.student_name ?? 'this student'}? This cannot be undone.`)) return;
+        setIsDeletingReport(true);
+        try {
+            const res = await fetch(`/api/progress-reports/${selectedReport.id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const j = await res.json().catch(() => ({}));
+                alert(j.error ?? 'Failed to delete report.');
+                return;
+            }
+            // Remove from local map and clear selected
+            if (selectedStudent) {
+                setReportsMap(prev => {
+                    const next = { ...prev };
+                    delete next[selectedStudent.id];
+                    return next;
+                });
+            }
+            setSelectedReport(null);
+        } finally {
+            setIsDeletingReport(false);
+        }
+    }
+
+    // ── Patch report (rename course / term) ────────────────────────────────────
+    async function handleSaveEdit() {
+        if (!selectedReport) return;
+        setIsSavingEdit(true);
+        try {
+            const res = await fetch(`/api/progress-reports/${selectedReport.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ course_name: editCourseName.trim(), report_term: editTerm.trim() }),
+            });
+            if (!res.ok) {
+                const j = await res.json().catch(() => ({}));
+                alert(j.error ?? 'Failed to save changes.');
+                return;
+            }
+            const updated = { ...selectedReport, course_name: editCourseName.trim(), report_term: editTerm.trim() };
+            setSelectedReport(updated as StudentReport);
+            setShowEditModal(false);
+        } finally {
+            setIsSavingEdit(false);
+        }
     }
 
     // ── Loading screen ─────────────────────────────────────────────────────────
@@ -744,6 +801,26 @@ function ResultsPageInner() {
                                                         <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                                                     </Link>
                                                 )}
+                                                {isEditor && selectedReport && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => { setEditCourseName(selectedReport.course_name ?? ''); setEditTerm(selectedReport.report_term ?? ''); setShowEditModal(true); }}
+                                                            className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/20 transition-all"
+                                                        >
+                                                            <PencilSquareIcon className="w-3.5 h-3.5" /> Rename
+                                                        </button>
+                                                        <button
+                                                            onClick={handleDeleteReport}
+                                                            disabled={isDeletingReport}
+                                                            title="Delete this report"
+                                                            className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-50 rounded-xl border border-rose-500/20 transition-all"
+                                                        >
+                                                            {isDeletingReport
+                                                                ? <div className="w-3 h-3 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
+                                                                : <TrashIcon className="w-3.5 h-3.5" />}
+                                                        </button>
+                                                    </>
+                                                )}
                                                 {selectedReport && (
                                                     <div className="flex items-center gap-2">
                                                         <button
@@ -968,6 +1045,62 @@ function ResultsPageInner() {
                     )}
                 </div>
             </div>
+
+            {/* ══ Edit / Rename modal ══ */}
+            {showEditModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm print:hidden" onClick={() => setShowEditModal(false)}>
+                    <div className="bg-[#0f0f1a] border border-white/15 rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-5">
+                            <div>
+                                <h3 className="text-base font-extrabold text-white">Rename / Reassign Report</h3>
+                                <p className="text-xs text-white/40 mt-0.5">{selectedStudent?.full_name}</p>
+                            </div>
+                            <button onClick={() => setShowEditModal(false)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+                                <XMarkIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-white/60 mb-1.5 uppercase tracking-wider">Course / Class Name</label>
+                                <input
+                                    type="text"
+                                    value={editCourseName}
+                                    onChange={e => setEditCourseName(e.target.value)}
+                                    placeholder="e.g. Web Development, Python Basics"
+                                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500 transition-colors"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-white/60 mb-1.5 uppercase tracking-wider">Report Term</label>
+                                <input
+                                    type="text"
+                                    value={editTerm}
+                                    onChange={e => setEditTerm(e.target.value)}
+                                    placeholder="e.g. First Term 2025/2026"
+                                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500 transition-colors"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => setShowEditModal(false)}
+                                className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/10 transition-all font-semibold"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveEdit}
+                                disabled={isSavingEdit || !editCourseName.trim()}
+                                className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-sm text-white font-bold transition-all shadow-lg shadow-violet-900/30"
+                            >
+                                {isSavingEdit ? 'Saving…' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
         </>
     );

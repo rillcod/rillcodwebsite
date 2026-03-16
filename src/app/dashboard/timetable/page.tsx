@@ -436,53 +436,196 @@ export default function TimetablePage() {
     setSlots(prev => prev.map(s => s.id === slotId ? { ...s, day_of_week: day } : s));
   };
 
-  const handlePrint = () => {
-    if (!active) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+  // ── Professional A4 timetable print ──────────────────────────────────────
+  const buildTimetablePrint = (
+    ttMeta: { title: string; section?: string | null; term?: string | null; academic_year?: string | null; schools?: { name: string } | null },
+    printSlots: Slot[],
+    forTeacher?: string,
+  ) => {
+    const docRef = `TT-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const schoolName = (ttMeta as any).schools?.name ?? 'Rillcod Academy';
+
+    const slotsByDayLocal: Record<string, Slot[]> = {};
+    DAYS.forEach(d => {
+      slotsByDayLocal[d] = printSlots.filter(s => s.day_of_week === d).sort((a, b) => a.start_time.localeCompare(b.start_time));
+    });
 
     const daysHtml = DAYS.map(day => {
-      const daySlots = slotsByDay[day] || [];
-      const slotsHtml = daySlots.map(slot => `
-        <div style="margin-bottom: 10px; padding: 12px; border: 1px solid #eee; border-radius: 12px; background: #fff;">
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
-            <div style="font-weight: 900; color: #111; font-size: 14px; text-transform: uppercase;">${slot.subject}</div>
-            <div style="font-size: 11px; color: #7c3aed; font-weight: 800;">${slot.start_time} – ${slot.end_time}</div>
+      const daySlots = slotsByDayLocal[day] ?? [];
+      if (daySlots.length === 0) return `
+        <div style="margin-bottom:14px;">
+          <div style="background:#1e3a8a;color:#fff;padding:6px 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;border-radius:6px 6px 0 0;">${day}</div>
+          <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;padding:10px 12px;">
+            <span style="font-size:10px;color:#9ca3af;font-style:italic;">No classes scheduled</span>
           </div>
-          <div style="display: flex; gap: 15px;">
-            ${slot.teacher_name ? `<div style="font-size: 11px; color: #444;">👤 ${slot.teacher_name}</div>` : ''}
-            ${slot.room ? `<div style="font-size: 11px; color: #888;">📍 ${slot.room}</div>` : ''}
-          </div>
-        </div>
-      `).join('');
+        </div>`;
+
+      const rows = daySlots.map((slot, i) => `
+        <tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'};border-bottom:1px solid #e5e7eb;">
+          <td style="padding:7px 10px;font-weight:700;font-size:11px;white-space:nowrap;color:#4c1d95;">${slot.start_time} – ${slot.end_time}</td>
+          <td style="padding:7px 10px;font-weight:800;font-size:11px;text-transform:uppercase;">${slot.subject}</td>
+          <td style="padding:7px 10px;font-size:10px;color:#6b7280;">${slot.teacher_name ?? '—'}</td>
+          <td style="padding:7px 10px;font-size:10px;color:#6b7280;">${slot.room ?? '—'}</td>
+          <td style="padding:7px 10px;font-size:10px;color:#9ca3af;font-style:italic;">${slot.notes ?? ''}</td>
+        </tr>`).join('');
+
       return `
-        <div style="break-inside: avoid; margin-bottom: 30px;">
-          <h2 style="font-size: 14px; font-weight: 900; text-transform: uppercase; color: #111; border-left: 4px solid #7c3aed; padding-left: 12px; margin-bottom: 15px;">${day}</h2>
-          ${daySlots.length === 0 ? '<p style="color: #999; font-size: 11px; font-style: italic; margin-left: 12px;">No classes scheduled</p>' : slotsHtml}
-        </div>
-      `;
+        <div style="margin-bottom:16px;break-inside:avoid;">
+          <div style="background:#1e3a8a;color:#fff;padding:7px 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;">
+            <span>${day}</span><span style="opacity:0.6;">${daySlots.length} slot${daySlots.length !== 1 ? 's' : ''}</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;">
+            <thead><tr style="background:#ede9fe;">
+              <th style="padding:6px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#5b21b6;text-align:left;width:16%;">Time</th>
+              <th style="padding:6px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#5b21b6;text-align:left;width:28%;">Subject / Topic</th>
+              <th style="padding:6px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#5b21b6;text-align:left;width:22%;">Teacher / Facilitator</th>
+              <th style="padding:6px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#5b21b6;text-align:left;width:12%;">Room</th>
+              <th style="padding:6px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#5b21b6;text-align:left;width:22%;">Notes</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
     }).join('');
 
-    const html = `<html><head><title>Timetable - ${active.title}</title>
-      <style>@page { size: portrait; margin: 15mm; } body { font-family: 'Segoe UI', system-ui, sans-serif; color: #111; }</style>
-      </head><body>
-      <div style="text-align:center; border-bottom: 2px solid #eee; padding-bottom: 30px; margin-bottom: 40px;">
-        <div style="font-size: 30px; font-weight: 900; margin-bottom: 4px;">RILLCOD <span style="color:#7c3aed">ACADEMY</span></div>
-        <div style="font-size: 12px; color: #999; font-weight: 800; text-transform: uppercase; letter-spacing: 4px; margin-bottom: 20px;">Official Timetable</div>
-        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background:#eee; border-radius: 12px; overflow: hidden;">
-          <div style="background:#fff; padding:16px;"><div style="font-size:9px;color:#aaa;text-transform:uppercase;font-weight:900;margin-bottom:4px;">Timetable</div><div style="font-size:14px;font-weight:800;">${active.title}</div></div>
-          <div style="background:#fff; padding:16px;"><div style="font-size:9px;color:#aaa;text-transform:uppercase;font-weight:900;margin-bottom:4px;">School</div><div style="font-size:14px;font-weight:800;">${(active as any).schools?.name ?? 'General'}</div></div>
-          <div style="background:#fff; padding:16px;"><div style="font-size:9px;color:#aaa;text-transform:uppercase;font-weight:900;margin-bottom:4px;">Term / Year</div><div style="font-size:14px;font-weight:800;">${active.term ?? '—'} / ${active.academic_year ?? '—'}</div></div>
-        </div>
+    return `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <title>Timetable — ${ttMeta.title}</title>
+      <style>
+        @page { size: A4; margin: 18mm 15mm 20mm 15mm; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #111827; margin: 0; }
+        .no-print { display: none; }
+        @media screen { .no-print { display: block; } }
+      </style>
+    </head><body>
+
+    <div class="no-print" style="padding:12px;text-align:right;background:#f3f4f6;border-bottom:1px solid #e5e7eb;">
+      <button onclick="window.print()" style="padding:8px 20px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">🖨 Print / Save as PDF</button>
+    </div>
+
+    <!-- Letterhead -->
+    <div style="display:flex;align-items:center;gap:16px;border-bottom:3px solid #7c3aed;padding-bottom:14px;margin-bottom:18px;">
+      <img src="${window.location.origin}/logo.png" alt="Rillcod" style="width:56px;height:56px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'" />
+      <div style="flex:1;">
+        <div style="font-size:20px;font-weight:900;color:#7c3aed;letter-spacing:-0.5px;line-height:1.1;">RILLCOD TECHNOLOGIES</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px;">Coding Today, Innovating Tomorrow</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px;">26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; rillcod@gmail.com</div>
       </div>
-      ${daysHtml}
-      <div style="margin-top:50px; text-align:center; font-size:10px; color:#aaa; border-top:1px solid #eee; padding-top:20px;">
-        Generated ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
-        <br/><button onclick="window.print()" style="margin-top:20px; padding:12px 30px; background:#7c3aed; color:white; border:none; border-radius:10px; cursor:pointer; font-weight:900;">Print</button>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;">Official Document</div>
+        <div style="font-size:14px;font-weight:900;color:#7c3aed;text-transform:uppercase;">Class Timetable</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:4px;">${dateStr}</div>
       </div>
-      </body></html>`;
-    printWindow.document.write(html);
-    printWindow.document.close();
+    </div>
+
+    <!-- Title block -->
+    <div style="background:linear-gradient(135deg,#4c1d95 0%,#7c3aed 100%);border-radius:10px;padding:14px 20px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:16px;font-weight:900;color:#fff;">${forTeacher ? `Personal Schedule — ${forTeacher}` : ttMeta.title}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:3px;">${schoolName}${ttMeta.section ? ` · Section: ${ttMeta.section}` : ''}</div>
+      </div>
+      <div style="text-align:right;color:rgba(255,255,255,0.7);font-size:10px;">
+        <div>Ref: <strong style="color:#fff;">${docRef}</strong></div>
+        <div>${ttMeta.term ?? ''}${ttMeta.term && ttMeta.academic_year ? ' · ' : ''}${ttMeta.academic_year ?? ''}</div>
+      </div>
+    </div>
+
+    <!-- Metadata grid -->
+    <table style="width:100%;margin-bottom:14px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+      <tr>
+        <td style="padding:7px 12px;background:#f9fafb;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;width:16%;">School</td>
+        <td style="padding:7px 12px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:600;width:34%;">${schoolName}</td>
+        <td style="padding:7px 12px;background:#f9fafb;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;width:16%;">Term</td>
+        <td style="padding:7px 12px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:600;width:34%;">${ttMeta.term ?? '—'}</td>
+      </tr>
+      <tr>
+        <td style="padding:7px 12px;background:#f9fafb;border-right:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;">Section</td>
+        <td style="padding:7px 12px;font-size:11px;">${ttMeta.section ?? '—'}</td>
+        <td style="padding:7px 12px;background:#f9fafb;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;">Academic Year</td>
+        <td style="padding:7px 12px;font-size:11px;">${ttMeta.academic_year ?? '—'}</td>
+      </tr>
+    </table>
+
+    <!-- Day-by-day schedule -->
+    ${daysHtml}
+
+    <!-- Footer -->
+    <div style="margin-top:24px;padding-top:12px;border-top:2px solid #7c3aed;display:flex;justify-content:space-between;align-items:flex-end;">
+      <div>
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:5px;">Head of Academics</div>
+        <div style="border-top:1px solid #374151;width:160px;padding-top:4px;font-size:10px;color:#6b7280;">Signature &amp; Date</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:5px;">School Authority Stamp</div>
+        <div style="border:1px dashed #d1d5db;width:100px;height:40px;border-radius:6px;"></div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:9px;color:#d1d5db;">Ref: ${docRef}</div>
+        <div style="font-size:9px;color:#d1d5db;">Printed: ${dateStr}</div>
+        <div style="font-size:9px;color:#d1d5db;">academy.rillcod.com — Confidential</div>
+      </div>
+    </div>
+    </body></html>`;
+  };
+
+  const handlePrint = () => {
+    if (isTeacher) {
+      // Teacher: print their personal schedule
+      if (teacherSlots.length === 0) { alert('No schedule assigned to you yet.'); return; }
+      const ttMeta = {
+        title: 'My Teaching Schedule',
+        section: null,
+        term: (teacherSlots[0]?.timetable as any)?.term ?? null,
+        academic_year: (teacherSlots[0]?.timetable as any)?.academic_year ?? null,
+        schools: { name: 'All Assigned Schools' },
+      };
+      const win = window.open('', '_blank');
+      if (!win) { alert('Pop-up blocked.'); return; }
+      win.document.write(buildTimetablePrint(ttMeta, teacherSlots as Slot[], profile?.full_name ?? 'Teacher'));
+      win.document.close();
+      win.focus();
+      setTimeout(() => win.print(), 600);
+      return;
+    }
+    if (!active) { alert('No timetable selected.'); return; }
+    const win = window.open('', '_blank');
+    if (!win) { alert('Pop-up blocked.'); return; }
+    win.document.write(buildTimetablePrint(active, slots));
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 600);
+  };
+
+  // Admin: print ALL timetables in one document
+  const handlePrintAll = async () => {
+    if (!isAdmin || timetables.length === 0) return;
+    // Fetch all slots for all timetables
+    const { data: allSlots } = await anyDb.from('timetable_slots').select('*').order('start_time');
+    const slotList = (allSlots ?? []) as Slot[];
+    const pages = timetables.map(tt => {
+      const ttSlots = slotList.filter(s => s.timetable_id === tt.id);
+      return buildTimetablePrint(tt, ttSlots);
+    });
+    // Merge all into one document with page breaks
+    const combined = pages.map(p => {
+      // Extract just the body content between <body> and </body>
+      const bodyMatch = p.match(/<body>([\s\S]*)<\/body>/i);
+      return bodyMatch ? bodyMatch[1] : p;
+    }).join('<div style="page-break-before:always;"></div>');
+
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const full = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>All Timetables — ${dateStr}</title>
+      <style>@page{size:A4;margin:18mm 15mm 20mm 15mm;}body{font-family:'Segoe UI',Arial,sans-serif;color:#111827;margin:0;}
+      .no-print{display:none;}@media screen{.no-print{display:block;}}</style>
+      </head><body><div class="no-print" style="padding:12px;text-align:right;background:#f3f4f6;border-bottom:1px solid #e5e7eb;">
+      <button onclick="window.print()" style="padding:8px 20px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">🖨 Print All</button>
+      </div>${combined}</body></html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) { alert('Pop-up blocked.'); return; }
+    win.document.write(full);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 800);
   };
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -543,8 +686,16 @@ export default function TimetablePage() {
               onClick={handlePrint}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 font-bold text-sm rounded-xl transition-all"
             >
-              <CalendarDaysIcon className="w-4 h-4" /> Print
+              <CalendarDaysIcon className="w-4 h-4" /> {isTeacher ? 'Print My Schedule' : 'Print Timetable'}
             </button>
+            {isAdmin && (
+              <button
+                onClick={handlePrintAll}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/20 text-violet-400 font-bold text-sm rounded-xl transition-all"
+              >
+                <CalendarDaysIcon className="w-4 h-4" /> Print All
+              </button>
+            )}
             {isAdmin && (
               <button onClick={openNewTT}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-violet-900/30">

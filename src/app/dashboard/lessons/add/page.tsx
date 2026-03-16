@@ -329,12 +329,20 @@ export default function AddLessonPage() {
           )}
         </div>
 
-        <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl w-fit">
-          <TabBtn active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings2} label="Settings" />
-          <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={Layout} label="Visual Content" />
+        {/* Tab switcher */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl">
+            <TabBtn active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings2} label="Lesson Plan" />
+            <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={Layout} label="Content Builder" />
+          </div>
+          <p className="text-[11px] text-white/30 font-medium">
+            {activeTab === 'settings'
+              ? 'Define the lesson overview, prerequisites & study notes for students'
+              : 'Build visual content blocks — slides, code examples, quizzes & diagrams'}
+          </p>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-8">
+        <div className="bg-white/5 border border-white/10 rounded-3xl p-4 sm:p-8 space-y-8">
           {activeTab === 'settings' && (
             <div className="space-y-6 animate-in fade-in duration-500">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -377,7 +385,7 @@ export default function AddLessonPage() {
               <Field label="Brief Description" value={form.description} textarea onChange={(v: string) => setForm({ ...form, description: v })} />
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Lesson Notes (Student Prerequisite)</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Lesson Plan / Study Notes <span className="text-cyan-500/60 normal-case font-medium text-[9px]">(intro & prerequisites shown to students before class)</span></label>
                   <button type="button" onClick={handleGenerateNotesOnly}
                     className="text-[9px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1 hover:text-violet-300 transition-colors disabled:opacity-50"
                     disabled={aiGeneratingNotes || aiGenerating}>

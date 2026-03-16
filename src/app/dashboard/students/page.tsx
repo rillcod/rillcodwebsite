@@ -13,6 +13,7 @@ import {
   CalendarIcon, UserIcon, ExclamationTriangleIcon, StarIcon,
   BookOpenIcon, ClipboardDocumentListIcon, KeyIcon, ShieldCheckIcon,
   XMarkIcon, ClipboardIcon, PencilSquareIcon, BoltIcon, SparklesIcon,
+  PrinterIcon,
 } from '@/lib/icons';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 
@@ -67,6 +68,10 @@ export default function StudentsPage() {
   const [classMap, setClassMap] = useState<Record<string, string>>({}); // class_id → name
   const [schoolList, setSchoolList] = useState<{ id: string; name: string }[]>([]);
   const [assigningSchool, setAssigningSchool] = useState<string | null>(null); // portal student id being assigned
+
+  // Registry print filters
+  const [filterSchoolReg, setFilterSchoolReg] = useState('');
+  const [filterClassReg, setFilterClassReg] = useState('');
 
   // Bulk enrol
   const [selectedForEnrol, setSelectedForEnrol] = useState<Set<string>>(new Set());
@@ -371,6 +376,150 @@ export default function StudentsPage() {
     a.click();
   };
 
+  // ── Professional registry print ────────────────────────────
+  const handlePrintRegistry = () => {
+    const docRef = `SR-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    // Build document title from active filters
+    const parts: string[] = [];
+    if (filterSchoolReg) parts.push(filterSchoolReg);
+    if (filterClassReg) parts.push(filterClassReg);
+    if (sourceFilter === 'enrolled') parts.push('Enrolled Students');
+    else if (sourceFilter === 'applications') parts.push('Applications');
+    if (filter !== 'all') parts.push(`${filter.charAt(0).toUpperCase() + filter.slice(1)} Status`);
+    const subtitle = parts.length > 0 ? parts.join(' — ') : 'All Students';
+
+    const rows = filtered.map((s, i) => {
+      const isEnrolled = s._source === 'enrolled';
+      const cls = s.section_class || (s.class_id && classMap[s.class_id]) || s.grade_level || '—';
+      const email = s.email || s.parent_email || '—';
+      const school = s.school_name || '—';
+      const status = s.status || '—';
+      const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
+      return `
+        <tr style="background:${bg};border-bottom:1px solid #e5e7eb;">
+          <td style="padding:7px 10px;color:#9ca3af;font-size:11px;text-align:center;">${i + 1}</td>
+          <td style="padding:7px 10px;font-weight:700;font-size:11px;">${s.full_name ?? '—'}</td>
+          <td style="padding:7px 10px;color:#6b7280;font-size:11px;">${cls}</td>
+          <td style="padding:7px 10px;color:#6b7280;font-size:11px;">${school}</td>
+          <td style="padding:7px 10px;color:#6b7280;font-size:11px;">${email}</td>
+          <td style="padding:7px 10px;font-size:10px;text-align:center;">
+            <span style="padding:2px 8px;border-radius:9999px;font-weight:700;font-size:9px;background:${isEnrolled ? '#d1fae5' : '#ede9fe'};color:${isEnrolled ? '#065f46' : '#4c1d95'};">
+              ${isEnrolled ? 'Enrolled' : 'Application'}
+            </span>
+          </td>
+          <td style="padding:7px 10px;border-left:1px solid #d1d5db;min-width:80px;">&nbsp;</td>
+        </tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <title>Student Registry — ${subtitle}</title>
+      <style>
+        @page { size: A4; margin: 18mm 15mm 20mm 15mm; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; color: #111827; margin: 0; }
+        table { border-collapse: collapse; width: 100%; }
+        thead tr { background: #1e3a8a; color: #fff; }
+        th { padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; }
+        .no-print { display: none; }
+        @media screen { .no-print { display: block; } }
+      </style>
+    </head><body>
+
+    <!-- Print Button (screen only) -->
+    <div class="no-print" style="padding:12px;text-align:right;background:#f3f4f6;border-bottom:1px solid #e5e7eb;">
+      <button onclick="window.print()" style="padding:8px 20px;background:#1e3a8a;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">
+        🖨 Print / Save as PDF
+      </button>
+    </div>
+
+    <!-- Letterhead -->
+    <div style="display:flex;align-items:center;gap:16px;border-bottom:3px solid #1e3a8a;padding-bottom:14px;margin-bottom:20px;">
+      <img src="${window.location.origin}/logo.png" alt="Rillcod" style="width:60px;height:60px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'" />
+      <div style="flex:1;">
+        <div style="font-size:20px;font-weight:900;color:#1e3a8a;letter-spacing:-0.5px;line-height:1.1;">RILLCOD TECHNOLOGIES</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px;">Coding Today, Innovating Tomorrow</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px;">26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; rillcod@gmail.com</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;">Official Document</div>
+        <div style="font-size:14px;font-weight:900;color:#1e3a8a;text-transform:uppercase;">Student Registry</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:4px;">${dateStr}</div>
+      </div>
+    </div>
+
+    <!-- Title block -->
+    <div style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);border-radius:10px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:16px;font-weight:900;color:#fff;">Student Registry — ${subtitle}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:3px;">${filtered.length} student${filtered.length !== 1 ? 's' : ''} listed</div>
+      </div>
+      <div style="text-align:right;color:rgba(255,255,255,0.6);font-size:10px;">
+        <div>Ref: <strong style="color:#fff;">${docRef}</strong></div>
+        <div>Generated by: ${profile?.full_name ?? profile?.email ?? 'Staff'}</div>
+      </div>
+    </div>
+
+    <!-- Metadata grid -->
+    <table style="margin-bottom:16px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+      <tr>
+        <td style="padding:8px 14px;background:#f9fafb;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;width:16%;">Filter</td>
+        <td style="padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:600;width:34%;">${subtitle}</td>
+        <td style="padding:8px 14px;background:#f9fafb;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;border-left:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;width:16%;">Total Students</td>
+        <td style="padding:8px 14px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:700;color:#1e3a8a;width:34%;">${filtered.length}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 14px;background:#f9fafb;border-right:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">School</td>
+        <td style="padding:8px 14px;font-size:11px;">${filterSchoolReg || 'All Schools'}</td>
+        <td style="padding:8px 14px;background:#f9fafb;border-right:1px solid #e5e7eb;border-left:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Class / Grade</td>
+        <td style="padding:8px 14px;font-size:11px;">${filterClassReg || 'All Classes'}</td>
+      </tr>
+    </table>
+
+    <!-- Student table -->
+    <table>
+      <thead>
+        <tr>
+          <th style="width:4%;text-align:center;">#</th>
+          <th style="width:24%;">Student Full Name</th>
+          <th style="width:12%;">Class / Grade</th>
+          <th style="width:20%;">School</th>
+          <th style="width:22%;">Email Address</th>
+          <th style="width:10%;text-align:center;">Type</th>
+          <th style="width:8%;border-left:1px solid rgba(255,255,255,0.2);">Remarks</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+
+    <!-- Footer -->
+    <div style="margin-top:28px;padding-top:14px;border-top:2px solid #1e3a8a;display:flex;justify-content:space-between;align-items:flex-end;">
+      <div>
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;">Prepared by</div>
+        <div style="border-top:1px solid #374151;width:160px;padding-top:4px;font-size:10px;color:#6b7280;">${profile?.full_name ?? 'Staff Member'} &nbsp;·&nbsp; ${profile?.role ?? ''}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;">Authorised Signature</div>
+        <div style="border-top:1px solid #374151;width:180px;padding-top:4px;font-size:10px;color:#6b7280;">School Administrator &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:9px;color:#d1d5db;">Ref: ${docRef}</div>
+        <div style="font-size:9px;color:#d1d5db;">Printed: ${dateStr}</div>
+        <div style="font-size:9px;color:#d1d5db;">academy.rillcod.com — Confidential</div>
+      </div>
+    </div>
+
+    </body></html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) { alert('Pop-up blocked. Please allow pop-ups for this site.'); return; }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 600);
+  };
+
   // ── Unified combined list ───────────────────────────────────
   const normalizedApplications = students.map(s => ({ ...s, _source: 'application' as const }));
   const normalizedEnrolled = portalStudents.map(s => ({
@@ -392,8 +541,19 @@ export default function StudentsPage() {
       (sourceFilter === 'enrolled' && s._source === 'enrolled') ||
       (sourceFilter === 'applications' && s._source === 'application');
     const matchStatus = filter === 'all' || s.status === filter;
-    return ms && matchSource && matchStatus;
+    const matchSchoolReg = !filterSchoolReg || (s.school_name ?? '') === filterSchoolReg;
+    const studentClass = s.section_class || (s.class_id && classMap[s.class_id]) || s.grade_level || '';
+    const matchClassReg = !filterClassReg || studentClass === filterClassReg;
+    return ms && matchSource && matchStatus && matchSchoolReg && matchClassReg;
   });
+
+  // Distinct values for registry filter dropdowns
+  const distinctSchoolsReg = [...new Set(combined.map(s => s.school_name).filter(Boolean))].sort() as string[];
+  const distinctClassesReg = [...new Set([
+    ...combined.map(s => s.section_class).filter(Boolean),
+    ...combined.filter(s => s.class_id && classMap[s.class_id]).map(s => classMap[s.class_id]),
+    ...combined.map(s => s.grade_level).filter(Boolean),
+  ])].sort() as string[];
 
   const pending = normalizedApplications.filter(s => s.status === 'pending').length;
   const approved = normalizedApplications.filter(s => s.status === 'approved').length;
@@ -765,9 +925,9 @@ export default function StudentsPage() {
                   <ArrowPathIcon className="w-4 h-4" />
                 </button>
                 <div className="flex items-center gap-2 flex-1 sm:flex-none">
-                  <button onClick={() => window.print()} 
+                  <button onClick={handlePrintRegistry}
                     className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all print:hidden">
-                    <ClipboardIcon className="w-4 h-4" /> Print
+                    <PrinterIcon className="w-4 h-4" /> Print Registry
                   </button>
                   <button onClick={exportCSV}
                     className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all print:hidden">
@@ -851,28 +1011,54 @@ export default function StudentsPage() {
           </div>
 
           {/* ── Search + Filters ─────────────────────────────── */}
-          <div className="flex flex-col sm:flex-row gap-3 print:hidden">
-            <div className="relative flex-1">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-              <input type="text"
-                placeholder="Search name, email, school, class, city…"
-                value={search} onChange={e => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500 transition-colors" />
+          <div className="flex flex-col gap-3 print:hidden">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <input type="text"
+                  placeholder="Search name, email, school, class, city…"
+                  value={search} onChange={e => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500 transition-colors" />
+              </div>
+              <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value as any)}
+                className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
+                <option value="all">All Students</option>
+                <option value="enrolled">Enrolled Portal</option>
+                <option value="applications">Applications</option>
+              </select>
+              <select value={filter} onChange={e => setFilter(e.target.value)}
+                className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
             </div>
-            <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value as any)}
-              className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
-              <option value="all">All Students</option>
-              <option value="enrolled">Enrolled Portal</option>
-              <option value="applications">Applications</option>
-            </select>
-            <select value={filter} onChange={e => setFilter(e.target.value)}
-              className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
+            {/* Registry print filters */}
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <span className="text-[10px] font-black text-white/25 uppercase tracking-widest flex-shrink-0 sm:mt-0 mt-1">Filter for print:</span>
+              <select value={filterSchoolReg} onChange={e => setFilterSchoolReg(e.target.value)}
+                className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
+                <option value="">All Schools</option>
+                {distinctSchoolsReg.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select value={filterClassReg} onChange={e => setFilterClassReg(e.target.value)}
+                className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
+                <option value="">All Classes / Grades</option>
+                {distinctClassesReg.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              {(filterSchoolReg || filterClassReg) && (
+                <button onClick={() => { setFilterSchoolReg(''); setFilterClassReg(''); }}
+                  className="px-3 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs text-white/40 hover:text-white transition-all flex-shrink-0">
+                  Clear
+                </button>
+              )}
+              <button onClick={handlePrintRegistry}
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex-shrink-0">
+                <PrinterIcon className="w-3.5 h-3.5" /> Generate Registry
+              </button>
+            </div>
           </div>
 
           {/* ── Empty ───────────────────────────────────────── */}

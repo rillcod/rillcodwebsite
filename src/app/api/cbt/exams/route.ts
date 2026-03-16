@@ -37,7 +37,11 @@ export async function GET(_request: NextRequest) {
         .order('created_at', { ascending: false });
 
       if (caller.role === 'teacher') {
-        query = query.eq('created_by', caller.id) as any;
+        // Scope to exams created by this teacher (created_by) OR linked to their school
+        const orFilter = caller.school_id
+          ? `created_by.eq.${caller.id},school_id.eq.${caller.school_id}`
+          : `created_by.eq.${caller.id}`;
+        query = query.or(orFilter) as any;
       }
 
       const { data, error } = await query;

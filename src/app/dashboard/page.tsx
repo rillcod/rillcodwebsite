@@ -119,17 +119,27 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
 
   // Get schools this teacher is assigned to
   const { data: teacherSchools } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', userId);
-  const schoolIds = teacherSchools?.map(s => s.school_id).filter(Boolean) || [];
+  const schoolIds = teacherSchools?.map((s: any) => s.school_id).filter(Boolean) || [];
 
+  // Count classes: teacher_id match OR school is in teacher's assigned schools
+  let classQuery = supabase.from('classes').select('id', { count: 'exact', head: true });
+  if (schoolIds.length > 0) {
+    classQuery = classQuery.or(`teacher_id.eq.${userId},school_id.in.(${schoolIds.join(',')})`) as any;
+  } else {
+    classQuery = classQuery.eq('teacher_id', userId);
+  }
+
+  // Count students from registry: all students in teacher's schools (full registry count, not just created_by)
   let studentQuery = supabase.from('students').select('id', { count: 'exact', head: true });
   if (schoolIds.length > 0) {
     studentQuery = studentQuery.or(`school_id.in.(${schoolIds.join(',')}),created_by.eq.${userId}`);
   } else {
-    studentQuery = studentQuery.eq('created_by', userId);
+    // Fallback: count all portal users with role=student when no school assigned
+    studentQuery = supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student') as any;
   }
 
   const [classes, pendingAsgn, pendingCbt, subsAsgn, studentsHead] = await Promise.allSettled([
-    supabase.from('classes').select('id', { count: 'exact', head: true }).eq('teacher_id', userId),
+    classQuery,
     aIds.length > 0
       ? supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('status', 'submitted').in('assignment_id', aIds)
       : Promise.resolve({ count: 0 }),
@@ -475,6 +485,13 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchDashData(); }, [fetchDashData]);
 
+  // Auto-refresh stats every 60 seconds for teachers (live class/student counts)
+  useEffect(() => {
+    if (profile?.role !== 'teacher' && profile?.role !== 'admin') return;
+    const interval = setInterval(() => { fetchDashData(); }, 60_000);
+    return () => clearInterval(interval);
+  }, [profile?.role, fetchDashData]);
+
   // Auto-retry profile fetch if it came back null (up to 2 extra attempts, short delays)
   useEffect(() => {
     if (!profileLoading && !profile && user && profileRetryCount.current < 2) {
@@ -605,6 +622,17 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Stats Grid ── */}
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Live Stats</p>
+        <button
+          onClick={fetchDashData}
+          disabled={dataLoading}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all disabled:opacity-40"
+        >
+          <ArrowPathIcon className={`w-3.5 h-3.5 ${dataLoading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {dataLoading
           ? Array.from({ length: 4 }).map((_, i) => (

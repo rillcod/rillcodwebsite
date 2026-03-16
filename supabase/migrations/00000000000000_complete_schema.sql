@@ -458,7 +458,8 @@ CREATE TABLE IF NOT EXISTS "public"."cbt_exams" (
     "end_date" timestamp with time zone,
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"(),
-    "course_id" "uuid"
+    "course_id" "uuid",
+    "created_by" "uuid"
 );
 
 
@@ -2313,6 +2314,10 @@ CREATE INDEX "idx_cbt_exams_program" ON "public"."cbt_exams" USING "btree" ("pro
 
 
 
+CREATE INDEX "idx_cbt_exams_created_by" ON "public"."cbt_exams" USING "btree" ("created_by");
+
+
+
 CREATE INDEX "idx_cbt_questions_exam" ON "public"."cbt_questions" USING "btree" ("exam_id");
 
 
@@ -2915,6 +2920,11 @@ ALTER TABLE ONLY "public"."badges"
 
 ALTER TABLE ONLY "public"."cbt_exams"
     ADD CONSTRAINT "cbt_exams_course_id_fkey" FOREIGN KEY ("course_id") REFERENCES "public"."courses"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."cbt_exams"
+    ADD CONSTRAINT "cbt_exams_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "public"."portal_users"("id") ON DELETE SET NULL;
 
 
 
