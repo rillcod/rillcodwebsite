@@ -121,11 +121,11 @@ export interface OrgSettings {
 }
 
 const FEE_STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-    paid:        { bg: '#d1fae5', text: '#065f46', label: 'PAID' },
+    paid: { bg: '#d1fae5', text: '#065f46', label: 'PAID' },
     outstanding: { bg: '#fee2e2', text: '#991b1b', label: 'OUTSTANDING' },
-    partial:     { bg: '#fef3c7', text: '#92400e', label: 'PARTIAL PAYMENT' },
-    sponsored:   { bg: '#dbeafe', text: '#1e40af', label: 'SPONSORED' },
-    waived:      { bg: '#ede9fe', text: '#5b21b6', label: 'WAIVED' },
+    partial: { bg: '#fef3c7', text: '#92400e', label: 'PARTIAL PAYMENT' },
+    sponsored: { bg: '#dbeafe', text: '#1e40af', label: 'SPONSORED' },
+    waived: { bg: '#ede9fe', text: '#5b21b6', label: 'WAIVED' },
 };
 
 export default function ReportCard({ report, orgSettings }: {
@@ -139,12 +139,12 @@ export default function ReportCard({ report, orgSettings }: {
     const hasPayment = !!report.fee_status;
     const feeStyle = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
 
-    const theory     = Number(report.theory_score)     || 0;
-    const practical  = Number(report.practical_score)  || 0;
+    const theory = Number(report.theory_score) || 0;
+    const practical = Number(report.practical_score) || 0;
     const attendance = Number(report.attendance_score) || 0;
     // Always compute from components; use stored overall_score only when > 0
     const computed = Math.round(theory * 0.4 + practical * 0.4 + attendance * 0.2);
-    const overall  = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
+    const overall = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
     const grade = letterGrade(overall);
     const showCertificate = overall >= 45 || report.has_certificate === true;
 
@@ -305,7 +305,7 @@ export default function ReportCard({ report, orgSettings }: {
                                 {/* Qualitative grades — same column, thin rule separator */}
                                 <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly' }}>
                                     <GradeRow label="Project Work" value={report.projects_grade} />
-                                    <GradeRow label="Homework"      value={report.homework_grade} />
+                                    <GradeRow label="Homework" value={report.homework_grade} />
                                 </div>
                             </div>
 

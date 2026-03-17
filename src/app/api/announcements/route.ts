@@ -15,7 +15,7 @@ async function requireStaff() {
   if (error || !user) return null;
   const { data: profile } = await supabase
     .from('portal_users')
-    .select('id, role')
+    .select('id, role, school_id')
     .eq('id', user.id)
     .single();
   if (!profile || profile.role === 'student') return null;
@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
       content: content.trim(),
       target_audience: target_audience || 'all',
       author_id: caller.id,
+      school_id: (caller as any).school_id,
       is_active: true,
     })
     .select('*, portal_users!announcements_author_id_fkey(full_name)')

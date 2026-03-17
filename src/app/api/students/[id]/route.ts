@@ -29,7 +29,7 @@ export async function PATCH(
     // Whitelist updatable fields
     const allowed: Record<string, any> = {};
     const fields = ['full_name', 'name', 'parent_name', 'parent_email', 'parent_phone',
-        'school_name', 'school_id', 'grade_level', 'city', 'state',
+        'school_name', 'school_id', 'grade_level', 'section_class', 'city', 'state',
         'gender', 'date_of_birth', 'enrollment_type', 'status'];
     fields.forEach(f => { if (f in body) allowed[f] = body[f]; });
     if (body.full_name) allowed.name = body.full_name; // keep name in sync

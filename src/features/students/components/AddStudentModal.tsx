@@ -24,7 +24,7 @@ interface AddStudentModalProps {
 
 const DEFAULT_FORM = {
     full_name: '', parent_email: '', parent_name: '', parent_phone: '',
-    school_name: '', grade_level: '', city: '', state: '',
+    school_name: '', grade_level: '', section_class: '', city: '', state: '',
 };
 
 export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, classId }: AddStudentModalProps) {
@@ -48,6 +48,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                 parent_phone: initialData.parent_phone || '',
                 school_name: initialData.school_name || '',
                 grade_level: initialData.grade_level || '',
+                section_class: initialData.section_class || '',
                 city: initialData.city || '',
                 state: initialData.state || '',
             });
@@ -290,10 +291,9 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                                     onChange={e => setForm(p => ({ ...p, school_name: e.target.value }))} />
                             </Field>
                         )}
-
-                        {/* Grade + Location */}
+                                              {/* Grade + Section */}
                         <div className="grid grid-cols-2 gap-4">
-                            <Field label="Grade / Class">
+                            <Field label="Grade Level">
                                 <div className="relative">
                                     <BookOpenIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                                     <select name="grade_level" value={form.grade_level} onChange={handleChange}
@@ -303,16 +303,24 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                                     </select>
                                 </div>
                             </Field>
+                            <Field label="Specific Class / Section">
+                                <IconInput icon={BookOpenIcon} name="section_class" type="text" placeholder="e.g. JSS1 A"
+                                    value={form.section_class} onChange={handleChange} />
+                            </Field>
+                        </div>
+
+                        {/* Location */}
+                        <div className="grid grid-cols-2 gap-4">
                             <Field label="City">
                                 <input name="city" type="text" placeholder="City" value={form.city} onChange={handleChange}
                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-white/25" />
                             </Field>
+                            <Field label="State">
+                                <input name="state" type="text" placeholder="State" value={form.state} onChange={handleChange}
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-white/25" />
+                            </Field>
                         </div>
-
-                        <Field label="State">
-                            <input name="state" type="text" placeholder="State" value={form.state} onChange={handleChange}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-white/25" />
-                        </Field>
+ 
 
                     </div>
 

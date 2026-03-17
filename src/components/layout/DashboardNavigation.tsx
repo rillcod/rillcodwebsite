@@ -118,6 +118,7 @@ export default function DashboardNavigation() {
           { name: 'Payments', href: '/dashboard/payments', icon: BanknotesIcon },
           { divider: true, label: 'System' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'IoT Monitor', href: '/dashboard/iot', icon: SignalIcon },
           { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
         ];
@@ -191,6 +192,7 @@ export default function DashboardNavigation() {
           { name: 'Payments', href: '/dashboard/payments', icon: BanknotesIcon },
           { divider: true, label: 'More' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
         ];
 
@@ -221,10 +223,10 @@ export default function DashboardNavigation() {
   return (
     <>
       {/* ── Mobile Top Header ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#0B132B] px-4 py-2.5 text-white border-b-2 border-[#7a0606] shadow-lg">
-        <Link href="/dashboard" className="flex items-center gap-2.5">
-          <Image src="/images/logo.png" alt="Rillcod" width={32} height={32} className="rounded-lg" priority />
-          <span className="font-extrabold uppercase tracking-widest text-lg">Rillcod</span>
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#0B132B] px-4 py-1.5 text-white border-b border-[#7a0606] shadow-lg">
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <Image src="/images/logo.png" alt="Rillcod" width={24} height={24} className="rounded-lg" priority />
+          <span className="font-extrabold uppercase tracking-widest text-base">Rillcod</span>
         </Link>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (

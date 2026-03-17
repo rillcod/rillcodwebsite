@@ -148,7 +148,7 @@ export async function POST(request: Request) {
             role: 'student',
             school_id: resolvedSchoolId,
             school_name: resolvedSchoolName,
-            section_class: batchClassName || class_name || null,
+            section_class: class_name || batchClassName || null,
             class_id: batchClassId || null,
             is_active: true,
             updated_at: new Date().toISOString(),
@@ -164,7 +164,8 @@ export async function POST(request: Request) {
           continue;
         }
 
-        results.push({ full_name, email, password, class_name, status, userId: authUserId });
+        const effectiveClass = class_name || batchClassName || undefined;
+        results.push({ full_name, email, password, class_name: effectiveClass, status, userId: authUserId });
       } catch (err: any) {
         results.push({ full_name, email, password, class_name, status: 'failed', error: err.message });
       }
@@ -284,50 +285,87 @@ export async function PATCH(request: Request) {
     if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const results: any[] = body.results;
 
-    if (!Array.isArray(results) || results.length === 0) {
-      return NextResponse.json({ error: 'No results provided' }, { status: 400 });
+    if (body.type === 'batch') {
+      const { id, class_name, school_id, school_name } = body.data;
+      const { error } = await supabaseAdmin
+        .from('registration_batches')
+        .update({ class_name: class_name || null, school_id: school_id || null, school_name: school_name || null })
+        .eq('id', id);
+      if (error) throw error;
+      return NextResponse.json({ success: true });
     }
 
-    // 1. Update Official Registry (registration_results)
-    // We update each result entry. Note: results here have fields like full_name, email, class_name, and batch_id.
-    for (const r of results) {
-      if (!r.email) continue;
-
-      // Update history record
-      await supabaseAdmin
+    if (body.type === 'result') {
+      const r = body.data;
+      const { error: resErr } = await supabaseAdmin
         .from('registration_results')
-        .update({
-          full_name: r.full_name,
-          class_name: r.class_name || null,
-          email: r.email
-        })
-        .eq('batch_id', r.batch_id)
-        .eq('email', r.email);
+        .update({ full_name: r.full_name, class_name: r.class_name || null, email: r.email })
+        .eq('id', r.id);
+      if (resErr) throw resErr;
 
-      // 2. Update actual portal_users record if it exists
-      // Find user by email
       const { data: existingUser } = await supabaseAdmin
         .from('portal_users')
-        .select('id')
-        .eq('email', r.email)
-        .single();
-
+        .select('id').eq('email', r.email).single();
       if (existingUser) {
-        await supabaseAdmin
-          .from('portal_users')
-          .update({
-            full_name: r.full_name,
-            section_class: r.class_name || null,
-          })
-          .eq('id', existingUser.id);
+        await supabaseAdmin.from('portal_users').update({ full_name: r.full_name, section_class: r.class_name || null }).eq('id', existingUser.id);
       }
+      return NextResponse.json({ success: true });
     }
 
+    const results: any[] = body.results;
+    if (Array.isArray(results)) {
+       for (const r of results) {
+          await supabaseAdmin.from('registration_results').update({ full_name: r.full_name, class_name: r.class_name || null, email: r.email }).eq('batch_id', r.batch_id).eq('email', r.email);
+       }
+    }
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('Bulk update error:', err);
+    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const supabase = await createServerClient();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { searchParams } = new URL(request.url);
+    const batchId = searchParams.get('batchId');
+    const resultId = searchParams.get('resultId');
+
+    if (batchId && !resultId) {
+      // Delete whole batch
+      const { error: resErr } = await supabaseAdmin
+        .from('registration_results')
+        .delete()
+        .eq('batch_id', batchId);
+      if (resErr) throw resErr;
+
+      const { error: batErr } = await supabaseAdmin
+        .from('registration_batches')
+        .delete()
+        .eq('id', batchId);
+      if (batErr) throw batErr;
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (resultId) {
+      // Delete single result
+      const { error } = await supabaseAdmin
+        .from('registration_results')
+        .delete()
+        .eq('id', resultId);
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ error: 'Batch ID or Result ID required' }, { status: 400 });
+  } catch (err: any) {
+    console.error('Bulk delete error:', err);
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
   }
 }

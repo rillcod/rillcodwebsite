@@ -694,8 +694,12 @@ function ReportBuilderInner() {
                         type: 'report-feedback',
                         topic: sessionConfig.current_module,
                         studentName: form.student_name,
+                        gradeLevel: form.section_class,
                         attendance: `${attendance}/${totalSessions} sessions`,
                         assignments: `${assignments}/${totalAssignments} labs`,
+                        theoryScore: form.theory_score,
+                        practicalScore: form.practical_score,
+                        participationScore: form.participation_score,
                     }),
                 });
 

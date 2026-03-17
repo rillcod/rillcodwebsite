@@ -100,10 +100,25 @@ export default function BlocklyEditor({ xml, onChange, language = 'python' }: Bl
 
     const workspace = Blockly.inject(blocklyDiv.current, {
       toolbox,
-      theme: Blockly.Themes.Classic,
-      grid: { spacing: 20, length: 3, colour: '#ccc', snap: true },
+      theme: Blockly.Theme.defineTheme('rillcod-dark', {
+        'base': Blockly.Themes.Classic,
+        'componentStyles': {
+          'workspaceBackgroundColour': '#0d1526',
+          'toolboxBackgroundColour': '#161625',
+          'toolboxForegroundColour': '#ffffff',
+          'flyoutBackgroundColour': '#1e293b',
+          'flyoutForegroundColour': '#cccccc',
+          'scrollbarColour': '#334155',
+          'insertionMarkerColour': '#fff',
+          'insertionMarkerOpacity': 0.3,
+          'scrollbarOpacity': 0.4,
+          'cursorColour': '#d1d5db'
+        }
+      } as any),
+      grid: { spacing: 15, length: 2, colour: '#1e293b', snap: true },
       trashcan: true,
       zoom: { controls: true, wheel: true, startScale: 1.0, maxScale: 3, minScale: 0.3, scaleSpeed: 1.2 },
+      toolboxPosition: 'right',
     });
 
     workspaceRef.current = workspace;

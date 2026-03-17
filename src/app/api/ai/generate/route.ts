@@ -48,6 +48,8 @@ interface GenerateRequest {
   assignments?: string;
   currentContent?: any;
   questionCount?: number;
+  tone?: string;
+  audience?: string;
   // For grading
   questions?: any[];
   studentAnswers?: Record<string, string>;
@@ -74,19 +76,26 @@ Return a JSON object with this exact shape:
 Important: Be fair but encouraging. For 'essay' questions, look for key concepts. For 'fill_blank', allow minor spelling variations unless it's a technical term.`;
 
     case 'report-feedback':
-      return `Generate professional, encouraging, and specific student progress report feedback for a Rillcod Academy student.
+      return `Generate high-precision, result-specific student progress report feedback for a Rillcod Academy student.
+Context: Rillcod Academy is a premium STEM/Coding academy in Nigeria (Basic 1 to SS3).
 Student: "${req.studentName ?? 'The student'}"
 Current Module: "${req.topic}"
 Attendance: ${req.attendance ?? 'N/A'}
 Assignment/Lab Completion: ${req.assignments ?? 'N/A'}
 
+EVALUATIVE DIRECTIVES:
+1. "Nigerian Intelligence": Adopt a tone that is high-expectation, profoundly encouraging, and visionary—reflecting the aspirations of top-tier Nigerian families for their children to become global technological architects. Use sophisticated British English (e.g., 'programme', 'meticulous', 'endeavour').
+2. Metric-Driven specificity: Synthesize the provided statistics (attendance, labs). If labs are 100%, celebrate their 'technical fluidly' and 'practical synthesis'. If attendance is perfect, highlight their 'discipline and professional presence'. If metrics are average, provide a 'strategic roadmap for technical acceleration'.
+3. Result-Specific Commentary: Avoid all generic academic fluff. Mention specific technical components of "${req.topic}". For example, if the topic is 'Web Development', discuss 'DOM manipulation' or 'Responsive Grid layouts' specifically.
+4. Unique Narrative: Each persona is unique. The feedback MUST reflect a deep understanding of their individual engagement, operations, and practical output in the vault. Broadly scope the child's potential against global standards.
+
 Return a JSON object with this exact shape:
 {
-  "key_strengths": "string — 2-3 sentences highlighting specific technical wins and soft skills demonstrated during the module.",
-  "areas_for_growth": "string — 2-3 sentences suggesting realistic areas for improvement and specific next steps for the next module."
+  "key_strengths": "string — 2-3 sentences of elevated, highly specific technical appraisal. Discuss their mastery of specific concepts in ${req.topic} and their intellectual engagement.",
+  "areas_for_growth": "string — 2-3 sharp, precise sentences on how to sharpen their technical edge. Provide a visionary directive for the transition into the next phase."
 }
 
-Ensure the tone is premium, academic yet accessible, and reflects the Rillcod Academy brand of modern STEM excellence.`;
+Maintain a balance between prestigious academic standards and the vibrant, goal-oriented culture of Rillcod Academy.`;
 
     case 'lesson-notes':
       return `Generate ONLY the lesson notes for a Rillcod Academy class session.
@@ -251,18 +260,28 @@ Return a JSON object with this exact shape:
   "attribution": "string"
 }`;
     case 'newsletter':
-      return `Generate a premium, engaging academic newsletter for Rillcod Academy.
-Topic: "${req.topic}"
-Context: Rillcod Academy is a modern STEM/Coding academy in Nigeria (Basic 1 to SS3).
+      return `Generate a premium, visionary academic newsletter for Rillcod Academy.
+Topic/Event: "${req.topic}"
+Target Audience: ${req.audience ?? 'All School Stakeholders'}
+Brand Tone: ${req.tone ?? 'Professional & Educational'}
+
+EVALUATIVE DIRECTIVES:
+1. Context: Rillcod Academy is a high-end STEM/Coding academy in Nigeria. Use prestigious, empowering language. 
+2. Structure: 
+   - A captivating edition title/headline.
+   - Opening: A forward-thinking message about technology and education in Nigeria.
+   - Core Body: Deep, detailed breakdown of the topic/event. Avoid surface-level fluff.
+   - Encouraging Conclusion: Strategic closing message.
+3. Spelling: Use British English only (e.g. 'programme', 'centre', 'favour').
+4. Specificity: Weave in the importance of digital skills for the future Nigerian economy.
 
 Return a JSON object with this exact shape:
 {
   "title": "string — a catchy, professional newsletter title",
-  "content": "string — markdown-formatted content. Structure with ## headings, bullet points, and clear sections. Include: An opening message, key highlights about the topic, an encouraging closing, and a call to action.",
-  "summary": "string — 1-2 sentence summary for notification previews"
+  "content": "string — markdown-formatted content. Structure with ## headings and clear sections. Use a sophisticated font-style tone in writing.",
+  "summary": "string — 1-2 sentence compelling summary for notification previews"
 }
-
-Ensure the tone is premium, visionary, and professional. Use British English (e.g., 'programme', 'centre').`;
+`;
 
     case 'code-generation': {
       let langLabel = req.subject ?? req.topic ?? 'programming';
