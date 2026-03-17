@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
 // OpenRouter provides an OpenAI-compatible API — swap base URL + auth header
 const client = new OpenAI({
@@ -32,7 +33,7 @@ You can use specialized blocks in content_layout:
 - 'video': for educational videos
 Always return valid JSON only. For Nigerian context (Basic 1 to SS3), the tone is premium and modern.`;
 
-type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter';
+type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation';
 
 interface GenerateRequest {
   type: GenerateType;
@@ -263,6 +264,26 @@ Return a JSON object with this exact shape:
 
 Ensure the tone is premium, visionary, and professional. Use British English (e.g., 'programme', 'centre').`;
 
+    case 'code-generation': {
+      let langLabel = req.subject ?? req.topic ?? 'programming';
+      if (langLabel === 'robotics') langLabel = 'Python (for Robotics Simulation)';
+      
+      return `You are an expert ${langLabel} assistant for Rillcod Academy. 
+Generate a high-quality, clean, and well-commented code snippet for the following request:
+Task: "${req.topic}"
+Language Target: ${langLabel}
+
+Return a JSON object with this exact shape:
+{
+  "code": "string — The complete source code"
+}
+
+Requirements:
+- Provide ONLY code that is directly runnable or easily integrated.
+- Include thorough comments to explain the logic to a student.
+- Follow industry standards and premium coding patterns.`;
+    }
+
     default:
       throw new Error(`Unknown generate type: ${req.type}`);
   }
@@ -270,17 +291,38 @@ Ensure the tone is premium, visionary, and professional. Use British English (e.
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createServerClient();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { data: profile } = await supabase
+      .from('portal_users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    const isStaff = ['admin', 'teacher'].includes(profile?.role || '');
+
     if (!process.env.OPENROUTER_API_KEY) {
-      return NextResponse.json({ error: 'AI service not configured. Add OPENROUTER_API_KEY to environment.' }, { status: 503 });
+      return NextResponse.json({ error: 'AI service not configured.' }, { status: 503 });
     }
 
     const body: GenerateRequest = await req.json();
     const { type } = body;
 
+    // Security Check: Only staff can use most generation endpoints
+    if (!isStaff && type !== 'report-feedback') { // Allow students some limited feedback maybe? No, let's restrict all for now unless specified.
+       return NextResponse.json({ error: 'Forbidden: Professional access required' }, { status: 403 });
+    }
+
+    if (type === 'code-generation' && !isStaff) {
+       return NextResponse.json({ error: 'Professional license required for code generation' }, { status: 403 });
+    }
+
     if (!body.topic?.trim()) {
       return NextResponse.json({ error: 'topic is required' }, { status: 400 });
     }
-    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'cbt', 'report-feedback', 'cbt-grading'];
+    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'cbt', 'report-feedback', 'cbt-grading', 'newsletter', 'code-generation'];
     if (!VALID_TYPES.includes(type)) {
       return NextResponse.json({ error: 'invalid type' }, { status: 400 });
     }

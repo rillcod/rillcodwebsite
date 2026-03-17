@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
+    if (!caller || !['admin', 'teacher'].includes(caller.role)) {
       return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
 

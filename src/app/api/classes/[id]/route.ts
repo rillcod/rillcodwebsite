@@ -18,7 +18,7 @@ async function requireStaff() {
     .select('role, id')
     .eq('id', user.id)
     .single();
-  if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
+  if (!caller || !['admin', 'teacher'].includes(caller.role)) return null;
   return caller;
 }
 

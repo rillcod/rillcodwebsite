@@ -137,46 +137,57 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
            <div className="mx-auto rounded-[2rem] bg-white overflow-hidden shadow-2xl"
                   style={{ width: '210mm', minHeight: '297mm', padding: '20mm' }}>
                 
-                {/* Printable Content (Same as Admin Preview) */}
+                {/* Printable Content (Premium Letterhead) */}
                 <div ref={pdfRef}>
                     {/* Branded Letterhead */}
-                    <div style={{ borderBottom: '3px solid #1d4ed8', paddingBottom: '20px', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-                      <img src="/logo.png" alt="Logo" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
+                    <div style={{ borderBottom: '4px solid #1a1a1a', paddingBottom: '25px', marginBottom: '40px', display: 'flex', alignItems: 'center', gap: '30px' }}>
+                      <div style={{ width: '90px', height: '90px', background: '#1a1a1a', borderRadius: '18px', display: 'flex', alignItems: 'center', justifySelf: 'center', padding: '15px' }}>
+                        <img src="/logo.png" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'invert(1)' }} />
+                      </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '24px', fontWeight: 900, color: '#1d4ed8', letterSpacing: '-0.5px' }}>RILLCOD TECHNOLOGIES</div>
-                        <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>Coding Today, Innovating Tomorrow</div>
-                        <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091</div>
+                        <div style={{ fontSize: '28px', fontWeight: 900, color: '#1a1a1a', letterSpacing: '-1px', textTransform: 'uppercase' }}>RILLCOD ACADEMY</div>
+                        <div style={{ fontSize: '12px', color: '#4b5563', marginTop: '2px', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase' }}>Official Institutional Communication</div>
+                        <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '6px', fontWeight: 500 }}>26 Ogiesoba Avenue, Benin City &nbsp;·&nbsp; academy.rillcod.com &nbsp;·&nbsp; 0811 660 0091</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 800, color: '#1d4ed8', textTransform: 'uppercase' }}>OFFICIAL NEWSLETTER</div>
-                        <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '4px' }}>
-                          {newsletter.published_at ? new Date(newsletter.published_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}
+                        <div style={{ fontSize: '14px', fontWeight: 900, color: '#1a1a1a', textTransform: 'uppercase', letterSpacing: '1px' }}>VOL. {new Date().getFullYear()}</div>
+                        <div style={{ fontSize: '10px', color: '#1a1a1a', marginTop: '4px', fontWeight: 800, textTransform: 'uppercase' }}>
+                          {newsletter.published_at ? new Date(newsletter.published_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
                         </div>
                       </div>
                     </div>
 
                     {/* Content */}
-                    <div className="max-w-none text-[#111827]">
-                      <h1 className="text-3xl font-black text-[#111827] mb-8">{newsletter.title}</h1>
-                      <div className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap font-serif bg-white p-4 rounded-xl border border-gray-100">
+                    <div className="max-w-none">
+                      <div style={{ color: '#1a1a1a', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '3px', marginBottom: '15px' }}>Topic / Subject</div>
+                      <h1 style={{ fontSize: '38px', fontWeight: 900, color: '#1a1a1a', marginBottom: '40px', lineHeight: '1.1', textTransform: 'uppercase', letterSpacing: '-1.5px' }}>
+                        {newsletter.title}
+                      </h1>
+                      
+                      <div style={{ fontSize: '15px', lineHeight: '1.8', color: '#374151', whiteSpace: 'pre-wrap', fontFamily: 'Georgia, serif', textAlign: 'justify' }}>
                         {newsletter.content}
                       </div>
                     </div>
 
                     {/* Signature */}
-                    <div style={{ marginTop: '60px', borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                        <div>
-                          <img src="/images/signature.png" alt="Official Signature" style={{ width: '150px', marginBottom: '10px' }} />
-                          <div style={{ fontSize: '14px', fontWeight: 800, color: '#111827'  }}>THE ADMINISTRATOR</div>
-                          <div style={{ fontSize: '11px', color: '#6b7280'  }}>Rillcod Academy Management</div>
+                    <div style={{ marginTop: '80px', borderTop: '2px solid #f3f4f6', paddingTop: '30px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ position: 'relative' }}>
+                          <img src="/images/signature.png" alt="Official Signature" style={{ width: '180px', position: 'absolute', top: '-50px', left: '0', opacity: 0.8, mixBlendMode: 'multiply' }} />
+                          <div style={{ marginTop: '20px' }}>
+                            <div style={{ fontSize: '16px', fontWeight: 900, color: '#1a1a1a', textTransform: 'uppercase' }}>The Administrator</div>
+                            <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>Rillcod Academy Executive</div>
+                          </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                           <div style={{ width: '100px', height: '100px', border: '1px solid #f3f4f6', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', textTransform: 'uppercase', fontSize: '10px', color: '#e5e7eb' }}>STAMP SPACE</div>
+                           <div style={{ width: '120px', height: '120px', border: '2px dashed #e5e7eb', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: '10px', color: '#d1d5db', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                             Official<br/>Academy<br/>Stamp
+                           </div>
                         </div>
                       </div>
                     </div>
                 </div>
+
            </div>
         </div>
 

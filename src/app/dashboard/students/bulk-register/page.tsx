@@ -69,14 +69,17 @@ function generatePassword(): string {
   return `Rillcod@${digits}`;
 }
 
-/** Generate an email from a name, avoiding collisions against a set of taken emails. */
+/** Generate a unique and readable email including 3 random digits. */
 function makeEmail(firstName: string, taken: Set<string>, skipEmail?: string): string {
   const base = firstName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'student';
-  let email = `${base}@rillcod.com`;
-  if (email === skipEmail || !taken.has(email)) return email;
+  const digits = Math.floor(100 + Math.random() * 900); // 3-digit suffix for better uniqueness
+  let email = `${base}${digits}@rillcod.com`.toLowerCase();
+  
+  if (email === skipEmail?.toLowerCase() || !taken.has(email)) return email;
+  
   let i = 2;
-  while (taken.has(`${base}${i}@rillcod.com`) && `${base}${i}@rillcod.com` !== skipEmail) i++;
-  return `${base}${i}@rillcod.com`;
+  while (taken.has(`${base}${digits}_${i}@rillcod.com`.toLowerCase()) && `${base}${digits}_${i}@rillcod.com`.toLowerCase() !== skipEmail?.toLowerCase()) i++;
+  return `${base}${digits}_${i}@rillcod.com`.toLowerCase();
 }
 
 // ─── Core parser ─────────────────────────────────────────────────────────────
@@ -156,6 +159,7 @@ function nextId() { return ++_idCounter; }
 
 function buildStudentList(rawLines: string[], fallbackClass?: string): GeneratedStudent[] {
   const usedEmails = new Set<string>();
+  const usedNames = new Map<string, number>(); // track name counts for batch-level uniqueness
   const students: GeneratedStudent[] = [];
   let contextClass: string | null = null;
 
@@ -169,11 +173,19 @@ function buildStudentList(rawLines: string[], fallbackClass?: string): Generated
     }
 
     const inlineClass = detectClass(line);
-    const namePart = inlineClass ? stripClass(line) : line;
+    let namePart = inlineClass ? stripClass(line) : line;
     if (!namePart) continue;
 
+    // Handle duplicate names in the batch by adding a small ID suffix if needed
+    const nameKey = namePart.toLowerCase();
+    const count = usedNames.get(nameKey) || 0;
+    usedNames.set(nameKey, count + 1);
+    if (count > 0) {
+      namePart = `${namePart} #${count + 1}`;
+    }
+
     // Priority: inline class > header context > fallback default class
-    const resolvedClass = inlineClass ?? contextClass ?? (fallbackClass ? (detectClass(fallbackClass) ?? fallbackClass.trim().toUpperCase()) || undefined : undefined);
+    const resolvedClass = inlineClass ?? contextClass ?? (fallbackClass ? (detectClass(fallbackClass) || fallbackClass.trim().toUpperCase()) || undefined : undefined);
     const first = extractFirstName(namePart);
     const email = makeEmail(first, usedEmails);
     usedEmails.add(email);
@@ -192,6 +204,8 @@ export default function BulkRegisterPage() {
   const [namesText, setNamesText] = useState('');
   const [preview, setPreview] = useState<GeneratedStudent[]>([]);
   const [registering, setRegistering] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
   const [results, setResults] = useState<RegisterResult[] | null>(null);
   const [registerProgress, setRegisterProgress] = useState<{ done: number; total: number; current: string } | null>(null);
   const [step, setStep] = useState<'input' | 'preview' | 'done'>('input');
@@ -500,6 +514,25 @@ export default function BulkRegisterPage() {
     document.body.removeChild(link);
   };
 
+  const handleUpdateResults = async () => {
+    if (!results) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/students/bulk-register', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ results }),
+      });
+      if (!res.ok) throw new Error('Failed to update records');
+      setSuccess('Records updated in both Official Registry and Portal Accounts!');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ─── Guards ──────────────────────────────────────────────────────────────
   if (authLoading || !profile) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
@@ -530,22 +563,27 @@ export default function BulkRegisterPage() {
       {/* ── Print-only styles ──────────────────────────────────────────── */}
       <style>{`
         @media print {
-          body * { visibility: hidden !important; }
-          #printable-sheet, #printable-sheet * { visibility: visible !important; }
+          body * { display: none !important; }
+          #printable-sheet, #printable-sheet * { display: block !important; }
+          #printable-sheet table, #printable-sheet table * { display: table !important; }
+          #printable-sheet tr, #printable-sheet tr * { display: table-row !important; }
+          #printable-sheet td, #printable-sheet td * { display: table-cell !important; }
+          #printable-sheet th, #printable-sheet th * { display: table-header-group !important; }
           #printable-sheet {
-            position: fixed; inset: 0; background: #fff; color: #000; padding: 24px;
+            position: absolute; inset: 0; background: #fff; color: #000; padding: 24px;
+            display: block !important;
           }
           #printable-sheet h2  { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
           #printable-sheet p   { font-size: 12px; margin-bottom: 16px; color: #555; }
           #printable-sheet table { width: 100%; border-collapse: collapse; font-size: 11px; }
-          #printable-sheet th  { background: #1a1a2e; color: #fff; padding: 7px 9px; text-align: left; font-weight: 700; }
+          #printable-sheet th  { background: #1a1a2e !important; color: #fff !important; -webkit-print-color-adjust: exact; padding: 7px 9px; text-align: left; font-weight: 700; }
           #printable-sheet td  { border-bottom: 1px solid #e5e7eb; padding: 6px 9px; color: #111; }
-          #printable-sheet tr:nth-child(even) td { background: #f9fafb; }
-          #printable-sheet .cls-badge { background: #cffafe; color: #0e7490; padding: 1px 6px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
-          #printable-sheet .badge-ok  { background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
-          #printable-sheet .badge-fail{ background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
+          #printable-sheet tr:nth-child(even) td { background: #f9fafb !important; -webkit-print-color-adjust: exact; }
+          #printable-sheet .cls-badge { background: #cffafe !important; color: #0e7490 !important; padding: 1px 6px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
+          #printable-sheet .badge-ok  { background: #d1fae5 !important; color: #065f46 !important; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
+          #printable-sheet .badge-fail{ background: #fee2e2 !important; color: #991b1b !important; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
           #printable-sheet .footer-note { margin-top: 20px; font-size: 10px; color: #888; border-top: 1px solid #e5e7eb; padding-top: 10px; }
-          @page { margin: 1.5cm; }
+          @page { margin: 1cm; size: auto; }
         }
       `}</style>
 
@@ -930,7 +968,7 @@ Yusuf Ibrahim SS1A`}
               </div>
 
               <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
-                <table className="w-full text-xs border-separate border-spacing-0">
+                <table className="hidden md:table w-full text-xs border-separate border-spacing-0">
                   <thead className="sticky top-0 bg-[#0b1020] z-10">
                     <tr className="text-white/40 uppercase tracking-wider text-[10px]">
                       <th className="text-left px-3 py-2.5 border-b border-white/10 w-8">#</th>
@@ -1011,6 +1049,36 @@ Yusuf Ibrahim SS1A`}
                     })}
                   </tbody>
                 </table>
+
+                {/* Mobile view */}
+                <div className="md:hidden divide-y divide-white/5">
+                  {preview.map((s, i) => {
+                    const emailDup = dups.has(s.email.toLowerCase());
+                    const incomplete = !s.full_name.trim() || !s.email.trim();
+                    return (
+                      <div key={s.id} className={`p-4 space-y-3 ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : ''}`}>
+                         <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Student #{i+1}</span>
+                            <button onClick={() => removeRow(s.id)} className="text-white/20 hover:text-rose-400 p-1"><XMarkIcon className="w-4 h-4" /></button>
+                         </div>
+                         <div className="space-y-2">
+                           <input className={inp} value={s.full_name} onChange={(e) => updateField(s.id, 'full_name', e.target.value)} onBlur={(e) => onNameBlur(s.id, e.target.value)} placeholder="Full Name" />
+                           <div className="flex gap-2">
+                             <input className={`${inp} font-mono w-24`} value={s.class_name ?? ''} onChange={(e) => updateField(s.id, 'class_name', e.target.value)} onBlur={(e) => onClassBlur(s.id, e.target.value)} placeholder="Class" />
+                             <div className="relative flex-1">
+                               <input className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-violet-300'}`} value={s.email} onChange={(e) => updateField(s.id, 'email', e.target.value)} placeholder="Email" />
+                               {emailDup && <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-400" />}
+                             </div>
+                           </div>
+                           <div className="flex items-center justify-between px-3 py-2 bg-white/5 rounded-xl border border-white/5 text-[10px]">
+                              <span className="text-white/30 uppercase font-bold">Password</span>
+                              <span className="font-mono text-amber-300/80">{s.password}</span>
+                           </div>
+                         </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Add row + footer */}
@@ -1068,6 +1136,12 @@ Yusuf Ibrahim SS1A`}
         {/* ══════════════════ STEP 3 — DONE ═══════════════════════════ */}
         {step === 'done' && results && (
           <div className="space-y-8 max-w-4xl mx-auto">
+            {success && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3 text-emerald-400 animate-in fade-in slide-in-from-top-4">
+                <CheckCircleIcon className="w-5 h-5" />
+                <span className="text-sm font-bold">{success}</span>
+              </div>
+            )}
             <div className="bg-gradient-to-b from-emerald-500/10 to-[#0d1526] border border-emerald-500/20 rounded-[2.5rem] p-8 text-center relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
               <div className="relative z-10">
@@ -1107,6 +1181,14 @@ Yusuf Ibrahim SS1A`}
               >
                 <PlusIcon className="w-5 h-5" /> Register More
               </button>
+              <button
+                onClick={handleUpdateResults}
+                disabled={loading}
+                className="flex items-center justify-center gap-3 px-6 py-4 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 font-bold rounded-2xl transition-all border border-emerald-500/20"
+              >
+                {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CheckCircleIcon className="w-5 h-5" />}
+                Save Corrections
+              </button>
             </div>
 
             <div className="bg-[#0d1526] border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl">
@@ -1138,13 +1220,39 @@ Yusuf Ibrahim SS1A`}
                     {results.map((r, i) => (
                       <tr key={i} className={`group transition-colors ${r.status === 'failed' ? 'bg-rose-500/5' : 'hover:bg-white/[0.01]'}`}>
                         <td className="px-6 py-3.5 text-white/20 font-mono">{String(i + 1).padStart(2, '0')}</td>
-                        <td className="px-4 py-3.5 text-white font-bold">{r.full_name}</td>
                         <td className="px-4 py-3.5">
-                          {r.class_name
-                            ? <span className="inline-block px-2 py-0.5 bg-cyan-500/10 text-cyan-400 text-[9px] font-black rounded-md border border-cyan-500/20 uppercase tracking-tighter">{r.class_name}</span>
-                            : <span className="text-white/10 text-[10px]">—</span>}
+                          <input
+                            className="bg-transparent border-none text-white font-bold w-full focus:ring-1 focus:ring-violet-500 rounded p-1"
+                            value={r.full_name}
+                            onChange={(e) => {
+                              const newResults = [...results];
+                              newResults[i].full_name = e.target.value;
+                              setResults(newResults);
+                            }}
+                          />
                         </td>
-                        <td className="px-4 py-3.5 text-violet-300/80 font-mono text-[11px]">{r.email}</td>
+                        <td className="px-4 py-3.5">
+                          <input
+                            className="bg-transparent border-none text-cyan-400 text-[9px] font-black uppercase tracking-tighter w-full focus:ring-1 focus:ring-cyan-500 rounded p-1"
+                            value={r.class_name || ''}
+                            onChange={(e) => {
+                              const newResults = [...results];
+                              newResults[i].class_name = e.target.value;
+                              setResults(newResults);
+                            }}
+                          />
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <input
+                            className="bg-transparent border-none text-violet-300/80 font-mono text-[11px] w-full focus:ring-1 focus:ring-violet-500 rounded p-1"
+                            value={r.email}
+                            onChange={(e) => {
+                              const newResults = [...results];
+                              newResults[i].email = e.target.value;
+                              setResults(newResults);
+                            }}
+                          />
+                        </td>
                         <td className="px-4 py-3.5">
                           <span className="font-mono text-amber-300 font-bold bg-amber-500/5 px-2 py-1 rounded-md border border-amber-500/10">
                             {r.status !== 'failed' ? r.password : '••••••'}
@@ -1191,8 +1299,8 @@ Yusuf Ibrahim SS1A`}
               </tr>
             </thead>
             <tbody>
-              {results.map((r, i) => (
-                <tr key={i}>
+              {Array.from(new Map(results.map(r => [r.email.toLowerCase(), r])).values()).map((r, i) => (
+                <tr key={i} style={{ pageBreakInside: 'avoid' }}>
                   <td>{i + 1}</td>
                   <td>{r.full_name}</td>
                   <td>{(r.class_name || effectiveClassCode) ? <span className="cls-badge">{r.class_name || effectiveClassCode}</span> : '—'}</td>

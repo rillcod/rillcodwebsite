@@ -276,3 +276,58 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const supabase = await createServerClient();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const body = await request.json();
+    const results: any[] = body.results;
+
+    if (!Array.isArray(results) || results.length === 0) {
+      return NextResponse.json({ error: 'No results provided' }, { status: 400 });
+    }
+
+    // 1. Update Official Registry (registration_results)
+    // We update each result entry. Note: results here have fields like full_name, email, class_name, and batch_id.
+    for (const r of results) {
+      if (!r.email) continue;
+
+      // Update history record
+      await supabaseAdmin
+        .from('registration_results')
+        .update({
+          full_name: r.full_name,
+          class_name: r.class_name || null,
+          email: r.email
+        })
+        .eq('batch_id', r.batch_id)
+        .eq('email', r.email);
+
+      // 2. Update actual portal_users record if it exists
+      // Find user by email
+      const { data: existingUser } = await supabaseAdmin
+        .from('portal_users')
+        .select('id')
+        .eq('email', r.email)
+        .single();
+
+      if (existingUser) {
+        await supabaseAdmin
+          .from('portal_users')
+          .update({
+            full_name: r.full_name,
+            section_class: r.class_name || null,
+          })
+          .eq('id', existingUser.id);
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error('Bulk update error:', err);
+    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
+  }
+}

@@ -52,7 +52,11 @@ export default function ClassDetailPage() {
   const [newClassForm, setNewClassForm] = useState({ name: '', program_id: '', school_id: '', max_students: '' });
   const [creatingNewClass, setCreatingNewClass] = useState(false);
 
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+  const [editingSession, setEditingSession] = useState<any>(null);
+  const [sessionForm, setSessionForm] = useState({ topic: '', session_date: '', start_time: '', end_time: '', notes: '' });
+  const [savingSession, setSavingSession] = useState(false);
+
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
   const fetchData = async () => {
     if (!id || !profile) return;
@@ -267,6 +271,47 @@ export default function ClassDetailPage() {
     }
   };
 
+  const handleEditSession = (s: any) => {
+    setEditingSession(s);
+    setSessionForm({
+      topic: s.topic || '',
+      session_date: s.session_date || '',
+      start_time: s.start_time || '',
+      end_time: s.end_time || '',
+      notes: s.notes || ''
+    });
+  };
+
+  const saveEditedSession = async () => {
+    if (!editingSession) return;
+    setSavingSession(true);
+    try {
+      const res = await fetch(`/api/class-sessions/${editingSession.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sessionForm),
+      });
+      if (!res.ok) throw new Error('Failed to update session');
+      setEditingSession(null);
+      await fetchData();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setSavingSession(false);
+    }
+  };
+
+  const deleteSession = async (sessId: string) => {
+    if (!confirm('Permanently delete this session record?')) return;
+    try {
+      const res = await fetch(`/api/class-sessions/${sessId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      await fetchData();
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
   const handleExportLogins = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -274,8 +319,11 @@ export default function ClassDetailPage() {
     const issuedDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
     const docRef = `RC-${cls.id?.slice(0, 8).toUpperCase()}-${Date.now().toString().slice(-6)}`;
 
-    const enrRows = enrollments.map((enr: any, idx: number) => `
-      <tr>
+    // Deduplicate enrollments to prevent duplicate rows in the register
+    const uniqueEnrollments = Array.from(new Map(enrollments.map((e: any) => [e.portal_user_id || e.id, e])).values());
+
+    const enrRows = uniqueEnrollments.map((enr: any, idx: number) => `
+      <tr style="page-break-inside: avoid;">
         <td style="text-align:center; font-weight:700; color:#64748b;">${idx + 1}</td>
         <td>
           <div style="font-weight:700; color:#1e293b; font-size:13px;">${enr.full_name || '—'}</div>
@@ -287,7 +335,7 @@ export default function ClassDetailPage() {
           <div style="display:inline-block; width:130px; border-bottom:1.5px solid #94a3b8; margin-top:10px;">&nbsp;</div>
         </td>
         <td style="text-align:center;">
-          <div style="border:1px solid #e2e8f0; border-radius:4px; padding:6px 4px; font-size:10px; color:#94a3b8;">Received</div>
+          <div style="border:1px solid #e2e8f0; border-radius:4px; padding:6px 4px; font-size:10px; color:#94a3b8;">Acknowledgement</div>
         </td>
       </tr>
     `).join('');
@@ -640,7 +688,18 @@ export default function ClassDetailPage() {
                 {/* Recent Sessions */}
                 <div className="bg-white/5 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
                   <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">Operational History</h3>
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20">Operational History</h3>
+                      <button 
+                        onClick={() => {
+                          setEditingSession({ id: 'new', class_id: id });
+                          setSessionForm({ topic: '', session_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '11:00', notes: '' });
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 rounded-full text-violet-400 text-[10px] font-black uppercase tracking-tighter transition-all"
+                      >
+                        <PlusIcon className="w-3 h-3" /> New Session
+                      </button>
+                    </div>
                     <Link href={`/dashboard/attendance?class_id=${id}`} className="text-[9px] font-black text-violet-400 hover:text-violet-300 uppercase tracking-widest transition-colors tracking-[0.2em]">View Full Registry →</Link>
                   </div>
                   {sessions.length === 0 ? (
@@ -664,6 +723,22 @@ export default function ClassDetailPage() {
                               <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">{new Date(s.session_date).toLocaleDateString()}</p>
                             </div>
                             <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{s.start_time || '00:00'} — {s.end_time || '00:00'}</p>
+                          </div>
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => handleEditSession(s)}
+                              className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"
+                              title="Edit Session"
+                            >
+                              <PencilIcon className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => deleteSession(s.id)}
+                              className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-rose-400 transition-all"
+                              title="Delete Session"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
                           </div>
                           {s.notes && <p className="text-[10px] text-white/20 font-medium italic max-w-[200px] truncate hidden sm:block">"{s.notes}"</p>}
                         </div>
@@ -1362,6 +1437,107 @@ export default function ClassDetailPage() {
         }}
         classId={id}
       />
+
+      {/* Session Edit/Create Modal */}
+      {editingSession && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => !savingSession && setEditingSession(null)} />
+          <div className="relative w-full max-w-lg bg-[#0d1526] border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+            <div className="p-8 border-b border-white/5">
+              <h3 className="text-xl font-black text-white uppercase tracking-tight">
+                {editingSession.id === 'new' ? 'Initialize New Session' : 'Modify Session Parameters'}
+              </h3>
+              <p className="text-white/30 text-[10px] font-black uppercase tracking-widest mt-1">Registry Synchronization Protocol</p>
+            </div>
+            <div className="p-8 space-y-5">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Session Topic / Curriculum Focus</label>
+                <input
+                  type="text"
+                  value={sessionForm.topic}
+                  onChange={(e) => setSessionForm({ ...sessionForm, topic: e.target.value })}
+                  placeholder="e.g. Introduction to Variables"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-violet-500/50 transition-all font-medium"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Archive Date</label>
+                  <input
+                    type="date"
+                    value={sessionForm.session_date}
+                    onChange={(e) => setSessionForm({ ...sessionForm, session_date: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-violet-500/50 transition-all [color-scheme:dark]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Start — End Time</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={sessionForm.start_time}
+                      onChange={(e) => setSessionForm({ ...sessionForm, start_time: e.target.value })}
+                      className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-3 py-4 text-white focus:outline-none focus:border-violet-500/50 transition-all [color-scheme:dark] text-sm"
+                    />
+                    <span className="text-white/20">—</span>
+                    <input
+                      type="time"
+                      value={sessionForm.end_time}
+                      onChange={(e) => setSessionForm({ ...sessionForm, end_time: e.target.value })}
+                      className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-3 py-4 text-white focus:outline-none focus:border-violet-500/50 transition-all [color-scheme:dark] text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-1">Facilitator Notes (Internal)</label>
+                <textarea
+                  value={sessionForm.notes}
+                  onChange={(e) => setSessionForm({ ...sessionForm, notes: e.target.value })}
+                  rows={3}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-violet-500/50 transition-all font-medium resize-none text-sm"
+                  placeholder="Record student participation or blockers..."
+                />
+              </div>
+            </div>
+            <div className="p-8 bg-black/40 border-t border-white/5 flex gap-4">
+              <button
+                onClick={() => setEditingSession(null)}
+                disabled={savingSession}
+                className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white/40 font-black rounded-2xl transition-all uppercase tracking-widest text-[10px] border border-white/10"
+              >
+                Abort
+              </button>
+              <button
+                onClick={async () => {
+                  setSavingSession(true);
+                  try {
+                    const isNew = editingSession.id === 'new';
+                    const url = isNew ? '/api/class-sessions' : `/api/class-sessions/${editingSession.id}`;
+                    const res = await fetch(url, {
+                      method: isNew ? 'POST' : 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(isNew ? { ...sessionForm, class_id: id } : sessionForm),
+                    });
+                    if (!res.ok) throw new Error('Operation failed');
+                    setEditingSession(null);
+                    await fetchData();
+                  } catch (e: any) {
+                    alert(e.message);
+                  } finally {
+                    setSavingSession(false);
+                  }
+                }}
+                disabled={savingSession}
+                className="flex-[2] py-4 bg-violet-600 hover:bg-violet-500 text-white font-black rounded-2xl transition-all uppercase tracking-widest text-[10px] shadow-xl shadow-violet-900/40 flex items-center justify-center gap-2"
+              >
+                {savingSession ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4" />}
+                {editingSession.id === 'new' ? 'Commit to Registry' : 'Save Modifications'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

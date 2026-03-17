@@ -2007,6 +2007,80 @@ export type Database = {
           },
         ]
       }
+      lab_projects: {
+        Row: {
+          assignment_id: string | null
+          blocks_xml: string | null
+          code: string | null
+          created_at: string | null
+          id: string
+          is_public: boolean | null
+          language: string
+          lesson_id: string | null
+          preview_url: string | null
+          title: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          assignment_id?: string | null
+          blocks_xml?: string | null
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          is_public?: boolean | null
+          language: string
+          lesson_id?: string | null
+          preview_url?: string | null
+          title: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          assignment_id?: string | null
+          blocks_xml?: string | null
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          is_public?: boolean | null
+          language?: string
+          lesson_id?: string | null
+          preview_url?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_projects_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_projects_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_projects_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_projects_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       leaderboards: {
         Row: {
           course_id: string | null

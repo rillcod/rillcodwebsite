@@ -21,7 +21,7 @@ async function requireAuth() {
   return profile;
 }
 
-// POST /api/messages — send a message
+// POST /api/messages — send a message with role-based guards
 export async function POST(request: NextRequest) {
   const caller = await requireAuth();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -33,6 +33,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'recipient_id and message are required' }, { status: 400 });
 
   const admin = adminClient();
+
+  // ── Role-Based Guard ──
+  // 1. Get recipient role
+  const { data: recipient } = await admin
+    .from('portal_users')
+    .select('role')
+    .eq('id', recipient_id)
+    .single();
+
+  if (!recipient) return NextResponse.json({ error: 'Recipient not found' }, { status: 404 });
+
+  // 2. Logic: Students can ONLY message Admins or Teachers.
+  if (caller.role === 'student') {
+    if (recipient.role !== 'admin' && recipient.role !== 'teacher') {
+      return NextResponse.json({ error: 'Students can only message staff members' }, { status: 403 });
+    }
+  }
+  // Admins and Teachers are permitted to message anyone.
+
   const { data, error } = await admin
     .from('messages')
     .insert({
