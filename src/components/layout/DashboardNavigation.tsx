@@ -18,9 +18,9 @@ import {
 } from '@/lib/icons';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type NavItem    = { name: string; href: string; icon: any };
+type NavItem = { name: string; href: string; icon: any };
 type NavDivider = { divider: true; label: string };
-type NavEntry   = NavItem | NavDivider;
+type NavEntry = NavItem | NavDivider;
 
 function isDivider(e: NavEntry): e is NavDivider {
   return 'divider' in e;
@@ -51,7 +51,7 @@ export default function DashboardNavigation() {
   useEffect(() => {
     if (isMinimal || !profile) return;
     const db = createClient();
-    
+
     Promise.all([
       db.from('messages').select('id', { count: 'exact', head: true })
         .eq('recipient_id', profile.id).eq('is_read', false),
@@ -91,107 +91,107 @@ export default function DashboardNavigation() {
         return [
           ...base,
           { divider: true, label: 'People' },
-          { name: 'Schools',          href: '/dashboard/schools',          icon: BuildingOfficeIcon },
-          { name: 'Teachers',         href: '/dashboard/teachers',         icon: AcademicCapIcon },
-          { name: 'Students',         href: '/dashboard/students',         icon: UserGroupIcon },
-          { name: 'Register Students',href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
-          { name: 'Enrol Students',   href: '/dashboard/students/bulk-enroll',   icon: AcademicCapIcon },
-          { name: 'Wipe Students',    href: '/dashboard/students/bulk-delete',   icon: TrashIcon },
-          { name: 'Users',            href: '/dashboard/users',            icon: ShieldCheckIcon },
-          { name: 'Approvals',        href: '/dashboard/approvals',        icon: ClipboardDocumentCheckIcon },
+          { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
+          { name: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
+          { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
+          { name: 'Enrol Students', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon },
+          { name: 'Wipe Students', href: '/dashboard/students/bulk-delete', icon: TrashIcon },
+          { name: 'Users', href: '/dashboard/users', icon: ShieldCheckIcon },
+          { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
           { divider: true, label: 'Academics' },
-          { name: 'Programs',         href: '/dashboard/programs',         icon: AcademicCapIcon },
-          { name: 'Courses',          href: '/dashboard/courses',          icon: BookOpenIcon },
-          { name: 'Assignments',      href: '/dashboard/assignments',      icon: ClipboardDocumentListIcon },
-          { name: 'Grades',           href: '/dashboard/grades',           icon: ClipboardDocumentCheckIcon },
-          { name: 'CBT Exams',        href: '/dashboard/cbt',              icon: AcademicCapIcon },
-          { name: 'Timetable',        href: '/dashboard/timetable',        icon: CalendarDaysIcon },
+          { name: 'Programs', href: '/dashboard/programs', icon: AcademicCapIcon },
+          { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
+          { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
+          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
+          { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
           { divider: true, label: 'Content' },
-          { name: 'Library',          href: '/dashboard/library',          icon: BookOpenIcon },
-          { name: 'Leaderboard',      href: '/dashboard/leaderboard',      icon: TrophyIcon },
-          { name: 'Live Sessions',    href: '/dashboard/live-sessions',    icon: VideoCameraIcon },
+          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
+          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
+          { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
           { divider: true, label: 'Reports' },
-          { name: 'Report Builder',   href: '/dashboard/reports/builder',  icon: DocumentTextIcon },
-          { name: 'Progress Reports', href: '/dashboard/results',          icon: DocumentChartBarIcon },
-          { name: 'Analytics',        href: '/dashboard/analytics',        icon: ChartBarIcon },
+          { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
+          { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
+          { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
           { divider: true, label: 'Finance' },
-          { name: 'Payments',         href: '/dashboard/payments',         icon: BanknotesIcon },
+          { name: 'Payments', href: '/dashboard/payments', icon: BanknotesIcon },
           { divider: true, label: 'System' },
-          { name: 'Messages',         href: '/dashboard/messages',         icon: EnvelopeIcon },
-          { name: 'IoT Monitor',      href: '/dashboard/iot',              icon: SignalIcon },
-          { name: 'Settings',         href: '/dashboard/settings',         icon: CogIcon },
+          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'IoT Monitor', href: '/dashboard/iot', icon: SignalIcon },
+          { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
         ];
 
       case 'teacher':
         return [
           ...base,
           { divider: true, label: 'Teaching' },
-          { name: 'My Classes',       href: '/dashboard/classes',          icon: BookOpenIcon },
-          { name: 'Lessons',          href: '/dashboard/lessons',          icon: PresentationChartLineIcon },
-          { name: 'Assignments',      href: '/dashboard/assignments',      icon: ClipboardDocumentListIcon },
-          { name: 'CBT Exams',        href: '/dashboard/cbt',              icon: AcademicCapIcon },
-          { name: 'Attendance',       href: '/dashboard/attendance',       icon: ClipboardDocumentCheckIcon },
-          { name: 'Timetable',        href: '/dashboard/timetable',        icon: CalendarDaysIcon },
+          { name: 'My Classes', href: '/dashboard/classes', icon: BookOpenIcon },
+          { name: 'Lessons', href: '/dashboard/lessons', icon: PresentationChartLineIcon },
+          { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
+          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
+          { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
+          { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
           { divider: true, label: 'Students' },
-          { name: 'Students',         href: '/dashboard/students',         icon: UserGroupIcon },
-          { name: 'Register Students',href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
-          { name: 'Enrol Students',   href: '/dashboard/students/bulk-enroll',   icon: AcademicCapIcon },
-          { name: 'Grades',           href: '/dashboard/grades',           icon: ClipboardDocumentCheckIcon },
+          { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
+          { name: 'Enrol Students', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon },
+          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
           { divider: true, label: 'Reports' },
-          { name: 'Report Builder',   href: '/dashboard/reports/builder',  icon: DocumentTextIcon },
-          { name: 'Progress Reports', href: '/dashboard/results',          icon: DocumentChartBarIcon },
+          { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
+          { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
           { divider: true, label: 'Content' },
-          { name: 'Library',          href: '/dashboard/library',          icon: BookOpenIcon },
-          { name: 'Code Playground',  href: '/dashboard/playground',       icon: CodeBracketIcon },
-          { name: 'Leaderboard',      href: '/dashboard/leaderboard',      icon: TrophyIcon },
+          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
+          { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
+          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
           { divider: true, label: 'More' },
-          { name: 'Live Sessions',    href: '/dashboard/live-sessions',    icon: VideoCameraIcon },
-          { name: 'Messages',         href: '/dashboard/messages',         icon: EnvelopeIcon },
-          { name: 'Settings',         href: '/dashboard/settings',         icon: CogIcon },
+          { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
+          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
         ];
 
       case 'student':
         return [
           ...base,
           { divider: true, label: 'Learn' },
-          { name: 'My Courses',       href: '/dashboard/courses',          icon: BookOpenIcon },
-          { name: 'Learning Centre',  href: '/dashboard/learning',         icon: AcademicCapIcon },
-          { name: 'Assignments',      href: '/dashboard/assignments',      icon: ClipboardDocumentListIcon },
-          { name: 'CBT Exams',        href: '/dashboard/cbt',              icon: AcademicCapIcon },
-          { name: 'Library',          href: '/dashboard/library',          icon: BookOpenIcon },
+          { name: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon },
+          { name: 'Learning Centre', href: '/dashboard/learning', icon: AcademicCapIcon },
+          { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
+          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
+          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
           { divider: true, label: 'Activities' },
-          { name: 'Code Playground',  href: '/dashboard/playground',       icon: CodeBracketIcon },
-          { name: 'Live Sessions',    href: '/dashboard/live-sessions',    icon: VideoCameraIcon },
-          { name: 'My Portfolio',     href: '/dashboard/portfolio',        icon: RocketLaunchIcon },
-          { name: 'Leaderboard',      href: '/dashboard/leaderboard',      icon: TrophyIcon },
+          { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
+          { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
+          { name: 'My Portfolio', href: '/dashboard/portfolio', icon: RocketLaunchIcon },
+          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
           { divider: true, label: 'Schedule' },
-          { name: 'Timetable',        href: '/dashboard/timetable',        icon: CalendarDaysIcon },
-          { name: 'Attendance',       href: '/dashboard/attendance',       icon: ClipboardDocumentCheckIcon },
+          { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
+          { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
           { divider: true, label: 'My Progress' },
-          { name: 'Grades',           href: '/dashboard/grades',           icon: ClipboardDocumentCheckIcon },
-          { name: 'My Report Card',   href: '/dashboard/results',          icon: DocumentChartBarIcon },
+          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'My Report Card', href: '/dashboard/results', icon: DocumentChartBarIcon },
           { divider: true, label: 'More' },
-          { name: 'Messages',         href: '/dashboard/messages',         icon: EnvelopeIcon },
-          { name: 'Settings',         href: '/dashboard/settings',         icon: CogIcon },
+          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
         ];
 
       case 'school':
         return [
           ...base,
           { divider: true, label: 'My School' },
-          { name: 'School Overview',  href: '/dashboard/school-overview',  icon: ChartBarIcon },
-          { name: 'My Students',      href: '/dashboard/students',         icon: UserGroupIcon },
-          { name: 'Attendance',       href: '/dashboard/attendance',       icon: ClipboardDocumentCheckIcon },
-          { name: 'Timetable',        href: '/dashboard/timetable',        icon: CalendarDaysIcon },
+          { name: 'School Overview', href: '/dashboard/school-overview', icon: ChartBarIcon },
+          { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
+          { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
           { divider: true, label: 'Reports' },
-          { name: 'Student Reports',  href: '/dashboard/results',          icon: DocumentChartBarIcon },
-          { name: 'Grades',           href: '/dashboard/grades',           icon: ClipboardDocumentCheckIcon },
-          { name: 'Performance',      href: '/dashboard/progress',         icon: PresentationChartLineIcon },
+          { name: 'Student Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
+          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'Performance', href: '/dashboard/progress', icon: PresentationChartLineIcon },
           { divider: true, label: 'Finance' },
-          { name: 'Payments',         href: '/dashboard/payments',         icon: BanknotesIcon },
+          { name: 'Payments', href: '/dashboard/payments', icon: BanknotesIcon },
           { divider: true, label: 'More' },
-          { name: 'Messages',         href: '/dashboard/messages',         icon: EnvelopeIcon },
-          { name: 'Settings',         href: '/dashboard/settings',         icon: CogIcon },
+          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
         ];
 
       default:
@@ -207,12 +207,12 @@ export default function DashboardNavigation() {
     profile?.role === 'student'
       ? ['Dashboard', 'My Courses', 'Code Playground', 'My Report Card', 'Messages']
       : profile?.role === 'school'
-      ? ['Dashboard', 'My Students', 'Student Reports', 'Messages']
-      : profile?.role === 'admin'
-      ? ['Dashboard', 'Students', 'Approvals', 'Progress Reports', 'Messages']
-      : profile?.role === 'teacher'
-      ? ['Dashboard', 'My Classes', 'Students', 'Progress Reports', 'Messages']
-      : ['Dashboard']
+        ? ['Dashboard', 'My Students', 'Student Reports', 'Messages']
+        : profile?.role === 'admin'
+          ? ['Dashboard', 'Students', 'Approvals', 'Progress Reports', 'Messages']
+          : profile?.role === 'teacher'
+            ? ['Dashboard', 'My Classes', 'Students', 'Progress Reports', 'Messages']
+            : ['Dashboard']
   );
   const bottomNavItems = navItems.filter(item => BOTTOM_NAV_NAMES.has(item.name)).slice(0, 4);
 
@@ -315,11 +315,10 @@ export default function DashboardNavigation() {
                 key={name}
                 href={href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold tracking-wider uppercase transition-all duration-200 ${
-                  active
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold tracking-wider uppercase transition-all duration-200 ${active
                     ? 'bg-[#7a0606] text-white shadow-md'
                     : 'text-gray-400 hover:bg-[#1a2b54] hover:text-white'
-                }`}
+                  }`}
               >
                 <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-white' : 'text-gray-400'}`} />
                 <span className="truncate">{name}</span>
@@ -378,9 +377,8 @@ export default function DashboardNavigation() {
               key={`mobile-${name}`}
               href={href}
               onClick={() => setMobileOpen(false)}
-              className={`flex flex-col items-center gap-1 px-2 py-1 rounded-xl min-w-[3.5rem] transition-all duration-200 ${
-                active ? 'text-white' : 'text-gray-500 hover:text-gray-300'
-              }`}
+              className={`flex flex-col items-center gap-1 px-2 py-1 rounded-xl min-w-[3.5rem] transition-all duration-200 ${active ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+                }`}
             >
               <div className={`relative p-2 rounded-lg transition-all duration-200 ${active ? 'bg-[#7a0606] shadow-md shadow-black/40' : ''}`}>
                 <Icon className={`w-6 h-6 ${active ? 'text-white' : 'text-gray-400'}`} />
@@ -392,14 +390,14 @@ export default function DashboardNavigation() {
               </div>
               <span className={`text-[9px] font-bold uppercase tracking-wide leading-none ${active ? 'text-white' : 'text-gray-500'}`}>
                 {name === 'My Courses' ? 'Courses' :
-                 name === 'My Classes' ? 'Classes' :
-                 name === 'My Report Card' ? 'Report' :
-                 name === 'Code Playground' ? 'Play' :
-                 name === 'Progress Reports' ? 'Reports' :
-                 name === 'Student Reports' ? 'Reports' :
-                 name === 'My Students' ? 'Students' :
-                 name === 'School Overview' ? 'Overview' :
-                 name}
+                  name === 'My Classes' ? 'Classes' :
+                    name === 'My Report Card' ? 'Report' :
+                      name === 'Code Playground' ? 'Play' :
+                        name === 'Progress Reports' ? 'Reports' :
+                          name === 'Student Reports' ? 'Reports' :
+                            name === 'My Students' ? 'Students' :
+                              name === 'School Overview' ? 'Overview' :
+                                name}
               </span>
             </Link>
           );

@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   EnvelopeIcon, PaperAirplaneIcon, MegaphoneIcon, PlusIcon,
   ArrowPathIcon, CheckIcon, TrashIcon, UserIcon,
-  ExclamationTriangleIcon,
+  ExclamationTriangleIcon, DocumentTextIcon,
 } from '@/lib/icons';
 
 type Tab = 'inbox' | 'sent' | 'compose' | 'announcements' | 'newsletters';
@@ -18,7 +18,7 @@ export default function MessagesPage() {
   const [inbox, setInbox] = useState<any[]>([]);
   const [sent, setSent] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [newsletters, setNewsletters] = useState<any[]>([]);
+  const [newsletters, setNewsletters] = useState<any[]>([]); // Note: any[] is left as requested for other issues, but we select correct fields for nl
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<any>(null);

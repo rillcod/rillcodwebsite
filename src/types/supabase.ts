@@ -2735,6 +2735,100 @@ export type Database = {
           },
         ]
       }
+      newsletter_delivery: {
+        Row: {
+          delivered_at: string | null
+          id: string
+          is_viewed: boolean | null
+          newsletter_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          delivered_at?: string | null
+          id?: string
+          is_viewed?: boolean | null
+          newsletter_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          delivered_at?: string | null
+          id?: string
+          is_viewed?: boolean | null
+          newsletter_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_delivery_newsletter_id_fkey"
+            columns: ["newsletter_id"]
+            isOneToOne: false
+            referencedRelation: "newsletters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "newsletter_delivery_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "newsletter_delivery_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      newsletters: {
+        Row: {
+          author_id: string | null
+          content: string
+          created_at: string | null
+          id: string
+          image_url: string | null
+          published_at: string | null
+          status: string | null
+          title: string
+        }
+        Insert: {
+          author_id?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          published_at?: string | null
+          status?: string | null
+          title: string
+        }
+        Update: {
+          author_id?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          published_at?: string | null
+          status?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletters_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "newsletters_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           announcement_notifications: boolean | null
@@ -3562,6 +3656,86 @@ export type Database = {
             columns: ["transaction_id"]
             isOneToOne: false
             referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      registration_batches: {
+        Row: {
+          class_id: string | null
+          class_name: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          program_id: string | null
+          school_id: string | null
+          school_name: string | null
+          student_count: number | null
+        }
+        Insert: {
+          class_id?: string | null
+          class_name?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          program_id?: string | null
+          school_id?: string | null
+          school_name?: string | null
+          student_count?: number | null
+        }
+        Update: {
+          class_id?: string | null
+          class_name?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          program_id?: string | null
+          school_id?: string | null
+          school_name?: string | null
+          student_count?: number | null
+        }
+        Relationships: []
+      }
+      registration_results: {
+        Row: {
+          batch_id: string
+          class_name: string | null
+          created_at: string | null
+          email: string
+          error: string | null
+          full_name: string
+          id: string
+          password: string
+          status: string
+        }
+        Insert: {
+          batch_id: string
+          class_name?: string | null
+          created_at?: string | null
+          email: string
+          error?: string | null
+          full_name: string
+          id?: string
+          password: string
+          status: string
+        }
+        Update: {
+          batch_id?: string
+          class_name?: string | null
+          created_at?: string | null
+          email?: string
+          error?: string | null
+          full_name?: string
+          id?: string
+          password?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registration_results_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "registration_batches"
             referencedColumns: ["id"]
           },
         ]

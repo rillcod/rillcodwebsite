@@ -36,7 +36,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
   }, [userId, searchParams]); // eslint-disable-line
 
   async function checkNewNewsletters() {
-    const { data } = await (supabase.from('newsletter_delivery' as any))
+    const { data } = await supabase.from('newsletter_delivery')
       .select(`
         id,
         is_viewed,
@@ -63,7 +63,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
 
   async function loadSpecificNewsletter(id: string) {
     setLoading(true);
-    const { data } = await (supabase.from('newsletters' as any))
+    const { data } = await supabase.from('newsletters')
       .select('*')
       .eq('id', id)
       .maybeSingle();
@@ -80,7 +80,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
     
     // Only mark as viewed if it was not a specific request (optional, but safer)
     if (!searchParams.get('newsletterId')) {
-      await (supabase.from('newsletter_delivery' as any))
+      await supabase.from('newsletter_delivery')
         .update({ is_viewed: true })
         .eq('newsletter_id', newsletter.id)
         .eq('user_id', userId);
