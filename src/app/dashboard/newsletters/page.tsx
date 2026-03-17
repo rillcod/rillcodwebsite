@@ -29,9 +29,9 @@ interface Newsletter {
   id: string;
   title: string;
   content: string;
-  status: 'draft' | 'published';
-  created_at: string;
-  published_at?: string;
+  status: string | null;
+  created_at: string | null;
+  published_at: string | null;
 }
 
 export default function NewslettersPage() {
@@ -61,7 +61,7 @@ export default function NewslettersPage() {
 
   async function loadNewsletters() {
     setLoading(true);
-    const res: any = await (supabase.from('newsletters' as any))
+    const res = await supabase.from('newsletters')
       .select('*')
       .order('created_at', { ascending: false });
     setNewsletters(res.data ?? []);
@@ -102,9 +102,9 @@ export default function NewslettersPage() {
       status: 'draft'
     };
 
-    const result: any = activeNewsletter.id
-      ? await (supabase.from('newsletters' as any)).update(payload).eq('id', activeNewsletter.id)
-      : await (supabase.from('newsletters' as any)).insert([payload]).select().single();
+    const result = activeNewsletter.id
+      ? await supabase.from('newsletters').update(payload).eq('id', activeNewsletter.id)
+      : await supabase.from('newsletters').insert([payload]).select().single();
 
     if (result.data && !activeNewsletter.id) setActiveNewsletter(result.data);
 
@@ -135,11 +135,11 @@ export default function NewslettersPage() {
         user_id: u.id
       }));
 
-      const { error: delErr } = await (supabase.from('newsletter_delivery' as any)).insert(deliveryRows);
+      const { error: delErr } = await supabase.from('newsletter_delivery').insert(deliveryRows);
       if (delErr) throw delErr;
 
       // 3. Update status
-      await (supabase.from('newsletters' as any)).update({ 
+      await supabase.from('newsletters').update({ 
         status: 'published',
         published_at: new Date().toISOString()
       }).eq('id', activeNewsletter.id);
@@ -231,7 +231,7 @@ export default function NewslettersPage() {
                       {nl.status}
                     </span>
                     <span className="text-[10px] text-white/20 font-bold uppercase">
-                      {new Date(nl.created_at).toLocaleDateString()}
+                      {nl.created_at ? new Date(nl.created_at).toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                   <h3 className="text-lg font-bold text-white mb-2 line-clamp-2">{nl.title}</h3>
@@ -360,7 +360,7 @@ export default function NewslettersPage() {
                           <div style={{ fontSize: '11px', color: '#6b7280'  }}>Rillcod Academy Management</div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                           <div style={{ width: '100px', height: '100px', border: '1px solid #f3f4f6', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyCenter: 'center', textTransform: 'uppercase', fontSize: '10px', color: '#f3f4f6' }}>STAMP SPACE</div>
+                           <div style={{ width: '100px', height: '100px', border: '1px solid #f3f4f6', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', textTransform: 'uppercase', fontSize: '10px', color: '#f3f4f6' }}>STAMP SPACE</div>
                         </div>
                       </div>
                     </div>
