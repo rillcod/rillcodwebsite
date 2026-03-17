@@ -48,17 +48,18 @@ export async function POST(request: Request) {
     }
 
     // Determine which school to assign:
-    //   - teacher → always use their own school (cannot be overridden)
-    //   - admin   → use the school_id/school_name from request body (if provided), else their own
-    let resolvedSchoolId: string | null;
-    let resolvedSchoolName: string | null;
-    if (caller.role === 'teacher') {
-      resolvedSchoolId   = caller.school_id   ?? null;
-      resolvedSchoolName = caller.school_name ?? null;
-    } else {
-      resolvedSchoolId   = (body.school_id   as string | undefined) ?? caller.school_id   ?? null;
-      resolvedSchoolName = (body.school_name as string | undefined) ?? caller.school_name ?? null;
-    }
+    // Priority: 1. ID from request body (selected in UI) 2. ID from caller's own profile
+    const rId = body.school_id?.toString().trim() || null;
+    const cId = caller.school_id?.toString().trim() || null;
+    
+    const resolvedSchoolId: string | null = rId || cId;
+    const resolvedSchoolName: string | null = (body.school_name?.trim() ? body.school_name : null) ?? caller.school_name ?? null;
+
+    console.log('[BulkRegister] Auth User:', user.id);
+    console.log('[BulkRegister] Request Body School ID:', body.school_id);
+    console.log('[BulkRegister] Caller Profile School ID:', caller.school_id);
+    console.log('[BulkRegister] Resolved School ID:', resolvedSchoolId);
+    console.log('[BulkRegister] Resolved School Name:', resolvedSchoolName);
 
     if (!resolvedSchoolId) {
       return NextResponse.json(
@@ -68,6 +69,8 @@ export async function POST(request: Request) {
     }
 
     const programId: string | null = (body.program_id as string | undefined) ?? null;
+    const batchClassId: string | null = (body.class_id as string | undefined) ?? null;
+    const batchClassName: string | null = (body.class_name as string | undefined) ?? null;
 
     const results: Array<{
       full_name: string;
@@ -143,9 +146,10 @@ export async function POST(request: Request) {
             email: email.trim().toLowerCase(),
             full_name: full_name.trim(),
             role: 'student',
-            school_id:     resolvedSchoolId,
-            school_name:   resolvedSchoolName,
-            section_class: class_name || null,
+            school_id: resolvedSchoolId,
+            school_name: resolvedSchoolName,
+            section_class: batchClassName || class_name || null,
+            class_id: batchClassId || null,
             is_active: true,
             updated_at: new Date().toISOString(),
           },
@@ -174,10 +178,10 @@ export async function POST(request: Request) {
 
       if (successIds.length > 0) {
         const enrollments = successIds.map((userId) => ({
-          user_id:    userId,
+          user_id: userId,
           program_id: programId,
-          status:     'active',
-          role:       'student',
+          status: 'active',
+          role: 'student',
         }));
 
         // Insert only those not already enrolled
@@ -194,8 +198,77 @@ export async function POST(request: Request) {
       }
     }
 
+    // Sync current_students count if class_id was provided
+    if (batchClassId) {
+      try {
+        const { data: studentsInClass } = await supabaseAdmin
+          .from('portal_users')
+          .select('id', { count: 'exact' })
+          .eq('class_id', batchClassId)
+          .eq('role', 'student');
+        
+        const actualCount = studentsInClass?.length || 0;
+        await supabaseAdmin
+          .from('classes')
+          .update({ current_students: actualCount })
+          .eq('id', batchClassId);
+      } catch (err) {
+        console.error('[BulkRegister] Failed to sync class count:', err);
+      }
+    }
+
     // Strip internal userId from results before returning
-    const publicResults = results.map(({ userId: _uid, ...rest }) => rest);
+    const publicResults = results.map(({ userId: _uid, ...rest }) => ({
+      ...rest,
+      batch_id: body.batch_id || null
+    }));
+
+    // ── Save to Official Registry (History) ──────────────────────────────────
+    const batchId = body.batch_id;
+    if (batchId) {
+      try {
+        // 1. Upsert batch metadata
+        await supabaseAdmin.from('registration_batches').upsert({
+          id: batchId,
+          created_by: user.id,
+          school_id: resolvedSchoolId,
+          school_name: resolvedSchoolName,
+          program_id: programId,
+          class_id: batchClassId,
+          class_name: batchClassName || null,
+        }, { onConflict: 'id' });
+
+        // 2. Map results to history entries
+        const historyEntries = results.map(r => ({
+          batch_id: batchId,
+          full_name: r.full_name,
+          email: r.email,
+          password: r.password,
+          class_name: r.class_name || null,
+          status: r.status,
+          error: r.error || null
+        }));
+        
+        // 3. Insert results
+        await supabaseAdmin.from('registration_results').insert(historyEntries);
+        
+        // 4. Update student count on batch
+        const { data: countData } = await supabaseAdmin
+          .from('registration_results')
+          .select('id', { count: 'exact', head: true })
+          .eq('batch_id', batchId);
+        
+        await supabaseAdmin
+          .from('registration_batches')
+          .update({ student_count: countData?.length || 0 })
+          .eq('id', batchId);
+          
+      } catch (histErr) {
+        console.error('[BulkRegister] Failed to save history:', histErr);
+        // We don't fail the whole request if history saving fails, 
+        // as students were already created.
+      }
+    }
 
     return NextResponse.json({ results: publicResults });
   } catch (err: any) {

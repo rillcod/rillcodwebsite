@@ -464,8 +464,15 @@ export default function DashboardPage() {
       const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
       let query = supabase.from('timetable_slots').select('*, timetables(school_id, schools(name))').eq('day_of_week', today);
       
-      if (role === 'teacher') query = query.eq('teacher_id', userId);
-      else if (role === 'school') query = query.eq('timetables.school_id', schoolId);
+      if (role === 'teacher') {
+        query = query.eq('teacher_id', userId);
+      } else if (role === 'school' && schoolId) {
+        // 2-step approach: find active timetable for this school first
+        const { data: tt } = await supabase.from('timetables')
+          .select('id').eq('school_id', schoolId).eq('is_active', true).maybeSingle();
+        if (tt) query = query.eq('timetable_id', tt.id);
+        else { setUpcomingSlots([]); return; }
+      }
       // For students, we'd need to link through classes, but for now we show school-wide if they are in a portal
       
       const { data } = await query.order('start_time').limit(3);

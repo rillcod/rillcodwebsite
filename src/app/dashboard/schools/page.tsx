@@ -12,7 +12,7 @@ import {
   CheckCircleIcon, ClockIcon, XCircleIcon, PencilSquareIcon, ShieldCheckIcon,
   XMarkIcon, ClipboardIcon,
   UserGroupIcon, AcademicCapIcon, ChartBarIcon, TrophyIcon, ArrowPathIcon,
-  ArrowRightIcon, DocumentTextIcon, ClipboardDocumentListIcon,
+  ArrowRightIcon, DocumentTextIcon, ClipboardDocumentListIcon, CalendarDaysIcon,
 } from '@/lib/icons';
 import { generateTempPassword } from '@/lib/utils/password';
 
@@ -679,9 +679,17 @@ export default function SchoolsPage() {
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-[#0f0f1a] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
               <div className="flex items-center justify-between p-6 border-b border-white/10 flex-shrink-0">
-                <div>
-                  <h3 className="font-bold text-white text-lg">{detail.name}</h3>
-                  <StatusBadge status={detail.status ?? 'pending'} />
+                <div className="flex items-center gap-4">
+                  <div>
+                    <h3 className="font-bold text-white text-lg">{detail.name}</h3>
+                    <StatusBadge status={detail.status ?? 'pending'} />
+                  </div>
+                  <Link
+                    href={`/dashboard/timetable?school_id=${detail.id}`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase rounded-lg transition-all shadow-lg shadow-emerald-900/20"
+                  >
+                    <CalendarDaysIcon className="w-3.5 h-3.5" /> View Timetable
+                  </Link>
                 </div>
                 <button onClick={() => { setDetail(null); setAssignTab('info'); }} className="p-1.5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-colors">
                   <XCircleIcon className="w-5 h-5" />

@@ -1,0 +1,54 @@
+403:    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+404:      <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+408:    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+450:      <div className="min-h-screen bg-[#0f0f1a] px-4 py-6 md:px-8 max-w-6xl mx-auto">
+453:        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+454:          <div>
+469:        <div className="flex items-center gap-2 mb-8 text-xs font-bold flex-wrap">
+475:              <div key={s} className="flex items-center gap-2">
+476:                {i > 0 && <div className="w-8 h-px bg-white/10" />}
+487:          <div className="space-y-6">
+490:            <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden">
+495:                <div className="flex items-center gap-2 text-white/70 font-bold text-sm">
+504:                <div className="px-4 sm:px-6 pb-6 pt-3 border-t border-white/10 space-y-5">
+507:                  <div className={`grid gap-5 ${schools.length > 0 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+511:                      <div>
+537:                    <div>
+560:                  <div className="border-t border-white/5" />
+563:                  <div className="sm:grid sm:grid-cols-2 gap-5 space-y-5 sm:space-y-0">
+566:                    <div>
+567:                      <div className="flex items-center justify-between mb-1">
+597:                        <div className="px-3 py-2.5 bg-white/3 border border-white/8 rounded-xl text-white/25 text-sm italic">
+612:                    <div>
+653:                    <div className="sm:col-span-2 pt-2 border-t border-white/5">
+673:                    <div className="flex items-center gap-2 text-xs">
+685:            <div className="bg-[#0d1526] border border-white/10 rounded-2xl p-6">
+715:            <div className="grid md:grid-cols-2 gap-4">
+716:              <div className="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-5">
+728:              <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-5">
+754:          <div className="space-y-5">
+758:              <div className="flex flex-wrap gap-2 text-xs">
+781:            <div className="flex flex-wrap gap-3">
+782:              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10 text-sm">
+788:                <div className="flex items-center gap-2 px-4 py-2 bg-cyan-500/10 rounded-xl border border-cyan-500/20 text-sm">
+796:                <div className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 rounded-xl border border-rose-500/20 text-xs">
+802:                <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-xl border border-amber-500/20 text-xs">
+810:            <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden">
+811:              <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10">
+820:              <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
+869:                            <div className="relative">
+905:              <div className="px-4 py-3 border-t border-white/10 flex items-center justify-between gap-3 flex-wrap">
+919:            <div className="flex gap-3">
+926:              <div className="flex-1 flex flex-col gap-2">
+939:                  <div className="space-y-1">
+940:                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+941:                      <div
+958:          <div className="space-y-6">
+959:            <div className={`rounded-2xl p-5 border flex items-start gap-4 ${failCount === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+961:              <div>
+973:            <div className="flex gap-3 flex-wrap">
+994:            <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden">
+995:              <div className="p-4 border-b border-white/10">
+999:              <div className="overflow-x-auto">
+1040:        <div id="printable-sheet">
+1080:          <div className="footer-note">

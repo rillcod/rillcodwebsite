@@ -10,7 +10,7 @@ import {
   ExclamationTriangleIcon,
 } from '@/lib/icons';
 
-type Tab = 'inbox' | 'sent' | 'compose' | 'announcements';
+type Tab = 'inbox' | 'sent' | 'compose' | 'announcements' | 'newsletters';
 
 export default function MessagesPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -18,6 +18,7 @@ export default function MessagesPage() {
   const [inbox, setInbox] = useState<any[]>([]);
   const [sent, setSent] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [newsletters, setNewsletters] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<any>(null);
@@ -42,11 +43,13 @@ export default function MessagesPage() {
       db.from('messages').select('*, portal_users!messages_sender_id_fkey(full_name, email)').eq('recipient_id', profile.id).order('created_at', { ascending: false }),
       db.from('messages').select('*, portal_users!messages_recipient_id_fkey(full_name, email)').eq('sender_id', profile.id).order('created_at', { ascending: false }),
       db.from('announcements').select('*, portal_users!announcements_author_id_fkey(full_name)').eq('is_active', true).order('created_at', { ascending: false }),
+      db.from('newsletter_delivery').select('*, newsletters(*)').eq('user_id', profile.id).order('delivered_at', { ascending: false }),
       db.from('portal_users').select('id, full_name, email, role').neq('id', profile.id).order('full_name'),
-    ]).then(([inbRes, sntRes, annRes, usrRes]) => {
+    ]).then(([inbRes, sntRes, annRes, nwlRes, usrRes]) => {
       setInbox(inbRes.data ?? []);
       setSent(sntRes.data ?? []);
       setAnnouncements(annRes.data ?? []);
+      setNewsletters(nwlRes.data ?? []);
       setUsers(usrRes.data ?? []);
       setLoading(false);
     });
@@ -120,12 +123,14 @@ export default function MessagesPage() {
   };
 
   const unread = inbox.filter(m => !m.is_read).length;
+  const unreadNewsletters = newsletters.filter(nl => !nl.is_viewed).length;
 
   const tabs: { key: Tab; label: string; icon: any; count?: number }[] = [
     { key: 'inbox', label: 'Inbox', icon: EnvelopeIcon, count: unread || undefined },
     { key: 'sent', label: 'Sent', icon: PaperAirplaneIcon },
     { key: 'compose', label: 'Compose', icon: PlusIcon },
     { key: 'announcements', label: 'Announcements', icon: MegaphoneIcon },
+    { key: 'newsletters', label: 'Newsletters', icon: DocumentTextIcon, count: unreadNewsletters || undefined },
   ];
 
   if (authLoading || loading) return (
@@ -354,6 +359,45 @@ export default function MessagesPage() {
                 <div className="text-center py-12 bg-white/5 border border-white/10 rounded-2xl">
                   <MegaphoneIcon className="w-12 h-12 mx-auto text-white/10 mb-3" />
                   <p className="text-white/30">No announcements yet</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {/* ── NEWSLETTERS ─── */}
+        {tab === 'newsletters' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {newsletters.map(nlItem => {
+                const nl = nlItem.newsletters;
+                if (!nl) return null;
+                return (
+                  <div key={nl.id} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all group overflow-hidden relative">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#FF914D]">Premium Edition</span>
+                      <span className="text-[10px] text-white/20">{new Date(nl.published_at || nl.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <h4 className="font-extrabold text-white text-lg mb-2 truncate">{nl.title}</h4>
+                    <p className="text-sm text-white/40 line-clamp-3 mb-6 leading-relaxed">{nl.content}</p>
+                    <button 
+                      onClick={() => {
+                        const params = new URLSearchParams(window.location.search);
+                        params.set('newsletterId', nl.id);
+                        window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
+                        // Dispatch popstate event to trigger useSearchParams effect if needed
+                        window.dispatchEvent(new PopStateEvent('popstate'));
+                      }}
+                      className="w-full py-3 bg-white/5 group-hover:bg-indigo-600 group-hover:text-white border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                    >
+                      Open Newsletter
+                    </button>
+                  </div>
+                );
+              })}
+              {newsletters.length === 0 && (
+                <div className="col-span-full py-20 text-center bg-white/5 border border-white/10 rounded-2xl">
+                  <DocumentTextIcon className="w-16 h-16 mx-auto text-white/10 mb-4" />
+                  <p className="text-white/40 font-bold uppercase tracking-widest text-xs">No newsletters delivered yet.</p>
                 </div>
               )}
             </div>

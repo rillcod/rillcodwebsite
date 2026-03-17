@@ -32,7 +32,7 @@ You can use specialized blocks in content_layout:
 - 'video': for educational videos
 Always return valid JSON only. For Nigerian context (Basic 1 to SS3), the tone is premium and modern.`;
 
-type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading';
+type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter';
 
 interface GenerateRequest {
   type: GenerateType;
@@ -249,6 +249,19 @@ Return a JSON object with this exact shape:
   "license_type": "string — e.g. CC BY 4.0 or Rillcod Academy Proprietary",
   "attribution": "string"
 }`;
+    case 'newsletter':
+      return `Generate a premium, engaging academic newsletter for Rillcod Academy.
+Topic: "${req.topic}"
+Context: Rillcod Academy is a modern STEM/Coding academy in Nigeria (Basic 1 to SS3).
+
+Return a JSON object with this exact shape:
+{
+  "title": "string — a catchy, professional newsletter title",
+  "content": "string — markdown-formatted content. Structure with ## headings, bullet points, and clear sections. Include: An opening message, key highlights about the topic, an encouraging closing, and a call to action.",
+  "summary": "string — 1-2 sentence summary for notification previews"
+}
+
+Ensure the tone is premium, visionary, and professional. Use British English (e.g., 'programme', 'centre').`;
 
     default:
       throw new Error(`Unknown generate type: ${req.type}`);

@@ -41,6 +41,13 @@ export default function ProgressPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ── Filtering & Scope ─────────────────────────────────────
+  const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+  const [selectedSchool, setSelectedSchool] = useState<string>('all');
+  const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
   const role = profile?.role ?? '';
   const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
 
@@ -57,7 +64,11 @@ export default function ProgressPage() {
 
       try {
         if (isStaff) {
-          // 1. Resolve school metadata for non-admins
+          // 1. Fetch schools for staff to populate filter
+          const { data: schData } = await supabase.from('schools').select('id, name').order('name');
+          if (!cancelled) setSchools(schData ?? []);
+
+          // 2. Resolve school metadata for non-admins
           let assignedSchoolIds: string[] = [];
           let assignedSchoolNames: string[] = [];
 
@@ -77,7 +88,7 @@ export default function ProgressPage() {
             }
           }
 
-          // 2. Fetch submissions (2-step to avoid FK ambiguity)
+          // 3. Fetch submissions (2-step to avoid FK ambiguity)
           const rawSubsQ = supabase.from('assignment_submissions')
             .select(`id, grade, status, portal_user_id, user_id,
                 assignments ( id, title, max_points, course_id,
@@ -87,22 +98,22 @@ export default function ProgressPage() {
           const enrQuery = supabase.from('enrollments')
             .select(`id, status, grade, progress_pct, enrollment_date,
                 programs ( id, name, difficulty_level, duration_weeks ),
-                portal_users!enrollments_user_id_fkey ( id, full_name, email, school_id, school_name )`)
+                portal_users!enrollments_user_id_fkey ( id, full_name, email, school_id, school_name, section_class )`)
             .order('enrollment_date', { ascending: false });
 
           const [rawSubsRes, enrRes] = await Promise.allSettled([rawSubsQ, enrQuery]);
 
-          // 3. Enrich submissions with portal_users via separate lookup
+          // 4. Enrich submissions with portal_users via separate lookup
           let subsData = rawSubsRes.status === 'fulfilled' ? (rawSubsRes.value.data ?? []) : [];
           if (subsData.length > 0) {
             const uids = [...new Set(subsData.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
-            const { data: users } = await supabase.from('portal_users').select('id, full_name, email, school_id, school_name').in('id', uids);
+            const { data: users } = await supabase.from('portal_users').select('id, full_name, email, school_id, school_name, section_class').in('id', uids);
             const umap: Record<string, any> = {};
             (users ?? []).forEach((u: any) => { umap[u.id] = u; });
             subsData = subsData.map((s: any) => ({ ...s, portal_users: umap[s.portal_user_id ?? s.user_id] ?? null }));
           }
 
-          // 4. Filter by school for non-admins
+          // 5. Initial Filter by school for non-admins
           if (role !== 'admin') {
             if (assignedSchoolIds.length > 0 || assignedSchoolNames.length > 0) {
               subsData = subsData.filter((s: any) => {
@@ -115,10 +126,8 @@ export default function ProgressPage() {
             }
           }
 
-          const subsRes = { status: 'fulfilled' as const, value: { data: subsData } };
-          const [_unused, _enrRes] = [subsRes, enrRes]; // keep same shape for setters below
           if (!cancelled) {
-            setSubmissions(subsRes.status === 'fulfilled' ? (subsRes.value.data ?? []) : []);
+            setSubmissions(subsData);
             setEnrollments(enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : []);
           }
         } else {
@@ -150,16 +159,40 @@ export default function ProgressPage() {
     return () => { cancelled = true; };
   }, [profile?.id, isStaff, authLoading]); // eslint-disable-line
 
+  // ── Derived Filtering ──────────────────────────────────────
+  const filteredEnrollments = enrollments.filter(e => {
+    const u = e.portal_users || {};
+    if (selectedSchool !== 'all' && u.school_id !== selectedSchool) return false;
+    if (selectedClass !== 'all' && u.section_class !== selectedClass) return false;
+    if (selectedStatus !== 'all' && e.status !== selectedStatus) return false;
+    if (searchQuery && !u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) && !u.email?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+
+  const filteredSubmissions = submissions.filter(s => {
+    const u = s.portal_users || {};
+    if (selectedSchool !== 'all' && u.school_id !== selectedSchool) return false;
+    if (selectedClass !== 'all' && u.section_class !== selectedClass) return false;
+    if (selectedStatus !== 'all' && s.status !== selectedStatus) return false;
+    if (searchQuery && !u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) && !u.email?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+
+  const distinctClasses = Array.from(new Set(enrollments.map(e => e.portal_users?.section_class).filter(Boolean))).sort() as string[];
+
   // ── Stats ─────────────────────────────────────────────────
-  const graded = submissions.filter(s => s.status === 'graded' && s.grade != null);
+  const activeSubs = isStaff ? filteredSubmissions : submissions;
+  const activeEnr = isStaff ? filteredEnrollments : enrollments;
+
+  const graded = activeSubs.filter(s => s.status === 'graded' && s.grade != null);
   const avgScore = graded.length
     ? Math.round(graded.reduce((a, s) => a + (s.grade / (s.assignments?.max_points ?? 100)) * 100, 0) / graded.length)
     : null;
   const best = graded.length
     ? Math.round(Math.max(...graded.map(s => (s.grade / (s.assignments?.max_points ?? 100)) * 100)))
     : null;
-  const completed = submissions.filter(s => s.status === 'graded').length;
-  const pending = submissions.filter(s => s.status === 'submitted').length;
+  const completed = activeSubs.filter(s => s.status === 'graded').length;
+  const pending = activeSubs.filter(s => s.status === 'submitted').length;
 
   // ── Skill Analysis ────────────────────────────────────────
   const skillsConfig = [
@@ -210,19 +243,46 @@ export default function ProgressPage() {
 
       <style jsx global>{`
         @media print {
-          body { background: white !important; color: black !important; }
+          @page { 
+            size: A4;
+            margin: 15mm 12mm; 
+          }
+          body { 
+            background: white !important; 
+            color: #111827 !important; 
+            font-family: 'Inter', sans-serif !important;
+          }
           .bg-\[\#0f0f1a\], .bg-gradient-to-br { background: white !important; }
-          .bg-white\/5, .bg-white\/8, .bg-white\/10 { background: #f9fafb !important; border-color: #e5e7eb !important; }
+          .bg-white\/5, .bg-white\/8, .bg-white\/10 { 
+            background: #ffffff !important; 
+            border: 1px solid #e5e7eb !important; 
+          }
           .text-white, .text-white\/60, .text-white\/40, .text-white\/30 { color: #111827 !important; }
           .border-white\/10, .border-white\/20, .border-white\/5 { border-color: #e5e7eb !important; }
-          .max-w-7xl { max-width: 100% !important; padding: 0 !important; }
+          .max-w-7xl { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
           .shadow-xl, .shadow-lg, .shadow-blue-600\/20, .shadow-2xl { box-shadow: none !important; }
           .print\:hidden { display: none !important; }
-          button { display: none !important; }
-          h1, h2, h3 { color: black !important; }
-          .divide-white\/5 { divide-color: #e5e7eb !important; }
-          .h-2 { height: 8px !important; background: #e5e7eb !important; }
-          .bg-violet-500 { background: #8b5cf6 !important; }
+          button, .fixed, .z-50 { display: none !important; }
+          h1, h2, h3 { color: #111827 !important; }
+          .divide-white\/5 > * + * { border-top-color: #e5e7eb !important; }
+          
+          /* Force charts/rings to be visible but clean */
+          svg { filter: grayscale(20%); }
+          .bg-violet-500 { background: #7c3aed !important; -webkit-print-color-adjust: exact; }
+          .h-2 { border: 1px solid #e5e7eb !important; }
+
+          /* Layout adjustments for A4 */
+          .grid { display: block !important; }
+          .grid > * { margin-bottom: 20px !important; page-break-inside: avoid; }
+          .lg\:grid-cols-3, .lg\:grid-cols-4 { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+          
+          /* Table-like lists */
+          .divide-y > .p-5, .divide-y > .p-4 { padding: 10px 0 !important; border-bottom: 1px solid #f3f4f6 !important; }
+          .truncate { white-space: normal !important; overflow: visible !important; }
+          
+          /* Page break controls */
+          h3 { page-break-after: avoid; }
+          .rounded-2xl { border-radius: 0 !important; border: none !important; border-bottom: 2px solid #f3f4f6 !important; }
         }
       `}</style>
     </div>
@@ -253,16 +313,76 @@ export default function ProgressPage() {
             onClick={() => window.print()}
             className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white/70 text-sm font-bold rounded-xl border border-white/10 transition-all shadow-lg"
           >
-            <ClipboardDocumentCheckIcon className="w-4 h-4" /> Print Report
+            <ClipboardDocumentCheckIcon className="w-4 h-4" /> Print Analytics
           </button>
         </div>
 
-        <div className="hidden print:block border-b border-gray-200 pb-6 mb-8">
-          <h1 className="text-2xl font-black text-black">Academic Progress Report</h1>
-          <p className="text-sm text-gray-500">
-            {profile!.full_name} · {profile!.school_name || 'Rillcod Academy'} · {new Date().toLocaleDateString()}
+        {/* ── Branded letterhead (print-only) ── */}
+        <div className="hidden print:block mb-8">
+          <div style={{ borderBottom: '3px solid #1d4ed8', paddingBottom: '14px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <img src="/logo.png" alt="Rillcod Technologies" style={{ width: '64px', height: '64px', objectFit: 'contain', flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '20px', fontWeight: 900, color: '#1d4ed8', letterSpacing: '-0.5px', lineHeight: 1.1 }}>RILLCOD TECHNOLOGIES</div>
+              <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>Coding Today, Innovating Tomorrow</div>
+              <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; rillcod@gmail.com</div>
+            </div>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1.5px' }}>Document Type</div>
+              <div style={{ fontSize: '14px', fontWeight: 800, color: '#1d4ed8', textTransform: 'uppercase' }}>Academic Progress Report</div>
+              <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '4px' }}>
+                {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+              </div>
+            </div>
+          </div>
+          <p className="text-black text-sm italic">
+            Computed analytics for {selectedSchool !== 'all' ? schools.find(s => s.id === selectedSchool)?.name : (isStaff ? 'All Schools' : profile?.school_name)} 
+            {selectedClass !== 'all' ? ` · Class: ${selectedClass}` : ''}
           </p>
         </div>
+
+        {/* Filter Bar (Staff/Admin only) */}
+        {isStaff && (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-wrap gap-4 items-center print:hidden">
+            <div className="flex-1 min-w-[200px]">
+              <input
+                type="text"
+                placeholder="Search student or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500 transition-colors"
+              />
+            </div>
+            {role === 'admin' && (
+              <select
+                value={selectedSchool}
+                onChange={(e) => setSelectedSchool(e.target.value)}
+                className="bg-[#161625] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500 transition-colors"
+              >
+                <option value="all">All Schools</option>
+                {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            )}
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="bg-[#161625] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500 transition-colors"
+            >
+              <option value="all">All Classes</option>
+              {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="bg-[#161625] border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500 transition-colors"
+            >
+              <option value="all">Any Status</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="submitted">Submitted (Submissions)</option>
+              <option value="graded">Graded (Submissions)</option>
+            </select>
+          </div>
+        )}
 
         {error && (
           <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
@@ -364,11 +484,11 @@ export default function ProgressPage() {
         {isStaff && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: 'Total Submissions', value: submissions.length, icon: ClipboardDocumentCheckIcon, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+              { label: 'Scoped Submissions', value: activeSubs.length, icon: ClipboardDocumentCheckIcon, color: 'text-violet-400', bg: 'bg-violet-500/10' },
               { label: 'Graded', value: completed, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
               { label: 'Awaiting Grade', value: pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
               {
-                label: 'Class Average', value: avgScore != null ? `${avgScore}%` : '—', icon: ChartBarIcon,
+                label: 'Scoped Average', value: avgScore != null ? `${avgScore}%` : '—', icon: ChartBarIcon,
                 color: avgScore ? (avgScore >= 70 ? 'text-emerald-400' : 'text-amber-400') : 'text-white/20', bg: 'bg-blue-500/10'
               },
             ].map(s => (
@@ -393,7 +513,7 @@ export default function ProgressPage() {
               </h3>
             </div>
             <div className="divide-y divide-white/5">
-              {enrollments.slice(0, 8).map((e: any) => {
+              {activeEnr.slice(0, 100).map((e: any) => {
                 const prog = e.programs;
                 const pct = e.progress_pct ?? 0;
                 return (
@@ -435,7 +555,7 @@ export default function ProgressPage() {
               </h3>
             </div>
             <div className="divide-y divide-white/5">
-              {submissions.slice(0, 10).map((s: any) => {
+              {activeSubs.slice(0, 100).map((s: any) => {
                 const max = s.assignments?.max_points ?? 100;
                 const pct = s.grade != null ? Math.round((s.grade / max) * 100) : null;
                 return (

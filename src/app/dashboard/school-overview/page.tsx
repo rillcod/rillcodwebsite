@@ -227,6 +227,12 @@ export default function SchoolOverviewPage() {
         </div>
         <div className="flex gap-3">
           <Link
+            href={`/dashboard/timetable?school_id=${profile?.school_id}`}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-colors"
+          >
+            <CalendarDaysIcon className="w-4 h-4" /> View Schedule
+          </Link>
+          <Link
             href="/dashboard/students/import"
             className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-colors"
           >

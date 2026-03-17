@@ -50,10 +50,17 @@ export default function DashboardNavigation() {
 
   useEffect(() => {
     if (isMinimal || !profile) return;
-    createClient()
-      .from('messages').select('id', { count: 'exact', head: true })
-      .eq('recipient_id', profile.id).eq('is_read', false)
-      .then(({ count }) => setUnreadCount(count ?? 0));
+    const db = createClient();
+    
+    Promise.all([
+      db.from('messages').select('id', { count: 'exact', head: true })
+        .eq('recipient_id', profile.id).eq('is_read', false),
+      (db.from('newsletter_delivery' as any)).select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id).eq('is_viewed', false)
+    ]).then(([msgRes, nwlRes]) => {
+      const total = (msgRes.count ?? 0) + (nwlRes.count ?? 0);
+      setUnreadCount(total);
+    });
   }, [profile?.id, isMinimal]); // eslint-disable-line
 
   if (isMinimal) return null;

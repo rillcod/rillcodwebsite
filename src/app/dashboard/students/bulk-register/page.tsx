@@ -21,6 +21,10 @@ import {
   BuildingOffice2Icon,
   BookOpenIcon,
   ChevronDownIcon,
+  DocumentArrowDownIcon,
+  ArrowPathIcon,
+  ArchiveBoxIcon,
+  ClockIcon,
 } from '@/lib/icons';
 
 // ─── Class detection ─────────────────────────────────────────────────────────
@@ -33,7 +37,7 @@ const CLASS_RE = /\b(JSS\s*[123]|SS[S]?\s*[123]|BASIC\s*[1-6])([A-Za-z])?\b/i;
 function detectClass(text: string): string | null {
   const m = text.match(CLASS_RE);
   if (!m) return null;
-  const base    = m[1].replace(/\s+/g, ' ').trim().toUpperCase();
+  const base = m[1].replace(/\s+/g, ' ').trim().toUpperCase();
   const section = (m[2] ?? '').toUpperCase();
   return base + section;
 }
@@ -88,6 +92,7 @@ interface GeneratedStudent {
 interface RegisterResult extends GeneratedStudent {
   status: 'created' | 'updated' | 'failed';
   error?: string;
+  batch_id?: string;
 }
 
 interface School {
@@ -104,45 +109,46 @@ interface ClassOption {
   id: string;
   name: string;
   section_class: string | null;
+  school_id?: string | null;
   isRegistry?: boolean; // from teacher's class registry
 }
 
 // Standard Nigerian school class codes shown in every dropdown
 const STANDARD_CLASSES: ClassOption[] = [
-  { id: 'std-kg',      name: 'Kindergarten (KG)',  section_class: 'KG' },
-  { id: 'std-b1',      name: 'Basic 1',            section_class: 'BASIC 1' },
-  { id: 'std-b2',      name: 'Basic 2',            section_class: 'BASIC 2' },
-  { id: 'std-b3',      name: 'Basic 3',            section_class: 'BASIC 3' },
-  { id: 'std-b4',      name: 'Basic 4',            section_class: 'BASIC 4' },
-  { id: 'std-b5',      name: 'Basic 5',            section_class: 'BASIC 5' },
-  { id: 'std-b6',      name: 'Basic 6',            section_class: 'BASIC 6' },
-  { id: 'std-jss1',    name: 'JSS 1',              section_class: 'JSS1' },
-  { id: 'std-jss1a',   name: 'JSS 1A',             section_class: 'JSS1A' },
-  { id: 'std-jss1b',   name: 'JSS 1B',             section_class: 'JSS1B' },
-  { id: 'std-jss1c',   name: 'JSS 1C',             section_class: 'JSS1C' },
-  { id: 'std-jss2',    name: 'JSS 2',              section_class: 'JSS2' },
-  { id: 'std-jss2a',   name: 'JSS 2A',             section_class: 'JSS2A' },
-  { id: 'std-jss2b',   name: 'JSS 2B',             section_class: 'JSS2B' },
-  { id: 'std-jss2c',   name: 'JSS 2C',             section_class: 'JSS2C' },
-  { id: 'std-jss3',    name: 'JSS 3',              section_class: 'JSS3' },
-  { id: 'std-jss3a',   name: 'JSS 3A',             section_class: 'JSS3A' },
-  { id: 'std-jss3b',   name: 'JSS 3B',             section_class: 'JSS3B' },
-  { id: 'std-jss3c',   name: 'JSS 3C',             section_class: 'JSS3C' },
-  { id: 'std-ss1',     name: 'SS 1',               section_class: 'SS1' },
-  { id: 'std-ss1a',    name: 'SS 1A',              section_class: 'SS1A' },
-  { id: 'std-ss1b',    name: 'SS 1B',              section_class: 'SS1B' },
-  { id: 'std-ss1c',    name: 'SS 1C',              section_class: 'SS1C' },
-  { id: 'std-ss2',     name: 'SS 2',               section_class: 'SS2' },
-  { id: 'std-ss2a',    name: 'SS 2A',              section_class: 'SS2A' },
-  { id: 'std-ss2b',    name: 'SS 2B',              section_class: 'SS2B' },
-  { id: 'std-ss2c',    name: 'SS 2C',              section_class: 'SS2C' },
-  { id: 'std-ss3',     name: 'SS 3',               section_class: 'SS3' },
-  { id: 'std-ss3a',    name: 'SS 3A',              section_class: 'SS3A' },
-  { id: 'std-ss3b',    name: 'SS 3B',              section_class: 'SS3B' },
-  { id: 'std-ss3c',    name: 'SS 3C',              section_class: 'SS3C' },
-  { id: 'std-sss1',    name: 'SSS 1',              section_class: 'SSS1' },
-  { id: 'std-sss2',    name: 'SSS 2',              section_class: 'SSS2' },
-  { id: 'std-sss3',    name: 'SSS 3',              section_class: 'SSS3' },
+  { id: 'std-kg', name: 'Kindergarten (KG)', section_class: 'KG' },
+  { id: 'std-b1', name: 'Basic 1', section_class: 'BASIC 1' },
+  { id: 'std-b2', name: 'Basic 2', section_class: 'BASIC 2' },
+  { id: 'std-b3', name: 'Basic 3', section_class: 'BASIC 3' },
+  { id: 'std-b4', name: 'Basic 4', section_class: 'BASIC 4' },
+  { id: 'std-b5', name: 'Basic 5', section_class: 'BASIC 5' },
+  { id: 'std-b6', name: 'Basic 6', section_class: 'BASIC 6' },
+  { id: 'std-jss1', name: 'JSS 1', section_class: 'JSS1' },
+  { id: 'std-jss1a', name: 'JSS 1A', section_class: 'JSS1A' },
+  { id: 'std-jss1b', name: 'JSS 1B', section_class: 'JSS1B' },
+  { id: 'std-jss1c', name: 'JSS 1C', section_class: 'JSS1C' },
+  { id: 'std-jss2', name: 'JSS 2', section_class: 'JSS2' },
+  { id: 'std-jss2a', name: 'JSS 2A', section_class: 'JSS2A' },
+  { id: 'std-jss2b', name: 'JSS 2B', section_class: 'JSS2B' },
+  { id: 'std-jss2c', name: 'JSS 2C', section_class: 'JSS2C' },
+  { id: 'std-jss3', name: 'JSS 3', section_class: 'JSS3' },
+  { id: 'std-jss3a', name: 'JSS 3A', section_class: 'JSS3A' },
+  { id: 'std-jss3b', name: 'JSS 3B', section_class: 'JSS3B' },
+  { id: 'std-jss3c', name: 'JSS 3C', section_class: 'JSS3C' },
+  { id: 'std-ss1', name: 'SS 1', section_class: 'SS1' },
+  { id: 'std-ss1a', name: 'SS 1A', section_class: 'SS1A' },
+  { id: 'std-ss1b', name: 'SS 1B', section_class: 'SS1B' },
+  { id: 'std-ss1c', name: 'SS 1C', section_class: 'SS1C' },
+  { id: 'std-ss2', name: 'SS 2', section_class: 'SS2' },
+  { id: 'std-ss2a', name: 'SS 2A', section_class: 'SS2A' },
+  { id: 'std-ss2b', name: 'SS 2B', section_class: 'SS2B' },
+  { id: 'std-ss2c', name: 'SS 2C', section_class: 'SS2C' },
+  { id: 'std-ss3', name: 'SS 3', section_class: 'SS3' },
+  { id: 'std-ss3a', name: 'SS 3A', section_class: 'SS3A' },
+  { id: 'std-ss3b', name: 'SS 3B', section_class: 'SS3B' },
+  { id: 'std-ss3c', name: 'SS 3C', section_class: 'SS3C' },
+  { id: 'std-sss1', name: 'SSS 1', section_class: 'SSS1' },
+  { id: 'std-sss2', name: 'SSS 2', section_class: 'SSS2' },
+  { id: 'std-sss3', name: 'SSS 3', section_class: 'SSS3' },
 ];
 
 let _idCounter = 0;
@@ -163,13 +169,13 @@ function buildStudentList(rawLines: string[], fallbackClass?: string): Generated
     }
 
     const inlineClass = detectClass(line);
-    const namePart    = inlineClass ? stripClass(line) : line;
+    const namePart = inlineClass ? stripClass(line) : line;
     if (!namePart) continue;
 
     // Priority: inline class > header context > fallback default class
     const resolvedClass = inlineClass ?? contextClass ?? (fallbackClass ? (detectClass(fallbackClass) ?? fallbackClass.trim().toUpperCase()) || undefined : undefined);
-    const first  = extractFirstName(namePart);
-    const email  = makeEmail(first, usedEmails);
+    const first = extractFirstName(namePart);
+    const email = makeEmail(first, usedEmails);
     usedEmails.add(email);
 
     students.push({ id: nextId(), full_name: namePart, email, password: generatePassword(), class_name: resolvedClass || undefined });
@@ -183,25 +189,73 @@ export default function BulkRegisterPage() {
   const { profile, loading: authLoading } = useAuth();
   const supabase = createClient();
 
-  const [namesText,   setNamesText]   = useState('');
-  const [preview,     setPreview]     = useState<GeneratedStudent[]>([]);
+  const [namesText, setNamesText] = useState('');
+  const [preview, setPreview] = useState<GeneratedStudent[]>([]);
   const [registering, setRegistering] = useState(false);
-  const [results,     setResults]     = useState<RegisterResult[] | null>(null);
+  const [results, setResults] = useState<RegisterResult[] | null>(null);
   const [registerProgress, setRegisterProgress] = useState<{ done: number; total: number; current: string } | null>(null);
-  const [step,        setStep]        = useState<'input' | 'preview' | 'done'>('input');
+  const [step, setStep] = useState<'input' | 'preview' | 'done'>('input');
 
   // ── Batch Settings ───────────────────────────────────────────────────────
-  const [schools,        setSchools]        = useState<School[]>([]);
-  const [programmes,     setProgrammes]     = useState<Programme[]>([]);
-  const [classOptions,   setClassOptions]   = useState<ClassOption[]>(STANDARD_CLASSES); // standard codes
-  const [registryClasses,setRegistryClasses]= useState<ClassOption[]>([]); // teacher's created classes
+  const [schools, setSchools] = useState<School[]>([]);
+  const [programmes, setProgrammes] = useState<Programme[]>([]);
+  const [classOptions, setClassOptions] = useState<ClassOption[]>(STANDARD_CLASSES); // standard codes
+  const [registryClasses, setRegistryClasses] = useState<ClassOption[]>([]); // teacher's created classes
 
-  const [selectedSchoolId,      setSelectedSchoolId]      = useState('');
-  const [selectedSchoolName,    setSelectedSchoolName]    = useState('');
-  const [selectedProgramId,     setSelectedProgramId]     = useState('');
+  const [selectedSchoolId, setSelectedSchoolId] = useState('');
+  const [selectedSchoolName, setSelectedSchoolName] = useState('');
+  const [selectedProgramId, setSelectedProgramId] = useState('');
   const [selectedRegistryClass, setSelectedRegistryClass] = useState(''); // class id
-  const [defaultClass,          setDefaultClass]          = useState(''); // fallback class code
-  const [settingsOpen,          setSettingsOpen]          = useState(true);
+  const [defaultClass, setDefaultClass] = useState(''); // fallback class code
+  const [customBatchName, setCustomBatchName] = useState(''); // free-text name label
+  const [settingsOpen, setSettingsOpen] = useState(true);
+  const [hasRecoverable, setHasRecoverable] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem('last_bulk_reg');
+    if (saved) setHasRecoverable(true);
+  }, []);
+
+  const fetchHistory = useCallback(async () => {
+    setLoadingHistory(true);
+    const { data, error } = await (supabase as any)
+      .from('registration_batches')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (!error && data) setHistory(data);
+    setLoadingHistory(false);
+  }, [supabase]);
+
+  const loadBatch = async (batchId: string) => {
+    setLoadingHistory(true);
+    const { data, error } = await (supabase as any)
+      .from('registration_results')
+      .select('*')
+      .eq('batch_id', batchId);
+    if (!error && data) {
+      setResults(data as any);
+      setStep('done');
+      setShowHistory(false);
+    }
+    setLoadingHistory(false);
+  };
+
+  const recoverLastBatch = () => {
+    const saved = sessionStorage.getItem('last_bulk_reg');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setResults(parsed.results);
+        setStep('done');
+      } catch (e) {
+        sessionStorage.removeItem('last_bulk_reg');
+        setHasRecoverable(false);
+      }
+    }
+  };
 
   const isAdmin = profile?.role === 'admin';
 
@@ -212,12 +266,24 @@ export default function BulkRegisterPage() {
    * Both fields can be set independently; registry class wins if both are filled
    */
   const effectiveClassCode = (() => {
+    if (customBatchName.trim()) return customBatchName.trim();
     if (selectedRegistryClass) {
       const rc = registryClasses.find((c) => c.id === selectedRegistryClass);
-      return rc?.section_class ?? rc?.name ?? defaultClass;
+      return rc?.section_class || rc?.name || '';
     }
     return defaultClass;
   })();
+
+  const filteredRegistryClasses = registryClasses.filter(c => 
+    !selectedSchoolId || c.school_id === selectedSchoolId
+  );
+
+  // Clear registry class if it's no longer valid for the selected school
+  useEffect(() => {
+    if (selectedRegistryClass && !filteredRegistryClasses.some(c => c.id === selectedRegistryClass)) {
+      setSelectedRegistryClass('');
+    }
+  }, [selectedSchoolId, filteredRegistryClasses, selectedRegistryClass]);
 
   const canAccess = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -229,7 +295,13 @@ export default function BulkRegisterPage() {
       // Load registry classes via shared service (has fallback on RLS errors)
       const teacherId = profile?.role === 'teacher' ? profile?.id : undefined;
       const clsData = await fetchClasses(teacherId, undefined);
-      setRegistryClasses(clsData.map((c: any) => ({ id: c.id, name: c.name, section_class: c.section_class ?? null, isRegistry: true })));
+      setRegistryClasses(clsData.map((c: any) => ({ 
+        id: c.id, 
+        name: c.name, 
+        section_class: c.section_class ?? null, 
+        school_id: c.school_id ?? null,
+        isRegistry: true 
+      })));
 
       if (profile?.role === 'admin') {
         // Admin sees all approved schools
@@ -356,15 +428,29 @@ export default function BulkRegisterPage() {
     if (!valid.length) return;
     setRegistering(true);
     setRegisterProgress({ done: 0, total: valid.length, current: valid[0]?.full_name ?? '' });
+    
+    // Generate UUID for this batch to link results in DB
+    const persistentBatchId = crypto.randomUUID();
+
     try {
       const BATCH = 10;
       const allResults: RegisterResult[] = [];
       for (let i = 0; i < valid.length; i += BATCH) {
         const batch = valid.slice(i, i + BATCH);
         setRegisterProgress({ done: i, total: valid.length, current: batch[0]?.full_name ?? '' });
-        const body: Record<string, any> = { students: batch };
-        if (selectedSchoolId)  { body.school_id = selectedSchoolId; body.school_name = selectedSchoolName; }
-        if (selectedProgramId) { body.program_id = selectedProgramId; }
+        
+        const body: Record<string, any> = {
+          batch_id: persistentBatchId,
+          students: batch,
+          class_id: selectedRegistryClass || null,
+          class_name: effectiveClassCode || null
+        };
+        if (selectedSchoolId) {
+          body.school_id = selectedSchoolId;
+          body.school_name = selectedSchoolName;
+        }
+        if (selectedProgramId) body.program_id = selectedProgramId;
+
         const res = await fetch('/api/students/bulk-register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -375,6 +461,8 @@ export default function BulkRegisterPage() {
         allResults.push(...(data.results ?? []));
       }
       setResults(allResults);
+      sessionStorage.setItem('last_bulk_reg', JSON.stringify({ results: allResults, date: new Date().toISOString() }));
+      setHasRecoverable(true);
       setStep('done');
     } catch (err: any) {
       alert(err.message);
@@ -384,7 +472,33 @@ export default function BulkRegisterPage() {
     }
   };
 
-  const handleReset = () => { setNamesText(''); setPreview([]); setResults(null); setStep('input'); };
+  const handleReset = () => { 
+    if (confirm('Are you sure? This will clear the current results.')) {
+      setNamesText(''); setPreview([]); setResults(null); setStep('input'); 
+    }
+  };
+
+  const downloadCSV = () => {
+    if (!results) return;
+    const headers = ['Full Name', 'Email', 'Password', 'Class', 'Status', 'Error'];
+    const rows = results.map(r => [
+      `"${r.full_name.replace(/"/g, '""')}"`,
+      `"${r.email}"`,
+      `"${r.password}"`,
+      `"${r.class_name || effectiveClassCode || ''}"`,
+      `"${r.status}"`,
+      `"${(r.error || '').replace(/"/g, '""')}"`
+    ]);
+    const fetchContent = [headers, ...rows].map(e => e.join(',')).join('\n');
+    const blob = new Blob([fetchContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `rillcod_students_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // ─── Guards ──────────────────────────────────────────────────────────────
   if (authLoading || !profile) return (
@@ -398,13 +512,13 @@ export default function BulkRegisterPage() {
     </div>
   );
 
-  const dups           = dupEmails(preview);
+  const dups = dupEmails(preview);
   const incompleteRows = preview.filter((r) => !r.full_name.trim() || !r.email.trim());
-  const validCount     = preview.length - incompleteRows.length;
+  const validCount = preview.length - incompleteRows.length;
   const previewClasses = [...new Set(preview.map((s) => s.class_name).filter(Boolean))];
 
   const successCount = results?.filter((r) => r.status !== 'failed').length ?? 0;
-  const failCount    = results?.filter((r) => r.status === 'failed').length ?? 0;
+  const failCount = results?.filter((r) => r.status === 'failed').length ?? 0;
 
   const selectedProgLabel = programmes.find((p) => p.id === selectedProgramId)?.name ?? '';
 
@@ -448,9 +562,35 @@ export default function BulkRegisterPage() {
               Paste names → review &amp; edit → register → print credentials
             </p>
           </div>
-          <Link href="/dashboard/students" className="text-white/40 hover:text-white text-sm transition-colors">
-            ← Back to Students
-          </Link>
+          <div className="flex items-center gap-3">
+            {step === 'input' && (
+              <>
+                {hasRecoverable && (
+                  <button
+                    onClick={recoverLastBatch}
+                    className="flex items-center gap-2 px-4 py-2 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 rounded-xl text-violet-400 text-sm font-bold transition-colors"
+                    title="Recover your last registration results"
+                  >
+                    <ArrowPathIcon className="w-4 h-4" /> Recall Last Batch
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowHistory(true);
+                    fetchHistory();
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-bold rounded-xl transition-colors text-sm border border-cyan-500/20"
+                  title="View official registration history"
+                >
+                  <ArchiveBoxIcon className="w-4 h-4" />
+                  Official Registry
+                </button>
+              </>
+            )}
+            <Link href="/dashboard/students" className="text-white/40 hover:text-white text-sm transition-colors">
+              ← Back to Students
+            </Link>
+          </div>
         </div>
 
         {/* ── Step indicator ─────────────────────────────────────────── */}
@@ -458,7 +598,7 @@ export default function BulkRegisterPage() {
           {(['input', 'preview', 'done'] as const).map((s, i) => {
             const labels = ['1. Enter Names', '2. Edit & Register', '3. Print Credentials'];
             const active = step === s;
-            const done   = ['input', 'preview', 'done'].indexOf(step) > i;
+            const done = ['input', 'preview', 'done'].indexOf(step) > i;
             return (
               <div key={s} className="flex items-center gap-2">
                 {i > 0 && <div className="w-8 h-px bg-white/10" />}
@@ -568,14 +708,15 @@ export default function BulkRegisterPage() {
                       <p className="text-white/25 text-[11px] mb-2">
                         Pick one of your created classes — registered students will be placed in it.
                       </p>
-                      {registryClasses.length > 0 ? (
+                      {filteredRegistryClasses.length > 0 ? (
                         <select
                           value={selectedRegistryClass}
                           onChange={(e) => setSelectedRegistryClass(e.target.value)}
-                          className="w-full px-3 py-2.5 bg-cyan-500/5 border border-cyan-500/20 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors"
+                          disabled={!selectedSchoolId}
+                          className="w-full px-3 py-2.5 bg-cyan-500/5 border border-cyan-500/20 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <option value="">— No class selected —</option>
-                          {registryClasses.map((c) => (
+                          {filteredRegistryClasses.map((c) => (
                             <option key={c.id} value={c.id}>
                               {c.name}{c.section_class ? ` (${c.section_class})` : ''}
                             </option>
@@ -583,11 +724,11 @@ export default function BulkRegisterPage() {
                         </select>
                       ) : (
                         <div className="px-3 py-2.5 bg-white/3 border border-white/8 rounded-xl text-white/25 text-sm italic">
-                          No classes yet — use the <span className="text-cyan-400/60 font-bold">New Class</span> button above.
+                          {!selectedSchoolId ? 'Select a school first.' : 'No classes found for this school.'}
                         </div>
                       )}
                       {selectedRegistryClass && (() => {
-                        const rc = registryClasses.find((c) => c.id === selectedRegistryClass);
+                        const rc = filteredRegistryClasses.find((c) => c.id === selectedRegistryClass);
                         return rc ? (
                           <p className="text-cyan-400/70 text-[11px] mt-1.5">
                             Students will be tagged as <span className="font-mono font-bold">{rc.section_class ?? rc.name}</span>
@@ -636,6 +777,7 @@ export default function BulkRegisterPage() {
                         <p className="text-white/25 text-[11px] mt-1.5 italic">Registry class takes priority — this code is a secondary fallback.</p>
                       )}
                     </div>
+
                   </div>
 
                   {/* Effective class preview */}
@@ -661,7 +803,7 @@ export default function BulkRegisterPage() {
                 onChange={(e) => setNamesText(e.target.value)}
                 rows={14}
                 placeholder={
-`JSS2A
+                  `JSS2A
 ChukwuemekaOkonkwo
 Adaeze Nwosu
 John Doe
@@ -738,10 +880,10 @@ Yusuf Ibrahim SS1A`}
                     Auto-enrol: {selectedProgLabel}
                   </span>
                 )}
-                {defaultClass && (
+                {effectiveClassCode && (
                   <span className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-full text-cyan-300 font-mono">
                     <AcademicCapIcon className="w-3.5 h-3.5" />
-                    Default class: {defaultClass.toUpperCase()}
+                    Class: {effectiveClassCode}
                   </span>
                 )}
               </div>
@@ -801,14 +943,13 @@ Yusuf Ibrahim SS1A`}
                   </thead>
                   <tbody>
                     {preview.map((s, i) => {
-                      const emailDup  = dups.has(s.email.toLowerCase());
+                      const emailDup = dups.has(s.email.toLowerCase());
                       const incomplete = !s.full_name.trim() || !s.email.trim();
                       return (
                         <tr
                           key={s.id}
-                          className={`group border-b border-white/5 transition-colors ${
-                            incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : 'hover:bg-white/[0.02]'
-                          }`}
+                          className={`group border-b border-white/5 transition-colors ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : 'hover:bg-white/[0.02]'
+                            }`}
                         >
                           {/* # */}
                           <td className="px-3 py-2 text-white/30 align-middle">{i + 1}</td>
@@ -903,8 +1044,8 @@ Yusuf Ibrahim SS1A`}
                   {registering
                     ? `Registering ${registerProgress?.done ?? 0} / ${registerProgress?.total ?? validCount}...`
                     : dups.size > 0
-                    ? 'Fix duplicate emails first'
-                    : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
+                      ? 'Fix duplicate emails first'
+                      : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
                 </button>
                 {registering && registerProgress && (
                   <div className="space-y-1">
@@ -924,77 +1065,95 @@ Yusuf Ibrahim SS1A`}
           </div>
         )}
 
-        {/* ══════════════════ STEP 3 — DONE / PRINT ═══════════════════ */}
+        {/* ══════════════════ STEP 3 — DONE ═══════════════════════════ */}
         {step === 'done' && results && (
-          <div className="space-y-6">
-            <div className={`rounded-2xl p-5 border flex items-start gap-4 ${failCount === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
-              <CheckCircleIcon className="w-7 h-7 text-emerald-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-white font-bold text-base">Registration Complete</p>
-                <p className="text-white/60 text-sm mt-1">
-                  {successCount} account{successCount !== 1 ? 's' : ''} created.
-                  {selectedProgramId && successCount > 0 && (
-                    <span className="text-emerald-400"> Auto-enrolled into {selectedProgLabel}.</span>
-                  )}
-                  {failCount > 0 && <span className="text-rose-400"> {failCount} failed — see table.</span>}
+          <div className="space-y-8 max-w-4xl mx-auto">
+            <div className="bg-gradient-to-b from-emerald-500/10 to-[#0d1526] border border-emerald-500/20 rounded-[2.5rem] p-8 text-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
+              <div className="relative z-10">
+                <div className="w-20 h-20 bg-emerald-500/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/10 border border-emerald-500/20 transform rotate-12">
+                  <CheckCircleIcon className="w-10 h-10 text-emerald-400 -rotate-12" />
+                </div>
+                <h2 className="text-3xl font-black text-white mb-2">Registration Complete!</h2>
+                <p className="text-emerald-400/80 font-medium">
+                  {successCount} account{successCount !== 1 ? 's' : ''} successfully archived in Official Registry.
                 </p>
+                
+                {failCount > 0 && (
+                  <div className="mt-4 px-4 py-2 bg-rose-500/10 border border-rose-500/20 rounded-xl inline-flex items-center gap-2 text-rose-400 text-sm">
+                    <ExclamationCircleIcon className="w-4 h-4" />
+                    {failCount} student{failCount !== 1 ? 's' : ''} failed — check details below.
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="flex gap-3 flex-wrap">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <button
                 onClick={() => window.print()}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#7a0606] hover:bg-[#9a0808] text-white font-bold rounded-xl transition-colors text-sm"
+                className="flex items-center justify-center gap-3 px-6 py-4 bg-[#7a0606] hover:bg-[#9a0808] text-white font-black rounded-2xl transition-all shadow-lg shadow-rose-900/20 hover:-translate-y-0.5"
               >
-                <PrinterIcon className="w-4 h-4" /> Print Credentials Sheet
+                <PrinterIcon className="w-5 h-5" /> Print Credentials
+              </button>
+              <button
+                onClick={downloadCSV}
+                className="flex items-center justify-center gap-3 px-6 py-4 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-bold rounded-2xl transition-all border border-cyan-500/20"
+              >
+                <DocumentArrowDownIcon className="w-5 h-5" /> Download CSV
               </button>
               <button
                 onClick={handleReset}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 font-bold rounded-xl transition-colors text-sm border border-white/10"
+                className="flex items-center justify-center gap-3 px-6 py-4 bg-white/5 hover:bg-white/10 text-white/60 font-bold rounded-2xl transition-all border border-white/10"
               >
-                <ArrowUpTrayIcon className="w-4 h-4" /> Register More
+                <PlusIcon className="w-5 h-5" /> Register More
               </button>
-              <Link
-                href="/dashboard/students"
-                className="flex items-center gap-2 px-5 py-2.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 font-bold rounded-xl transition-colors text-sm"
-              >
-                View All Students
-              </Link>
             </div>
 
-            <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden">
-              <div className="p-4 border-b border-white/10">
-                <h3 className="text-white font-bold text-sm">Credentials List</h3>
-                <p className="text-white/30 text-xs mt-0.5">Print and distribute to students physically</p>
+            <div className="bg-[#0d1526] border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl">
+              <div className="px-6 py-5 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
+                <div>
+                  <h3 className="text-white font-black text-lg flex items-center gap-2">
+                    <ClipboardDocumentListIcon className="w-5 h-5 text-violet-400" />
+                    Credentials Archive
+                  </h3>
+                  <p className="text-white/30 text-xs mt-0.5">Physical distribution list for classroom use</p>
+                </div>
+                <div className="px-3 py-1 bg-violet-500/10 border border-violet-500/10 rounded-full text-violet-400 text-[10px] font-black uppercase tracking-tighter">
+                  System ID: {results[0]?.batch_id?.slice(0, 8) || 'N/A'}
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b border-white/10 text-white/40 uppercase tracking-wider text-[10px]">
-                      <th className="text-left px-4 py-3">#</th>
-                      <th className="text-left px-4 py-3">Full Name</th>
-                      <th className="text-left px-4 py-3">Class</th>
-                      <th className="text-left px-4 py-3">Email (Login)</th>
-                      <th className="text-left px-4 py-3">Temp Password</th>
-                      <th className="text-left px-4 py-3">Status</th>
+                    <tr className="border-b border-white/10 text-white/40 uppercase tracking-widest text-[9px] font-black">
+                      <th className="text-left px-6 py-4">#</th>
+                      <th className="text-left px-4 py-4">Full Name</th>
+                      <th className="text-left px-4 py-4">Class</th>
+                      <th className="text-left px-4 py-4">Login / ID</th>
+                      <th className="text-left px-4 py-4">Password</th>
+                      <th className="text-right px-6 py-4">Status</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-white/5">
                     {results.map((r, i) => (
-                      <tr key={i} className={`border-b border-white/5 ${r.status === 'failed' ? 'bg-rose-500/5' : ''}`}>
-                        <td className="px-4 py-2.5 text-white/30">{i + 1}</td>
-                        <td className="px-4 py-2.5 text-white font-medium">{r.full_name}</td>
-                        <td className="px-4 py-2.5">
+                      <tr key={i} className={`group transition-colors ${r.status === 'failed' ? 'bg-rose-500/5' : 'hover:bg-white/[0.01]'}`}>
+                        <td className="px-6 py-3.5 text-white/20 font-mono">{String(i + 1).padStart(2, '0')}</td>
+                        <td className="px-4 py-3.5 text-white font-bold">{r.full_name}</td>
+                        <td className="px-4 py-3.5">
                           {r.class_name
-                            ? <span className="inline-block px-2 py-0.5 bg-cyan-500/15 text-cyan-300 text-[10px] font-bold rounded-full border border-cyan-500/20">{r.class_name}</span>
-                            : <span className="text-white/20 text-[10px]">—</span>}
+                            ? <span className="inline-block px-2 py-0.5 bg-cyan-500/10 text-cyan-400 text-[9px] font-black rounded-md border border-cyan-500/20 uppercase tracking-tighter">{r.class_name}</span>
+                            : <span className="text-white/10 text-[10px]">—</span>}
                         </td>
-                        <td className="px-4 py-2.5 text-violet-300 font-mono">{r.email}</td>
-                        <td className="px-4 py-2.5 text-amber-300 font-mono">{r.status !== 'failed' ? r.password : '—'}</td>
-                        <td className="px-4 py-2.5">
-                          {r.status === 'created' && <span className="flex items-center gap-1 text-emerald-400"><CheckCircleIcon className="w-3.5 h-3.5" /> Created</span>}
-                          {r.status === 'updated' && <span className="flex items-center gap-1 text-blue-400"><CheckCircleIcon className="w-3.5 h-3.5" /> Updated</span>}
-                          {r.status === 'failed'  && <span className="flex items-center gap-1 text-rose-400"><ExclamationCircleIcon className="w-3.5 h-3.5" />{r.error ?? 'Failed'}</span>}
+                        <td className="px-4 py-3.5 text-violet-300/80 font-mono text-[11px]">{r.email}</td>
+                        <td className="px-4 py-3.5">
+                          <span className="font-mono text-amber-300 font-bold bg-amber-500/5 px-2 py-1 rounded-md border border-amber-500/10">
+                            {r.status !== 'failed' ? r.password : '••••••'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3.5 text-right">
+                          {r.status === 'created' && <span className="text-emerald-400 font-black text-[10px] uppercase tracking-tighter bg-emerald-400/10 px-2 py-0.5 rounded-full border border-emerald-400/20">New User</span>}
+                          {r.status === 'updated' && <span className="text-blue-400 font-black text-[10px] uppercase tracking-tighter bg-blue-400/10 px-2 py-0.5 rounded-full border border-blue-400/20">Updated</span>}
+                          {r.status === 'failed' && <span className="text-rose-400 font-black text-[10px] uppercase tracking-tighter bg-rose-400/10 px-2 py-0.5 rounded-full border border-rose-400/20 flex items-center justify-end gap-1"><ExclamationCircleIcon className="w-3 h-3" /> Error</span>}
                         </td>
                       </tr>
                     ))}
@@ -1015,8 +1174,8 @@ Yusuf Ibrahim SS1A`}
             &nbsp;&nbsp;|&nbsp;&nbsp;
             {successCount} account{successCount !== 1 ? 's' : ''} created
             {selectedSchoolName && <>&nbsp;&nbsp;|&nbsp;&nbsp;School: <strong>{selectedSchoolName}</strong></>}
-            {defaultClass && <>&nbsp;&nbsp;|&nbsp;&nbsp;Class: <strong>{defaultClass}</strong></>}
-            {selectedProgLabel  && <>&nbsp;&nbsp;|&nbsp;&nbsp;Programme: <strong>{selectedProgLabel}</strong></>}
+            {effectiveClassCode && <>&nbsp;&nbsp;|&nbsp;&nbsp;Class: <strong>{effectiveClassCode}</strong></>}
+            {selectedProgLabel && <>&nbsp;&nbsp;|&nbsp;&nbsp;Programme: <strong>{selectedProgLabel}</strong></>}
             &nbsp;&nbsp;|&nbsp;&nbsp;
             Portal: <strong>academy.rillcod.com</strong>
           </p>
@@ -1036,7 +1195,7 @@ Yusuf Ibrahim SS1A`}
                 <tr key={i}>
                   <td>{i + 1}</td>
                   <td>{r.full_name}</td>
-                  <td>{(defaultClass || r.class_name) ? <span className="cls-badge">{defaultClass || r.class_name}</span> : '—'}</td>
+                  <td>{(r.class_name || effectiveClassCode) ? <span className="cls-badge">{r.class_name || effectiveClassCode}</span> : '—'}</td>
                   <td style={{ fontFamily: 'monospace' }}>{r.email}</td>
                   <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{r.status !== 'failed' ? r.password : '—'}</td>
                   <td>
@@ -1055,6 +1214,115 @@ Yusuf Ibrahim SS1A`}
             3. <strong>Change your password immediately</strong> after first login — a prompt will appear automatically.<br />
             4. Keep your credentials safe and do not share them.<br /><br />
             This sheet is confidential. Distribute individually to each student. — Rillcod Academy IT
+          </div>
+        </div>
+      )}
+      {/* ── Registration History Overlay ── */}
+      {showHistory && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 lg:p-8">
+          <div className="absolute inset-0 bg-[#06060c]/60 backdrop-blur-xl transition-all duration-500" onClick={() => setShowHistory(false)} />
+          <div className="relative w-full max-w-5xl max-h-[85vh] bg-[#0f0f1a]/95 border border-white/10 rounded-[3rem] shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/10">
+            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+            
+            <div className="p-8 sm:px-10 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-cyan-500/10 rounded-2xl flex items-center justify-center border border-cyan-500/20 shadow-inner">
+                  <ArchiveBoxIcon className="w-7 h-7 text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-white tracking-tight uppercase">
+                    Official Registry
+                  </h3>
+                  <p className="text-xs text-white/30 font-black uppercase tracking-widest mt-0.5">Secure Batch Archive & Recovery</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowHistory(false)}
+                className="w-12 h-12 bg-white/5 hover:bg-rose-500/10 hover:text-rose-400 rounded-full flex items-center justify-center text-white/30 transition-all border border-transparent hover:border-rose-500/20 shadow-xl"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-8 sm:px-10 py-10 space-y-6 custom-scrollbar">
+              {loadingHistory ? (
+                <div className="h-64 flex flex-col items-center justify-center gap-6">
+                  <div className="relative">
+                    <div className="w-16 h-16 border-2 border-cyan-500/20 rounded-2xl animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-ping" />
+                    </div>
+                  </div>
+                  <div className="text-center space-y-1">
+                    <p className="text-white font-bold opacity-80">Synchronizing Vault</p>
+                    <p className="text-[10px] text-white/20 uppercase tracking-[0.2em]">Retrieving official records...</p>
+                  </div>
+                </div>
+              ) : history.length === 0 ? (
+                <div className="h-64 flex flex-col items-center justify-center opacity-40 grayscale">
+                  <ArchiveBoxIcon className="w-20 h-20 text-white/10 mb-6" />
+                  <p className="text-white font-medium">Registry is currently empty</p>
+                  <p className="text-xs text-white/20 mt-1">Newly registered batches will appear here automatically</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {history.map((batch: any) => (
+                    <div 
+                      key={batch.id}
+                      className="group relative p-6 bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/5 hover:border-cyan-500/30 rounded-3xl transition-all duration-300 hover:shadow-2xl hover:shadow-cyan-500/5 hover:-translate-y-1"
+                    >
+                      <div className="flex flex-col h-full gap-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1.5 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-white font-black text-lg tracking-tight truncate">{batch.class_name || 'Unnamed Batch'}</h4>
+                              <span className="px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-black rounded-lg border border-cyan-500/20 uppercase">
+                                {batch.student_count} Records
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                              {batch.school_name && (
+                                <div className="flex items-center gap-1.5 text-white/40 text-[11px] font-medium">
+                                  <BuildingOffice2Icon className="w-3.5 h-3.5 text-violet-400/50" />
+                                  {batch.school_name}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5 text-white/40 text-[11px] font-medium">
+                                <ClockIcon className="w-3.5 h-3.5 text-cyan-400/50" />
+                                {new Date(batch.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-white/[0.03]">
+                           <span className="text-[10px] text-white/20 font-mono tracking-tighter italic">ID: {batch.id.slice(0, 8)}</span>
+                           <button
+                             onClick={() => loadBatch(batch.id)}
+                             className="flex items-center gap-2 px-4 py-2 bg-cyan-500/10 hover:bg-cyan-600 text-cyan-400 hover:text-white font-black rounded-xl transition-all text-[11px] uppercase tracking-wider"
+                           >
+                             <PrinterIcon className="w-3.5 h-3.5" /> Recover Batch
+                           </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="px-10 py-8 bg-black/40 border-t border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                <span className="text-[10px] text-white/40 font-black uppercase tracking-[0.3em]">Vault Status: Persistent</span>
+              </div>
+              <button 
+                onClick={() => setShowHistory(false)}
+                className="px-8 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-2xl transition-all text-xs uppercase tracking-widest border border-white/10"
+              >
+                Close Registry
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   CalendarDaysIcon, PlusIcon, PencilIcon, TrashIcon,
@@ -260,7 +261,7 @@ export default function TimetablePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const anyDb = db as any;
 
-  async function loadTimetables() {
+  async function loadTimetables(initialSchoolId?: string | null) {
     setLoading(true); setError(null);
     try {
       const { data, error: err } = await anyDb.from('timetables')
@@ -270,7 +271,20 @@ export default function TimetablePage() {
       if (err) throw err;
       const list = (data ?? []) as Timetable[];
       setTimetables(list);
-      const preferred = list.find(t => t.is_active) ?? list[0];
+      
+      // Auto-select logic:
+      // 1. If school_id passed in URL, pick that school's active TT
+      // 2. Else pick the global active one or first one
+      let preferred = list.find(t => t.is_active);
+      
+      if (initialSchoolId) {
+        const schoolTT = list.find(t => t.school_id === initialSchoolId && t.is_active) 
+                      || list.find(t => t.school_id === initialSchoolId);
+        if (schoolTT) preferred = schoolTT;
+      }
+
+      if (!preferred && list.length > 0) preferred = list[0];
+
       if (preferred && !activeTimetable) {
         setActiveTimetable(preferred.id);
         await loadSlots(preferred.id);
@@ -289,16 +303,19 @@ export default function TimetablePage() {
     setSlots((data ?? []) as Slot[]);
   }
 
+  const searchParams = useSearchParams();
+  const schoolIdParam = searchParams.get('school_id');
+
   useEffect(() => {
     if (authLoading || !profile) return;
-    if (!isTeacher) loadTimetables();
+    if (!isTeacher) loadTimetables(schoolIdParam);
     if (isAdmin) {
       db.from('portal_users').select('id, full_name').eq('role', 'teacher').order('full_name')
         .then(({ data }) => setTeachers(data ?? []));
       db.from('schools').select('id, name').order('name')
         .then(({ data }) => setSchools((data ?? []) as { id: string; name: string }[]));
     }
-  }, [profile?.id, authLoading]); // eslint-disable-line
+  }, [profile?.id, authLoading, schoolIdParam]); // eslint-disable-line
 
   const handleSelectTT = async (id: string) => {
     setActiveTimetable(id);
