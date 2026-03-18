@@ -10,7 +10,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col md:flex-row min-h-screen md:h-screen md:overflow-hidden bg-[#050a17] text-gray-100 font-sans print:h-auto print:min-h-0 print:bg-white print:text-black">
+    <div className="flex flex-col md:flex-row min-h-screen md:h-screen md:overflow-hidden bg-[#0a0a0a] text-gray-100 font-sans print:h-auto print:min-h-0 print:bg-white print:text-black">
       {/* Force-password-change guard — renders a blocking modal for bulk-registered students */}
       <PasswordChangeGuard />
 

@@ -267,6 +267,7 @@ export default function StudentsPage() {
           : s));
         const json = await res.json();
         if (json.credentials) {
+          setCredentials({ email: json.credentials.email, tempPassword: json.credentials.password, name: json.credentials.name || 'Student' });
           load(); // Refresh list to get accurate user_id
         }
       }
@@ -844,56 +845,66 @@ export default function StudentsPage() {
 
       {/* ── Credentials Modal ─────────────────────────────── */}
       {credentials && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setCredentials(null)}>
-          <div className="bg-[#161628] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl"
-            onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-white/10 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center justify-center">
-                  <ShieldCheckIcon className="w-5 h-5 text-emerald-400" />
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1a] border-l-8 border-l-emerald-500 border border-white/10 rounded-none w-full max-w-md shadow-2xl overflow-hidden shadow-emerald-500/10">
+            <div className="p-8 border-b border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 rounded-none flex items-center justify-center rotate-3">
+                  <ShieldCheckIcon className="w-6 h-6 text-emerald-500" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white">Portal Account Created</h3>
-                  <p className="text-xs text-white/40">Share these credentials with {credentials.name}</p>
+                  <h3 className="font-black text-white uppercase tracking-tight italic">Uplink Successful</h3>
+                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Credentials for {credentials.name}</p>
                 </div>
               </div>
-              <button onClick={() => setCredentials(null)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+              <button onClick={() => { setCredentials(null); load(); }} className="p-2 hover:bg-white/5 rounded-none transition-colors border border-white/5">
                 <XMarkIcon className="w-5 h-5 text-white/40" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300 flex items-start gap-2">
-                <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>Copy these credentials now — the password will not be shown again. The student should change it on first login via Settings.</span>
+            
+            <div className="p-8 space-y-6">
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-none p-4 text-[10px] font-bold text-amber-500/80 italic leading-relaxed uppercase tracking-widest">
+                <div className="flex items-start gap-3">
+                   <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
+                   <span>Security Protocol: Copy these credentials immediately. Passwords are encrypted after transmission. Update required first login.</span>
+                </div>
               </div>
+
               {[
-                { label: 'Login Email', value: credentials.email },
-                { label: 'Temporary Password', value: credentials.tempPassword },
+                { label: 'Login Sector (Email)', value: credentials.email },
+                { label: 'Cipher Key (Password)', value: credentials.tempPassword },
               ].map(({ label, value }) => (
                 <div key={label}>
-                  <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">{label}</p>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-mono text-sm select-all">
+                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2">{label}</p>
+                  <div className="flex items-center gap-px">
+                    <div className="flex-1 px-5 py-3.5 bg-black/40 border border-white/10 rounded-none text-white font-mono text-sm select-all">
                       {value}
-                    </code>
+                    </div>
                     <button
                       onClick={() => navigator.clipboard.writeText(value)}
-                      className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/40 hover:text-white transition-colors"
+                      className="p-3.5 bg-emerald-500 text-white hover:bg-emerald-600 transition-colors rounded-none"
                       title="Copy">
-                      <ClipboardIcon className="w-4 h-4" />
+                      <ClipboardIcon className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
               ))}
+
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(
                     `Email: ${credentials.email}\nPassword: ${credentials.tempPassword}`
                   );
+                  alert('Bulk credentials copied to clipboard.');
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all mt-2">
-                <ClipboardIcon className="w-4 h-4" /> Copy Both to Clipboard
+                className="w-full flex items-center justify-center gap-3 py-4 bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-[0.4em] rounded-none hover:bg-white/10 transition-all mt-4">
+                <ClipboardIcon className="w-4 h-4" /> Copy Protocol Package
+              </button>
+
+              <button
+                onClick={() => { setCredentials(null); load(); }}
+                className="w-full py-5 bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.5em] rounded-none hover:bg-emerald-600 transition-all">
+                Clear & Finalize
               </button>
             </div>
           </div>

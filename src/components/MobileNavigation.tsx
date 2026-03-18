@@ -28,20 +28,6 @@ interface MobileNavigationProps {
 export default function MobileNavigation({ userRole }: MobileNavigationProps) {
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState(pathname);
-  const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
-
-  // Hide navigation on scroll down, show on scroll up
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      setIsVisible(currentScrollY < lastScrollY || currentScrollY < 100);
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
 
   const getNavigationItems = (role: UserRole) => {
     const baseItems = [
@@ -86,12 +72,10 @@ export default function MobileNavigation({ userRole }: MobileNavigationProps) {
   return (
     <>
       {/* Mobile Navigation Bar */}
-      <div className={`fixed bottom-0 left-0 right-0 z-40 lg:hidden transition-transform duration-300 ${
-        isVisible ? 'translate-y-0' : 'translate-y-full'
-      }`}>
+      <div className={`fixed bottom-0 left-0 right-0 z-40 lg:hidden`}>
         {/* Background with blur and safe area */}
         <div className="relative">
-          <div className="absolute inset-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-700/50"></div>
+          <div className="absolute inset-0 bg-[#121212]/95 backdrop-blur-xl border-t border-white/10"></div>
           
           {/* Navigation items container */}
           <div className="relative flex items-center justify-around px-2 py-2 pb-safe">
@@ -102,20 +86,20 @@ export default function MobileNavigation({ userRole }: MobileNavigationProps) {
                   key={item.name}
                   href={item.href}
                   onClick={() => setActiveTab(item.href)}
-                  className={`flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-200 relative ${
+                  className={`flex flex-col items-center justify-center w-16 h-14 rounded-none transition-all duration-200 relative ${
                     isActive
-                      ? 'text-blue-600 dark:text-blue-400'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      ? 'text-orange-500'
+                      : 'text-slate-500 hover:text-white'
                   }`}
                 >
-                  <item.icon className={`h-6 w-6 mb-1 transition-all duration-200 ${
+                  <item.icon className={`h-5 w-5 mb-1 transition-all duration-200 ${
                     isActive ? 'scale-110' : ''
                   }`} />
-                  <span className="text-xs font-medium truncate max-w-full px-1">{item.name}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest truncate max-w-full px-1">{item.name}</span>
                   
                   {/* Active indicator */}
                   {isActive && (
-                    <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
+                    <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-orange-500 rounded-none shadow-[0_0_8px_rgba(255,145,77,0.8)]"></div>
                   )}
                 </Link>
               );
@@ -144,10 +128,10 @@ function MobileMoreMenu({ items }: { items: Array<{ name: string; href: string; 
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-200 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+        className="flex flex-col items-center justify-center w-16 h-14 rounded-none transition-all duration-200 text-slate-500 hover:text-white"
       >
-        <PlusIcon className="h-6 w-6 mb-1" />
-        <span className="text-xs font-medium">More</span>
+        <PlusIcon className="h-5 w-5 mb-1" />
+        <span className="text-[9px] font-black uppercase tracking-widest">More</span>
       </button>
 
       {/* More menu dropdown */}
@@ -155,12 +139,15 @@ function MobileMoreMenu({ items }: { items: Array<{ name: string; href: string; 
         <>
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 z-50 bg-black/20"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
           />
           
           {/* Menu */}
-          <div className="absolute bottom-16 right-0 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 min-w-48 z-50">
+          <div className="absolute bottom-20 right-0 mb-2 bg-[#1a1a1a] border border-white/10 rounded-none shadow-2xl py-3 min-w-[200px] z-50">
+            <div className="px-4 py-2 border-b border-white/5 mb-2">
+                <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em]">Extended Protocol</span>
+            </div>
             {items.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -168,13 +155,13 @@ function MobileMoreMenu({ items }: { items: Array<{ name: string; href: string; 
                   key={item.name}
                   href={item.href}
                   onClick={() => setIsOpen(false)}
-                  className={`flex items-center px-4 py-3 text-sm transition-colors duration-200 ${
+                  className={`flex items-center px-6 py-4 text-xs font-black uppercase tracking-widest transition-colors duration-200 ${
                     isActive
-                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      ? 'bg-orange-500/10 text-orange-500 border-l-2 border-orange-500'
+                      : 'text-slate-400 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <item.icon className="h-5 w-5 mr-3" />
+                  <item.icon className="h-4 w-4 mr-4" />
                   <span>{item.name}</span>
                 </Link>
               );
@@ -200,18 +187,18 @@ export function FloatingActionButton() {
     <div className="fixed bottom-24 right-4 z-30 lg:hidden">
       {/* Quick action menu */}
       {isOpen && (
-        <div className="absolute bottom-16 right-0 mb-2 space-y-2">
+        <div className="absolute bottom-20 right-0 mb-2 space-y-4">
           {quickActions.map((action, index) => (
             <Link
               key={action.name}
               href={action.href}
-              className="flex items-center justify-center w-12 h-12 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-200 transform hover:scale-110"
+              className="flex items-center justify-center w-14 h-14 bg-[#1a1a1a] text-orange-500 border border-white/10 rounded-none shadow-2xl hover:border-orange-500 transition-all duration-200 transform hover:scale-110"
               style={{
                 animationDelay: `${index * 100}ms`,
                 animation: 'slideInUp 0.3s ease-out forwards'
               }}
             >
-              <action.icon className="h-6 w-6 text-gray-600 dark:text-gray-400" />
+              <action.icon className="h-6 w-6" />
             </Link>
           ))}
         </div>
@@ -220,12 +207,12 @@ export function FloatingActionButton() {
       {/* Main FAB */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-center w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110"
+        className="flex items-center justify-center w-16 h-16 bg-orange-500 text-white rounded-none shadow-[0_0_20px_rgba(255,145,77,0.3)] hover:bg-orange-600 transition-all duration-200 transform hover:rotate-90 group"
       >
         {isOpen ? (
-          <XMarkIcon className="h-6 w-6" />
+          <XMarkIcon className="h-8 w-8" />
         ) : (
-          <PlusIcon className="h-6 w-6" />
+          <PlusIcon className="h-8 w-8 group-hover:scale-110" />
         )}
       </button>
     </div>

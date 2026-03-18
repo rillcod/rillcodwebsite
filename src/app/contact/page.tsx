@@ -138,250 +138,155 @@ export default function Contact() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <div className="min-h-screen bg-[#121212] relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-none pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-orange-500/5 blur-[100px] rounded-none pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative z-10">
         {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
-            Get in Touch with RILLCOD Academy
+        <div className="text-center mb-24 bg-[#1a1a1a] border border-white/10 p-16 rounded-none shadow-2xl border-t-8 border-t-orange-500 relative">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
+          <h1 className="text-4xl md:text-6xl font-black text-white mb-8 uppercase tracking-tight italic">
+            Get in <span className="text-orange-500">Touch.</span>
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
+          <p className="text-lg text-slate-400 max-w-2xl mx-auto font-medium italic border-l-2 border-orange-500 pl-8 inline-block text-left mb-0">
             Ready to transform your school with cutting-edge technology education? 
-            We&apos;re here to help you get started on this exciting journey.
+            We're here to help you get started on this exciting journey at Rillcod Technologies.
           </p>
-          <div className="w-20 h-2 bg-gradient-to-r from-blue-600 to-purple-600 mx-auto rounded-full"></div>
+          <div className="w-24 h-1 bg-orange-500 mx-auto mt-12"></div>
         </div>
 
         {/* Contact Methods */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
           {contactMethods.map((method, index) => (
-            <div key={index} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all duration-300 hover:scale-105">
-              <div className={`w-16 h-16 bg-gradient-to-r ${method.color} rounded-full flex items-center justify-center text-white mb-6`}>
+            <div key={index} className="bg-[#1a1a1a] border border-white/10 rounded-none p-10 hover:border-orange-500 transition-all group">
+              <div className={`w-16 h-16 bg-white/5 border border-white/5 group-hover:border-orange-500 rounded-none flex items-center justify-center text-orange-500 mb-8 transition-all`}>
                 {method.icon}
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{method.title}</h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4">{method.description}</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">{method.contact}</p>
+              <h3 className="text-xl font-black text-white mb-3 uppercase italic tracking-tighter">{method.title}</h3>
+              <p className="text-xs text-slate-500 font-bold italic mb-6 leading-relaxed">{method.description}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8">{method.contact}</p>
               <Link
                 href={method.action}
-                className={`inline-flex items-center justify-center w-full px-6 py-3 bg-gradient-to-r ${method.color} text-white font-semibold rounded-lg hover:opacity-90 transition-all duration-300`}
+                className={`flex items-center justify-center w-full px-8 py-4 bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-none hover:bg-orange-500 hover:border-orange-500 transition-all`}
               >
-                Get Started
+                Establish Uplink
               </Link>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
           {/* Contact Form */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Send us a Message</h2>
+          <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 shadow-2xl relative border-l-8 border-l-orange-500">
+            <h2 className="text-2xl font-black text-white mb-10 uppercase italic tracking-tight">Transmission Portal</h2>
             
             {isSubmitted ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+              <div className="text-center py-20 bg-[#121212] border border-white/5 border-l-4 border-l-emerald-500 p-8 rounded-none">
+                <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 rounded-none flex items-center justify-center mx-auto mb-8">
+                  <CheckCircle className="w-10 h-10 text-emerald-500" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Message Sent Successfully!</h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-6">We&apos;ll get back to you within 24 hours.</p>
+                <h3 className="text-2xl font-black text-white mb-4 uppercase italic">Data Transmitted.</h3>
+                <p className="text-sm text-slate-400 font-medium italic mb-10">We've received your data. Protocol response within 24 hours.</p>
                 <button
                   onClick={() => setIsSubmitted(false)}
-                  className="px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+                  className="px-12 py-5 bg-white text-black font-black text-[10px] uppercase tracking-widest rounded-none hover:bg-slate-200 transition-all"
                 >
-                  Send Another Message
+                  Send New Transmission
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      <User className="w-4 h-4 inline mr-2" />
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                        errors.name 
-                          ? 'border-red-500 dark:border-red-400' 
-                          : 'border-gray-300 dark:border-gray-600'
-                      } dark:bg-gray-700 dark:text-white`}
-                      placeholder="Enter your full name"
-                    />
-                    {errors.name && (
-                      <p className="text-red-500 dark:text-red-400 text-sm mt-1 flex items-center">
-                        <AlertCircle className="w-4 h-4 mr-1" />
-                        {errors.name}
-                      </p>
-                    )}
+              <form onSubmit={handleSubmit} className="space-y-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">Identity Name</label>
+                    <div className="relative group">
+                       <User className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-orange-500 transition-colors" />
+                       <input
+                          type="text" name="name" value={formData.name} onChange={handleChange} required
+                          placeholder="Your identity"
+                          className="w-full bg-[#121212] border border-white/10 pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
+                       />
+                    </div>
+                    {errors.name && <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mt-2">{errors.name}</p>}
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      <Mail className="w-4 h-4 inline mr-2" />
-                      Email Address *
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
-                        errors.email ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                      placeholder="Enter your email"
-                    />
-                    {errors.email && (
-                      <p className="text-red-500 text-sm mt-1 flex items-center">
-                        <AlertCircle className="w-4 h-4 mr-1" />
-                        {errors.email}
-                      </p>
-                    )}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">Return Address</label>
+                    <div className="relative group">
+                       <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-orange-500 transition-colors" />
+                       <input
+                          type="email" name="email" value={formData.email} onChange={handleChange} required
+                          placeholder="uplink@domain.com"
+                          className="w-full bg-[#121212] border border-white/10 pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
+                       />
+                    </div>
+                    {errors.email && <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mt-2">{errors.email}</p>}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      <Phone className="w-4 h-4 inline mr-2" />
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                      placeholder="Enter your phone number"
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">Uplink Code (Phone)</label>
+                    <div className="relative group">
+                       <Phone className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-orange-500 transition-colors" />
+                       <input
+                          type="tel" name="phone" value={formData.phone} onChange={handleChange}
+                          placeholder="+234 XXX XXX XXXX"
+                          className="w-full bg-[#121212] border border-white/10 pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
+                       />
+                    </div>
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      <Building className="w-4 h-4 inline mr-2" />
-                      School Name
-                    </label>
-                    <input
-                      type="text"
-                      name="school"
-                      value={formData.school}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                      placeholder="Enter school name (if applicable)"
-                    />
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">Entity Name (School)</label>
+                    <div className="relative group">
+                       <Building className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-orange-500 transition-colors" />
+                       <input
+                          type="text" name="school" value={formData.school} onChange={handleChange}
+                          placeholder="Institutional Name"
+                          className="w-full bg-[#121212] border border-white/10 pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
+                       />
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Subject *
-                  </label>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">Subject Vector</label>
                   <select
-                    name="subject"
-                    value={formData.subject}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
-                      errors.subject ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    name="subject" value={formData.subject} onChange={handleChange} required
+                    className="w-full bg-[#121212] border border-white/10 px-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all"
                   >
-                    <option value="">Select a subject</option>
-                    <option value="School Partnership">School Partnership Inquiry</option>
-                    <option value="Student Enrollment">Student Enrollment</option>
-                    <option value="Curriculum Information">Curriculum Information</option>
-                    <option value="Demo Request">Request a Demo</option>
-                    <option value="General Inquiry">General Inquiry</option>
-                    <option value="Technical Support">Technical Support</option>
+                    <option value="" className="bg-[#121212]">SELECT CATEGORY</option>
+                    <option value="School Partnership" className="bg-[#121212]">PARTNERSHIP INQUIRY</option>
+                    <option value="Student Enrollment" className="bg-[#121212]">ENROLLMENT PROTOCOL</option>
+                    <option value="Curriculum Information" className="bg-[#121212]">CURRICULUM DATA</option>
+                    <option value="Demo Request" className="bg-[#121212]">DEMO REQUEST</option>
+                    <option value="General Inquiry" className="bg-[#121212]">GENERAL TRANSMISSION</option>
                   </select>
-                  {errors.subject && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-1" />
-                      {errors.subject}
-                    </p>
-                  )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    <MessageSquare className="w-4 h-4 inline mr-2" />
-                    Message *
-                  </label>
-                  <textarea
-                    name="message"
-                    value={formData.message}
-                    onChange={handleChange}
-                    rows={5}
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none ${
-                      errors.message ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="Tell us more about your inquiry..."
-                  ></textarea>
-                  {errors.message && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-1" />
-                      {errors.message}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Preferred Contact Method
-                  </label>
-                  <div className="flex gap-4">
-                    {[
-                      { value: "email", label: "Email", icon: <Mail className="w-4 h-4" /> },
-                      { value: "phone", label: "Phone", icon: <Phone className="w-4 h-4" /> },
-                      { value: "whatsapp", label: "WhatsApp", icon: <MessageSquare className="w-4 h-4" /> }
-                    ].map((method) => (
-                      <label key={method.value} className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="preferredContact"
-                          value={method.value}
-                          checked={formData.preferredContact === method.value}
-                          onChange={handleChange}
-                          className="sr-only"
-                        />
-                        <div className={`w-6 h-6 border-2 rounded-full flex items-center justify-center mr-2 ${
-                          formData.preferredContact === method.value
-                            ? 'border-blue-600 bg-blue-600'
-                            : 'border-gray-300'
-                        }`}>
-                          {formData.preferredContact === method.value && (
-                            <div className="w-2 h-2 bg-white rounded-full"></div>
-                          )}
-                        </div>
-                        <span className="flex items-center text-sm">
-                          {method.icon}
-                          <span className="ml-1">{method.label}</span>
-                        </span>
-                      </label>
-                    ))}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">Payload Message</label>
+                  <div className="relative group">
+                    <MessageSquare className="absolute left-6 top-6 w-4 h-4 text-slate-800 group-focus-within:text-orange-500 transition-colors" />
+                    <textarea
+                      name="message" value={formData.message} onChange={handleChange} required rows={5}
+                      placeholder="Enter detailed payload..."
+                      className="w-full bg-[#121212] border border-white/10 pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900 resize-none"
+                    ></textarea>
                   </div>
                 </div>
 
                 <button
-                  type="submit"
-                  disabled={isLoading}
-                  className={`w-full py-4 px-6 rounded-lg font-semibold text-white transition-all duration-300 ${
-                    isLoading
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 hover:scale-105'
-                  }`}
+                  type="submit" disabled={isLoading}
+                  className="w-full py-6 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.5em] rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 disabled:opacity-50 flex items-center justify-center gap-4"
                 >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                      Sending Message...
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center">
-                      <Send className="w-5 h-5 mr-2" />
-                      Send Message
-                    </div>
+                  {isLoading ? 'Processing...' : (
+                    <>
+                      <Send className="w-4 h-4" /> Initiating Transfer
+                    </>
                   )}
                 </button>
               </form>
@@ -389,42 +294,29 @@ export default function Contact() {
           </div>
 
           {/* Contact Information */}
-          <div className="space-y-8">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Contact Information</h2>
-              <div className="space-y-6">
+          <div className="space-y-12">
+            <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[100px] pointer-events-none" />
+              <h2 className="text-xl font-black text-white mb-10 uppercase italic tracking-tight">Access Points</h2>
+              <div className="space-y-8">
                 {contactInfo.map((info, index) => (
-                  <div
-                    key={index}
-                    className={`group ${info.bgColor} dark:${info.bgColor.replace('-50', '-900/30')} rounded-xl p-6 transition-all duration-300 transform hover:scale-[1.03] hover:shadow-2xl focus-within:scale-[1.03] focus-within:shadow-2xl`}
-                    tabIndex={0}
-                    role="region"
-                    aria-labelledby={`contact-info-title-${index}`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className={`${info.color} p-3 rounded-lg bg-white dark:bg-gray-900/60 shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-focus-within:scale-110 group-focus-within:shadow-lg animate-none`}
-                        aria-hidden="true"
-                      >
+                  <div key={index} className="bg-[#121212] border border-white/5 rounded-none p-8 hover:border-orange-500/30 transition-all group">
+                    <div className="flex items-start gap-6">
+                      <div className="w-12 h-12 bg-white/5 border border-white/5 group-hover:border-orange-500 rounded-none flex items-center justify-center text-orange-500 transition-all">
                         {info.icon}
                       </div>
                       <div className="flex-1">
-                        <h3 id={`contact-info-title-${index}`} className="font-semibold text-gray-900 dark:text-white mb-2">
-                          {info.title}
-                        </h3>
-                        <div className="space-y-1">
+                        <h3 className="text-xs font-black text-white mb-3 uppercase tracking-widest">{info.title}</h3>
+                        <div className="space-y-2">
                           {info.details.map((detail, idx) => (
-                            <p key={idx} className="text-gray-600 dark:text-gray-300">{detail}</p>
+                            <p key={idx} className="text-xs text-slate-500 font-bold italic">{detail}</p>
                           ))}
                         </div>
                         <Link
                           href={info.action}
-                          aria-label={info.actionText + (info.title ? ` for ${info.title}` : '')}
-                          className="inline-flex items-center mt-3 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 relative"
+                          className="inline-flex items-center gap-2 mt-6 text-[9px] font-black text-orange-500 uppercase tracking-widest hover:text-white transition-colors"
                         >
-                          {info.actionText}
-                          <span className="ml-1" aria-hidden="true">→</span>
-                          <span className="absolute left-0 -bottom-0.5 w-full h-0.5 bg-blue-600 dark:bg-blue-400 scale-x-0 group-hover:scale-x-100 group-focus-within:scale-x-100 transition-transform origin-left" />
+                          {info.actionText} →
                         </Link>
                       </div>
                     </div>
@@ -434,65 +326,27 @@ export default function Contact() {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
-              <h3 className="text-xl font-bold mb-4">Quick Actions</h3>
+            <div className="bg-[#1a1a1a] border border-white/10 border-t-8 border-t-orange-500 p-12 text-white shadow-2xl">
+              <h3 className="text-lg font-black mb-8 uppercase italic tracking-widest">Protocol Shortcuts</h3>
               <div className="space-y-4">
-                <Link
-                  href="/school-registration"
-                  className="flex items-center justify-between p-4 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
-                >
-                  <div className="flex items-center">
-                    <Building className="w-5 h-5 mr-3" />
-                    <span>Register Your School</span>
-                  </div>
-                  <span>→</span>
-                </Link>
-                <Link
-                  href="/student-registration"
-                  className="flex items-center justify-between p-4 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
-                >
-                  <div className="flex items-center">
-                    <User className="w-5 h-5 mr-3" />
-                    <span>Enroll Your Child</span>
-                  </div>
-                  <span>→</span>
-                </Link>
-                <Link
-                  href="/curriculum"
-                  className="flex items-center justify-between p-4 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
-                >
-                  <div className="flex items-center">
-                    <Calendar className="w-5 h-5 mr-3" />
-                    <span>View Curriculum</span>
-                  </div>
-                  <span>→</span>
-                </Link>
+                {[
+                  { label: "REGISTER SCHOOL", href: "/school-registration", icon: Building },
+                  { label: "ENROLL STUDENT", href: "/student-registration", icon: User },
+                  { label: "VIEW SYLLABUS", href: "/curriculum", icon: Calendar }
+                ].map((action, i) => (
+                  <Link
+                    key={i} href={action.href}
+                    className="flex items-center justify-between p-6 bg-[#121212] border border-white/5 hover:border-orange-500/50 transition-all group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <action.icon className="w-4 h-4 text-orange-500" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">{action.label}</span>
+                    </div>
+                    <span className="text-orange-500 group-hover:translate-x-2 transition-transform">→</span>
+                  </Link>
+                ))}
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* CTA Section */}
-        <div className="text-center bg-white rounded-2xl shadow-lg p-12 mt-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready to Transform Your School?</h2>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Join hundreds of schools already benefiting from our innovative technology education programs.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/school-registration"
-              className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 hover:scale-105"
-            >
-              <Building className="w-5 h-5 mr-2" />
-              Partner with Us
-            </Link>
-            <Link
-              href="https://wa.me/2348116600091"
-              className="inline-flex items-center justify-center px-8 py-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all duration-300 hover:scale-105"
-            >
-              <MessageSquare className="w-5 h-5 mr-2" />
-              Chat on WhatsApp
-            </Link>
           </div>
         </div>
       </div>

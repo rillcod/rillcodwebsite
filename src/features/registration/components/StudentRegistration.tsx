@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import {
   User, Check, ArrowRight, ArrowLeft, Loader2, GraduationCap,
   Phone, Mail, School, BookOpen, Calendar, ChevronDown, MapPin,
-  Heart, Globe, Sun, Building2,
+  Heart, Globe, Sun, Building2, Home,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -386,8 +386,13 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
               {/* Control Strip */}
               <div className="flex justify-between items-center pt-8 border-t border-white/5">
-                <button type="button" onClick={back} className={`flex items-center gap-3 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-white transition-colors ${step === 0 ? 'invisible' : ''}`}>
-                   <ArrowLeft className="w-4 h-4" /> Back
+                <button 
+                  type="button" 
+                  onClick={step === 0 ? () => window.location.href = '/' : back} 
+                  className="flex items-center gap-3 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-white transition-colors"
+                >
+                   {step === 0 ? <Home className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
+                   {step === 0 ? 'Home' : 'Back'}
                 </button>
                 <button type="submit" disabled={loading} className="group flex items-center gap-4 px-12 py-5 bg-orange-500 text-white text-[10px] font-black uppercase tracking-[0.4em] rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 disabled:opacity-50">
                    {loading ? (

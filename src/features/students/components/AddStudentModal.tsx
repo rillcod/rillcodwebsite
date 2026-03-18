@@ -132,25 +132,34 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                 const json = await res.json();
                 if (!res.ok) throw new Error(json.error || 'Failed to add student');
 
-                // If called from a class page, auto-activate and enroll into the class
-                if (classId && json.student?.id) {
+                // If called from a class page, or just adding a new student, auto-activate 
+                if (json.student?.id) {
                     const actRes = await fetch('/api/students/activate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ studentId: json.student.id }),
                     });
                     const actJson = await actRes.json();
+                    
                     if (actRes.ok && actJson.portalUserId) {
-                        // Enroll the new portal user into the class
-                        await fetch(`/api/classes/${classId}/enroll`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ studentIds: [actJson.portalUserId] }),
-                        });
+                        // Enroll the new portal user into the class if classId is provided
+                        if (classId) {
+                            await fetch(`/api/classes/${classId}/enroll`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ studentIds: [actJson.portalUserId] }),
+                            });
+                        }
+                        
                         // Show credentials to teacher (modal stays open until Done clicked)
                         if (!actJson.alreadyActivated && actJson.tempPassword) {
+                            const nameToUse = form.full_name || initialData?.full_name || 'Student';
                             setForm(DEFAULT_FORM);
-                            setCredentials({ email: actJson.email, tempPassword: actJson.tempPassword, name: form.full_name });
+                            setCredentials({ 
+                                email: actJson.email, 
+                                tempPassword: actJson.tempPassword, 
+                                name: nameToUse 
+                            });
                             return; // don't fall through to onSuccess/onClose yet
                         }
                     }
@@ -166,35 +175,45 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
         }
     };
 
-    if (!isOpen) return null;
-
-    // Credentials display after class auto-enrolment
+    if (!isOpen) return null;    // Credentials display after class auto-enrolment
     if (credentials) {
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setCredentials(null); onSuccess(); onClose(); }} />
-                <div className="relative w-full max-w-md bg-[#0f0f1a] border border-emerald-500/30 rounded-3xl shadow-2xl p-8 space-y-5">
-                    <div className="flex items-center gap-3 mb-2">
-                        <CheckIcon className="w-6 h-6 text-emerald-400" />
-                        <h2 className="text-lg font-extrabold text-white">Student Registered & Enrolled!</h2>
-                    </div>
-                    <p className="text-sm text-white/50">Share these login credentials with <span className="text-white font-semibold">{credentials.name}</span> or their parent/guardian.</p>
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-3">
-                        <div>
-                            <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1">Email / Login</p>
-                            <p className="text-sm font-mono font-bold text-blue-300">{credentials.email}</p>
+                <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => { setCredentials(null); onSuccess(); onClose(); }} />
+                <div className="relative w-full max-w-md bg-[#1a1a1a] border-l-8 border-l-emerald-500 border border-white/10 rounded-none shadow-2xl p-10 space-y-6">
+                    <div className="flex items-center gap-4 mb-2">
+                        <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center rotate-3">
+                            <CheckIcon className="w-6 h-6 text-emerald-500" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1">Temporary Password</p>
-                            <p className="text-sm font-mono font-bold text-amber-300">{credentials.tempPassword}</p>
+                            <h2 className="text-xl font-black text-white uppercase tracking-tight italic">Uplink Successful</h2>
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest leading-none">Registered & Enrolled: {credentials.name}</p>
                         </div>
                     </div>
-                    <p className="text-xs text-white/30">The student should change their password on first login.</p>
+
+                    <div className="bg-[#121212] border border-white/5 rounded-none p-6 space-y-4">
+                        <div>
+                            <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2">Login Sector (Email)</p>
+                            <p className="text-sm font-mono font-bold text-blue-400 select-all">{credentials.email}</p>
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2">Cipher Key (Password)</p>
+                            <p className="text-sm font-mono font-bold text-amber-500 select-all">{credentials.tempPassword}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-none flex items-start gap-3">
+                        <ExclamationTriangleIcon className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-[10px] font-bold text-amber-500 italic leading-relaxed uppercase tracking-widest">
+                            SECURITY PROTOCOL: Copy these credentials now. First login requires manual password rotation via settings.
+                        </p>
+                    </div>
+
                     <button
                         onClick={() => { setCredentials(null); onSuccess(); onClose(); }}
-                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all"
+                        className="w-full py-5 bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.5em] rounded-none hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20"
                     >
-                        Done
+                        Done & Finalize
                     </button>
                 </div>
             </div>
@@ -204,137 +223,127 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose} />
 
             {/* Panel */}
-            <div className="relative w-full max-w-lg bg-[#0f0f1a] border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="relative w-full max-w-lg bg-[#1a1a1a] border border-white/10 rounded-none shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border-t-8 border-t-orange-500">
 
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-white/10 flex-shrink-0">
+                <div className="flex items-center justify-between p-10 border-b border-white/5 flex-shrink-0 relative">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-[60px] pointer-events-none"></div>
                     <div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                            <UserIcon className="w-4 h-4 text-blue-400" />
-                            <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Students</span>
+                        <div className="flex items-center gap-3 mb-1">
+                            <UserIcon className="w-4 h-4 text-orange-500" />
+                            <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">Sector: Students</span>
                         </div>
-                        <h2 className="text-lg font-extrabold text-white">{initialData ? 'Edit Student' : 'Add New Student'}</h2>
+                        <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">{initialData ? 'Update Record' : 'Initialize Enrollment'}</h2>
                     </div>
                     <button onClick={onClose}
-                        className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-colors"
-                        aria-label="Close">
-                        <XMarkIcon className="w-5 h-5" />
+                        className="p-3 rounded-none bg-white/5 border border-white/5 hover:border-orange-500/30 text-white/40 hover:text-white transition-all">
+                        <XMarkIcon className="w-6 h-6" />
                     </button>
                 </div>
 
                 {/* Scrollable form */}
-                <form onSubmit={handleSubmit} className="overflow-y-auto flex-1">
-                    <div className="p-6 space-y-4">
+                <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 custom-scrollbar">
+                    <div className="p-10 space-y-10">
 
                         {error && (
-                            <div className="flex items-start gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3">
-                                <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
-                                <p className="text-sm font-semibold text-rose-400">{error}</p>
+                            <div className="flex items-start gap-4 bg-rose-500/5 border border-rose-500/20 rounded-none px-6 py-4 border-l-4 border-l-rose-500">
+                                <ExclamationTriangleIcon className="w-5 h-5 text-rose-500 flex-shrink-0" />
+                                <p className="text-[10px] font-black uppercase tracking-widest text-rose-500 leading-relaxed">{error}</p>
                             </div>
                         )}
 
                         {/* Full Name */}
-                        <Field label="Student Full Name" required>
-                            <IconInput icon={UserIcon} name="full_name" type="text" placeholder="Student's full name"
+                        <Field label="Protocol: Full Student Name" required>
+                            <IconInput icon={UserIcon} name="full_name" type="text" placeholder="Identity String"
                                 value={form.full_name} onChange={handleChange} required />
                         </Field>
 
                         {/* Parent info */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <Field label="Parent / Guardian Name">
-                                <IconInput icon={UserIcon} name="parent_name" type="text" placeholder="Parent name"
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                            <Field label="Guardian Name">
+                                <IconInput icon={UserIcon} name="parent_name" type="text" placeholder="Primary Guardian"
                                     value={form.parent_name} onChange={handleChange} />
                             </Field>
-                            <Field label="Student Email" required>
-                                <IconInput icon={EnvelopeIcon} name="student_email" type="email" placeholder="student@email.com"
+                            <Field label="System Email" required>
+                                <IconInput icon={EnvelopeIcon} name="student_email" type="email" placeholder="uplink@node.com"
                                     value={form.student_email} onChange={handleChange} required />
                             </Field>
                         </div>
 
-                        <Field label="Parent Phone">
-                            <IconInput icon={PhoneIcon} name="parent_phone" type="tel" placeholder="+234 800 000 0000"
+                        <Field label="Primary Uplink (Phone)">
+                            <IconInput icon={PhoneIcon} name="parent_phone" type="tel" placeholder="+234 XXX XXX XXXX"
                                 value={form.parent_phone} onChange={handleChange} />
                         </Field>
 
-                        {/* School — locked for school role, dropdown for admin/teacher */}
-                        <Field label="Partner School" required>
-                            <div className="relative">
-                                <BuildingOfficeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        {/* School */}
+                        <Field label="Entity: Partner Institution" required>
+                            <div className="relative group">
+                                <BuildingOfficeIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-orange-500 transition-colors z-10" />
                                 {profile?.role === 'school' ? (
-                                    <div className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white flex items-center gap-2">
-                                        <span className="flex-1 truncate">{form.school_name || 'Your school'}</span>
-                                        <span className="text-[10px] text-violet-400 font-bold uppercase bg-violet-500/10 px-2 py-0.5 rounded-full flex-shrink-0">Your School</span>
+                                    <div className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-white/10 rounded-none text-sm text-white font-bold flex items-center gap-3 italic">
+                                        <span className="flex-1 truncate">{form.school_name || 'Active Institution'}</span>
+                                        <span className="text-[9px] text-orange-500 font-black uppercase bg-orange-500/10 px-3 py-1 rounded-none border border-orange-500/20">Locked Protocol</span>
                                     </div>
                                 ) : schools.length > 0 ? (
                                     <select name="school_name" value={form.school_name} onChange={handleChange} required
-                                        className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none">
-                                        <option value="">Select school…</option>
-                                        {schools.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                                        <option value="__other__">Other / Not listed</option>
+                                        className="w-full pl-14 pr-10 py-5 bg-[#121212] border border-white/10 rounded-none text-sm text-white font-bold focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer">
+                                        <option value="" className="bg-[#1a1a1a]">SELECT VERIFIED NODE…</option>
+                                        {schools.map(s => <option key={s.id} value={s.name} className="bg-[#1a1a1a] uppercase">{s.name}</option>)}
+                                        <option value="__other__" className="bg-[#1a1a1a]">OTHER SECTOR</option>
                                     </select>
                                 ) : (
-                                    <input name="school_name" type="text" placeholder="School name" value={form.school_name}
+                                    <input name="school_name" type="text" placeholder="Institution Name" value={form.school_name}
                                         onChange={handleChange} required
-                                        className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-white/25" />
+                                        className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-white/10 rounded-none text-sm text-white font-bold focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900" />
                                 )}
                             </div>
                         </Field>
 
-                        {/* Manual entry when "Other" selected (admin/teacher only) */}
-                        {form.school_name === '__other__' && profile?.role !== 'school' && (
-                            <Field label="School Name (manual)">
-                                <IconInput icon={BuildingOfficeIcon} name="school_name_manual" type="text" placeholder="Type school name"
-                                    value={(form as any).school_name_manual ?? ''}
-                                    onChange={e => setForm(p => ({ ...p, school_name: e.target.value }))} />
-                            </Field>
-                        )}
-                                              {/* Grade + Section */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <Field label="Grade Level">
-                                <div className="relative">
-                                    <BookOpenIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        {/* Grade + Section */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                            <Field label="Academic Tier">
+                                <div className="relative group">
+                                    <BookOpenIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-orange-500 transition-colors z-10" />
                                     <select name="grade_level" value={form.grade_level} onChange={handleChange}
-                                        className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none">
-                                        <option value="">Select…</option>
-                                        {GRADE_LEVELS.map(g => <option key={g} value={g}>{g}</option>)}
+                                        className="w-full pl-14 pr-10 py-5 bg-[#121212] border border-white/10 rounded-none text-sm text-white font-bold focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer">
+                                        <option value="" className="bg-[#1a1a1a]">SELECT TIER…</option>
+                                        {GRADE_LEVELS.map(g => <option key={g} value={g} className="bg-[#1a1a1a] uppercase">{g}</option>)}
                                     </select>
                                 </div>
                             </Field>
-                            <Field label="Specific Class / Section">
-                                <IconInput icon={BookOpenIcon} name="section_class" type="text" placeholder="e.g. JSS1 A"
+                            <Field label="Section Class">
+                                <IconInput icon={BookOpenIcon} name="section_class" type="text" placeholder="e.g. ALPHA"
                                     value={form.section_class} onChange={handleChange} />
                             </Field>
                         </div>
 
                         {/* Location */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <Field label="City">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                            <Field label="City Node">
                                 <input name="city" type="text" placeholder="City" value={form.city} onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-white/25" />
+                                    className="w-full px-6 py-5 bg-[#121212] border border-white/10 rounded-none text-sm text-white font-bold focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900 shadow-inner shadow-black/20" />
                             </Field>
-                            <Field label="State">
+                            <Field label="State Sector">
                                 <input name="state" type="text" placeholder="State" value={form.state} onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-white/25" />
+                                    className="w-full px-6 py-5 bg-[#121212] border border-white/10 rounded-none text-sm text-white font-bold focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900 shadow-inner shadow-black/20" />
                             </Field>
                         </div>
- 
-
                     </div>
 
                     {/* Footer actions */}
-                    <div className="flex gap-3 px-6 pb-6 pt-2 border-t border-white/10 flex-shrink-0">
+                    <div className="flex gap-px p-10 pt-4 border-t border-white/5 flex-shrink-0">
                         <button type="button" onClick={onClose}
-                            className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-sm font-bold rounded-xl border border-white/10 transition-all">
-                            Cancel
+                            className="flex-1 py-6 bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-[0.4em] transition-all border border-white/5">
+                            ABORT
                         </button>
                         <button type="submit" disabled={loading}
-                            className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
+                            className="flex-[2] flex items-center justify-center gap-4 py-6 bg-orange-500 text-white text-[10px] font-black uppercase tracking-[0.4em] transition-all disabled:opacity-50 shadow-xl shadow-orange-500/20 hover:bg-orange-600">
                             {loading
-                                ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</>
-                                : <><CheckIcon className="w-4 h-4" /> {initialData ? 'Update Student' : 'Add Student'}</>}
+                                ? <><ArrowPathIcon className="w-5 h-5 animate-spin" /> EXECUTING…</>
+                                : <><CheckIcon className="w-5 h-5" /> {initialData ? 'COMMIT UPDATE' : 'INITIALIZE RECORD'}</>}
                         </button>
                     </div>
                 </form>
@@ -346,9 +355,9 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
 /* ── Sub-components ─────────────────────────────────────── */
 function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
     return (
-        <div>
-            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
-                {label}{required && <span className="text-rose-400 ml-0.5">*</span>}
+        <div className="space-y-3">
+            <label className="block text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic leading-none">
+                {label}{required && <span className="text-orange-500 ml-1.5">*</span>}
             </label>
             {children}
         </div>
@@ -360,11 +369,11 @@ function IconInput({ icon: Icon, name, type, placeholder, value, onChange, requi
     value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; required?: boolean;
 }) {
     return (
-        <div className="relative">
-            <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+        <div className="relative group">
+            <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-orange-500 transition-colors z-10" />
             <input name={name} type={type} placeholder={placeholder} value={value}
                 onChange={onChange} required={required}
-                className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 transition-colors placeholder-white/25" />
+                className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-white/10 rounded-none text-sm text-white font-bold focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900 shadow-inner shadow-black/20" />
         </div>
     );
 }

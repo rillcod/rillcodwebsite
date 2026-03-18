@@ -56,94 +56,74 @@ const Footer = () => {
   React.useEffect(() => { setCurrentYear(new Date().getFullYear()); }, []);
 
   const quickLinks = [
+    { href: '/', label: 'Home' },
     { href: '/about', label: 'About Us' },
     { href: '/programs', label: 'Programs' },
     { href: '/curriculum', label: 'Curriculum' },
-    { href: '/partnership', label: 'Partnership' },
     { href: '/contact', label: 'Contact' },
-    { href: '/faq', label: 'FAQ' },
   ];
 
   const programs = [
-    { href: '/programs', label: 'ICT Fundamentals' },
-    { href: '/programs', label: 'Scratch Programming' },
-    { href: '/programs', label: 'HTML/CSS Programming' },
     { href: '/programs', label: 'Python Programming' },
-    { href: '/programs', label: 'Web Design' },
-    { href: '/programs', label: 'Robotics Programming' },
-  ];
-
-  const resources = [
-    { href: '/blog', label: 'Blog' },
-    { href: '/gallery', label: 'Gallery' },
-    { href: '/testimonials', label: 'Testimonials' },
-    { href: '/events', label: 'Events' },
-    { href: '/careers', label: 'Careers' },
-    { href: '/volunteer', label: 'Volunteer' },
-  ];
-
-  const legal = [
-    { href: '/privacy-policy', label: 'Privacy Policy' },
-    { href: '/terms', label: 'Terms of Service' },
-    { href: '/cookie-policy', label: 'Cookie Policy' },
-    { href: '/accessibility', label: 'Accessibility' },
-  ];
-
-  const socialLinks = [
-    { href: '#', Icon: FacebookIcon, label: 'Facebook' },
-    { href: '#', Icon: TwitterIcon, label: 'Twitter' },
-    { href: '#', Icon: InstagramIcon, label: 'Instagram' },
-    { href: '#', Icon: LinkedinIcon, label: 'LinkedIn' },
-    { href: '#', Icon: YoutubeIcon, label: 'YouTube' },
+    { href: '/programs', label: 'Web Architecture' },
+    { href: '/programs', label: 'Robotics & IoT' },
+    { href: '/programs', label: 'AI & Data Science' },
   ];
 
   return (
-    <footer className="bg-gray-900 text-white">
-      {/* Main Footer Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* Company Info */}
-          <div className="lg:col-span-1">
-            <div className="flex items-center space-x-2 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <AcademicCapIcon className="w-6 h-6 text-white" />
+    <footer className="bg-[#0a0a0a] text-white border-t border-white/5 py-24 relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-blue-600/5 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-orange-600/5 blur-[100px] pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 mb-24">
+          
+          {/* Brand Info */}
+          <div className="space-y-8">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-orange-500 flex items-center justify-center rounded-none shadow-xl shadow-orange-500/20">
+                <AcademicCapIcon className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  Rillcod Technologies
+                <h3 className="text-xl font-black uppercase tracking-tighter leading-none">
+                  Rillcod <br />
+                  <span className="text-orange-500">Technologies.</span>
                 </h3>
-                <p className="text-sm text-gray-400">Smart School Management</p>
               </div>
             </div>
-            <p className="text-gray-300 mb-6 leading-relaxed">
-              Empowering the next generation with cutting-edge technology education.
-              Building future innovators through hands-on learning and AI-powered curriculum.
+            
+            <p className="text-sm text-slate-500 font-bold italic leading-relaxed border-l-2 border-orange-500 pl-6">
+              Engineering the next generation of African tech leaders through standardized curriculum and AI-powered learning architectures.
             </p>
 
-            {/* Contact Info */}
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3">
-                <EnvelopeIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                <span className="text-gray-300 text-sm">info@rillcodacademy.com</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <PhoneIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                <span className="text-gray-300 text-sm">+234 811 660 0091</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <MapPinIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                <span className="text-gray-300 text-sm">Lagos, Nigeria</span>
-              </div>
+            <div className="space-y-4 pt-4">
+               <div className="flex items-start gap-4 group">
+                  <MapPinIcon className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest leading-relaxed">
+                    No 26 Ogiesoba Aveune <br />
+                    Off Airport Road, <br />
+                    Benin City, Edo State.
+                  </p>
+               </div>
+               <div className="flex items-center gap-4 group">
+                  <PhoneIcon className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                  <p className="text-xs font-black text-white uppercase tracking-widest">08116600091</p>
+               </div>
+               <div className="flex items-center gap-4 group">
+                  <EnvelopeIcon className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                  <p className="text-xs font-black text-white lowercase tracking-widest">info@rillcod.tech</p>
+               </div>
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Navigation */}
           <div>
-            <h4 className="text-lg font-semibold mb-4 text-white">Quick Links</h4>
-            <ul className="space-y-2">
+            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-10 pb-4 border-b border-white/5">Quick Protocols</h4>
+            <ul className="space-y-4">
               {quickLinks.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="text-gray-300 hover:text-blue-400 transition-colors text-sm">
+                <li key={link.label}>
+                  <Link href={link.href} className="text-xs font-black text-slate-400 hover:text-orange-500 transition-colors uppercase tracking-widest flex items-center gap-3 group">
+                    <span className="w-1.5 h-1.5 bg-orange-500 rounded-none opacity-0 group-hover:opacity-100 transition-all" />
                     {link.label}
                   </Link>
                 </li>
@@ -151,91 +131,48 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Programs */}
+          {/* Academic Paths */}
           <div>
-            <h4 className="text-lg font-semibold mb-4 text-white">Programs</h4>
-            <ul className="space-y-2">
-              {programs.map((program) => (
-                <li key={program.label}>
-                  <Link href={program.href} className="text-gray-300 hover:text-blue-400 transition-colors text-sm">
-                    {program.label}
+            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-10 pb-4 border-b border-white/5">Academic Sectors</h4>
+            <ul className="space-y-4">
+              {programs.map((p) => (
+                <li key={p.label}>
+                  <Link href={p.href} className="text-xs font-black text-slate-400 hover:text-orange-500 transition-colors uppercase tracking-widest flex items-center gap-3 group">
+                    <span className="w-1.5 h-1.5 bg-orange-500 rounded-none opacity-0 group-hover:opacity-100 transition-all" />
+                    {p.label}
                   </Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Resources & Legal */}
+          {/* Newsletter / CTA */}
           <div>
-            <h4 className="text-lg font-semibold mb-4 text-white">Resources</h4>
-            <ul className="space-y-2 mb-6">
-              {resources.map((resource) => (
-                <li key={resource.href}>
-                  <Link href={resource.href} className="text-gray-300 hover:text-blue-400 transition-colors text-sm">
-                    {resource.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-
-            <h4 className="text-lg font-semibold mb-4 text-white">Legal</h4>
-            <ul className="space-y-2">
-              {legal.map((item) => (
-                <li key={item.href}>
-                  <Link href={item.href} className="text-gray-300 hover:text-blue-400 transition-colors text-sm">
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {/* Newsletter */}
-        <div className="mt-12 pt-8 border-t border-gray-800">
-          <div className="max-w-md">
-            <h4 className="text-lg font-semibold mb-2 text-white">Stay Updated</h4>
-            <p className="text-gray-300 text-sm mb-4">
-              Subscribe to our newsletter for the latest updates on programs and events.
+            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-10 pb-4 border-b border-white/5">Initialize Uplink</h4>
+            <p className="text-xs font-bold text-slate-500 italic mb-8">
+              Stay synchronized with our latest technological deployment and curriculum updates.
             </p>
-            <div className="flex space-x-2">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <button className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                Subscribe
-              </button>
-            </div>
+            <Link href="/student-registration" className="block w-full py-5 bg-orange-500 text-white text-[10px] font-black uppercase tracking-[0.4em] text-center rounded-none shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all">
+              Initialize Enrollment
+            </Link>
           </div>
+
         </div>
-      </div>
 
-      {/* Bottom Footer */}
-      <div className="border-t border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <div className="text-gray-400 text-sm">
-              © <span suppressHydrationWarning>{currentYear}</span> Rillcod Technologies. All rights reserved.
-            </div>
-
-            <div className="flex items-center space-x-4">
-              {socialLinks.map(({ href, Icon, label }) => (
-                <a key={label} href={href} className="text-gray-400 hover:text-blue-400 transition-colors" aria-label={label}>
-                  <Icon className="w-5 h-5" />
-                </a>
-              ))}
-            </div>
-
-            <button
-              onClick={scrollToTop}
-              className="flex items-center space-x-2 text-gray-400 hover:text-blue-400 transition-colors"
-            >
-              <span className="text-sm">Back to top</span>
-              <ArrowUpIcon className="w-4 h-4" />
-            </button>
+        {/* Legal & Social */}
+        <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-10">
+          <div className="flex flex-wrap justify-center md:justify-start gap-8">
+            <Link href="/privacy" className="text-[9px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-colors">Privacy Protocol</Link>
+            <Link href="/terms" className="text-[9px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-colors">Terms of Service</Link>
           </div>
+
+          <p className="text-[9px] font-black text-slate-700 uppercase tracking-[0.3em]" suppressHydrationWarning>
+            © {currentYear} RILLCOD TECHNOLOGIES. ALL SYSTEMS OPERATIONAL.
+          </p>
+
+          <button onClick={scrollToTop} className="flex items-center gap-4 text-xs font-black text-orange-500 uppercase tracking-widest hover:text-white transition-all group">
+            Top <ArrowUpIcon className="w-4 h-4 group-hover:-translate-y-1 transition-transform" />
+          </button>
         </div>
       </div>
     </footer>

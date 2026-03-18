@@ -66,8 +66,8 @@ export default function DashboardNavigation() {
   if (isMinimal) return null;
 
   if (!profile) return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-[#0b0b18] border-b border-white/10 h-14 flex items-center justify-between px-4 sm:px-6">
-      <span className="text-white/30 text-sm font-semibold">Rillcod Technologies</span>
+    <div className="fixed top-0 left-0 right-0 z-50 bg-[#121212] border-b border-white/5 h-14 flex items-center justify-between px-4 sm:px-6">
+      <span className="text-white/30 text-[10px] font-black uppercase tracking-widest">Rillcod Technologies</span>
       <div className="flex items-center gap-3">
         <a href="/login"
           className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors underline underline-offset-2">
@@ -221,10 +221,10 @@ export default function DashboardNavigation() {
   return (
     <>
       {/* ── Mobile Top Header ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#0B132B] px-4 py-1.5 text-white border-b border-[#7a0606] shadow-lg">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#121212] px-4 py-1.5 text-white border-b border-white/5 shadow-2xl">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <Image src="/images/logo.png" alt="Rillcod" width={24} height={24} className="rounded-lg" priority />
-          <span className="font-extrabold uppercase tracking-widest text-base">Rillcod</span>
+          <Image src="/images/logo.png" alt="Rillcod" width={24} height={24} className="rounded-none shadow-orange-500/20 shadow-lg" priority />
+          <span className="font-black uppercase tracking-widest text-sm italic">Rillcod <span className="text-orange-500">Tech</span></span>
         </Link>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
@@ -260,8 +260,8 @@ export default function DashboardNavigation() {
           fixed top-[53px] left-0 bottom-16 z-40 md:bottom-0
           md:static md:top-auto md:bottom-auto md:z-auto
           flex flex-col w-[280px] md:w-64
-          bg-[#0B132B] text-gray-200
-          border-r-4 border-[#7a0606] shadow-2xl
+          bg-[#121212] text-gray-200
+          border-r border-white/5 shadow-2xl
           transform transition-transform duration-300 ease-in-out
           md:translate-x-0 md:h-screen md:flex-shrink-0
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
@@ -269,16 +269,18 @@ export default function DashboardNavigation() {
         aria-label="Dashboard navigation"
       >
         {/* Logo (desktop only) */}
-        <div className="hidden md:flex flex-col items-center justify-center py-6 border-b border-gray-800">
-          <Image src="/images/logo.png" alt="Rillcod Technologies" width={64} height={64} className="rounded-2xl shadow-lg shadow-black/50 mb-3" priority />
-          <span className="text-xl font-extrabold uppercase tracking-[0.2em] text-white">Rillcod</span>
-          <span className="text-[10px] font-bold tracking-widest text-gray-400 mt-1 uppercase">Academy Portal</span>
+        <div className="hidden md:flex flex-col items-center justify-center py-8 border-b border-white/5">
+          <Image src="/images/logo.png" alt="Rillcod Technologies" width={56} height={56} className="rounded-none shadow-xl shadow-black/50 mb-4" priority />
+          <h1 className="text-xl font-black uppercase tracking-widest text-white italic">
+            Rillcod <span className="text-orange-500">Tech.</span>
+          </h1>
+          <span className="text-[10px] font-black tracking-[0.4em] text-slate-600 mt-2 uppercase">Core Protocol</span>
         </div>
 
         {/* User badge */}
-        <div className="px-4 md:px-6 py-4 flex items-center gap-3 border-b border-gray-800 bg-[#060c1d]">
-          <div className="w-10 h-10 bg-[#7a0606] border border-gray-600 rounded flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-lg font-black uppercase">
+        <div className="px-4 md:px-6 py-6 flex items-center gap-4 border-b border-white/5 bg-[#0a0a0a]">
+          <div className="w-12 h-12 bg-orange-500/10 border border-orange-500/20 rounded-none flex items-center justify-center flex-shrink-0 shadow-inner">
+            <span className="text-orange-500 text-lg font-black uppercase">
               {profile.full_name?.charAt(0) ?? 'U'}
             </span>
           </div>
@@ -315,12 +317,13 @@ export default function DashboardNavigation() {
                 key={name}
                 href={href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold tracking-wider uppercase transition-all duration-200 ${active
-                    ? 'bg-[#7a0606] text-white shadow-md'
-                    : 'text-gray-400 hover:bg-[#1a2b54] hover:text-white'
+                className={`flex items-center gap-4 px-4 py-4 rounded-none text-[10px] font-black tracking-[0.2em] uppercase transition-all duration-300 relative group ${active
+                    ? 'bg-orange-500/10 text-orange-500'
+                    : 'text-slate-500 hover:bg-white/5 hover:text-white'
                   }`}
               >
-                <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-white' : 'text-gray-400'}`} />
+                {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500 shadow-[0_0_15px_rgba(255,145,77,0.5)]" />}
+                <Icon className={`w-5 h-5 flex-shrink-0 transition-colors ${active ? 'text-orange-500' : 'text-slate-700 group-hover:text-slate-400'}`} />
                 <span className="truncate">{name}</span>
                 {name === 'Messages' && unreadCount > 0 && (
                   <span className="ml-auto text-[10px] bg-rose-500 text-white px-1.5 py-0.5 rounded-full font-black min-w-[1.25rem] text-center">
@@ -333,11 +336,11 @@ export default function DashboardNavigation() {
         </div>
 
         {/* Bottom actions */}
-        <div className="p-3 md:p-4 border-t border-gray-800 bg-[#060c1d] space-y-1">
+        <div className="p-4 border-t border-white/5 bg-[#0a0a0a] space-y-2">
           <Link
             href="/dashboard/messages"
             onClick={() => setMobileOpen(false)}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-bold uppercase text-gray-400 hover:bg-[#1a2b54] hover:text-white transition-colors"
+            className="flex items-center gap-4 w-full px-4 py-4 rounded-none text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white/5 hover:text-white transition-all"
           >
             <div className="relative flex-shrink-0">
               <BellIcon className="w-5 h-5" />
@@ -355,13 +358,13 @@ export default function DashboardNavigation() {
           <Link
             href="/dashboard/profile"
             onClick={() => setMobileOpen(false)}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-bold uppercase text-gray-400 hover:bg-[#1a2b54] hover:text-white transition-colors"
+            className="flex items-center gap-4 w-full px-4 py-4 rounded-none text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-white/5 hover:text-white transition-all"
           >
             <UserIcon className="w-5 h-5 flex-shrink-0" /> Profile
           </Link>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-xs font-bold uppercase text-red-500 hover:bg-red-500/10 transition-colors"
+            className="flex items-center gap-4 w-full px-4 py-4 rounded-none text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/5 transition-all"
           >
             <ArrowRightOnRectangleIcon className="w-5 h-5 flex-shrink-0" /> Sign Out
           </button>
@@ -369,7 +372,7 @@ export default function DashboardNavigation() {
       </nav>
 
       {/* ── Mobile Bottom Navigation ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0B132B] border-t-2 border-[#7a0606] px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#121212] border-t border-white/5 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-2xl">
         {bottomNavItems.map(({ name, href, icon: Icon }) => {
           const active = pathname === href || pathname?.startsWith(href + '/');
           return (
@@ -377,18 +380,18 @@ export default function DashboardNavigation() {
               key={`mobile-${name}`}
               href={href}
               onClick={() => setMobileOpen(false)}
-              className={`flex flex-col items-center gap-1 px-2 py-1 rounded-xl min-w-[3.5rem] transition-all duration-200 ${active ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+              className={`flex flex-col items-center gap-2 px-1 py-2 min-w-[3.5rem] transition-all duration-300 relative ${active ? 'text-orange-500' : 'text-slate-600 hover:text-slate-400'
                 }`}
             >
-              <div className={`relative p-2 rounded-lg transition-all duration-200 ${active ? 'bg-[#7a0606] shadow-md shadow-black/40' : ''}`}>
-                <Icon className={`w-6 h-6 ${active ? 'text-white' : 'text-gray-400'}`} />
+              <div className={`relative p-2 rounded-none transition-all duration-300 ${active ? 'bg-orange-500/10 shadow-lg shadow-orange-500/5' : ''}`}>
+                <Icon className={`w-6 h-6 ${active ? 'text-orange-500' : 'text-slate-700'}`} />
                 {name === 'Messages' && unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-orange-500 text-white text-[8px] font-black rounded-none flex items-center justify-center ring-2 ring-[#121212]">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </div>
-              <span className={`text-[9px] font-bold uppercase tracking-wide leading-none ${active ? 'text-white' : 'text-gray-500'}`}>
+              <span className={`text-[8px] font-black uppercase tracking-widest leading-none ${active ? 'text-orange-500' : 'text-slate-700'}`}>
                 {name === 'My Courses' ? 'Courses' :
                   name === 'My Classes' ? 'Classes' :
                     name === 'My Report Card' ? 'Report' :

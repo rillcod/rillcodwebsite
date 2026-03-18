@@ -458,36 +458,46 @@ export default function Curriculum() {
           </div>
         </div>
 
-        {/* Learning Levels Overview */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-16">
-          <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8">Learning Journey Overview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Learning Journey Overview */}
+        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 mb-16 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[100px] pointer-events-none"></div>
+          <h2 className="text-xl font-black text-white text-center mb-12 uppercase tracking-widest italic flex items-center justify-center gap-4">
+            <span className="w-12 h-[1px] bg-orange-500"></span>
+            Learning Phase Roadmap
+            <span className="w-12 h-[1px] bg-orange-500"></span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {learningLevels.map((level, index) => (
               <div key={index} className="text-center group">
-                <div className={`w-20 h-20 bg-gradient-to-r ${level.color} rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                  <div className="text-white">
+                <div className={`w-24 h-24 bg-white/5 border border-white/5 group-hover:border-orange-500 transition-all rounded-none flex items-center justify-center mx-auto mb-8 relative`}>
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="text-orange-500 group-hover:scale-110 transition-transform relative z-10">
                     {level.icon}
                   </div>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{level.name}</h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-3">{level.description}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{level.focus}</p>
+                <h3 className="text-lg font-black text-white mb-4 uppercase tracking-tighter italic">{level.name}</h3>
+                <p className="text-xs text-slate-400 font-bold italic mb-4 leading-relaxed">{level.description}</p>
+                <div className="h-[1px] bg-white/5 w-12 mx-auto mb-4"></div>
+                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{level.focus}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Success Stories */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 mb-16">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-8">Success Stories from Our Curriculum</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 mb-16 shadow-2xl border-l-8 border-l-blue-500">
+          <h2 className="text-xl font-black text-white mb-12 text-left uppercase tracking-widest italic flex items-center gap-4">
+             <span className="w-12 h-[1px] bg-blue-500"></span>
+             Success Protocols
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {successStories.map((story, index) => (
-              <div key={index} className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-100 hover:shadow-lg transition-all duration-300">
-                <div className="text-4xl mb-4">{story.image}</div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{story.name}</h3>
-                <p className="text-sm text-gray-600 mb-2">{story.location} • {story.grade}</p>
-                <p className="text-gray-700 mb-3">{story.story}</p>
-                <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+              <div key={index} className="bg-[#121212] border border-white/5 p-8 rounded-none hover:border-blue-500/50 transition-all group relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 text-4xl opacity-20 group-hover:opacity-40 transition-opacity">{story.image}</div>
+                <h3 className="text-lg font-black text-white mb-2 uppercase italic tracking-tight">{story.name}</h3>
+                <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-6">{story.location} • {story.grade}</p>
+                <p className="text-xs text-slate-400 font-bold italic mb-6 leading-relaxed relative z-10">{story.story}</p>
+                <div className="inline-block bg-blue-500/10 border border-blue-500/20 px-4 py-2 text-[10px] font-black text-blue-400 uppercase tracking-widest">
                   {story.achievement}
                 </div>
               </div>

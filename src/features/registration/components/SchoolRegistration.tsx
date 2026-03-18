@@ -327,12 +327,18 @@ export function SchoolRegistration() {
                             <div className="bg-rose-500/5 border border-rose-500/10 p-6 text-rose-500 text-[10px] font-black uppercase tracking-widest italic text-center">{err}</div>
                         )}
 
-                        <button type="submit" disabled={loading}
-                            className="w-full flex items-center justify-center gap-6 py-8 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.5em] rounded-none hover:bg-orange-600 transition-all shadow-2xl shadow-orange-500/20 disabled:opacity-50 hover:scale-[1.01] active:scale-95">
-                            {loading
-                                ? <><Loader2 className="w-5 h-5 animate-spin" /> EXECUTING UPLINK...</>
-                                : <><ArrowRight className="w-5 h-5" /> INITIALIZE PARTNERSHIP APPLICATION</>}
-                        </button>
+                        <div className="flex gap-4">
+                            <button type="button" onClick={() => window.location.href = '/'}
+                                className="flex-1 py-8 bg-white/5 border border-white/10 text-slate-500 hover:text-white font-black text-xs uppercase tracking-[0.5em] rounded-none transition-all">
+                                CANCEL
+                            </button>
+                            <button type="submit" disabled={loading}
+                                className="flex-[2] flex items-center justify-center gap-6 py-8 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.5em] rounded-none hover:bg-orange-600 transition-all shadow-2xl shadow-orange-500/20 disabled:opacity-50 hover:scale-[1.01] active:scale-95">
+                                {loading
+                                    ? <><Loader2 className="w-5 h-5 animate-spin" /> EXECUTING UPLINK...</>
+                                    : <><ArrowRight className="w-5 h-5" /> INITIALIZE PARTNERSHIP APPLICATION</>}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

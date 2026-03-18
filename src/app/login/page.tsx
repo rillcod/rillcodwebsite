@@ -97,8 +97,8 @@ function LoginContent() {
         <div className="w-full lg:w-1/2 flex flex-col text-center lg:text-left">
            <div className="flex flex-col items-center lg:items-start mb-12">
               <Link href="/" className="inline-flex items-center gap-4 mb-10 group">
-                <div className="w-16 h-16 bg-[#1a1a1a] border border-white/10 flex items-center justify-center rounded-none shadow-2xl group-hover:scale-105 transition-transform ring-1 ring-white/20 ring-offset-4 ring-offset-[#121212]">
-                   <Image src="/images/logo.png" alt="Rillcod" width={40} height={40} className="object-contain" />
+                <div className="w-20 h-20 flex items-center justify-center rounded-none shadow-none group-hover:scale-105 transition-transform">
+                   <Image src="/images/logo.png" alt="Rillcod" width={64} height={64} className="object-contain" />
                 </div>
                 <div className="text-left">
                    <span className="text-2xl font-black uppercase tracking-tight block leading-none italic text-white">RILLCOD<span className="text-orange-500 not-italic">.</span></span>
