@@ -40,7 +40,6 @@ function colorClass(color: string, variant: 'text' | 'bg' | 'border' | 'ring') {
         amber: { text: 'text-amber-400', bg: 'bg-amber-500', border: 'border-amber-500', ring: 'ring-amber-500' },
         orange: { text: 'text-orange-400', bg: 'bg-orange-500', border: 'border-orange-500', ring: 'ring-orange-500' },
         rose: { text: 'text-rose-400', bg: 'bg-rose-500', border: 'border-rose-500', ring: 'ring-rose-500' },
-        orange: { text: 'text-orange-400', bg: 'bg-orange-500', border: 'border-orange-500', ring: 'ring-orange-500' },
     };
     return map[color]?.[variant] ?? '';
 }
