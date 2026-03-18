@@ -113,7 +113,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
             </div>
             <div>
               <h3 className="text-lg font-black text-white">Important Announcement</h3>
-              <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">From Rillcod Academy Management</p>
+              <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">From Rillcod Technologies Management</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -145,7 +145,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
                         <img src="/logo.png" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'invert(1)' }} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '28px', fontWeight: 900, color: '#1a1a1a', letterSpacing: '-1px', textTransform: 'uppercase' }}>RILLCOD ACADEMY</div>
+                        <div style={{ fontSize: '28px', fontWeight: 900, color: '#1a1a1a', letterSpacing: '-1px', textTransform: 'uppercase' }}>RILLCOD TECHNOLOGIES</div>
                         <div style={{ fontSize: '12px', color: '#4b5563', marginTop: '2px', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase' }}>Official Institutional Communication</div>
                         <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '6px', fontWeight: 500 }}>26 Ogiesoba Avenue, Benin City &nbsp;·&nbsp; academy.rillcod.com &nbsp;·&nbsp; 0811 660 0091</div>
                       </div>
@@ -176,7 +176,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
                           <img src="/images/signature.png" alt="Official Signature" style={{ width: '180px', position: 'absolute', top: '-50px', left: '0', opacity: 0.8, mixBlendMode: 'multiply' }} />
                           <div style={{ marginTop: '20px' }}>
                             <div style={{ fontSize: '16px', fontWeight: 900, color: '#1a1a1a', textTransform: 'uppercase' }}>The Administrator</div>
-                            <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>Rillcod Academy Executive</div>
+                            <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>Rillcod Technologies Executive</div>
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>

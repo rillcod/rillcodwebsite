@@ -34,7 +34,7 @@ export default function Footer() {
           <div className="lg:col-span-5 space-y-8">
             <Link href="/" className="flex items-center gap-3 group">
               <div className="w-10 h-10 bg-white/5 border border-white/10 flex items-center justify-center rounded-none group-hover:scale-105 transition-transform ring-1 ring-white/20 ring-offset-2 ring-offset-[#121212]">
-                <Image src="/images/logo.png" alt="Rillcod Academy" width={24} height={24} className="object-contain" />
+                <Image src="/images/logo.png" alt="Rillcod Technologies" width={24} height={24} className="object-contain" />
               </div>
               <div className="space-y-0.5">
                 <span className="text-xl font-black uppercase tracking-tight block leading-none italic text-white">RILLCOD<span className="text-orange-500 not-italic">.ACADEMY</span></span>
@@ -98,7 +98,7 @@ export default function Footer() {
         <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-8">
            <div className="flex flex-col md:flex-row items-center gap-6">
               <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
-                 © {year} RILLCOD ACADEMY. ALL RIGHTS RESERVED.
+                 © {year} RILLCOD TECHNOLOGIES. ALL RIGHTS RESERVED.
               </p>
               <span className="hidden md:block w-1.5 h-1.5 bg-orange-500/20 rounded-none" />
               <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-2">

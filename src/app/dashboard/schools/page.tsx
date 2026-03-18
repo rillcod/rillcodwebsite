@@ -1027,7 +1027,7 @@ export default function SchoolsPage() {
                         className="w-20 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500"
                       />
                     </div>
-                    <p className="text-[10px] text-white/30 mt-2 italic">The percentage of fees collected by the school that belongs to Rillcod Academy.</p>
+                    <p className="text-[10px] text-white/30 mt-2 italic">The percentage of fees collected by the school that belongs to Rillcod Technologies.</p>
                   </div>
                 </div>
 

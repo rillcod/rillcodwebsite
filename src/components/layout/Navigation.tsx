@@ -88,7 +88,7 @@ const Navigation = () => {
             {/* ── Brand ── */}
             <Link href="/" className="flex items-center gap-3 group">
               <div className="w-12 h-12 bg-[#f8f8f8] border border-white/20 flex items-center justify-center rounded-none group-hover:scale-105 transition-all ring-1 ring-orange-500/50 ring-offset-2 ring-offset-[#121212]">
-                <Image src="/images/logo.png" alt="Rillcod Academy" width={32} height={32} className="object-contain" />
+                <Image src="/images/logo.png" alt="Rillcod Technologies" width={32} height={32} className="object-contain" />
               </div>
               <div className="hidden sm:block text-white">
                 <span className="text-xl font-black uppercase tracking-tight block leading-none italic">

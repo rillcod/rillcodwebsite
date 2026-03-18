@@ -1298,7 +1298,7 @@ Yusuf Ibrahim SS1A`}
 
             {/* Print Sheet Hidden */}
             <div id="printable-sheet" className="hidden">
-               <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">RILLCOD ACADEMY // STUDENT CREDENTIALS</h2>
+               <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">RILLCOD TECHNOLOGIES // STUDENT CREDENTIALS</h2>
                <div className="flex gap-4 text-sm font-bold text-slate-500 mb-6 pb-4 border-b">
                  <span>Batch: {results[0]?.batch_id?.slice(0, 8)}</span>
                  <span>Date: {new Date().toLocaleDateString()}</span>

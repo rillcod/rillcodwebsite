@@ -131,12 +131,12 @@ export default function Footer() {
             <div className="flex items-center space-x-2">
               <Image
                 src="/favicon.ico"
-                alt="Rillcod Academy"
+                alt="Rillcod Technologies"
                 width={40}
                 height={40}
                 className="h-10 w-10 rounded-full"
               />
-              <span className="text-xl font-bold text-[#FF914D]">Rillcod Academy</span>
+              <span className="text-xl font-bold text-[#FF914D]">Rillcod Technologies</span>
             </div>
             <p className="text-gray-300 text-sm leading-relaxed">
               Empowering Nigeria's future through technology education. We partner with schools 
@@ -233,7 +233,7 @@ export default function Footer() {
         <div className="border-t border-gray-800 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="text-gray-400 text-sm">
-              © {currentYear} Rillcod Academy. All rights reserved.
+              © {currentYear} Rillcod Technologies. All rights reserved.
             </div>
             
             <div className="flex space-x-6 text-sm">

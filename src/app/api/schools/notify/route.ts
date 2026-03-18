@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       ${status === 'approved'
         ? '<p>Our team will contact you shortly with next steps.</p>'
         : '<p>If you believe this was a mistake, please reply to this email.</p>'}
-      <p>Thank you,<br/>Rillcod Academy</p>
+      <p>Thank you,<br/>Rillcod Technologies</p>
     `;
 
     await notificationsService.sendExternalEmail({

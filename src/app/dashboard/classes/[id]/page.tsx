@@ -407,9 +407,9 @@ export default function ClassDetailPage() {
   <!-- LETTERHEAD -->
   <div class="letterhead">
     <div class="brand-logo">
-      <img src="/images/logo.png" alt="Rillcod Academy Logo" onerror="this.style.display='none'" />
+      <img src="/images/logo.png" alt="Rillcod Technologies Logo" onerror="this.style.display='none'" />
       <div class="brand-text">
-        <div class="name">Rillcod Academy</div>
+        <div class="name">Rillcod Technologies</div>
         <div class="tag">Future-Proof STEM Education</div>
       </div>
     </div>
@@ -488,8 +488,8 @@ export default function ClassDetailPage() {
       <div class="sig-label">School Authority / Stamp</div>
     </div>
     <div class="footer-note">
-      <strong>Rillcod Academy Portal</strong><br/>
-      Powered by Rillcod Academy — rillcod.com<br/>
+      <strong>Rillcod Technologies Portal</strong><br/>
+      Powered by Rillcod Technologies — rillcod.com<br/>
       This document is an official school record.<br/>
       Ref: ${docRef}
     </div>

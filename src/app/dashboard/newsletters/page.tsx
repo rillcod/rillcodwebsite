@@ -461,7 +461,7 @@ export default function NewslettersPage() {
                            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain filter invert" />
                          </div>
                          <div className="flex-1">
-                           <div className="text-lg sm:text-[28px] font-black text-[#1a1a1a] tracking-tight sm:tracking-[-1px] uppercase">RILLCOD ACADEMY</div>
+                           <div className="text-lg sm:text-[28px] font-black text-[#1a1a1a] tracking-tight sm:tracking-[-1px] uppercase">RILLCOD TECHNOLOGIES</div>
                            <div className="text-[8px] sm:text-[12px] color-[#4b5563] mt-0.5 sm:mt-[2px] font-semibold tracking-wider sm:tracking-[2px] uppercase">Official Institutional Communication</div>
                            <div className="hidden sm:block text-[10px] text-[#9ca3af] mt-[6px] font-medium">26 Ogiesoba Avenue, Benin City &nbsp;·&nbsp; academy.rillcod.com &nbsp;·&nbsp; 0811 660 0091</div>
                          </div>
@@ -490,7 +490,7 @@ export default function NewslettersPage() {
                              <img src="/images/signature.png" alt="Official Signature" className="w-32 sm:w-[180px] absolute -top-10 sm:-top-[50px] left-0 opacity-80" />
                              <div className="mt-5 sm:mt-[20px]">
                                <div className="text-xs sm:text-[16px] font-black text-[#1a1a1a] uppercase text-nowrap">The Administrator</div>
-                               <div className="text-[8px] sm:text-[11px] text-[#6b7280] font-semibold uppercase tracking-[1px] text-nowrap">Rillcod Academy Executive Office</div>
+                               <div className="text-[8px] sm:text-[11px] text-[#6b7280] font-semibold uppercase tracking-[1px] text-nowrap">Rillcod Technologies Executive Office</div>
                              </div>
                            </div>
                            <div className="text-right">

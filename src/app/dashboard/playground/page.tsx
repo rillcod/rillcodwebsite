@@ -36,7 +36,7 @@ const LANGUAGES = [
 ];
 
 const STARTER_CODE: Record<string, string> = {
-  python: 'print("Hello, Rillcod Academy!")\n\n# Try creating a loop\nfor i in range(5):\n    print(f"Counting: {i}")',
+  python: 'print("Hello, Rillcod Technologies!")\n\n# Try creating a loop\nfor i in range(5):\n    print(f"Counting: {i}")',
   javascript: 'console.log("Hello from Rillcod!");\n\nconst greet = (name) => {\n  console.log(`Hello, ${name}!`);\n};\n\ngreet("Student");',
   html: '<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }\n    .card { background: rgba(255,255,255,0.05); padding: 2rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.1); text-align: center; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }\n    h1 { color: #8b5cf6; margin: 0; }\n  </style>\n</head>\n<body>\n  <div class="card">\n    <h1>Rillcod Web Studio</h1>\n    <p>Edit this code to see changes live!</p>\n  </div>\n</body>\n</html>',
   robotics: '# Write Python to control the robot!\n# Use commands like:\n# robot.forward(100)\n# robot.turnRight(90)\n\nrobot.forward(100)\nrobot.turnRight(90)\nrobot.forward(100)\nrobot.turnRight(90)\nrobot.forward(100)\nrobot.turnRight(90)\nrobot.forward(100)\nrobot.turnRight(90)',
@@ -222,12 +222,12 @@ export default function CodeStudioPage() {
   const [showBuilder, setShowBuilder] = useState(false);
 
   const htmlSnippets = [
-    { name: 'Navbar', category: 'UI', code: '<nav style="background: #1e293b; padding: 1rem; color: white; display: flex; justify-content: space-between; align-items: center; border-radius: 0.5rem; margin-bottom: 1rem;">\n  <div style="font-weight: bold;">Rillcod Academy</div>\n  <div style="display: flex; gap: 1rem; font-size: 0.8rem;">\n    <a>Home</a>\n    <a>Lessons</a>\n    <a>Profile</a>\n  </div>\n</nav>' },
+    { name: 'Navbar', category: 'UI', code: '<nav style="background: #1e293b; padding: 1rem; color: white; display: flex; justify-content: space-between; align-items: center; border-radius: 0.5rem; margin-bottom: 1rem;">\n  <div style="font-weight: bold;">Rillcod Technologies</div>\n  <div style="display: flex; gap: 1rem; font-size: 0.8rem;">\n    <a>Home</a>\n    <a>Lessons</a>\n    <a>Profile</a>\n  </div>\n</nav>' },
     { name: 'Button', category: 'UI', code: '<button style="background: linear-gradient(to right, #8b5cf6, #6366f1); color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.75rem; font-weight: bold; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">Get Started</button>' },
     { name: 'Glass Card', category: 'UX', code: '<div style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); padding: 2rem; border-radius: 1.5rem; border: 1px solid rgba(255, 255, 255, 0.1); color: white; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);">\n  <h3 style="margin-top: 0; color: #a78bfa;">Lesson Title</h3>\n  <p style="opacity: 0.7; font-size: 0.9rem;">Master the art of coding with Rillcod Studio.</p>\n</div>' },
     { name: 'Input Field', category: 'UI', code: '<div style="margin-bottom: 1rem;">\n  <label style="display: block; font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.25rem;">Email Address</label>\n  <input type="email" placeholder="you@example.com" style="width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 0.5rem; padding: 0.5rem; color: white; outline: none; focus: border-violet-500;" />\n</div>' },
     { name: 'Grid Layout', category: 'UX', code: '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">\n  <div style="background: #1e293b; padding: 1rem; border-radius: 1rem;">Item 1</div>\n  <div style="background: #1e293b; padding: 1rem; border-radius: 1rem;">Item 2</div>\n  <div style="background: #1e293b; padding: 1rem; border-radius: 1rem;">Item 3</div>\n</div>' },
-    { name: 'Footer', category: 'UI', code: '<footer style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem;">\n  <p>&copy; 2026 Rillcod Academy. Powered by passion.</p>\n</footer>' },
+    { name: 'Footer', category: 'UI', code: '<footer style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem;">\n  <p>&copy; 2026 Rillcod Technologies. Powered by passion.</p>\n</footer>' },
   ];
 
   const insertSnippet = (s: string) => {

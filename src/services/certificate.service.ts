@@ -78,7 +78,7 @@ export class CertificateService {
 
         const docDefinition: TDocumentDefinitions = {
             content: [
-                { text: 'RILLCOD ACADEMY', style: 'header', alignment: 'center', margin: [0, 50, 0, 20] },
+                { text: 'RILLCOD TECHNOLOGIES', style: 'header', alignment: 'center', margin: [0, 50, 0, 20] },
                 { text: 'CERTIFICATE OF COMPLETION', style: 'subheader', alignment: 'center', margin: [0, 0, 0, 50] },
                 { text: 'This is to certify that', alignment: 'center', fontSize: 14 },
                 { text: userName.toUpperCase(), style: 'name', alignment: 'center', margin: [0, 20, 0, 20] },

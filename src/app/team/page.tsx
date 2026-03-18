@@ -76,7 +76,7 @@ const teamMembers = [
   {
     name: "Mr. Emmanuel Omoregie",
     role: "Head of Research & Innovation",
-    bio: "Leading our research initiatives and innovation programs, Emmanuel focuses on emerging technologies and their integration into our curriculum to keep Rillcod Academy at the forefront of technology education in Nigeria.",
+    bio: "Leading our research initiatives and innovation programs, Emmanuel focuses on emerging technologies and their integration into our curriculum to keep Rillcod Technologies at the forefront of technology education in Nigeria.",
     image: "/api/placeholder/300/300",
     email: "emmanuel.omoregie@rillcodacademy.com",
     linkedin: "#",

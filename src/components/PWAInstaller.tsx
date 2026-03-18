@@ -95,7 +95,7 @@ export default function PWAInstaller() {
               <DevicePhoneMobileIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">Install Rillcod Academy</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white">Install Rillcod Technologies</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">Get quick access to your dashboard</p>
             </div>
           </div>

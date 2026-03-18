@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Careers — Join Our Team | Rillcod Academy",
+  title: "Careers — Join Our Team | Rillcod Technologies",
   description:
-    "Join Rillcod Academy's team of passionate educators and technologists. We're hiring STEM instructors, curriculum developers, and more in Benin City, Edo State, Nigeria.",
+    "Join Rillcod Technologies's team of passionate educators and technologists. We're hiring STEM instructors, curriculum developers, and more in Benin City, Edo State, Nigeria.",
   keywords: [
-    "Rillcod Academy careers",
+    "Rillcod Technologies careers",
     "STEM teaching jobs Nigeria",
     "coding instructor jobs Benin City",
     "technology education careers Edo State",
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     canonical: "https://rillcod.com/careers",
   },
   openGraph: {
-    title: "Careers at Rillcod Academy — Join Our Team",
+    title: "Careers at Rillcod Technologies — Join Our Team",
     description:
       "We're hiring passionate STEM educators and technologists in Benin City, Edo State. Shape the future of tech education in Nigeria.",
     url: "https://rillcod.com/careers",

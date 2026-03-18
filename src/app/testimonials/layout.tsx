@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Testimonials — What Parents & Schools Say | Rillcod Academy",
+  title: "Testimonials — What Parents & Schools Say | Rillcod Technologies",
   description:
-    "Read testimonials from parents, students, and partner schools about Rillcod Academy's STEM and coding programs in Benin City, Edo State, and across Nigeria.",
+    "Read testimonials from parents, students, and partner schools about Rillcod Technologies's STEM and coding programs in Benin City, Edo State, and across Nigeria.",
   keywords: [
-    "Rillcod Academy reviews",
+    "Rillcod Technologies reviews",
     "coding academy testimonials Nigeria",
     "STEM education reviews Benin City",
     "parent reviews coding school",
@@ -16,9 +16,9 @@ export const metadata: Metadata = {
     canonical: "https://rillcod.com/testimonials",
   },
   openGraph: {
-    title: "Testimonials — Rillcod Academy Reviews & Success Stories",
+    title: "Testimonials — Rillcod Technologies Reviews & Success Stories",
     description:
-      "Hear from parents, students, and partner schools about their experience with Rillcod Academy's STEM programs.",
+      "Hear from parents, students, and partner schools about their experience with Rillcod Technologies's STEM programs.",
     url: "https://rillcod.com/testimonials",
   },
 };

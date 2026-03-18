@@ -39,14 +39,14 @@ export async function POST(req: Request) {
         }
 
         // Prepare email content
-        const subject = `Invoice from ${invoice.schools?.name || 'Rillcod Academy'} - ${invoice.invoice_number}`;
+        const subject = `Invoice from ${invoice.schools?.name || 'Rillcod Technologies'} - ${invoice.invoice_number}`;
         const currencySymbol = invoice.currency === 'NGN' ? '₦' : invoice.currency;
         
         const html = `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
                 <h2 style="color: #111827;">Invoice ${invoice.invoice_number}</h2>
                 <p>Hello ${student.full_name},</p>
-                <p>You have a new invoice from <strong>${invoice.schools?.name || 'Rillcod Academy'}</strong>.</p>
+                <p>You have a new invoice from <strong>${invoice.schools?.name || 'Rillcod Technologies'}</strong>.</p>
                 
                 <table style="width: 100%; margin: 20px 0; border-collapse: collapse;">
                     <tr style="background: #f9fafb;">
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
                 </div>
                 
                 <p style="margin-top: 30px; font-size: 0.9em; color: #6b7280;">
-                    If you have any questions, please contact the accounts department at ${invoice.schools?.name || 'Rillcod Academy'}.
+                    If you have any questions, please contact the accounts department at ${invoice.schools?.name || 'Rillcod Technologies'}.
                 </p>
             </div>
         `;
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
             to: student.email,
             subject,
             html,
-            fromName: invoice.schools?.name || 'Rillcod Academy Finance'
+            fromName: invoice.schools?.name || 'Rillcod Technologies Finance'
         });
 
         // Update status to 'sent' if it was 'draft'

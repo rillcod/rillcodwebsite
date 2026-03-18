@@ -75,14 +75,14 @@ export default function Header() {
           <Link href="/" className="flex items-center space-x-2 group">
             <Image
               src="/images/logo.png"
-              alt="Rillcod Academy"
+              alt="Rillcod Technologies"
               width={140}
               height={40}
               unoptimized
               className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105 mix-blend-multiply"
             />
             <span className="text-xl md:text-2xl font-bold text-[#FF914D] transition-colors duration-300">
-              Rillcod Academy
+              Rillcod Technologies
             </span>
           </Link>
 

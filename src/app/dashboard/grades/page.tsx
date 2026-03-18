@@ -550,7 +550,7 @@ function exportPDF(items: any[], isStaff: boolean, profile: any) {
                 <div class="logo-section">
                     <img src="/logo.png" alt="Rillcod Logo" class="logo" />
                     <div>
-                        <div class="brand-title">Rillcod Academy</div>
+                        <div class="brand-title">Rillcod Technologies</div>
                         <div class="brand-subtitle">Technical Excellence</div>
                     </div>
                 </div>

@@ -8,7 +8,7 @@ const client = new OpenAI({
   apiKey: process.env.OPENROUTER_API_KEY ?? '',
   defaultHeaders: {
     'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://rillcod.com',
-    'X-Title': 'Rillcod Academy',
+    'X-Title': 'Rillcod Technologies',
   },
 });
 
@@ -23,7 +23,7 @@ const MODELS = [
   "mistralai/mistral-7b-instruct:free"        // Emergency fallback
 ];
 
-const SYSTEM_PROMPT = `You are an expert STEM curriculum designer for Rillcod Academy. You create engaging, age-appropriate educational content. 
+const SYSTEM_PROMPT = `You are an expert STEM curriculum designer for Rillcod Technologies. You create engaging, age-appropriate educational content. 
 You can use specialized blocks in content_layout:
 - 'mermaid': for flowcharts/diagrams (flowchart TD...)
 - 'math': for LaTeX formulas (E = mc^2)
@@ -58,7 +58,7 @@ interface GenerateRequest {
 function buildPrompt(req: GenerateRequest): string {
   switch (req.type) {
     case 'cbt-grading':
-      return `You are an AI Grader for Rillcod Academy. Grade the following student's responses for a CBT exam.
+      return `You are an AI Grader for Rillcod Technologies. Grade the following student's responses for a CBT exam.
 Questions and Rubrics: ${JSON.stringify(req.questions)}
 Student Answers: ${JSON.stringify(req.studentAnswers)}
 
@@ -76,8 +76,8 @@ Return a JSON object with this exact shape:
 Important: Be fair but encouraging. For 'essay' questions, look for key concepts. For 'fill_blank', allow minor spelling variations unless it's a technical term.`;
 
     case 'report-feedback':
-      return `Generate high-precision, result-specific student progress report feedback for a Rillcod Academy student.
-Context: Rillcod Academy is a premium STEM/Coding academy in Nigeria (Basic 1 to SS3).
+      return `Generate high-precision, result-specific student progress report feedback for a Rillcod Technologies student.
+Context: Rillcod Technologies is a premium STEM/Coding academy in Nigeria (Basic 1 to SS3).
 Student: "${req.studentName ?? 'The student'}"
 Current Module: "${req.topic}"
 Attendance: ${req.attendance ?? 'N/A'}
@@ -95,10 +95,10 @@ Return a JSON object with this exact shape:
   "areas_for_growth": "string — 2-3 sharp, precise sentences on how to sharpen their technical edge. Provide a visionary directive for the transition into the next phase."
 }
 
-Maintain a balance between prestigious academic standards and the vibrant, goal-oriented culture of Rillcod Academy.`;
+Maintain a balance between prestigious academic standards and the vibrant, goal-oriented culture of Rillcod Technologies.`;
 
     case 'lesson-notes':
-      return `Generate ONLY the lesson notes for a Rillcod Academy class session.
+      return `Generate ONLY the lesson notes for a Rillcod Technologies class session.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
 Subject: ${req.subject ?? 'Coding & Technology'}
@@ -110,7 +110,7 @@ Return a JSON object with this exact shape:
 }`;
 
     case 'lesson':
-      return `Generate a COMPLETE, RICH lesson for a Rillcod Academy class session.
+      return `Generate a COMPLETE, RICH lesson for a Rillcod Technologies class session.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
 Subject: ${req.subject ?? 'Coding & Technology'}
@@ -152,7 +152,7 @@ CRITICAL requirements:
 6. Nigerian school context (Basic 1–SS3), premium and modern tone.`;
 
     case 'assignment':
-      return `Generate an assignment for Rillcod Academy students.
+      return `Generate an assignment for Rillcod Technologies students.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
 Subject: ${req.subject ?? 'Coding & Technology'}
@@ -185,7 +185,7 @@ Include at least 5 relevant questions total.`;
 
     case 'cbt': {
       const qCount = req.questionCount ?? 10;
-      return `Generate a Computer Based Test (CBT) for Rillcod Academy.
+      return `Generate a Computer Based Test (CBT) for Rillcod Technologies.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
 Subject: ${req.subject ?? 'Coding & Technology'}
@@ -216,7 +216,7 @@ CRITICAL: The questions array MUST contain exactly ${qCount} items. Cover the to
 
 
     case 'lesson-plan':
-      return `Generate a term-long lesson plan for Rillcod Academy.
+      return `Generate a term-long lesson plan for Rillcod Technologies.
 Subject/Course: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
 Number of weeks: ${req.termWeeks ?? 12}
@@ -242,7 +242,7 @@ Return a JSON object with this exact shape:
 }`;
 
     case 'library-content':
-      return `Generate metadata for a piece of educational content for the Rillcod Academy content library.
+      return `Generate metadata for a piece of educational content for the Rillcod Technologies content library.
 Topic: "${req.topic}"
 Content type: ${req.contentType ?? req.currentContent?.contentType ?? 'document'}
 Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
@@ -256,17 +256,17 @@ Return a JSON object with this exact shape:
   "tags": ["string"],
   "subject": "string",
   "grade_level": "string — Nigerian grade range e.g. Basic 4–JSS2",
-  "license_type": "string — e.g. CC BY 4.0 or Rillcod Academy Proprietary",
+  "license_type": "string — e.g. CC BY 4.0 or Rillcod Technologies Proprietary",
   "attribution": "string"
 }`;
     case 'newsletter':
-      return `Generate a premium, visionary academic newsletter for Rillcod Academy.
+      return `Generate a premium, visionary academic newsletter for Rillcod Technologies.
 Topic/Event: "${req.topic}"
 Target Audience: ${req.audience ?? 'All School Stakeholders'}
 Brand Tone: ${req.tone ?? 'Professional & Educational'}
 
 EVALUATIVE DIRECTIVES:
-1. Context: Rillcod Academy is a high-end STEM/Coding academy in Nigeria. Use prestigious, empowering language. 
+1. Context: Rillcod Technologies is a high-end STEM/Coding academy in Nigeria. Use prestigious, empowering language. 
 2. Structure: 
    - A captivating edition title/headline.
    - Opening: A forward-thinking message about technology and education in Nigeria.
@@ -287,7 +287,7 @@ Return a JSON object with this exact shape:
       let langLabel = req.subject ?? req.topic ?? 'programming';
       if (langLabel === 'robotics') langLabel = 'Python (for Robotics Simulation)';
       
-      return `You are an expert ${langLabel} assistant for Rillcod Academy. 
+      return `You are an expert ${langLabel} assistant for Rillcod Technologies. 
 Generate a high-quality, clean, and well-commented code snippet for the following request:
 Task: "${req.topic}"
 Language Target: ${langLabel}
@@ -382,7 +382,7 @@ export async function POST(req: NextRequest) {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            'X-Title': 'Rillcod Academy',
+            'X-Title': 'Rillcod Technologies',
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({

@@ -7,7 +7,7 @@ export default function WhatsAppButton() {
   
   // Replace with your actual WhatsApp number
   const whatsappNumber = '+2348116600091'
-  const message = 'Hello! I\'m interested in Rillcod Academy programs. Can you provide more information?'
+  const message = 'Hello! I\'m interested in Rillcod Technologies programs. Can you provide more information?'
   
   const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
 

@@ -123,7 +123,7 @@ export default function ModernReportCard({ report, orgSettings }: {
                             <h2 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.4em] opacity-70">Official Academic Registry</h2>
                         </div>
                         <h1 className="text-xl font-black uppercase tracking-tighter leading-none italic bg-gradient-to-r from-gray-900 to-gray-500 bg-clip-text text-transparent">
-                            {orgSettings?.org_name || 'Rillcod Academy'}
+                            {orgSettings?.org_name || 'Rillcod Technologies'}
                         </h1>
                         <p className="text-[8px] text-indigo-400 font-black uppercase tracking-[0.3em] mt-1">{orgSettings?.org_tagline || 'Excellence in Technology'}</p>
                     </div>

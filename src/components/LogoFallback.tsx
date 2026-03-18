@@ -31,7 +31,7 @@ export default function LogoFallback({ size = 'md', showText = true, className =
       </div>
       {showText && (
         <span className={`font-bold ${textColor} ${textSizes[size]} whitespace-nowrap`}>
-          Rillcod Academy
+          Rillcod Technologies
         </span>
       )}
     </div>

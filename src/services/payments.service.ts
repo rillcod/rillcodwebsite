@@ -262,7 +262,7 @@ export class PaymentsService {
                     columns: [
                         {
                             stack: [
-                                { text: 'RILLCOD ACADEMY', style: 'brand' },
+                                { text: 'RILLCOD TECHNOLOGIES', style: 'brand' },
                                 { text: 'STEM & Coding Education', style: 'tagline' },
                                 { text: '12, Digital Learning Hub, Abuja, Nigeria', style: 'address' },
                                 { text: 'RC: 1892341 | www.rillcod.com', style: 'address' },
@@ -336,7 +336,7 @@ export class PaymentsService {
                 },
                 { text: '\n\n\n' },
                 { text: 'This is a system-generated receipt and requires no physical signature.', style: 'footer', alignment: 'center' },
-                { text: 'Thank you for choosing Rillcod Academy!', style: 'footer', alignment: 'center', italic: true }
+                { text: 'Thank you for choosing Rillcod Technologies!', style: 'footer', alignment: 'center', italic: true }
             ],
             styles: {
                 brand: { fontSize: 18, bold: true, color: '#4f46e5' },

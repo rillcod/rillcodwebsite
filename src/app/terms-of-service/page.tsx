@@ -17,7 +17,7 @@ export default function TermsOfService() {
             Terms of Service
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Please read these terms carefully before using Rillcod Academy services. By using our services, you agree to these terms.
+            Please read these terms carefully before using Rillcod Technologies services. By using our services, you agree to these terms.
           </p>
           <div className="mt-6 text-sm text-gray-500 dark:text-gray-400">
             <p suppressHydrationWarning>Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
@@ -35,7 +35,7 @@ export default function TermsOfService() {
             </h2>
             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6">
               <p className="text-green-800 dark:text-green-200">
-                By accessing and using Rillcod Academy's services, you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service.
+                By accessing and using Rillcod Technologies's services, you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service.
               </p>
             </div>
           </section>
@@ -74,7 +74,7 @@ export default function TermsOfService() {
                 </h3>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="bg-white dark:bg-gray-700 rounded-lg p-4">
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Rillcod Academy (70%)</h4>
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Rillcod Technologies (70%)</h4>
                     <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
                       <li>• Curriculum development and maintenance</li>
                       <li>• Technology platform and infrastructure</li>
@@ -100,7 +100,7 @@ export default function TermsOfService() {
                 <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Partnership Responsibilities</h3>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Rillcod Academy Obligations:</h4>
+                    <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Rillcod Technologies Obligations:</h4>
                     <ul className="text-blue-800 dark:text-blue-200 space-y-1 text-sm">
                       <li>• Provide comprehensive curriculum</li>
                       <li>• Supply necessary technology and materials</li>
@@ -137,7 +137,7 @@ export default function TermsOfService() {
                   <li>• Payments are processed monthly</li>
                   <li>• School's 30% share is transferred within 7 business days</li>
                   <li>• All payments are made in Nigerian Naira (NGN)</li>
-                  <li>• Bank transfer fees are covered by Rillcod Academy</li>
+                  <li>• Bank transfer fees are covered by Rillcod Technologies</li>
                 </ul>
               </div>
               
@@ -204,10 +204,10 @@ export default function TermsOfService() {
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Ownership</h3>
               <ul className="space-y-2 text-gray-600 dark:text-gray-300">
-                <li>• All curriculum materials belong to Rillcod Academy</li>
+                <li>• All curriculum materials belong to Rillcod Technologies</li>
                 <li>• Schools may use materials only for authorized programs</li>
                 <li>• Student projects remain their intellectual property</li>
-                <li>• Rillcod Academy may showcase student work with permission</li>
+                <li>• Rillcod Technologies may showcase student work with permission</li>
               </ul>
             </div>
           </section>
@@ -249,7 +249,7 @@ export default function TermsOfService() {
             </h2>
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
               <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Rillcod Academy shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or use, arising out of or relating to the use of our services.
+                Rillcod Technologies shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or use, arising out of or relating to the use of our services.
               </p>
               <p className="text-gray-600 dark:text-gray-300">
                 Our total liability shall not exceed the amount paid by you for the services in the 12 months preceding the claim.

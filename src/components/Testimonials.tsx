@@ -20,7 +20,7 @@ const Testimonials: React.FC = () => {
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Our Partner Schools</h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Join these amazing schools that trust Rillcod Academy
+            Join these amazing schools that trust Rillcod Technologies
           </p>
           <div className="w-20 h-2 bg-purple-500 mx-auto rounded-full mt-4"></div>
         </div>
@@ -33,7 +33,7 @@ const Testimonials: React.FC = () => {
           </div>
           
           <p className="text-xl text-gray-700 text-center italic mb-6">
-            "Rillcod Academy projects are fun, creative and support each child in understanding how to solve problems by breaking them down into smaller chunks. A really great life skill."
+            "Rillcod Technologies projects are fun, creative and support each child in understanding how to solve problems by breaking them down into smaller chunks. A really great life skill."
           </p>
           
           <div className="flex items-center justify-center">

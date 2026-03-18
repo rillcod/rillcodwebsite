@@ -243,7 +243,7 @@ function AttendanceContent() {
           <tbody>${rows}</tbody>
         </table>
         <div class="footer">
-          Generated via Rillcod Academy Portal
+          Generated via Rillcod Technologies Portal
           <br/><button class="no-print" onclick="window.print()" style="margin-top:20px; padding: 10px 25px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">Print Report</button>
         </div>
       </body>
@@ -305,7 +305,7 @@ function AttendanceContent() {
           <tbody>${rows}</tbody>
         </table>
         <div class="footer">
-          Generated via Rillcod Academy Portal
+          Generated via Rillcod Technologies Portal
           <br/><button class="no-print" onclick="window.print()" style="margin-top:20px; padding: 10px 25px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">Print Session Report</button>
         </div>
       </body>

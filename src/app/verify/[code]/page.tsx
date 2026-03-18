@@ -101,7 +101,7 @@ export default function VerifyCodePage() {
           <Link href="/" className="flex items-center gap-2">
             <img src="/images/logo.png" alt="Rillcod" className="w-6 h-6 object-contain"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            <span className="font-black text-sm tracking-tight text-white/90">Rillcod Academy</span>
+            <span className="font-black text-sm tracking-tight text-white/90">Rillcod Technologies</span>
           </Link>
 
           <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-emerald-400">
@@ -154,7 +154,7 @@ export default function VerifyCodePage() {
               <div className="space-y-3">
                 <h1 className="text-3xl font-black text-white tracking-tight">Access Restricted</h1>
                 <p className="text-white/40 text-sm leading-relaxed">
-                  This report exists in our database but has not been officially published for public verification by the Rillcod Academy board.
+                  This report exists in our database but has not been officially published for public verification by the Rillcod Technologies board.
                 </p>
               </div>
               <Link href="/verify" className="inline-flex items-center gap-3 px-8 py-3.5 bg-white/10 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-white/15 transition-all outline outline-1 outline-white/10">
@@ -180,7 +180,7 @@ export default function VerifyCodePage() {
                       <CheckBadgeIcon className="w-4 h-4 text-emerald-500" />
                     </div>
                     <p className="text-emerald-400/50 text-[11px] font-medium leading-relaxed max-w-lg">
-                      Institutional record confirmed against Rillcod Academy master ledger.
+                      Institutional record confirmed against Rillcod Technologies master ledger.
                       Authorization token <span className="font-mono text-emerald-400/80 font-bold">{code?.toUpperCase()}</span> is valid.
                     </p>
                   </div>
@@ -295,7 +295,7 @@ export default function VerifyCodePage() {
                   Institutional Disclosure
                 </p>
                 <p className="text-[11px] leading-relaxed font-medium">
-                  This verification portal validates Rillcod Academy credentials. Any attempt to forge, alter, or misrepresent these records is a violation of international academic standards. For legal inquiries or discrepancies, contact <a href="mailto:rillcod@gmail.com" className="underline hover:text-white transition-colors">rillcod@gmail.com</a>.
+                  This verification portal validates Rillcod Technologies credentials. Any attempt to forge, alter, or misrepresent these records is a violation of international academic standards. For legal inquiries or discrepancies, contact <a href="mailto:rillcod@gmail.com" className="underline hover:text-white transition-colors">rillcod@gmail.com</a>.
                 </p>
               </div>
 

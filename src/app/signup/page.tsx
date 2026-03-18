@@ -126,7 +126,7 @@ export default function SignUpPage() {
         }
       }
 
-      toast.success("Account created! Welcome to Rillcod Academy.");
+      toast.success("Account created! Welcome to Rillcod Technologies.");
       router.push('/dashboard');
     } catch (error: any) {
       if (error.message?.includes('already registered') || error.message?.includes('already exists')) {

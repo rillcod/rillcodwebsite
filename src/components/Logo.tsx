@@ -34,7 +34,7 @@ export default function Logo({ size = 'md', showText = true, className = '', tex
       <div className={`${sizeClasses[size]} rounded-xl overflow-hidden shadow-lg flex-shrink-0`}>
         <Image
           src={src}
-          alt="Rillcod Academy Logo"
+          alt="Rillcod Technologies Logo"
           width={imgSizes[size]}
           height={imgSizes[size]}
           className="w-full h-full object-contain"
@@ -52,7 +52,7 @@ export default function Logo({ size = 'md', showText = true, className = '', tex
       </div>
       {showText && (
         <span className={`font-bold ${textColor} ${textSizes[size]} whitespace-nowrap`}>
-          Rillcod Academy
+          Rillcod Technologies
         </span>
       )}
     </div>

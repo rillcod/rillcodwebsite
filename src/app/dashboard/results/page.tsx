@@ -618,7 +618,7 @@ tbody tr:hover{background:#f3f4f6}
   <div class="logo-block">
     <div class="logo-circle">R</div>
     <div>
-      <div class="org-name">${org?.org_name ?? 'Rillcod Academy'}</div>
+      <div class="org-name">${org?.org_name ?? 'Rillcod Technologies'}</div>
       <div class="org-sub">${org?.org_address ?? 'Technology &amp; Innovation in Education'}</div>
     </div>
   </div>
@@ -632,7 +632,7 @@ tbody tr:hover{background:#f3f4f6}
 <div class="title-row">
   <div>
     <div class="title-main">Student Performance &amp; Score Sheet${titleLine ? ' — ' + titleLine : ''}</div>
-    <div class="title-sub">Academic Progress Report Summary · ${org?.org_name ?? 'Rillcod Academy'}</div>
+    <div class="title-sub">Academic Progress Report Summary · ${org?.org_name ?? 'Rillcod Technologies'}</div>
   </div>
   <div class="stats-bar">${statsLine}</div>
 </div>
@@ -649,7 +649,7 @@ tbody tr:hover{background:#f3f4f6}
   <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Academic Coordinator</div></div>
   <div class="sig-box"><div class="sig-line"></div><div class="sig-label">School Authority / Stamp</div></div>
 </div>
-<div class="watermark">This document is computer-generated and constitutes an official academic record of ${org?.org_name ?? 'Rillcod Academy'}. Document Reference: ${docRef}</div>
+<div class="watermark">This document is computer-generated and constitutes an official academic record of ${org?.org_name ?? 'Rillcod Technologies'}. Document Reference: ${docRef}</div>
 </body></html>`;
 
         const w = window.open('', '_blank', 'width=1100,height=800');
@@ -1186,7 +1186,7 @@ tbody tr:hover{background:#f3f4f6}
                   </table>
 
                   <div style={{ marginTop: '16px', fontSize: '10px', color: '#9ca3af', borderTop: '1px solid #e5e7eb', paddingTop: '10px' }}>
-                    Printed from Rillcod Academy portal — academy.rillcod.com &nbsp;·&nbsp; Confidential
+                    Printed from Rillcod Technologies portal — academy.rillcod.com &nbsp;·&nbsp; Confidential
                   </div>
               </>
 

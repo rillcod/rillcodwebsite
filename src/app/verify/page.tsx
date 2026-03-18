@@ -133,7 +133,7 @@ export default function VerifyLandingPage() {
                             {
                                 icon: <AcademicCapIcon className="w-6 h-6" />,
                                 title: "Official Record",
-                                desc: "Directly linked to Rillcod Academy's institutional master."
+                                desc: "Directly linked to Rillcod Technologies's institutional master."
                             }
                         ].map((feature, i) => (
                             <div key={i} className="text-center space-y-3 p-6 rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">

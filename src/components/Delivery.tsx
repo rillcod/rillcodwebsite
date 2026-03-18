@@ -72,7 +72,7 @@ const Delivery: React.FC = () => {
               </li>
               <li className="flex">
                 <Laptop className="w-6 h-6 text-green-500 mr-3 flex-shrink-0" />
-                <p className="text-gray-700">Students can attend at Rillcod Academy facility or bring own devices</p>
+                <p className="text-gray-700">Students can attend at Rillcod Technologies facility or bring own devices</p>
               </li>
               <li className="flex">
                 <Monitor className="w-6 h-6 text-green-500 mr-3 flex-shrink-0" />

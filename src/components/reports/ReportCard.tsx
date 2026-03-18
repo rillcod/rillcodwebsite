@@ -182,7 +182,7 @@ export default function ReportCard({ report, orgSettings }: {
                         />
                         <div>
                             <h1 className="text-xl font-black tracking-tighter uppercase leading-none mb-1 text-gray-900">
-                                {org.org_name || 'Rillcod Academy'}
+                                {org.org_name || 'Rillcod Technologies'}
                             </h1>
                             <p className="text-[11px] font-bold text-violet-600 uppercase tracking-[0.3em]">
                                 {org.org_tagline || 'Pioneering Technical Excellence'}

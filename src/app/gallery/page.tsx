@@ -26,7 +26,7 @@ const galleryData = [
   {
     id: 1,
     title: "Young Nigerian Coders in Action",
-    description: "Students from Rillcod Academy in Benin City working on Python programming projects",
+    description: "Students from Rillcod Technologies in Benin City working on Python programming projects",
     category: "coding",
     image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
     likes: 156,
@@ -36,7 +36,7 @@ const galleryData = [
   {
     id: 2,
     title: "STEM Robotics Workshop",
-    description: "Kids building and programming robots at Rillcod Academy, Benin City",
+    description: "Kids building and programming robots at Rillcod Technologies, Benin City",
     category: "robotics",
     image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
     likes: 203,
@@ -46,7 +46,7 @@ const galleryData = [
   {
     id: 3,
     title: "Computer Science Lab",
-    description: "Students learning computer fundamentals at Rillcod Academy, Benin City",
+    description: "Students learning computer fundamentals at Rillcod Technologies, Benin City",
     category: "computers",
     image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
     likes: 98,
@@ -56,7 +56,7 @@ const galleryData = [
   {
     id: 4,
     title: "Science Experiment Day",
-    description: "Young scientists conducting experiments at Rillcod Academy, Benin City",
+    description: "Young scientists conducting experiments at Rillcod Technologies, Benin City",
     category: "science",
     image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
     likes: 167,
@@ -66,7 +66,7 @@ const galleryData = [
   {
     id: 5,
     title: "Coding Club Meeting",
-    description: "After-school coding club at Rillcod Academy, Benin City",
+    description: "After-school coding club at Rillcod Technologies, Benin City",
     category: "coding",
     image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
     likes: 134,
@@ -76,7 +76,7 @@ const galleryData = [
   {
     id: 6,
     title: "3D Printing Workshop",
-    description: "Students learning 3D design and printing technology at Rillcod Academy",
+    description: "Students learning 3D design and printing technology at Rillcod Technologies",
     category: "technology",
     image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
     likes: 189,
@@ -86,7 +86,7 @@ const galleryData = [
   {
     id: 7,
     title: "Mathematics & Programming",
-    description: "Integrating math concepts with computer programming at Rillcod Academy",
+    description: "Integrating math concepts with computer programming at Rillcod Technologies",
     category: "coding",
     image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
     likes: 145,
@@ -96,7 +96,7 @@ const galleryData = [
   {
     id: 8,
     title: "Digital Art & Design",
-    description: "Creative technology projects using digital tools at Rillcod Academy",
+    description: "Creative technology projects using digital tools at Rillcod Technologies",
     category: "creative",
     image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
     likes: 178,
@@ -106,7 +106,7 @@ const galleryData = [
   {
     id: 9,
     title: "STEM Career Day",
-    description: "Students meeting with Nigerian tech professionals at Rillcod Academy",
+    description: "Students meeting with Nigerian tech professionals at Rillcod Technologies",
     category: "careers",
     image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
     likes: 223,
@@ -116,7 +116,7 @@ const galleryData = [
   {
     id: 10,
     title: "Mobile App Development",
-    description: "Students creating apps to solve local community problems at Rillcod Academy",
+    description: "Students creating apps to solve local community problems at Rillcod Technologies",
     category: "coding",
     image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
     likes: 198,
@@ -126,7 +126,7 @@ const galleryData = [
   {
     id: 11,
     title: "Environmental Science",
-    description: "Using technology to study and protect our environment at Rillcod Academy",
+    description: "Using technology to study and protect our environment at Rillcod Technologies",
     category: "science",
     image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
     likes: 167,
@@ -136,7 +136,7 @@ const galleryData = [
   {
     id: 12,
     title: "AI & Machine Learning",
-    description: "Introduction to artificial intelligence concepts at Rillcod Academy",
+    description: "Introduction to artificial intelligence concepts at Rillcod Technologies",
     category: "technology",
     image: "https://images.pexels.com/photos/8535230/pexels-photo-8535230.jpeg",
     likes: 245,
@@ -328,7 +328,7 @@ export default function Gallery() {
                     
                     <div className="flex items-center gap-4 mb-4">
                       <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                        <span className="text-sm">Rillcod Academy, Benin City</span>
+                        <span className="text-sm">Rillcod Technologies, Benin City</span>
                       </div>
                     </div>
 

@@ -24,7 +24,7 @@ const programs = [
     ],
     requirements: ["No prior experience needed", "Basic reading skills", "Access to computer (provided in class)"],
     schedule: "Monday & Wednesday, 3:00 PM - 5:00 PM",
-    location: "Rillcod Academy Center, Lagos",
+    location: "Rillcod Technologies Center, Lagos",
     instructor: "Mr. Adebayo Johnson",
     maxStudents: 15
   },
@@ -49,7 +49,7 @@ const programs = [
     ],
     requirements: ["Basic computer skills", "Creative mindset", "Access to computer (provided in class)"],
     schedule: "Tuesday & Thursday, 3:00 PM - 5:00 PM",
-    location: "Rillcod Academy Center, Lagos",
+    location: "Rillcod Technologies Center, Lagos",
     instructor: "Ms. Chioma Okonkwo",
     maxStudents: 12
   },
@@ -73,7 +73,7 @@ const programs = [
     ],
     requirements: ["Basic computer skills", "Understanding of file management", "Access to computer (provided in class)"],
     schedule: "Monday & Wednesday, 4:00 PM - 6:00 PM",
-    location: "Rillcod Academy Center, Lagos",
+    location: "Rillcod Technologies Center, Lagos",
     instructor: "Mr. David Okafor",
     maxStudents: 10
   },

@@ -79,7 +79,7 @@ export default function PasswordChangeGuard() {
         <div className="p-6 space-y-5">
           <p className="text-white/60 text-sm leading-relaxed">
             Choose a secure personal password. You will use this every time you sign in to{' '}
-            <strong className="text-white">Rillcod Academy</strong>. Do not share it with anyone.
+            <strong className="text-white">Rillcod Technologies</strong>. Do not share it with anyone.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">

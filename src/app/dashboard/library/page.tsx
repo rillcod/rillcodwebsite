@@ -364,7 +364,7 @@ export default function ContentLibraryPage() {
                           </div>
 
                           <h3 className="text-xl font-bold text-white mb-2 group-hover:text-violet-400 transition-colors">{item.title}</h3>
-                          <p className="text-xs text-white/30 line-clamp-2 mb-8 flex-1 leading-relaxed">{item.description || 'Professional learning resource curated for Rillcod Academy students.'}</p>
+                          <p className="text-xs text-white/30 line-clamp-2 mb-8 flex-1 leading-relaxed">{item.description || 'Professional learning resource curated for Rillcod Technologies students.'}</p>
                           
                           {/* BKey Fields */}
                           <div className="grid grid-cols-3 gap-2 mb-8">
@@ -408,7 +408,7 @@ export default function ContentLibraryPage() {
                
                <div>
                   <h2 className="text-3xl font-black mb-2">Upload Asset</h2>
-                  <p className="text-white/40 text-sm">Add a new resource to the Rillcod Academy Library.</p>
+                  <p className="text-white/40 text-sm">Add a new resource to the Rillcod Technologies Library.</p>
                </div>                <form onSubmit={handleCreate} className="space-y-6">
                   {error && (
                     <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl px-5 py-3 text-rose-400 text-xs flex items-center gap-2">
@@ -531,7 +531,7 @@ export default function ContentLibraryPage() {
                         <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-white/5 text-white/40 rounded-full">{selectedItem.subject || 'All Subjects'}</span>
                      </div>
                      <h2 className="text-4xl font-black text-white">{selectedItem.title}</h2>
-                     <p className="text-white/50 text-base leading-relaxed">{selectedItem.description || 'This resource contributes to the Rillcod Academy digital curriculum, providing structured learning paths for students.'}</p>
+                     <p className="text-white/50 text-base leading-relaxed">{selectedItem.description || 'This resource contributes to the Rillcod Technologies digital curriculum, providing structured learning paths for students.'}</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-6">

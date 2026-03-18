@@ -17,7 +17,7 @@ export default function PrivacyPolicy() {
             Privacy Policy
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            At Rillcod Academy, we are committed to protecting your privacy and ensuring the security of your personal information.
+            At Rillcod Technologies, we are committed to protecting your privacy and ensuring the security of your personal information.
           </p>
           <div className="mt-6 text-sm text-gray-500 dark:text-gray-400">
             <p suppressHydrationWarning>Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
@@ -119,7 +119,7 @@ export default function PrivacyPolicy() {
               <div className="border-l-4 border-blue-500 pl-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">We Do NOT Sell Your Data</h3>
                 <p className="text-gray-600 dark:text-gray-300">
-                  Rillcod Academy does not sell, trade, or rent your personal information to third parties for marketing purposes.
+                  Rillcod Technologies does not sell, trade, or rent your personal information to third parties for marketing purposes.
                 </p>
               </div>
               

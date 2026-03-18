@@ -1674,7 +1674,7 @@ function ReportBuilderInner() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <Field label="Organization Name">
                                         <input value={branding.org_name} onChange={e => setBranding(b => ({ ...b, org_name: e.target.value }))}
-                                            className={INPUT} placeholder="e.g. Rillcod Academy" />
+                                            className={INPUT} placeholder="e.g. Rillcod Technologies" />
                                     </Field>
                                     <Field label="Tagline / Motto">
                                         <input value={branding.org_tagline} onChange={e => setBranding(b => ({ ...b, org_tagline: e.target.value }))}

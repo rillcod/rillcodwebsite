@@ -130,7 +130,7 @@ export default function PortalAccess({
             {isSignUp ? 'Create your account' : 'Sign in to your account'}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            {isSignUp ? 'Join Rillcod Academy Portal' : 'Access your portal dashboard'}
+            {isSignUp ? 'Join Rillcod Technologies Portal' : 'Access your portal dashboard'}
           </p>
         </div>
 

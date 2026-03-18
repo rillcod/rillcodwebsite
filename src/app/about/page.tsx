@@ -174,7 +174,7 @@ export default function About() {
         <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 mb-16 shadow-2xl border-t-4 border-t-orange-500">
         <h2 className="text-xl font-black text-white mb-8 uppercase tracking-widest text-left">Executive Summary</h2>
           <p className="text-sm sm:text-base text-slate-400 mb-12 italic font-medium leading-relaxed max-w-4xl">
-            Transform your school into a premier AI and technology powerhouse with RILLCOD ACADEMY&apos;s 12-year, session-based program. This revolutionary curriculum blends traditional programming with cutting-edge artificial intelligence and robotics, preparing students for the Fourth Industrial Revolution while generating substantial revenue for your institution.
+            Transform your school into a premier AI and technology powerhouse with RILLCOD TECHNOLOGIES&apos;s 12-year, session-based program. This revolutionary curriculum blends traditional programming with cutting-edge artificial intelligence and robotics, preparing students for the Fourth Industrial Revolution while generating substantial revenue for your institution.
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">

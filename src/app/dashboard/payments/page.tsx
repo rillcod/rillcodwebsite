@@ -99,7 +99,7 @@ function AccountCard({ account, onEdit, onDelete, canManage }: {
           <div className="min-w-0">
             <p className="font-black text-white text-sm truncate">{account.label}</p>
             <p className="text-[10px] text-white/30 uppercase tracking-widest">
-              {isRillcod ? 'Rillcod Academy' : (account.schools?.name ?? 'School Account')}
+              {isRillcod ? 'Rillcod Technologies' : (account.schools?.name ?? 'School Account')}
             </p>
           </div>
         </div>
@@ -553,10 +553,10 @@ ${schoolInvForm.show_whatsapp_option ? `
 ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.notes}</div>` : ''}
 <div class="footer">
   <div class="sig-box"><div class="sig-line"></div><div class="sig-label">School Principal / Authority</div></div>
-  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Rillcod Academy Representative</div></div>
+  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Rillcod Technologies Representative</div></div>
   <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Finance Officer / Stamp</div></div>
 </div>
-<div class="watermark">This is a computer-generated invoice from Rillcod Academy · Reference: ${docRef} · ${dateStr}</div>
+<div class="watermark">This is a computer-generated invoice from Rillcod Technologies · Reference: ${docRef} · ${dateStr}</div>
 </body></html>`;
 
     const w = window.open('', '_blank', 'width=900,height=800');
@@ -704,12 +704,12 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
 
         {view === 'accounts' ? (
           <>
-            {/* Rillcod Academy Accounts */}
+            {/* Rillcod Technologies Accounts */}
             {(isAdmin || rillcodAccounts.length > 0) && (
               <section className="space-y-4">
                 <div className="flex items-center gap-3">
                   <ShieldCheckIcon className="w-4 h-4 text-violet-400" />
-                  <h2 className="text-sm font-black uppercase tracking-widest text-violet-400">Rillcod Academy Accounts</h2>
+                  <h2 className="text-sm font-black uppercase tracking-widest text-violet-400">Rillcod Technologies Accounts</h2>
                   <div className="h-px flex-1 bg-violet-500/20" />
                   {isAdmin && (
                     <button
@@ -924,7 +924,7 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                                             items: [{ description: t.courses?.title || (t.invoice_id ? 'Invoice Payment' : 'Enrolment Fee'), quantity: 1, unit_price: t.amount, total: t.amount }],
                                             studentName: t.portal_users?.full_name || 'Student',
                                             studentEmail: t.portal_users?.email,
-                                            schoolName: t.schools?.name || 'Rillcod Academy',
+                                            schoolName: t.schools?.name || 'Rillcod Technologies',
                                             transactionRef: t.transaction_reference,
                                             processingFee: t.paystack_fees || 0
                                           }
@@ -1263,7 +1263,7 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                           studentName: inv.portal_users?.full_name || 'Student',
                           studentEmail: inv.portal_users?.email,
                           notes: inv.notes,
-                          schoolName: inv.schools?.name || 'Rillcod Academy'
+                          schoolName: inv.schools?.name || 'Rillcod Technologies'
                         }
                       });
                     }}>
@@ -1440,7 +1440,7 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                       <button key={t} type="button"
                         onClick={() => setForm(f => ({ ...f, owner_type: t, school_id: t === 'rillcod' ? null : f.school_id }))}
                         className={`py-2.5 rounded-xl text-sm font-bold border transition-all ${form.owner_type === t ? 'bg-violet-600 border-violet-500 text-white' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}>
-                        {t === 'rillcod' ? 'Rillcod Academy' : 'Partner School'}
+                        {t === 'rillcod' ? 'Rillcod Technologies' : 'Partner School'}
                       </button>
                     ))}
                   </div>

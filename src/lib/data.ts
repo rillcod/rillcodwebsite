@@ -424,7 +424,7 @@ export const testimonials = [
   {
     name: "Mrs. Chioma Okonkwo",
     role: "Parent",
-    content: "My daughter loves the Scratch programming class! She's created amazing games and animations. The teachers at Rillcod Academy are so patient and encouraging.",
+    content: "My daughter loves the Scratch programming class! She's created amazing games and animations. The teachers at Rillcod Technologies are so patient and encouraging.",
     rating: 5,
     image: "/images/testimonials/chioma.jpg"
   },
@@ -438,7 +438,7 @@ export const testimonials = [
   {
     name: "Mrs. Grace Ogbebor",
     role: "Principal, St. Maria Goretti College, Benin City",
-    content: "Rillcod Academy has transformed our students' approach to technology. The partnership has significantly improved our students' digital literacy and problem-solving skills.",
+    content: "Rillcod Technologies has transformed our students' approach to technology. The partnership has significantly improved our students' digital literacy and problem-solving skills.",
     rating: 5,
     image: "/images/testimonials/grace.jpg"
   },
@@ -459,14 +459,14 @@ export const testimonials = [
   {
     name: "Mrs. Patience Ehiagwina",
     role: "Vice Principal, Edo College, Benin City",
-    content: "The partnership with Rillcod Academy has significantly improved our students' tech skills. Our students are now more confident with technology.",
+    content: "The partnership with Rillcod Technologies has significantly improved our students' tech skills. Our students are now more confident with technology.",
     rating: 5,
     image: "/images/testimonials/patience.jpg"
   },
   {
     name: "Mr. Emmanuel Omoregie",
     role: "Parent",
-    content: "My children have been attending Rillcod Academy for 6 months now. Their logical thinking and creativity have improved tremendously. Highly recommended!",
+    content: "My children have been attending Rillcod Technologies for 6 months now. Their logical thinking and creativity have improved tremendously. Highly recommended!",
     rating: 5,
     image: "/images/testimonials/emmanuel.jpg"
   },
@@ -539,7 +539,7 @@ export const teamMembers = [
   {
     name: "Mrs. Grace Ogbebor",
     role: "Partnership Manager",
-    bio: "Former school principal with extensive experience in educational partnerships. Dedicated to expanding Rillcod Academy's reach across Nigeria.",
+    bio: "Former school principal with extensive experience in educational partnerships. Dedicated to expanding Rillcod Technologies's reach across Nigeria.",
     image: "/images/team/grace.jpg",
     social: {
       linkedin: "https://linkedin.com/in/graceogbebor",
@@ -556,7 +556,7 @@ export const events = [
     title: "Coding Bootcamp for Kids",
     date: "2024-03-15",
     time: "10:00 AM",
-    location: "Rillcod Academy Center, GRA, Benin City",
+    location: "Rillcod Technologies Center, GRA, Benin City",
     description: "A fun-filled weekend where kids learn to code through games and projects. Perfect for beginners aged 8-16.",
     image: "/images/events/bootcamp.jpg",
     category: "Workshop",
@@ -608,7 +608,7 @@ export const events = [
     title: "Web Development Camp",
     date: "2024-04-19",
     time: "10:00 AM",
-    location: "Rillcod Academy Center, Ring Road, Benin City",
+    location: "Rillcod Technologies Center, Ring Road, Benin City",
     description: "Advanced web development camp for students who want to create professional websites and web applications",
     image: "/images/events/webdev.jpg",
     category: "Camp",
@@ -659,7 +659,7 @@ export const blogPosts = [
   {
     id: 4,
     title: "Success Stories: From Benin City to Silicon Valley",
-    excerpt: "Meet Nigerian students who started their tech journey at Rillcod Academy and are now making waves globally",
+    excerpt: "Meet Nigerian students who started their tech journey at Rillcod Technologies and are now making waves globally",
     content: "Our students are proving that talent knows no boundaries...",
     author: "Miss Blessing Aigbe",
     date: "2024-01-28",

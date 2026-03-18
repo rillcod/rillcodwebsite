@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Partner Your School — Bring STEM & Coding to Your Students | Rillcod Academy",
+  title: "Partner Your School — Bring STEM & Coding to Your Students | Rillcod Technologies",
   description:
-    "Register your school as a Rillcod Academy partner. We bring hands-on coding, robotics, and STEM education directly into schools across Benin City, Ekpoma, Uromi, Auchi, and all of Edo State, Nigeria.",
+    "Register your school as a Rillcod Technologies partner. We bring hands-on coding, robotics, and STEM education directly into schools across Benin City, Ekpoma, Uromi, Auchi, and all of Edo State, Nigeria.",
   keywords: [
     "partner school coding Nigeria",
     "school registration STEM program",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     canonical: "https://rillcod.com/school-registration",
   },
   openGraph: {
-    title: "Partner Your School with Rillcod Academy — STEM Education",
+    title: "Partner Your School with Rillcod Technologies — STEM Education",
     description:
       "Bring hands-on coding, robotics & STEM education to your school. Available across Benin City, Ekpoma, Uromi, Auchi, and Edo State.",
     url: "https://rillcod.com/school-registration",

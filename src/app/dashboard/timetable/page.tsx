@@ -476,7 +476,7 @@ export default function TimetablePage() {
   ) => {
     const docRef = `TT-${Date.now().toString(36).toUpperCase().slice(-6)}`;
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-    const schoolName = (ttMeta as any).schools?.name ?? 'Rillcod Academy';
+    const schoolName = (ttMeta as any).schools?.name ?? 'Rillcod Technologies';
 
     const slotsByDayLocal: Record<string, Slot[]> = {};
     DAYS.forEach(d => {

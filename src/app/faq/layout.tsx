@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "FAQ — Frequently Asked Questions | Rillcod Academy",
+  title: "FAQ — Frequently Asked Questions | Rillcod Technologies",
   description:
-    "Find answers to common questions about Rillcod Academy's coding and STEM programs, enrollment process, pricing, partner school requirements, and more.",
+    "Find answers to common questions about Rillcod Technologies's coding and STEM programs, enrollment process, pricing, partner school requirements, and more.",
   keywords: [
-    "Rillcod Academy FAQ",
+    "Rillcod Technologies FAQ",
     "coding academy questions Nigeria",
     "STEM education FAQ",
     "coding classes enrollment questions",
@@ -16,9 +16,9 @@ export const metadata: Metadata = {
     canonical: "https://rillcod.com/faq",
   },
   openGraph: {
-    title: "Frequently Asked Questions — Rillcod Academy",
+    title: "Frequently Asked Questions — Rillcod Technologies",
     description:
-      "Answers to common questions about enrollment, programs, pricing, and school partnerships at Rillcod Academy.",
+      "Answers to common questions about enrollment, programs, pricing, and school partnerships at Rillcod Technologies.",
     url: "https://rillcod.com/faq",
   },
 };

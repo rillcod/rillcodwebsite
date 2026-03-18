@@ -296,7 +296,7 @@ tbody tr:nth-child(even){background:#f9fafb}
   <div class="logo-block">
     <div class="logo-circle">R</div>
     <div>
-      <div class="org-name">Rillcod Academy</div>
+      <div class="org-name">Rillcod Technologies</div>
       <div class="org-sub">Technology &amp; Innovation in Education</div>
     </div>
   </div>
@@ -334,7 +334,7 @@ ${questionRows}
     <div class="logo-block">
       <div class="logo-circle" style="background:linear-gradient(135deg,#dc2626,#b91c1c)">R</div>
       <div>
-        <div class="org-name" style="color:#dc2626">Rillcod Academy — Marking Guide</div>
+        <div class="org-name" style="color:#dc2626">Rillcod Technologies — Marking Guide</div>
         <div class="org-sub">CONFIDENTIAL — For Examiner Use Only · Do Not Distribute</div>
       </div>
     </div>
@@ -361,7 +361,7 @@ ${questionRows}
     <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Head of Department / Stamp</div></div>
   </div>
 </div>
-<div class="watermark">Rillcod Academy · ${docRef} · This is a computer-generated examination document.</div>
+<div class="watermark">Rillcod Technologies · ${docRef} · This is a computer-generated examination document.</div>
 </body></html>`;
 
     const w = window.open('', '_blank', 'width=900,height=750');
