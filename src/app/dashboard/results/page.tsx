@@ -10,7 +10,7 @@ import {
     PrinterIcon, AcademicCapIcon, MagnifyingGlassIcon,
     TrophyIcon, DocumentTextIcon, PencilSquareIcon, CheckCircleIcon,
     ArrowDownTrayIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon,
-    TrashIcon, XMarkIcon, SparklesIcon, MessageCircleIcon
+    TrashIcon, XMarkIcon, SparklesIcon
 } from '@/lib/icons';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 
