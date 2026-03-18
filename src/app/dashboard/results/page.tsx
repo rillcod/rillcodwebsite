@@ -1302,19 +1302,6 @@ tbody tr:hover{background:#f3f4f6}
                     </div>
                 </div>
             )}
-        </div>
-        </>
-    );
-}
-
-// ── Suspense boundary (useSearchParams requirement) ────────────────────────────
-export default function ResultsPage() {
-    return (
-        <Suspense fallback={
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-        }>
             {/* ══ AI Telemetry Chat ══ */}
             {showAI && (
                 <div className="fixed bottom-6 right-6 z-[100] w-full max-w-sm animate-in slide-in-from-right-10 duration-500">
@@ -1343,7 +1330,19 @@ export default function ResultsPage() {
                     </div>
                 </div>
             )}
+        </div>
+        </>
+    );
+}
 
+// ── Suspense boundary (useSearchParams requirement) ────────────────────────────
+export default function ResultsPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        }>
             <ResultsPageInner />
         </Suspense>
     );
