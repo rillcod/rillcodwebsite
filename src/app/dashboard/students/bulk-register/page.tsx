@@ -30,6 +30,7 @@ import {
   UserIcon,
 } from '@/lib/icons';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
+import toast from 'react-hot-toast';
 
 // ─── Class detection ─────────────────────────────────────────────────────────
 //
@@ -235,6 +236,156 @@ export default function BulkRegisterPage() {
   const [batchResults, setBatchResults] = useState<any[]>([]);
   const [editingResultId, setEditingResultId] = useState<string | null>(null);
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
+  const [selectedResultIds, setSelectedResultIds] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<'register' | 'vault'>('register');
+  const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
+
+  const handleMassPrintReport = (resultsToPrint: any[]) => {
+    const validResults = resultsToPrint.filter(r => r.status !== 'failed');
+    if (validResults.length === 0) {
+      toast.error('No valid records found for printing.');
+      return;
+    }
+
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const batchIdStr = validResults[0].batch_id?.slice(0,8) || 'N/A';
+    
+    const html = `
+      <html><head><title>Student Registration Roster - ${dateStr}</title>
+      <style>
+        @page { margin: 15mm; size: A4; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #fff; margin: 0; padding: 0; color: #111; }
+        .header { display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+        .logo-area { display: flex; align-items: center; gap: 12px; }
+        .brand { font-weight: 900; font-size: 24px; letter-spacing: -0.02em; line-height: 1; }
+        .brand span { color: #ea580c; }
+        .title { text-transform: uppercase; font-weight: 800; font-size: 14px; color: #4b5563; }
+        .meta { display: flex; gap: 40px; margin-bottom: 20px; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; }
+        table { border-collapse: collapse; font-size: 11px; text-transform: uppercase; width: 100%; border: 1px solid #e5e7eb; }
+        th { background: #f3f4f6; color: #111; text-align: left; padding: 10px; border: 1px solid #e5e7eb; font-weight: 800; white-space: nowrap; }
+        td { padding: 8px 10px; border: 1px solid #e5e7eb; font-weight: 600; }
+        .email, .pwd { font-family: monospace; font-weight: 700; font-size: 11px; text-transform: none; }
+        .footer { margin-top: 30px; padding-top: 15px; border-top: 1px dashed #e5e7eb; font-size: 10px; color: #6b7280; text-align: center; font-weight: 700; }
+      </style>
+      </head><body>
+        <div class="header">
+           <div class="logo-area">
+             <img src="${window.location.origin}/logo.png" style="height:38px; display:block;" />
+             <div>
+               <div class="brand">RILLCOD<span>.</span></div>
+               <div class="title">Official Student Roster</div>
+             </div>
+           </div>
+           <div style="text-align:right;">
+             <div style="font-weight:900; font-size: 14px;">BATCH archive: ${batchIdStr}</div>
+             <div style="font-size: 10px; color: #6b7280; font-weight: bold; margin-top: 4px;">DATED: ${dateStr}</div>
+           </div>
+        </div>
+        <div class="meta">
+           <div>TOTAL ENROLLED: ${validResults.length}</div>
+           <div>TARGET SECTOR: RILLCOD ACADEMY</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:30px;">#</th>
+              <th>Full Name</th>
+              <th>Academic Tier</th>
+              <th>System Email</th>
+              <th>Access Cipher</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${validResults.map((r, i) => `
+              <tr>
+                <td>${i+1}</td>
+                <td>${r.full_name}</td>
+                <td>${r.class_name || 'GENERAL'}</td>
+                <td class="email">${r.email}</td>
+                <td class="pwd">${r.password}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div class="footer">
+          CONFIDENTIAL DOCUMENT • FOR ADMINISTRATIVE PURPOSES ONLY • PORTAL: https://rillcod.com/login
+        </div>
+      <script>window.onload = () => { window.print(); window.close(); }</script>
+      </body></html>
+    `;
+
+    const win = window.open('', '_blank');
+    win?.document.write(html);
+    win?.document.close();
+  };
+
+  const handleMassPrint = (resultsToPrint: any[]) => {
+    const validResults = resultsToPrint.filter(r => r.status !== 'failed');
+    if (validResults.length === 0) {
+      toast.error('No valid records found for printing.');
+      return;
+    }
+
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    
+    const html = `
+      <html><head><title>Mass Credentials Print - ${dateStr}</title>
+      <style>
+        @media print { .page-break { page-break-after: always; } }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #fff; margin: 0; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .card { border: 1.5px solid #ea580c; padding: 20px; position: relative; break-inside: avoid; }
+        .header { border-bottom: 2px solid #f3f4f6; margin-bottom: 15px; padding-bottom: 8px; display: flex; align-items:flex-end; gap: 10px;}
+        .brand { font-weight: 900; font-size: 16px; font-style: italic; color: #000; letter-spacing: -0.02em; }
+        .dot { color: #ea580c; font-style: normal; }
+        .tagline { font-size: 6px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.3em; margin-top: 2px; font-weight: 900; }
+        .name { font-size: 13px; font-weight: 800; color: #111827; margin-bottom: 12px; text-transform: uppercase; display:flex; justify-content: space-between; align-items:center; border-bottom: 1px solid #111; padding-bottom: 4px; }
+        .name span.cls { font-size: 8px; font-style: italic; color: #ea580c; border: 1px solid #ea580c; padding: 2px 4px;}
+        .field { margin-bottom: 8px; }
+        .label { font-size: 7px; font-weight: 900; color: #6b7280; text-transform: uppercase; margin-bottom: 2px; }
+        .value { font-size: 11px; font-weight: 700; color: #111827; background: #f9fafb; border: 1px solid #e5e7eb; padding: 6px; font-family: monospace; word-break: break-all; }
+        .footer { margin-top: 15px; border-top: 1px dashed #e5e7eb; padding-top: 8px; font-size: 7px; color: #9ca3af; line-height: 1.4; font-weight: 600; }
+        .checksum { position: absolute; bottom: 15px; right: 15px; font-size: 12px; color: #f3f4f6; font-weight: 900; transform: rotate(-45deg); pointer-events: none; }
+      </style>
+      </head><body>
+      <div class="grid">
+        ${validResults.map(r => `
+          <div class="card">
+            <div class="checksum">AUTH:OK</div>
+            <div class="header">
+                <img src="${window.location.origin}/logo.png" style="height: 24px;"/>
+                <div>
+                   <div class="brand">RILLCOD<span class="dot">.</span></div>
+                   <div class="tagline">STEM Excellence • Official Node</div>
+                </div>
+            </div>
+            <div class="name">
+              <span>${r.full_name}</span>
+              ${r.class_name ? `<span class="cls">${r.class_name}</span>` : ''}
+            </div>
+            <div class="field">
+                <div class="label">System Identity (Email)</div>
+                <div class="value">${r.email}</div>
+            </div>
+            <div class="field">
+                <div class="label">Temporary Cipher (Password)</div>
+                <div class="value">${r.password || 'Contact Admin'}</div>
+            </div>
+            <div class="footer">
+                PORTAL: https://rillcod.com/login<br/>
+                STATION: student/login • Issued ${dateStr}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <script>window.onload = () => { window.print(); window.close(); }</script>
+      </body></html>
+    `;
+
+    const win = window.open('', '_blank');
+    win?.document.write(html);
+    win?.document.close();
+  };
 
   useEffect(() => {
     const saved = sessionStorage.getItem('last_bulk_reg');
@@ -269,16 +420,20 @@ export default function BulkRegisterPage() {
     if (!confirm('Delete this batch permanently? This will remove all student registration history for this session.')) return;
     setLoadingHistory(true);
     try {
-      // 1. Delete results first (if no cascade)
-      await (supabase as any).from('registration_results').delete().eq('batch_id', batchId);
-      // 2. Delete batch metadata
-      const { error } = await (supabase as any).from('registration_batches').delete().eq('id', batchId);
-
-      if (error) throw error;
+      const res = await fetch(`/api/students/bulk-register?batchId=${batchId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete batch');
 
       setHistory(prev => prev.filter(b => b.id !== batchId));
+      if (selectedBatchId === batchId) {
+        setSelectedBatchId(null);
+        setBatchResults([]);
+      }
+      toast.success('Batch Archive Permanently Deleted');
     } catch (err: any) {
-      alert('Delete failed: ' + err.message);
+      toast.error('Delete failed: ' + err.message);
     } finally {
       setLoadingHistory(false);
     }
@@ -592,129 +747,64 @@ export default function BulkRegisterPage() {
 
   return (
     <>
-      {/* ── Print-only styles ──────────────────────────────────────────── */}
-      <style>{`
-        @media print {
-          body * { display: none !important; }
-          #printable-sheet, #printable-sheet * { display: block !important; }
-          #printable-sheet table, #printable-sheet table * { display: table !important; }
-          #printable-sheet tr, #printable-sheet tr * { display: table-row !important; }
-          #printable-sheet td, #printable-sheet td * { display: table-cell !important; }
-          #printable-sheet th, #printable-sheet th * { display: table-header-group !important; }
-          #printable-sheet {
-            position: absolute; inset: 0; background: #fff; color: #000; padding: 24px;
-            display: block !important;
-          }
-          #printable-sheet h2  { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
-          #printable-sheet p   { font-size: 12px; margin-bottom: 16px; color: #555; }
-          #printable-sheet table { width: 100%; border-collapse: collapse; font-size: 11px; }
-          #printable-sheet th  { background: #1a1a2e !important; color: #fff !important; -webkit-print-color-adjust: exact; padding: 7px 9px; text-align: left; font-weight: 700; }
-          #printable-sheet td  { border-bottom: 1px solid #e5e7eb; padding: 6px 9px; color: #111; }
-          #printable-sheet tr:nth-child(even) td { background: #f9fafb !important; -webkit-print-color-adjust: exact; }
-          #printable-sheet .cls-badge { background: #cffafe !important; color: #0e7490 !important; padding: 1px 6px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
-          #printable-sheet .badge-ok  { background: #d1fae5 !important; color: #065f46 !important; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
-          #printable-sheet .badge-fail{ background: #fee2e2 !important; color: #991b1b !important; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
-          #printable-sheet .footer-note { margin-top: 20px; font-size: 10px; color: #888; border-top: 1px solid #e5e7eb; padding-top: 10px; }
-          @page { margin: 1cm; size: auto; }
-        }
-      `}</style>
-
-      <div className="min-h-screen bg-[#0f0f1a] px-4 py-6 md:px-8 max-w-6xl mx-auto">
-
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-10 gap-6">
-          <div>
-            <h1 className="text-3xl font-black text-white flex items-center gap-3 italic uppercase tracking-tighter">
-              <SparklesIcon className="w-8 h-8 text-violet-400" />
-              Institutional Registry
-            </h1>
-            <p className="text-white/40 text-[10px] uppercase font-black tracking-[0.2em] mt-1 ml-1">
-              Bulk Distribution & Archive Management
-            </p>
-          </div>
-          
-          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 shadow-2xl overflow-hidden shrink-0 self-start sm:self-center">
+      <div className="min-h-screen bg-[#070b14] p-4 sm:p-8 md:p-12 font-sans selection:bg-cyan-500/30">
+        
+        {/* Standalone Tab Switcher */}
+        <div className="max-w-7xl mx-auto mb-16">
+          <div className="flex bg-[#0d1526] p-1.5 rounded-none border border-white/5 w-fit">
             <button 
-              onClick={() => { setStep('input'); setShowHistory(false); }}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${(!showHistory && step !== 'registry' && step !== 'single') ? 'bg-[#7a0606] text-white shadow-lg' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+              onClick={() => setActiveTab('register')}
+              className={`px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'register' ? 'bg-orange-600 text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
             >
-              Bulk Import
+              Uplink Station (New)
             </button>
             <button 
-              onClick={() => { setStep('single'); setShowHistory(false); }}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${(step === 'single') ? 'bg-blue-600 text-white shadow-lg' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+              onClick={() => { setActiveTab('vault'); fetchHistory(); }}
+              className={`px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'vault' ? 'bg-cyan-600 text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
             >
-              Single Entry
-            </button>
-            <button 
-              onClick={() => { setShowHistory(true); setStep(step === 'done' || step === 'preview' ? step : 'input'); fetchHistory(); }}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showHistory ? 'bg-cyan-600 text-white shadow-lg' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-            >
-              Official Vault
+              Execution Vault (Archive)
             </button>
           </div>
         </div>
 
-        {/* Step indicator (hide for single entry) */}
-        {step !== 'single' && (
-          <div className="flex items-center gap-2 mb-8 text-xs font-bold flex-wrap">
-            {(['input', 'preview', 'done', 'registry'] as const).map((s, i) => {
-              const labels = ['1. Enter Names', '2. Edit & Register', '3. Results/Print', '4. Official Registry'];
-              const active = step === s;
-              const steps = ['input', 'preview', 'done', 'registry'];
-              const done = steps.indexOf(step as any) > i;
-              return (
-                <button 
-                  key={s} 
-                  onClick={() => {
-                    if (s === 'registry') {
-                      setStep('registry');
-                      fetchHistory();
-                    } else if (done || active) {
-                      setStep(s);
-                    }
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  {i > 0 && <div className="w-8 h-px bg-white/10" />}
-                  <span className={`px-3 py-1 rounded-full transition-colors ${active ? 'bg-violet-600 text-white' : done ? 'bg-emerald-600/30 text-emerald-400' : 'bg-white/5 text-white/30'}`}>
-                    {labels[i]}
-                  </span>
-                </button>
-              );
-            })}
+        {activeTab === 'register' && (
+          <div className="max-w-4xl mx-auto space-y-12">
+            {!showHistory && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-orange-600 flex items-center justify-center rotate-3 border border-orange-400/20 shadow-xl shadow-orange-600/10 hover:rotate-6 transition-transform">
+                    <SparklesIcon className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase">Academic Registry</h1>
+                    <p className="text-white/30 text-[10px] uppercase font-bold tracking-[0.4em] mt-1.5">Official Student Node Distribution</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+        {/* Sub-Tabs for Registry Mode */}
+        {step !== 'done' && (
+          <div className="flex bg-[#0d1526] p-1 border border-white/5 w-fit">
+            <button 
+              onClick={() => setStep('input')}
+              className={`px-8 py-3 text-[9px] font-black uppercase tracking-widest transition-all ${step !== 'single' ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white'}`}
+            >
+              Intelligence Import (Bulk)
+            </button>
+            <button 
+              onClick={() => setStep('single')}
+              className={`px-8 py-3 text-[9px] font-black uppercase tracking-widest transition-all ${step === 'single' ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white'}`}
+            >
+              Manual Uplink (Single)
+            </button>
           </div>
         )}
 
         {/* ══════════════════ STEP 1 — INPUT ══════════════════════════ */}
         {step === 'single' && (
-          <div className="space-y-6">
-            <div className="bg-[#0d1526] border border-blue-500/20 rounded-2xl p-8 sm:p-12 text-center">
-              <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <UserIcon className="w-10 h-10 text-blue-400" />
-              </div>
-              <h2 className="text-2xl font-black text-white mb-3 italic uppercase tracking-tighter">Single Student Registration</h2>
-              <p className="text-white/40 text-sm max-w-md mx-auto mb-8">
-                Register a single student record directly into the Official Registry. This will create a pending application for approval.
-              </p>
-              <button 
-                onClick={() => setStep('single' as any)} // will open modal via useEffect or just button
-                className="group relative px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-2xl shadow-blue-600/20"
-              >
-                <div className="flex items-center gap-3">
-                  <PlusIcon className="w-5 h-5" />
-                  Open Registration Form
-                </div>
-              </button>
-            </div>
-
-            {/* Inlining the modal logic but as a tab trigger */}
-            <AddStudentModal 
-              isOpen={step === 'single'} 
-              onClose={() => setStep('input')} 
-              onSuccess={() => { setStep('registry'); fetchHistory(); }}
-            />
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <AddStudentModal inline isOpen={true} onClose={() => {}} onSuccess={() => { setStep('input'); setActiveTab('vault'); fetchHistory(); toast.success('Identity Created. Check Vault.'); }} classId={selectedRegistryClass || undefined} />
           </div>
         )}
 
@@ -1231,12 +1321,15 @@ Yusuf Ibrahim SS1A`}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <button onClick={() => window.print()} className="flex items-center justify-center gap-2 px-4 py-4 bg-[#7a0606] hover:bg-[#9a0808] text-white font-black rounded-2xl transition-all shadow-lg shadow-rose-900/20 hover:-translate-y-0.5 text-xs uppercase">
-                <PrinterIcon className="w-5 h-5" /> Print Credentials
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+              <button onClick={() => handleMassPrint(results)} className="flex items-center justify-center gap-2 px-4 py-4 bg-[#7a0606] hover:bg-[#9a0808] text-white font-black rounded-2xl transition-all shadow-lg shadow-rose-900/20 hover:-translate-y-0.5 text-[10px] uppercase">
+                <PrinterIcon className="w-4 h-4" /> Print Cards
               </button>
-              <button onClick={downloadCSV} className="flex items-center justify-center gap-2 px-4 py-4 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-black rounded-2xl transition-all border border-cyan-500/20 text-xs uppercase">
-                <DocumentArrowDownIcon className="w-5 h-5" /> Download CSV
+              <button onClick={() => handleMassPrintReport(results)} className="flex items-center justify-center gap-2 px-4 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl transition-all shadow-lg shadow-orange-900/20 hover:-translate-y-0.5 text-[10px] uppercase">
+                <ClipboardDocumentListIcon className="w-4 h-4" /> Print Roster (List)
+              </button>
+              <button onClick={downloadCSV} className="flex items-center justify-center gap-2 px-4 py-4 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-black rounded-2xl transition-all border border-cyan-500/20 text-[10px] uppercase">
+                <DocumentArrowDownIcon className="w-4 h-4" /> Download CSV
               </button>
               <button onClick={handleUpdateResults} disabled={loading} className="flex items-center justify-center gap-2 px-4 py-4 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 font-black rounded-2xl transition-all border border-emerald-500/20 text-xs uppercase">
                 {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CheckCircleIcon className="w-5 h-5" />}
@@ -1332,223 +1425,229 @@ Yusuf Ibrahim SS1A`}
             </div>
           </div>
         )}
+        </div>
+        )}
 
-        {/* ══════════════════ OFFICIAL REGISTRY (Standalone Tab) ═════════════ */}
-        {showHistory && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-            <div className="bg-cyan-500/5 border border-cyan-500/10 rounded-[3rem] p-10 relative overflow-hidden shadow-2xl">
-               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
-               <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                 <div>
-                   <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
-                      <span className="text-[10px] text-cyan-400 font-black uppercase tracking-widest">Live Archive Connection</span>
-                   </div>
-                   <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter">Execution Vault</h2>
-                   <p className="text-white/30 text-xs font-bold uppercase tracking-widest mt-1">Registry of all finalized student distribution sessions</p>
-                 </div>
-                 <div className="flex items-center gap-4">
-                    <div className="text-right hidden md:block">
-                       <p className="text-white font-black text-xl leading-none">{history.length}</p>
-                       <p className="text-[10px] text-white/30 font-black uppercase tracking-widest mt-1">Total Batches</p>
-                    </div>
-                    <button 
-                      onClick={fetchHistory}
-                      disabled={loadingHistory}
-                      className="w-16 h-16 bg-cyan-500/10 rounded-3xl flex items-center justify-center border border-cyan-500/20 shadow-xl hover:bg-cyan-500/20 transition-all group"
-                    >
-                      <ArrowPathIcon className={`w-8 h-8 text-cyan-500 ${loadingHistory ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-                    </button>
-                 </div>
+        {/* ══════════════════ VAULT TAB ═══════════════════════════════ */}
+        {activeTab === 'vault' && (
+          <div className="max-w-6xl mx-auto space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            {/* Vault Header (Refined) */}
+            <div className="bg-cyan-600/5 border border-cyan-500/20 p-16 relative overflow-hidden shadow-2xl">
+               <div className="absolute top-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
+               <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-12">
+                  <div className="max-w-xl">
+                     <div className="flex items-center gap-3 mb-4">
+                        <div className="w-3 h-3 bg-cyan-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
+                        <span className="text-[12px] text-cyan-400 font-black uppercase tracking-[0.4em]">Official Execution Safe</span>
+                     </div>
+                     <h2 className="text-7xl font-black text-white italic uppercase tracking-tighter leading-none mb-6">Execution Vault</h2>
+                     <p className="text-white/40 text-[13px] font-medium leading-relaxed uppercase tracking-widest">A secure, encrypted repository containing every student deployment session recorded on this station.</p>
+                  </div>
+                  <div className="flex items-center gap-10 lg:border-l lg:border-white/10 lg:pl-10">
+                     <div className="text-right">
+                        <p className="text-white font-black text-6xl leading-none italic">{history.length}</p>
+                        <p className="text-[10px] text-white/30 font-black uppercase tracking-[0.3em] mt-3">Active Archives</p>
+                     </div>
+                     <button 
+                       onClick={fetchHistory}
+                       disabled={loadingHistory}
+                       className="w-24 h-24 bg-cyan-600/10 border border-cyan-500/20 flex items-center justify-center hover:bg-cyan-600/20 transition-all group active:scale-95 shadow-xl shadow-cyan-600/10"
+                     >
+                       <ArrowPathIcon className={`w-12 h-12 text-cyan-500 ${loadingHistory ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
+                     </button>
+                  </div>
                </div>
             </div>
 
             {loadingHistory && history.length === 0 ? (
-              <div className="h-64 flex flex-col items-center justify-center gap-4 bg-white/[0.02] rounded-[3rem] border border-white/5 italic">
-                <ArrowPathIcon className="w-8 h-8 text-cyan-500 animate-spin" />
-                <span className="text-white/20 text-[10px] font-black uppercase tracking-widest">Hydrating records...</span>
-              </div>
+               <div className="h-[400px] flex flex-col items-center justify-center gap-8 bg-[#0d1526]/40 border border-white/5 italic text-white/10 uppercase tracking-[0.5em] animate-pulse">Syncing Vault Nodes...</div>
             ) : history.length === 0 ? (
-              <div className="h-64 flex flex-col items-center justify-center gap-4 bg-white/[0.02] rounded-[3rem] border border-white/5 border-dashed">
-                <ArchiveBoxIcon className="w-12 h-12 text-white/5" />
-                <span className="text-white/20 text-xs font-bold uppercase">No records found. Complete a registration session first.</span>
-              </div>
+               <div className="h-[400px] flex flex-col items-center justify-center gap-8 bg-white/[0.02] border border-white/5 border-dashed italic text-white/20 uppercase tracking-[0.5em]">Vault Is Vacuum / Empty</div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                   {history.map((batch) => (
-                    <div key={batch.id} className="group bg-[#0d1526]/80 backdrop-blur-sm border border-white/10 rounded-[3rem] p-8 transition-all hover:bg-[#0d1526] hover:border-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-900/20 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-cyan-500/10 transition-all" />
-                      
-                      <div className="relative z-10">
-                        <div className="flex items-start justify-between mb-6">
-                          <div className="flex-1 min-w-0">
-                            {editingBatchId === batch.id ? (
-                               <input 
-                                 autoFocus
-                                 className="bg-white/5 border border-cyan-500/50 rounded-xl px-4 py-2 text-white font-black text-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all"
-                                 defaultValue={batch.class_name || 'General Batch'}
-                                 onBlur={async (e) => {
-                                   const newName = e.target.value || null;
-                                   await fetch('/api/students/bulk-register', {
-                                     method: 'PATCH',
-                                     headers: {'Content-Type': 'application/json'},
-                                     body: JSON.stringify({ type: 'batch', data: { id: batch.id, class_name: newName } })
-                                   });
-                                   setEditingBatchId(null);
-                                   fetchHistory();
-                                 }}
-                               />
-                            ) : (
-                              <h3 className="text-2xl font-black text-white truncate uppercase tracking-tighter group-hover:text-cyan-400 transition-colors cursor-pointer"
-                                  onDoubleClick={() => setEditingBatchId(batch.id)}>
-                                {batch.class_name || 'General Batch'}
-                              </h3>
-                            )}
-                            <div className="flex items-center gap-4 mt-2">
-                               <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-lg border border-white/10">
-                                  <ClockIcon className="w-3 h-3 text-white/30" />
-                                  <span className="text-[9px] text-white/40 font-black uppercase tracking-widest">{new Date(batch.created_at).toLocaleDateString()}</span>
-                               </div>
-                               <div className="flex items-center gap-1.5 px-2.5 py-1 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
-                                  <UserGroupIcon className="w-3 h-3 text-cyan-400" />
-                                  <span className="text-[9px] text-cyan-400 font-black uppercase tracking-widest">{batch.student_count} Students</span>
-                               </div>
-                            </div>
+                    <div key={batch.id} className="group bg-[#0d1526] border border-white/10 p-12 transition-all hover:bg-[#0d1526]/80 hover:border-cyan-500/50 hover:shadow-latest relative overflow-hidden">
+                       <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rotate-45 translate-x-16 -translate-y-16 pointer-events-none" />
+                       
+                       <div className="relative z-10">
+                          <div className="flex items-start justify-between mb-10">
+                             <div className="flex-1 min-w-0">
+                                {editingBatchId === batch.id ? (
+                                   <input 
+                                     autoFocus
+                                     className="bg-black/60 border border-cyan-500/50 px-6 py-4 text-white font-black text-3xl w-full italic outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all"
+                                     defaultValue={batch.class_name || 'Protocol General'}
+                                     onBlur={async (e) => {
+                                       await fetch('/api/students/bulk-register', {
+                                         method: 'PATCH',
+                                         headers: {'Content-Type': 'application/json'},
+                                         body: JSON.stringify({ type: 'batch', data: { id: batch.id, class_name: e.target.value } })
+                                       });
+                                       setEditingBatchId(null);
+                                       fetchHistory();
+                                       toast.success('Batch renamed successfully.');
+                                     }}
+                                   />
+                                ) : (
+                                   <h3 className="text-4xl font-black text-white truncate uppercase tracking-tighter italic group-hover:text-cyan-400 cursor-pointer transition-colors"
+                                       onDoubleClick={() => setEditingBatchId(batch.id)}>
+                                     {batch.class_name || 'Protocol General'}
+                                   </h3>
+                                )}
+                                <div className="flex items-center gap-6 mt-5 bg-white/5 w-fit px-4 py-2 border border-white/5">
+                                   <span className="text-[10px] text-white/20 font-black uppercase tracking-[0.2em]">{new Date(batch.created_at).toLocaleDateString()}</span>
+                                   <div className="w-1.5 h-1.5 bg-white/10 rounded-full" />
+                                   <span className="text-[10px] text-cyan-500/70 font-black uppercase tracking-[0.2em] italic">{batch.student_count} Identities Distributed</span>
+                                </div>
+                             </div>
+                             <button onClick={() => handleDeleteBatch(batch.id)} className="p-5 bg-white/5 hover:bg-rose-600/20 text-white/20 hover:text-rose-500 transition-all border border-white/5 ml-4">
+                               <TrashIcon className="w-6 h-6" />
+                             </button>
                           </div>
                           
-                          <div className="flex gap-2">
-                             <button onClick={() => setEditingBatchId(batch.id)} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-white/20 hover:text-cyan-400 transition-all border border-white/5">
-                                <PencilIcon className="w-4 h-4" />
+                          <div className="flex items-center gap-4">
+                             <button 
+                               onClick={async () => {
+                                 if (selectedBatchId === batch.id) {
+                                   setSelectedBatchId(null);
+                                   setSelectedResultIds([]);
+                                 } else {
+                                   setSelectedBatchId(batch.id);
+                                   setSelectedResultIds([]);
+                                   setLoadingHistory(true);
+                                   const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                                   if (data) setBatchResults(data);
+                                   setLoadingHistory(false);
+                                 }
+                               }}
+                               className={`flex-1 py-6 text-[11px] font-black uppercase tracking-[0.4em] transition-all border ${
+                                 selectedBatchId === batch.id ? 'bg-cyan-600 text-white border-cyan-400 shadow-xl shadow-cyan-600/30' : 'bg-white/5 text-white/30 hover:bg-white/10 hover:text-white border-white/5'
+                               }`}
+                             >
+                               {selectedBatchId === batch.id ? 'Close Archive' : 'Open Ledger'}
                              </button>
-                             <button onClick={() => handleDeleteBatch(batch.id)} className="p-3 bg-white/5 hover:bg-rose-500/10 rounded-2xl text-white/20 hover:text-rose-500 transition-all border border-white/5">
-                                <TrashIcon className="w-4 h-4" />
-                             </button>
-                          </div>
-                        </div>
-
-                        {batch.school_name && (
-                          <div className="mb-8 flex items-center gap-3 px-4 py-3 bg-white/[0.03] border border-white/5 rounded-2xl">
-                            <BuildingOffice2Icon className="w-4 h-4 text-violet-400" />
-                            <div>
-                               <p className="text-[8px] text-white/20 font-black uppercase tracking-widest leading-none mb-1">Affiliated Institution</p>
-                               <p className="text-[11px] text-white/60 font-bold truncate tracking-tight">{batch.school_name}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between gap-4">
-                           <span className="text-[10px] font-mono text-white/10 tracking-widest font-black uppercase">VAULT-ID: {batch.id.slice(0, 8)}</span>
-                           <button 
-                             onClick={async () => {
-                               if (selectedBatchId === batch.id) {
-                                 setSelectedBatchId(null);
-                               } else {
-                                 setSelectedBatchId(batch.id);
+                             <button 
+                               onClick={async () => {
                                  setLoadingHistory(true);
                                  const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                 if (data) setBatchResults(data);
+                                 if (data) handleMassPrintReport(data);
                                  setLoadingHistory(false);
-                               }
-                             }}
-                             className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedBatchId === batch.id ? 'bg-cyan-500 text-white shadow-xl shadow-cyan-500/30 -translate-y-1' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white border border-white/5'}`}
-                           >
-                             {selectedBatchId === batch.id ? 'Close Records' : 'Open Results'}
-                           </button>
-                        </div>
-
-                        {/* Expanded View for Batch Results */}
-                        {selectedBatchId === batch.id && (
-                          <div className="mt-8 pt-8 border-t border-white/5 space-y-3 animate-in fade-in zoom-in-95 duration-300">
-                             <div className="flex items-center justify-between mb-2">
-                                <p className="text-[10px] text-white/30 font-black uppercase tracking-widest">Entry Breakdown</p>
-                                <p className="text-[10px] text-cyan-400/50 font-black tracking-widest italic">Double-click names to quick edit</p>
-                             </div>
-                             {batchResults.length === 0 ? (
-                               <div className="py-12 flex flex-col items-center justify-center gap-3">
-                                  <ArrowPathIcon className="w-6 h-6 text-cyan-500/20 animate-spin" />
-                                  <p className="text-[10px] text-white/10 uppercase font-black tracking-widest">Accessing records...</p>
-                               </div>
-                             ) : (
-                               <div className="max-h-[400px] overflow-y-auto custom-scrollbar space-y-2 pr-2">
-                                 {batchResults.map((r, ri) => (
-                                   <div key={r.id} className="group/row flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-[1.5rem] hover:bg-white/[0.05] hover:border-cyan-500/20 transition-all">
-                                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                                       <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-[10px] font-black text-white/20 border border-white/5 group-hover/row:border-cyan-500/20 group-hover/row:text-cyan-400 transition-all">
-                                          {ri + 1}
-                                       </div>
-                                       <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                         {editingResultId === r.id ? (
-                                           <div className="flex gap-2 w-full">
-                                             <input 
-                                               autoFocus
-                                               className="bg-black/40 border border-cyan-500/40 rounded-lg px-3 py-1.5 text-white text-xs flex-1 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                                               defaultValue={r.full_name}
-                                               placeholder="Name"
-                                               id={`edit-name-${r.id}`}
-                                             />
-                                              <input 
-                                                className="bg-black/60 border border-cyan-500/60 rounded-xl px-4 py-2 text-cyan-300 text-[10px] font-black uppercase tracking-widest w-40 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all font-mono"
-                                               defaultValue={r.class_name || ''}
-                                               placeholder="Class"
-                                               id={`edit-class-${r.id}`}
-                                             />
-                                             <button 
-                                               onClick={async () => {
-                                                 const name = (document.getElementById(`edit-name-${r.id}`) as HTMLInputElement).value;
-                                                 const cls = (document.getElementById(`edit-class-${r.id}`) as HTMLInputElement).value;
-                                                 await fetch(`/api/students/bulk-register`, {
-                                                   method: 'PATCH',
-                                                   headers: {'Content-Type': 'application/json'},
-                                                   body: JSON.stringify({ type: 'result', data: { id: r.id, full_name: name, class_name: cls, email: r.email } })
-                                                 });
-                                                 setEditingResultId(null);
-                                                 const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                                 if (data) setBatchResults(data);
-                                               }}
-                                               className="bg-cyan-500 text-white p-1.5 rounded-lg"
-                                             >
-                                               <CheckCircleIcon className="w-4 h-4" />
-                                             </button>
-                                           </div>
-                                         ) : (
-                                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4" onDoubleClick={() => setEditingResultId(r.id)}>
-                                             <p className="text-white font-black text-sm truncate">{r.full_name}</p>
-                                             <div className="flex items-center gap-2">
-                                               <span className="px-2 py-0.5 bg-cyan-500/10 rounded-md text-[9px] font-black text-cyan-400 uppercase tracking-widest border border-cyan-500/20">
-                                                 {r.class_name || 'N/A'}
-                                               </span>
-                                               <span className="text-[10px] text-white/20 font-mono truncate">{r.email}</span>
-                                             </div>
-                                           </div>
-                                         )}
-                                       </div>
-                                     </div>
-                                     <div className="flex gap-1 ml-4 opacity-0 group-hover/row:opacity-100 transition-all transform translate-x-2 group-hover/row:translate-x-0">
-                                        <button onClick={() => setEditingResultId(r.id)} className="p-2 hover:bg-cyan-500/10 text-white/10 hover:text-cyan-400 rounded-xl transition-all">
-                                          <PencilIcon className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button onClick={async () => {
-                                          if (!confirm('Permanently wipe this entry from the registry?')) return;
-                                          await fetch(`/api/students/bulk-register?resultId=${r.id}`, { method: 'DELETE' });
-                                          setBatchResults(prev => prev.filter(x => x.id !== r.id));
-                                          fetchHistory(); // Update student count
-                                        }} className="p-2 hover:bg-rose-500/10 text-white/10 hover:text-rose-500 rounded-xl transition-all">
-                                          <TrashIcon className="w-3.5 h-3.5" />
-                                        </button>
-                                     </div>
-                                   </div>
-                                 ))}
-                               </div>
-                             )}
+                               }}
+                               className="px-8 py-6 bg-violet-600 hover:bg-violet-500 text-white shadow-xl shadow-violet-600/30 active:scale-95 transition-all group"
+                               title="Print Roster List"
+                             >
+                               <ClipboardDocumentListIcon className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                             </button>
+                             <button 
+                               onClick={async () => {
+                                 setLoadingHistory(true);
+                                 const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                                 if (data) handleMassPrint(data);
+                                 setLoadingHistory(false);
+                               }}
+                               className="px-10 py-6 bg-orange-600 hover:bg-orange-500 text-white shadow-xl shadow-orange-600/30 active:scale-95 transition-all group"
+                               title="Mass Print Student Cards"
+                             >
+                               <PrinterIcon className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                             </button>
                           </div>
-                        )}
-                      </div>
+
+                          {selectedBatchId === batch.id && (
+                             <div className="mt-12 pt-12 border-t border-white/10 space-y-4 animate-in fade-in slide-in-from-top-6 duration-700">
+                                <div className="flex items-center justify-between mb-6">
+                                   <p className="text-[11px] text-white/30 font-black uppercase tracking-[0.4em] italic">Station Member Ledger</p>
+                                   <p className="text-[9px] text-cyan-400/50 font-black tracking-[0.3em] uppercase">Sector: Distribution</p>
+                                </div>
+                                <div className="max-h-[500px] overflow-y-auto custom-scrollbar space-y-3 pr-4">
+                                   {batchResults.map((r, ri) => (
+                                      <div key={r.id} className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/5 hover:border-cyan-500/40 hover:bg-white/[0.04] transition-all group/it">
+                                         <div className="flex items-center gap-6 overflow-hidden">
+                                            <div className="w-12 h-12 bg-black/40 flex items-center justify-center text-[11px] font-black italic text-cyan-500/30 border border-white/5 group-hover/it:text-cyan-400 group-hover/it:border-cyan-500/40 transition-all shrink-0">
+                                               {String(ri + 1).padStart(2, '0')}
+                                            </div>
+                                            <div className="min-w-0">
+                                               {editingResultId === r.id ? (
+                                                  <div className="flex gap-3 w-full animate-in fade-in zoom-in-95 duration-200">
+                                                     <input 
+                                                       id={`edit-name-${r.id}`}
+                                                       autoFocus
+                                                       defaultValue={r.full_name}
+                                                       className="bg-black/80 border border-cyan-500/50 px-4 py-2 text-white font-black text-xs min-w-[150px] outline-none"
+                                                     />
+                                                     <input 
+                                                       id={`edit-class-${r.id}`}
+                                                       defaultValue={r.class_name || ''}
+                                                       className="bg-black/80 border border-cyan-500/50 px-4 py-2 text-cyan-400 font-black text-[10px] uppercase tracking-widest min-w-[80px] outline-none"
+                                                     />
+                                                     <button 
+                                                       onClick={async () => {
+                                                         const n = (document.getElementById(`edit-name-${r.id}`) as HTMLInputElement).value;
+                                                         const c = (document.getElementById(`edit-class-${r.id}`) as HTMLInputElement).value;
+                                                         await fetch('/api/students/bulk-register', {
+                                                            method: 'PATCH',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ type: 'result', data: { id: r.id, full_name: n, class_name: c, email: r.email } })
+                                                         });
+                                                         setEditingResultId(null);
+                                                         const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                                                         if (data) setBatchResults(data);
+                                                         toast.success('Identity node updated.');
+                                                       }}
+                                                       className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 flex items-center justify-center transition-all"
+                                                     >
+                                                       <CheckCircleIcon className="w-4 h-4" />
+                                                     </button>
+                                                  </div>
+                                               ) : (
+                                                  <div onDoubleClick={() => setEditingResultId(r.id)} className="cursor-pointer">
+                                                     <p className="text-[14px] font-black text-white italic truncate uppercase tracking-tight group-hover/it:text-cyan-400 transition-colors">{r.full_name}</p>
+                                                     <p className="text-[10px] text-white/30 font-mono tracking-tighter truncate mt-1 group-hover/it:text-white/50">{r.email}</p>
+                                                  </div>
+                                               )}
+                                            </div>
+                                         </div>
+                                         <div className="flex items-center gap-4 shrink-0">
+                                            {editingResultId !== r.id && (
+                                               <>
+                                                  <span className="text-[9px] font-black text-cyan-400/80 bg-cyan-400/10 px-3 py-1.5 border border-cyan-400/20 uppercase tracking-widest hidden sm:block italic">
+                                                     {r.class_name || '...'}
+                                                  </span>
+                                                  <div className="flex opacity-0 group-hover/it:opacity-100 transition-opacity gap-1">
+                                                     <button onClick={() => setEditingResultId(r.id)} className="p-2 text-white/20 hover:text-cyan-400 transition-colors"><PencilIcon className="w-4 h-4" /></button>
+                                                     <button 
+                                                       onClick={async () => {
+                                                         if (!confirm('Purge this record from the vault?')) return;
+                                                         await fetch(`/api/students/bulk-register?resultId=${r.id}`, { method: 'DELETE' });
+                                                         setBatchResults(prev => prev.filter(x => x.id !== r.id));
+                                                         fetchHistory();
+                                                         toast.success('Record purged successfully.');
+                                                       }}
+                                                       className="p-2 text-white/20 hover:text-rose-500 transition-colors"
+                                                     >
+                                                       <TrashIcon className="w-4 h-4" />
+                                                     </button>
+                                                  </div>
+                                               </>
+                                            )}
+                                         </div>
+                                      </div>
+                                   ))}
+                                </div>
+                             </div>
+                          )}
+                       </div>
                     </div>
                   ))}
                 </div>
             )}
           </div>
         )}
+
+        <AddStudentModal 
+          isOpen={isSingleModalOpen} 
+          onClose={() => setIsSingleModalOpen(false)} 
+          onSuccess={() => { setIsSingleModalOpen(false); setActiveTab('vault'); fetchHistory(); toast.success('Uplink confirmed. Check Execution Vault.'); }}
+        />
       </div>
     </>
   );

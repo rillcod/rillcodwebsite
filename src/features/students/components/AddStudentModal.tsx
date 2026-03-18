@@ -20,6 +20,7 @@ interface AddStudentModalProps {
     initialData?: any;
     /** If provided, the student is auto-activated and enrolled into this class after registration */
     classId?: string;
+    inline?: boolean;
 }
 
 const DEFAULT_FORM = {
@@ -27,7 +28,7 @@ const DEFAULT_FORM = {
     school_name: '', grade_level: '', section_class: '', city: '', state: '',
 };
 
-export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, classId }: AddStudentModalProps) {
+export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, classId, inline }: AddStudentModalProps) {
     const { profile } = useAuth();
     const [form, setForm] = useState(DEFAULT_FORM);
     const [loading, setLoading] = useState(false);
@@ -175,77 +176,154 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
         }
     };
 
-    if (!isOpen) return null;    // Credentials display after class auto-enrolment
+    if (!isOpen && !inline) return null;    // Credentials display after class auto-enrolment
     if (credentials) {
+        const handlePrint = () => {
+            const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            const html = `
+                <html><head><title>Access Card - ${credentials.name}</title>                <style>
+                    @page { margin: 0; size: auto; }
+                    body { font-family: system-ui, -apple-system, sans-serif; height: 100vh; margin: 0; display: flex; align-items: center; justify-content: center; background: #fff; }
+                    .card { width: 340px; border: 1.5px solid #ea580c; padding: 25px; background: white; box-sizing: border-box; position: relative; }
+                    .header { border-bottom: 2px solid #f3f4f6; margin-bottom: 20px; padding-bottom: 10px; display: flex; align-items:flex-end; gap: 10px;}
+                    .brand { font-weight: 900; font-size: 20px; font-style: italic; color: #000; letter-spacing: -0.02em; }
+                    .dot { color: #ea580c; font-style: normal; }
+                    .tagline { font-size: 7px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.4em; font-black: 900; margin-top: 4px; }
+                    .title { font-size: 10px; font-weight: 900; color: #ea580c; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 15px; }
+                    .student-name { font-size: 15px; font-weight: 800; color: #111827; margin-bottom: 20px; text-transform: uppercase; border-bottom: 1px solid #111; padding-bottom: 4px; display:flex; justify-content: space-between; align-items:center;}
+                    .student-name span.cls { font-size: 9px; font-style: italic; color: #ea580c; border: 1px solid #ea580c; padding: 2px 5px;}
+                    .field { margin-bottom: 12px; }
+                    .label { font-size: 8px; font-weight: 900; color: #6b7280; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+                    .value { font-size: 12px; font-weight: 700; color: #111827; background: #f9fafb; border: 1px solid #e5e7eb; padding: 8px; font-family: 'JetBrains Mono', monospace; }
+                    .footer { margin-top: 25px; padding-top: 12px; border-top: 1px dashed #e5e7eb; font-size: 7.5px; color: #9ca3af; line-height: 1.5; font-weight: 600; }
+                    .checksum { position: absolute; bottom: 25px; right: 25px; font-size: 18px; color: #f3f4f6; font-weight: 900; transform: rotate(-45deg); pointer-events: none; }
+                </style>
+                </head><body>
+                <div class="card">
+                    <div class="checksum">AUTH:OK</div>
+                    <div class="header">
+                        <img src="${window.location.origin}/logo.png" style="height: 32px;"/>
+                        <div>
+                           <div class="brand">RILLCOD<span class="dot">.</span></div>
+                           <div class="tagline">STEM Excellence • Official Node</div>
+                        </div>
+                    </div>
+                    <div class="title">Security Uplink Credentials</div>
+                    <div class="student-name">
+                      <span>${credentials.name}</span>
+                      ${form.section_class || form.grade_level ? `<span class="cls">${form.section_class || form.grade_level}</span>` : ''}
+                    </div>
+                    <div class="field">
+                        <div class="label">System Identity (Email)</div>
+                        <div class="value">${credentials.email}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">Temporary Cipher (Password)</div>
+                        <div class="value">${credentials.tempPassword}</div>
+                    </div>
+                    <div class="footer">
+                        PORTAL: https://rillcod.com/login<br/>
+                        EXPIRY: Manual Rotation Recommended • Issued ${dateStr}
+                    </div></div>
+                </div>
+                <script>window.onload = () => { window.print(); window.close(); }</script>
+                </body></html>
+            `;
+            const win = window.open('', '_blank');
+            win?.document.write(html);
+            win?.document.close();
+        };
+
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => { setCredentials(null); onSuccess(); onClose(); }} />
-                <div className="relative w-full max-w-md bg-[#1a1a1a] border-l-8 border-l-emerald-500 border border-white/10 rounded-none shadow-2xl p-10 space-y-6">
-                    <div className="flex items-center gap-4 mb-2">
-                        <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center rotate-3">
-                            <CheckIcon className="w-6 h-6 text-emerald-500" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-black text-white uppercase tracking-tight italic">Uplink Successful</h2>
-                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest leading-none">Registered & Enrolled: {credentials.name}</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-[#121212] border border-white/5 rounded-none p-6 space-y-4">
-                        <div>
-                            <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2">Login Sector (Email)</p>
-                            <p className="text-sm font-mono font-bold text-blue-400 select-all">{credentials.email}</p>
-                        </div>
-                        <div>
-                            <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2">Cipher Key (Password)</p>
-                            <p className="text-sm font-mono font-bold text-amber-500 select-all">{credentials.tempPassword}</p>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+                <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" />
+                <div className="relative w-full max-w-md bg-[#1a1a1a] border-l-8 border-l-emerald-500 border border-white/10 rounded-none shadow-latest p-0 overflow-hidden">
+                    <div className="p-8 border-b border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center rotate-3">
+                                <CheckIcon className="w-6 h-6 text-emerald-500" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black text-white uppercase tracking-tight italic">Uplink Success</h2>
+                                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest leading-none mt-1">Authorized Credentials Created</p>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-none flex items-start gap-3">
-                        <ExclamationTriangleIcon className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                        <p className="text-[10px] font-bold text-amber-500 italic leading-relaxed uppercase tracking-widest">
-                            SECURITY PROTOCOL: Copy these credentials now. First login requires manual password rotation via settings.
-                        </p>
+                    <div className="p-8 space-y-6">
+                        <div className="flex flex-col items-center py-6 border border-white/5 bg-black/20 mb-4">
+                            <div className="text-[10px] font-black text-white uppercase italic tracking-widest mb-1">RILLCOD<span className="text-orange-500 not-italic">.</span></div>
+                            <div className="text-[7px] font-black text-white/20 uppercase tracking-[0.5em] mb-4">Identity Protocol</div>
+                            <div className="text-lg font-black text-white uppercase tracking-tighter italic">{credentials.name}</div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2">Secure Email (Port)</p>
+                                <div className="p-4 bg-black/40 border border-white/10 text-blue-400 font-mono text-sm font-bold flex items-center justify-between">
+                                    <span className="select-all">{credentials.email}</span>
+                                    <button onClick={() => navigator.clipboard.writeText(credentials.email)} className="text-white/20 hover:text-white"><ArrowPathIcon className="w-4 h-4" /></button>
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2">Access Cipher (Key)</p>
+                                <div className="p-4 bg-black/40 border border-white/10 text-amber-500 font-mono text-sm font-bold flex items-center justify-between">
+                                    <span className="select-all">{credentials.tempPassword}</span>
+                                    <button onClick={() => navigator.clipboard.writeText(credentials.tempPassword)} className="text-white/20 hover:text-white"><ArrowPathIcon className="w-4 h-4" /></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-amber-500/5 border border-amber-500/20 p-4 flex items-start gap-4">
+                            <ExclamationTriangleIcon className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                            <p className="text-[10px] font-bold text-amber-500/60 italic leading-relaxed uppercase tracking-widest">
+                                Protocol: Copy credentials immediately. Passwords are encrypted post-transmission. Manual rotation required at first sector login.
+                            </p>
+                        </div>
                     </div>
 
-                    <button
-                        onClick={() => { setCredentials(null); onSuccess(); onClose(); }}
-                        className="w-full py-5 bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.5em] rounded-none hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20"
-                    >
-                        Done & Finalize
-                    </button>
+                    <div className="flex gap-px p-8 pt-0 border-t border-white/5 bg-black/20">
+                        <button
+                            onClick={handlePrint}
+                            className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
+                        >
+                            Print Card
+                        </button>
+                        <button
+                            onClick={() => { setCredentials(null); onSuccess(); onClose(); }}
+                            className="flex-[2] py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] uppercase tracking-[0.4em] transition-all shadow-xl shadow-emerald-600/20"
+                        >
+                            Finalize Access
+                        </button>
+                    </div>
                 </div>
             </div>
         );
     }
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose} />
+    const content = (
+        <div className={`relative w-full border border-white/10 rounded-none shadow-2xl overflow-hidden flex flex-col border-t-8 border-t-orange-500 ${inline ? 'bg-[#0d1526]' : 'max-w-lg bg-[#1a1a1a] max-h-[90vh]'}`}>
 
-            {/* Panel */}
-            <div className="relative w-full max-w-lg bg-[#1a1a1a] border border-white/10 rounded-none shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border-t-8 border-t-orange-500">
-
-                {/* Header */}
-                <div className="flex items-center justify-between p-10 border-b border-white/5 flex-shrink-0 relative">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-[60px] pointer-events-none"></div>
-                    <div>
-                        <div className="flex items-center gap-3 mb-1">
-                            <UserIcon className="w-4 h-4 text-orange-500" />
-                            <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">Sector: Students</span>
-                        </div>
-                        <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">{initialData ? 'Update Record' : 'Initialize Enrollment'}</h2>
+            {/* Header */}
+            <div className="flex items-center justify-between p-10 border-b border-white/5 flex-shrink-0 relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-[60px] pointer-events-none"></div>
+                <div>
+                    <div className="flex items-center gap-3 mb-1">
+                        <UserIcon className="w-4 h-4 text-orange-500" />
+                        <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em]">Sector: Students</span>
                     </div>
+                    <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">{initialData ? 'Update Record' : 'Initialize Enrollment'}</h2>
+                </div>
+                {!inline && (
                     <button onClick={onClose}
                         className="p-3 rounded-none bg-white/5 border border-white/5 hover:border-orange-500/30 text-white/40 hover:text-white transition-all">
                         <XMarkIcon className="w-6 h-6" />
                     </button>
-                </div>
+                )}
+            </div>
 
-                {/* Scrollable form */}
-                <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 custom-scrollbar">
+            {/* Scrollable form */}
+            <form onSubmit={handleSubmit} className={inline ? 'flex-1' : 'overflow-y-auto flex-1 custom-scrollbar'}>
                     <div className="p-10 space-y-10">
 
                         {error && (
@@ -335,10 +413,12 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
 
                     {/* Footer actions */}
                     <div className="flex gap-px p-10 pt-4 border-t border-white/5 flex-shrink-0">
-                        <button type="button" onClick={onClose}
-                            className="flex-1 py-6 bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-[0.4em] transition-all border border-white/5">
-                            ABORT
-                        </button>
+                        {!inline && (
+                            <button type="button" onClick={onClose}
+                                className="flex-1 py-6 bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-[0.4em] transition-all border border-white/5">
+                                ABORT
+                            </button>
+                        )}
                         <button type="submit" disabled={loading}
                             className="flex-[2] flex items-center justify-center gap-4 py-6 bg-orange-500 text-white text-[10px] font-black uppercase tracking-[0.4em] transition-all disabled:opacity-50 shadow-xl shadow-orange-500/20 hover:bg-orange-600">
                             {loading
@@ -348,6 +428,14 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                     </div>
                 </form>
             </div>
+    );
+
+    if (inline) return content;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose} />
+            {content}
         </div>
     );
 }

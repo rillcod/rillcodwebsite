@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Star, Quote, ArrowLeft, ArrowRight, Users, Award, BookOpen, Code, Sparkles, Heart, Zap, Target, CheckCircle, Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Star, Quote, ArrowLeft, ArrowRight, Users, Award, BookOpen, Code, Sparkles, Heart, Zap, Target, CheckCircle, Play, Pause, Volume2, VolumeX, Clock } from "lucide-react";
+import Link from "next/link";
 
 const testimonials = [
   {
@@ -389,7 +390,4 @@ export default function Testimonials() {
   );
 }
 
-// Add these to types or imports if needed
-import Link from "next/link";
-import { Clock } from "lucide-react";
  

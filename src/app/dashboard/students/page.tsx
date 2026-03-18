@@ -521,6 +521,118 @@ export default function StudentsPage() {
     setTimeout(() => win.print(), 600);
   };
 
+  const handlePrintLoginSlip = (s: any) => {
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const studentName = s.full_name || s.name || 'N/A';
+    const email = s.email || s.student_email || 'N/A';
+    
+    const html = `
+      <html><head><title>Login Slip - ${studentName}</title>
+      <style>
+        body { font-family: system-ui, -apple-system, sans-serif; padding: 60px; color: #111827; background: #fff; }
+        .box { border: 4px solid #ea580c; padding: 40px; position: relative; max-width: 500px; margin: auto; }
+        .logo { font-weight: 900; font-size: 28px; text-transform: uppercase; font-style: italic; color: #000; margin-bottom: 8px; }
+        .dot { color: #ea580c; font-style: normal; }
+        .tagline { font-size: 10px; font-weight: 900; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.4em; border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 40px; }
+        .field { margin-bottom: 30px; }
+        .label { font-size: 10px; font-weight: 900; color: #6b7280; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+        .value { font-size: 20px; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+        .footer { margin-top: 60px; font-size: 9px; color: #9ca3af; text-align: center; line-height: 1.6; }
+        @media print { body { padding: 0; } .box { border-width: 2px; } }
+      </style>
+      </head><body>
+      <div class="box">
+        <div class="logo">RILLCOD<span class="dot">.</span></div>
+        <div class="tagline">STEM Excellence Protocol</div>
+        
+        <div class="field">
+          <div class="label">Authorized Student</div>
+          <div class="value">${studentName}</div>
+        </div>
+        
+        <div class="field">
+          <div class="label">Access Portal (Email)</div>
+          <div class="value">${email}</div>
+        </div>
+        
+        <div class="field">
+          <div class="label">Station Address</div>
+          <div class="value">academy.rillcod.com/student/login</div>
+        </div>
+
+        <div class="footer">
+          This document contains sensitive access protocols.<br/>
+          Issued by Rillcod Academy Administration on ${dateStr}.<br/>
+          Cipher ID: ${Math.random().toString(36).substr(2, 9).toUpperCase()}
+        </div>
+      </div>
+      <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
+      </body></html>
+    `;
+    const win = window.open('', '_blank');
+    if (!win) { alert('Pop-up blocked. Please allow pop-ups.'); return; }
+    win.document.write(html);
+    win.document.close();
+  };
+
+  const handlePrintAllLoginSlips = () => {
+    const list = filtered.filter(s => s.user_id || s._source === 'enrolled');
+    if (list.length === 0) {
+      alert('No enrolled students in the current filtered view.');
+      return;
+    }
+
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const html = `
+      <html><head><title>Batch Credentials - ${dateStr}</title>
+      <style>
+        body { font-family: system-ui, sans-serif; padding: 40px; background: #fff; color: #111827; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { border: 2px solid #ea580c; padding: 20px; page-break-inside: avoid; position: relative; }
+        .brand { font-weight: 900; font-size: 16px; font-style: italic; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+        .dot { color: #ea580c; font-style: normal; }
+        .tagline { font-size: 7px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.3em; margin-bottom: 16px; border-bottom: 1px solid #f3f4f6; padding-bottom: 4px; }
+        .name { font-size: 14px; font-weight: 800; margin-bottom: 12px; }
+        .row { margin-bottom: 8px; }
+        .label { font-size: 8px; font-weight: 900; color: #6b7280; text-transform: uppercase; margin-bottom: 2px; }
+        .value { font-size: 12px; font-weight: 700; font-family: monospace; word-break: break-all; }
+        .footer { margin-top: 16px; font-size: 7px; color: #d1d5db; border-top: 1px dashed #e5e7eb; padding-top: 8px; }
+        @media print { body { padding: 0; } .card { border-width: 1px; } }
+      </style>
+      </head><body>
+      <div style="margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 10px;">
+        <h1 style="margin:0; font-size: 20px; font-weight:900; text-transform:uppercase;">Credential Batch Registry</h1>
+        <p style="margin:4px 0 0 0; font-size: 10px; color:#666;">Generated on ${dateStr} • ${list.length} Students</p>
+      </div>
+      <div class="grid">
+        ${list.map(s => `
+          <div class="card">
+            <div class="brand">RILLCOD<span class="dot">.</span></div>
+            <div class="tagline">STEM Excellence Access protocol</div>
+            <div class="name">${s.full_name || s.name || 'N/A'}</div>
+            <div class="row">
+              <div class="label">Portal Login (Email)</div>
+              <div class="value">${s.email || s.student_email || 'N/A'}</div>
+            </div>
+            <div class="row">
+              <div class="label">Temporary Cipher (If assigned)</div>
+              <div class="value">********</div>
+            </div>
+            <div class="footer">
+              Station: academy.rillcod.com/student/login<br/>
+              Identity: ${s.user_id || 'REGISTERED'}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <script>window.onload = () => { window.print(); }</script>
+      </body></html>
+    `;
+    const win = window.open('', '_blank');
+    win?.document.write(html);
+    win?.document.close();
+  };
+
   // ── Unified combined list ───────────────────────────────────
   const normalizedApplications = students.map(s => ({ ...s, _source: 'application' as const }));
   const normalizedEnrolled = portalStudents.map(s => ({
@@ -810,9 +922,46 @@ export default function StudentsPage() {
                     ))}
                   </div>
                   {syncResult.credentials?.filter((c: any) => c.password && !c.password.includes('existing')).length > 0 && (
-                    <div>
-                      <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">New Credentials — share with each student</p>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-white/40 uppercase tracking-widest">New Credentials Package</p>
+                        <button 
+                          onClick={() => {
+                            const dateStr = new Date().toLocaleDateString('en-GB');
+                            const html = `
+                              <html><head><title>Registry Credentials - ${dateStr}</title>
+                              <style>
+                                body { font-family: system-ui, sans-serif; padding: 40px; background: #fff; }
+                                .card { border: 1px solid #e5e7eb; padding: 20px; margin-bottom: 20px; page-break-inside: avoid; }
+                                .brand { font-weight: 900; font-size: 16px; font-style: italic; margin-bottom: 10px; }
+                                .name { font-size: 14px; font-weight: 700; border-bottom: 1px solid #f3f4f6; padding-bottom: 8px; margin-bottom: 12px; }
+                                .row { margin-bottom: 8px; font-size: 12px; }
+                                .label { color: #6b7280; font-weight: 900; text-transform: uppercase; font-size: 9px; margin-bottom: 2px; }
+                                .value { font-weight: 700; font-family: monospace; }
+                              </style>
+                              </head><body>
+                              ${syncResult.credentials.filter((c:any) => c.password && !c.password.includes('existing')).map((c: any) => `
+                                <div class="card">
+                                  <div class="brand">RILLCOD.</div>
+                                  <div class="name">${c.name}</div>
+                                  <div class="row"><div class="label">Email</div><div class="value">${c.email}</div></div>
+                                  <div class="row"><div class="label">Temporary Cipher (Password)</div><div class="value">${c.password}</div></div>
+                                  <div style="font-size:8px;color:#9ca3af;margin-top:10px;">URL: academy.rillcod.com/student/login</div>
+                                </div>
+                              `).join('')}
+                              <script>window.onload = () => { window.print(); }</script>
+                              </body></html>
+                            `;
+                            const win = window.open('', '_blank');
+                            win?.document.write(html);
+                            win?.document.close();
+                          }}
+                          className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-emerald-500/20 transition-all"
+                        >
+                          <PrinterIcon className="w-3.5 h-3.5" /> Print All Slips
+                        </button>
+                      </div>
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                         {syncResult.credentials.map((c: any, i: number) => (
                           <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-3 font-mono text-xs">
                             <p className="text-white font-bold">{c.name}</p>
@@ -940,6 +1089,10 @@ export default function StudentsPage() {
                   <button onClick={handlePrintRegistry}
                     className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all print:hidden">
                     <PrinterIcon className="w-4 h-4" /> Print Registry
+                  </button>
+                  <button onClick={handlePrintAllLoginSlips}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-orange-600/20 transition-all print:hidden">
+                    <KeyIcon className="w-4 h-4" /> Access Cards
                   </button>
                   <button onClick={exportCSV}
                     className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all print:hidden">
@@ -1350,6 +1503,12 @@ export default function StudentsPage() {
                                   className="flex items-center gap-2 text-[10px] font-black text-white/30 hover:text-white uppercase tracking-widest transition-colors">
                                   <EnvelopeIcon className="w-4 h-4" /> Mail
                                 </a>
+                              )}
+                              {(isEnrolled || s.user_id) && (
+                                <button onClick={() => handlePrintLoginSlip(s)}
+                                  className="flex items-center gap-2 text-[10px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest transition-colors">
+                                  <PrinterIcon className="w-4 h-4" /> Print Slip
+                                </button>
                               )}
                               {isEnrolled && s.email && (
                                 <a href={`mailto:${s.email}`}
