@@ -498,24 +498,24 @@ export default function Curriculum() {
         {/* Curriculum Sessions */}
         <div className="space-y-6 mb-16">
           {filteredSessions.map((session) => (
-            <div key={session.session} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden hover:shadow-2xl transition-all duration-300">
+            <div key={session.session} className="bg-[#1a1a1a] border border-white/10 rounded-none shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300">
               {/* Session Header */}
-              <div className={`bg-gradient-to-r ${session.color} p-6 text-white relative overflow-hidden`}>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
+              <div className={`p-8 bg-[#121212] border-b border-white/5 text-white relative overflow-hidden`}>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-none -translate-y-16 translate-x-16 rotate-45"></div>
                 <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center space-x-4">
-                      <div className="bg-white/20 rounded-xl p-3">
-                        <BookOpen className="w-8 h-8" />
+                      <div className="bg-white/5 border border-white/10 rounded-none p-3 shadow-lg shadow-black/20">
+                        <BookOpen className="w-8 h-8 text-orange-500" />
                       </div>
                       <div>
-                        <div className="text-sm opacity-90">Session {session.session}</div>
-                        <div className="text-2xl font-bold">{session.grade} • Age {session.age}</div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-[#FF914D]">Session {session.session}</div>
+                        <div className="text-xl sm:text-2xl font-black uppercase tracking-tighter italic">{session.grade} • <span className="text-white/40">Age {session.age}</span></div>
                       </div>
                     </div>
                     <button
                       onClick={() => toggleSession(session.session)}
-                      className="bg-white/20 rounded-xl p-3 hover:bg-white/30 transition-colors duration-200"
+                      className="bg-white/5 border border-white/10 rounded-none p-3 hover:bg-orange-500 hover:text-white transition-all duration-200"
                     >
                       {expandedSessions.includes(session.session) ? (
                         <ChevronUp className="w-6 h-6" />
@@ -524,96 +524,110 @@ export default function Curriculum() {
                       )}
                     </button>
                   </div>
-                  <h3 className="text-2xl font-bold mb-2">{session.title}</h3>
-                  <p className="text-sm opacity-90 mb-4">{session.description}</p>
-                  <div className="flex items-center space-x-4 text-sm">
-                    <div className="flex items-center space-x-2">
-                      <Target className="w-4 h-4" />
-                      <span>{getLevelLabel(session.level)}</span>
+                  <h3 className="text-lg font-black mb-2 uppercase tracking-tight text-white">{session.title}</h3>
+                  <p className="text-xs text-slate-500 font-medium italic mb-6 leading-relaxed max-w-2xl">{session.description}</p>
+                  <div className="flex flex-wrap items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <Target className="w-3.5 h-3.5 text-orange-500" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{getLevelLabel(session.level)}</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Code className="w-4 h-4" />
-                      <span>{session.skills.length} Skills</span>
+                    <div className="flex items-center gap-2">
+                      <Code className="w-3.5 h-3.5 text-blue-500" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{session.skills.length} Technical Skills</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Session Content */}
-              <div className="p-6">
-                {/* Nigerian Context */}
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <MapPin className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-semibold text-green-800">Nigerian Context</span>
-                  </div>
-                  <p className="text-sm text-green-700">{session.nigerianContext}</p>
+              <div className="p-8 space-y-8 bg-[#1a1a1a]">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Nigerian Context */}
+                    <div className="bg-[#121212] border border-white/5 border-l-4 border-l-emerald-500 p-6 rounded-none shadow-xl">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <MapPin className="w-4 h-4 text-emerald-500" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Regional Implementation</span>
+                      </div>
+                      <p className="text-xs text-slate-400 font-bold italic leading-relaxed">{session.nigerianContext}</p>
+                    </div>
+
+                    {/* Success Story */}
+                    <div className="bg-[#121212] border border-white/5 border-l-4 border-l-blue-500 p-6 rounded-none shadow-xl">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <Star className="w-4 h-4 text-blue-500" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">Success Protocol</span>
+                      </div>
+                      <p className="text-xs text-slate-400 font-bold italic leading-relaxed">{session.successStory}</p>
+                    </div>
                 </div>
 
                 {/* Skills */}
-                <div className="mb-4">
-                  <h4 className="font-semibold text-gray-900 mb-2">Skills You&apos;ll Learn</h4>
-                  <div className="flex flex-wrap gap-2">
+                <div className="bg-[#121212] p-8 border border-white/5 rounded-none shadow-xl">
+                  <h4 className="text-[10px] font-black text-[#FF914D] uppercase tracking-[0.4em] mb-6 italic">Technical Stack</h4>
+                  <div className="flex flex-wrap gap-3">
                     {session.skills.map((skill, index) => (
-                      <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium">
+                      <span key={index} className="bg-white/5 border border-white/5 text-slate-300 px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:border-orange-500/50 transition-all">
                         {skill}
                       </span>
                     ))}
                   </div>
                 </div>
 
-                {/* Success Story */}
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Star className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-semibold text-blue-800">Success Story</span>
-                  </div>
-                  <p className="text-sm text-blue-700">{session.successStory}</p>
-                </div>
-
-                {/* Career Path */}
-                <div className="mb-6">
-                  <h4 className="font-semibold text-gray-900 mb-2">Career Path</h4>
-                  <p className="text-sm text-gray-600">{session.careerPath}</p>
-                </div>
-
                 {/* Expanded Details */}
                 {expandedSessions.includes(session.session) && (
-                  <div className="space-y-6 border-t pt-6">
+                  <div className="space-y-10 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="h-[1px] bg-white/5 w-full"></div>
                     {/* Terms */}
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-4">Term-by-Term Breakdown</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-8 italic text-center">Operational Roadmap // 3-Term Phase</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {session.terms.map((term, index) => (
-                          <div key={index} className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <div className="w-6 h-6 bg-purple-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                                {term.term}
+                          <div key={index} className="bg-[#121212] border border-white/5 rounded-none p-8 hover:border-orange-500/30 transition-all group">
+                            <div className="flex items-center gap-4 mb-6">
+                              <div className="w-10 h-10 bg-white/5 border border-white/5 text-orange-500 rounded-none flex items-center justify-center text-xs font-black group-hover:bg-orange-500 group-hover:text-white transition-all">
+                                0{term.term}
                               </div>
-                              <span className="text-sm font-semibold text-purple-800">Term {term.term}</span>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-white">TERM {term.term}</span>
                             </div>
-                            <p className="text-sm text-purple-700">{term.focus}</p>
+                            <p className="text-xs text-slate-500 font-bold italic leading-relaxed">{term.focus}</p>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    {/* Capstone Project */}
-                    <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-xl p-4">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Award className="w-4 h-4 text-orange-600" />
-                        <span className="text-sm font-semibold text-orange-800">Capstone Project</span>
-                      </div>
-                      <p className="text-sm text-orange-700">{session.capstone}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Capstone Project */}
+                        <div className="bg-[#121212] border-t-4 border-t-orange-500 p-8 rounded-none shadow-2xl">
+                          <div className="flex items-center space-x-3 mb-6">
+                            <Award className="w-5 h-5 text-orange-500" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Capstone Objective</span>
+                          </div>
+                          <p className="text-xl font-black text-white italic tracking-tight mb-2 uppercase leading-none">{session.capstone}</p>
+                          <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-4">Final Validation Project</p>
+                        </div>
+
+                        {/* Portfolio */}
+                        <div className="bg-[#121212] border-t-4 border-t-blue-500 p-8 rounded-none shadow-2xl">
+                          <div className="flex items-center space-x-3 mb-6">
+                            <FileText className="w-5 h-5 text-blue-500" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Artifact Portfolio</span>
+                          </div>
+                          <p className="text-sm font-black text-slate-300 italic leading-relaxed uppercase">{session.portfolio}</p>
+                          <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-4">Digital Career Assets</p>
+                        </div>
                     </div>
 
-                    {/* Portfolio */}
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <FileText className="w-4 h-4 text-indigo-600" />
-                        <span className="text-sm font-semibold text-indigo-800">Portfolio</span>
-                      </div>
-                      <p className="text-sm text-indigo-700">{session.portfolio}</p>
+                    <div className="bg-white/5 p-6 border border-white/5 rounded-none flex flex-col sm:flex-row items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                            <Rocket className="w-6 h-6 text-orange-500" />
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-[#FF914D]">Career Trajectory</p>
+                                <p className="text-xs font-bold text-white uppercase italic">{session.careerPath}</p>
+                            </div>
+                        </div>
+                        <Link href="/contact" className="px-8 py-4 bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest rounded-none hover:bg-orange-600 transition-all">
+                            Request Syllabus
+                        </Link>
                     </div>
                   </div>
                 )}
