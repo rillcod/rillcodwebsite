@@ -214,22 +214,22 @@ export default function AddLessonPage() {
   };
 
   if (authLoading || profileLoading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className={`min-h-screen bg-[#0f0f1a] text-white ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
+    <div className={`min-h-screen bg-background text-foreground ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
       <div className={`${isMinimal ? 'w-full' : 'max-w-5xl mx-auto'} space-y-8`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           {!isMinimal ? (
-            <Link href="/dashboard/lessons" className="flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors">
+            <Link href="/dashboard/lessons" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="w-4 h-4" /> Back to Lessons
             </Link>
           ) : <div />}
-          <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm rounded-xl shadow-xl shadow-cyan-900/40 transition-all disabled:opacity-50">
-            {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
+          <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-foreground font-black text-sm rounded-none shadow-xl shadow-cyan-900/40 transition-all disabled:opacity-50">
+            {saving ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
             {saving ? 'CREATING...' : (isMinimal ? 'CREATE' : 'CREATE LESSON')}
           </button>
         </div>
@@ -243,58 +243,58 @@ export default function AddLessonPage() {
         </div>
 
         {error && (
-          <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 text-sm font-medium">
+          <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-none text-rose-400 text-sm font-medium">
             {error}
           </div>
         )}
 
         {/* AI Generate Panel */}
-        <div className="bg-gradient-to-br from-violet-500/10 to-cyan-500/5 border border-violet-500/20 rounded-2xl overflow-hidden">
+        <div className="bg-gradient-to-br from-orange-500/10 from-orange-600 to-orange-400/5 border border-orange-500/20 rounded-none overflow-hidden">
           <button
             type="button"
             onClick={() => setAiOpen(o => !o)}
             className="w-full flex items-center justify-between px-5 py-4 text-left"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-violet-500/20 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-violet-400" />
+              <div className="w-8 h-8 rounded-none bg-orange-500/20 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-orange-400" />
               </div>
               <div>
-                <p className="text-sm font-bold text-white">Generate with AI</p>
-                <p className="text-xs text-white/40">
+                <p className="text-sm font-bold text-foreground">Generate with AI</p>
+                <p className="text-xs text-muted-foreground">
                   {lastModel
-                    ? <span>Last built with <span className="text-violet-400">{lastModel.split('/').pop()}</span></span>
+                    ? <span>Last built with <span className="text-orange-400">{lastModel.split('/').pop()}</span></span>
                     : 'Auto-fill title, notes, and visual content blocks'}
                 </p>
               </div>
             </div>
-            {aiOpen ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
+            {aiOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
           </button>
 
           {aiOpen && (
-            <div className="px-5 pb-5 space-y-4 border-t border-violet-500/20">
+            <div className="px-5 pb-5 space-y-4 border-t border-orange-500/20">
               {aiError && (
-                <div className="flex items-start gap-2 mt-4 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
+                <div className="flex items-start gap-2 mt-4 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-none px-3 py-2">
                   <span className="flex-shrink-0">⚠</span> {aiError}
                 </div>
               )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4">
                 <div className="space-y-1 md:col-span-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Lesson Topic *</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Topic *</label>
                   <input
                     value={aiTopic}
                     onChange={e => setAiTopic(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiGenerate(); } }}
                     placeholder="e.g. Introduction to Python loops"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-violet-500"
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Grade Level</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Grade Level</label>
                   <select
                     value={aiGrade}
                     onChange={e => setAiGrade(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500"
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500"
                   >
                     {['Basic 1–Basic 3', 'Basic 4–Basic 6', 'JSS1', 'JSS2', 'JSS3', 'JSS1–JSS3', 'SS1', 'SS2', 'SS3', 'SS1–SS3', 'JSS1–SS3', 'Basic 1–SS3'].map(g => (
                       <option key={g} value={g}>{g}</option>
@@ -302,28 +302,28 @@ export default function AddLessonPage() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Subject</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Subject</label>
                   <input
                     value={aiSubject}
                     onChange={e => setAiSubject(e.target.value)}
                     placeholder="e.g. Python Programming"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-violet-500"
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => handleAiGenerate()}
                   disabled={aiGenerating || aiGeneratingNotes}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all self-end"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-60 text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all self-end"
                 >
                   {aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                   {aiGenerating ? 'Building lesson...' : 'Full AI Build'}
                 </button>
               </div>
-              <p className="text-[10px] text-white/30">
-                <strong className="text-white/50">Full AI Build</strong> — generates title, description, notes, and all visual content blocks.
-                Use <strong className="text-white/50">Generate Notes</strong> (in the notes field) to only rewrite the study notes.
-                Press <kbd className="px-1 py-0.5 bg-white/10 rounded text-[9px]">Enter</kbd> in topic to quick-build.
+              <p className="text-[10px] text-muted-foreground">
+                <strong className="text-muted-foreground">Full AI Build</strong> — generates title, description, notes, and all visual content blocks.
+                Use <strong className="text-muted-foreground">Generate Notes</strong> (in the notes field) to only rewrite the study notes.
+                Press <kbd className="px-1 py-0.5 bg-muted rounded text-[9px]">Enter</kbd> in topic to quick-build.
               </p>
             </div>
           )}
@@ -331,24 +331,24 @@ export default function AddLessonPage() {
 
         {/* Tab switcher */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl">
+          <div className="flex items-center gap-1 p-1 bg-card shadow-sm border border-border rounded-none">
             <TabBtn active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings2} label="Lesson Plan" />
             <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={Layout} label="Content Builder" />
           </div>
-          <p className="text-[11px] text-white/30 font-medium">
+          <p className="text-[11px] text-muted-foreground font-medium">
             {activeTab === 'settings'
               ? 'Define the lesson overview, prerequisites & study notes for students'
               : 'Build visual content blocks — slides, code examples, quizzes & diagrams'}
           </p>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-4 sm:p-8 space-y-8">
+        <div className="bg-card shadow-sm border border-border rounded-none p-4 sm:p-8 space-y-8">
           {activeTab === 'settings' && (
             <div className="space-y-6 animate-in fade-in duration-500">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Lesson Title *</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Title *</label>
                     <button type="button" onClick={handleMagicTitle} className="text-[10px] font-black uppercase tracking-widest text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors">
                       <Sparkles className="w-3 h-3" /> Magic Suggest
                     </button>
@@ -357,19 +357,19 @@ export default function AddLessonPage() {
                     value={form.title}
                     onChange={e => setForm({ ...form, title: e.target.value })}
                     placeholder="e.g. Building your first App"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none"
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Linked Course</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Linked Course</label>
                   <div className="relative">
                     <select value={form.course_id} onChange={e => handleCourseChange(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer">
+                      className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer">
                       <option value="">Select Course</option>
                       {courses.map((c: any) => <option key={c.id} value={c.id}>{c.title}{c.programs?.name ? ` — ${c.programs.name}` : ''}</option>)}
                     </select>
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <ChevronDown className="w-4 h-4 text-white/20" />
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
                 </div>
@@ -385,9 +385,9 @@ export default function AddLessonPage() {
               <Field label="Brief Description" value={form.description} textarea onChange={(v: string) => setForm({ ...form, description: v })} />
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Lesson Plan / Study Notes <span className="text-cyan-500/60 normal-case font-medium text-[9px]">(intro & prerequisites shown to students before class)</span></label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lesson Plan / Study Notes <span className="text-cyan-500/60 normal-case font-medium text-[9px]">(intro & prerequisites shown to students before class)</span></label>
                   <button type="button" onClick={handleGenerateNotesOnly}
-                    className="text-[9px] font-black text-violet-400 uppercase tracking-widest flex items-center gap-1 hover:text-violet-300 transition-colors disabled:opacity-50"
+                    className="text-[9px] font-black text-orange-400 uppercase tracking-widest flex items-center gap-1 hover:text-orange-500 transition-colors disabled:opacity-50"
                     disabled={aiGeneratingNotes || aiGenerating}>
                     {aiGeneratingNotes
                       ? <><Loader2 className="w-3 h-3 animate-spin" /> Writing...</>
@@ -398,7 +398,7 @@ export default function AddLessonPage() {
                   value={form.lesson_notes}
                   onChange={e => setForm({ ...form, lesson_notes: e.target.value })}
                   placeholder="Detailed study notes for the student..."
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none"
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none"
                   rows={6}
                 />
               </div>
@@ -432,7 +432,7 @@ export default function AddLessonPage() {
 
 function TabBtn({ active, onClick, icon: Icon, label }: any) {
   return (
-    <button onClick={onClick} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${active ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/40' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
+    <button onClick={onClick} className={`flex items-center gap-2 px-5 py-2.5 rounded-none text-xs font-black uppercase tracking-widest transition-all ${active ? 'bg-cyan-600 text-foreground shadow-lg shadow-cyan-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
       <Icon className="w-4 h-4" />
       {label}
     </button>
@@ -442,13 +442,13 @@ function TabBtn({ active, onClick, icon: Icon, label }: any) {
 function Field({ label, value, onChange, textarea, rows = 3, type = 'text' }: any) {
   return (
     <div className="space-y-2">
-      <label className="text-[10px] font-black uppercase tracking-widest text-white/40">{label}</label>
+      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</label>
       {textarea ? (
         <textarea value={value} rows={rows} onChange={e => onChange(e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none" />
+          className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none" />
       ) : (
         <input type={type} value={value} onChange={e => onChange(e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none" />
+          className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none" />
       )}
     </div>
   );
@@ -457,9 +457,9 @@ function Field({ label, value, onChange, textarea, rows = 3, type = 'text' }: an
 function SelectField({ label, value, options, onChange }: any) {
   return (
     <div className="space-y-2">
-      <label className="text-[10px] font-black uppercase tracking-widest text-white/40">{label}</label>
+      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</label>
       <select value={value} onChange={e => onChange(e.target.value)}
-        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none cursor-pointer">
+        className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none cursor-pointer">
         {options.map((o: any) => <option key={o} value={o}>{o.replace(/[-_]/g, ' ').toUpperCase()}</option>)}
       </select>
     </div>

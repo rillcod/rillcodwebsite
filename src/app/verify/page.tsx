@@ -37,7 +37,7 @@ export default function VerifyLandingPage() {
             </div>
 
             {/* Header */}
-            <header className="relative z-10 border-b border-white/5 bg-[#0a0a0f]/80 backdrop-blur-xl">
+            <header className="relative z-10 border-b border-border bg-[#0a0a0f]/80 backdrop-blur-xl">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     <Link href="/" className="flex items-center gap-3 group">
                         <div className="relative">
@@ -92,7 +92,7 @@ export default function VerifyLandingPage() {
                     <form onSubmit={handleSubmit} className="relative max-w-lg mx-auto group">
                         <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-[2rem] blur opacity-25 group-focus-within:opacity-50 transition duration-500" />
 
-                        <div className="relative bg-[#12121e] border border-white/10 p-2.5 rounded-[1.8rem] flex items-center shadow-2xl">
+                        <div className="relative bg-[#12121e] border border-border p-2.5 rounded-[1.8rem] flex items-center shadow-2xl">
                             <div className="pl-5 text-white/30">
                                 <MagnifyingGlassIcon className="w-6 h-6" />
                             </div>
@@ -136,7 +136,7 @@ export default function VerifyLandingPage() {
                                 desc: "Directly linked to Rillcod Technologies's institutional master."
                             }
                         ].map((feature, i) => (
-                            <div key={i} className="text-center space-y-3 p-6 rounded-3xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
+                            <div key={i} className="text-center space-y-3 p-6 rounded-3xl bg-white/[0.02] border border-border hover:bg-white/[0.04] transition-colors">
                                 <div className="w-12 h-12 bg-violet-500/10 rounded-2xl flex items-center justify-center text-violet-400 mx-auto">
                                     {feature.icon}
                                 </div>
@@ -150,7 +150,7 @@ export default function VerifyLandingPage() {
             </main>
 
             {/* Footer */}
-            <footer className="relative z-10 border-t border-white/5 px-6 py-10">
+            <footer className="relative z-10 border-t border-border px-6 py-10">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
                     <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">
                         © {new Date().getFullYear()} Rillcod Technologies · All Rights Reserved

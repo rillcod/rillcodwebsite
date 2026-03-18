@@ -103,31 +103,31 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 bg-black/90 backdrop-blur-md animate-in fade-in duration-500">
-      <div className="bg-[#0f0f1a] border border-white/10 rounded-[40px] w-full max-w-5xl h-[90vh] shadow-2xl overflow-hidden flex flex-col relative">
+      <div className="bg-background border border-border rounded-[40px] w-full max-w-5xl h-[90vh] shadow-2xl overflow-hidden flex flex-col relative">
         
         {/* Header Bar */}
-        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+        <div className="p-6 border-b border-border flex items-center justify-between bg-white/[0.02]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-900/40">
-              <SpeakerWaveIcon className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-orange-600 rounded-none flex items-center justify-center shadow-lg shadow-orange-900/40">
+              <SpeakerWaveIcon className="w-5 h-5 text-foreground" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-white">Important Announcement</h3>
-              <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">From Rillcod Technologies Management</p>
+              <h3 className="text-lg font-black text-foreground">Important Announcement</h3>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">From Rillcod Technologies Management</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
              <button 
               onClick={handleDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold transition-all border border-white/10"
+              className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm hover:bg-muted rounded-none text-xs font-bold transition-all border border-border"
             >
-              <PrinterIcon className="w-4 h-4 text-violet-400" /> Save as PDF
+              <PrinterIcon className="w-4 h-4 text-orange-400" /> Save as PDF
             </button>
             <button 
               onClick={handleClose}
-              className="p-2 hover:bg-white/10 rounded-xl transition-colors group"
+              className="p-2 hover:bg-muted rounded-none transition-colors group"
             >
-              <XMarkIcon className="w-6 h-6 text-white/20 group-hover:text-white" />
+              <XMarkIcon className="w-6 h-6 text-muted-foreground group-hover:text-foreground" />
             </button>
           </div>
         </div>
@@ -192,10 +192,10 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
         </div>
 
         {/* Footer Action */}
-        <div className="p-6 border-t border-white/5 bg-white/[0.02] flex justify-center">
+        <div className="p-6 border-t border-border bg-white/[0.02] flex justify-center">
             <button 
               onClick={handleClose}
-              className="flex items-center gap-2 px-10 py-4 bg-violet-600 hover:bg-violet-500 rounded-2xl text-sm font-black transition-all shadow-xl shadow-violet-900/40"
+              className="flex items-center gap-2 px-10 py-4 bg-orange-600 hover:bg-orange-500 rounded-none text-sm font-black transition-all shadow-xl shadow-orange-900/40"
             >
               <CheckCircleIcon className="w-5 h-5" /> I Have Read the Newsletter
             </button>

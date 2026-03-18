@@ -12,9 +12,9 @@ import {
 } from '@/lib/icons';
 
 const GRADIENTS = [
-  'from-violet-600 to-violet-400', 'from-blue-600 to-blue-400',
-  'from-cyan-600 to-cyan-400', 'from-emerald-600 to-emerald-400',
-  'from-amber-600 to-amber-400', 'from-rose-600 to-rose-400',
+  'from-orange-600 to-orange-400', 'from-orange-600 to-orange-400 from-orange-600 to-orange-400',
+  'from-orange-600 to-orange-400 from-orange-600 to-orange-400', 'from-orange-600 to-orange-400 from-orange-600 to-orange-400',
+  'from-orange-600 to-orange-400 from-orange-600 to-orange-400', 'from-rose-600 to-rose-400',
 ];
 const LEVEL_BADGE: Record<string, string> = {
   beginner: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
@@ -76,33 +76,33 @@ export default function CoursesPage() {
   });
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-white/40 text-sm">Loading courses…</p>
+        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-muted-foreground text-sm">Loading courses…</p>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <BookOpenIcon className="w-5 h-5 text-violet-400" />
-              <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">
+              <BookOpenIcon className="w-5 h-5 text-orange-400" />
+              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">
                 {isStaff ? 'Course Library' : 'My Learning'}
               </span>
             </div>
             <h1 className="text-3xl font-extrabold">{isStaff ? 'Course Management' : 'My Courses'}</h1>
-            <p className="text-white/40 text-sm mt-1">{isStaff ? 'Manage all active courses' : 'Continue your learning journey'}</p>
+            <p className="text-muted-foreground text-sm mt-1">{isStaff ? 'Manage all active courses' : 'Continue your learning journey'}</p>
           </div>
           {canEdit && (
             <Link href="/dashboard/courses/new"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm rounded-xl transition-all hover:scale-105 shadow-lg shadow-violet-900/30">
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground font-bold text-sm rounded-none transition-all hover:scale-105 shadow-lg shadow-orange-900/30">
               <PlusIcon className="w-4 h-4" /> Add Course
             </Link>
           )}
@@ -110,18 +110,18 @@ export default function CoursesPage() {
 
         {/* Error */}
         {error && (
-          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm">{error}</div>
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-none p-4 text-rose-400 text-sm">{error}</div>
         )}
 
         {/* Stats */}
         {(() => {
           const statItems = isStaff ? [
-            { label: 'Total Courses', value: courses.length, icon: BookOpenIcon, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+            { label: 'Total Courses', value: courses.length, icon: BookOpenIcon, color: 'text-orange-400', bg: 'bg-orange-500/10' },
             { label: 'Active', value: courses.filter((c: any) => c.is_active).length, icon: BoltIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Total Programs', value: new Set(courses.map((c: any) => c.program_id)).size, icon: AcademicCapIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
             { label: 'Submissions', value: courses.reduce((s: number, c: any) => s + (c.assignment_submissions?.length ?? 0), 0), icon: UserGroupIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
           ] : [
-            { label: 'Enrolled', value: courses.length, icon: BookOpenIcon, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+            { label: 'Enrolled', value: courses.length, icon: BookOpenIcon, color: 'text-orange-400', bg: 'bg-orange-500/10' },
             { label: 'In Progress', value: courses.filter((c: any) => c.status === 'active').length, icon: ClockIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
             { label: 'Completed', value: courses.filter((c: any) => c.status === 'completed').length, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Programs', value: new Set(courses.map((c: any) => c.program_id)).size, icon: ChartBarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
@@ -129,12 +129,12 @@ export default function CoursesPage() {
           return (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {statItems.map((s) => (
-                <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-5">
-                  <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
+                <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5">
+                  <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
                     <s.icon className={`w-5 h-5 ${s.color}`} />
                   </div>
                   <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-                  <p className="text-xs text-white/40 mt-1">{s.label}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -143,18 +143,18 @@ export default function CoursesPage() {
 
         {/* Search */}
         <div className="relative max-w-md">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input type="text" placeholder="Search courses…" value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500 transition-colors" />
+            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
         </div>
 
         {/* Empty */}
         {filtered.length === 0 ? (
-          <div className="text-center py-24 bg-white/5 border border-white/10 rounded-2xl">
-            <BookOpenIcon className="w-16 h-16 mx-auto text-white/10 mb-4" />
-            <p className="text-lg font-semibold text-white/30">No courses found</p>
-            <p className="text-sm text-white/20 mt-1">
+          <div className="text-center py-24 bg-card shadow-sm border border-border rounded-none">
+            <BookOpenIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+            <p className="text-lg font-semibold text-muted-foreground">No courses found</p>
+            <p className="text-sm text-muted-foreground mt-1">
               {isStaff ? 'Add your first course to get started.' : 'You haven\'t enrolled in any courses yet.'}
             </p>
           </div>
@@ -162,36 +162,36 @@ export default function CoursesPage() {
           /* Staff grid */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((course: any, i: number) => (
-              <div key={course.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 hover:bg-white/8 transition-all flex flex-col">
+              <div key={course.id} className="bg-card shadow-sm border border-border rounded-none overflow-hidden hover:border-border hover:bg-white/8 transition-all flex flex-col">
                 <div className={`h-28 bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} relative overflow-hidden flex items-center justify-center`}>
-                  <AcademicCapIcon className="w-14 h-14 text-white/20" />
-                  <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-bold border bg-black/20 text-white border-white/20">
+                  <AcademicCapIcon className="w-14 h-14 text-muted-foreground" />
+                  <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-bold border bg-black/20 text-foreground border-border">
                     {course.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </div>
                 <div className="p-5 flex-1 flex flex-col">
-                  <p className="text-xs text-white/40 mb-1">{course.programs?.name}</p>
-                  <h3 className="font-bold text-white line-clamp-2 mb-2">{course.title}</h3>
-                  {course.description && <p className="text-xs text-white/30 line-clamp-2 mb-3 flex-1">{course.description}</p>}
-                  <div className="flex items-center gap-3 text-xs text-white/40 mb-4">
+                  <p className="text-xs text-muted-foreground mb-1">{course.programs?.name}</p>
+                  <h3 className="font-bold text-foreground line-clamp-2 mb-2">{course.title}</h3>
+                  {course.description && <p className="text-xs text-muted-foreground line-clamp-2 mb-3 flex-1">{course.description}</p>}
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4">
                     {course.duration_hours && <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{course.duration_hours}h</span>}
                     <span className="flex items-center gap-1"><UserGroupIcon className="w-3.5 h-3.5" />{course.assignment_submissions?.length ?? 0} submissions</span>
                   </div>
                   <div className="flex gap-2 mt-auto">
                     <Link href={`/dashboard/courses/${course.id}`}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 rounded-xl transition-colors">
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 rounded-none transition-colors">
                       <EyeIcon className="w-3.5 h-3.5" /> View
                     </Link>
                     {canEdit && (
                       <>
                         <Link href={`/dashboard/courses/${course.id}/edit`}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-white/50 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
                           <PencilIcon className="w-3.5 h-3.5" /> Edit
                         </Link>
                         <button
                           onClick={() => handleDelete(course.id, course.title)}
                           disabled={deleting === course.id}
-                          className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition-colors disabled:opacity-40">
+                          className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-none transition-colors disabled:opacity-40">
                           <TrashIcon className="w-3.5 h-3.5" />
                         </button>
                       </>
@@ -207,17 +207,17 @@ export default function CoursesPage() {
             {filtered.map((enr: any, i: number) => {
               const prog = enr.programs;
               return (
-                <div key={enr.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-all">
+                <div key={enr.id} className="bg-card shadow-sm border border-border rounded-none overflow-hidden hover:border-border transition-all">
                   <div className={`h-1.5 bg-gradient-to-r ${GRADIENTS[i % GRADIENTS.length]}`} />
                   <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5">
-                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} flex items-center justify-center flex-shrink-0`}>
-                      <BookOpenIcon className="w-7 h-7 text-white" />
+                    <div className={`w-14 h-14 rounded-none bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} flex items-center justify-center flex-shrink-0`}>
+                      <BookOpenIcon className="w-7 h-7 text-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <h3 className="font-bold text-white">{prog?.name ?? 'Program'}</h3>
+                        <h3 className="font-bold text-foreground">{prog?.name ?? 'Program'}</h3>
                         {prog?.difficulty_level && (
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${LEVEL_BADGE[prog.difficulty_level] ?? 'bg-white/10 text-white/50'}`}>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${LEVEL_BADGE[prog.difficulty_level] ?? 'bg-muted text-muted-foreground'}`}>
                             {prog.difficulty_level}
                           </span>
                         )}
@@ -227,27 +227,27 @@ export default function CoursesPage() {
                           </span>
                         )}
                       </div>
-                      {prog?.description && <p className="text-sm text-white/40 line-clamp-1">{prog.description}</p>}
-                      <div className="flex items-center gap-3 mt-2 text-xs text-white/30">
+                      {prog?.description && <p className="text-sm text-muted-foreground line-clamp-1">{prog.description}</p>}
+                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                         {prog?.duration_weeks && <span>{prog.duration_weeks} weeks</span>}
                         <span>Enrolled {new Date(enr.enrollment_date).toLocaleDateString()}</span>
                         {enr.grade && <span className="text-amber-400 font-bold">Grade: {enr.grade}</span>}
                       </div>
                       {enr.progress_pct != null && (
                         <div className="flex items-center gap-2 mt-2">
-                          <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                            <div className="h-full bg-violet-500 rounded-full transition-all" style={{ width: `${enr.progress_pct}%` }} />
+                          <div className="flex-1 h-1.5 bg-card shadow-sm rounded-full overflow-hidden">
+                            <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${enr.progress_pct}%` }} />
                           </div>
-                          <span className="text-xs text-white/30 w-8 text-right">{enr.progress_pct}%</span>
+                          <span className="text-xs text-muted-foreground w-8 text-right">{enr.progress_pct}%</span>
                         </div>
                       )}
                     </div>
                     <div className="flex-shrink-0">
                       <Link
                         href={prog?.id ? `/dashboard/lessons?program=${prog.id}` : '/dashboard/lessons'}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all ${enr.status === 'completed'
-                          ? 'bg-white/10 text-white/60 hover:bg-white/20'
-                          : 'bg-violet-600 text-white hover:bg-violet-500'
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-none transition-all ${enr.status === 'completed'
+                          ? 'bg-muted text-muted-foreground hover:bg-muted'
+                          : 'bg-orange-600 text-foreground hover:bg-orange-500'
                         }`}>
                         {enr.status === 'completed' ? <><EyeIcon className="w-4 h-4" /> Review</> : <><PlayIcon className="w-4 h-4" /> Continue</>}
                       </Link>

@@ -19,19 +19,19 @@ function Field({ label, icon: Icon, error, children }: { label: string; icon?: a
 }
 
 const inputCls = (hasIcon = true) =>
-    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-[#1a1a1a] border border-white/20 rounded-none text-sm font-bold text-white placeholder:text-slate-700 focus:outline-none focus:border-orange-500 transition-all shadow-inner shadow-black/20`;
+    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-[#1a1a1a] border border-border rounded-none text-sm font-bold text-white placeholder:text-slate-700 focus:outline-none focus:border-orange-500 transition-all shadow-inner shadow-black/20`;
 
 const selectCls = (hasIcon = false) =>
-    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-[#1a1a1a] border border-white/20 rounded-none text-sm font-bold text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer shadow-inner shadow-black/20`;
+    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-[#1a1a1a] border border-border rounded-none text-sm font-bold text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer shadow-inner shadow-black/20`;
 
 function PartnershipTermsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-2xl bg-[#1a1a1a] border border-white/10 rounded-none shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border-t-8 border-t-orange-500">
+            <div className="relative w-full max-w-2xl bg-[#1a1a1a] border border-border rounded-none shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border-t-8 border-t-orange-500">
                 <div className="p-8 sm:p-12 max-h-[85vh] overflow-y-auto custom-scrollbar">
-                    <div className="flex items-center gap-4 mb-10 pb-6 border-b border-white/5">
+                    <div className="flex items-center gap-4 mb-10 pb-6 border-b border-border">
                         <div className="w-12 h-12 bg-orange-500/10 border border-orange-500/20 flex items-center justify-center rounded-none">
                             <Scale className="w-6 h-6 text-orange-500" />
                         </div>
@@ -47,12 +47,12 @@ function PartnershipTermsModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
                                 <span className="text-orange-500">01.</span> REVENUE SHARE ARCHITECTURE
                             </h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                                <div className="p-6 bg-[#121212] border border-white/5 rounded-none">
+                                <div className="p-6 bg-[#121212] border border-border rounded-none">
                                     <p className="text-[10px] uppercase font-black tracking-widest text-[#FF914D] mb-1">Academy Nodes</p>
                                     <p className="text-3xl font-black text-white">70%</p>
                                     <p className="text-[10px] font-bold text-slate-600 mt-2 uppercase">Infrastructure & IP</p>
                                 </div>
-                                <div className="p-6 bg-[#121212] border border-white/5 rounded-none">
+                                <div className="p-6 bg-[#121212] border border-border rounded-none">
                                     <p className="text-[10px] uppercase font-black tracking-widest text-blue-500 mb-1">Partner School</p>
                                     <p className="text-3xl font-black text-white">30%</p>
                                     <p className="text-[10px] font-bold text-slate-600 mt-2 uppercase">Facility Management</p>
@@ -65,7 +65,7 @@ function PartnershipTermsModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
                                 <span className="text-orange-500">02.</span> CORE OBLIGATIONS
                             </h3>
                             <div className="space-y-4">
-                                <div className="p-6 bg-[#121212] border border-white/5 rounded-none border-l-4 border-l-orange-500">
+                                <div className="p-6 bg-[#121212] border border-border rounded-none border-l-4 border-l-orange-500">
                                     <p className="font-black text-white text-[10px] uppercase tracking-widest mb-4">Uplink Deliverables:</p>
                                     <ul className="space-y-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                                        <li className="flex items-center gap-2">✓ PROPRIETARY STEM CURRICULUM</li>
@@ -73,7 +73,7 @@ function PartnershipTermsModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
                                        <li className="flex items-center gap-2">✓ CADRE CERTIFICATION TRAINING</li>
                                     </ul>
                                 </div>
-                                <div className="p-6 bg-[#121212] border border-white/5 rounded-none border-l-4 border-l-blue-500">
+                                <div className="p-6 bg-[#121212] border border-border rounded-none border-l-4 border-l-blue-500">
                                     <p className="font-black text-white text-[10px] uppercase tracking-widest mb-4">Facility Requirements:</p>
                                     <ul className="space-y-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                                        <li className="flex items-center gap-2">✓ SECURE HARDWARE LABS</li>
@@ -84,7 +84,7 @@ function PartnershipTermsModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
                             </div>
                         </section>
 
-                        <section className="space-y-4 pt-6 border-t border-white/5">
+                        <section className="space-y-4 pt-6 border-t border-border">
                             <p className="italic text-xs">All intellectual assets and data streams remain the exclusive output of Rillcod Technologies. Deployment is limited to authorized nodes only.</p>
                         </section>
                     </div>
@@ -156,7 +156,7 @@ export function SchoolRegistration() {
     };
 
     if (submitted) return (
-        <div className="bg-[#1a1a1a] border border-white/10 p-12 text-center shadow-2xl rounded-none border-t-4 border-t-emerald-500">
+        <div className="bg-[#1a1a1a] border border-border p-12 text-center shadow-2xl rounded-none border-t-4 border-t-emerald-500">
             <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-8 rounded-none">
                 <Check className="w-10 h-10 text-emerald-500" />
             </div>
@@ -190,7 +190,7 @@ export function SchoolRegistration() {
             </div>
 
             {/* Status Check Matrix */}
-            <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-8 mb-8 border-l-4 border-l-blue-500">
+            <div className="bg-[#1a1a1a] border border-border rounded-none p-8 mb-8 border-l-4 border-l-blue-500">
                 <div className="flex flex-col sm:flex-row items-center gap-8">
                    <div className="flex-1 text-center sm:text-left">
                       <p className="text-[10px] font-black uppercase tracking-widest text-[#4d91ff] mb-1">Audit Check</p>
@@ -203,7 +203,7 @@ export function SchoolRegistration() {
                          <input
                              type="email" value={statusEmail} onChange={(e) => setStatusEmail(e.target.value)}
                              placeholder="admin@school.com"
-                             className="bg-[#121212] border border-white/10 pl-14 pr-6 py-4 rounded-none text-sm font-bold text-white placeholder:text-slate-800 focus:outline-none focus:border-blue-500 transition-all w-full sm:w-64"
+                             className="bg-[#121212] border border-border pl-14 pr-6 py-4 rounded-none text-sm font-bold text-white placeholder:text-slate-800 focus:outline-none focus:border-blue-500 transition-all w-full sm:w-64"
                          />
                       </div>
                       <button
@@ -226,7 +226,7 @@ export function SchoolRegistration() {
                 </div>
                 {statusError && <p className="mt-4 text-rose-500 text-[10px] font-black uppercase tracking-widest bg-rose-500/5 p-4 border border-rose-500/10 italic text-center">{statusError}</p>}
                 {statusResult && (
-                    <div className="mt-6 p-6 bg-white/5 border border-white/10 rounded-none flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in duration-500">
+                    <div className="mt-6 p-6 bg-white/5 border border-border rounded-none flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in duration-500">
                         <div className="flex items-center gap-4">
                            <div className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest border ${statusResult.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
                               {statusResult.status || 'PENDING VETTING'}
@@ -239,11 +239,11 @@ export function SchoolRegistration() {
             </div>
 
             {/* Registration Matrix */}
-            <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-orange-500">
+            <div className="bg-[#1a1a1a] border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-orange-500">
                 <form onSubmit={handleSubmit} className="space-y-12">
 
                     <section className="space-y-8">
-                        <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] pb-4 border-b border-white/5 italic">DATA SEGMENT 01 // ENTITY PROFILE</h3>
+                        <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] pb-4 border-b border-border italic">DATA SEGMENT 01 // ENTITY PROFILE</h3>
                         <Field label="Legal School Name *" icon={Building2}>
                             <input type="text" name="schoolName" value={form.schoolName} onChange={set} required placeholder="AS REGISTERED WITH CAC" className={inputCls()} />
                         </Field>
@@ -284,8 +284,8 @@ export function SchoolRegistration() {
                         </div>
                     </section>
 
-                    <section className="space-y-8 pt-8 border-t border-white/5">
-                        <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] pb-4 border-b border-white/5 italic">DATA SEGMENT 02 // COMMUNICATIONS</h3>
+                    <section className="space-y-8 pt-8 border-t border-border">
+                        <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] pb-4 border-b border-border italic">DATA SEGMENT 02 // COMMUNICATIONS</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                             <Field label="Direct Phone Line *" icon={Phone}>
                                 <input type="tel" name="schoolPhone" value={form.schoolPhone} onChange={set} required placeholder="+234..." className={inputCls()} />
@@ -296,8 +296,8 @@ export function SchoolRegistration() {
                         </div>
                     </section>
 
-                    <section className="space-y-8 pt-8 border-t border-white/5">
-                        <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] pb-4 border-b border-white/5 italic">DATA SEGMENT 03 // CAPACITY</h3>
+                    <section className="space-y-8 pt-8 border-t border-border">
+                        <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] pb-4 border-b border-border italic">DATA SEGMENT 03 // CAPACITY</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                             <Field label="Total Student Population *" icon={Users}>
                                 <input type="number" name="studentCount" value={form.studentCount} onChange={set} required placeholder="ESTIMATED HEADCOUNT" className={inputCls()} />
@@ -316,7 +316,7 @@ export function SchoolRegistration() {
                     </section>
 
                     <div className="space-y-6 pt-12">
-                        <div className="flex items-start gap-4 p-6 bg-white/[0.02] border border-white/5 rounded-none">
+                        <div className="flex items-start gap-4 p-6 bg-white/[0.02] border border-border rounded-none">
                             <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-orange-500 cursor-pointer flex-shrink-0" />
                             <label htmlFor="terms" className="text-[11px] font-bold text-slate-500 leading-relaxed cursor-pointer italic">
                                 I confirm all institutional records for <span className="text-white uppercase">{form.schoolName || 'This Entity'}</span> are accurate. I agree to the <span onClick={(e) => { e.preventDefault(); setShowTerms(true); }} className="text-orange-500 underline cursor-pointer font-black">Partnership Protocols</span> and operational framework.
@@ -329,7 +329,7 @@ export function SchoolRegistration() {
 
                         <div className="flex gap-4">
                             <button type="button" onClick={() => window.location.href = '/'}
-                                className="flex-1 py-8 bg-white/5 border border-white/10 text-slate-500 hover:text-white font-black text-xs uppercase tracking-[0.5em] rounded-none transition-all">
+                                className="flex-1 py-8 bg-white/5 border border-border text-slate-500 hover:text-white font-black text-xs uppercase tracking-[0.5em] rounded-none transition-all">
                                 CANCEL
                             </button>
                             <button type="submit" disabled={loading}

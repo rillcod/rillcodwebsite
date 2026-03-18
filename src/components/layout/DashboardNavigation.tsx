@@ -1,333 +1,399 @@
 // @refresh reset
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import Link from 'next/link';
+import Image from 'next/image';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import {
-  HomeIcon,
-  UserGroupIcon,
-  BookOpenIcon,
-  AcademicCapIcon,
-  ChartBarIcon,
-  CogIcon,
-  BuildingOfficeIcon,
-  ClipboardDocumentCheckIcon,
-  Bars3Icon,
-  XMarkIcon,
-  ArrowLeftOnRectangleIcon,
-  ChevronRightIcon,
-  ChevronDownIcon,
-  BellIcon,
-  UserCircleIcon,
-  DocumentDuplicateIcon,
-  TrophyIcon,
-  CommandLineIcon,
-  UserIcon,
-  UserPlusIcon,
-  ComputerDesktopIcon,
-  ClockIcon,
-  DocumentTextIcon,
-  ArrowTrendingUpIcon,
-  RectangleGroupIcon,
-  ChatBubbleOvalLeftIcon,
-  Cog6ToothIcon,
-  VideoCameraIcon,
-  Squares2X2Icon
-} from "@/lib/icons";
-import { useAuth } from "@/contexts/auth-context";
-import { createClient } from "@/lib/supabase/client";
+  HomeIcon, UserGroupIcon, AcademicCapIcon, BookOpenIcon,
+  ChartBarIcon, CogIcon, BuildingOfficeIcon, ClipboardDocumentListIcon,
+  PresentationChartLineIcon, ClipboardDocumentCheckIcon, DocumentTextIcon,
+  DocumentChartBarIcon, UserIcon, BellIcon, EnvelopeIcon,
+  ArrowRightOnRectangleIcon, Bars3Icon, XMarkIcon, SignalIcon,
+  TrophyIcon, ShieldCheckIcon, CodeBracketIcon, RocketLaunchIcon,
+  CalendarDaysIcon, BanknotesIcon, VideoCameraIcon, UserPlusIcon,
+  TrashIcon,
+} from '@/lib/icons';
+
+// ── Types ────────────────────────────────────────────────────────────────────
+type NavItem = { name: string; href: string; icon: any };
+type NavDivider = { divider: true; label: string };
+type NavEntry = NavItem | NavDivider;
+
+function isDivider(e: NavEntry): e is NavDivider {
+  return 'divider' in e;
+}
 
 export default function DashboardNavigation() {
+  const { profile, signOut } = useAuth();
   const pathname = usePathname();
-  const { user, profile, loading } = useAuth();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [isScrolled, setIsScrolled] = useState(false);
+  const searchParams = useSearchParams();
+  const isMinimal = searchParams.get('minimal') === 'true';
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 10);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    setMobileOpen(false);
+  }, [pathname]);
 
-  const menuItems = [
-    {
-      label: 'Dashboard',
-      href: '/dashboard',
-      icon: HomeIcon,
-      color: 'emerald',
-      roles: ['admin', 'teacher', 'school'] as const
-    },
-    {
-      label: 'Teaching',
-      href: '/dashboard/teaching',
-      icon: AcademicCapIcon,
-      color: 'blue',
-      roles: ['admin', 'teacher'] as const,
-      children: [
-        { label: 'My Classes', href: '/dashboard/classes', icon: BuildingOfficeIcon },
-        { label: 'Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
-        { label: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentCheckIcon },
-        { label: 'CBT Exams', href: '/dashboard/cbt', icon: ComputerDesktopIcon },
-        { label: 'Attendance', href: '/dashboard/attendance', icon: UserGroupIcon },
-        { label: 'Timetable', href: '/dashboard/timetable', icon: ClockIcon },
-      ]
-    },
-    {
-      label: 'Students',
-      href: '/dashboard/students-hub',
-      icon: UserIcon,
-      color: 'orange',
-      roles: ['admin', 'teacher', 'school'] as const,
-      children: [
-        { label: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
-        { label: 'Enrol Students', href: '/dashboard/students', icon: UserGroupIcon },
-      ]
-    },
-    {
-      label: 'Grades',
-      href: '/dashboard/grades',
-      icon: ChartBarIcon,
-      color: 'purple',
-      roles: ['admin', 'teacher'] as const
-    },
-    {
-      label: 'Reports',
-      href: '/dashboard/reports',
-      icon: DocumentTextIcon,
-      color: 'amber',
-      roles: ['admin', 'teacher', 'school'] as const,
-      children: [
-        { label: 'Report Builder', href: '/dashboard/reports/builder', icon: CogIcon },
-        { label: 'Progress Reports', href: '/dashboard/reports/progress', icon: ArrowTrendingUpIcon },
-      ]
-    },
-    {
-      label: 'Content',
-      href: '/dashboard/content',
-      icon: RectangleGroupIcon,
-      color: 'rose',
-      roles: ['admin', 'teacher'] as const,
-      children: [
-        { label: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
-        { label: 'Code Playground', href: '/dashboard/playground', icon: CommandLineIcon },
-        { label: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
-      ]
-    },
-    {
-      label: 'More',
-      href: '/dashboard/more',
-      icon: Squares2X2Icon,
-      color: 'indigo',
-      roles: ['admin', 'teacher', 'school'] as const,
-      children: [
-        { label: 'Live Sessions', href: '/dashboard/live', icon: VideoCameraIcon },
-        { label: 'Messages', href: '/dashboard/messages', icon: ChatBubbleOvalLeftIcon },
-        { label: 'Settings', href: '/dashboard/settings', icon: Cog6ToothIcon },
-        { label: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
-        { label: 'Profile', href: '/dashboard/profile', icon: UserCircleIcon },
-      ]
+  useEffect(() => {
+    if (isMinimal) return;
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
     }
-  ];
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen, isMinimal]);
 
-  const filteredMenu = menuItems.filter(item =>
-    !item.roles || (profile?.role && (item.roles as any).includes(profile.role))
+  useEffect(() => {
+    if (isMinimal || !profile) return;
+    const db = createClient();
+
+    Promise.all([
+      db.from('messages').select('id', { count: 'exact', head: true })
+        .eq('recipient_id', profile.id).eq('is_read', false),
+      (db.from('newsletter_delivery' as any)).select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id).eq('is_viewed', false)
+    ]).then(([msgRes, nwlRes]) => {
+      const total = (msgRes.count ?? 0) + (nwlRes.count ?? 0);
+      setUnreadCount(total);
+    });
+  }, [profile?.id, isMinimal]); // eslint-disable-line
+
+  if (isMinimal) return null;
+
+  if (!profile) return (
+    <div className="fixed top-0 left-0 right-0 z-50 bg-[#121212] border-b border-white/5 h-14 flex items-center justify-between px-4 sm:px-6">
+      <span className="text-white/30 text-[10px] font-black uppercase tracking-widest">Rillcod Technologies</span>
+      <div className="flex items-center gap-3">
+        <a href="/login"
+          className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors underline underline-offset-2">
+          Sign In
+        </a>
+        <button
+          onClick={signOut}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 text-xs font-bold rounded-xl border border-rose-600/20 transition-all">
+          <ArrowRightOnRectangleIcon className="w-3.5 h-3.5" /> Sign Out
+        </button>
+      </div>
+    </div>
   );
 
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = "/login";
+  // ── Nav entries per role ────────────────────────────────────────────────────
+  const getNavEntries = (): NavEntry[] => {
+    const base: NavItem[] = [{ name: 'Dashboard', href: '/dashboard', icon: HomeIcon }];
+
+    switch (profile.role) {
+      case 'admin':
+        return [
+          ...base,
+          { divider: true, label: 'People' },
+          { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
+          { name: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
+          { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
+          { name: 'Enrol Students', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon },
+          { name: 'Wipe Students', href: '/dashboard/students/bulk-delete', icon: TrashIcon },
+          { name: 'Users', href: '/dashboard/users', icon: ShieldCheckIcon },
+          { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
+          { divider: true, label: 'Academics' },
+          { name: 'Programs', href: '/dashboard/programs', icon: AcademicCapIcon },
+          { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
+          { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
+          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
+          { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
+          { divider: true, label: 'Content' },
+          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
+          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
+          { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
+          { divider: true, label: 'Reports' },
+          { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
+          { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
+          { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
+          { divider: true, label: 'Finance' },
+          { name: 'Payments', href: '/dashboard/payments', icon: BanknotesIcon },
+          { divider: true, label: 'System' },
+          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
+          { name: 'IoT Monitor', href: '/dashboard/iot', icon: SignalIcon },
+          { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
+        ];
+
+      case 'teacher':
+        return [
+          ...base,
+          { divider: true, label: 'Teaching' },
+          { name: 'My Classes', href: '/dashboard/classes', icon: BookOpenIcon },
+          { name: 'Lessons', href: '/dashboard/lessons', icon: PresentationChartLineIcon },
+          { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
+          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
+          { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
+          { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
+          { divider: true, label: 'Students' },
+          { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
+          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { divider: true, label: 'Reports' },
+          { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
+          { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
+          { divider: true, label: 'Content' },
+          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
+          { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
+          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
+          { divider: true, label: 'More' },
+          { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
+          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
+        ];
+
+      case 'student':
+        return [
+          ...base,
+          { divider: true, label: 'Learn' },
+          { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon },
+          { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
+          { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
+          { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
+          { divider: true, label: 'Activities' },
+          { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
+          { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
+          { name: 'My Portfolio', href: '/dashboard/portfolio', icon: RocketLaunchIcon },
+          { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
+          { divider: true, label: 'Schedule' },
+          { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
+          { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
+          { divider: true, label: 'My Progress' },
+          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'My Report Card', href: '/dashboard/results', icon: DocumentChartBarIcon },
+          { divider: true, label: 'More' },
+          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
+        ];
+
+      case 'school':
+        return [
+          ...base,
+          { divider: true, label: 'My School' },
+          { name: 'School Overview', href: '/dashboard/school-overview', icon: ChartBarIcon },
+          { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
+          { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
+          { divider: true, label: 'Reports' },
+          { name: 'Student Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
+          { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'Performance', href: '/dashboard/progress', icon: PresentationChartLineIcon },
+          { divider: true, label: 'Finance' },
+          { name: 'Payments', href: '/dashboard/payments', icon: BanknotesIcon },
+          { divider: true, label: 'More' },
+          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
+          { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
+        ];
+
+      default:
+        return base;
+    }
   };
 
-  const BrandMark = ({ size = "md" }: { size?: "sm" | "md" | "lg" }) => {
-    const iconSize = size === "sm" ? "w-5 h-5" : size === "md" ? "w-7 h-7" : "w-10 h-10";
-    const boxSize = size === "sm" ? "w-9 h-9" : size === "md" ? "w-12 h-12" : "w-16 h-16";
+  const navEntries = getNavEntries();
 
-    return (
-      <div className={`${boxSize} bg-orange-500 flex items-center justify-center rounded-none shadow-xl shadow-orange-500/20`}>
-        <AcademicCapIcon className={`${iconSize} text-white fill-none`} />
-      </div>
-    );
-  };
+  // Extract plain nav items for bottom tab bar
+  const navItems = navEntries.filter((e): e is NavItem => !isDivider(e));
+  const BOTTOM_NAV_NAMES = new Set(
+    profile?.role === 'student'
+      ? ['Dashboard', 'Learning Center', 'Code Playground', 'My Report Card', 'Messages']
+      : profile?.role === 'school'
+        ? ['Dashboard', 'My Students', 'Student Reports', 'Messages']
+        : profile?.role === 'admin'
+          ? ['Dashboard', 'Students', 'Approvals', 'Progress Reports', 'Messages']
+          : profile?.role === 'teacher'
+            ? ['Dashboard', 'My Classes', 'Students', 'Progress Reports', 'Messages']
+            : ['Dashboard']
+  );
+  const bottomNavItems = navItems.filter(item => BOTTOM_NAV_NAMES.has(item.name)).slice(0, 4);
 
-  const BrandText = ({ size = "md" }: { size?: "sm" | "md" | "lg" }) => {
-    const titleClass = size === "sm" ? "text-base" : size === "md" ? "text-xl" : "text-2xl";
-    const subClass = size === "sm" ? "text-[7px]" : size === "md" ? "text-[9px]" : "text-[10px]";
-
-    return (
-      <div className="text-left">
-        <h3 className={`${titleClass} font-black text-white uppercase tracking-tight block leading-none italic`}>
-          RILLCOD<span className="text-orange-500 not-italic">.</span>
-        </h3>
-        <p className={`${subClass} font-black text-white/30 uppercase tracking-[0.4em] leading-none mt-1.5 whitespace-nowrap`}>STEM Excellence</p>
-      </div>
-    );
-  };
+  const handleLogout = () => signOut();
 
   return (
     <>
-      {/* Mobile Top Bar */}
-      <div className={`md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2 transition-all duration-300 border-b ${isScrolled ? 'bg-[#121212]/95 backdrop-blur-md border-white/10 shadow-2xl' : 'bg-[#121212] border-white/5'
-        }`}>
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <BrandMark size="sm" />
-          <BrandText size="sm" />
+      {/* ── Mobile Top Header ── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#121212] px-4 py-1.5 text-white border-b border-white/5 shadow-2xl">
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-white/5 border border-white/10 flex items-center justify-center rounded-none ring-1 ring-white/20 ring-offset-1 ring-offset-[#121212]">
+            <Image src="/images/logo.png" alt="Rillcod" width={20} height={20} className="object-contain" priority />
+          </div>
+          <span className="font-black uppercase tracking-widest text-sm italic">Rillcod <span className="text-orange-500">Tech</span></span>
         </Link>
-
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2.5 bg-white/5 border border-white/10 rounded-none text-white hover:bg-white/10 transition-all"
-        >
-          {isMobileMenuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
-        </button>
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <Link href="/dashboard/messages" className="relative p-1.5">
+              <BellIcon className="w-5 h-5 text-gray-300" />
+              <span className="absolute top-0 right-0 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            </Link>
+          )}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            className="p-1.5 text-white hover:text-[#FF914D] transition-colors rounded-lg hover:bg-white/10"
+          >
+            {mobileOpen ? <XMarkIcon className="w-7 h-7" /> : <Bars3Icon className="w-7 h-7" />}
+          </button>
+        </div>
       </div>
 
-      {/* Mobile Sidebar Overlay */}
-      {isMobileMenuOpen && (
+      {/* ── Backdrop (mobile only) ── */}
+      {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[55] md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
+          aria-hidden="true"
         />
       )}
 
-      {/* Sidebar Navigation */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-[60] w-72 bg-[#121212] border-r border-white/5 transform transition-transform duration-500 ease-sharp shadow-2xl
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:sticky md:translate-x-0'}
-      `}>
-        {/* Logo Section */}
-        <div className="hidden md:flex flex-col items-center justify-center py-10 border-b border-white/5">
-          <div className="mb-4">
-            <BrandMark size="lg" />
+      {/* ── Sidebar ── */}
+      <nav
+        className={`
+          fixed top-[53px] left-0 bottom-16 z-40 md:bottom-0
+          md:static md:top-auto md:bottom-auto md:z-auto
+          flex flex-col w-[280px] md:w-64
+          bg-[#121212] text-gray-200
+          border-r border-white/5 shadow-2xl
+          transform transition-transform duration-300 ease-in-out
+          md:translate-x-0 md:h-screen md:flex-shrink-0
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        `}
+        aria-label="Dashboard navigation"
+      >
+        {/* Logo (desktop only) */}
+        <div className="hidden md:flex flex-col items-center justify-center py-8 border-b border-white/5">
+          <div className="w-16 h-16 bg-white/5 border border-white/10 flex items-center justify-center rounded-none ring-1 ring-white/20 ring-offset-2 ring-offset-[#121212] mb-4">
+            <Image src="/images/logo.png" alt="Rillcod Technologies" width={44} height={44} className="object-contain" priority />
           </div>
-          <BrandText size="lg" />
+          <div className="text-center leading-none">
+            <h1 className="text-xl font-black uppercase tracking-widest text-white italic leading-tight">RILLCOD<span className="text-orange-500">.</span></h1>
+            <p className="text-xl font-black uppercase tracking-widest text-orange-500 italic leading-tight">TECHNOLOGIES</p>
+          </div>
         </div>
 
-        {/* Scrollable Nav Items */}
-        <nav className="flex-1 px-4 py-8 overflow-y-auto space-y-1.5 custom-scrollbar h-[calc(100vh-320px)]">
-          <div className="space-y-1.5 pt-8">
-            {filteredMenu.map((item, idx) => {
-              const isActive = pathname === item.href;
-              const hasChildren = !!item.children;
-              const isOpen = activeDropdown === item.label;
+        {/* User badge */}
+        <div className="px-4 md:px-6 py-6 flex items-center gap-4 border-b border-white/5 bg-[#0a0a0a]">
+          <div className="w-12 h-12 bg-orange-500/10 border border-orange-500/20 rounded-none flex items-center justify-center flex-shrink-0 shadow-inner">
+            <span className="text-orange-500 text-lg font-black uppercase">
+              {profile.full_name?.charAt(0) ?? 'U'}
+            </span>
+          </div>
+          <div className="flex flex-col overflow-hidden">
+            <span className="text-sm font-bold truncate text-white">{profile.full_name}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#FF914D]">
+              {profile.role === 'school' && profile.school_name
+                ? profile.school_name
+                : profile.role}
+            </span>
+          </div>
+        </div>
 
-              // Determine base color class for the main item
-              const baseColorClass = item.color ? `text-${item.color}-500` : 'text-orange-500';
-              const baseBgClass = item.color ? `bg-${item.color}-500/10` : 'bg-orange-500/10';
-              const baseBorderClass = item.color ? `border-${item.color}-500` : 'border-orange-500';
-
+        {/* Links */}
+        <div className="flex-1 overflow-y-auto px-3 md:px-4 py-4 space-y-0.5">
+          {navEntries.map((entry, idx) => {
+            if (isDivider(entry)) {
               return (
-                <div key={item.label || idx} className="space-y-1">
-                  {hasChildren ? (
-                    <button
-                      onClick={() => setActiveDropdown(isOpen ? null : item.label)}
-                      className={`w-full flex items-center justify-between px-4 py-3.5 group rounded-none transition-all ${isOpen ? `${baseBgClass} ${baseColorClass}` : 'text-slate-500 hover:text-white hover:bg-white/5'
-                        }`}
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <item.icon className={`w-5 h-5 transition-colors ${isOpen ? baseColorClass : 'group-hover:text-white'}`} />
-                        <span className="text-[11px] font-black uppercase tracking-widest">{item.label}</span>
-                      </div>
-                      <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                  ) : (
-                    <Link
-                      href={item.href || "#"}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex items-center gap-4 px-5 py-4 group rounded-none transition-all border-l-2 ${isActive
-                          ? `${baseBgClass} ${baseColorClass} ${baseBorderClass}`
-                          : 'text-white/30 hover:text-white hover:bg-white/5 border-transparent'
-                        }`}
-                    >
-                      <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? baseColorClass : 'group-hover:text-white'}`} />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">{item.label}</span>
-                      {isActive && (
-                        <div className={`ml-auto w-1.5 h-1.5 ${baseColorClass.replace('text-', 'bg-')} rounded-full shadow-[0_0_10px_rgba(234,88,12,0.5)]`} />
-                      )}
-                    </Link>
-                  )}
-
-                  {/* Sub-menu */}
-                  {hasChildren && isOpen && (
-                    <div className="grid grid-cols-1 gap-1 ml-4 border-l border-white/5 pl-2 mt-1 py-1">
-                      {item.children?.map(child => {
-                        const isChildActive = pathname === child.href;
-                        return (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                            className={`flex items-center gap-3 px-4 py-2.5 rounded-none transition-all ${isChildActive
-                                ? 'text-orange-500 font-bold'
-                                : 'text-slate-500 hover:text-white hover:bg-white/5'
-                              }`}
-                          >
-                            <child.icon className="w-3.5 h-3.5" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">{child.label}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
+                <div key={`divider-${idx}`} className="pt-3 pb-1 px-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/25 whitespace-nowrap">
+                      {entry.label}
+                    </span>
+                    <div className="h-px flex-1 bg-white/10" />
+                  </div>
                 </div>
-              )
-            })}
-          </div>
-        </nav>
+              );
+            }
 
-        {/* User Profile & Logout Section */}
-        <div className="p-6 border-t border-white/5 bg-[#0a0a0a]/50">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-tr from-orange-500 to-amber-500 rounded-none opacity-20 blur group-hover:opacity-40 transition-opacity"></div>
-              <div className="relative w-10 h-10 rounded-none bg-[#121212] border border-white/10 flex items-center justify-center text-orange-500 font-black">
-                {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || "?"}
-              </div>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <p className="text-[10px] font-black text-white uppercase truncate">{profile?.full_name || "Protocol Officer"}</p>
-              <p className="text-[8px] font-black text-orange-500/60 uppercase tracking-widest">{profile?.role || "Sector Access"}</p>
-            </div>
-          </div>
+            const { name, href, icon: Icon } = entry;
+            const active = pathname === href || pathname?.startsWith(href + '/');
+            return (
+              <Link
+                key={name}
+                href={href}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-4 px-4 py-4 rounded-none text-[10px] font-black tracking-[0.2em] uppercase transition-all duration-300 relative group ${active
+                    ? 'bg-orange-500/10 text-orange-500'
+                    : 'text-slate-500 hover:bg-white/5 hover:text-white'
+                  }`}
+              >
+                {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500 shadow-[0_0_15px_rgba(255,145,77,0.5)]" />}
+                <Icon className={`w-5 h-5 flex-shrink-0 transition-colors ${active ? 'text-orange-500' : 'text-slate-700 group-hover:text-slate-400'}`} />
+                <span className="truncate">{name}</span>
+                {name === 'Messages' && unreadCount > 0 && (
+                  <span className="ml-auto text-[10px] bg-rose-500 text-white px-1.5 py-0.5 rounded-full font-black min-w-[1.25rem] text-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
 
+        {/* Bottom actions — Sign Out only */}
+        <div className="p-4 border-t border-white/5 bg-[#0a0a0a]">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-white/5 hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/20 text-slate-400 hover:text-rose-500 text-[10px] font-black uppercase tracking-widest transition-all group"
+            className="flex items-center gap-4 w-full px-4 py-4 rounded-none text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/5 transition-all"
           >
-            <ArrowLeftOnRectangleIcon className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-            <span>Terminate Session</span>
+            <ArrowRightOnRectangleIcon className="w-5 h-5 flex-shrink-0" /> Sign Out
           </button>
         </div>
-      </aside>
+      </nav>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-[#121212]/95 backdrop-blur-xl border-t border-white/10 flex items-center justify-around px-1 py-2 shadow-2xl">
-        {[
-          { label: 'Dashboard', icon: HomeIcon, href: '/dashboard' },
-          { label: 'Classes', icon: BuildingOfficeIcon, href: '/dashboard/classes' },
-          { label: 'Students', icon: UserGroupIcon, href: '/dashboard/students' },
-          { label: 'Reports', icon: DocumentTextIcon, href: '/dashboard/reports' },
-        ].map((item) => {
-          const isActive = pathname === item.href;
+      {/* ── Mobile Bottom Navigation ── */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#121212] border-t border-white/5 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-2xl">
+        {bottomNavItems.map(({ name, href, icon: Icon }) => {
+          const active = pathname === href || pathname?.startsWith(href + '/');
           return (
             <Link
-              key={item.href}
-              href={item.href}
-              className={`flex flex-col items-center gap-1.5 transition-all p-2 ${isActive ? 'text-orange-500' : 'text-slate-500'}`}
+              key={`mobile-${name}`}
+              href={href}
+              onClick={() => setMobileOpen(false)}
+              className={`flex flex-col items-center gap-2 px-1 py-2 min-w-[3.5rem] transition-all duration-300 relative ${active ? 'text-orange-500' : 'text-slate-600 hover:text-slate-400'
+                }`}
             >
-              <item.icon className={`w-5 h-5 ${isActive ? 'scale-110' : ''}`} />
-              <span className="text-[7.5px] font-black uppercase tracking-[0.15em]">{item.label}</span>
+              <div className={`relative p-2 rounded-none transition-all duration-300 ${active ? 'bg-orange-500/10 shadow-lg shadow-orange-500/5' : ''}`}>
+                <Icon className={`w-6 h-6 ${active ? 'text-orange-500' : 'text-slate-700'}`} />
+                {name === 'Messages' && unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-orange-500 text-white text-[8px] font-black rounded-none flex items-center justify-center ring-2 ring-[#121212]">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[8px] font-black uppercase tracking-widest leading-none ${active ? 'text-orange-500' : 'text-slate-700'}`}>
+                {name === 'My Courses' ? 'Courses' :
+                  name === 'My Classes' ? 'Classes' :
+                    name === 'My Report Card' ? 'Report' :
+                      name === 'Code Playground' ? 'Play' :
+                        name === 'Progress Reports' ? 'Reports' :
+                          name === 'Student Reports' ? 'Reports' :
+                            name === 'My Students' ? 'Students' :
+                              name === 'School Overview' ? 'Overview' :
+                                name}
+              </span>
             </Link>
           );
         })}
+
         <button
           onClick={handleLogout}
-          className="flex flex-col items-center gap-1.5 transition-all p-2 text-rose-500/60 hover:text-rose-500"
+          className="flex flex-col items-center gap-1 px-2 py-1 rounded-xl min-w-[3.5rem] transition-all duration-200 text-red-500 hover:text-red-400 group"
         >
-          <ArrowLeftOnRectangleIcon className="w-5 h-5" />
-          <span className="text-[7.5px] font-black uppercase tracking-[0.15em]">Sign Out</span>
+          <div className="relative p-2 rounded-lg transition-all duration-200 group-active:bg-red-500/20">
+            <ArrowRightOnRectangleIcon className="w-6 h-6" />
+          </div>
+          <span className="text-[9px] font-bold uppercase tracking-wide leading-none">Sign Out</span>
         </button>
       </div>
     </>

@@ -50,7 +50,7 @@ export function CertificateCard({ cert }: CertificateProps) {
                     </div>
                 </div>
 
-                <div className="py-6 border-y border-white/5 space-y-1">
+                <div className="py-6 border-y border-border space-y-1">
                     <p className="text-slate-500 text-xs uppercase tracking-widest font-bold">Awarded To</p>
                     <p className="text-2xl font-serif text-teal-500 italic">Learner Name</p>
                 </div>

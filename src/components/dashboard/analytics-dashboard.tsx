@@ -197,7 +197,7 @@ export function AnalyticsDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-none">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <div>
@@ -208,7 +208,7 @@ export function AnalyticsDashboard() {
                 <Badge variant="outline">Science</Badge>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-none">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                   <div>
@@ -219,7 +219,7 @@ export function AnalyticsDashboard() {
                 <Badge variant="outline">Physics</Badge>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-none">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                   <div>
@@ -230,7 +230,7 @@ export function AnalyticsDashboard() {
                 <Badge variant="outline">IoT</Badge>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-none">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                   <div>

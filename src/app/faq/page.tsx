@@ -313,7 +313,7 @@ export default function FAQ() {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">Popular Questions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {popularFAQs.slice(0, 6).map((faq) => (
-                <div key={faq.id} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 dark:border-gray-700/20 p-6 hover:shadow-xl transition-all duration-300">
+                <div key={faq.id} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg border border-border dark:border-gray-700/20 p-6 hover:shadow-xl transition-all duration-300">
                   <div className="flex items-start space-x-3">
                     <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
                       <Star className="w-4 h-4 text-white" />
@@ -340,7 +340,7 @@ export default function FAQ() {
         <div className="space-y-6">
           {filteredFAQs.length > 0 ? (
             filteredFAQs.map((faq) => (
-              <div key={faq.id} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 dark:border-gray-700/20 overflow-hidden">
+              <div key={faq.id} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg border border-border dark:border-gray-700/20 overflow-hidden">
                 <button
                   className="flex items-center justify-between w-full p-6 text-left hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors"
                   onClick={() => toggleItem(faq.id)}

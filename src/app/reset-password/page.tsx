@@ -84,14 +84,14 @@ export default function ResetPasswordPage() {
         </div>
 
         <div className="absolute top-4 left-4 z-50">
-          <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/70 hover:text-white transition-all backdrop-blur-md">
+          <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-border rounded-xl text-white/70 hover:text-white transition-all backdrop-blur-md">
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm font-medium">Back to Home</span>
           </Link>
         </div>
 
         {/* Card */}
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-7 shadow-2xl backdrop-blur-md">
+        <div className="bg-white/5 border border-border rounded-3xl p-7 shadow-2xl backdrop-blur-md">
 
           {/* ── STEP: EMAIL ── */}
           {step === "email" && !done && (
@@ -103,7 +103,7 @@ export default function ResetPasswordPage() {
                   <input
                     type="email" required value={email} onChange={e => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-violet-500 transition-all" />
+                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-border rounded-xl text-white text-sm placeholder-muted-foreground focus:outline-none focus:border-violet-500 transition-all" />
                 </div>
               </div>
 
@@ -148,7 +148,7 @@ export default function ResetPasswordPage() {
                       type={showPw ? "text" : "password"} required
                       value={f.val} onChange={e => f.set(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full pl-10 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-violet-500 transition-all" />
+                      className="w-full pl-10 pr-10 py-3 bg-white/5 border border-border rounded-xl text-white text-sm placeholder-muted-foreground focus:outline-none focus:border-violet-500 transition-all" />
                     {idx === 0 && (
                       <button type="button" onClick={() => setShowPw(v => !v)}
                         className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">

@@ -75,7 +75,7 @@ const Contact: React.FC = () => {
           {/* Info Side (4 Cols) */}
           <div className="lg:col-span-4 space-y-4">
             {contactCards.map((c, i) => (
-              <div key={i} className="group flex items-center gap-5 bg-white/[0.02] border border-white/5 rounded-none p-6 hover:bg-white/[0.04] transition-all border-l-2 border-l-transparent hover:border-l-orange-500">
+              <div key={i} className="group flex items-center gap-5 bg-white/[0.02] border border-border rounded-none p-6 hover:bg-white/[0.04] transition-all border-l-2 border-l-transparent hover:border-l-orange-500">
                  <div className={`w-12 h-12 ${c.bg} ${c.accent} rounded-none flex items-center justify-center shrink-0 text-white`}>
                     <c.icon className="w-6 h-6" />
                  </div>
@@ -88,7 +88,7 @@ const Contact: React.FC = () => {
             ))}
 
             {/* Protocol Notice */}
-            <div className="mt-8 p-8 bg-orange-500/5 border border-white/10 rounded-none relative overflow-hidden group border-t-2 border-t-orange-500 shadow-2xl">
+            <div className="mt-8 p-8 bg-orange-500/5 border border-border rounded-none relative overflow-hidden group border-t-2 border-t-orange-500 shadow-2xl">
                <HelpCircle className="absolute -top-6 -right-6 w-32 h-32 text-orange-500/5 rotate-12" />
                <h5 className="text-white font-black uppercase text-[10px] tracking-widest mb-4 flex items-center gap-3">
                  <ShieldCheck className="w-4 h-4 text-orange-500" /> Secure Protocol
@@ -101,7 +101,7 @@ const Contact: React.FC = () => {
 
           {/* Form Side (8 Cols) */}
           <div className="lg:col-span-8">
-             <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-8 md:p-16 shadow-2xl relative overflow-hidden border-t-4 border-t-orange-500">
+             <div className="bg-[#1a1a1a] border border-border rounded-none p-8 md:p-16 shadow-2xl relative overflow-hidden border-t-4 border-t-orange-500">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-none blur-[100px] pointer-events-none" />
                 
                 <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
@@ -111,7 +111,7 @@ const Contact: React.FC = () => {
                         <input
                           type="text" name="name" value={formData.name} onChange={handleChange} required
                           placeholder="Full Name / School Name"
-                          className="w-full bg-[#121212] border border-white/10 px-6 py-5 rounded-none text-white font-bold focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-700"
+                          className="w-full bg-[#121212] border border-border px-6 py-5 rounded-none text-white font-bold focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-700"
                         />
                       </div>
                       <div className="space-y-3">
@@ -119,7 +119,7 @@ const Contact: React.FC = () => {
                         <input
                           type="email" name="email" value={formData.email} onChange={handleChange} required
                           placeholder="Contact Email Address"
-                          className="w-full bg-[#121212] border border-white/10 px-6 py-5 rounded-none text-white font-bold focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-700"
+                          className="w-full bg-[#121212] border border-border px-6 py-5 rounded-none text-white font-bold focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-700"
                         />
                       </div>
                    </div>
@@ -129,7 +129,7 @@ const Contact: React.FC = () => {
                       <textarea
                         name="message" value={formData.message} onChange={handleChange} required rows={5}
                         placeholder="Detail your request or partnership proposal..."
-                        className="w-full bg-[#121212] border border-white/10 px-6 py-5 rounded-none text-white font-bold focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-700 resize-none italic"
+                        className="w-full bg-[#121212] border border-border px-6 py-5 rounded-none text-white font-bold focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-700 resize-none italic"
                       />
                    </div>
 

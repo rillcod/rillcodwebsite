@@ -67,10 +67,10 @@ function Field({ label, icon: Icon, children }: { label: string; icon?: any; chi
 }
 
 const inputCls = (hasIcon = true) =>
-  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-[#1a1a1a] border border-white/20 rounded-none text-sm font-bold text-white placeholder:text-slate-700 focus:outline-none focus:border-orange-500 transition-all shadow-inner shadow-black/20`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-[#1a1a1a] border border-border rounded-none text-sm font-bold text-white placeholder:text-slate-700 focus:outline-none focus:border-orange-500 transition-all shadow-inner shadow-black/20`;
 
 const selectCls = (hasIcon = false) =>
-  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-[#1a1a1a] border border-white/20 rounded-none text-sm font-bold text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer shadow-inner shadow-black/20`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-[#1a1a1a] border border-border rounded-none text-sm font-bold text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer shadow-inner shadow-black/20`;
 
 // ─── Default form state ────────────────────────────────────────────
 const defaultForm = {
@@ -196,7 +196,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const paymentStatus = searchParams?.get('payment');
   if (paymentStatus === 'success') {
     return (
-      <div className="bg-[#1a1a1a] border border-white/10 p-12 text-center shadow-2xl rounded-none border-t-4 border-t-emerald-500">
+      <div className="bg-[#1a1a1a] border border-border p-12 text-center shadow-2xl rounded-none border-t-4 border-t-emerald-500">
          <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-8 rounded-none">
             <Check className="w-10 h-10 text-emerald-500" />
          </div>
@@ -236,8 +236,8 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                 <button
                   key={t.id} type="button"
                   onClick={() => { setForm(p => ({ ...p, enrollmentType: t.id, preferredSchedule: '' })); setErr(''); }}
-                  className={`group flex flex-col items-center gap-4 p-8 border rounded-none transition-all ${active ? t.color + ' shadow-2xl' : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10'}`}>
-                  <div className={`w-12 h-12 flex items-center justify-center rounded-none ${active ? 'bg-white/10 border border-white/20' : 'bg-white/5 border border-white/5'}`}>
+                  className={`group flex flex-col items-center gap-4 p-8 border rounded-none transition-all ${active ? t.color + ' shadow-2xl' : 'border-border bg-white/[0.02] hover:bg-white/[0.04] hover:border-border'}`}>
+                  <div className={`w-12 h-12 flex items-center justify-center rounded-none ${active ? 'bg-white/10 border border-border' : 'bg-white/5 border border-border'}`}>
                     <t.icon className={`w-6 h-6 ${active ? 'text-white' : 'text-slate-600'}`} />
                   </div>
                   <p className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-white' : 'text-slate-500'}`}>{t.title}</p>
@@ -249,13 +249,13 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         </div>
 
         {/* Form Matrix */}
-        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-orange-500">
+        <div className="bg-[#1a1a1a] border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-orange-500">
           
           {/* Progress Strip */}
-          <div className="flex items-center justify-between mb-12 border-b border-white/5 pb-8">
+          <div className="flex items-center justify-between mb-12 border-b border-border pb-8">
              {STEPS.map((s, i) => (
                 <div key={i} className="flex items-center gap-3">
-                   <div className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-none border ${i <= step ? 'bg-orange-500 border-orange-500 text-white' : 'border-white/10 text-slate-700'}`}>
+                   <div className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-none border ${i <= step ? 'bg-orange-500 border-orange-500 text-white' : 'border-border text-slate-700'}`}>
                       {i < step ? <Check className="w-4 h-4" /> : i + 1}
                    </div>
                    <span className={`text-[9px] font-black uppercase tracking-widest hidden sm:block ${i <= step ? 'text-white' : 'text-slate-700'}`}>{s.label}</span>
@@ -267,7 +267,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
               
               {step === 0 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] mb-8 pb-4 border-b border-white/5">01 // Personal Data</h3>
+                  <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">01 // Personal Data</h3>
                   <Field label="Full Name *" icon={User}>
                     <input type="text" name="fullName" value={form.fullName} onChange={set} required placeholder="Legal Name" className={inputCls()} />
                   </Field>
@@ -323,7 +323,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
               {step === 1 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                   <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] mb-8 pb-4 border-b border-white/5">02 // Guardian Protocol</h3>
+                   <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">02 // Guardian Protocol</h3>
                    <Field label="Full Guardian Name *" icon={User}>
                       <input type="text" name="parentName" value={form.parentName} onChange={set} required placeholder="Full Legal Name" className={inputCls()} />
                    </Field>
@@ -347,7 +347,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
               {step === 2 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                   <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] mb-8 pb-4 border-b border-white/5">03 // Final Uplink</h3>
+                   <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">03 // Final Uplink</h3>
                    <Field label="Programme Interest *" icon={BookOpen}>
                       <select name="courseInterest" value={form.courseInterest} onChange={set} required className={selectCls(true)}>
                          <option value="">Select Intelligence Sector</option>
@@ -368,13 +368,13 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    </Field>
 
                    {et && (
-                     <div className="p-8 bg-orange-500/5 border border-white/10 rounded-none italic text-xs font-bold text-slate-400 leading-relaxed">
+                     <div className="p-8 bg-orange-500/5 border border-border rounded-none italic text-xs font-bold text-slate-400 leading-relaxed">
                         TRANSMISSION FEE: <span className="text-orange-500 text-lg font-black not-italic ml-2">{feeAmount || TYPE_FEES[et]}</span>
                         <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-600">Verification managed via Paystack Protocol.</p>
                      </div>
                    )}
 
-                   <div className="flex items-start gap-4 p-6 bg-white/[0.02] border border-white/5 rounded-none">
+                   <div className="flex items-start gap-4 p-6 bg-white/[0.02] border border-border rounded-none">
                       <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-orange-500 cursor-pointer flex-shrink-0" />
                       <label htmlFor="terms" className="text-[11px] font-bold text-slate-500 leading-relaxed cursor-pointer italic">
                                  I hereby initialize this registration and confirm all data records are accurate. I agree to the <span className="text-orange-500 underline">Technologies Service Protocols</span>.
@@ -385,7 +385,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
               )}
 
               {/* Control Strip */}
-              <div className="flex justify-between items-center pt-8 border-t border-white/5">
+              <div className="flex justify-between items-center pt-8 border-t border-border">
                 <button 
                   type="button" 
                   onClick={step === 0 ? () => window.location.href = '/' : back} 

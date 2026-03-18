@@ -161,7 +161,7 @@ export default function SignUpPage() {
       <div className="w-full max-w-md relative z-10">
 
         <div className="absolute top-4 left-4 z-50">
-          <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/70 hover:text-white transition-all backdrop-blur-md">
+          <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-border rounded-xl text-white/70 hover:text-white transition-all backdrop-blur-md">
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm font-medium">Back to Home</span>
           </Link>
@@ -180,7 +180,7 @@ export default function SignUpPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white/5 border border-white/10 rounded-3xl p-7 shadow-2xl backdrop-blur-md">
+        <div className="bg-white/5 border border-border rounded-3xl p-7 shadow-2xl backdrop-blur-md">
 
           {/* Role selection */}
           <div className="mb-6">
@@ -194,7 +194,7 @@ export default function SignUpPage() {
                   className={`relative flex flex-col items-center gap-2 p-3.5 rounded-2xl border-2 transition-all duration-200
                     ${selectedRole === r.id
                       ? `bg-gradient-to-br ${r.gradient} ${r.border} shadow-lg ${r.glow}`
-                      : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'}`}>
+                      : 'bg-white/5 border-border hover:bg-white/10 hover:border-border'}`}>
                   {selectedRole === r.id && (
                     <span className="absolute top-2 right-2">
                       <CheckCircle className="w-3.5 h-3.5 text-white" />
@@ -217,7 +217,7 @@ export default function SignUpPage() {
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
                 <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)}
                   placeholder="Your full name"
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-violet-500 focus:bg-white/8 transition-all" />
+                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-border rounded-xl text-white text-sm placeholder-muted-foreground focus:outline-none focus:border-violet-500 focus:bg-white/8 transition-all" />
               </div>
             </div>
 
@@ -228,7 +228,7 @@ export default function SignUpPage() {
                   Your School <span className="text-rose-400">*</span>
                 </label>
                 {schoolsLoading ? (
-                  <div className="flex items-center gap-2 py-3 px-4 bg-white/5 border border-white/10 rounded-xl text-white/30 text-sm">
+                  <div className="flex items-center gap-2 py-3 px-4 bg-white/5 border border-border rounded-xl text-white/30 text-sm">
                     <Loader2 className="w-4 h-4 animate-spin" /> Loading schools…
                   </div>
                 ) : (
@@ -238,7 +238,7 @@ export default function SignUpPage() {
                       required
                       value={selectedSchoolId}
                       onChange={e => setSelectedSchoolId(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 focus:bg-white/8 transition-all appearance-none"
+                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-border rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 focus:bg-white/8 transition-all appearance-none"
                     >
                       <option value="">— Select your school —</option>
                       {schools.map(s => (
@@ -260,7 +260,7 @@ export default function SignUpPage() {
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
                 <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-violet-500 focus:bg-white/8 transition-all" />
+                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-border rounded-xl text-white text-sm placeholder-muted-foreground focus:outline-none focus:border-violet-500 focus:bg-white/8 transition-all" />
               </div>
             </div>
 
@@ -271,7 +271,7 @@ export default function SignUpPage() {
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
                 <input type={showPw ? "text" : "password"} required value={password} onChange={e => setPassword(e.target.value)}
                   placeholder="At least 8 characters"
-                  className="w-full pl-10 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-white/25 focus:outline-none focus:border-violet-500 focus:bg-white/8 transition-all" />
+                  className="w-full pl-10 pr-10 py-3 bg-white/5 border border-border rounded-xl text-white text-sm placeholder-muted-foreground focus:outline-none focus:border-violet-500 focus:bg-white/8 transition-all" />
                 <button type="button" onClick={() => setShowPw(v => !v)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
                   {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

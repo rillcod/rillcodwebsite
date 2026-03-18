@@ -38,7 +38,7 @@ const About: React.FC = () => {
           
           {/* CONTENT */}
           <div>
-            <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-white/5 border border-white/10 rounded-none">
+            <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-white/5 border border-border rounded-none">
                <Command className="w-4 h-4 text-orange-500" />
                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Our Mission</span>
             </div>
@@ -54,7 +54,7 @@ const About: React.FC = () => {
 
             <div className="grid sm:grid-cols-3 gap-6">
               {pillars.map((p) => (
-                <div key={p.title} className="group p-6 bg-white/[0.02] border border-white/5 rounded-none hover:bg-white/[0.04] transition-all border-b-2 border-b-transparent hover:border-b-orange-500">
+                <div key={p.title} className="group p-6 bg-white/[0.02] border border-border rounded-none hover:bg-white/[0.04] transition-all border-b-2 border-b-transparent hover:border-b-orange-500">
                   <div className={`w-12 h-12 ${p.bg} ${p.color} rounded-none flex items-center justify-center mb-5 group-hover:scale-110 transition-transform`}>
                     <p.icon className="w-6 h-6" />
                   </div>
@@ -67,7 +67,7 @@ const About: React.FC = () => {
 
           {/* STATS / VISUAL */}
           <div className="relative">
-             <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-10 md:p-16 shadow-2xl relative overflow-hidden">
+             <div className="bg-[#1a1a1a] border border-border rounded-none p-10 md:p-16 shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/5 rounded-none blur-[100px] pointer-events-none" />
                 
                 <div className="space-y-12 relative z-10">
@@ -95,7 +95,7 @@ const About: React.FC = () => {
                 </div>
 
                 {/* Decorative Sharp Accent */}
-                <div className="absolute -bottom-6 -right-6 bg-white/5 border border-white/10 p-6 rounded-none backdrop-blur-md">
+                <div className="absolute -bottom-6 -right-6 bg-white/5 border border-border p-6 rounded-none backdrop-blur-md">
                    <Target className="w-8 h-8 text-orange-500/20" />
                 </div>
              </div>

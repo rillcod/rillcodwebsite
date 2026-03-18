@@ -178,7 +178,7 @@ export default function BlocklyEditor({ xml, onChange, language = 'python' }: Bl
   }, [xml]);
 
   return (
-    <div className="w-full h-full relative border-t border-white/5 bg-[#0d1526]">
+    <div className="w-full h-full relative border-t border-border bg-[#0d1526]">
        <div ref={blocklyDiv} className="absolute inset-0" />
     </div>
   );

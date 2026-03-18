@@ -194,15 +194,15 @@ function RobotSimulator({ code, isRunning, onFinish }: { code: string; isRunning
   }, [isRunning, code, onFinish]);
 
   return (
-    <div className="relative w-full h-[350px] bg-[#0d1526] rounded-[2rem] overflow-hidden border border-white/10 group shadow-2xl">
+    <div className="relative w-full h-[350px] bg-[#0d1526] rounded-[2rem] overflow-hidden border border-border group shadow-2xl">
       <div className="absolute top-6 left-6 z-10">
-        <div className="flex items-center gap-3 px-4 py-2 bg-black/60 backdrop-blur-xl rounded-2xl border border-white/10 shadow-xl">
+        <div className="flex items-center gap-3 px-4 py-2 bg-black/60 backdrop-blur-xl rounded-none border border-border shadow-xl">
           <div className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]'}`} />
-          <span className="text-[10px] font-black text-white/70 uppercase tracking-[0.2em]">{isRunning ? 'Neural link Active' : 'Rill-Sim Standby'}</span>
+          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{isRunning ? 'Neural link Active' : 'Rill-Sim Standby'}</span>
         </div>
       </div>
       <canvas ref={canvasRef} width={600} height={600} className="w-full h-full" />
-      <div className="absolute bottom-6 right-6 text-[9px] text-white/10 font-mono uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full">
+      <div className="absolute bottom-6 right-6 text-[9px] text-muted-foreground font-mono uppercase tracking-widest bg-card shadow-sm px-3 py-1 rounded-full">
         Vector Core v2.4 // 60FPS
       </div>
     </div>
@@ -225,7 +225,7 @@ export default function CodeStudioPage() {
     { name: 'Navbar', category: 'UI', code: '<nav style="background: #1e293b; padding: 1rem; color: white; display: flex; justify-content: space-between; align-items: center; border-radius: 0.5rem; margin-bottom: 1rem;">\n  <div style="font-weight: bold;">Rillcod Technologies</div>\n  <div style="display: flex; gap: 1rem; font-size: 0.8rem;">\n    <a>Home</a>\n    <a>Lessons</a>\n    <a>Profile</a>\n  </div>\n</nav>' },
     { name: 'Button', category: 'UI', code: '<button style="background: linear-gradient(to right, #8b5cf6, #6366f1); color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.75rem; font-weight: bold; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">Get Started</button>' },
     { name: 'Glass Card', category: 'UX', code: '<div style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); padding: 2rem; border-radius: 1.5rem; border: 1px solid rgba(255, 255, 255, 0.1); color: white; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);">\n  <h3 style="margin-top: 0; color: #a78bfa;">Lesson Title</h3>\n  <p style="opacity: 0.7; font-size: 0.9rem;">Master the art of coding with Rillcod Studio.</p>\n</div>' },
-    { name: 'Input Field', category: 'UI', code: '<div style="margin-bottom: 1rem;">\n  <label style="display: block; font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.25rem;">Email Address</label>\n  <input type="email" placeholder="you@example.com" style="width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 0.5rem; padding: 0.5rem; color: white; outline: none; focus: border-violet-500;" />\n</div>' },
+    { name: 'Input Field', category: 'UI', code: '<div style="margin-bottom: 1rem;">\n  <label style="display: block; font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.25rem;">Email Address</label>\n  <input type="email" placeholder="you@example.com" style="width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 0.5rem; padding: 0.5rem; color: white; outline: none; focus: border-orange-500;" />\n</div>' },
     { name: 'Grid Layout', category: 'UX', code: '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">\n  <div style="background: #1e293b; padding: 1rem; border-radius: 1rem;">Item 1</div>\n  <div style="background: #1e293b; padding: 1rem; border-radius: 1rem;">Item 2</div>\n  <div style="background: #1e293b; padding: 1rem; border-radius: 1rem;">Item 3</div>\n</div>' },
     { name: 'Footer', category: 'UI', code: '<footer style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem;">\n  <p>&copy; 2026 Rillcod Technologies. Powered by passion.</p>\n</footer>' },
   ];
@@ -473,32 +473,32 @@ sys.stdout = io.StringIO()
   if (authLoading) return null;
 
   return (
-    <div className="h-screen bg-[#020617] text-white flex flex-col overflow-hidden selection:bg-violet-500/30">
+    <div className="h-screen bg-[#020617] text-foreground flex flex-col overflow-hidden selection:bg-orange-500/30">
       
       {/* ─── Top Bar ─── */}
-      <header className="h-8 border-b border-white/5 flex items-center justify-between px-3 bg-[#0d1526]/80 backdrop-blur-xl z-[45] sticky top-0">
+      <header className="h-8 border-b border-border flex items-center justify-between px-3 bg-[#0d1526]/80 backdrop-blur-xl z-[45] sticky top-0">
         <div className="flex items-center gap-2">
           {!sidebarOpen && (
-            <button onClick={() => setSidebarOpen(true)} className="p-1 hover:bg-white/5 rounded-md text-white/40">
+            <button onClick={() => setSidebarOpen(true)} className="p-1 hover:bg-card shadow-sm rounded-none text-muted-foreground">
               <ChevronRightIcon className="w-3.5 h-3.5" />
             </button>
           )}
           <div className="flex items-center gap-2">
-            <h1 className="text-[9px] font-black tracking-tighter uppercase text-white/30 truncate max-w-[100px]">{activeProject ? activeProject.title : 'Playground'}</h1>
-            <div className="h-2 w-[1px] bg-white/10" />
-            <p className="text-[8px] text-violet-400/80 font-black uppercase tracking-widest">{lang}</p>
+            <h1 className="text-[9px] font-black tracking-tighter uppercase text-muted-foreground truncate max-w-[100px]">{activeProject ? activeProject.title : 'Playground'}</h1>
+            <div className="h-2 w-[1px] bg-muted" />
+            <p className="text-[8px] text-orange-400/80 font-black uppercase tracking-widest">{lang}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 font-black uppercase text-[9px] tracking-widest">
           {lessonId && (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/10 rounded-lg text-amber-500/60">
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/10 rounded-none text-amber-500/60">
               <BookOpenIcon className="w-3 h-3" />
               <span className="hidden sm:inline">Lesson</span>
             </div>
           )}
           {assignmentId && (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-rose-500/10 border border-rose-500/10 rounded-lg text-rose-500/60">
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-rose-500/10 border border-rose-500/10 rounded-none text-rose-500/60">
               <ClipboardDocumentListIcon className="w-3 h-3" />
               <span className="hidden sm:inline">Homework</span>
             </div>
@@ -516,18 +516,18 @@ sys.stdout = io.StringIO()
           )}
           {isTeacher && (
              <button onClick={() => setShowAIModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 rounded-lg text-violet-400 transition-all">
+              className="flex items-center gap-1.5 px-3 py-1 bg-orange-600/10 hover:bg-orange-600/20 border border-orange-500/20 rounded-none text-orange-400 transition-all">
               <SparklesIcon className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">AI Draft</span>
             </button>
           )}
           <button onClick={saveProject} disabled={isSaving}
-            className="flex items-center gap-1.5 px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-white/40 transition-all">
+            className="flex items-center gap-1.5 px-3 py-1 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-muted-foreground transition-all">
             <CloudArrowUpIcon className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{isSaving ? 'Saving' : 'Save'}</span>
           </button>
           <button onClick={runCode} disabled={running || lang === 'scratch'}
-            className="flex items-center gap-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white transition-all shadow-lg shadow-emerald-900/40">
+            className="flex items-center gap-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-none text-foreground transition-all shadow-lg shadow-emerald-900/40">
             {running ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PlayIcon className="w-3.5 h-3.5" />}
             <span className="hidden sm:inline">Execute</span>
           </button>
@@ -543,11 +543,11 @@ sys.stdout = io.StringIO()
               initial={{ x: -300, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -300, opacity: 0 }}
-              className="fixed inset-y-0 left-0 w-72 md:relative md:w-72 border-r border-white/10 bg-[#0d1526]/95 backdrop-blur-xl flex flex-col z-[50]"
+              className="fixed inset-y-0 left-0 w-72 md:relative md:w-72 border-r border-border bg-[#0d1526]/95 backdrop-blur-xl flex flex-col z-[50]"
             >
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-black/20">
-                <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">Studio Explorer</span>
-                <button onClick={() => setSidebarOpen(false)} className="p-1.5 hover:bg-white/5 rounded-lg text-white/30 transition-all">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-black/20">
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">Studio Explorer</span>
+                <button onClick={() => setSidebarOpen(false)} className="p-1.5 hover:bg-card shadow-sm rounded-none text-muted-foreground transition-all">
                   <ChevronLeftIcon className="w-4 h-4" />
                 </button>
               </div>
@@ -555,15 +555,15 @@ sys.stdout = io.StringIO()
                 
                 {/* Mode Selector */}
                 <div>
-                  <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] block mb-4 pl-1">Engineering Environments</label>
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] block mb-4 pl-1">Engineering Environments</label>
                   <div className="grid grid-cols-1 gap-1.5">
                     {LANGUAGES.map(l => (
                       <button 
                         key={l.id} 
                         onClick={() => handleLangChange(l.id)}
-                        className={`group flex items-center gap-3 p-2.5 rounded-2xl transition-all relative ${lang === l.id ? 'bg-violet-600/10 ring-1 ring-violet-500/30' : 'hover:bg-white/5 opacity-40 hover:opacity-100'}`}
+                        className={`group flex items-center gap-3 p-2.5 rounded-none transition-all relative ${lang === l.id ? 'bg-orange-600/10 ring-1 ring-orange-500/30' : 'hover:bg-card shadow-sm opacity-40 hover:opacity-100'}`}
                       >
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${lang === l.id ? 'bg-violet-600 text-white' : 'bg-white/5 text-white/30'}`}>
+                        <div className={`w-8 h-8 rounded-none flex items-center justify-center transition-all ${lang === l.id ? 'bg-orange-600 text-foreground' : 'bg-card shadow-sm text-muted-foreground'}`}>
                            {l.id === 'python' && <CodeBracketIcon className="w-4 h-4" />}
                            {l.id === 'javascript' && <SparklesIcon className="w-4 h-4" />}
                            {l.id === 'html' && <GlobeAltIcon className="w-4 h-4" />}
@@ -571,8 +571,8 @@ sys.stdout = io.StringIO()
                            {l.id === 'robotics' && <RocketLaunchIcon className="w-4 h-4" />}
                         </div>
                         <div className="flex-1 text-left">
-                          <p className={`text-[10px] font-black tracking-tight uppercase ${lang === l.id ? 'text-white' : 'text-white/40'}`}>{l.name}</p>
-                          <p className="text-[7px] text-white/20 font-black uppercase tracking-widest leading-none mt-0.5">{l.desc}</p>
+                          <p className={`text-[10px] font-black tracking-tight uppercase ${lang === l.id ? 'text-foreground' : 'text-muted-foreground'}`}>{l.name}</p>
+                          <p className="text-[7px] text-muted-foreground font-black uppercase tracking-widest leading-none mt-0.5">{l.desc}</p>
                         </div>
                       </button>
                     ))}
@@ -583,32 +583,32 @@ sys.stdout = io.StringIO()
                 {profile && (
                   <div>
                     <div className="flex items-center justify-between mb-3 px-1">
-                      <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">My Projects</label>
-                      <button onClick={createNew} className="p-1 hover:bg-white/10 rounded text-violet-400 group">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">My Projects</label>
+                      <button onClick={createNew} className="p-1 hover:bg-muted rounded text-orange-400 group">
                         <PlusIcon className="w-4 h-4" />
                       </button>
                     </div>
                     <div className="space-y-1">
                       {projects.length === 0 && (
-                        <div className="p-8 text-center border-2 border-dashed border-white/5 rounded-2xl">
+                        <div className="p-8 text-center border-2 border-dashed border-border rounded-none">
                           <BeakerIcon className="w-8 h-8 mx-auto text-white/5 mb-2" />
-                          <p className="text-[10px] text-white/20 font-bold uppercase">No projects yet</p>
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase">No projects yet</p>
                         </div>
                       )}
                       {projects.map(p => (
                         <div 
                           key={p.id}
                           onClick={() => loadProject(p)}
-                          className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${activeProject?.id === p.id ? 'bg-white/10 ring-1 ring-white/10' : 'hover:bg-white/5 opacity-60 hover:opacity-100'}`}
+                          className={`group flex items-center justify-between p-3 rounded-none cursor-pointer transition-all ${activeProject?.id === p.id ? 'bg-muted ring-1 ring-white/10' : 'hover:bg-card shadow-sm opacity-60 hover:opacity-100'}`}
                         >
                           <div className="flex items-center gap-3 overflow-hidden">
-                            <ClockIcon className="w-3.5 h-3.5 text-white/20 flex-shrink-0" />
+                            <ClockIcon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                             <div className="truncate">
                               <p className="text-xs font-bold truncate">{p.title}</p>
-                              <p className="text-[9px] text-white/20 tracking-wider">Lately: {new Date(p.updated_at).toLocaleDateString()}</p>
+                              <p className="text-[9px] text-muted-foreground tracking-wider">Lately: {new Date(p.updated_at).toLocaleDateString()}</p>
                             </div>
                           </div>
-                          <button onClick={(e) => deleteProject(p.id, e)} className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-rose-500/20 text-white/20 hover:text-rose-400 rounded-lg transition-all">
+                          <button onClick={(e) => deleteProject(p.id, e)} className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-rose-500/20 text-muted-foreground hover:text-rose-400 rounded-none transition-all">
                             <TrashIcon className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -619,16 +619,16 @@ sys.stdout = io.StringIO()
 
                 {/* Lab Examples */}
                 <div>
-                  <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] block mb-3 pl-1">Starter Examples</label>
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] block mb-3 pl-1">Starter Examples</label>
                   <div className="grid grid-cols-1 gap-2">
                     {((LAB_EXAMPLES as any)[lang] || []).map((ex: any) => (
                       <button 
                         key={ex.name} 
                         onClick={() => { setCode(ex.code); toast.info(`Loaded: ${ex.name}`); }}
-                        className="text-left p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-violet-500/30 hover:bg-violet-500/5 transition-all group"
+                        className="text-left p-3 rounded-none bg-card shadow-sm border border-border hover:border-orange-500/30 hover:bg-orange-500/5 transition-all group"
                       >
-                        <p className="text-[11px] font-bold text-white/70 group-hover:text-violet-400 transition-colors">{ex.name}</p>
-                        <p className="text-[9px] text-white/20 font-medium mt-0.5 line-clamp-1">{ex.desc}</p>
+                        <p className="text-[11px] font-bold text-muted-foreground group-hover:text-orange-400 transition-colors">{ex.name}</p>
+                        <p className="text-[9px] text-muted-foreground font-medium mt-0.5 line-clamp-1">{ex.desc}</p>
                       </button>
                     ))}
                   </div>
@@ -642,22 +642,22 @@ sys.stdout = io.StringIO()
         <div className={`flex-1 flex flex-col min-w-0 bg-[#020617] relative ${view === 'preview' && 'hidden md:flex'}`}>
           <div className="flex-1 flex flex-col overflow-hidden">
              {/* Tab Headers */}
-            <div className="h-8 bg-[#0d1526]/50 border-b border-white/5 flex items-center px-4 justify-between">
+            <div className="h-8 bg-[#0d1526]/50 border-b border-border flex items-center px-4 justify-between">
               <div className="flex gap-1">
                 <button onClick={() => setEditorMode('code')}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${editorMode === 'code' ? 'bg-violet-600/20 text-violet-400' : 'text-white/30 hover:text-white'}`}>
+                  className={`px-3 py-1 rounded-none text-xs font-bold transition-all ${editorMode === 'code' ? 'bg-orange-600/20 text-orange-400' : 'text-muted-foreground hover:text-foreground'}`}>
                   Text Editor
                 </button>
                 {(lang === 'python' || lang === 'javascript') && (
                   <button onClick={() => setEditorMode('blocks')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${editorMode === 'blocks' ? 'bg-emerald-600/20 text-emerald-400' : 'text-white/30 hover:text-white'}`}>
+                    className={`px-3 py-1 rounded-none text-xs font-bold transition-all ${editorMode === 'blocks' ? 'bg-emerald-600/20 text-emerald-400' : 'text-muted-foreground hover:text-foreground'}`}>
                     Blockly Mode
                   </button>
                 )}
               </div>
               <div className="flex items-center gap-2">
-                 <span className="hidden sm:inline text-[10px] font-mono text-white/20 uppercase tracking-widest">UTF-8 // active</span>
-                 <button onClick={() => setView('preview')} className="md:hidden px-3 py-1 bg-violet-600 text-white text-[10px] font-black uppercase rounded-lg">View Output</button>
+                 <span className="hidden sm:inline text-[10px] font-mono text-muted-foreground uppercase tracking-widest">UTF-8 // active</span>
+                 <button onClick={() => setView('preview')} className="md:hidden px-3 py-1 bg-orange-600 text-foreground text-[10px] font-black uppercase rounded-none">View Output</button>
               </div>
             </div>
 
@@ -688,7 +688,7 @@ sys.stdout = io.StringIO()
               </div>
 
               {lang === 'html' && (
-                 <div className="hidden lg:flex flex-[1.5] flex-col border-l border-white/10 bg-[#f8fafc] group min-w-[300px] transition-all relative">
+                 <div className="hidden lg:flex flex-[1.5] flex-col border-l border-border bg-[#f8fafc] group min-w-[300px] transition-all relative">
                    <div className="h-12 bg-white border-b border-slate-200 flex items-center px-4 md:px-6 justify-between shadow-sm">
                       <div className="flex items-center gap-2 md:gap-4">
                          <div className="hidden sm:flex items-center gap-2">
@@ -696,19 +696,19 @@ sys.stdout = io.StringIO()
                            <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Live Server</span>
                          </div>
                          <div className="hidden sm:block h-4 w-px bg-slate-200" />
-                         <div className="flex bg-slate-100 p-1 rounded-xl">
-                           <button onClick={() => setDevice('desktop')} className={`px-2 md:px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${device === 'desktop' ? 'bg-white shadow-sm text-violet-600' : 'text-slate-400'}`}>Desktop</button>
-                           <button onClick={() => setDevice('mobile')} className={`px-2 md:px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all ${device === 'mobile' ? 'bg-white shadow-sm text-violet-600' : 'text-slate-400'}`}>Mobile</button>
+                         <div className="flex bg-slate-100 p-1 rounded-none">
+                           <button onClick={() => setDevice('desktop')} className={`px-2 md:px-3 py-1 rounded-none text-[9px] font-black uppercase transition-all ${device === 'desktop' ? 'bg-white shadow-sm text-orange-600' : 'text-slate-400'}`}>Desktop</button>
+                           <button onClick={() => setDevice('mobile')} className={`px-2 md:px-3 py-1 rounded-none text-[9px] font-black uppercase transition-all ${device === 'mobile' ? 'bg-white shadow-sm text-orange-600' : 'text-slate-400'}`}>Mobile</button>
                          </div>
                       </div>
                       <div className="flex items-center gap-2">
-                         <button onClick={() => setLiveUpdate(!liveUpdate)} className={`text-[9px] font-black uppercase px-2 md:px-3 py-1 rounded-full border transition-all ${liveUpdate ? 'border-violet-500/30 text-violet-600 bg-violet-50' : 'border-slate-200 text-slate-400'}`}>
+                         <button onClick={() => setLiveUpdate(!liveUpdate)} className={`text-[9px] font-black uppercase px-2 md:px-3 py-1 rounded-full border transition-all ${liveUpdate ? 'border-orange-500/30 text-orange-600 bg-orange-50' : 'border-slate-200 text-slate-400'}`}>
                            {liveUpdate ? 'Live: ON' : 'Live: OFF'}
                          </button>
                       </div>
                    </div>
                    <div className="flex-1 bg-slate-200/50 p-4 md:p-8 flex items-center justify-center overflow-hidden">
-                     <div className={`bg-white shadow-2xl transition-all duration-500 overflow-hidden relative ${device === 'mobile' ? 'w-[320px] h-[568px] sm:w-[375px] sm:h-[667px] rounded-[2.5rem] border-[10px] sm:border-[12px] border-slate-900' : 'w-full h-full rounded-2xl border border-slate-200'}`}>
+                     <div className={`bg-white shadow-2xl transition-all duration-500 overflow-hidden relative ${device === 'mobile' ? 'w-[320px] h-[568px] sm:w-[375px] sm:h-[667px] rounded-[2.5rem] border-[10px] sm:border-[12px] border-slate-900' : 'w-full h-full rounded-none border border-slate-200'}`}>
                        <iframe srcDoc={code} className="w-full h-full border-0" title="Live Preview" />
                      </div>
                    </div>
@@ -716,23 +716,23 @@ sys.stdout = io.StringIO()
               )}
 
               {lang === 'html' && (
-                <div className="hidden xl:block w-56 border-l border-white/5 bg-[#0d1526]/40 p-3 overflow-y-auto">
+                <div className="hidden xl:block w-56 border-l border-border bg-[#0d1526]/40 p-3 overflow-y-auto">
                   <div className="flex items-center gap-2 mb-4 pl-1">
-                    <SparklesIcon className="w-4 h-4 text-violet-400" />
-                    <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">UI Builder</p>
+                    <SparklesIcon className="w-4 h-4 text-orange-400" />
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">UI Builder</p>
                   </div>
                   <div className="space-y-4">
                      {['UI', 'UX'].map(cat => (
                        <div key={cat}>
-                         <label className="text-[9px] font-bold text-white/10 uppercase mb-2 block">{cat} Elements</label>
+                         <label className="text-[9px] font-bold text-muted-foreground uppercase mb-2 block">{cat} Elements</label>
                          <div className="space-y-1.5">
                             {htmlSnippets.filter(s => s.category === cat).map(s => (
                               <button key={s.name} onClick={() => insertSnippet(s.code)}
-                                className="w-full p-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-left transition-all group/item">
-                                <p className="text-[10px] font-bold text-white/50 group-hover/item:text-violet-300">{s.name}</p>
+                                className="w-full p-2 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-left transition-all group/item">
+                                <p className="text-[10px] font-bold text-muted-foreground group-hover/item:text-orange-500">{s.name}</p>
                                 <div className="mt-1 flex gap-0.5">
-                                   <div className="h-1 flex-1 bg-violet-500/10 rounded-full" />
-                                   <div className="h-1 w-2 bg-white/5 rounded-full" />
+                                   <div className="h-1 flex-1 bg-orange-500/10 rounded-full" />
+                                   <div className="h-1 w-2 bg-card shadow-sm rounded-full" />
                                 </div>
                               </button>
                             ))}
@@ -746,8 +746,8 @@ sys.stdout = io.StringIO()
           </div>
 
           {/* ─── Console/Preview Area ─── */}
-           <div className="h-32 lg:h-40 border-t border-white/10 flex flex-col bg-[#020617] ${view === 'editor' && 'hidden md:flex'}">
-            <div className="h-8 border-b border-white/5 flex items-center px-4 justify-between bg-black/20">
+           <div className="h-32 lg:h-40 border-t border-border flex flex-col bg-[#020617] ${view === 'editor' && 'hidden md:flex'}">
+            <div className="h-8 border-b border-border flex items-center px-4 justify-between bg-black/20">
               <div className="flex items-center gap-2">
                 <CommandLineIcon className="w-4 h-4 text-emerald-400" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400/80">
@@ -755,10 +755,10 @@ sys.stdout = io.StringIO()
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                 <button onClick={() => setView('editor')} className="md:hidden px-3 py-1 bg-white/10 text-white text-[10px] font-black uppercase rounded-lg">Code View</button>
+                 <button onClick={() => setView('editor')} className="md:hidden px-3 py-1 bg-muted text-foreground text-[10px] font-black uppercase rounded-none">Code View</button>
                  {lang !== 'html' && (
-                   <button onClick={() => setConsoleLogs([])} className="p-1 hover:bg-white/5 rounded transition-colors" title="Clear console">
-                      <TrashIcon className="w-3.5 h-3.5 text-white/30 hover:text-rose-400" />
+                   <button onClick={() => setConsoleLogs([])} className="p-1 hover:bg-card shadow-sm rounded transition-colors" title="Clear console">
+                      <TrashIcon className="w-3.5 h-3.5 text-muted-foreground hover:text-rose-400" />
                    </button>
                  )}
               </div>
@@ -766,20 +766,20 @@ sys.stdout = io.StringIO()
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-black/40 font-mono text-xs">
                <div className="space-y-1.5 h-full">
                   {lang === 'html' ? (
-                    <div className="w-full h-full bg-white rounded-xl overflow-hidden relative border-8 border-slate-900">
+                    <div className="w-full h-full bg-white rounded-none overflow-hidden relative border-8 border-slate-900">
                       <iframe srcDoc={code} className="w-full h-full border-0" title="Html Mobile Preview" />
                     </div>
                   ) : (
                     <>
                       {consoleLogs.length === 0 && (
-                        <p className="text-white/10 italic">Process standby. Transmit code to begin.</p>
+                        <p className="text-muted-foreground italic">Process standby. Transmit code to begin.</p>
                       )}
                       {consoleLogs.map((log, i) => (
                         <div key={i} className={`py-0.5 border-l-2 pl-3 ${log.startsWith('Error') || log.startsWith('Runtime Error') ? 'border-rose-500 text-rose-400 font-bold' : 'border-emerald-500/30 text-emerald-50/90'}`}>
                           {log}
                         </div>
                       ))}
-                      {running && <div className="animate-pulse flex items-center gap-2 text-white/30 italic">Processing neural code...</div>}
+                      {running && <div className="animate-pulse flex items-center gap-2 text-muted-foreground italic">Processing neural code...</div>}
                     </>
                   )}
                 </div>
@@ -789,8 +789,8 @@ sys.stdout = io.StringIO()
 
         {/* ─── Right Sidebar: Robotics Simulator ─── */}
         {lang === 'robotics' && (
-          <aside className={`hidden lg:flex w-80 lg:w-96 border-l border-white/10 bg-[#0d1526]/30 flex flex-col ${view === 'editor' && 'hidden lg:flex'}`}>
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+          <aside className={`hidden lg:flex w-80 lg:w-96 border-l border-border bg-[#0d1526]/30 flex flex-col ${view === 'editor' && 'hidden lg:flex'}`}>
+            <div className="p-4 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <RocketLaunchIcon className="w-5 h-5 text-emerald-400" />
                 <h3 className="text-xs font-black uppercase tracking-wider italic">Kinematic Field</h3>
@@ -802,8 +802,8 @@ sys.stdout = io.StringIO()
               
               <div className="mt-8 space-y-4">
                 <div className="flex items-center gap-2 mb-2">
-                   <DocumentTextIcon className="w-4 h-4 text-white/20" />
-                   <label className="text-[10px] font-black text-white/30 uppercase tracking-widest uppercase">Instruction Manifest</label>
+                   <DocumentTextIcon className="w-4 h-4 text-muted-foreground" />
+                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest uppercase">Instruction Manifest</label>
                 </div>
                 <div className="space-y-2">
                   {[
@@ -812,9 +812,9 @@ sys.stdout = io.StringIO()
                     { cmd: 'robot.penDown()', desc: 'Enable trace path' },
                     { cmd: 'robot.setColor(hex)', desc: 'Update laser signature color' },
                   ].map(h => (
-                    <div key={h.cmd} className="p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 transition-all cursor-help group/doc">
+                    <div key={h.cmd} className="p-4 bg-card shadow-sm border border-border rounded-none hover:bg-muted transition-all cursor-help group/doc">
                       <p className="font-mono text-[10px] text-emerald-400 mb-1 group-hover/doc:translate-x-1 transition-transform">{h.cmd}</p>
-                      <p className="text-[10px] text-white/40 leading-relaxed font-medium">{h.desc}</p>
+                      <p className="text-[10px] text-muted-foreground leading-relaxed font-medium">{h.desc}</p>
                     </div>
                   ))}
                 </div>
@@ -833,20 +833,20 @@ sys.stdout = io.StringIO()
                initial={{ y: 20, opacity: 0 }}
                animate={{ y: 0, opacity: 1 }}
                exit={{ y: 20, opacity: 0 }}
-               className="w-full max-w-lg bg-[#0d1526] border border-white/10 rounded-[3rem] p-8 shadow-2xl relative overflow-hidden"
+               className="w-full max-w-lg bg-[#0d1526] border border-border rounded-[3rem] p-8 shadow-2xl relative overflow-hidden"
              >
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-violet-500 to-transparent" />
-                <button onClick={() => setShowAIModal(false)} className="absolute top-6 right-6 p-2 hover:bg-white/5 rounded-full text-white/30 transition-all">
+                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
+                <button onClick={() => setShowAIModal(false)} className="absolute top-6 right-6 p-2 hover:bg-card shadow-sm rounded-full text-muted-foreground transition-all">
                   <XMarkIcon className="w-5 h-5" />
                 </button>
 
                 <div className="flex items-center gap-4 mb-8">
-                  <div className="w-12 h-12 bg-violet-600/20 rounded-2xl flex items-center justify-center border border-violet-500/20">
-                    <SparklesIcon className="w-6 h-6 text-violet-400" />
+                  <div className="w-12 h-12 bg-orange-600/20 rounded-none flex items-center justify-center border border-orange-500/20">
+                    <SparklesIcon className="w-6 h-6 text-orange-400" />
                   </div>
                   <div>
                     <h3 className="text-xl font-black italic tracking-tighter uppercase">AI Pulse</h3>
-                    <p className="text-[10px] text-white/40 font-black uppercase tracking-widest mt-0.5">Neural assistance for {lang}</p>
+                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-0.5">Neural assistance for {lang}</p>
                   </div>
                 </div>
 
@@ -857,15 +857,15 @@ sys.stdout = io.StringIO()
                        value={aiPrompt}
                        onChange={(e) => setAiPrompt(e.target.value)}
                        placeholder={`Describe the ${lang} module logic...`}
-                       className="w-full h-40 bg-black/40 border border-white/10 group-hover:border-violet-500/30 rounded-[2rem] p-5 text-sm font-medium focus:ring-2 focus:ring-violet-500/40 outline-none resize-none transition-all"
+                       className="w-full h-40 bg-black/40 border border-border group-hover:border-orange-500/30 rounded-[2rem] p-5 text-sm font-medium focus:ring-2 focus:ring-orange-500/40 outline-none resize-none transition-all"
                      />
-                     <div className="absolute bottom-5 right-5 text-[9px] text-white/10 font-mono uppercase tracking-[0.3em]">Synapse-2.4</div>
+                     <div className="absolute bottom-5 right-5 text-[9px] text-muted-foreground font-mono uppercase tracking-[0.3em]">Synapse-2.4</div>
                    </div>
 
                    <button 
                      onClick={generateWithAI}
                      disabled={isAIGenerating || !aiPrompt.trim()}
-                     className="w-full h-14 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all shadow-xl shadow-violet-900/20 flex items-center justify-center gap-3"
+                     className="w-full h-14 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground rounded-none font-black uppercase tracking-[0.2em] text-xs transition-all shadow-xl shadow-orange-900/20 flex items-center justify-center gap-3"
                    >
                      {isAIGenerating ? (
                        <><ArrowPathIcon className="w-5 h-5 animate-spin" /> Synthesizing...</>

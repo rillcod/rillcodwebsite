@@ -324,7 +324,7 @@ export default function Programs() {
         </div>
 
         {/* Summer School Banner */}
-        <div className="bg-[#1a1a1a] border border-white/10 rounded-none shadow-2xl border-t-4 border-t-yellow-500 p-8 mb-16 relative overflow-hidden">
+        <div className="bg-[#1a1a1a] border border-border rounded-none shadow-2xl border-t-4 border-t-yellow-500 p-8 mb-16 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-none -translate-y-32 translate-x-32 blur-3xl"></div>
           <div className="relative z-10">
             <div className="flex flex-col lg:flex-row items-center justify-between">
@@ -414,7 +414,7 @@ export default function Programs() {
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-10 mb-16 shadow-2xl relative overflow-hidden">
+        <div className="bg-[#1a1a1a] border border-border rounded-none p-10 mb-16 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
           <div className="flex flex-col lg:flex-row gap-8 items-center justify-between relative z-10">
             {/* Search */}
@@ -427,7 +427,7 @@ export default function Programs() {
                   placeholder="SEARCH PROTOCOLS..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-white/10 rounded-none text-[10px] font-black uppercase tracking-widest text-white placeholder:text-slate-900 focus:outline-none focus:border-orange-500 transition-all font-bold"
+                  className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-white placeholder:text-slate-900 focus:outline-none focus:border-orange-500 transition-all font-bold"
                 />
               </div>
             </div>
@@ -442,7 +442,7 @@ export default function Programs() {
                     onClick={() => setSelectedCategory(category.name)}
                     className={`flex items-center gap-3 px-6 py-4 rounded-none transition-all duration-200 text-[10px] font-black uppercase tracking-widest border ${selectedCategory === category.name
                         ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-500/20'
-                        : 'bg-[#121212] border-white/5 text-slate-500 hover:border-white/10 hover:text-white'
+                        : 'bg-[#121212] border-border text-slate-500 hover:border-border hover:text-white'
                       }`}
                   >
                     {category.name}
@@ -457,7 +457,7 @@ export default function Programs() {
                 <select
                   value={selectedLevel}
                   onChange={(e) => setSelectedLevel(e.target.value)}
-                  className="w-full pl-6 pr-10 py-5 bg-[#121212] border border-white/10 rounded-none text-[10px] font-black uppercase tracking-widest text-white focus:outline-none focus:border-orange-500 transition-all cursor-pointer appearance-none"
+                  className="w-full pl-6 pr-10 py-5 bg-[#121212] border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-white focus:outline-none focus:border-orange-500 transition-all cursor-pointer appearance-none"
                 >
                   {levels.map((level) => (
                     <option key={level.value} value={level.value}>
@@ -542,7 +542,7 @@ export default function Programs() {
                   ) : (
                     <Link
                       href="/student-registration"
-                      className="flex items-center justify-center w-full bg-[#121212] border border-white/5 text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.4em] hover:bg-orange-500 transition-all"
+                      className="flex items-center justify-center w-full bg-[#121212] border border-border text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.4em] hover:bg-orange-500 transition-all"
                     >
                       JOIN NETWORK
                     </Link>
@@ -571,7 +571,7 @@ export default function Programs() {
         </div>
 
         {/* Call to Action */}
-        <div className="bg-[#1a1a1a] border border-white/10 border-t-4 border-t-orange-500 rounded-none p-12 text-center text-white shadow-2xl relative overflow-hidden">
+        <div className="bg-[#1a1a1a] border border-border border-t-4 border-t-orange-500 rounded-none p-12 text-center text-white shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
           <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight">Ready to Start Your <span className="text-orange-500 italic">Tech Journey?</span></h2>
           <p className="text-sm sm:text-lg mb-10 opacity-60 max-w-2xl mx-auto font-medium italic">
@@ -586,7 +586,7 @@ export default function Programs() {
             </Link>
             <Link
               href="/curriculum"
-              className="px-12 py-5 bg-transparent border border-white/10 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-white hover:text-black transition-all"
+              className="px-12 py-5 bg-transparent border border-border text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-white hover:text-black transition-all"
             >
               View Curriculum
             </Link>

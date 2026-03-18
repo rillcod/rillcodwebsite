@@ -188,20 +188,20 @@ export default function EditExamPage() {
     const visibleQuestions = questions.filter(q => !q._deleted);
 
     if (authLoading || loading) return (
-        <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center">
             <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
         </div>
     );
     if (!isStaff) return (
-        <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-            <p className="text-white/40">Staff access required.</p>
+        <div className="min-h-screen bg-background flex items-center justify-center">
+            <p className="text-muted-foreground">Staff access required.</p>
         </div>
     );
 
     return (
-        <div className="min-h-screen bg-[#0f0f1a] text-white">
+        <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-                <Link href={`/dashboard/cbt/${id}`} className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors">
+                <Link href={`/dashboard/cbt/${id}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                     <ArrowLeftIcon className="w-4 h-4" /> Back to Exam
                 </Link>
 
@@ -211,17 +211,17 @@ export default function EditExamPage() {
                         <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Edit Exam</span>
                     </div>
                     <h1 className="text-3xl font-extrabold">Edit CBT Exam</h1>
-                    <p className="text-white/40 text-sm mt-1">Update exam settings and manage questions</p>
+                    <p className="text-muted-foreground text-sm mt-1">Update exam settings and manage questions</p>
                 </div>
 
                 {error && (
-                    <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
+                    <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
                         <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
                         <p className="text-rose-400 text-sm">{error}</p>
                     </div>
                 )}
                 {success && (
-                    <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+                    <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-none p-4">
                         <CheckIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                         <p className="text-emerald-400 text-sm font-semibold">{success}</p>
                     </div>
@@ -229,33 +229,33 @@ export default function EditExamPage() {
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Exam Details */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-5">
-                        <h2 className="text-sm font-bold text-white/60 uppercase tracking-widest">Exam Details</h2>
+                    <div className="bg-card shadow-sm border border-border rounded-none p-6 space-y-5">
+                        <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Exam Details</h2>
 
                         <div>
-                            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
                                 Exam Title <span className="text-rose-400">*</span>
                             </label>
                             <input type="text" required value={form.title}
                                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500 transition-colors" />
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
                                     Programme <span className="text-rose-400">*</span>
                                 </label>
                                 <select required value={form.program_id}
                                     onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                                     <option value="">Select programme…</option>
                                     {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
                                     Linked Course (Optional)
                                 </label>
                                 <select value={form.course_id}
@@ -264,7 +264,7 @@ export default function EditExamPage() {
                                         const c = courses.find(x => x.id === cId);
                                         setForm(f => ({ ...f, course_id: cId, program_id: c?.program_id || f.program_id }));
                                     }}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                                     <option value="">Not linked to a course</option>
                                     {courses.map(c => <option key={c.id} value={c.id}>{c.title} {c.programs?.name ? `(${c.programs.name})` : ''}</option>)}
                                 </select>
@@ -273,22 +273,22 @@ export default function EditExamPage() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
-                                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Duration (min)</label>
+                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Duration (min)</label>
                                 <input type="number" min="5" value={form.duration_minutes}
                                     onChange={e => setForm(f => ({ ...f, duration_minutes: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors" />
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Passing Score (%)</label>
+                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Passing Score (%)</label>
                                 <input type="number" min="1" max="100" value={form.passing_score}
                                     onChange={e => setForm(f => ({ ...f, passing_score: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors" />
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Status</label>
+                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Status</label>
                                 <select value={form.is_active ? 'active' : 'inactive'}
                                     onChange={e => setForm(f => ({ ...f, is_active: e.target.value === 'active' }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                                     <option value="active">Active</option>
                                     <option value="inactive">Inactive</option>
                                 </select>
@@ -297,57 +297,57 @@ export default function EditExamPage() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Start Date/Time</label>
+                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Start Date/Time</label>
                                 <input type="datetime-local" value={form.start_date}
                                     onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors" />
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">End Date/Time</label>
+                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">End Date/Time</label>
                                 <input type="datetime-local" value={form.end_date}
                                     onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors" />
+                                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Description</label>
+                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Description</label>
                             <textarea rows={2} value={form.description}
                                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
                         </div>
                     </div>
 
                     {/* ── Question Canvas ── */}
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between bg-white/3 border border-white/10 rounded-2xl px-5 py-4">
+                        <div className="flex items-center justify-between bg-white/3 border border-border rounded-none px-5 py-4">
                             <div>
-                                <h2 className="font-bold text-white">Question Bank</h2>
-                                <p className="text-xs text-white/40 mt-0.5">
+                                <h2 className="font-bold text-foreground">Question Bank</h2>
+                                <p className="text-xs text-muted-foreground mt-0.5">
                                     {visibleQuestions.length} question{visibleQuestions.length !== 1 ? 's' : ''} ·&nbsp;
                                     {visibleQuestions.reduce((s, q) => s + (q.points || 0), 0)} total points
                                 </p>
                             </div>
                             <button type="button" onClick={addQuestion}
-                                className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors">
+                                className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-none transition-colors">
                                 <PlusIcon className="w-4 h-4" /> Add Question
                             </button>
                         </div>
 
                         {visibleQuestions.length === 0 && (
-                            <div className="text-center py-16 bg-white/5 border border-dashed border-white/10 rounded-2xl">
-                                <PencilSquareIcon className="w-10 h-10 mx-auto text-white/10 mb-3" />
-                                <p className="text-white/30 text-sm">No questions yet. Click "Add Question" to begin.</p>
+                            <div className="text-center py-16 bg-card shadow-sm border border-dashed border-border rounded-none">
+                                <PencilSquareIcon className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+                                <p className="text-muted-foreground text-sm">No questions yet. Click "Add Question" to begin.</p>
                             </div>
                         )}
 
                         {visibleQuestions.map((q, qi) => (
-                            <div key={q.id ?? `new-${qi}`} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                            <div key={q.id ?? `new-${qi}`} className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
                                 {/* Question header */}
-                                <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-white/10">
+                                <div className="flex items-center justify-between px-5 py-3 bg-white/3 border-b border-border">
                                     <div className="flex items-center gap-3">
                                         <div className="flex items-center gap-1.5">
-                                            <span className="text-xs font-black text-white/40 w-6 tracking-tighter italic mr-1">#{qi + 1}</span>
+                                            <span className="text-xs font-black text-muted-foreground w-6 tracking-tighter italic mr-1">#{qi + 1}</span>
                                             {q.question_type === 'essay' || q.question_type === 'fill_blank' ? (
                                                 <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black uppercase text-amber-500 italic flex items-center gap-1">
                                                     <SparklesIcon className="w-2.5 h-2.5" /> Manual Eval
@@ -366,15 +366,15 @@ export default function EditExamPage() {
                                     </div>
                                     <div className="flex items-center gap-1">
                                         <button type="button" onClick={() => moveQuestion(qi, -1)} disabled={qi === 0}
-                                            className="p-1.5 text-white/30 hover:text-white/70 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-20">
+                                            className="p-1.5 text-muted-foreground hover:text-muted-foreground hover:bg-muted rounded-none transition-colors disabled:opacity-20">
                                             <ChevronUpIcon className="w-3.5 h-3.5" />
                                         </button>
                                         <button type="button" onClick={() => moveQuestion(qi, 1)} disabled={qi === visibleQuestions.length - 1}
-                                            className="p-1.5 text-white/30 hover:text-white/70 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-20">
+                                            className="p-1.5 text-muted-foreground hover:text-muted-foreground hover:bg-muted rounded-none transition-colors disabled:opacity-20">
                                             <ChevronDownIcon className="w-3.5 h-3.5" />
                                         </button>
                                         <button type="button" onClick={() => removeQuestion(questions.indexOf(q))}
-                                            className="p-1.5 text-rose-400/60 bg-rose-500/10 hover:bg-rose-500/20 hover:text-rose-400 rounded-lg transition-colors">
+                                            className="p-1.5 text-rose-400/60 bg-rose-500/10 hover:bg-rose-500/20 hover:text-rose-400 rounded-none transition-colors">
                                             <TrashIcon className="w-3.5 h-3.5" />
                                         </button>
                                     </div>
@@ -384,14 +384,14 @@ export default function EditExamPage() {
                                     <textarea rows={2} value={q.question_text}
                                         onChange={e => updateQuestion(questions.indexOf(q), { question_text: e.target.value })}
                                         placeholder="Enter question text…"
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
+                                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
 
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div>
-                                            <label className="block text-xs text-white/40 uppercase tracking-widest mb-1">Type</label>
+                                            <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Type</label>
                                             <select value={q.question_type}
                                                 onChange={e => updateQuestion(questions.indexOf(q), { question_type: e.target.value, options: ['', '', '', ''], correct_answer: '' })}
-                                                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
+                                                className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                                                 <option value="multiple_choice">Multiple Choice</option>
                                                 <option value="true_false">True / False</option>
                                                 <option value="fill_blank">Fill in Blank</option>
@@ -399,18 +399,18 @@ export default function EditExamPage() {
                                             </select>
                                         </div>
                                         <div className="sm:col-span-1">
-                                            <label className="block text-xs text-white/40 uppercase tracking-widest mb-1">Points</label>
+                                            <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Points</label>
                                             <input type="number" min="1" value={q.points}
                                                 onChange={e => updateQuestion(questions.indexOf(q), { points: parseInt(e.target.value) || 1 })}
-                                                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors" />
+                                                className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
                                         </div>
                                         {(q.question_type === 'fill_blank' || q.question_type === 'essay') && (
                                             <div className="sm:col-span-2">
-                                                <label className="block text-xs text-white/40 uppercase tracking-widest mb-1">Correct Answer / Scoring Guide</label>
+                                                <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Correct Answer / Scoring Guide</label>
                                                 <input type="text" value={q.correct_answer}
                                                     onChange={e => updateQuestion(questions.indexOf(q), { correct_answer: e.target.value })}
                                                     placeholder={q.question_type === 'fill_blank' ? "Exact answer..." : "Grading rubric or points guide..."}
-                                                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-emerald-500 transition-colors" />
+                                                    className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
                                             </div>
                                         )}
                                     </div>
@@ -422,7 +422,7 @@ export default function EditExamPage() {
                                                     key={opt}
                                                     type="button"
                                                     onClick={() => updateQuestion(questions.indexOf(q), { correct_answer: opt })}
-                                                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-bold transition-all ${q.correct_answer === opt ? 'bg-emerald-500 border-emerald-400 text-white' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}
+                                                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-none border font-bold transition-all ${q.correct_answer === opt ? 'bg-emerald-500 border-emerald-400 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
                                                 >
                                                     {q.correct_answer === opt && <CheckIcon className="w-4 h-4" />}
                                                     {opt}
@@ -434,7 +434,7 @@ export default function EditExamPage() {
                                     {q.question_type === 'multiple_choice' && (
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between">
-                                                <label className="block text-xs text-white/40 uppercase tracking-widest">Options (Select the correct one)</label>
+                                                <label className="block text-xs text-muted-foreground uppercase tracking-widest">Options (Select the correct one)</label>
                                             </div>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 {q.options.map((opt, oi) => {
@@ -445,9 +445,9 @@ export default function EditExamPage() {
                                                             onClick={() => {
                                                                 if (opt.trim()) updateQuestion(questions.indexOf(q), { correct_answer: opt });
                                                             }}
-                                                            className={`flex items-center gap-2 p-1.5 rounded-2xl border transition-all cursor-pointer group/opt ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/20' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
+                                                            className={`flex items-center gap-2 p-1.5 rounded-none border transition-all cursor-pointer group/opt ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/20' : 'bg-card shadow-sm border-border hover:border-border'}`}
                                                         >
-                                                            <div className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center flex-shrink-0 transition-all ${isCorrect ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'border-white/10 group-hover/opt:border-white/30 text-white/30'}`}>
+                                                            <div className={`w-8 h-8 rounded-none border-2 flex items-center justify-center flex-shrink-0 transition-all ${isCorrect ? 'bg-emerald-500 border-emerald-500 text-foreground shadow-lg shadow-emerald-500/20' : 'border-border group-hover/opt:border-border text-muted-foreground'}`}>
                                                                 {isCorrect ? <CheckIcon className="w-4 h-4 font-black" /> : <span className="text-[10px] font-black">{String.fromCharCode(65 + oi)}</span>}
                                                             </div>
                                                             <input 
@@ -461,7 +461,7 @@ export default function EditExamPage() {
                                                                     if (wasCorrect) updateQuestion(questions.indexOf(q), { correct_answer: newVal });
                                                                 }}
                                                                 placeholder={`Enter option ${String.fromCharCode(65 + oi)}…`}
-                                                                className="flex-1 bg-transparent border-none px-1 py-1 text-sm text-white placeholder-white/20 focus:outline-none" 
+                                                                className="flex-1 bg-transparent border-none px-1 py-1 text-sm text-foreground placeholder-muted-foreground focus:outline-none" 
                                                             />
                                                             {isCorrect && (
                                                                 <span className="hidden sm:block text-[8px] font-black text-emerald-400 uppercase tracking-widest mr-2">Correct</span>
@@ -480,11 +480,11 @@ export default function EditExamPage() {
                     {/* Actions */}
                     <div className="flex items-center gap-3 pt-2">
                         <Link href={`/dashboard/cbt/${id}`}
-                            className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white/50 text-sm font-bold rounded-xl transition-colors">
+                            className="px-5 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-none transition-colors">
                             Cancel
                         </Link>
                         <button type="submit" disabled={saving}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+                            className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
                             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                             {saving ? 'Saving…' : 'Save Exam'}
                         </button>

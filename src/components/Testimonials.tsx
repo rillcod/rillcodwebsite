@@ -31,7 +31,7 @@ const Testimonials: React.FC = () => {
           <div className="w-24 h-1 bg-orange-500 mx-auto mt-12"></div>
         </div>
         
-        <div className="max-w-5xl mx-auto bg-[#1a1a1a] border border-white/10 rounded-none shadow-2xl p-12 mb-24 relative border-t-8 border-t-purple-500">
+        <div className="max-w-5xl mx-auto bg-[#1a1a1a] border border-border rounded-none shadow-2xl p-12 mb-24 relative border-t-8 border-t-purple-500">
           <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 blur-[100px] pointer-events-none"></div>
           <div className="flex justify-center mb-10">
             {[...Array(5)].map((_, i) => (
@@ -44,7 +44,7 @@ const Testimonials: React.FC = () => {
           </p>
           
           <div className="flex items-center justify-center">
-            <div className="w-16 h-16 bg-white/5 border border-white/10 rounded-none flex items-center justify-center text-orange-500 mr-6">
+            <div className="w-16 h-16 bg-white/5 border border-border rounded-none flex items-center justify-center text-orange-500 mr-6">
               <School className="w-8 h-8" />
             </div>
             <div className="text-left">
@@ -58,9 +58,9 @@ const Testimonials: React.FC = () => {
           {schools.map((school, index) => (
             <div 
               key={index}
-              className="bg-[#1a1a1a] border border-white/10 rounded-none p-10 flex flex-col items-center hover:border-orange-500 transition-all group"
+              className="bg-[#1a1a1a] border border-border rounded-none p-10 flex flex-col items-center hover:border-orange-500 transition-all group"
             >
-              <div className="w-20 h-20 bg-[#121212] border border-white/5 group-hover:border-purple-500 rounded-none flex items-center justify-center text-purple-500 font-black text-2xl mb-6 transition-all">
+              <div className="w-20 h-20 bg-[#121212] border border-border group-hover:border-purple-500 rounded-none flex items-center justify-center text-purple-500 font-black text-2xl mb-6 transition-all">
                 {school.logo}
               </div>
               <h3 className="text-center font-black text-white uppercase tracking-tighter italic text-sm">{school.name}</h3>

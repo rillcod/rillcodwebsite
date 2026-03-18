@@ -38,7 +38,7 @@ function ToolCard({ icon: Icon, title, color, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-4">
+    <div className="bg-white/[0.03] border border-border rounded-2xl p-5 space-y-4">
       <div className="flex items-center gap-3">
         <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color}`}>
           <Icon className="w-4 h-4 text-white" />
@@ -51,7 +51,7 @@ function ToolCard({ icon: Icon, title, color, children }: {
 }
 
 function Spinner() {
-  return <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0" />;
+  return <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin flex-shrink-0" />;
 }
 
 function ErrorMsg({ msg }: { msg: string }) {
@@ -103,7 +103,7 @@ function ImageGenerator({ lessonTitle, lessonSubject, lessonGrade }: Pick<Lesson
           value={customPrompt}
           onChange={e => setCustomPrompt(e.target.value)}
           placeholder={`Auto: illustration for "${lessonTitle || 'lesson'}"`}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-pink-500"
+          className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-pink-500"
         />
       </div>
 
@@ -187,7 +187,7 @@ function SpeechToText({ onTranscript }: Pick<LessonAIToolsProps, 'onTranscript'>
         onDrop={handleDrop}
         onDragOver={e => e.preventDefault()}
         onClick={() => inputRef.current?.click()}
-        className="border-2 border-dashed border-white/10 hover:border-amber-500/40 rounded-xl p-5 text-center cursor-pointer transition-colors"
+        className="border-2 border-dashed border-border hover:border-amber-500/40 rounded-xl p-5 text-center cursor-pointer transition-colors"
       >
         <MicrophoneIcon className="w-6 h-6 text-white/20 mx-auto mb-2" />
         <p className="text-xs text-white/40">
@@ -214,7 +214,7 @@ function SpeechToText({ onTranscript }: Pick<LessonAIToolsProps, 'onTranscript'>
 
       {transcript && (
         <div className="space-y-3">
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4 max-h-40 overflow-y-auto">
+          <div className="bg-white/5 border border-border rounded-xl p-4 max-h-40 overflow-y-auto">
             <p className="text-xs text-white/70 leading-relaxed whitespace-pre-wrap">{transcript}</p>
           </div>
           <div className="flex gap-2 flex-wrap">

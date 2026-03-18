@@ -79,7 +79,7 @@ const PLATFORM_CONFIG: Record<
   google_meet:  { label: 'Google Meet',  textClass: 'text-emerald-400', bgClass: 'bg-emerald-500/10', borderClass: 'border-emerald-500/20' },
   teams:        { label: 'Teams',        textClass: 'text-purple-400',  bgClass: 'bg-purple-500/10',  borderClass: 'border-purple-500/20' },
   discord:      { label: 'Discord',      textClass: 'text-indigo-400',  bgClass: 'bg-indigo-500/10',  borderClass: 'border-indigo-500/20' },
-  other:        { label: 'Other',        textClass: 'text-white/40',    bgClass: 'bg-white/5',        borderClass: 'border-white/10' },
+  other:        { label: 'Other',        textClass: 'text-muted-foreground',    bgClass: 'bg-card shadow-sm',        borderClass: 'border-border' },
 };
 
 const STATUS_CONFIG: Record<
@@ -158,7 +158,7 @@ function StatusBadge({ status }: { status: LiveSession['status'] }) {
 function PlatformBadge({ platform }: { platform: LiveSession['platform'] }) {
   const cfg = PLATFORM_CONFIG[platform];
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${cfg.textClass} ${cfg.bgClass} ${cfg.borderClass}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-none text-xs font-medium border ${cfg.textClass} ${cfg.bgClass} ${cfg.borderClass}`}>
       {cfg.label}
     </span>
   );
@@ -169,12 +169,12 @@ function PlatformBadge({ platform }: { platform: LiveSession['platform'] }) {
 function RoleBadge({ role }: { role: string }) {
   const map: Record<string, string> = {
     admin:   'bg-rose-500/10 text-rose-400 border-rose-500/20',
-    teacher: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+    teacher: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
     student: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
     school:  'bg-amber-500/10 text-amber-400 border-amber-500/20',
   };
   return (
-    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border capitalize ${map[role] ?? 'bg-white/10 text-white/40 border-white/10'}`}>
+    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border capitalize ${map[role] ?? 'bg-muted text-muted-foreground border-border'}`}>
       {role}
     </span>
   );
@@ -203,10 +203,10 @@ function SessionCard({
   const showRecording = session.status === 'completed' && !!session.recording_url;
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col gap-4 hover:border-white/20 transition-colors">
+    <div className="bg-card shadow-sm border border-border rounded-none p-5 flex flex-col gap-4 hover:border-border transition-colors">
       {/* Top row */}
       <div className="flex items-start justify-between gap-3">
-        <div className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center ${cfg.bgClass} border ${cfg.borderClass}`}>
+        <div className={`w-10 h-10 flex-shrink-0 rounded-none flex items-center justify-center ${cfg.bgClass} border ${cfg.borderClass}`}>
           <VideoCameraIcon className={`w-5 h-5 ${cfg.textClass}`} />
         </div>
         <div className="flex-1 min-w-0">
@@ -220,20 +220,20 @@ function SessionCard({
               </span>
             )}
           </div>
-          <h3 className="text-white font-semibold text-base leading-snug line-clamp-2">{session.title}</h3>
+          <h3 className="text-foreground font-semibold text-base leading-snug line-clamp-2">{session.title}</h3>
         </div>
         {canAct && (
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={() => onEdit(session)}
-              className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-1.5 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               title="Edit session"
             >
               <PencilIcon className="w-4 h-4" />
             </button>
             <button
               onClick={() => onDelete(session.id)}
-              className="p-1.5 rounded-lg text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+              className="p-1.5 rounded-none text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
               title="Delete session"
             >
               <TrashIcon className="w-4 h-4" />
@@ -244,33 +244,33 @@ function SessionCard({
 
       {/* Description */}
       {session.description && (
-        <p className="text-sm text-white/50 line-clamp-2 -mt-1">{session.description}</p>
+        <p className="text-sm text-muted-foreground line-clamp-2 -mt-1">{session.description}</p>
       )}
 
       {/* Meta */}
       <div className="flex flex-col gap-2">
         {/* Date/time */}
-        <div className="flex items-center gap-2 text-sm text-white/60">
-          <CalendarDaysIcon className="w-4 h-4 text-white/30 flex-shrink-0" />
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <CalendarDaysIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
           <span>{formatDateTime(session.scheduled_at)}</span>
         </div>
         {/* Duration */}
-        <div className="flex items-center gap-2 text-sm text-white/60">
-          <ClockIcon className="w-4 h-4 text-white/30 flex-shrink-0" />
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <ClockIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
           <span>{session.duration_minutes} min</span>
         </div>
         {/* Host */}
         {session.host && (
-          <div className="flex items-center gap-2 text-sm text-white/60">
-            <UserCircleIcon className="w-4 h-4 text-white/30 flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <UserCircleIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             <span className="truncate">{session.host.full_name}</span>
             <RoleBadge role={session.host.role} />
           </div>
         )}
         {/* Program */}
         {session.program && (
-          <div className="flex items-center gap-2 text-sm text-white/60">
-            <AcademicCapIcon className="w-4 h-4 text-white/30 flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <AcademicCapIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             <span className="truncate">{session.program.name}</span>
           </div>
         )}
@@ -278,16 +278,16 @@ function SessionCard({
 
       {/* Actions */}
       {(showJoin || showRecording) && (
-        <div className="flex gap-2 pt-1 border-t border-white/5">
+        <div className="flex gap-2 pt-1 border-t border-border">
           {showJoin && (
             <a
               href={session.session_url!}
               target="_blank"
               rel="noopener noreferrer"
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-sm font-semibold transition-colors ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-none text-sm font-semibold transition-colors ${
                 session.status === 'live'
-                  ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
-                  : 'bg-violet-600 hover:bg-violet-500 text-white'
+                  ? 'bg-emerald-500 hover:bg-emerald-400 text-foreground'
+                  : 'bg-orange-600 hover:bg-orange-500 text-foreground'
               }`}
             >
               {session.status === 'live' ? (
@@ -308,7 +308,7 @@ function SessionCard({
               href={session.recording_url!}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-sm font-semibold bg-blue-600/80 hover:bg-blue-600 text-white transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-none text-sm font-semibold bg-blue-600/80 hover:bg-blue-600 text-foreground transition-colors"
             >
               <FilmIcon className="w-4 h-4" />
               Watch Recording
@@ -350,23 +350,23 @@ function SessionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#0f0f1a] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+      <div className="bg-background border border-border rounded-none w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center">
-              <VideoCameraIcon className="w-5 h-5 text-violet-400" />
+            <div className="w-9 h-9 rounded-none bg-orange-500/15 border border-orange-500/25 flex items-center justify-center">
+              <VideoCameraIcon className="w-5 h-5 text-orange-400" />
             </div>
             <div>
-              <h2 className="text-white font-bold text-base">
+              <h2 className="text-foreground font-bold text-base">
                 {isEdit ? 'Edit Session' : 'Schedule Session'}
               </h2>
-              <p className="text-white/40 text-xs">Fill in the session details below</p>
+              <p className="text-muted-foreground text-xs">Fill in the session details below</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-2 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <XMarkIcon className="w-5 h-5" />
           </button>
@@ -375,14 +375,14 @@ function SessionModal({
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {error && (
-            <div className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
+            <div className="px-4 py-3 rounded-none bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
               {error}
             </div>
           )}
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-white/70 mb-1.5">
+            <label className="block text-sm font-medium text-muted-foreground mb-1.5">
               Title <span className="text-rose-400">*</span>
             </label>
             <input
@@ -390,30 +390,30 @@ function SessionModal({
               value={form.title}
               onChange={e => set('title', e.target.value)}
               placeholder="e.g. Introduction to Python — Week 3"
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500"
+              className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-white/70 mb-1.5">Description</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1.5">Description</label>
             <textarea
               value={form.description}
               onChange={e => set('description', e.target.value)}
               placeholder="Brief overview of what will be covered…"
               rows={3}
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500 resize-none"
+              className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 resize-none"
             />
           </div>
 
           {/* Platform + Join URL */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1.5">Platform</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Platform</label>
               <select
                 value={form.platform}
                 onChange={e => set('platform', e.target.value as LiveSession['platform'])}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 appearance-none"
+                className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 appearance-none"
               >
                 <option value="zoom">Zoom</option>
                 <option value="google_meet">Google Meet</option>
@@ -423,13 +423,13 @@ function SessionModal({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1.5">Join URL</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Join URL</label>
               <input
                 type="url"
                 value={form.session_url}
                 onChange={e => set('session_url', e.target.value)}
                 placeholder="https://zoom.us/j/..."
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500"
+                className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500"
               />
             </div>
           </div>
@@ -437,36 +437,36 @@ function SessionModal({
           {/* Date + Time + Duration */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1.5">
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">
                 Date <span className="text-rose-400">*</span>
               </label>
               <input
                 type="date"
                 value={form.scheduled_date}
                 onChange={e => set('scheduled_date', e.target.value)}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 [color-scheme:dark]"
+                className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 [color-scheme:dark]"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1.5">
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">
                 Time <span className="text-rose-400">*</span>
               </label>
               <input
                 type="time"
                 value={form.scheduled_time}
                 onChange={e => set('scheduled_time', e.target.value)}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 [color-scheme:dark]"
+                className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 [color-scheme:dark]"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1.5">Duration (min)</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Duration (min)</label>
               <input
                 type="number"
                 min={5}
                 max={480}
                 value={form.duration_minutes}
                 onChange={e => set('duration_minutes', Number(e.target.value))}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500"
+                className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500"
               />
             </div>
           </div>
@@ -475,11 +475,11 @@ function SessionModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {isAdmin && (
               <div>
-                <label className="block text-sm font-medium text-white/70 mb-1.5">School (optional)</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-1.5">School (optional)</label>
                 <select
                   value={form.school_id}
                   onChange={e => set('school_id', e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 appearance-none"
+                  className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 appearance-none"
                 >
                   <option value="">All schools (global)</option>
                   {schools.map(s => (
@@ -489,11 +489,11 @@ function SessionModal({
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1.5">Program (optional)</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Program (optional)</label>
               <select
                 value={form.program_id}
                 onChange={e => set('program_id', e.target.value)}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 appearance-none"
+                className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 appearance-none"
               >
                 <option value="">No specific program</option>
                 {programs.map(p => (
@@ -506,11 +506,11 @@ function SessionModal({
           {/* Status — edit only */}
           {isEdit && (
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-1.5">Status</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-1.5">Status</label>
               <select
                 value={form.status}
                 onChange={e => set('status', e.target.value as LiveSession['status'])}
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 appearance-none"
+                className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 appearance-none"
               >
                 <option value="scheduled">Scheduled</option>
                 <option value="live">Live</option>
@@ -522,45 +522,45 @@ function SessionModal({
 
           {/* Recording URL */}
           <div>
-            <label className="block text-sm font-medium text-white/70 mb-1.5">Recording URL (optional)</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1.5">Recording URL (optional)</label>
             <input
               type="url"
               value={form.recording_url}
               onChange={e => set('recording_url', e.target.value)}
               placeholder="https://drive.google.com/..."
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500"
+              className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500"
             />
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-white/70 mb-1.5">Notes (optional)</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1.5">Notes (optional)</label>
             <textarea
               value={form.notes}
               onChange={e => set('notes', e.target.value)}
               placeholder="Pre-session preparation, materials, links…"
               rows={3}
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500 resize-none"
+              className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 resize-none"
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10 flex-shrink-0">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border flex-shrink-0">
           <button
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50"
+            className="px-4 py-2 rounded-none text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={() => onSave(form)}
             disabled={saving || !form.title.trim() || !form.scheduled_date || !form.scheduled_time}
-            className="px-5 py-2 rounded-xl text-sm font-semibold bg-violet-600 hover:bg-violet-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-5 py-2 rounded-none text-sm font-semibold bg-orange-600 hover:bg-orange-500 text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {saving ? (
-              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" />
             ) : (
               <PlusIcon className="w-4 h-4" />
             )}
@@ -592,17 +592,17 @@ function EmptyState({ tab, canManage, onAdd }: { tab: FilterTab; canManage: bool
   const { title, sub } = messages[tab];
   return (
     <div className="flex flex-col items-center justify-center py-20 gap-4">
-      <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-        <CalendarIcon className="w-8 h-8 text-white/20" />
+      <div className="w-16 h-16 rounded-none bg-card shadow-sm border border-border flex items-center justify-center">
+        <CalendarIcon className="w-8 h-8 text-muted-foreground" />
       </div>
       <div className="text-center">
-        <p className="text-white/60 font-semibold">{title}</p>
-        <p className="text-white/30 text-sm mt-1">{sub}</p>
+        <p className="text-muted-foreground font-semibold">{title}</p>
+        <p className="text-muted-foreground text-sm mt-1">{sub}</p>
       </div>
       {canManage && (
         <button
           onClick={onAdd}
-          className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition-colors"
+          className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-none bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-semibold transition-colors"
         >
           <PlusIcon className="w-4 h-4" />
           Schedule Session
@@ -812,7 +812,7 @@ export default function LiveSessionsPage() {
   if (authLoading || loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -832,19 +832,19 @@ export default function LiveSessionsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center">
-                <VideoCameraIcon className="w-5 h-5 text-violet-400" />
+              <div className="w-10 h-10 rounded-none bg-orange-500/15 border border-orange-500/25 flex items-center justify-center">
+                <VideoCameraIcon className="w-5 h-5 text-orange-400" />
               </div>
-              <h1 className="text-2xl font-bold text-white">Live Sessions</h1>
+              <h1 className="text-2xl font-bold text-foreground">Live Sessions</h1>
             </div>
-            <p className="text-white/40 text-sm ml-[52px]">
+            <p className="text-muted-foreground text-sm ml-[52px]">
               {canManage
                 ? 'Schedule and manage live video sessions for your students.'
                 : 'Join live sessions and watch recordings from your instructors.'}
@@ -853,7 +853,7 @@ export default function LiveSessionsPage() {
           {canManage && (
             <button
               onClick={openCreate}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition-colors flex-shrink-0"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-none bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-semibold transition-colors flex-shrink-0"
             >
               <PlusIcon className="w-4 h-4" />
               Schedule Session
@@ -863,21 +863,21 @@ export default function LiveSessionsPage() {
 
         {/* Error */}
         {error && (
-          <div className="px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
+          <div className="px-4 py-3 rounded-none bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
             {error}
           </div>
         )}
 
         {/* Filter Tabs */}
-        <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1 w-fit">
+        <div className="flex items-center gap-1 bg-card shadow-sm border border-border rounded-none p-1 w-fit">
           {TABS.map(t => (
             <button
               key={t.key}
               onClick={() => setFilter(t.key)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              className={`px-4 py-1.5 rounded-none text-sm font-medium transition-colors flex items-center gap-2 ${
                 filter === t.key
-                  ? 'bg-violet-600 text-white shadow-sm'
-                  : 'text-white/50 hover:text-white/80'
+                  ? 'bg-orange-600 text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-muted-foreground'
               }`}
             >
               {t.label}
@@ -885,8 +885,8 @@ export default function LiveSessionsPage() {
                 <span
                   className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
                     filter === t.key
-                      ? 'bg-white/20 text-white'
-                      : 'bg-white/10 text-white/50'
+                      ? 'bg-muted text-foreground'
+                      : 'bg-muted text-muted-foreground'
                   }`}
                 >
                   {t.count}
@@ -898,7 +898,7 @@ export default function LiveSessionsPage() {
 
         {/* Live banner */}
         {filter !== 'past' && sessions.some(s => s.status === 'live') && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-none bg-emerald-500/10 border border-emerald-500/20">
             <span className="relative flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-400" />

@@ -29,9 +29,20 @@ function LoginContent() {
   useEffect(() => {
     const type = searchParams?.get("type");
     if (type === "admin" || type === "teacher" || type === "student" || type === "school") setSelectedRole(type);
+
     if (searchParams?.get("clear") === "1") {
-      supabase.auth.signOut().then(() => router.replace('/login'));
+      // Full sign-out + hard reload so auth cookies are completely flushed
+      supabase.auth.signOut().then(() => {
+        window.location.replace('/login');
+      });
+      // Reset form state immediately so old values don't flash
+      setEmail("");
+      setPassword("");
+      setSelectedRole(null);
+      setError(null);
+      return;
     }
+
     if (envMissing) {
       setError("Missing configuration signal.");
     }
@@ -97,18 +108,12 @@ function LoginContent() {
         <div className="w-full lg:w-1/2 flex flex-col text-center lg:text-left">
           <div className="flex flex-col items-center lg:items-start mb-12">
             <Link href="/" className="inline-flex items-center gap-4 mb-10 group">
-              <div className="w-20 h-20 bg-orange-500 flex items-center justify-center rounded-none shadow-xl shadow-orange-500/20 group-hover:scale-105 transition-transform">
-                <Image
-                  src="/images/logo.png"
-                  alt="Rillcod"
-                  width={64}
-                  height={64}
-                  className="object-contain mix-blend-multiply"
-                />
+              <div className="w-20 h-20 bg-white/5 border border-border flex items-center justify-center rounded-none shadow-none group-hover:scale-105 transition-transform ring-1 ring-white/20 ring-offset-2 ring-offset-[#121212]">
+                <Image src="/images/logo.png" alt="Rillcod" width={56} height={56} className="object-contain" />
               </div>
-              <div className="text-left">
-                <span className="text-2xl font-black uppercase tracking-tight block leading-none italic text-white">RILLCOD<span className="text-orange-500 not-italic">.</span></span>
-                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em] leading-none mt-1.5 whitespace-nowrap">STEM Excellence</p>
+              <div className="text-left leading-none">
+                <span className="text-2xl font-black uppercase tracking-tight block leading-tight italic text-white">RILLCOD<span className="text-orange-500 not-italic">.</span></span>
+                <span className="text-2xl font-black uppercase tracking-tight block leading-tight italic text-orange-500">TECHNOLOGIES</span>
               </div>
             </Link>
 

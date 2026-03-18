@@ -32,7 +32,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div className="flex-1 bg-[#050a17]" />}>
+    <Suspense fallback={<div className="flex-1 bg-background" />}>
       <ShellInner>{children}</ShellInner>
     </Suspense>
   );

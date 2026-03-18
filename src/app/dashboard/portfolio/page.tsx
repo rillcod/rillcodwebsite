@@ -37,7 +37,7 @@ type FormData = {
 
 const CATEGORIES = ['All', 'Coding', 'Robotics', 'Web Design', 'AI/ML', 'IoT', 'Game Dev', 'Art'];
 const CAT_COLORS: Record<string, string> = {
-  Coding: 'bg-violet-500/20 text-violet-400',
+  Coding: 'bg-orange-500/20 text-orange-400',
   Robotics: 'bg-orange-500/20 text-orange-400',
   'Web Design': 'bg-blue-500/20 text-blue-400',
   'AI/ML': 'bg-emerald-500/20 text-emerald-400',
@@ -126,33 +126,33 @@ function DrawingCanvas() {
   }, []);
 
   return (
-    <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-wrap gap-2">
+    <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <PaintBrushIcon className="w-4 h-4 text-pink-400" />
-          <span className="text-white font-bold text-sm">Creative Canvas</span>
+          <span className="text-foreground font-bold text-sm">Creative Canvas</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex gap-1">
             {PALETTE.map(c => (
               <button key={c} onClick={() => { setColor(c); setTool('pen'); }}
-                className={`w-5 h-5 rounded-full border-2 transition-all ${color === c && tool === 'pen' ? 'border-white scale-125' : 'border-transparent'}`}
+                className={`w-5 h-5 rounded-full border-2 transition-all ${color === c && tool === 'pen' ? 'border-border scale-125' : 'border-transparent'}`}
                 style={{ background: c }} />
             ))}
           </div>
           <div className="flex gap-1 items-center">
             {BRUSHES.map(b => (
               <button key={b} onClick={() => setBrush(b)}
-                className={`rounded-full bg-white transition-all ${brush === b ? 'opacity-100 ring-2 ring-violet-400' : 'opacity-30'}`}
+                className={`rounded-full bg-white transition-all ${brush === b ? 'opacity-100 ring-2 ring-orange-400' : 'opacity-30'}`}
                 style={{ width: b + 4, height: b + 4 }} />
             ))}
           </div>
           <button onClick={() => setTool(tool === 'eraser' ? 'pen' : 'eraser')}
-            className={`px-2 py-1 rounded-lg text-xs font-bold transition-colors ${tool === 'eraser' ? 'bg-rose-500/30 text-rose-400' : 'bg-white/5 text-white/40 hover:text-white'}`}>
+            className={`px-2 py-1 rounded-none text-xs font-bold transition-colors ${tool === 'eraser' ? 'bg-rose-500/30 text-rose-400' : 'bg-card shadow-sm text-muted-foreground hover:text-foreground'}`}>
             Eraser
           </button>
-          <button onClick={clearCanvas} className="px-2 py-1 rounded-lg text-xs text-white/30 hover:text-white bg-white/5 transition-colors">Clear</button>
-          <button onClick={downloadCanvas} className="p-1.5 text-white/30 hover:text-emerald-400 transition-colors" title="Download artwork">
+          <button onClick={clearCanvas} className="px-2 py-1 rounded-none text-xs text-muted-foreground hover:text-foreground bg-card shadow-sm transition-colors">Clear</button>
+          <button onClick={downloadCanvas} className="p-1.5 text-muted-foreground hover:text-emerald-400 transition-colors" title="Download artwork">
             <ArrowDownTrayIcon className="w-4 h-4" />
           </button>
         </div>
@@ -171,8 +171,8 @@ function DrawingCanvas() {
         onTouchMove={draw}
         onTouchEnd={stopDraw}
       />
-      <div className="px-4 py-2 border-t border-white/5">
-        <p className="text-white/20 text-[10px]">Draw your ideas, sketches, and robot designs here! 🤖</p>
+      <div className="px-4 py-2 border-t border-border">
+        <p className="text-muted-foreground text-[10px]">Draw your ideas, sketches, and robot designs here! 🤖</p>
       </div>
     </div>
   );
@@ -209,12 +209,12 @@ function ImageUpload({ value, onChange, userId }: {
 
   return (
     <div className="space-y-2">
-      <label className="text-xs font-bold text-white/40 uppercase tracking-widest">Project Image</label>
+      <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Project Image</label>
       {value && (
-        <div className="relative w-full h-32 rounded-xl overflow-hidden border border-white/10 bg-white/5">
+        <div className="relative w-full h-32 rounded-none overflow-hidden border border-border bg-card shadow-sm">
           <img src={value} alt="preview" className="w-full h-full object-cover" />
           <button onClick={() => onChange('')}
-            className="absolute top-2 right-2 p-1 bg-black/60 rounded-lg text-white/60 hover:text-white">
+            className="absolute top-2 right-2 p-1 bg-black/60 rounded-none text-muted-foreground hover:text-foreground">
             <XMarkIcon className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -225,13 +225,13 @@ function ImageUpload({ value, onChange, userId }: {
           placeholder="Paste image URL…"
           value={value}
           onChange={e => onChange(e.target.value)}
-          className="flex-1 bg-white/5 border border-white/10 text-white px-3 py-2 rounded-xl placeholder:text-white/30 focus:outline-none focus:border-violet-500 text-xs"
+          className="flex-1 bg-card shadow-sm border border-border text-foreground px-3 py-2 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 text-xs"
         />
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white/60 hover:text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-40"
+          className="flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm hover:bg-muted border border-border text-muted-foreground hover:text-foreground rounded-none text-xs font-bold transition-colors disabled:opacity-40"
         >
           <PhotoIcon className="w-3.5 h-3.5" />
           {uploading ? 'Uploading…' : 'Upload'}
@@ -278,81 +278,81 @@ function ProjectFormModal({ editing, userId, onSave, onClose, saving }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#0d1526] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
-        <div className="flex items-center justify-between p-5 border-b border-white/10">
-          <h2 className="text-white font-black">{editing ? 'Edit Project' : 'Add Project'}</h2>
-          <button onClick={onClose} className="text-white/30 hover:text-white transition-colors">
+      <div className="bg-[#0d1526] border border-border rounded-none w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h2 className="text-foreground font-black">{editing ? 'Edit Project' : 'Add Project'}</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
         <div className="p-5 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-white/40 uppercase tracking-widest">Title *</label>
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Title *</label>
             <input
               placeholder="e.g. Line-following Robot"
               value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              className="w-full bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl placeholder:text-white/30 focus:outline-none focus:border-violet-500 text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 text-sm"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-white/40 uppercase tracking-widest">Description</label>
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Description</label>
             <textarea
               placeholder="What did you build? What does it do?"
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               rows={3}
-              className="w-full bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl placeholder:text-white/30 focus:outline-none focus:border-violet-500 text-sm resize-none"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 text-sm resize-none"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-white/40 uppercase tracking-widest">Category</label>
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Category</label>
             <select
               value={form.category}
               onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl focus:outline-none focus:border-violet-500 text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none focus:outline-none focus:border-orange-500 text-sm"
             >
               {CATEGORIES.slice(1).map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-white/40 uppercase tracking-widest">Tags (comma separated)</label>
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Tags (comma separated)</label>
             <input
               placeholder="python, arduino, sensor"
               value={form.tags}
               onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
-              className="w-full bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl placeholder:text-white/30 focus:outline-none focus:border-violet-500 text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 text-sm"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-white/40 uppercase tracking-widest">Project URL</label>
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Project URL</label>
             <input
               placeholder="https://github.com/… or demo link"
               value={form.project_url}
               onChange={e => setForm(f => ({ ...f, project_url: e.target.value }))}
-              className="w-full bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl placeholder:text-white/30 focus:outline-none focus:border-violet-500 text-sm"
+              className="w-full bg-card shadow-sm border border-border text-foreground px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 text-sm"
             />
           </div>
 
           <ImageUpload value={form.image_url} onChange={url => setForm(f => ({ ...f, image_url: url }))} userId={userId} />
         </div>
 
-        <div className="flex gap-3 p-5 border-t border-white/10">
+        <div className="flex gap-3 p-5 border-t border-border">
           <button
             onClick={onClose}
             disabled={saving}
-            className="flex-1 py-2.5 bg-white/5 text-white/60 font-bold rounded-xl hover:bg-white/10 transition-colors text-sm disabled:opacity-40"
+            className="flex-1 py-2.5 bg-card shadow-sm text-muted-foreground font-bold rounded-none hover:bg-muted transition-colors text-sm disabled:opacity-40"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={!form.title.trim() || saving}
-            className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-bold rounded-xl transition-colors text-sm"
+            className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-foreground font-bold rounded-none transition-colors text-sm"
           >
             {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Project'}
           </button>
@@ -371,11 +371,11 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
   saving: boolean;
   readonly?: boolean;
 }) {
-  const catColor = CAT_COLORS[project.category] ?? 'bg-white/10 text-white/40';
+  const catColor = CAT_COLORS[project.category] ?? 'bg-muted text-muted-foreground';
   const date = new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
-    <div className={`bg-[#0d1526] border rounded-2xl overflow-hidden transition-all group ${project.is_featured ? 'border-amber-500/40 shadow-lg shadow-amber-900/10' : 'border-white/10 hover:border-white/20'}`}>
+    <div className={`bg-[#0d1526] border rounded-none overflow-hidden transition-all group ${project.is_featured ? 'border-amber-500/40 shadow-lg shadow-amber-900/10' : 'border-border hover:border-border'}`}>
       {/* Thumbnail */}
       <div className="h-40 bg-gradient-to-br from-[#1a2b54] to-[#0d1526] flex items-center justify-center relative overflow-hidden">
         {project.image_url
@@ -397,7 +397,7 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
                 onClick={onToggleFeatured}
                 disabled={saving}
                 title={project.is_featured ? 'Unpin' : 'Pin as featured'}
-                className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${project.is_featured ? 'bg-amber-500/80 text-black hover:bg-amber-400' : 'bg-black/60 text-white/60 hover:text-amber-400'}`}
+                className={`p-1.5 rounded-none transition-colors disabled:opacity-40 ${project.is_featured ? 'bg-amber-500/80 text-black hover:bg-amber-400' : 'bg-black/60 text-muted-foreground hover:text-amber-400'}`}
               >
                 {project.is_featured ? <StarSolid className="w-3.5 h-3.5" /> : <StarIcon className="w-3.5 h-3.5" />}
               </button>
@@ -406,7 +406,7 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
               <button
                 onClick={onEdit}
                 disabled={saving}
-                className="p-1.5 bg-black/60 rounded-lg text-white/60 hover:text-white transition-colors disabled:opacity-40"
+                className="p-1.5 bg-black/60 rounded-none text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
               >
                 <PencilIcon className="w-3.5 h-3.5" />
               </button>
@@ -415,7 +415,7 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
               <button
                 onClick={onDelete}
                 disabled={saving}
-                className="p-1.5 bg-rose-500/80 rounded-lg text-white hover:bg-rose-500 transition-colors disabled:opacity-40"
+                className="p-1.5 bg-rose-500/80 rounded-none text-foreground hover:bg-rose-500 transition-colors disabled:opacity-40"
               >
                 <TrashIcon className="w-3.5 h-3.5" />
               </button>
@@ -429,15 +429,15 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${catColor}`}>{project.category}</span>
           {project.tags.slice(0, 3).map(t => (
-            <span key={t} className="text-[10px] text-white/30 bg-white/5 px-1.5 py-0.5 rounded-full">{t}</span>
+            <span key={t} className="text-[10px] text-muted-foreground bg-card shadow-sm px-1.5 py-0.5 rounded-full">{t}</span>
           ))}
         </div>
-        <h3 className="text-white font-bold text-sm leading-snug">{project.title}</h3>
+        <h3 className="text-foreground font-bold text-sm leading-snug">{project.title}</h3>
         {project.description && (
-          <p className="text-white/40 text-xs mt-1 line-clamp-2">{project.description}</p>
+          <p className="text-muted-foreground text-xs mt-1 line-clamp-2">{project.description}</p>
         )}
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
-          <span className="flex items-center gap-1 text-white/20 text-[10px]">
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+          <span className="flex items-center gap-1 text-muted-foreground text-[10px]">
             <CalendarIcon className="w-3 h-3" /> {date}
           </span>
           {project.project_url && (
@@ -445,7 +445,7 @@ function ProjectCard({ project, onEdit, onDelete, onToggleFeatured, saving, read
               href={project.project_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-violet-400 text-xs hover:text-violet-300 transition-colors"
+              className="flex items-center gap-1 text-orange-400 text-xs hover:text-orange-500 transition-colors"
             >
               <LinkIcon className="w-3.5 h-3.5" /> View
             </a>
@@ -510,27 +510,27 @@ function StaffPortfolioView() {
     <div className="space-y-6">
       {/* Search */}
       <div className="relative max-w-md">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
           type="text"
           placeholder="Search students by name…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500"
+          className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500"
         />
         {/* Dropdown results */}
         {(students.length > 0 || loading) && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-[#0d1526] border border-white/10 rounded-xl shadow-xl z-20 overflow-hidden">
-            {loading && <p className="text-white/40 text-sm px-4 py-3">Searching…</p>}
+          <div className="absolute top-full left-0 right-0 mt-1 bg-[#0d1526] border border-border rounded-none shadow-xl z-20 overflow-hidden">
+            {loading && <p className="text-muted-foreground text-sm px-4 py-3">Searching…</p>}
             {students.map(s => (
               <button key={s.id} onClick={() => selectStudent(s)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left">
-                <div className="w-8 h-8 rounded-full bg-violet-600/30 flex items-center justify-center text-xs font-black text-violet-400 flex-shrink-0">
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-card shadow-sm transition-colors text-left">
+                <div className="w-8 h-8 rounded-full bg-orange-600/30 flex items-center justify-center text-xs font-black text-orange-400 flex-shrink-0">
                   {(s.full_name ?? '?')[0]}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">{s.full_name}</p>
-                  <p className="text-xs text-white/30">{s.school_name ?? s.email}</p>
+                  <p className="text-sm font-semibold text-foreground">{s.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{s.school_name ?? s.email}</p>
                 </div>
               </button>
             ))}
@@ -542,31 +542,31 @@ function StaffPortfolioView() {
       {selectedStudent && (
         <div>
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-sm font-black text-white">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-foreground">
               {(selectedStudent.full_name ?? '?')[0]}
             </div>
             <div>
-              <p className="text-white font-bold">{selectedStudent.full_name}</p>
-              <p className="text-white/40 text-xs">{selectedStudent.school_name ?? selectedStudent.email}</p>
+              <p className="text-foreground font-bold">{selectedStudent.full_name}</p>
+              <p className="text-muted-foreground text-xs">{selectedStudent.school_name ?? selectedStudent.email}</p>
             </div>
             <button onClick={() => { setSelectedStudent(null); setStudentProjects([]); }}
-              className="ml-auto text-white/30 hover:text-white text-xs underline">
+              className="ml-auto text-muted-foreground hover:text-foreground text-xs underline">
               Clear
             </button>
           </div>
 
           {projectsLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : studentProjects.length === 0 ? (
-            <div className="text-center py-14 bg-white/5 border border-white/10 rounded-2xl">
-              <RocketLaunchIcon className="w-12 h-12 mx-auto text-white/10 mb-3" />
-              <p className="text-white/30 text-sm">{selectedStudent.full_name} hasn't added any projects yet.</p>
+            <div className="text-center py-14 bg-card shadow-sm border border-border rounded-none">
+              <RocketLaunchIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <p className="text-muted-foreground text-sm">{selectedStudent.full_name} hasn't added any projects yet.</p>
             </div>
           ) : (
             <>
-              <p className="text-white/40 text-xs mb-4">{studentProjects.length} project{studentProjects.length !== 1 ? 's' : ''}</p>
+              <p className="text-muted-foreground text-xs mb-4">{studentProjects.length} project{studentProjects.length !== 1 ? 's' : ''}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {studentProjects.map(p => (
                   <ProjectCard key={p.id} project={p} saving={false} readonly />
@@ -578,9 +578,9 @@ function StaffPortfolioView() {
       )}
 
       {!selectedStudent && (
-        <div className="text-center py-16 bg-white/5 border border-white/10 rounded-2xl">
-          <UserGroupIcon className="w-14 h-14 mx-auto text-white/10 mb-3" />
-          <p className="text-white/30 text-sm">Search for a student above to view their portfolio</p>
+        <div className="text-center py-16 bg-card shadow-sm border border-border rounded-none">
+          <UserGroupIcon className="w-14 h-14 mx-auto text-muted-foreground mb-3" />
+          <p className="text-muted-foreground text-sm">Search for a student above to view their portfolio</p>
         </div>
       )}
     </div>
@@ -723,26 +723,26 @@ export default function PortfolioPage() {
   const featuredProjects = projects.filter(p => p.is_featured);
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-[#7a0606] border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <RocketLaunchIcon className="w-5 h-5 text-violet-400" />
-              <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Portfolio</span>
+              <RocketLaunchIcon className="w-5 h-5 text-orange-400" />
+              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Portfolio</span>
             </div>
             <h1 className="text-3xl font-extrabold">
               {isStaff && tab === 'browse' ? 'Student Portfolios' : 'My Portfolio'}
             </h1>
-            <p className="text-white/40 text-sm mt-1">
+            <p className="text-muted-foreground text-sm mt-1">
               {isStaff && tab === 'browse'
                 ? 'Browse and explore what your students have built'
                 : 'Showcase your projects, ideas, and creations'}
@@ -750,19 +750,19 @@ export default function PortfolioPage() {
           </div>
           <div className="flex items-center gap-2">
             {saveError && (
-              <span className="flex items-center gap-1.5 text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
+              <span className="flex items-center gap-1.5 text-amber-400 text-xs bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-none">
                 <ExclamationTriangleIcon className="w-3.5 h-3.5" /> {saveError}
               </span>
             )}
             {!saveError && tab === 'projects' && (
-              <span className="flex items-center gap-1.5 text-emerald-400 text-xs bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl">
+              <span className="flex items-center gap-1.5 text-emerald-400 text-xs bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-none">
                 <CloudArrowUpIcon className="w-3.5 h-3.5" /> Synced
               </span>
             )}
             {tab === 'projects' && (
               <button
                 onClick={() => { setEditing(null); setShowForm(true); }}
-                className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-violet-900/30"
+                className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-colors shadow-lg shadow-orange-900/30"
               >
                 <PlusIcon className="w-4 h-4" /> Add Project
               </button>
@@ -774,37 +774,37 @@ export default function PortfolioPage() {
         {tab !== 'browse' && (
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: 'Projects', value: projects.length, icon: CodeBracketIcon, color: 'text-violet-400' },
+              { label: 'Projects', value: projects.length, icon: CodeBracketIcon, color: 'text-orange-400' },
               { label: 'Featured', value: featuredProjects.length, icon: StarSolid, color: 'text-amber-400' },
               { label: 'Links Shared', value: projects.filter(p => p.project_url).length, icon: LinkIcon, color: 'text-emerald-400' },
             ].map(s => (
-              <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+              <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-4 text-center">
                 <s.icon className={`w-5 h-5 mx-auto mb-1.5 ${s.color}`} />
-                <p className="text-xl font-black text-white">{s.value}</p>
-                <p className="text-white/30 text-xs">{s.label}</p>
+                <p className="text-xl font-black text-foreground">{s.value}</p>
+                <p className="text-muted-foreground text-xs">{s.label}</p>
               </div>
             ))}
           </div>
         )}
 
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-white/10 pb-4 flex-wrap">
+        <div className="flex gap-2 border-b border-border pb-4 flex-wrap">
           <button onClick={() => setTab('projects')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'projects' ? 'bg-[#7a0606] text-white' : 'text-white/40 hover:text-white'}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold transition-all ${tab === 'projects' ? 'bg-[#7a0606] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
             <CodeBracketIcon className="w-4 h-4" /> My Projects
           </button>
           {isStaff && (
             <button onClick={() => setTab('browse')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'browse' ? 'bg-[#7a0606] text-white' : 'text-white/40 hover:text-white'}`}>
+              className={`flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold transition-all ${tab === 'browse' ? 'bg-[#7a0606] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <UserGroupIcon className="w-4 h-4" /> Student Portfolios
             </button>
           )}
           <button onClick={() => setTab('canvas')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'canvas' ? 'bg-[#7a0606] text-white' : 'text-white/40 hover:text-white'}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold transition-all ${tab === 'canvas' ? 'bg-[#7a0606] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
             <PaintBrushIcon className="w-4 h-4" /> Canvas
           </button>
           <Link href="/dashboard/playground"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white/40 hover:text-white transition-colors">
+            className="flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
             <CodeBracketIcon className="w-4 h-4" /> Code Playground →
           </Link>
         </div>
@@ -835,8 +835,8 @@ export default function PortfolioPage() {
                     />
                   ))}
                 </div>
-                <div className="mt-6 border-t border-white/10 pt-6">
-                  <h2 className="text-sm font-bold text-white/40 uppercase tracking-widest mb-3">All Projects</h2>
+                <div className="mt-6 border-t border-border pt-6">
+                  <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">All Projects</h2>
                 </div>
               </div>
             )}
@@ -845,7 +845,7 @@ export default function PortfolioPage() {
             <div className="flex gap-2 flex-wrap">
               {CATEGORIES.map(c => (
                 <button key={c} onClick={() => setCatFilter(c)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition-all ${catFilter === c ? 'bg-[#7a0606] text-white' : 'bg-white/5 text-white/40 hover:text-white'}`}>
+                  className={`px-3 py-1.5 rounded-none text-xs font-bold uppercase transition-all ${catFilter === c ? 'bg-[#7a0606] text-foreground' : 'bg-card shadow-sm text-muted-foreground hover:text-foreground'}`}>
                   {c} {c !== 'All' && projects.filter(p => p.category === c).length > 0 && (
                     <span className="ml-1 opacity-60">{projects.filter(p => p.category === c).length}</span>
                   )}
@@ -868,22 +868,22 @@ export default function PortfolioPage() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-16 bg-white/5 border border-white/10 rounded-2xl">
-                <RocketLaunchIcon className="w-16 h-16 mx-auto text-white/10 mb-4" />
+              <div className="text-center py-16 bg-card shadow-sm border border-border rounded-none">
+                <RocketLaunchIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                 {projects.length === 0 ? (
                   <>
-                    <h3 className="text-white font-bold mb-2">No projects yet!</h3>
-                    <p className="text-white/30 text-sm mb-6">
+                    <h3 className="text-foreground font-bold mb-2">No projects yet!</h3>
+                    <p className="text-muted-foreground text-sm mb-6">
                       Start building something cool and add it here.<br />
                       Every great coder started with project #1 🚀
                     </p>
                     <button onClick={() => { setEditing(null); setShowForm(true); }}
-                      className="px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl transition-colors">
+                      className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-foreground font-bold rounded-none transition-colors">
                       Add My First Project
                     </button>
                   </>
                 ) : (
-                  <p className="text-white/30 text-sm">No projects in this category.</p>
+                  <p className="text-muted-foreground text-sm">No projects in this category.</p>
                 )}
               </div>
             )}
@@ -900,11 +900,11 @@ export default function PortfolioPage() {
                   { emoji: '📊', title: 'Data Dashboard', desc: 'Visualize data with charts' },
                 ].map(idea => (
                   <div key={idea.title}
-                    className="bg-white/3 border border-white/5 rounded-xl p-4 cursor-pointer hover:border-violet-500/30 hover:bg-violet-500/5 transition-all"
+                    className="bg-white/3 border border-border rounded-none p-4 cursor-pointer hover:border-orange-500/30 hover:bg-orange-500/5 transition-all"
                     onClick={() => { setEditing(null); setShowForm(true); }}>
                     <div className="text-2xl mb-2">{idea.emoji}</div>
-                    <p className="text-white text-xs font-bold">{idea.title}</p>
-                    <p className="text-white/30 text-[10px] mt-1">{idea.desc}</p>
+                    <p className="text-foreground text-xs font-bold">{idea.title}</p>
+                    <p className="text-muted-foreground text-[10px] mt-1">{idea.desc}</p>
                   </div>
                 ))}
               </div>

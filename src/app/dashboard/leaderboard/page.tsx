@@ -26,7 +26,7 @@ const LEVELS = [
   { min: 0, max: 99, label: 'Beginner', emoji: '🌱', color: 'text-green-400 bg-green-400/10' },
   { min: 100, max: 299, label: 'Explorer', emoji: '🔍', color: 'text-blue-400 bg-blue-400/10' },
   { min: 300, max: 599, label: 'Builder', emoji: '🔨', color: 'text-yellow-400 bg-yellow-400/10' },
-  { min: 600, max: 999, label: 'Coder', emoji: '💻', color: 'text-violet-400 bg-violet-400/10' },
+  { min: 600, max: 999, label: 'Coder', emoji: '💻', color: 'text-orange-400 bg-orange-400/10' },
   { min: 1000, max: 1999, label: 'Innovator', emoji: '🚀', color: 'text-orange-400 bg-orange-400/10' },
   { min: 2000, max: 9999, label: 'Champion', emoji: '🏆', color: 'text-rose-400 bg-rose-400/10' },
 ];
@@ -39,8 +39,8 @@ function XPBar({ xp, level }: { xp: number; level: typeof LEVELS[0] }) {
   const next = LEVELS.find(l => l.min > xp) ?? level;
   const pct = next.min === level.min ? 100 : Math.min(100, ((xp - level.min) / (next.min - level.min)) * 100);
   return (
-    <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
-      <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-pink-500 transition-all duration-700"
+    <div className="w-full bg-card shadow-sm rounded-full h-1.5 overflow-hidden">
+      <div className="h-full rounded-full bg-gradient-to-r from-orange-500 to-pink-500 transition-all duration-700"
         style={{ width: `${pct}%` }} />
     </div>
   );
@@ -140,37 +140,37 @@ export default function LeaderboardPage() {
   const myEntry = entries.find(e => e.id === profile?.id);
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-[#7a0606] border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] px-4 py-6 md:px-8">
+    <div className="min-h-screen bg-background px-4 py-6 md:px-8">
       {/* Header */}
       <div className="text-center mb-8">
         <div className="inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 px-4 py-2 rounded-full mb-4">
           <TrophyIcon className="w-4 h-4 text-yellow-400" />
           <span className="text-yellow-400 text-xs font-black uppercase tracking-widest">Leaderboard</span>
         </div>
-        <h1 className="text-3xl font-black text-white">Top Coders 🏆</h1>
-        <p className="text-white/40 text-sm mt-2">Earn XP by completing assignments, attending classes & acing your CBT exams!</p>
+        <h1 className="text-3xl font-black text-foreground">Top Coders 🏆</h1>
+        <p className="text-muted-foreground text-sm mt-2">Earn XP by completing assignments, attending classes & acing your CBT exams!</p>
       </div>
 
       {/* My Card (if student) */}
       {profile?.role === 'student' && myEntry && (
-        <div className="bg-gradient-to-r from-violet-600/20 to-pink-600/20 border border-violet-500/30 rounded-2xl p-5 mb-6 flex items-center gap-4 flex-wrap">
+        <div className="bg-gradient-to-r from-orange-600/20 to-pink-600/20 border border-orange-500/30 rounded-none p-5 mb-6 flex items-center gap-4 flex-wrap">
           <div className="text-3xl">{myEntry.badge}</div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <p className="text-white font-black">You</p>
-              {myRank && <span className="text-xs bg-white/10 text-white/60 px-2 py-0.5 rounded-full">Rank #{myRank}</span>}
+              <p className="text-foreground font-black">You</p>
+              {myRank && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Rank #{myRank}</span>}
               <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${getLevel(myEntry.xp).color}`}>
                 {getLevel(myEntry.xp).label}
               </span>
             </div>
             <XPBar xp={myEntry.xp} level={getLevel(myEntry.xp)} />
-            <p className="text-white/40 text-xs mt-1">{myEntry.xp} XP · {myEntry.submissions} submissions · {myEntry.attendance}% attendance</p>
+            <p className="text-muted-foreground text-xs mt-1">{myEntry.xp} XP · {myEntry.submissions} submissions · {myEntry.attendance}% attendance</p>
           </div>
           <div className="text-right">
             <p className="text-2xl font-black text-yellow-400">{myEntry.xp} XP</p>
@@ -185,7 +185,7 @@ export default function LeaderboardPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase transition-all ${filter === f ? 'bg-[#7a0606] text-white' : 'bg-white/5 text-white/40 hover:text-white'}`}
+              className={`px-4 py-1.5 rounded-none text-xs font-bold uppercase transition-all ${filter === f ? 'bg-[#7a0606] text-foreground' : 'bg-card shadow-sm text-muted-foreground hover:text-foreground'}`}
             >
               {f === 'all' ? '🌍 All Schools' : '🏫 My School'}
             </button>
@@ -204,13 +204,13 @@ export default function LeaderboardPage() {
             return (
               <div key={e.id} className="flex flex-col items-center gap-2">
                 <div className="text-2xl">{MEDAL[idx]}</div>
-                <div className="w-12 h-12 rounded-full bg-[#7a0606] flex items-center justify-center border-2 border-white/10">
-                  <span className="text-white font-black text-lg">{e.full_name.charAt(0)}</span>
+                <div className="w-12 h-12 rounded-full bg-[#7a0606] flex items-center justify-center border-2 border-border">
+                  <span className="text-foreground font-black text-lg">{e.full_name.charAt(0)}</span>
                 </div>
-                <p className="text-white text-xs font-bold truncate max-w-[80px] text-center">{e.full_name.split(' ')[0]}</p>
+                <p className="text-foreground text-xs font-bold truncate max-w-[80px] text-center">{e.full_name.split(' ')[0]}</p>
                 <p className="text-yellow-400 text-xs font-black">{e.xp} XP</p>
                 <div className={`w-20 ${heightMap[idx]} rounded-t-xl flex items-center justify-center ${idx === 0 ? 'bg-yellow-500/20' : idx === 1 ? 'bg-gray-400/10' : 'bg-orange-500/10'}`}>
-                  <span className="text-2xl font-black text-white/20">{idx + 1}</span>
+                  <span className="text-2xl font-black text-muted-foreground">{idx + 1}</span>
                 </div>
               </div>
             );
@@ -219,32 +219,32 @@ export default function LeaderboardPage() {
       )}
 
       {/* Full list */}
-      <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden">
-        <div className="p-5 border-b border-white/10">
-          <p className="text-white/40 text-xs font-bold uppercase tracking-widest">All Rankings · {filtered.length} students</p>
+      <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">
+        <div className="p-5 border-b border-border">
+          <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">All Rankings · {filtered.length} students</p>
         </div>
         <div className="divide-y divide-white/5">
           {filtered.map((e, i) => {
             const lvl = getLevel(e.xp);
             const isMe = e.id === profile?.id;
             return (
-              <div key={e.id} className={`flex items-center gap-4 px-5 py-3 transition-colors ${isMe ? 'bg-violet-500/10' : 'hover:bg-white/2'}`}>
+              <div key={e.id} className={`flex items-center gap-4 px-5 py-3 transition-colors ${isMe ? 'bg-orange-500/10' : 'hover:bg-muted'}`}>
                 {/* Rank */}
                 <div className="w-8 text-center flex-shrink-0">
                   {i < 3
                     ? <span className="text-lg">{MEDAL[i]}</span>
-                    : <span className="text-white/20 text-sm font-bold">#{i + 1}</span>}
+                    : <span className="text-muted-foreground text-sm font-bold">#{i + 1}</span>}
                 </div>
 
                 {/* Avatar */}
-                <div className="w-9 h-9 rounded-full bg-[#1a2b54] border border-white/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-sm font-black">{e.full_name.charAt(0)}</span>
+                <div className="w-9 h-9 rounded-full bg-[#1a2b54] border border-border flex items-center justify-center flex-shrink-0">
+                  <span className="text-foreground text-sm font-black">{e.full_name.charAt(0)}</span>
                 </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-white text-sm font-bold truncate">{e.full_name} {isMe && '(You)'}</p>
+                    <p className="text-foreground text-sm font-bold truncate">{e.full_name} {isMe && '(You)'}</p>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ${lvl.color}`}>
                       {lvl.emoji} {lvl.label}
                     </span>
@@ -253,7 +253,7 @@ export default function LeaderboardPage() {
                 </div>
 
                 {/* Stats */}
-                <div className="hidden sm:flex items-center gap-4 text-xs text-white/40 flex-shrink-0">
+                <div className="hidden sm:flex items-center gap-4 text-xs text-muted-foreground flex-shrink-0">
                   <span title="Submissions"><ClipboardDocumentCheckIcon className="w-3.5 h-3.5 inline mr-1" />{e.submissions}</span>
                   <span title="Avg Grade"><AcademicCapIcon className="w-3.5 h-3.5 inline mr-1" />{e.avgGrade.toFixed(0)}%</span>
                 </div>
@@ -261,23 +261,23 @@ export default function LeaderboardPage() {
                 {/* XP */}
                 <div className="text-right flex-shrink-0">
                   <p className="text-yellow-400 font-black text-sm">{e.xp}</p>
-                  <p className="text-white/20 text-[10px]">XP</p>
+                  <p className="text-muted-foreground text-[10px]">XP</p>
                 </div>
               </div>
             );
           })}
           {filtered.length === 0 && (
             <div className="text-center py-16">
-              <SparklesIcon className="w-12 h-12 mx-auto text-white/10 mb-3" />
-              <p className="text-white/30">No students yet. Be the first!</p>
+              <SparklesIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <p className="text-muted-foreground">No students yet. Be the first!</p>
             </div>
           )}
         </div>
       </div>
 
       {/* XP Guide */}
-      <div className="mt-6 bg-[#0d1526] border border-white/10 rounded-2xl p-5">
-        <h3 className="text-white/40 text-xs font-bold uppercase tracking-widest mb-4">How to Earn XP</h3>
+      <div className="mt-6 bg-[#0d1526] border border-border rounded-none p-5">
+        <h3 className="text-muted-foreground text-xs font-bold uppercase tracking-widest mb-4">How to Earn XP</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
             { icon: ClipboardDocumentCheckIcon, label: 'Submit Assignment', xp: '+10 XP' },
@@ -287,10 +287,10 @@ export default function LeaderboardPage() {
             { icon: StarIcon, label: 'Get graded work', xp: '+2× grade' },
             { icon: TrophyIcon, label: 'Complete a course', xp: '+100 XP' },
           ].map(item => (
-            <div key={item.label} className="flex items-center gap-2 bg-white/3 rounded-xl p-3">
-              <item.icon className="w-4 h-4 text-violet-400 flex-shrink-0" />
+            <div key={item.label} className="flex items-center gap-2 bg-white/3 rounded-none p-3">
+              <item.icon className="w-4 h-4 text-orange-400 flex-shrink-0" />
               <div>
-                <p className="text-white text-xs font-semibold leading-tight">{item.label}</p>
+                <p className="text-foreground text-xs font-semibold leading-tight">{item.label}</p>
                 <p className="text-yellow-400 text-[10px] font-bold">{item.xp}</p>
               </div>
             </div>
@@ -298,7 +298,7 @@ export default function LeaderboardPage() {
         </div>
 
         {/* Level badges */}
-        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/10">
+        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-border">
           {LEVELS.map(l => (
             <span key={l.label} className={`text-xs px-2 py-1 rounded-full font-bold ${l.color}`}>
               {l.emoji} {l.label} ({l.min}+ XP)

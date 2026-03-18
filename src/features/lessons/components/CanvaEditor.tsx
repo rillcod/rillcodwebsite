@@ -122,13 +122,13 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
 
             <div className="space-y-3">
                 {layout.length === 0 && (
-                    <div className="py-12 border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center text-white/20">
+                    <div className="py-12 border-2 border-dashed border-border rounded-3xl flex flex-col items-center justify-center text-white/20">
                         <PlusIcon className="w-8 h-8 mb-2" />
                         <p className="text-xs font-bold uppercase tracking-widest">No visual blocks yet — add one above</p>
                     </div>
                 )}
                 {layout.map((block, i) => (
-                    <div key={i} className="group bg-white/[0.02] border border-white/10 rounded-2xl p-3 sm:p-4 hover:border-cyan-500/30 transition-all">
+                    <div key={i} className="group bg-white/[0.02] border border-border rounded-2xl p-3 sm:p-4 hover:border-cyan-500/30 transition-all">
                         <div className="flex items-start gap-3">
                             <div className="flex-1 space-y-3">
                                 {/* Block header: type label + move up/down + delete */}
@@ -151,7 +151,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                         value={block.content}
                                         onChange={e => updateBlock(i, { content: e.target.value })}
                                         placeholder="Enter heading..."
-                                        className="w-full bg-transparent border-b border-white/10 py-1 text-lg font-bold focus:outline-none focus:border-cyan-500"
+                                        className="w-full bg-transparent border-b border-border py-1 text-lg font-bold focus:outline-none focus:border-cyan-500"
                                     />
                                 )}
 
@@ -161,7 +161,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                         value={block.content}
                                         onChange={e => updateBlock(i, { content: e.target.value })}
                                         placeholder="Enter text content..."
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none focus:border-cyan-500 resize-none"
+                                        className="w-full bg-white/5 border border-border rounded-xl p-3 text-sm focus:outline-none focus:border-cyan-500 resize-none"
                                     />
                                 )}
 
@@ -184,7 +184,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                             value={block.content}
                                             onChange={e => updateBlock(i, { content: e.target.value })}
                                             placeholder="Paste code here..."
-                                            className="w-full bg-[#050510] border border-white/5 rounded-xl p-4 text-xs font-mono text-cyan-400 focus:outline-none focus:border-cyan-500"
+                                            className="w-full bg-[#050510] border border-border rounded-xl p-4 text-xs font-mono text-cyan-400 focus:outline-none focus:border-cyan-500"
                                         />
                                     </div>
                                 )}
@@ -196,14 +196,14 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                             value={block.url}
                                             onChange={e => updateBlock(i, { url: e.target.value })}
                                             placeholder="Image URL..."
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                            className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs focus:outline-none"
                                         />
                                         <input
                                             type="text"
                                             value={block.caption}
                                             onChange={e => updateBlock(i, { caption: e.target.value })}
                                             placeholder="Caption (optional)..."
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs focus:outline-none"
+                                            className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs focus:outline-none"
                                         />
                                     </div>
                                 )}
@@ -223,7 +223,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                             value={block.content}
                                             onChange={e => updateBlock(i, { content: e.target.value })}
                                             placeholder="Callout content..."
-                                            className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none focus:border-cyan-500 resize-none"
+                                            className="flex-1 bg-white/5 border border-border rounded-xl p-3 text-sm focus:outline-none focus:border-cyan-500 resize-none"
                                         />
                                     </div>
                                 )}
@@ -235,14 +235,14 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                             value={block.title || ''}
                                             onChange={e => updateBlock(i, { title: e.target.value })}
                                             placeholder="Activity Title (e.g., Coding Challenge)..."
-                                            className="w-full bg-transparent border-b border-white/10 py-1 text-sm font-bold focus:outline-none focus:border-cyan-500"
+                                            className="w-full bg-transparent border-b border-border py-1 text-sm font-bold focus:outline-none focus:border-cyan-500"
                                         />
                                         <textarea
                                             rows={3}
                                             value={block.instructions || ''}
                                             onChange={e => updateBlock(i, { instructions: e.target.value })}
                                             placeholder="Step-by-step instructions for students..."
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs focus:outline-none focus:border-cyan-500 resize-none"
+                                            className="w-full bg-white/5 border border-border rounded-xl p-3 text-xs focus:outline-none focus:border-cyan-500 resize-none"
                                         />
                                     </div>
                                 )}
@@ -254,14 +254,14 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                             value={block.url || ''}
                                             onChange={e => updateBlock(i, { url: e.target.value })}
                                             placeholder="YouTube or Video URL..."
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                                            className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
                                         />
                                         <input
                                             type="text"
                                             value={block.caption || ''}
                                             onChange={e => updateBlock(i, { caption: e.target.value })}
                                             placeholder="Video caption (optional)..."
-                                            className="w-full bg-transparent border-b border-white/10 py-1 text-xs text-white/40 focus:outline-none focus:border-cyan-500"
+                                            className="w-full bg-transparent border-b border-border py-1 text-xs text-white/40 focus:outline-none focus:border-cyan-500"
                                         />
                                     </div>
                                 )}
@@ -273,14 +273,14 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                             value={block.url || ''}
                                             onChange={e => updateBlock(i, { url: e.target.value })}
                                             placeholder="Download Link (Google Drive, etc)..."
-                                            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                                            className="bg-white/5 border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
                                         />
                                         <input
                                             type="text"
                                             value={block.fileName || ''}
                                             onChange={e => updateBlock(i, { fileName: e.target.value })}
                                             placeholder="Display Name (e.g., Study Guide.pdf)..."
-                                            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
+                                            className="bg-white/5 border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500"
                                         />
                                     </div>
                                 )}
@@ -290,7 +290,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                             value={block.code || ''}
                                             onChange={(e) => updateBlock(i, { code: e.target.value })}
                                             placeholder="graph TD\nA[Start] --> B[End]"
-                                            className="w-full bg-[#1e1e2e] text-white p-4 rounded-xl border border-white/10 font-mono text-sm h-32 focus:outline-none focus:border-cyan-500"
+                                            className="w-full bg-[#1e1e2e] text-white p-4 rounded-xl border border-border font-mono text-sm h-32 focus:outline-none focus:border-cyan-500"
                                         />
                                         <p className="text-[10px] text-white/40 uppercase font-black">Mermaid Diagram Syntax</p>
                                     </div>
@@ -303,7 +303,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                             value={block.formula || ''}
                                             onChange={(e) => updateBlock(i, { formula: e.target.value })}
                                             placeholder="E = mc^2"
-                                            className="w-full bg-[#1e1e2e] text-white p-4 rounded-xl border border-white/10 font-serif text-lg focus:outline-none focus:border-cyan-500"
+                                            className="w-full bg-[#1e1e2e] text-white p-4 rounded-xl border border-border font-serif text-lg focus:outline-none focus:border-cyan-500"
                                         />
                                         <p className="text-[10px] text-white/40 uppercase font-black">LaTeX Formula Syntax</p>
                                     </div>
@@ -315,7 +315,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                             value={block.question || ''}
                                             onChange={e => updateBlock(i, { question: e.target.value })}
                                             placeholder="Quiz Question..."
-                                            className="w-full bg-transparent border-b border-white/10 py-1 text-sm font-bold focus:outline-none focus:border-cyan-500"
+                                            className="w-full bg-transparent border-b border-border py-1 text-sm font-bold focus:outline-none focus:border-cyan-500"
                                         />
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {(block.options || ['', '', '', '']).map((opt: string, optIdx: number) => (
@@ -336,7 +336,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                                             updateBlock(i, { options: newOpts });
                                                         }}
                                                         placeholder={`Option ${optIdx + 1}`}
-                                                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs focus:outline-none"
+                                                        className="flex-1 bg-white/5 border border-border rounded-lg px-3 py-1.5 text-xs focus:outline-none"
                                                     />
                                                 </div>
                                             ))}
@@ -354,7 +354,7 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
 
 function ToolbarButton({ onClick, icon: Icon, label }: any) {
     return (
-        <button type="button" onClick={onClick} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 hover:text-white transition-all text-[10px] font-bold uppercase tracking-widest">
+        <button type="button" onClick={onClick} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-border rounded-lg text-white/60 hover:text-white transition-all text-[10px] font-bold uppercase tracking-widest">
             <Icon className="w-3.5 h-3.5" />
             {label}
         </button>
@@ -363,7 +363,7 @@ function ToolbarButton({ onClick, icon: Icon, label }: any) {
 
 function ControlBtn({ onClick, icon: Icon, disabled }: any) {
     return (
-        <button type="button" onClick={onClick} disabled={disabled} className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-white/20 hover:text-white disabled:opacity-0 transition-all border border-white/5">
+        <button type="button" onClick={onClick} disabled={disabled} className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-white/20 hover:text-white disabled:opacity-0 transition-all border border-border">
             <Icon className="w-4 h-4" />
         </button>
     );

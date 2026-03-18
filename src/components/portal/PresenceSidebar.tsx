@@ -19,8 +19,8 @@ export function PresenceSidebar() {
         });
 
     return (
-        <div className="w-80 h-full bg-[#0a0a14]/50 backdrop-blur-xl border-l border-white/5 flex flex-col overflow-hidden hidden xl:flex">
-            <div className="p-6 border-b border-white/5 space-y-6">
+        <div className="w-80 h-full bg-[#0a0a14]/50 backdrop-blur-xl border-l border-border flex flex-col overflow-hidden hidden xl:flex">
+            <div className="p-6 border-b border-border space-y-6">
                 <div className="flex items-center justify-between">
                     <h3 className="text-[10px] font-black text-[#FF914D] uppercase tracking-[0.2em]">Active Learners</h3>
                     <div className="px-2 py-0.5 rounded-md bg-[#FF914D]/10 border border-[#FF914D]/20 text-[10px] text-[#FF914D] font-bold">
@@ -33,7 +33,7 @@ export function PresenceSidebar() {
                         placeholder="Search peers..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/5 rounded-2xl text-xs text-white placeholder-white/20 focus:outline-none focus:border-[#FF914D]/30 focus:bg-white/10 transition-all font-medium"
+                        className="w-full pl-11 pr-4 py-3 bg-white/5 border border-border rounded-2xl text-xs text-white placeholder-muted-foreground focus:outline-none focus:border-[#FF914D]/30 focus:bg-white/10 transition-all font-medium"
                     />
                 </div>
             </div>
@@ -43,10 +43,10 @@ export function PresenceSidebar() {
                     {sortedUsers.map((user) => (
                         <button
                             key={user.userId}
-                            className="w-full flex items-center gap-4 p-3 rounded-[1.25rem] hover:bg-white/5 transition-all duration-200 group text-left border border-transparent hover:border-white/5"
+                            className="w-full flex items-center gap-4 p-3 rounded-[1.25rem] hover:bg-white/5 transition-all duration-200 group text-left border border-transparent hover:border-border"
                         >
                             <div className="relative">
-                                <Avatar className="w-10 h-10 border border-white/10">
+                                <Avatar className="w-10 h-10 border border-border">
                                     <AvatarFallback className="bg-[#FF914D]/10 text-[#FF914D] text-xs font-black">
                                         {user.userName?.substring(0, 2).toUpperCase() || '??'}
                                     </AvatarFallback>

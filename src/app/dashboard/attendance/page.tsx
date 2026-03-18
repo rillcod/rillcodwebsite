@@ -22,7 +22,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 export default function AttendancePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     }>
@@ -370,7 +370,7 @@ function AttendanceContent() {
   };
 
   if (authLoading || profileLoading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
@@ -380,7 +380,7 @@ function AttendanceContent() {
     const present = myAttendance.filter(a => a.status === 'present').length;
     const rate = myAttendance.length ? Math.round((present / myAttendance.length) * 100) : 0;
     return (
-      <div className="min-h-screen bg-[#0f0f1a] text-white">
+      <div className="min-h-screen bg-background text-foreground">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -395,29 +395,29 @@ function AttendanceContent() {
               { label: 'Present', value: present, color: 'text-emerald-400' },
               { label: 'Attendance Rate', value: `${rate}%`, color: rate >= 75 ? 'text-emerald-400' : 'text-rose-400' },
             ].map(s => (
-              <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center">
+              <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5 text-center">
                 <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-                <p className="text-xs text-white/40 mt-1">{s.label}</p>
+                <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
               </div>
             ))}
           </div>
           {myAttendance.length === 0 ? (
-            <div className="text-center py-16 bg-white/5 border border-white/10 rounded-2xl">
-              <ClipboardDocumentCheckIcon className="w-12 h-12 mx-auto text-white/10 mb-3" />
-              <p className="text-white/30">No attendance records yet.</p>
+            <div className="text-center py-16 bg-card shadow-sm border border-border rounded-none">
+              <ClipboardDocumentCheckIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <p className="text-muted-foreground">No attendance records yet.</p>
             </div>
           ) : (
             <div className="space-y-3">
               {myAttendance.map((a: any) => {
                 const cfg = STATUS_CONFIG[a.status] ?? STATUS_CONFIG.present;
                 return (
-                  <div key={a.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between gap-4">
+                  <div key={a.id} className="bg-card shadow-sm border border-border rounded-none p-4 flex items-center justify-between gap-4">
                     <div>
-                      <p className="font-semibold text-white">{a.class_sessions?.topic || 'Session'}</p>
-                      <p className="text-xs text-white/40">
+                      <p className="font-semibold text-foreground">{a.class_sessions?.topic || 'Session'}</p>
+                      <p className="text-xs text-muted-foreground">
                         {a.class_sessions?.classes?.name} · {a.class_sessions?.session_date && new Date(a.class_sessions.session_date).toLocaleDateString()}
                       </p>
-                      {a.notes && <p className="text-xs text-white/30 mt-1">{a.notes}</p>}
+                      {a.notes && <p className="text-xs text-muted-foreground mt-1">{a.notes}</p>}
                     </div>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${cfg.color}`}>{cfg.label}</span>
                   </div>
@@ -434,14 +434,14 @@ function AttendanceContent() {
   const currentSession = sessions.find(s => s.id === selectedSession);
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {!isMinimal && (
           <div className="flex flex-col md:flex-row md:items-center gap-6">
             <button onClick={() => router.back()}
-              className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors flex-shrink-0">
-              <ArrowLeftIcon className="w-5 h-5 text-white/60" />
+              className="w-10 h-10 flex items-center justify-center rounded-none bg-card shadow-sm hover:bg-muted border border-border transition-colors flex-shrink-0">
+              <ArrowLeftIcon className="w-5 h-5 text-muted-foreground" />
             </button>
             <div className="flex-1">
               <div className="flex items-center justify-between gap-4 mb-1">
@@ -452,27 +452,27 @@ function AttendanceContent() {
                 {selectedClass && (
                   <button
                     onClick={() => router.push(`/dashboard/classes/${selectedClass}`)}
-                    className="text-xs font-black text-white/40 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-colors"
+                    className="text-xs font-black text-muted-foreground hover:text-foreground uppercase tracking-widest flex items-center gap-2 transition-colors"
                   >
                     <ArrowLeftIcon className="w-3 h-3" /> Return to Class
                   </button>
                 )}
               </div>
               <h1 className="text-3xl font-extrabold">{selectedClass ? 'Class Attendance' : 'Attendance Tracking'}</h1>
-              <p className="text-white/40 text-sm mt-1">Mark and review student attendance per session</p>
+              <p className="text-muted-foreground text-sm mt-1">Mark and review student attendance per session</p>
             </div>
           </div>
         )}
 
         {/* Tabs */}
         {selectedClass && (
-          <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl w-fit">
+          <div className="flex items-center gap-1 p-1 bg-card shadow-sm border border-border rounded-none w-fit">
             <button onClick={() => setActiveTab('mark')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${activeTab === 'mark' ? 'bg-teal-600 text-white shadow-lg shadow-teal-900/40' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-none transition-all ${activeTab === 'mark' ? 'bg-teal-600 text-foreground shadow-lg shadow-teal-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
               <ClipboardDocumentCheckIcon className="w-4 h-4" /> Mark Attendance
             </button>
             <button onClick={() => setActiveTab('log')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${activeTab === 'log' ? 'bg-teal-600 text-white shadow-lg shadow-teal-900/40' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-none transition-all ${activeTab === 'log' ? 'bg-teal-600 text-foreground shadow-lg shadow-teal-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
               <TableCellsIcon className="w-4 h-4" /> Attendance Log
             </button>
           </div>
@@ -482,25 +482,25 @@ function AttendanceContent() {
         {activeTab === 'mark' && (
           <>
             {/* Selectors */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
+            <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Select Class</label>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Select Class</label>
                   <div className="relative">
                     <select value={selectedClass} onChange={e => { setSelectedClass(e.target.value); setSelectedSession(''); }}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-teal-500 cursor-pointer appearance-none">
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-teal-500 cursor-pointer appearance-none">
                       <option value="">Choose a class…</option>
                       {classes.map(c => <option key={c.id} value={c.id}>{c.name}{c.programs?.name ? ` — ${c.programs.name}` : ''}</option>)}
                     </select>
-                    <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+                    <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Select Session</label>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Select Session</label>
                   <div className="relative">
                     <select value={selectedSession} onChange={e => setSelectedSession(e.target.value)}
                       disabled={!selectedClass || sessions.length === 0}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-teal-500 cursor-pointer appearance-none disabled:opacity-40">
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-teal-500 cursor-pointer appearance-none disabled:opacity-40">
                       <option value="">Choose a session…</option>
                       {sessions.map(s => (
                         <option key={s.id} value={s.id}>
@@ -508,7 +508,7 @@ function AttendanceContent() {
                         </option>
                       ))}
                     </select>
-                    <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+                    <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                   </div>
                 </div>
               </div>
@@ -517,23 +517,23 @@ function AttendanceContent() {
                 <div className="flex flex-col gap-4 pt-2">
                   <div className="flex flex-col sm:flex-row items-center gap-3">
                     <button onClick={quickMarkToday} disabled={loading}
-                      className="w-full sm:flex-1 flex items-center justify-center gap-2 py-3.5 bg-teal-600 hover:bg-teal-500 text-white font-extrabold rounded-2xl transition-all shadow-lg shadow-teal-900/30">
+                      className="w-full sm:flex-1 flex items-center justify-center gap-2 py-3.5 bg-teal-600 hover:bg-teal-500 text-foreground font-extrabold rounded-none transition-all shadow-lg shadow-teal-900/30">
                       <CalendarIcon className="w-5 h-5 text-teal-200" />
                       {loading ? 'Processing…' : 'Mark Today\'s Attendance'}
                     </button>
                     <button onClick={() => setShowNewSession(!showNewSession)}
-                      className="w-full sm:w-auto px-4 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-bold text-white/40 hover:text-white transition-all">
+                      className="w-full sm:w-auto px-4 py-3.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold text-muted-foreground hover:text-foreground transition-all">
                       Past / Custom Date
                     </button>
                   </div>
 
                   {showNewSession && (
-                    <div className="bg-white/5 border border-teal-500/10 rounded-2xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="bg-card shadow-sm border border-teal-500/10 rounded-none p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                       <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest px-1">Session Options</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <input type="date" value={newSession.session_date}
                           onChange={e => setNewSession(f => ({ ...f, session_date: e.target.value }))}
-                          className="px-4 py-2.5 bg-[#0f0f1a] border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-teal-500 transition-colors" />
+                          className="px-4 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-teal-500 transition-colors" />
                         <button onClick={async () => {
                           if (!newSession.session_date) return;
                           setLoading(true);
@@ -557,14 +557,14 @@ function AttendanceContent() {
                           }
                           setLoading(false);
                         }}
-                          className="px-4 py-2.5 bg-teal-600/20 text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all">
+                          className="px-4 py-2.5 bg-teal-600/20 text-teal-400 border border-teal-500/20 rounded-none text-xs font-bold hover:bg-teal-600/30 transition-all">
                           Confirm & Create
                         </button>
                       </div>
                       <input type="text" value={newSession.topic}
                         onChange={e => setNewSession(f => ({ ...f, topic: e.target.value }))}
                         placeholder="Topic / Lessons (optional)"
-                        className="w-full px-4 py-2.5 bg-[#0f0f1a] border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-teal-500 transition-colors" />
+                        className="w-full px-4 py-2.5 bg-background border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-teal-500 transition-colors" />
                     </div>
                   )}
                 </div>
@@ -577,14 +577,14 @@ function AttendanceContent() {
             )}
 
             {!loading && selectedSession && students.length === 0 && (
-              <div className="text-center py-16 bg-white/5 border border-white/10 rounded-2xl">
-                <UserGroupIcon className="w-12 h-12 mx-auto text-white/10 mb-3" />
-                <p className="text-white/30 font-semibold">No enrolled students found for this class.</p>
-                <p className="text-white/20 text-sm mt-1">Enroll students first from the class detail page.</p>
+              <div className="text-center py-16 bg-card shadow-sm border border-border rounded-none">
+                <UserGroupIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground font-semibold">No enrolled students found for this class.</p>
+                <p className="text-muted-foreground text-sm mt-1">Enroll students first from the class detail page.</p>
                 {selectedClass && (
                   <a
                     href={`/dashboard/classes/${selectedClass}`}
-                    className="inline-block mt-4 px-4 py-2 bg-teal-600/20 text-teal-400 border border-teal-500/20 rounded-xl text-xs font-bold hover:bg-teal-600/30 transition-all"
+                    className="inline-block mt-4 px-4 py-2 bg-teal-600/20 text-teal-400 border border-teal-500/20 rounded-none text-xs font-bold hover:bg-teal-600/30 transition-all"
                   >
                     Go to Class → Enroll Students
                   </a>
@@ -593,14 +593,14 @@ function AttendanceContent() {
             )}
 
             {!loading && selectedSession && students.length > 0 && (
-              <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-                <div className="p-5 border-b border-white/10 flex items-center justify-between flex-wrap gap-3">
+              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                <div className="p-5 border-b border-border flex items-center justify-between flex-wrap gap-3">
                   <div>
-                    <h3 className="font-bold text-white">
+                    <h3 className="font-bold text-foreground">
                       {currentSession?.session_date && new Date(currentSession.session_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                       {currentSession?.topic && ` — ${currentSession.topic}`}
                     </h3>
-                    <p className="text-xs text-white/40 mt-0.5">{students.length} students</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{students.length} students</p>
                   </div>
                   <div className="flex items-center gap-2">
                     {/* Mark all buttons */}
@@ -611,16 +611,16 @@ function AttendanceContent() {
                         setAttendance(next);
                         setSaved(false);
                       }}
-                        className="px-3 py-1.5 text-xs font-bold text-white/50 bg-white/5 hover:bg-white/10 rounded-xl transition-colors capitalize">
+                        className="px-3 py-1.5 text-xs font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors capitalize">
                         All {s}
                       </button>
                     ))}
                     <button onClick={handlePrintSession}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-white/5 hover:bg-white/10 text-white/40 hover:text-white border border-white/10 rounded-xl transition-colors">
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border rounded-none transition-colors">
                       <PrinterIcon className="w-4 h-4" />
                     </button>
                     <button onClick={handleSave} disabled={saving}
-                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white rounded-xl transition-colors disabled:opacity-50">
+                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-teal-600 hover:bg-teal-500 text-foreground rounded-none transition-colors disabled:opacity-50">
                       {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : saved ? <CheckIcon className="w-3.5 h-3.5" /> : <ClipboardDocumentCheckIcon className="w-3.5 h-3.5" />}
                       {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Attendance'}
                     </button>
@@ -634,24 +634,24 @@ function AttendanceContent() {
                     return (
                       <div key={student.id} className="px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-9 h-9 bg-teal-500/10 border border-teal-500/20 rounded-lg flex items-center justify-center text-sm font-black text-teal-400 flex-shrink-0">
+                          <div className="w-9 h-9 bg-teal-500/10 border border-teal-500/20 rounded-none flex items-center justify-center text-sm font-black text-teal-400 flex-shrink-0">
                             {student.full_name?.charAt(0) ?? '?'}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-semibold text-white text-sm">{student.full_name}</p>
-                            <p className="text-xs text-white/30 truncate">{student.email}</p>
+                            <p className="font-semibold text-foreground text-sm">{student.full_name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{student.email}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           {Object.entries(STATUS_CONFIG).map(([val, c]) => (
                           <button key={val} onClick={() => { setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], status: val } })); setSaved(false); }}
-                              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${att.status === val ? `${c.color} scale-105` : 'bg-white/5 border-white/10 text-white/30 hover:bg-white/10'}`}>
+                              className={`px-2.5 py-1.5 rounded-none text-xs font-bold border transition-all ${att.status === val ? `${c.color} scale-105` : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
                               {c.label}
                             </button>
                           ))}
                           <input type="text" value={att.notes} placeholder="Notes"
                             onChange={e => { setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], notes: e.target.value } })); setSaved(false); }}
-                            className="hidden sm:block w-28 px-2 py-1.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none focus:border-teal-500 transition-colors" />
+                            className="hidden sm:block w-28 px-2 py-1.5 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-teal-500 transition-colors" />
                         </div>
                       </div>
                     );
@@ -659,7 +659,7 @@ function AttendanceContent() {
                 </div>
 
                 {/* Summary bar */}
-                <div className="px-5 py-4 border-t border-white/10 bg-white/3 flex flex-wrap gap-4 text-xs text-white/40">
+                <div className="px-5 py-4 border-t border-border bg-white/3 flex flex-wrap gap-4 text-xs text-muted-foreground">
                   {Object.entries(STATUS_CONFIG).map(([s, c]) => {
                     const count = Object.values(attendance).filter(a => a.status === s).length;
                     return <span key={s} className={`font-bold ${c.color.split(' ')[1]}`}>{c.label}: {count}</span>;
@@ -673,28 +673,28 @@ function AttendanceContent() {
         {/* Tab Content: ATTENDANCE LOG */}
         {activeTab === 'log' && (
           <div className="space-y-6">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex items-center justify-between gap-4">
+            <div className="bg-card shadow-sm border border-border rounded-none p-6 flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-bold">Attendance History</h2>
-                <p className="text-white/40 text-sm">Review student performance metrics across all {sessions.length} sessions</p>
+                <p className="text-muted-foreground text-sm">Review student performance metrics across all {sessions.length} sessions</p>
               </div>
               <button 
                 onClick={handlePrintLog}
-                className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl transition-all border border-white/10"
+                className="flex items-center gap-2 px-6 py-3 bg-muted hover:bg-muted text-foreground text-xs font-bold rounded-none transition-all border border-border"
               >
                 <PrinterIcon className="w-4 h-4" /> Print Full Report
               </button>
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+            <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="border-b border-white/10 bg-white/3">
-                    <th className="px-6 py-4 text-left text-[10px] font-black uppercase text-white/30 tracking-widest">Student Information</th>
-                    <th className="px-6 py-4 text-center text-[10px] font-black uppercase text-white/30 tracking-widest">Present</th>
-                    <th className="px-6 py-4 text-center text-[10px] font-black uppercase text-white/30 tracking-widest">Late/Excused</th>
-                    <th className="px-6 py-4 text-center text-[10px] font-black uppercase text-white/30 tracking-widest">Attendance %</th>
-                    <th className="px-6 py-4 text-right text-[10px] font-black uppercase text-white/30 tracking-widest">Status</th>
+                  <tr className="border-b border-border bg-white/3">
+                    <th className="px-6 py-4 text-left text-[10px] font-black uppercase text-muted-foreground tracking-widest">Student Information</th>
+                    <th className="px-6 py-4 text-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">Present</th>
+                    <th className="px-6 py-4 text-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">Late/Excused</th>
+                    <th className="px-6 py-4 text-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">Attendance %</th>
+                    <th className="px-6 py-4 text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -709,13 +709,13 @@ function AttendanceContent() {
                     return (
                       <tr key={student.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="px-6 py-4 text-sm">
-                          <div className="font-bold text-white">{student.full_name}</div>
-                          <div className="text-[10px] text-white/20 font-medium">{student.email}</div>
+                          <div className="font-bold text-foreground">{student.full_name}</div>
+                          <div className="text-[10px] text-muted-foreground font-medium">{student.email}</div>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <span className="text-emerald-400 font-bold">{present}</span>
-                          <span className="text-white/10 mx-1">/</span>
-                          <span className="text-white/30">{total}</span>
+                          <span className="text-muted-foreground mx-1">/</span>
+                          <span className="text-muted-foreground">{total}</span>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <span className="text-amber-400 font-bold">{late}</span>
@@ -723,18 +723,18 @@ function AttendanceContent() {
                         <td className="px-6 py-4 text-center">
                           <div className="flex flex-col items-center gap-1.5">
                              <span className={`text-sm font-black ${rate >= 75 ? 'text-emerald-400' : 'text-rose-400'}`}>{rate}%</span>
-                             <div className="w-16 h-1 bg-white/5 rounded-full overflow-hidden">
+                             <div className="w-16 h-1 bg-card shadow-sm rounded-full overflow-hidden">
                                 <div className={`h-full ${rate >= 75 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${rate}%` }} />
                              </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">
                           {rate >= 75 ? (
-                            <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase rounded-lg border border-emerald-500/20">Good Standing</span>
+                            <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase rounded-none border border-emerald-500/20">Good Standing</span>
                           ) : rate >= 50 ? (
-                            <span className="px-2 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase rounded-lg border border-amber-500/20">At Risk</span>
+                            <span className="px-2 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase rounded-none border border-amber-500/20">At Risk</span>
                           ) : (
-                            <span className="px-2 py-1 bg-rose-500/10 text-rose-400 text-[10px] font-black uppercase rounded-lg border border-rose-500/20">Critical</span>
+                            <span className="px-2 py-1 bg-rose-500/10 text-rose-400 text-[10px] font-black uppercase rounded-none border border-rose-500/20">Critical</span>
                           )}
                         </td>
                       </tr>

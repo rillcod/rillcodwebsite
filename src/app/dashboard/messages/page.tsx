@@ -210,19 +210,19 @@ export default function MessagesPage() {
   ].filter(Boolean) as any;
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-[#7a0606] border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#05050a] text-white p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-background text-foreground p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 h-[calc(100vh-8rem)]">
         
         {/* Navigation Sidebar */}
         <div className="w-full lg:w-64 flex-shrink-0 flex flex-col gap-4">
           <div className="p-4">
-            <h1 className="text-2xl font-black tracking-tighter text-white flex items-center gap-2">
+            <h1 className="text-2xl font-black tracking-tighter text-foreground flex items-center gap-2">
               <EnvelopeIcon className="w-6 h-6 text-[#7a0606]" /> Messages
             </h1>
           </div>
@@ -232,18 +232,18 @@ export default function MessagesPage() {
               <button 
                 key={t.key} 
                 onClick={() => { setTab(t.key); setSelected(null); }}
-                className={`group flex items-center justify-between px-4 py-4 rounded-2xl transition-all duration-300 border ${
+                className={`group flex items-center justify-between px-4 py-4 rounded-none transition-all duration-300 border ${
                   tab === t.key 
-                  ? 'bg-gradient-to-r from-[#7a0606]/20 to-transparent border-[#7a0606]/30 text-white shadow-lg shadow-[#7a0606]/5' 
-                  : 'bg-white/[0.02] border-white/5 text-white/40 hover:text-white hover:bg-white/[0.05] hover:border-white/10'
+                  ? 'bg-gradient-to-r from-[#7a0606]/20 to-transparent border-[#7a0606]/30 text-foreground shadow-lg shadow-[#7a0606]/5' 
+                  : 'bg-white/[0.02] border-border text-muted-foreground hover:text-foreground hover:bg-white/[0.05] hover:border-border'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <t.icon className={`w-5 h-5 transition-colors ${tab === t.key ? 'text-[#7a0606]' : 'text-white/20 group-hover:text-white/40'}`} />
+                  <t.icon className={`w-5 h-5 transition-colors ${tab === t.key ? 'text-[#7a0606]' : 'text-muted-foreground group-hover:text-muted-foreground'}`} />
                   <span className="text-sm font-bold uppercase tracking-widest">{t.label}</span>
                 </div>
                 {t.count && (
-                  <span className="bg-[#7a0606] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                  <span className="bg-[#7a0606] text-foreground text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
                     {t.count}
                   </span>
                 )}
@@ -251,8 +251,8 @@ export default function MessagesPage() {
             ))}
           </nav>
           
-          <div className="mt-auto p-4 bg-white/[0.01] border border-white/5 rounded-2xl">
-             <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-2">Network Status</p>
+          <div className="mt-auto p-4 bg-white/[0.01] border border-border rounded-none">
+             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-2">Network Status</p>
              <div className="flex items-center gap-2">
                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                <span className="text-[11px] font-bold text-emerald-400/80">Encrypted Tunnel Active</span>
@@ -261,7 +261,7 @@ export default function MessagesPage() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 min-w-0 bg-white/[0.02] border border-white/5 rounded-[2.5rem] overflow-hidden flex flex-col backdrop-blur-3xl shadow-2xl relative">
+        <div className="flex-1 min-w-0 bg-white/[0.02] border border-border rounded-[2.5rem] overflow-hidden flex flex-col backdrop-blur-3xl shadow-2xl relative">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#7a0606]/40 to-transparent" />
           
           <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-8">
@@ -270,9 +270,9 @@ export default function MessagesPage() {
             {tab === 'inbox' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
                 <div className="lg:col-span-5 flex flex-col gap-4">
-                  <h3 className="text-xs font-black text-white/20 uppercase tracking-[0.3em] px-2">Recent Correspondence</h3>
+                  <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em] px-2">Recent Correspondence</h3>
                   {inbox.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-3xl opacity-30">
+                    <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-border rounded-none opacity-30">
                       <EnvelopeIcon className="w-12 h-12 mb-2" />
                       <p className="text-sm font-bold">No incoming signals</p>
                     </div>
@@ -280,26 +280,26 @@ export default function MessagesPage() {
                     <div className="flex flex-col gap-2">
                       {inbox.map(msg => (
                         <button key={msg.id} onClick={() => markRead(msg)}
-                          className={`group w-full text-left p-5 rounded-3xl border transition-all duration-300 relative ${
+                          className={`group w-full text-left p-5 rounded-none border transition-all duration-300 relative ${
                             selected?.id === msg.id 
                             ? 'bg-[#7a0606]/10 border-[#7a0606]/30' 
-                            : 'bg-white/[0.02] border-white/5 hover:border-white/10 hover:bg-white/[0.04]'
+                            : 'bg-white/[0.02] border-border hover:border-border hover:bg-white/[0.04]'
                           }`}>
                           <div className="flex items-start gap-4">
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-black shrink-0 shadow-lg ${
-                              selected?.id === msg.id ? 'bg-[#7a0606] text-white' : 'bg-white/5 text-white/40 group-hover:text-white/60'
+                            <div className={`w-12 h-12 rounded-none flex items-center justify-center text-lg font-black shrink-0 shadow-lg ${
+                              selected?.id === msg.id ? 'bg-[#7a0606] text-foreground' : 'bg-card shadow-sm text-muted-foreground group-hover:text-muted-foreground'
                             }`}>
                               {msg.portal_users?.full_name?.charAt(0) ?? '?'}
                             </div>
                             <div className="flex-1 min-w-0">
                                <div className="flex items-center justify-between gap-2 mb-0.5">
-                                 <p className={`text-sm tracking-tight truncate ${!msg.is_read ? 'font-black text-white' : 'font-bold text-white/60'}`}>
+                                 <p className={`text-sm tracking-tight truncate ${!msg.is_read ? 'font-black text-foreground' : 'font-bold text-muted-foreground'}`}>
                                    {msg.portal_users?.full_name ?? 'Unknown Signal'}
                                  </p>
-                                 <span className="text-[10px] text-white/20 font-bold shrink-0">{new Date(msg.created_at).toLocaleDateString()}</span>
+                                 <span className="text-[10px] text-muted-foreground font-bold shrink-0">{new Date(msg.created_at).toLocaleDateString()}</span>
                                </div>
                                {msg.subject && <p className="text-[11px] text-[#7a0606] font-black uppercase tracking-tighter truncate">{msg.subject}</p>}
-                               <p className="text-xs text-white/30 truncate mt-1 leading-relaxed">{msg.message}</p>
+                               <p className="text-xs text-muted-foreground truncate mt-1 leading-relaxed">{msg.message}</p>
                             </div>
                             {!msg.is_read && <div className="absolute top-4 right-4 w-2 h-2 bg-[#7a0606] rounded-full shadow-[0_0_10px_#7a0606]" />}
                           </div>
@@ -311,42 +311,42 @@ export default function MessagesPage() {
                 
                 <div className="lg:col-span-7 flex flex-col">
                    {selected ? (
-                     <div className="bg-white/[0.04] border border-white/10 rounded-[2rem] p-8 space-y-6 animate-in fade-in slide-in-from-right-4">
+                     <div className="bg-white/[0.04] border border-border rounded-[2rem] p-8 space-y-6 animate-in fade-in slide-in-from-right-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-[#7a0606] rounded-2xl flex items-center justify-center text-xl font-black shadow-xl shadow-[#7a0606]/20">
+                            <div className="w-14 h-14 bg-[#7a0606] rounded-none flex items-center justify-center text-xl font-black shadow-xl shadow-[#7a0606]/20">
                               {selected.portal_users?.full_name?.charAt(0) ?? '?'}
                             </div>
                             <div>
                                <p className="text-lg font-black tracking-tight">{selected.portal_users?.full_name}</p>
                                <div className="flex items-center gap-2">
-                                 <span className="px-2 py-0.5 bg-white/5 rounded-full text-[10px] font-black text-white/40 uppercase tracking-widest">{selected.portal_users?.role}</span>
-                                 <span className="text-[10px] text-white/20 font-bold">{new Date(selected.created_at).toLocaleString()}</span>
+                                 <span className="px-2 py-0.5 bg-card shadow-sm rounded-full text-[10px] font-black text-muted-foreground uppercase tracking-widest">{selected.portal_users?.role}</span>
+                                 <span className="text-[10px] text-muted-foreground font-bold">{new Date(selected.created_at).toLocaleString()}</span>
                                </div>
                             </div>
                           </div>
                           <button onClick={() => { setCompose(c => ({ ...c, recipient_id: selected.sender_id, subject: `Re: ${selected.subject || 'Message'}` })); setTab('compose'); }}
-                            className="p-4 bg-[#7a0606] hover:bg-[#9a0808] text-white rounded-2xl transition-all shadow-lg hover:scale-105 active:scale-95">
+                            className="p-4 bg-[#7a0606] hover:bg-[#9a0808] text-foreground rounded-none transition-all shadow-lg hover:scale-105 active:scale-95">
                             <PaperAirplaneIcon className="w-5 h-5" />
                           </button>
                         </div>
                         
-                        <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                        <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
                         
                         <div className="space-y-4">
                            {selected.subject && (
-                             <h4 className="text-xl font-black text-white tracking-tight leading-tight">
+                             <h4 className="text-xl font-black text-foreground tracking-tight leading-tight">
                                {selected.subject}
                              </h4>
                            )}
-                           <div className="text-sm text-white/60 leading-relaxed font-medium whitespace-pre-wrap selection:bg-[#7a0606] selection:text-white">
+                           <div className="text-sm text-muted-foreground leading-relaxed font-medium whitespace-pre-wrap selection:bg-[#7a0606] selection:text-foreground">
                              {selected.message}
                            </div>
                         </div>
                      </div>
                    ) : (
                      <div className="flex-1 flex flex-col items-center justify-center opacity-20">
-                        <div className="w-24 h-24 rounded-full border-2 border-dashed border-white mb-4 flex items-center justify-center">
+                        <div className="w-24 h-24 rounded-full border-2 border-dashed border-border mb-4 flex items-center justify-center">
                           <EnvelopeIcon className="w-10 h-10" />
                         </div>
                         <p className="text-sm font-black uppercase tracking-[0.3em]">Encrypted Viewer Offline</p>
@@ -360,29 +360,29 @@ export default function MessagesPage() {
             {/* ── SENT ─── */}
             {tab === 'sent' && (
               <div className="max-w-3xl mx-auto space-y-6">
-                <h3 className="text-xs font-black text-white/20 uppercase tracking-[0.3em] px-2">Outbound Transmissions</h3>
+                <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em] px-2">Outbound Transmissions</h3>
                 {sent.length === 0 ? (
-                  <div className="py-20 text-center bg-white/[0.01] border border-dashed border-white/10 rounded-3xl opacity-30 mt-4">
+                  <div className="py-20 text-center bg-white/[0.01] border border-dashed border-border rounded-none opacity-30 mt-4">
                      <PaperAirplaneIcon className="w-12 h-12 mx-auto mb-4" />
                      <p className="text-sm font-bold uppercase tracking-widest">Hangar Empty</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
                     {sent.map(msg => (
-                      <div key={msg.id} className="group p-6 bg-white/[0.02] border border-white/5 rounded-3xl hover:bg-white/[0.04] transition-all relative overflow-hidden">
+                      <div key={msg.id} className="group p-6 bg-white/[0.02] border border-border rounded-none hover:bg-white/[0.04] transition-all relative overflow-hidden">
                         <div className="flex items-start gap-4">
-                           <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center shrink-0">
-                              <UserIcon className="w-6 h-6 text-white/20" />
+                           <div className="w-12 h-12 rounded-none bg-card shadow-sm flex items-center justify-center shrink-0">
+                              <UserIcon className="w-6 h-6 text-muted-foreground" />
                            </div>
                            <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-1">
-                                <p className="text-sm font-black tracking-tight text-white/80">To: {msg.portal_users?.full_name ?? 'Unknown Target'}</p>
-                                <span className="text-[10px] text-white/20 font-bold">{new Date(msg.created_at).toLocaleDateString()}</span>
+                                <p className="text-sm font-black tracking-tight text-muted-foreground">To: {msg.portal_users?.full_name ?? 'Unknown Target'}</p>
+                                <span className="text-[10px] text-muted-foreground font-bold">{new Date(msg.created_at).toLocaleDateString()}</span>
                               </div>
                               {msg.subject && <p className="text-[10px] text-[#7a0606] font-black uppercase tracking-widest mb-1">{msg.subject}</p>}
-                              <p className="text-xs text-white/40 truncate leading-relaxed">{msg.message}</p>
+                              <p className="text-xs text-muted-foreground truncate leading-relaxed">{msg.message}</p>
                               <div className="flex items-center gap-2 mt-3">
-                                 <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${msg.is_read ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-white/30'}`}>
+                                 <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${msg.is_read ? 'bg-emerald-500/10 text-emerald-400' : 'bg-card shadow-sm text-muted-foreground'}`}>
                                     {msg.is_read ? 'Signal Confirmed' : 'Transmitted'}
                                  </div>
                               </div>
@@ -399,18 +399,18 @@ export default function MessagesPage() {
             {tab === 'compose' && (
               <div className="max-w-3xl mx-auto space-y-8 py-4 animate-in fade-in zoom-in-95 duration-500">
                 <div className="space-y-2">
-                   <h3 className="text-3xl font-black tracking-tighter text-white">New Transmission</h3>
-                   <p className="text-sm text-white/30 font-bold uppercase tracking-widest">Drafting secure message</p>
+                   <h3 className="text-3xl font-black tracking-tighter text-foreground">New Transmission</h3>
+                   <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest">Drafting secure message</p>
                 </div>
                 
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="relative group">
-                      <label className="absolute -top-2.5 left-4 px-2 bg-[#050510] text-[10px] font-black text-[#7a0606] uppercase tracking-[0.2em] group-focus-within:text-white transition-colors">Recipient</label>
+                      <label className="absolute -top-2.5 left-4 px-2 bg-[#050510] text-[10px] font-black text-[#7a0606] uppercase tracking-[0.2em] group-focus-within:text-foreground transition-colors">Recipient</label>
                       <select 
                         value={compose.recipient_id}
                         onChange={e => setCompose(c => ({ ...c, recipient_id: e.target.value }))}
-                        className="w-full px-6 py-4 bg-white/[0.03] border border-white/10 rounded-2xl text-sm text-white focus:outline-none focus:border-[#7a0606] transition-all cursor-pointer appearance-none shadow-xl">
+                        className="w-full px-6 py-4 bg-white/[0.03] border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-[#7a0606] transition-all cursor-pointer appearance-none shadow-xl">
                         <option value="">Select individual...</option>
                         {(() => {
                            const filtered = users.filter(u => {
@@ -443,13 +443,13 @@ export default function MessagesPage() {
                          value={userSearch}
                          onChange={e => setUserSearch(e.target.value)}
                          placeholder="Search name..."
-                         className="flex-1 px-5 py-4 bg-white/[0.03] border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-[#7a0606]"
+                         className="flex-1 px-5 py-4 bg-white/[0.03] border border-border rounded-none text-xs text-foreground focus:outline-none focus:border-[#7a0606]"
                        />
                        {(profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school') && (
                          <select 
                            value={classFilter}
                            onChange={e => setClassFilter(e.target.value)}
-                           className="w-32 px-4 py-4 bg-white/[0.03] border border-white/10 rounded-2xl text-[10px] font-bold text-white/60 focus:outline-none">
+                           className="w-32 px-4 py-4 bg-white/[0.03] border border-border rounded-none text-[10px] font-bold text-muted-foreground focus:outline-none">
                            <option value="all">All Grades</option>
                            {Array.from(new Set(users.filter(u => u.current_class).map(u => u.current_class))).sort().map(c => (
                              <option key={c} value={c}>{c}</option>
@@ -460,29 +460,29 @@ export default function MessagesPage() {
                   </div>
 
                   <div className="relative group">
-                    <label className="absolute -top-2.5 left-4 px-2 bg-[#050510] text-[10px] font-black text-white/20 uppercase tracking-[0.2em] group-focus-within:text-[#7a0606] transition-colors">Heading / Subject</label>
+                    <label className="absolute -top-2.5 left-4 px-2 bg-[#050510] text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] group-focus-within:text-[#7a0606] transition-colors">Heading / Subject</label>
                     <input 
                       type="text" 
                       value={compose.subject}
                       onChange={e => setCompose(c => ({ ...c, subject: e.target.value }))}
                       placeholder="Transmission summary..."
-                      className="w-full px-6 py-5 bg-white/[0.03] border border-white/10 rounded-3xl text-sm text-white placeholder-white/10 focus:outline-none focus:border-[#7a0606] transition-all shadow-xl" />
+                      className="w-full px-6 py-5 bg-white/[0.03] border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-[#7a0606] transition-all shadow-xl" />
                   </div>
 
                   <div className="relative group">
-                    <label className="absolute -top-2.5 left-4 px-2 bg-[#050510] text-[10px] font-black text-white/20 uppercase tracking-[0.2em] group-focus-within:text-[#7a0606] transition-colors">Signal Content</label>
+                    <label className="absolute -top-2.5 left-4 px-2 bg-[#050510] text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] group-focus-within:text-[#7a0606] transition-colors">Signal Content</label>
                     <textarea 
                       rows={8} 
                       value={compose.message}
                       onChange={e => setCompose(c => ({ ...c, message: e.target.value }))}
                       placeholder="Type secure transmission..."
-                      className="w-full px-6 py-5 bg-white/[0.03] border border-white/10 rounded-3xl text-sm text-white placeholder-white/10 focus:outline-none focus:border-[#7a0606] transition-all resize-none shadow-xl" />
+                      className="w-full px-6 py-5 bg-white/[0.03] border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-[#7a0606] transition-all resize-none shadow-xl" />
                   </div>
 
                   <button 
                     onClick={handleSend} 
                     disabled={sending || !compose.recipient_id || !compose.message.trim()}
-                    className="w-full py-5 bg-[#7a0606] hover:bg-[#9a0808] text-white text-base font-black uppercase tracking-[0.3em] rounded-3xl transition-all shadow-2xl disabled:opacity-50 active:scale-[0.98] group flex items-center justify-center gap-4">
+                    className="w-full py-5 bg-[#7a0606] hover:bg-[#9a0808] text-foreground text-base font-black uppercase tracking-[0.3em] rounded-none transition-all shadow-2xl disabled:opacity-50 active:scale-[0.98] group flex items-center justify-center gap-4">
                     {sending ? (
                       <ArrowPathIcon className="w-6 h-6 animate-spin" />
                     ) : sent2 ? (
@@ -500,13 +500,13 @@ export default function MessagesPage() {
             {tab === 'announcements' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div className="lg:col-span-12 flex items-center justify-between mb-2">
-                   <h3 className="text-xs font-black text-white/20 uppercase tracking-[0.3em] px-2">Official Academy Bulletins</h3>
+                   <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em] px-2">Official Academy Bulletins</h3>
                 </div>
 
                 {tab === 'announcements' && profile?.role === 'admin' && (
-                  <div className="lg:col-span-12 bg-white/[0.03] border border-white/5 rounded-[2.5rem] p-8 space-y-6 shadow-2xl mb-8">
+                  <div className="lg:col-span-12 bg-white/[0.03] border border-border rounded-[2.5rem] p-8 space-y-6 shadow-2xl mb-8">
                     <div className="space-y-1">
-                      <h4 className="text-xl font-black text-white tracking-tight">Post Broadcast</h4>
+                      <h4 className="text-xl font-black text-foreground tracking-tight">Post Broadcast</h4>
                       <p className="text-[10px] text-[#7a0606] font-black uppercase tracking-widest">Internal Distribution System</p>
                     </div>
 
@@ -516,12 +516,12 @@ export default function MessagesPage() {
                          value={announcement.title}
                          onChange={e => setAnnouncement(a => ({ ...a, title: e.target.value }))}
                          placeholder="Broadcast Title..."
-                         className="w-full px-5 py-4 bg-white/5 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-[#7a0606] transition-all" />
+                         className="w-full px-5 py-4 bg-card shadow-sm border border-border rounded-none text-sm focus:outline-none focus:border-[#7a0606] transition-all" />
                        
                        <select 
                          value={announcement.target_audience}
                          onChange={e => setAnnouncement(a => ({ ...a, target_audience: e.target.value }))}
-                         className="w-full px-5 py-4 bg-white/5 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-[#7a0606] transition-all cursor-pointer">
+                         className="w-full px-5 py-4 bg-card shadow-sm border border-border rounded-none text-sm focus:outline-none focus:border-[#7a0606] transition-all cursor-pointer">
                          {isAdmin ? (
                            <>
                              <option value="all">Global (All Users)</option>
@@ -545,12 +545,12 @@ export default function MessagesPage() {
                       value={announcement.content}
                       onChange={e => setAnnouncement(a => ({ ...a, content: e.target.value }))}
                       placeholder="Content breakdown..."
-                      className="w-full px-5 py-4 bg-white/5 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-[#7a0606] transition-all resize-none" />
+                      className="w-full px-5 py-4 bg-card shadow-sm border border-border rounded-none text-sm focus:outline-none focus:border-[#7a0606] transition-all resize-none" />
 
                     <button 
                       onClick={handleAnnouncement}
                       disabled={posting || !announcement.title.trim() || !announcement.content.trim()}
-                      className="px-8 py-4 bg-[#7a0606] hover:bg-[#9a0808] text-white text-xs font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl disabled:opacity-50">
+                      className="px-8 py-4 bg-[#7a0606] hover:bg-[#9a0808] text-foreground text-xs font-black uppercase tracking-[0.2em] rounded-none transition-all shadow-xl disabled:opacity-50">
                        {posting ? 'Transmitting...' : posted ? 'Broadcast Live' : 'Publish Bulletin'}
                     </button>
                   </div>
@@ -558,39 +558,39 @@ export default function MessagesPage() {
 
                 <div className="lg:col-span-12 space-y-4">
                     {announcements.map(ann => (
-                      <div key={ann.id} className="group bg-white/[0.02] border border-white/5 rounded-[2rem] p-7 space-y-4 hover:bg-white/[0.04] hover:border-white/10 transition-all duration-300 relative shadow-lg">
+                      <div key={ann.id} className="group bg-white/[0.02] border border-border rounded-[2rem] p-7 space-y-4 hover:bg-white/[0.04] hover:border-border transition-all duration-300 relative shadow-lg">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-center gap-3">
-                             <div className="w-10 h-10 rounded-xl bg-[#7a0606]/10 flex items-center justify-center border border-[#7a0606]/20">
+                             <div className="w-10 h-10 rounded-none bg-[#7a0606]/10 flex items-center justify-center border border-[#7a0606]/20">
                                 <MegaphoneIcon className="w-5 h-5 text-[#7a0606]" />
                              </div>
                              <div>
-                                <h4 className="font-black text-white text-base tracking-tight leading-none group-hover:text-[#7a0606] transition-colors">{ann.title}</h4>
-                                <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest mt-1">Author: {ann.portal_users?.full_name ?? 'Nexus Admin'}</p>
+                                <h4 className="font-black text-foreground text-base tracking-tight leading-none group-hover:text-[#7a0606] transition-colors">{ann.title}</h4>
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Author: {ann.portal_users?.full_name ?? 'Nexus Admin'}</p>
                              </div>
                           </div>
                           <div className="flex items-center gap-2">
-                             <span className="px-2 py-0.5 bg-white/5 rounded-full text-[9px] font-black text-white/40 uppercase tracking-widest">{ann.target_audience}</span>
+                             <span className="px-2 py-0.5 bg-card shadow-sm rounded-full text-[9px] font-black text-muted-foreground uppercase tracking-widest">{ann.target_audience}</span>
                              {isStaff && (isAdmin || ann.author_id === profile?.id) && (
                                <button onClick={() => deleteAnnouncement(ann.id)}
-                                 className="w-8 h-8 flex items-center justify-center text-white/20 hover:text-rose-400 bg-white/5 hover:bg-rose-500/10 rounded-lg transition-all">
+                                 className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-rose-400 bg-card shadow-sm hover:bg-rose-500/10 rounded-none transition-all">
                                  <TrashIcon className="w-4 h-4" />
                                </button>
                              )}
                           </div>
                         </div>
-                        <p className="text-[13px] text-white/60 leading-relaxed font-medium selection:bg-[#7a0606] selection:text-white">{ann.content}</p>
-                        <div className="pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between">
+                        <p className="text-[13px] text-muted-foreground leading-relaxed font-medium selection:bg-[#7a0606] selection:text-foreground">{ann.content}</p>
+                        <div className="pt-4 mt-2 border-t border-border/[0.03] flex items-center justify-between">
                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-white/20 font-bold">{new Date(ann.created_at).toLocaleDateString()}</span>
-                              <div className="w-1 h-1 bg-white/10 rounded-full" />
-                              <span className="text-[10px] text-white/20 font-black uppercase tracking-tighter italic">Verified Bulletin</span>
+                              <span className="text-[10px] text-muted-foreground font-bold">{new Date(ann.created_at).toLocaleDateString()}</span>
+                              <div className="w-1 h-1 bg-muted rounded-full" />
+                              <span className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter italic">Verified Bulletin</span>
                            </div>
                         </div>
                       </div>
                     ))}
                     {announcements.length === 0 && (
-                      <div className="text-center py-24 border border-dashed border-white/10 rounded-[2.5rem] opacity-30">
+                      <div className="text-center py-24 border border-dashed border-border rounded-[2.5rem] opacity-30">
                         <MegaphoneIcon className="w-16 h-16 mx-auto mb-4" />
                         <p className="font-bold uppercase tracking-[0.4em] text-sm">Silence in Channel</p>
                       </div>
@@ -603,8 +603,8 @@ export default function MessagesPage() {
             {tab === 'newsletters' && (
               <div className="space-y-8 py-4 animate-in fade-in duration-700">
                 <div className="space-y-1">
-                   <h3 className="text-4xl font-black tracking-tighter text-white">Rillcod <span className="text-[#FF914D]">Pulse</span></h3>
-                   <p className="text-sm text-white/30 font-bold uppercase tracking-[0.3em]">Exclusive Digital Editions</p>
+                   <h3 className="text-4xl font-black tracking-tighter text-foreground">Rillcod <span className="text-[#FF914D]">Pulse</span></h3>
+                   <p className="text-sm text-muted-foreground font-bold uppercase tracking-[0.3em]">Exclusive Digital Editions</p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -612,18 +612,18 @@ export default function MessagesPage() {
                     const nl = nlItem.newsletters;
                     if (!nl) return null;
                     return (
-                      <div key={nl.id} className="group relative bg-[#0d0d16] border border-white/5 rounded-[2.5rem] p-1 transition-all duration-500 hover:shadow-[0_40px_80px_rgba(255,145,77,0.05)] hover:border-[#FF914D]/20 overflow-hidden">
+                      <div key={nl.id} className="group relative bg-[#0d0d16] border border-border rounded-[2.5rem] p-1 transition-all duration-500 hover:shadow-[0_40px_80px_rgba(255,145,77,0.05)] hover:border-[#FF914D]/20 overflow-hidden">
                         <div className="relative overflow-hidden rounded-[2.25rem] bg-gradient-to-br from-white/[0.04] to-white/[0.01] p-8 h-full flex flex-col">
                            <div className="flex items-center justify-between mb-8">
                              <div className="px-3 py-1 bg-[#FF914D]/10 rounded-full border border-[#FF914D]/20">
                                <span className="text-[9px] font-black uppercase tracking-widest text-[#FF914D]">Premium Edition</span>
                              </div>
-                             <span className="text-[10px] text-white/20 font-bold">{new Date(nl.published_at || nl.created_at).toLocaleDateString()}</span>
+                             <span className="text-[10px] text-muted-foreground font-bold">{new Date(nl.published_at || nl.created_at).toLocaleDateString()}</span>
                            </div>
                            
                            <div className="mb-6 flex-1">
-                             <h4 className="text-2xl font-black text-white mb-3 group-hover:text-[#FF914D] transition-colors line-clamp-2 leading-tight tracking-tight">{nl.title}</h4>
-                             <p className="text-[13px] text-white/40 line-clamp-4 leading-relaxed font-medium mb-6">{nl.content}</p>
+                             <h4 className="text-2xl font-black text-foreground mb-3 group-hover:text-[#FF914D] transition-colors line-clamp-2 leading-tight tracking-tight">{nl.title}</h4>
+                             <p className="text-[13px] text-muted-foreground line-clamp-4 leading-relaxed font-medium mb-6">{nl.content}</p>
                            </div>
 
                            <button 
@@ -633,7 +633,7 @@ export default function MessagesPage() {
                                window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
                                window.dispatchEvent(new PopStateEvent('popstate'));
                              }}
-                             className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 hover:bg-[#FF914D] hover:text-[#05050a] hover:border-[#FF914D] hover:scale-[1.02] flex items-center justify-center gap-2 group-hover:shadow-[0_10px_30px_rgba(255,145,77,0.2)]">
+                             className="w-full py-4 bg-card shadow-sm border border-border rounded-none text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 hover:bg-[#FF914D] hover:text-[#05050a] hover:border-[#FF914D] hover:scale-[1.02] flex items-center justify-center gap-2 group-hover:shadow-[0_10px_30px_rgba(255,145,77,0.2)]">
                              <DocumentTextIcon className="w-4 h-4" /> Open Signal
                            </button>
                         </div>
@@ -643,7 +643,7 @@ export default function MessagesPage() {
                 </div>
 
                 {newsletters.length === 0 && (
-                  <div className="text-center py-32 bg-white/[0.01] border border-dashed border-white/10 rounded-[3rem] opacity-30 flex flex-col items-center">
+                  <div className="text-center py-32 bg-white/[0.01] border border-dashed border-border rounded-[3rem] opacity-30 flex flex-col items-center">
                     <DocumentTextIcon className="w-20 h-20 mb-6" />
                     <p className="text-base font-black uppercase tracking-[0.5em]">No Editions Found</p>
                   </div>

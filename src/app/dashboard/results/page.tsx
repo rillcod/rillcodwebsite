@@ -10,8 +10,10 @@ import {
     PrinterIcon, AcademicCapIcon, MagnifyingGlassIcon,
     TrophyIcon, DocumentTextIcon, PencilSquareIcon, CheckCircleIcon,
     ArrowDownTrayIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon,
-    TrashIcon, XMarkIcon,
+    TrashIcon, XMarkIcon, SparklesIcon, MessageCircleIcon
 } from '@/lib/icons';
+import { ChatWindow } from '@/components/chat/ChatWindow';
+
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import { ScaledReportCard, generateReportPDF } from '@/lib/pdf-utils';
@@ -42,20 +44,29 @@ function GradeDistribution({ students, reportsMap }: { students: PortalUser[], r
     const totalWithGrades = students.length - counts.none;
 
     return (
-        <div className="bg-[#0a0a1a]/60 border border-white/10 rounded-2xl p-4 mb-4 shadow-xl overflow-hidden relative group">
+        <div className="bg-background/60 border border-border rounded-none p-4 mb-4 shadow-xl overflow-hidden relative group">
             {/* Background Glow */}
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-violet-600/10 blur-[50px] rounded-full pointer-events-none" />
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-orange-600/10 blur-[50px] rounded-full pointer-events-none" />
             
             <div className="flex items-center justify-between mb-4 px-1">
-                <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400 italic">Grade Distribution</p>
-                    <p className="text-[8px] font-bold text-white/20 uppercase">Telemetry Analysis</p>
+                <div className="flex flex-col">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400 italic">Grade Distribution</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-[8px] font-bold text-muted-foreground uppercase">Telemetry Analysis</p>
+                        <button 
+                            onClick={() => (window as any).toggleTelemetryAI?.()}
+                            className="flex items-center gap-1 px-1.5 py-0.5 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[8px] font-black transition-all border border-orange-500/20"
+                        >
+                            <SparklesIcon className="w-2.5 h-2.5" />
+                            ASK AI
+                        </button>
+                    </div>
                 </div>
                 <div className="flex gap-2">
                    {['A','B','C','D','F'].map(g => (
                        <div key={g} className="flex flex-col items-center">
-                           <span className="text-[8px] font-black text-white/30">{g}</span>
-                           <span className="text-[10px] font-black text-white/60">{counts[g as keyof typeof counts]}</span>
+                           <span className="text-[8px] font-black text-muted-foreground">{g}</span>
+                           <span className="text-[10px] font-black text-muted-foreground">{counts[g as keyof typeof counts]}</span>
                        </div>
                    ))}
                 </div>
@@ -66,41 +77,41 @@ function GradeDistribution({ students, reportsMap }: { students: PortalUser[], r
                     const count = counts[g];
                     const h = totalWithGrades > 0 ? (count / max) * 100 : 0;
                     const colors = { 
-                        A: 'from-emerald-600 to-emerald-400 shadow-emerald-500/20', 
-                        B: 'from-blue-600 to-blue-400 shadow-blue-500/20', 
-                        C: 'from-amber-600 to-amber-400 shadow-amber-500/20', 
+                        A: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400 shadow-emerald-500/20', 
+                        B: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400 shadow-blue-500/20', 
+                        C: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400 shadow-amber-500/20', 
                         D: 'from-indigo-600 to-indigo-400 shadow-indigo-500/20', 
                         F: 'from-rose-600 to-rose-400 shadow-rose-500/20' 
                     };
                     return (
                         <div key={g} className="flex-1 flex flex-col items-center gap-2 group/bar">
-                            <div className="w-full bg-white/[0.03] rounded-t-lg overflow-hidden flex flex-col justify-end h-full relative border border-white/5">
+                            <div className="w-full bg-white/[0.03] rounded-t-lg overflow-hidden flex flex-col justify-end h-full relative border border-border">
                                 {count > 0 && (
                                     <div 
                                         className={`w-full bg-gradient-to-t ${colors[g]} opacity-80 group-hover/bar:opacity-100 transition-all duration-1000 ease-out shadow-lg relative`} 
                                         style={{ height: `${h}%` }}
                                     >
                                         {/* Animated Shine */}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/10 to-transparent translate-y-full group-hover/bar:translate-y-[-100%] transition-transform duration-1000" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-transparent via-border to-transparent translate-y-full group-hover/bar:translate-y-[-100%] transition-transform duration-1000" />
                                         
                                         {/* Top Glow Dot */}
                                         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] opacity-0 group-hover/bar:opacity-100 transition-opacity" />
                                     </div>
                                 )}
                             </div>
-                            <span className="text-[10px] font-black text-white/20 group-hover/bar:text-white/60 transition-colors uppercase">{g}</span>
+                            <span className="text-[10px] font-black text-muted-foreground group-hover/bar:text-muted-foreground transition-colors uppercase">{g}</span>
                         </div>
                     );
                 })}
             </div>
 
             {/* Total Indicator */}
-            <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
+            <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Active Monitoring</span>
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Active Monitoring</span>
                 </div>
-                <span className="text-[9px] font-bold text-white/20 italic">{totalWithGrades} Reports Analyzed</span>
+                <span className="text-[9px] font-bold text-muted-foreground italic">{totalWithGrades} Reports Analyzed</span>
             </div>
         </div>
     );
@@ -151,6 +162,13 @@ function ResultsPageInner() {
     const captureQueue = useRef<StudentReport[]>([]);
     const captureIdx = useRef<number>(0);
     const [showSidebar, setShowSidebar] = useState(true);
+    const [showAI, setShowAI] = useState(false);
+
+    // Expose toggle for GradeDistribution component
+    useEffect(() => {
+        (window as any).toggleTelemetryAI = () => setShowAI(prev => !prev);
+        return () => { delete (window as any).toggleTelemetryAI; };
+    }, []);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
     // School partners can VIEW and PRINT but cannot create or edit reports
@@ -662,8 +680,8 @@ tbody tr:hover{background:#f3f4f6}
 
     // ── Loading screen ─────────────────────────────────────────────────────────
     if (authLoading || loading) return (
-        <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-            <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
@@ -671,7 +689,7 @@ tbody tr:hover{background:#f3f4f6}
     return (
         <>
         <style>{`@media print { @page { margin: 14mm 12mm; } body { background: white !important; } .print\\:hidden { display: none !important; } }`}</style>
-        <div className="min-h-screen bg-[#0f0f1a] text-white print:bg-white print:text-black print:min-h-0">
+        <div className="min-h-screen bg-background text-foreground print:bg-white print:text-black print:min-h-0">
 
             {/* ══ Screen UI ══ */}
             <div className="print:hidden max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
@@ -688,13 +706,13 @@ tbody tr:hover{background:#f3f4f6}
                         <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight">Student Progress Reports</h1>
                         {isStaff && (
                             <div className="flex items-center gap-4 mt-2 flex-wrap">
-                                <span className="text-xs text-white/40">{stats.total} students</span>
+                                <span className="text-xs text-muted-foreground">{stats.total} students</span>
                                 <span className="flex items-center gap-1 text-xs text-emerald-400">
                                     <CheckCircleIcon className="w-3.5 h-3.5" />
                                     {stats.published} published
                                 </span>
                                 <span className="text-xs text-amber-400">{stats.draft} drafts</span>
-                                <span className="text-xs text-white/30">{stats.none} no report</span>
+                                <span className="text-xs text-muted-foreground">{stats.none} no report</span>
                             </div>
                         )}
                     </div>
@@ -703,7 +721,7 @@ tbody tr:hover{background:#f3f4f6}
                         {isEditor && (
                             <Link
                                 href="/dashboard/reports/builder"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600/20 border border-violet-500/30 hover:bg-violet-600/30 text-violet-400 font-bold text-sm rounded-xl transition-all"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-orange-600/20 border border-orange-500/30 hover:bg-orange-600/30 text-orange-400 font-bold text-sm rounded-none transition-all"
                             >
                                 <PencilSquareIcon className="w-4 h-4" /> Create / Edit Report
                             </Link>
@@ -712,7 +730,7 @@ tbody tr:hover{background:#f3f4f6}
                         {isStaff && students.length > 0 && (
                             <button
                                 onClick={handlePrintPerformanceSheet}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/30 text-emerald-400 font-bold text-sm rounded-xl transition-all"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/30 text-emerald-400 font-bold text-sm rounded-none transition-all"
                             >
                                 <PrinterIcon className="w-4 h-4" /> Performance Sheet
                             </button>
@@ -722,10 +740,10 @@ tbody tr:hover{background:#f3f4f6}
                             <button
                                 onClick={startBatchDownload}
                                 disabled={isBatchDownloading}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-900/30"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-foreground font-bold text-sm rounded-none transition-all shadow-lg shadow-emerald-900/30"
                             >
                                 {isBatchDownloading
-                                    ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" />
                                     : <ArrowDownTrayIcon className="w-4 h-4" />}
                                 {isBatchDownloading && batchProgress
                                     ? `Downloading ${batchProgress.current}/${batchProgress.total}…`
@@ -737,7 +755,7 @@ tbody tr:hover{background:#f3f4f6}
 
                 {/* ── Batch progress bar ── */}
                 {batchProgress && (
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-5 py-4">
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-none px-5 py-4">
                         <div className="flex items-center justify-between mb-2">
                             <p className="text-emerald-300 font-bold text-sm">
                                 Generating PDFs — {batchProgress.current} of {batchProgress.total} complete
@@ -746,7 +764,7 @@ tbody tr:hover{background:#f3f4f6}
                                 {Math.round((batchProgress.current / batchProgress.total) * 100)}%
                             </span>
                         </div>
-                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
                             <div
                                 className="h-full bg-emerald-500 rounded-full transition-all duration-300"
                                 style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
@@ -767,13 +785,13 @@ tbody tr:hover{background:#f3f4f6}
 
                             {/* Search */}
                             <div className="relative">
-                                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <input
                                     type="text"
                                     placeholder="Search students…"
                                     value={search}
                                     onChange={e => setSearch(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500 transition-colors"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
                                 />
                             </div>
 
@@ -782,7 +800,7 @@ tbody tr:hover{background:#f3f4f6}
                                     <select
                                         value={filterSchool}
                                         onChange={e => { setFilterSchool(e.target.value); setFilterClass(''); }}
-                                        className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
+                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none focus:border-orange-500 transition-colors"
                                     >
                                         <option value="">All Schools</option>
                                         {distinctSchools.map(s => <option key={s} value={s}>{s}</option>)}
@@ -790,7 +808,7 @@ tbody tr:hover{background:#f3f4f6}
                                     <select
                                         value={filterStatus}
                                         onChange={e => setFilterStatus(e.target.value as any)}
-                                        className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
+                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none focus:border-orange-500 transition-colors"
                                     >
                                         <option value="all">All Status</option>
                                         <option value="published">Published</option>
@@ -803,14 +821,14 @@ tbody tr:hover{background:#f3f4f6}
                                     <div className="flex flex-wrap gap-1.5 pt-1">
                                         <button
                                             onClick={() => setFilterClass('')}
-                                            className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!filterClass ? 'bg-violet-600 text-white border-violet-500' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+                                            className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!filterClass ? 'bg-orange-600 text-foreground border-orange-500' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
                                         >
                                             All
                                         </button>
                                         {distinctClasses.map(c => (
                                             <button key={c}
                                                 onClick={() => setFilterClass(filterClass === c ? '' : c)}
-                                                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${filterClass === c ? 'bg-violet-600 text-white border-violet-500' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+                                                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${filterClass === c ? 'bg-orange-600 text-foreground border-orange-500' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
                                             >
                                                 {c}
                                             </button>
@@ -823,25 +841,25 @@ tbody tr:hover{background:#f3f4f6}
                             <GradeDistribution students={filtered} reportsMap={reportsMap} />
 
                             {/* Select-all bar */}
-                            <div className="flex items-center justify-between px-3 py-2 bg-white/[0.03] border border-white/10 rounded-xl">
+                            <div className="flex items-center justify-between px-3 py-2 bg-white/[0.03] border border-border rounded-none">
                                 <button
                                     onClick={toggleSelectAll}
-                                    className="flex items-center gap-2 text-xs text-white/60 hover:text-white transition-colors"
+                                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
                                 >
-                                    <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${selectedIds.size === filtered.length && filtered.length > 0 ? 'bg-violet-600 border-violet-500' : 'border-white/30 hover:border-violet-400'}`}>
+                                    <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${selectedIds.size === filtered.length && filtered.length > 0 ? 'bg-orange-600 border-orange-500' : 'border-border hover:border-orange-400'}`}>
                                         {selectedIds.size === filtered.length && filtered.length > 0 && (
-                                            <CheckIcon className="w-3 h-3 text-white" />
+                                            <CheckIcon className="w-3 h-3 text-foreground" />
                                         )}
                                     </span>
                                     {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Select all'}
                                 </button>
-                                <span className="text-[10px] text-white/30">{filtered.length} shown</span>
+                                <span className="text-[10px] text-muted-foreground">{filtered.length} shown</span>
                             </div>
 
                             {/* Student list */}
                             <div className="space-y-1.5 max-h-[calc(100vh-380px)] overflow-y-auto pr-0.5">
                                 {filtered.length === 0 && (
-                                    <p className="text-white/30 text-sm py-8 text-center">No students found</p>
+                                    <p className="text-muted-foreground text-sm py-8 text-center">No students found</p>
                                 )}
                                 {filtered.map(s => {
                                     const r = reportsMap[s.id];
@@ -854,25 +872,25 @@ tbody tr:hover{background:#f3f4f6}
                                         <div
                                             key={s.id}
                                             onClick={() => loadStudentReport(s)}
-                                            className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${isActive ? 'bg-violet-600/20 border-violet-500/40' : 'bg-white/5 border-white/10 hover:border-white/25 hover:bg-white/[0.07]'}`}
+                                            className={`flex items-center gap-2.5 p-3 rounded-none border cursor-pointer transition-all ${isActive ? 'bg-orange-600/20 border-orange-500/40' : 'bg-card shadow-sm border-border hover:border-border hover:bg-white/[0.07]'}`}
                                         >
                                             {/* Checkbox */}
                                             <button
                                                 onClick={e => toggleSelect(s.id, e)}
-                                                className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isChecked ? 'bg-violet-600 border-violet-500' : 'border-white/25 hover:border-violet-400'}`}
+                                                className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isChecked ? 'bg-orange-600 border-orange-500' : 'border-border hover:border-orange-400'}`}
                                             >
-                                                {isChecked && <CheckIcon className="w-3 h-3 text-white" />}
+                                                {isChecked && <CheckIcon className="w-3 h-3 text-foreground" />}
                                             </button>
 
                                             {/* Avatar */}
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
                                                 {s.full_name ? s.full_name[0].toUpperCase() : '?'}
                                             </div>
 
                                             {/* Info */}
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-semibold text-white truncate">{s.full_name ?? 'Unknown'}</p>
-                                                <p className="text-[10px] text-white/40 truncate">
+                                                <p className="text-sm font-semibold text-foreground truncate">{s.full_name ?? 'Unknown'}</p>
+                                                <p className="text-[10px] text-muted-foreground truncate">
                                                     {[cls, sch].filter(Boolean).join(' · ') || s.email}
                                                 </p>
                                             </div>
@@ -889,7 +907,7 @@ tbody tr:hover{background:#f3f4f6}
                                                         </p>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-[10px] text-white/20">No report</span>
+                                                    <span className="text-[10px] text-muted-foreground">No report</span>
                                                 )}
                                             </div>
                                         </div>
@@ -904,26 +922,26 @@ tbody tr:hover{background:#f3f4f6}
                         {(selectedStudent || !isStaff) ? (
 
                             (loadingReport || selectedReport) ? (
-                                <div className="border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
+                                <div className="border border-border rounded-none overflow-hidden shadow-2xl flex flex-col">
 
                                     {/* Action bar */}
-                                    <div className="bg-white/5 border-b border-white/10 px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                                    <div className="bg-card shadow-sm border-b border-border px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
                                         <div className="flex items-center gap-2 flex-1 min-w-0">
                                             {isStaff && (
                                                 <button 
                                                     onClick={() => setShowSidebar(!showSidebar)}
-                                                    className="lg:hidden p-2 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
+                                                    className="lg:hidden p-2 bg-card shadow-sm border border-border rounded-none text-muted-foreground hover:text-foreground transition-colors"
                                                 >
                                                     <MagnifyingGlassIcon className="w-4 h-4" />
                                                 </button>
                                             )}
-                                            <DocumentTextIcon className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                                            <DocumentTextIcon className="w-4 h-4 text-orange-400 flex-shrink-0" />
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-bold text-white truncate">
+                                                <p className="text-sm font-bold text-foreground truncate">
                                                     {selectedReport?.student_name ?? selectedStudent?.full_name ?? 'Student'}
                                                 </p>
                                                 {selectedReport && (
-                                                    <p className="text-[10px] text-white/40 truncate">
+                                                    <p className="text-[10px] text-muted-foreground truncate">
                                                         {[selectedReport.course_name, selectedReport.report_term, selectedReport.section_class]
                                                             .filter(Boolean).join(' · ')}
                                                     </p>
@@ -939,19 +957,19 @@ tbody tr:hover{background:#f3f4f6}
                                         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
                                             {/* Prev / Next */}
                                             {isStaff && currentIdx >= 0 && (
-                                                <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/5 h-9 flex-shrink-0">
+                                                <div className="flex items-center gap-1.5 bg-card shadow-sm p-1 rounded-none border border-border h-9 flex-shrink-0">
                                                     <button
                                                         onClick={() => navigateTo(currentIdx - 1)}
                                                         disabled={currentIdx <= 0 || loadingReport}
-                                                        className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white disabled:opacity-10 transition-colors"
+                                                        className="p-1.5 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-10 transition-colors"
                                                     >
                                                         <ArrowLeftIcon className="w-3.5 h-3.5" />
                                                     </button>
-                                                    <span className="text-[10px] text-white/30 font-black tracking-tighter px-1 min-w-[3.5rem] text-center">{currentIdx + 1} / {filtered.length}</span>
+                                                    <span className="text-[10px] text-muted-foreground font-black tracking-tighter px-1 min-w-[3.5rem] text-center">{currentIdx + 1} / {filtered.length}</span>
                                                     <button
                                                         onClick={() => navigateTo(currentIdx + 1)}
                                                         disabled={currentIdx >= filtered.length - 1 || loadingReport}
-                                                        className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white disabled:opacity-10 transition-colors"
+                                                        className="p-1.5 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-10 transition-colors"
                                                     >
                                                         <ArrowRightIcon className="w-3.5 h-3.5" />
                                                     </button>
@@ -959,16 +977,16 @@ tbody tr:hover{background:#f3f4f6}
                                             )}
 
                                             {/* Template Toggle */}
-                                            <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 h-9 flex-shrink-0">
+                                            <div className="flex bg-card shadow-sm p-1 rounded-none border border-border h-9 flex-shrink-0">
                                                 <button 
                                                   onClick={() => setTemplate('standard')}
-                                                  className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${template === 'standard' ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/40' : 'text-white/30 hover:text-white/50'}`}
+                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'standard' ? 'bg-orange-600 text-foreground shadow-lg shadow-orange-900/40' : 'text-muted-foreground hover:text-muted-foreground'}`}
                                                 >
                                                     Standard
                                                 </button>
                                                 <button 
                                                   onClick={() => setTemplate('modern')}
-                                                  className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${template === 'modern' ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/40' : 'text-white/30 hover:text-white/50'}`}
+                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'modern' ? 'bg-orange-600 text-foreground shadow-lg shadow-orange-900/40' : 'text-muted-foreground hover:text-muted-foreground'}`}
                                                 >
                                                     Modern
                                                 </button>
@@ -979,7 +997,7 @@ tbody tr:hover{background:#f3f4f6}
                                                 {isEditor && selectedStudent && (
                                                     <Link
                                                         href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
-                                                        className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-violet-400 bg-violet-600/10 hover:bg-violet-600/20 rounded-xl border border-violet-500/20 transition-all"
+                                                        className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-orange-400 bg-orange-600/10 hover:bg-orange-600/20 rounded-none border border-orange-500/20 transition-all"
                                                     >
                                                         <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                                                     </Link>
@@ -988,7 +1006,7 @@ tbody tr:hover{background:#f3f4f6}
                                                     <>
                                                         <button
                                                             onClick={() => { setEditCourseName(selectedReport.course_name ?? ''); setEditTerm(selectedReport.report_term ?? ''); setShowEditModal(true); }}
-                                                            className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/20 transition-all"
+                                                            className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-none border border-amber-500/20 transition-all"
                                                         >
                                                             <PencilSquareIcon className="w-3.5 h-3.5" /> Rename
                                                         </button>
@@ -996,7 +1014,7 @@ tbody tr:hover{background:#f3f4f6}
                                                             onClick={handleDeleteReport}
                                                             disabled={isDeletingReport}
                                                             title="Delete this report"
-                                                            className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-50 rounded-xl border border-rose-500/20 transition-all"
+                                                            className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-50 rounded-none border border-rose-500/20 transition-all"
                                                         >
                                                             {isDeletingReport
                                                                 ? <div className="w-3 h-3 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
@@ -1008,7 +1026,7 @@ tbody tr:hover{background:#f3f4f6}
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             onClick={() => window.print()}
-                                                            className="h-full inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all"
+                                                            className="h-full inline-flex items-center gap-2 px-4 py-1.5 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest rounded-none border border-border transition-all"
                                                         >
                                                             <PrinterIcon className="w-3.5 h-3.5" />
                                                             Print
@@ -1016,10 +1034,10 @@ tbody tr:hover{background:#f3f4f6}
                                                         <button
                                                             onClick={downloadSinglePDF}
                                                             disabled={isDownloadingPdf}
-                                                            className="h-full inline-flex items-center gap-2 px-4 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-violet-900/40 whitespace-nowrap"
+                                                            className="h-full inline-flex items-center gap-2 px-4 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all shadow-lg shadow-orange-900/40 whitespace-nowrap"
                                                         >
                                                             {isDownloadingPdf
-                                                                ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                                ? <div className="w-3 h-3 border-2 border-border border-t-transparent rounded-full animate-spin" />
                                                                 : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
                                                             {isDownloadingPdf ? 'Downloading…' : 'Download PDF'}
                                                         </button>
@@ -1032,7 +1050,7 @@ tbody tr:hover{background:#f3f4f6}
                                     {/* Report body */}
                                     {loadingReport ? (
                                         <div className="flex items-center justify-center h-72 bg-white/[0.02]">
-                                            <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                                            <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
                                         </div>
                                     ) : reportToDisplay ? (
                                         <div className="overflow-auto bg-gray-100 p-4 sm:p-6 lg:p-8" style={{ maxHeight: '75vh' }}>
@@ -1049,15 +1067,15 @@ tbody tr:hover{background:#f3f4f6}
 
                             ) : (
                                 /* Student selected but has no report */
-                                <div className="flex flex-col items-center justify-center min-h-[400px] bg-white/5 border border-white/10 rounded-2xl gap-3">
-                                    <DocumentTextIcon className="w-12 h-12 text-white/10" />
-                                    <p className="text-white/40 text-sm font-semibold">
+                                <div className="flex flex-col items-center justify-center min-h-[400px] bg-card shadow-sm border border-border rounded-none gap-3">
+                                    <DocumentTextIcon className="w-12 h-12 text-muted-foreground" />
+                                    <p className="text-muted-foreground text-sm font-semibold">
                                         No report for {selectedStudent?.full_name}
                                     </p>
                                     {isEditor && selectedStudent && (
                                         <Link
                                             href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
-                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600/20 text-violet-400 text-sm font-bold rounded-xl border border-violet-500/30 hover:bg-violet-600/30 transition-colors"
+                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600/20 text-orange-400 text-sm font-bold rounded-none border border-orange-500/30 hover:bg-orange-600/30 transition-colors"
                                         >
                                             <PencilSquareIcon className="w-4 h-4" /> Create Report
                                         </Link>
@@ -1070,14 +1088,14 @@ tbody tr:hover{background:#f3f4f6}
 
                         ) : (
                             /* Staff — no student selected yet */
-                            <div className="flex flex-col items-center justify-center min-h-[500px] bg-white/5 border border-white/10 rounded-2xl gap-3">
-                                <AcademicCapIcon className="w-14 h-14 text-white/10" />
-                                <p className="text-white/30 text-sm font-semibold">Select a student to view their report</p>
-                                <p className="text-white/20 text-xs">Or select multiple students and click Download PDFs</p>
+                            <div className="flex flex-col items-center justify-center min-h-[500px] bg-card shadow-sm border border-border rounded-none gap-3">
+                                <AcademicCapIcon className="w-14 h-14 text-muted-foreground" />
+                                <p className="text-muted-foreground text-sm font-semibold">Select a student to view their report</p>
+                                <p className="text-muted-foreground text-xs">Or select multiple students and click Download PDFs</p>
                                 {isEditor && (
                                     <Link
                                         href="/dashboard/reports/builder"
-                                        className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600/20 text-violet-400 text-sm font-bold rounded-xl border border-violet-500/30 hover:bg-violet-600/30 transition-colors"
+                                        className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600/20 text-orange-400 text-sm font-bold rounded-none border border-orange-500/30 hover:bg-orange-600/30 transition-colors"
                                     >
                                         <PencilSquareIcon className="w-4 h-4" /> Create First Report
                                     </Link>
@@ -1232,36 +1250,36 @@ tbody tr:hover{background:#f3f4f6}
             {/* ══ Edit / Rename modal ══ */}
             {showEditModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm print:hidden" onClick={() => setShowEditModal(false)}>
-                    <div className="bg-[#0f0f1a] border border-white/15 rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="bg-background border border-border rounded-none p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-5">
                             <div>
-                                <h3 className="text-base font-extrabold text-white">Rename / Reassign Report</h3>
-                                <p className="text-xs text-white/40 mt-0.5">{selectedStudent?.full_name}</p>
+                                <h3 className="text-base font-extrabold text-foreground">Rename / Reassign Report</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">{selectedStudent?.full_name}</p>
                             </div>
-                            <button onClick={() => setShowEditModal(false)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+                            <button onClick={() => setShowEditModal(false)} className="p-1.5 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                                 <XMarkIcon className="w-4 h-4" />
                             </button>
                         </div>
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-white/60 mb-1.5 uppercase tracking-wider">Course / Class Name</label>
+                                <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Course / Class Name</label>
                                 <input
                                     type="text"
                                     value={editCourseName}
                                     onChange={e => setEditCourseName(e.target.value)}
                                     placeholder="e.g. Web Development, Python Basics"
-                                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500 transition-colors"
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-white/60 mb-1.5 uppercase tracking-wider">Report Term</label>
+                                <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Report Term</label>
                                 <input
                                     type="text"
                                     value={editTerm}
                                     onChange={e => setEditTerm(e.target.value)}
                                     placeholder="e.g. First Term 2025/2026"
-                                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500 transition-colors"
+                                    className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
                                 />
                             </div>
                         </div>
@@ -1269,14 +1287,14 @@ tbody tr:hover{background:#f3f4f6}
                         <div className="flex gap-3 mt-6">
                             <button
                                 onClick={() => setShowEditModal(false)}
-                                className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/10 transition-all font-semibold"
+                                className="flex-1 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all font-semibold"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleSaveEdit}
                                 disabled={isSavingEdit || !editCourseName.trim()}
-                                className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-sm text-white font-bold transition-all shadow-lg shadow-violet-900/30"
+                                className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-none text-sm text-foreground font-bold transition-all shadow-lg shadow-orange-900/30"
                             >
                                 {isSavingEdit ? 'Saving…' : 'Save Changes'}
                             </button>
@@ -1293,10 +1311,39 @@ tbody tr:hover{background:#f3f4f6}
 export default function ResultsPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-                <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
             </div>
         }>
+            {/* ══ AI Telemetry Chat ══ */}
+            {showAI && (
+                <div className="fixed bottom-6 right-6 z-[100] w-full max-w-sm animate-in slide-in-from-right-10 duration-500">
+                    <div className="relative group">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-violet-600 rounded-[2rem] blur opacity-25 group-hover:opacity-50 transition duration-1000" />
+                        <div className="relative">
+                            <div className="absolute top-4 right-4 z-50">
+                                <button onClick={() => setShowAI(false)} className="p-2 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-all">
+                                    <XMarkIcon className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <ChatWindow 
+                                recipientId="ai-telemetry" 
+                                recipientName="Telemetry AI Assistant" 
+                                initialMessages={[
+                                    {
+                                        id: '1',
+                                        sender_id: 'ai',
+                                        recipient_id: profile?.id || 'user',
+                                        content: `Hello ${profile?.full_name?.split(' ')[0] || 'Teacher'}! I'm your Telemetry AI Assistant. I can help you analyze student performance and provide insights. How can I help you today?`,
+                                        created_at: new Date().toISOString()
+                                    }
+                                ]} 
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <ResultsPageInner />
         </Suspense>
     );

@@ -23,7 +23,7 @@ const quickLinks = [
 
 export default function Footer() {
   return (
-    <footer className="bg-[#121212] text-white relative overflow-hidden border-t border-white/5">
+    <footer className="bg-[#121212] text-white relative overflow-hidden border-t border-border">
       {/* Sharp Accent Line */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 via-orange-500 to-transparent opacity-50" />
 
@@ -33,22 +33,22 @@ export default function Footer() {
           {/* Brand Col */}
           <div className="lg:col-span-5 space-y-8">
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 bg-white/5 border border-white/10 flex items-center justify-center rounded-none group-hover:scale-105 transition-transform ring-1 ring-white/20 ring-offset-2 ring-offset-[#121212]">
-                <Image src="/images/logo.png" alt="Rillcod Technologies" width={24} height={24} className="object-contain" />
+              <div className="w-10 h-10 bg-white/5 border border-border flex items-center justify-center rounded-none group-hover:scale-105 transition-transform ring-1 ring-white/20 ring-offset-2 ring-offset-[#121212]">
+                <Image src="/images/logo.png" alt="Rillcod Technologies" width={28} height={28} className="object-contain" />
               </div>
-              <div className="space-y-0.5">
-                <span className="text-xl font-black uppercase tracking-tight block leading-none italic text-white">RILLCOD<span className="text-orange-500 not-italic">.ACADEMY</span></span>
-                <span className="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">Propelling Nigeria Forward.</span>
+              <div className="leading-none">
+                <span className="text-2xl font-black uppercase tracking-tight block leading-tight italic text-white">RILLCOD<span className="text-orange-500 not-italic">.</span></span>
+                <span className="text-2xl font-black uppercase tracking-tight block leading-tight italic text-orange-500">TECHNOLOGIES</span>
               </div>
             </Link>
             
-            <p className="text-slate-400 text-sm leading-relaxed max-w-sm italic border-l border-white/10 pl-5">
+            <p className="text-slate-400 text-sm leading-relaxed max-w-sm italic border-l border-border pl-5">
               Deploying elite STEM infrastructure and curriculum across partner schools in Nigeria. From first lines of code to advanced robotics engineering.
             </p>
 
             <div className="flex items-center gap-3">
                {footerSocialLinks.map((s) => (
-                 <Link key={s.name} href="#" className="w-10 h-10 border border-white/10 flex items-center justify-center rounded-none hover:bg-white/5 hover:border-orange-500 transition-all text-slate-400 hover:text-orange-500">
+                 <Link key={s.name} href="#" className="w-10 h-10 border border-border flex items-center justify-center rounded-none hover:bg-white/5 hover:border-orange-500 transition-all text-slate-400 hover:text-orange-500">
                     <s.icon className="w-4 h-4" />
                  </Link>
                ))}
@@ -95,7 +95,7 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="pt-12 border-t border-border flex flex-col md:flex-row items-center justify-between gap-8">
            <div className="flex flex-col md:flex-row items-center gap-6">
               <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
                  © {year} RILLCOD TECHNOLOGIES. ALL RIGHTS RESERVED.
@@ -106,7 +106,7 @@ export default function Footer() {
               </p>
            </div>
            
-           <div className="flex items-center gap-6 px-6 py-2 bg-white/5 border border-white/10 rounded-none">
+           <div className="flex items-center gap-6 px-6 py-2 bg-white/5 border border-border rounded-none">
               <ShieldCheck className="w-3.5 h-3.5 text-orange-500" />
               <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em]">Official Verified Node</span>
            </div>

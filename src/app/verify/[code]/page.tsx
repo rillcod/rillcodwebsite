@@ -91,7 +91,7 @@ export default function VerifyCodePage() {
       </div>
 
       {/* Top bar */}
-      <header className="sticky top-0 z-50 border-b border-white/5 bg-[#0a0a0f]/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-border bg-[#0a0a0f]/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/verify" className="flex items-center gap-2 group text-white/40 hover:text-white transition-colors">
             <ArrowLeftIcon className="w-4 h-4" />
@@ -203,7 +203,7 @@ export default function VerifyCodePage() {
                   <div className="flex flex-col md:flex-row items-center justify-center gap-4">
                     <button
                       onClick={() => window.print()}
-                      className="px-8 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-colors"
+                      className="px-8 py-3.5 bg-white/5 border border-border rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-colors"
                     >
                       Print Report
                     </button>
@@ -220,13 +220,13 @@ export default function VerifyCodePage() {
               {/* MODE: Certificate Display */}
               {mode === 'certificate' && certificate && (
                 <div className="space-y-12">
-                  <div className="bg-[#12121e] border border-white/5 rounded-[2.5rem] p-10 shadow-2xl space-y-10">
+                  <div className="bg-[#12121e] border border-border rounded-[2.5rem] p-10 shadow-2xl space-y-10">
 
                     {/* Certificate Visual */}
                     <div className="flex items-center justify-center py-6">
                       <div className="relative">
                         <div className="absolute inset-0 bg-violet-500 blur-[80px] opacity-20" />
-                        <div className="relative w-48 h-48 bg-white/[0.03] border border-white/10 rounded-full flex flex-col items-center justify-center gap-4 backdrop-blur-3xl shadow-2xl">
+                        <div className="relative w-48 h-48 bg-white/[0.03] border border-border rounded-full flex flex-col items-center justify-center gap-4 backdrop-blur-3xl shadow-2xl">
                           <AcademicCapIcon className="w-20 h-20 text-violet-400" />
                           <div className="flex gap-1.5 translate-y-2">
                             {[1, 2, 3, 4, 5].map(i => <div key={i} className="w-1 h-1 rounded-full bg-violet-500" />)}
@@ -245,7 +245,7 @@ export default function VerifyCodePage() {
                       <p className="text-white/30 text-xs font-black uppercase tracking-[0.3em]">Institutional Completion Certificate</p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-white/5 rounded-[2rem] overflow-hidden border border-white/5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-white/5 rounded-[2rem] overflow-hidden border border-border">
                       {[
                         { label: 'Programme', value: certificate.courses?.title, icon: <DocumentTextIcon className="w-5 h-5" /> },
                         { label: 'Issue Date', value: new Date(certificate.issued_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }), icon: <CalendarIcon className="w-5 h-5" /> },
@@ -304,7 +304,7 @@ export default function VerifyCodePage() {
         </div>
       </main>
 
-      <footer className="mt-auto border-t border-white/5 px-6 py-10 text-center bg-[#0a0a0f]">
+      <footer className="mt-auto border-t border-border px-6 py-10 text-center bg-[#0a0a0f]">
         <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">
           © {new Date().getFullYear()} Rillcod Technologies · Secure Verification Framework v3.0 (Master-Sync)
         </p>

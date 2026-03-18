@@ -36,14 +36,14 @@ function StatCard({ icon: Icon, label, value, sub, color }: {
   icon: any; label: string; value: string | number; sub?: string; color: string;
 }) {
   return (
-    <div className="bg-[#0d1526] border border-white/10 rounded-2xl p-5 flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+    <div className="bg-[#0d1526] border border-border rounded-none p-5 flex items-center gap-4">
+      <div className={`w-12 h-12 rounded-none flex items-center justify-center flex-shrink-0 ${color}`}>
         <Icon className="w-6 h-6" />
       </div>
       <div>
-        <p className="text-white/40 text-xs font-bold uppercase tracking-widest">{label}</p>
-        <p className="text-2xl font-black text-white">{value}</p>
-        {sub && <p className="text-white/30 text-xs mt-0.5">{sub}</p>}
+        <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">{label}</p>
+        <p className="text-2xl font-black text-foreground">{value}</p>
+        {sub && <p className="text-muted-foreground text-xs mt-0.5">{sub}</p>}
       </div>
     </div>
   );
@@ -204,43 +204,43 @@ export default function SchoolOverviewPage() {
     });
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-[#7a0606] border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (profile?.role !== 'school' && profile?.role !== 'admin') return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-      <p className="text-white/40">Access restricted to partner schools.</p>
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <p className="text-muted-foreground">Access restricted to partner schools.</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] px-4 py-6 md:px-8">
+    <div className="min-h-screen bg-background px-4 py-6 md:px-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white">School Overview</h1>
-          <p className="text-white/40 text-sm mt-1">
+          <h1 className="text-2xl font-black text-foreground">School Overview</h1>
+          <p className="text-muted-foreground text-sm mt-1">
             {profile?.school_name ?? 'Your School'} · Partner Dashboard
           </p>
         </div>
         <div className="flex gap-3">
           <Link
             href={`/dashboard/timetable?school_id=${profile?.school_id}`}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-none transition-colors"
           >
             <CalendarDaysIcon className="w-4 h-4" /> View Schedule
           </Link>
           <Link
             href="/dashboard/students/import"
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-colors"
           >
             <UserGroupIcon className="w-4 h-4" /> Import Students
           </Link>
           <button
             onClick={exportPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7a0606] hover:bg-[#9a0808] text-white text-sm font-bold rounded-xl transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-[#7a0606] hover:bg-[#9a0808] text-foreground text-sm font-bold rounded-none transition-colors"
           >
             <DocumentArrowDownIcon className="w-4 h-4" /> Export PDF
           </button>
@@ -250,7 +250,7 @@ export default function SchoolOverviewPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard icon={UserGroupIcon} label="Total Students" value={stats.total}
-          sub={`${stats.active} active`} color="bg-violet-500/20 text-violet-400" />
+          sub={`${stats.active} active`} color="bg-orange-500/20 text-orange-400" />
         <StatCard icon={TrophyIcon} label="Avg Score" value={`${stats.avgScore.toFixed(0)}%`}
           sub="across all assignments" color="bg-yellow-500/20 text-yellow-400" />
         <StatCard icon={ClipboardDocumentCheckIcon} label="Avg Attendance"
@@ -262,13 +262,13 @@ export default function SchoolOverviewPage() {
       </div>
 
       {/* Performance Chart (bar) */}
-      <div className="bg-[#0d1526] border border-white/10 rounded-2xl p-5 mb-6">
-        <h2 className="text-sm font-bold text-white/60 uppercase tracking-widest mb-4">Student Performance</h2>
+      <div className="bg-[#0d1526] border border-border rounded-none p-5 mb-6">
+        <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Student Performance</h2>
         <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
           {filtered.slice(0, 20).map(s => (
             <div key={s.id} className="flex items-center gap-3">
-              <span className="text-xs text-white/50 w-28 truncate flex-shrink-0">{s.full_name.split(' ')[0]}</span>
-              <div className="flex-1 bg-white/5 rounded-full h-3 overflow-hidden">
+              <span className="text-xs text-muted-foreground w-28 truncate flex-shrink-0">{s.full_name.split(' ')[0]}</span>
+              <div className="flex-1 bg-card shadow-sm rounded-full h-3 overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-700"
                   style={{
@@ -281,27 +281,27 @@ export default function SchoolOverviewPage() {
             </div>
           ))}
           {filtered.length === 0 && (
-            <p className="text-white/30 text-sm text-center py-8">No students found.</p>
+            <p className="text-muted-foreground text-sm text-center py-8">No students found.</p>
           )}
         </div>
       </div>
 
       {/* Student Table */}
-      <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-white/10 flex-wrap gap-3">
-          <h2 className="text-sm font-bold text-white/60 uppercase tracking-widest">Students</h2>
+      <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">
+        <div className="flex items-center justify-between p-5 border-b border-border flex-wrap gap-3">
+          <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Students</h2>
           <div className="flex gap-2 flex-wrap">
             <input
               type="text"
               placeholder="Search student..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="bg-white/5 border border-white/10 text-white text-sm px-3 py-1.5 rounded-lg placeholder:text-white/30 focus:outline-none focus:border-violet-500 w-44"
+              className="bg-card shadow-sm border border-border text-foreground text-sm px-3 py-1.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 w-44"
             />
             <select
               value={sortBy}
               onChange={e => setSortBy(e.target.value as any)}
-              className="bg-white/5 border border-white/10 text-white text-sm px-3 py-1.5 rounded-lg"
+              className="bg-card shadow-sm border border-border text-foreground text-sm px-3 py-1.5 rounded-none"
             >
               <option value="grade">Sort: Grade</option>
               <option value="attendance">Sort: Attendance</option>
@@ -312,7 +312,7 @@ export default function SchoolOverviewPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/10 text-white/40 text-xs uppercase tracking-widest">
+              <tr className="border-b border-border text-muted-foreground text-xs uppercase tracking-widest">
                 <th className="text-left px-5 py-3">Student</th>
                 <th className="text-left px-5 py-3">Section</th>
                 <th className="text-center px-5 py-3">Avg Score</th>
@@ -323,38 +323,38 @@ export default function SchoolOverviewPage() {
             </thead>
             <tbody>
               {filtered.map(s => (
-                <tr key={s.id} className="border-b border-white/5 hover:bg-white/3 transition-colors">
+                <tr key={s.id} className="border-b border-border hover:bg-white/3 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-[#7a0606] flex items-center justify-center flex-shrink-0">
-                        <span className="text-white text-xs font-black">{s.full_name.charAt(0)}</span>
+                        <span className="text-foreground text-xs font-black">{s.full_name.charAt(0)}</span>
                       </div>
                       <div>
-                        <p className="text-white font-semibold">{s.full_name}</p>
-                        <p className="text-white/30 text-xs">{s.email}</p>
+                        <p className="text-foreground font-semibold">{s.full_name}</p>
+                        <p className="text-muted-foreground text-xs">{s.email}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-white/50">{s.section_class ?? '—'}</td>
+                  <td className="px-5 py-3 text-muted-foreground">{s.section_class ?? '—'}</td>
                   <td className="px-5 py-3 text-center"><ScoreBadge score={s.avgGrade} /></td>
                   <td className="px-5 py-3 text-center">
                     <span className={`text-xs font-bold ${s.attendance >= 75 ? 'text-emerald-400' : s.attendance >= 50 ? 'text-yellow-400' : 'text-rose-400'}`}>
                       {s.attendance}%
                     </span>
                   </td>
-                  <td className="px-5 py-3 text-center text-white/50">{s.submissions}</td>
+                  <td className="px-5 py-3 text-center text-muted-foreground">{s.submissions}</td>
                   <td className="px-5 py-3 text-center">
                     {s.is_active
                       ? <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-bold">Active</span>
-                      : <span className="text-xs bg-white/5 text-white/30 px-2 py-0.5 rounded-full font-bold">Inactive</span>}
+                      : <span className="text-xs bg-card shadow-sm text-muted-foreground px-2 py-0.5 rounded-full font-bold">Inactive</span>}
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-white/30">
+                  <td colSpan={6} className="text-center py-12 text-muted-foreground">
                     No students enrolled yet.{' '}
-                    <Link href="/dashboard/students/import" className="text-violet-400 underline">Import students</Link>
+                    <Link href="/dashboard/students/import" className="text-orange-400 underline">Import students</Link>
                   </td>
                 </tr>
               )}

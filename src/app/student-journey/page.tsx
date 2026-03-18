@@ -295,7 +295,7 @@ export default function StudentJourney() {
                   
                   {/* Timeline Node */}
                   <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                    <div className={`w-8 h-8 bg-gradient-to-r ${stage.color} rounded-full border-4 border-white dark:border-gray-800 shadow-lg flex items-center justify-center ${
+                    <div className={`w-8 h-8 bg-gradient-to-r ${stage.color} rounded-full border-4 border-border dark:border-gray-800 shadow-lg flex items-center justify-center ${
                       isActive ? 'scale-125 ring-4 ring-blue-500/30' : ''
                     }`}>
                       <CheckCircle className="w-4 h-4 text-white" />
@@ -432,7 +432,7 @@ export default function StudentJourney() {
             
             <Link 
               href="/programs" 
-              className="inline-flex items-center px-8 py-4 border-2 border-white text-white font-semibold rounded-xl hover:bg-white hover:text-blue-600 transition-all duration-300 hover:scale-105"
+              className="inline-flex items-center px-8 py-4 border-2 border-border text-white font-semibold rounded-xl hover:bg-white hover:text-blue-600 transition-all duration-300 hover:scale-105"
             >
               <Play className="w-5 h-5 mr-2" />
               Explore Programs

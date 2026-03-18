@@ -54,7 +54,7 @@ export function AtRiskList({ schoolId }: { schoolId?: string }) {
     return (
         <div className="space-y-4">
             {atRisk.map(student => (
-                <div key={student.student_id} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between hover:bg-white/8 transition-all">
+                <div key={student.student_id} className="bg-white/5 border border-border rounded-2xl p-4 flex items-center justify-between hover:bg-white/8 transition-all">
                     <div className="flex items-center gap-4">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${student.risk_level === 'High' ? 'bg-rose-500/20' : 'bg-amber-500/20'
                             }`}>

@@ -235,51 +235,51 @@ export default function AddClassPage() {
   };
 
   if (authLoading) return (
-    <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-white/40 font-medium animate-pulse uppercase tracking-[0.2em] text-[10px]">Loading Context...</p>
+        <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-muted-foreground font-medium animate-pulse uppercase tracking-[0.2em] text-[10px]">Loading Context...</p>
       </div>
     </div>
   );
 
   if (!isStaff) return (
-    <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
-      <div className="bg-white/5 border border-white/10 rounded-[2rem] p-8 text-center max-w-sm">
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="bg-card shadow-sm border border-border rounded-[2rem] p-8 text-center max-w-sm">
         <ExclamationTriangleIcon className="w-12 h-12 text-rose-500/20 mx-auto mb-4" />
-        <p className="text-white/40 font-black uppercase tracking-widest text-xs leading-relaxed">Administrator level access required to initialize new academy clusters.</p>
+        <p className="text-muted-foreground font-black uppercase tracking-widest text-xs leading-relaxed">Administrator level access required to initialize new academy clusters.</p>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#050a17] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8 pb-32">
 
         <Link href="/dashboard/classes"
-          className="inline-flex items-center gap-3 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-all group">
+          className="inline-flex items-center gap-3 px-4 py-2 bg-card shadow-sm hover:bg-muted border border-border rounded-full text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all group">
           <ArrowLeftIcon className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Registry
         </Link>
 
         {/* Header Block */}
-        <div className="bg-gradient-to-br from-violet-600/20 to-blue-600/20 border border-white/5 rounded-[2.5rem] p-10 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-violet-500 opacity-[0.05] blur-3xl rounded-full" />
+        <div className="bg-gradient-to-br from-orange-600/20 from-orange-600 to-orange-400/20 border border-border rounded-[2.5rem] p-10 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500 opacity-[0.05] blur-3xl rounded-full" />
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-violet-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-900/40">
-                <BookOpenIcon className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 bg-orange-600 rounded-none flex items-center justify-center shadow-lg shadow-orange-900/40">
+                <BookOpenIcon className="w-6 h-6 text-foreground" />
               </div>
-              <span className="text-[10px] font-black text-violet-400 uppercase tracking-[0.2em]">New Cluster initialization</span>
+              <span className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em]">New Cluster initialization</span>
             </div>
-            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-white">Create <span className="bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">Class</span></h1>
-            <p className="text-white/30 text-sm mt-3 font-medium max-w-md">Configure your new academic group, assign mentorship, and enroll initial student pioneers.</p>
+            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-foreground">Create <span className="bg-gradient-to-r from-orange-400 from-orange-600 to-orange-400 bg-clip-text text-transparent">Class</span></h1>
+            <p className="text-muted-foreground text-sm mt-3 font-medium max-w-md">Configure your new academic group, assign mentorship, and enroll initial student pioneers.</p>
           </div>
         </div>
 
         {error && (
           <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-[2rem] p-6 animate-in fade-in slide-in-from-top-4">
-            <div className="w-10 h-10 bg-rose-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-rose-900/40">
-              <ExclamationTriangleIcon className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 bg-rose-500 rounded-none flex items-center justify-center flex-shrink-0 shadow-lg shadow-rose-900/40">
+              <ExclamationTriangleIcon className="w-6 h-6 text-foreground" />
             </div>
             <p className="text-rose-400 text-xs font-black uppercase tracking-widest leading-relaxed">{error}</p>
           </div>
@@ -287,49 +287,49 @@ export default function AddClassPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Primary Details Card */}
-          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 sm:p-10 space-y-8 shadow-2xl">
-            <h3 className="text-white/20 text-[10px] font-black uppercase tracking-[0.4em] mb-4">Functional Definition</h3>
+          <div className="bg-card shadow-sm border border-border rounded-[2.5rem] p-8 sm:p-10 space-y-8 shadow-2xl">
+            <h3 className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.4em] mb-4">Functional Definition</h3>
             
             <div className="space-y-6">
               <div>
-                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">
-                  Class Designation <span className="text-violet-500">*</span>
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 px-1">
+                  Class Designation <span className="text-orange-500">*</span>
                 </label>
                 <input type="text" required value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Python Architects — Phase 1"
-                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-white placeholder:text-white/10 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all outline-none" />
+                  className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-none text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 focus:bg-muted transition-all outline-none" />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">
-                    Select Programme <span className="text-violet-500">*</span>
+                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 px-1">
+                    Select Programme <span className="text-orange-500">*</span>
                   </label>
                   <select required value={form.program_id}
                     onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}
-                    className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[11px] font-black text-white/70 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all appearance-none cursor-pointer uppercase tracking-widest">
-                    <option value="" className="bg-[#0f0f1a]">SELECT PATHWAY</option>
+                    className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-none text-[11px] font-black text-muted-foreground focus:outline-none focus:border-orange-500 focus:bg-muted transition-all appearance-none cursor-pointer uppercase tracking-widest">
+                    <option value="" className="bg-background">SELECT PATHWAY</option>
                     {programs.map(p => (
-                      <option key={p.id} value={p.id} className="bg-[#0f0f1a]">{p.name}</option>
+                      <option key={p.id} value={p.id} className="bg-background">{p.name}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">Curriculum Mentor</label>
+                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 px-1">Curriculum Mentor</label>
                   {profile?.role === 'teacher' ? (
-                    <div className="w-full px-6 py-5 bg-white/5 border border-violet-500/20 rounded-2xl flex items-center gap-3">
-                      <UserIcon className="w-4 h-4 text-violet-400 flex-shrink-0" />
-                      <span className="text-[11px] font-black text-white/70 uppercase tracking-widest">{profile.full_name ?? 'YOU'}</span>
-                      <span className="ml-auto text-[9px] text-violet-400/60 font-bold uppercase tracking-widest">Locked</span>
+                    <div className="w-full px-6 py-5 bg-card shadow-sm border border-orange-500/20 rounded-none flex items-center gap-3">
+                      <UserIcon className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                      <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">{profile.full_name ?? 'YOU'}</span>
+                      <span className="ml-auto text-[9px] text-orange-400/60 font-bold uppercase tracking-widest">Locked</span>
                     </div>
                   ) : (
                     <select value={form.teacher_id}
                       onChange={e => setForm(f => ({ ...f, teacher_id: e.target.value }))}
-                      className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[11px] font-black text-white/70 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all appearance-none cursor-pointer uppercase tracking-widest">
-                      <option value="" className="bg-[#0f0f1a]">SESSIONS LEAD (DEFAULT: ME)</option>
+                      className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-none text-[11px] font-black text-muted-foreground focus:outline-none focus:border-orange-500 focus:bg-muted transition-all appearance-none cursor-pointer uppercase tracking-widest">
+                      <option value="" className="bg-background">SESSIONS LEAD (DEFAULT: ME)</option>
                       {teachers.map(t => (
-                        <option key={t.id} value={t.id} className="bg-[#0f0f1a]">{t.full_name}</option>
+                        <option key={t.id} value={t.id} className="bg-background">{t.full_name}</option>
                       ))}
                     </select>
                   )}
@@ -337,22 +337,22 @@ export default function AddClassPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">
-                  Partner School <span className="text-white/10 font-medium normal-case">(required for school-linked classes)</span>
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 px-1">
+                  Partner School <span className="text-muted-foreground font-medium normal-case">(required for school-linked classes)</span>
                 </label>
                 {profile?.role === 'teacher' && schools.length === 1 ? (
-                  <div className="w-full px-6 py-5 bg-white/5 border border-blue-500/20 rounded-2xl flex items-center gap-3">
+                  <div className="w-full px-6 py-5 bg-card shadow-sm border border-blue-500/20 rounded-none flex items-center gap-3">
                     <BuildingOfficeIcon className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                    <span className="text-[11px] font-black text-white/70 uppercase tracking-widest">{schools[0].name}</span>
+                    <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">{schools[0].name}</span>
                     <span className="ml-auto text-[9px] text-blue-400/60 font-bold uppercase tracking-widest">Locked</span>
                   </div>
                 ) : (
                   <select value={form.school_id}
                     onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
-                    className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[11px] font-black text-white/70 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all appearance-none cursor-pointer uppercase tracking-widest">
-                    <option value="" className="bg-[#0f0f1a]">INDEPENDENT / ONLINE CLUSTER</option>
+                    className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-none text-[11px] font-black text-muted-foreground focus:outline-none focus:border-orange-500 focus:bg-muted transition-all appearance-none cursor-pointer uppercase tracking-widest">
+                    <option value="" className="bg-background">INDEPENDENT / ONLINE CLUSTER</option>
                     {schools.map(s => (
-                      <option key={s.id} value={s.id} className="bg-[#0f0f1a]">{s.name}</option>
+                      <option key={s.id} value={s.id} className="bg-background">{s.name}</option>
                     ))}
                   </select>
                 )}
@@ -361,57 +361,57 @@ export default function AddClassPage() {
           </div>
 
           {/* Configuration Card */}
-          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 sm:p-10 space-y-8 shadow-2xl">
-            <h3 className="text-white/20 text-[10px] font-black uppercase tracking-[0.4em] mb-4">Operational parameters</h3>
+          <div className="bg-card shadow-sm border border-border rounded-[2.5rem] p-8 sm:p-10 space-y-8 shadow-2xl">
+            <h3 className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.4em] mb-4">Operational parameters</h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div>
-                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">Capacity Limit</label>
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 px-1">Capacity Limit</label>
                 <input type="number" min="1" max="100" value={form.max_students}
                   onChange={e => setForm(f => ({ ...f, max_students: e.target.value }))}
-                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-white focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all" />
+                  className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-none text-sm font-bold text-foreground focus:outline-none focus:border-orange-500 focus:bg-muted transition-all" />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">Cycle Start</label>
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 px-1">Cycle Start</label>
                 <input type="date" value={form.start_date}
                   onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[10px] font-black text-white focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all uppercase tracking-widest inverted-calendar" />
+                  className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-none text-[10px] font-black text-foreground focus:outline-none focus:border-orange-500 focus:bg-muted transition-all uppercase tracking-widest inverted-calendar" />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">Cycle End</label>
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 px-1">Cycle End</label>
                 <input type="date" value={form.end_date}
                   onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
-                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[10px] font-black text-white focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all uppercase tracking-widest inverted-calendar" />
+                  className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-none text-[10px] font-black text-foreground focus:outline-none focus:border-orange-500 focus:bg-muted transition-all uppercase tracking-widest inverted-calendar" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">Frequency Rhythm</label>
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 px-1">Frequency Rhythm</label>
                 <input type="text" value={form.schedule}
                   onChange={e => setForm(f => ({ ...f, schedule: e.target.value }))}
                   placeholder="e.g. MON/WED 4:00 PM"
-                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-white placeholder:text-white/10 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all outline-none" />
+                  className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-none text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 focus:bg-muted transition-all outline-none" />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 px-1">Initial State</label>
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 px-1">Initial State</label>
                 <select value={form.status}
                   onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[11px] font-black text-white/70 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all appearance-none cursor-pointer uppercase tracking-widest">
-                  <option value="scheduled" className="bg-[#0f0f1a]">QUEUE (SCHEDULED)</option>
-                  <option value="active" className="bg-[#0f0f1a]">ENGAGED (ACTIVE)</option>
+                  className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-none text-[11px] font-black text-muted-foreground focus:outline-none focus:border-orange-500 focus:bg-muted transition-all appearance-none cursor-pointer uppercase tracking-widest">
+                  <option value="scheduled" className="bg-background">QUEUE (SCHEDULED)</option>
+                  <option value="active" className="bg-background">ENGAGED (ACTIVE)</option>
                 </select>
               </div>
             </div>
           </div>
 
           {/* Student Roster Card */}
-          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 sm:p-10 space-y-8 shadow-2xl">
-            <h3 className="text-white/20 text-[10px] font-black uppercase tracking-[0.4em] mb-4">Initial roster pioneers</h3>
+          <div className="bg-card shadow-sm border border-border rounded-[2.5rem] p-8 sm:p-10 space-y-8 shadow-2xl">
+            <h3 className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.4em] mb-4">Initial roster pioneers</h3>
             
             <div className="space-y-4">
               <div className="flex items-center justify-between px-2">
-                <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Population: {selectedStudents.length} Selected</span>
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Population: {selectedStudents.length} Selected</span>
                 {pendingCount > 0 && (
                   <div className="flex items-center gap-2 group cursor-help">
                     <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-ping" />
@@ -421,32 +421,32 @@ export default function AddClassPage() {
               </div>
 
               {!form.program_id ? (
-                <div className="py-20 bg-white/5 border border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center text-center">
-                  <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5">
-                    <UserIcon className="w-8 h-8 text-white/10" />
+                <div className="py-20 bg-card shadow-sm border border-dashed border-border rounded-none flex flex-col items-center justify-center text-center">
+                  <div className="w-16 h-16 bg-card shadow-sm rounded-full flex items-center justify-center mb-6 border border-border">
+                    <UserIcon className="w-8 h-8 text-muted-foreground" />
                   </div>
-                  <h3 className="text-xs font-black text-white/20 uppercase tracking-widest">Awaiting pathway selection</h3>
+                  <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest">Awaiting pathway selection</h3>
                 </div>
               ) : loadingStudents ? (
-                <div className="py-20 bg-white/5 border border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center text-center">
-                  <ArrowPathIcon className="w-8 h-8 text-violet-500 animate-spin mb-4" />
-                  <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Synchronizing population...</p>
+                <div className="py-20 bg-card shadow-sm border border-dashed border-border rounded-none flex flex-col items-center justify-center text-center">
+                  <ArrowPathIcon className="w-8 h-8 text-orange-500 animate-spin mb-4" />
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Synchronizing population...</p>
                 </div>
               ) : availableStudents.length === 0 ? (
                 <div className="space-y-4">
-                  <div className="py-20 bg-white/5 border border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center text-center px-8">
-                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5">
+                  <div className="py-20 bg-card shadow-sm border border-dashed border-border rounded-none flex flex-col items-center justify-center text-center px-8">
+                    <div className="w-16 h-16 bg-card shadow-sm rounded-full flex items-center justify-center mb-6 border border-border">
                       <ExclamationTriangleIcon className="w-8 h-8 text-amber-500/20" />
                     </div>
                     <h3 className="text-xs font-black text-amber-500/40 uppercase tracking-widest mb-2">Zero matching pioneers found</h3>
-                    <p className="text-[10px] text-white/20 uppercase tracking-[0.2em] leading-relaxed max-w-xs font-medium">No verified portal accounts matching this criteria are available for enrollment.</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] leading-relaxed max-w-xs font-medium">No verified portal accounts matching this criteria are available for enrollment.</p>
                   </div>
                 </div>
               ) : (
-                <div className="bg-[#0B132B]/50 border border-white/5 rounded-3xl overflow-hidden shadow-inner">
+                <div className="bg-background/50 border border-border rounded-none overflow-hidden shadow-inner">
                   <div className="max-h-80 overflow-y-auto divide-y divide-white/5 custom-scrollbar">
                     {availableStudents.map(student => (
-                      <label key={student.id} className="flex items-center gap-4 px-6 py-5 hover:bg-violet-600/10 cursor-pointer transition-all group">
+                      <label key={student.id} className="flex items-center gap-4 px-6 py-5 hover:bg-orange-600/10 cursor-pointer transition-all group">
                         <div className="relative">
                           <input
                             type="checkbox"
@@ -455,23 +455,23 @@ export default function AddClassPage() {
                               if (e.target.checked) setSelectedStudents(prev => [...prev, student.id]);
                               else setSelectedStudents(prev => prev.filter(id => id !== student.id));
                             }}
-                            className="w-6 h-6 rounded-lg border-white/10 bg-white/5 text-violet-600 focus:ring-violet-500 focus:ring-offset-0 transition-all cursor-pointer"
+                            className="w-6 h-6 rounded-none border-border bg-card shadow-sm text-orange-600 focus:ring-orange-500 focus:ring-offset-0 transition-all cursor-pointer"
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-black text-white group-hover:text-violet-400 transition-colors truncate uppercase tracking-tighter">{student.full_name}</p>
-                          <p className="text-[10px] text-white/20 truncate font-medium">{student.email}</p>
+                          <p className="text-sm font-black text-foreground group-hover:text-orange-400 transition-colors truncate uppercase tracking-tighter">{student.full_name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate font-medium">{student.email}</p>
                         </div>
                         {selectedStudents.includes(student.id) && (
-                          <div className="px-3 py-1 bg-violet-600/20 border border-violet-600/30 rounded-full">
-                            <span className="text-[8px] font-black text-violet-400 uppercase tracking-widest">READY</span>
+                          <div className="px-3 py-1 bg-orange-600/20 border border-orange-600/30 rounded-full">
+                            <span className="text-[8px] font-black text-orange-400 uppercase tracking-widest">READY</span>
                           </div>
                         )}
                       </label>
                     ))}
                   </div>
-                  <div className="px-6 py-4 bg-white/5 border-t border-white/5 flex justify-between items-center backdrop-blur-md">
-                    <span className="text-[10px] text-white/30 uppercase font-black tracking-widest">
+                  <div className="px-6 py-4 bg-card shadow-sm border-t border-border flex justify-between items-center backdrop-blur-md">
+                    <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
                       {availableStudents.length} DISCOVERED
                     </span>
                     <button
@@ -480,7 +480,7 @@ export default function AddClassPage() {
                         if (selectedStudents.length === availableStudents.length) setSelectedStudents([]);
                         else setSelectedStudents(availableStudents.map(s => s.id));
                       }}
-                      className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black text-white/50 hover:text-white transition-all uppercase tracking-widest"
+                      className="px-4 py-2 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black text-muted-foreground hover:text-foreground transition-all uppercase tracking-widest"
                     >
                       {selectedStudents.length === availableStudents.length ? 'DESELECT CLUSTER' : 'INITIALIZE ALL'}
                     </button>
@@ -490,21 +490,21 @@ export default function AddClassPage() {
             </div>
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 sm:p-10 space-y-8 shadow-2xl">
-            <h3 className="text-white/20 text-[10px] font-black uppercase tracking-[0.4em] mb-4">Cluster annotations</h3>
+          <div className="bg-card shadow-sm border border-border rounded-[2.5rem] p-8 sm:p-10 space-y-8 shadow-2xl">
+            <h3 className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.4em] mb-4">Cluster annotations</h3>
             <textarea rows={4} value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="Internal notes regarding cluster objectives, requirements, or mentor instructions..."
-              className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-sm font-bold text-white placeholder:text-white/10 focus:outline-none focus:border-violet-500 focus:bg-white/10 transition-all resize-none outline-none" />
+              className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-none text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 focus:bg-muted transition-all resize-none outline-none" />
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
             <Link href="/dashboard/classes"
-              className="w-full sm:w-fit px-8 py-5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/40 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all text-center">
+              className="w-full sm:w-fit px-8 py-5 bg-card shadow-sm hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all text-center">
               Abort initialization
             </Link>
             <button type="submit" disabled={saving}
-              className="w-full sm:flex-1 flex items-center justify-center gap-3 py-5 bg-violet-600 hover:bg-violet-500 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all disabled:opacity-50 shadow-xl shadow-violet-900/40 active:scale-[0.98]">
+              className="w-full sm:flex-1 flex items-center justify-center gap-3 py-5 bg-orange-600 hover:bg-orange-500 text-foreground text-[11px] font-black uppercase tracking-[0.2em] rounded-none transition-all disabled:opacity-50 shadow-xl shadow-orange-900/40 active:scale-[0.98]">
               {saving ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CheckIcon className="w-5 h-5" />}
               {saving ? 'Synchronizing cluster...' : 'Initialize Registry Node'}
             </button>

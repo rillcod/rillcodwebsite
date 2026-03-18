@@ -187,24 +187,24 @@ export default function NewAssignmentPage() {
   };
 
   if (authLoading || profileLoading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (!isStaff) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-      <p className="text-white/40">Staff access required.</p>
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <p className="text-muted-foreground">Staff access required.</p>
     </div>
   );
 
   return (
-    <div className={`min-h-screen bg-[#0f0f1a] text-white ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
+    <div className={`min-h-screen bg-background text-foreground ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
       <div className={`${isMinimal ? 'w-full' : 'max-w-4xl mx-auto'} space-y-6`}>
 
         {!isMinimal && (
           <Link href="/dashboard/assignments"
-            className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors">
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeftIcon className="w-4 h-4" /> Back to Assignments
           </Link>
         )}
@@ -216,57 +216,57 @@ export default function NewAssignmentPage() {
               <span className="text-xs font-bold text-amber-400 uppercase tracking-[0.2em]">{isMinimal ? 'Add Context' : 'New Assignment'}</span>
             </div>
             <h1 className="text-3xl font-black italic tracking-tight">Create Assignment</h1>
-            {!isMinimal && <p className="text-white/40 text-sm mt-1 font-medium italic">Define challenges for applied learning</p>}
+            {!isMinimal && <p className="text-muted-foreground text-sm mt-1 font-medium italic">Define challenges for applied learning</p>}
           </div>
-          <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-amber-900/40 transition-all disabled:opacity-50">
+          <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-amber-600 hover:bg-amber-500 text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-none shadow-xl shadow-amber-900/40 transition-all disabled:opacity-50">
             {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
             {saving ? 'Creating...' : (isMinimal ? 'CREATE' : 'PUBLISH TASK')}
           </button>
         </div>
 
         {error && (
-          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
+          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
             <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
             <p className="text-rose-400 text-sm">{error}</p>
           </div>
         )}
 
         {/* AI Generate Panel */}
-        <div className="bg-gradient-to-br from-amber-500/10 to-violet-500/5 border border-amber-500/20 rounded-2xl overflow-hidden">
+        <div className="bg-gradient-to-br from-orange-600 to-orange-400/10 to-orange-500/5 border border-amber-500/20 rounded-none overflow-hidden">
           <button
             type="button"
             onClick={() => setAiOpen(o => !o)}
             className="w-full flex items-center justify-between px-5 py-4 text-left"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-none bg-amber-500/20 flex items-center justify-center">
                 <ArrowPathIcon className={`w-4 h-4 text-amber-400 ${aiGenerating ? 'animate-spin' : ''}`} />
               </div>
               <div>
-                <p className="text-sm font-bold text-white">Generate with AI</p>
-                <p className="text-xs text-white/40">Auto-fill assignment details and questions</p>
+                <p className="text-sm font-bold text-foreground">Generate with AI</p>
+                <p className="text-xs text-muted-foreground">Auto-fill assignment details and questions</p>
               </div>
             </div>
-            {aiOpen ? <ChevronDownIcon className="w-4 h-4 text-white/40" /> : <ChevronDownIcon className="w-4 h-4 text-white/40 rotate-180" />}
+            {aiOpen ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground" /> : <ChevronDownIcon className="w-4 h-4 text-muted-foreground rotate-180" />}
           </button>
 
           {aiOpen && (
-            <div className="px-5 pb-5 space-y-4 border-t border-amber-500/20 bg-white/5">
+            <div className="px-5 pb-5 space-y-4 border-t border-amber-500/20 bg-card shadow-sm">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4">
                 <div className="space-y-1 md:col-span-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Topic / Subject Matter</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Topic / Subject Matter</label>
                   <input
                     value={aiTopic}
                     onChange={e => setAiTopic(e.target.value)}
                     placeholder="e.g. Introduction to Variables in JavaScript"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-amber-500"
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-amber-500"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={handleAiGenerate}
                   disabled={aiGenerating}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all self-end"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all self-end"
                 >
                   {aiGenerating ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                   {aiGenerating ? 'Generating...' : 'Generate'}
@@ -277,27 +277,27 @@ export default function NewAssignmentPage() {
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="bg-card shadow-sm border border-border rounded-none p-6 space-y-5">
 
           {/* Title */}
           <div>
-            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
               Title <span className="text-rose-400">*</span>
             </label>
             <input type="text" required value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               placeholder="e.g. Python Functions Exercise"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500 transition-colors" />
+              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
           </div>
 
           {/* Course */}
           <div>
-            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
               Course <span className="text-rose-400">*</span>
             </label>
             <select required value={form.course_id}
               onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500 cursor-pointer">
+              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
               <option value="">Select a course…</option>
               {courses.map(c => (
                 <option key={c.id} value={c.id}>{c.title}{c.programs?.name ? ` — ${c.programs.name}` : ''}</option>
@@ -308,10 +308,10 @@ export default function NewAssignmentPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Type */}
             <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Type</label>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Type</label>
               <select value={form.assignment_type}
                 onChange={e => setForm(f => ({ ...f, assignment_type: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500 cursor-pointer">
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
                 <option value="homework">Homework</option>
                 <option value="project">Project / Lab</option>
                 <option value="coding">Coding Challenge</option>
@@ -323,68 +323,68 @@ export default function NewAssignmentPage() {
 
             {/* Max Points */}
             <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Max Points</label>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Max Points</label>
               <input type="number" min="1" max="1000" value={form.max_points}
                 onChange={e => setForm(f => ({ ...f, max_points: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500 transition-colors" />
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
             </div>
 
             {/* Due Date */}
             <div>
-              <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
                 <span className="flex items-center gap-1"><CalendarIcon className="w-3.5 h-3.5" /> Due Date</span>
               </label>
               <input type="datetime-local" value={form.due_date}
                 onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500 transition-colors" />
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
             </div>
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Description</label>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Description</label>
             <textarea rows={3} value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="Brief overview of the assignment…"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500 transition-colors resize-none" />
+              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
           </div>
 
           {/* Instructions */}
           <div>
-            <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Instructions</label>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Instructions</label>
             <textarea rows={4} value={form.instructions}
               onChange={e => setForm(f => ({ ...f, instructions: e.target.value }))}
               placeholder="Step-by-step instructions for students…"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500 transition-colors resize-none" />
+              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
           </div>
 
           {/* ── Question Canvas ── */}
-          <div className="space-y-4 pt-4 border-t border-white/10">
+          <div className="space-y-4 pt-4 border-t border-border">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-bold text-white/60 uppercase tracking-widest flex items-center gap-2">
+                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                   <AcademicCapIcon className="w-4 h-4 text-amber-400" />
                   Questions ({questions.length})
                 </h2>
-                <p className="text-[10px] text-white/30 mt-0.5">Optional: Add questions for an interactive homework experience</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Optional: Add questions for an interactive homework experience</p>
               </div>
               <button type="button" onClick={addQuestion}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition-colors">
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-none transition-colors">
                 <PlusIcon className="w-3.5 h-3.5" /> Add Question
               </button>
             </div>
 
             {questions.map((q, qi) => (
-              <div key={qi} className="bg-white/3 border border-white/10 rounded-2xl overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/10">
-                  <span className="text-[10px] font-black text-white/30 uppercase tracking-tighter">Q{qi + 1}</span>
+              <div key={qi} className="bg-white/3 border border-border rounded-none overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2 bg-card shadow-sm border-b border-border">
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">Q{qi + 1}</span>
                   <div className="flex items-center gap-1">
                     <button type="button" onClick={() => moveQuestion(qi, -1)} disabled={qi === 0}
-                      className="p-1 text-white/20 hover:text-white/60 disabled:opacity-0 transition-colors">
+                      className="p-1 text-muted-foreground hover:text-muted-foreground disabled:opacity-0 transition-colors">
                       <ChevronUpIcon className="w-3.5 h-3.5" />
                     </button>
                     <button type="button" onClick={() => moveQuestion(qi, 1)} disabled={qi === questions.length - 1}
-                      className="p-1 text-white/20 hover:text-white/60 disabled:opacity-0 transition-colors">
+                      className="p-1 text-muted-foreground hover:text-muted-foreground disabled:opacity-0 transition-colors">
                       <ChevronDownIcon className="w-3.5 h-3.5" />
                     </button>
                     <button type="button" onClick={() => removeQuestion(qi)}
@@ -397,14 +397,14 @@ export default function NewAssignmentPage() {
                   <textarea rows={2} value={q.question_text}
                     onChange={e => updateQuestion(qi, { question_text: e.target.value })}
                     placeholder="Enter question text…"
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-amber-500 transition-colors resize-none" />
+                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Type</label>
+                      <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Type</label>
                       <select value={q.question_type}
                         onChange={e => updateQuestion(qi, { question_type: e.target.value, options: ['', '', '', ''], correct_answer: '' })}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none cursor-pointer">
+                        className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none cursor-pointer">
                         <option value="multiple_choice">Multiple Choice</option>
                         <option value="true_false">True / False</option>
                         <option value="fill_blank">Fill in Blank</option>
@@ -413,28 +413,28 @@ export default function NewAssignmentPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Points</label>
+                      <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Points</label>
                       <input type="number" min="1" value={q.points}
                         onChange={e => updateQuestion(qi, { points: parseInt(e.target.value) || 1 })}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none" />
+                        className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none" />
                     </div>
                     {(q.question_type === 'fill_blank' || q.question_type === 'essay') && (
                       <div className="sm:col-span-1">
-                        <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Correct Answer / Reference</label>
+                        <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Correct Answer / Reference</label>
                         <input type="text" value={q.correct_answer}
                           onChange={e => updateQuestion(qi, { correct_answer: e.target.value })}
                           placeholder={q.question_type === 'fill_blank' ? "Exact answer..." : "Grading guide..."}
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none" />
+                          className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
                       </div>
                     )}
 
                     {q.question_type === 'coding_blocks' && (
                       <div className="sm:col-span-1">
-                         <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Correct Blocks (ordered, comma separated)</label>
+                         <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Correct Blocks (ordered, comma separated)</label>
                          <input type="text" value={q.correct_answer}
                             onChange={e => updateQuestion(qi, { correct_answer: e.target.value })}
                             placeholder="e.g. Green Flag, 10"
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none" />
+                            className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
                       </div>
                     )}
                   </div>
@@ -442,18 +442,18 @@ export default function NewAssignmentPage() {
                   {q.question_type === 'coding_blocks' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Logic Sentence ([BLANK] = placeholder)</label>
+                          <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Logic Sentence ([BLANK] = placeholder)</label>
                           <input type="text" value={q.metadata?.logic_sentence}
                              onChange={e => updateQuestion(qi, { metadata: { ...q.metadata, logic_sentence: e.target.value } })}
                              placeholder="e.g. When [BLANK] clicked, move [BLANK] steps"
-                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none" />
+                             className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
                         </div>
                         <div>
-                          <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Draggable Options (comma separated)</label>
+                          <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Draggable Options (comma separated)</label>
                           <input type="text" value={q.metadata?.logic_blocks?.join(', ')}
                             onChange={e => updateQuestion(qi, { metadata: { ...q.metadata, logic_blocks: e.target.value.split(',').map(s=>s.trim()) } })}
                             placeholder="e.g. Green Flag, 10, Space Key"
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-white/20 focus:outline-none" />
+                            className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
                         </div>
                     </div>
                   )}
@@ -465,7 +465,7 @@ export default function NewAssignmentPage() {
                           key={opt}
                           type="button"
                           onClick={() => updateQuestion(qi, { correct_answer: opt })}
-                          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-bold transition-all ${q.correct_answer === opt ? 'bg-amber-600 border-amber-500 text-white' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}
+                          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-none border font-bold transition-all ${q.correct_answer === opt ? 'bg-amber-600 border-amber-500 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
                         >
                           {q.correct_answer === opt && <CheckIcon className="w-4 h-4" />}
                           {opt}
@@ -476,14 +476,14 @@ export default function NewAssignmentPage() {
 
                   {q.question_type === 'multiple_choice' && (
                     <div className="space-y-3">
-                      <label className="block text-[10px] text-white/40 uppercase tracking-widest mb-1">Options (Select correct one)</label>
+                      <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Options (Select correct one)</label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {q.options.map((opt, oi) => (
-                          <div key={oi} className={`flex items-center gap-2 p-1 rounded-2xl border transition-all ${q.correct_answer === opt && opt !== '' ? 'bg-amber-500/10 border-amber-500/50' : 'bg-white/5 border-white/10'}`}>
+                          <div key={oi} className={`flex items-center gap-2 p-1 rounded-none border transition-all ${q.correct_answer === opt && opt !== '' ? 'bg-amber-500/10 border-amber-500/50' : 'bg-card shadow-sm border-border'}`}>
                             <button
                               type="button"
                               onClick={() => updateQuestion(qi, { correct_answer: opt })}
-                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${q.correct_answer === opt && opt !== '' ? 'bg-amber-500 border-amber-500 text-white' : 'border-white/20 hover:border-amber-500/50'}`}
+                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${q.correct_answer === opt && opt !== '' ? 'bg-amber-500 border-amber-500 text-foreground' : 'border-border hover:border-amber-500/50'}`}
                             >
                               {q.correct_answer === opt && opt !== '' && <CheckIcon className="w-3 h-3 font-black" />}
                             </button>
@@ -495,7 +495,7 @@ export default function NewAssignmentPage() {
                                 if (isCorrect) updateQuestion(qi, { correct_answer: newVal });
                               }}
                               placeholder={`Option ${String.fromCharCode(65 + oi)}`}
-                              className="flex-1 bg-transparent border-none px-1 py-1 text-xs text-white placeholder-white/20 focus:outline-none" />
+                              className="flex-1 bg-transparent border-none px-1 py-1 text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
                           </div>
                         ))}
                       </div>
@@ -508,11 +508,11 @@ export default function NewAssignmentPage() {
 
           <div className="flex items-center gap-3 pt-2">
             <Link href="/dashboard/assignments"
-              className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white/50 text-sm font-bold rounded-xl transition-colors">
+              className="px-5 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-none transition-colors">
               Cancel
             </Link>
             <button type="submit" disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-amber-900/20">
+              className="flex items-center gap-2 px-6 py-2.5 bg-amber-600 hover:bg-amber-500 text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50 shadow-lg shadow-amber-900/20">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
               {saving ? 'Creating…' : 'Create Assignment'}
             </button>

@@ -302,10 +302,10 @@ export default function ModernReportCard({ report, orgSettings }: {
 
             {/* VALIDATION DECREE */}
             {(overall >= 45 || report.has_certificate) && (
-                <div className="relative z-10 mb-4 bg-gradient-to-br from-indigo-700 to-indigo-900 rounded-3xl px-8 py-6 flex items-center gap-6 overflow-hidden shadow-2xl border border-white/20">
+                <div className="relative z-10 mb-4 bg-gradient-to-br from-indigo-700 to-indigo-900 rounded-3xl px-8 py-6 flex items-center gap-6 overflow-hidden shadow-2xl border border-border">
                     <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 blur-[100px] -mr-40 -mt-40 pointer-events-none" />
                     <div className="absolute left-0 bottom-0 w-80 h-80 bg-cyan-400/10 blur-[100px] -ml-40 -mb-40 pointer-events-none" />
-                    <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 shadow-inner shrink-0 scale-110">
+                    <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center border border-border shadow-inner shrink-0 scale-110">
                         <TrophyIcon className="w-7 h-7 text-white/50" />
                     </div>
                     <div className="relative z-10 flex-1 min-w-0 py-1">

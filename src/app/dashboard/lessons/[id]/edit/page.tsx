@@ -228,54 +228,54 @@ export default function EditLessonPage() {
     };
 
     if (authLoading || !lesson) return (
-        <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center">
             <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
     return (
-        <div className={`min-h-screen bg-[#0f0f1a] text-white ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
+        <div className={`min-h-screen bg-background text-foreground ${isMinimal ? 'p-0' : 'p-4 sm:p-8'}`}>
             <div className={`${isMinimal ? 'w-full' : 'max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8'} space-y-8`}>
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
                         {!isMinimal && (
-                            <button onClick={() => router.back()} className="p-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-white/40 hover:text-white" title="Go Back">
+                            <button onClick={() => router.back()} className="p-2.5 bg-card shadow-sm border border-border rounded-none hover:bg-muted transition-all text-muted-foreground hover:text-foreground" title="Go Back">
                                 <ArrowLeft className="w-5 h-5" />
                             </button>
                         )}
                         {!isMinimal && (
-                            <div className="w-12 h-12 rounded-2xl bg-cyan-600/10 flex items-center justify-center text-cyan-400">
+                            <div className="w-12 h-12 rounded-none bg-cyan-600/10 flex items-center justify-center text-cyan-400">
                                 <BookOpen className="w-6 h-6" />
                             </div>
                         )}
                         <div>
-                            <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">{isMinimal ? 'Quick Edit' : 'Drafting Lesson'}</p>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">{isMinimal ? 'Quick Edit' : 'Drafting Lesson'}</p>
                             <h1 className="text-2xl font-black">{form.title || 'Lesson Title'}</h1>
                         </div>
                     </div>
                     <div className="flex gap-3">
                         {!isMinimal && (
-                            <Link href={`/dashboard/lessons/${id}`} className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl font-bold text-sm hover:bg-white/10 transition-all">
+                            <Link href={`/dashboard/lessons/${id}`} className="px-5 py-2.5 bg-card shadow-sm border border-border rounded-none font-bold text-sm hover:bg-muted transition-all">
                                 View Live
                             </Link>
                         )}
-                        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm rounded-xl shadow-xl shadow-cyan-900/40 transition-all disabled:opacity-50">
-                            {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
+                        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-foreground font-black text-sm rounded-none shadow-xl shadow-cyan-900/40 transition-all disabled:opacity-50">
+                            {saving ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
                             {saving ? (isMinimal ? 'SAVING...' : 'SAVING...') : (isMinimal ? 'SAVE' : 'SAVE CHANGES')}
                         </button>
                     </div>
                 </div>
 
                 {error && (
-                    <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 text-sm font-medium">
+                    <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-none text-rose-400 text-sm font-medium">
                         {error}
                     </div>
                 )}
 
                 {/* Unified Tabs */}
-                <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl w-fit">
+                <div className="flex items-center gap-1 p-1 bg-card shadow-sm border border-border rounded-none w-fit">
                     <TabBtn active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings2} label="Settings" />
                     <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={Layout} label="Visual Builder" />
                     <TabBtn active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={GraduationCap} label="Lesson Plan" />
@@ -284,19 +284,19 @@ export default function EditLessonPage() {
 
                 <div className="grid grid-cols-1 gap-8">
                     {activeTab === 'settings' && (
-                        <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-6 animate-in fade-in duration-500">
+                        <div className="bg-card shadow-sm border border-border rounded-none p-8 space-y-6 animate-in fade-in duration-500">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <Field label="Lesson Title" value={form.title} onChange={v => setForm({ ...form, title: v })} />
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Linked Course</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Linked Course</label>
                                     <div className="relative">
                                         <select value={form.course_id} onChange={e => setForm({ ...form, course_id: e.target.value })}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer">
+                                            className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none appearance-none cursor-pointer">
                                             <option value="">Select Course</option>
                                             {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                                         </select>
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                                            <ChevronDown className="w-4 h-4 text-white/20" />
+                                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
                                         </div>
                                     </div>
                                 </div>
@@ -312,7 +312,7 @@ export default function EditLessonPage() {
                             <Field label="Brief Description" value={form.description} textarea onChange={v => setForm({ ...form, description: v })} />
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Comprehensive Study Notes (Mandatory for Students)</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Comprehensive Study Notes (Mandatory for Students)</label>
                                     <button
                                         type="button"
                                         onClick={generateAiNotes}
@@ -327,7 +327,7 @@ export default function EditLessonPage() {
                                     rows={8}
                                     onChange={e => setForm({ ...form, lesson_notes: e.target.value })}
                                     placeholder="These notes will be shown to students as a prerequisite to watching the video..."
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none"
+                                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none"
                                 />
                             </div>
                             <Field label="Video URL (YouTube/Direct)" value={form.video_url} onChange={v => setForm({ ...form, video_url: v })} />
@@ -335,13 +335,13 @@ export default function EditLessonPage() {
                     )}
 
                     {activeTab === 'content' && (
-                        <div className="bg-white/5 border border-white/10 rounded-3xl p-8 animate-in fade-in duration-500">
+                        <div className="bg-card shadow-sm border border-border rounded-none p-8 animate-in fade-in duration-500">
                             <CanvaEditor layout={form.content_layout} onChange={l => setForm({ ...form, content_layout: l })} />
                         </div>
                     )}
 
                     {activeTab === 'plan' && (
-                        <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-8 animate-in fade-in duration-500">
+                        <div className="bg-card shadow-sm border border-border rounded-none p-8 space-y-8 animate-in fade-in duration-500">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
                                     <Sparkles className="w-6 h-6 text-amber-400" />
@@ -350,7 +350,7 @@ export default function EditLessonPage() {
                                 <button
                                     onClick={generateAiPlan}
                                     disabled={aiGeneratingPlan}
-                                    className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                                    className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 rounded-none text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
                                 >
                                     {aiGeneratingPlan ? (
                                         <div className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
@@ -362,12 +362,12 @@ export default function EditLessonPage() {
                             </div>
 
                             {plan.plan_data && Object.keys(plan.plan_data).length > 0 && (
-                                <div className="p-6 bg-cyan-500/5 border border-cyan-500/20 rounded-2xl space-y-4">
+                                <div className="p-6 bg-cyan-500/5 border border-cyan-500/20 rounded-none space-y-4">
                                     <div className="flex items-center justify-between">
                                         <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Active Structured Data Detected</p>
-                                        <button onClick={() => setPlan({ ...plan, plan_data: null })} className="text-[9px] text-white/20 hover:text-rose-400 uppercase font-black">Clear Structural Data</button>
+                                        <button onClick={() => setPlan({ ...plan, plan_data: null })} className="text-[9px] text-muted-foreground hover:text-rose-400 uppercase font-black">Clear Structural Data</button>
                                     </div>
-                                    <p className="text-xs text-white/40">This lesson is linked to a full course plan ({plan.plan_data.course_title}). The curriculum timeline will be rendered in the lesson viewer.</p>
+                                    <p className="text-xs text-muted-foreground">This lesson is linked to a full course plan ({plan.plan_data.course_title}). The curriculum timeline will be rendered in the lesson viewer.</p>
                                 </div>
                             )}
 
@@ -382,22 +382,22 @@ export default function EditLessonPage() {
 
                     {activeTab === 'materials' && (
                         <div className="space-y-6 animate-in fade-in duration-500">
-                            <div className="bg-white/5 border border-white/10 rounded-3xl p-8">
-                                <h3 className="text-sm font-black uppercase tracking-widest text-white/40 mb-6">Add New Resource</h3>
+                            <div className="bg-card shadow-sm border border-border rounded-none p-8">
+                                <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground mb-6">Add New Resource</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <input type="text" placeholder="Title (e.g. Starter Code)" value={newMaterial.title} onChange={e => setNewMaterial({ ...newMaterial, title: e.target.value })}
-                                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:border-cyan-500 outline-none" />
+                                        className="bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm focus:border-cyan-500 outline-none" />
                                     <input type="text" placeholder="URL (S3, Drive, Link...)" value={newMaterial.file_url} onChange={e => setNewMaterial({ ...newMaterial, file_url: e.target.value })}
-                                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:border-cyan-500 outline-none" />
+                                        className="bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm focus:border-cyan-500 outline-none" />
                                     <div className="flex gap-2">
                                         <select value={newMaterial.file_type} onChange={e => setNewMaterial({ ...newMaterial, file_type: e.target.value })}
-                                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:border-cyan-500 outline-none">
+                                            className="flex-1 bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm focus:border-cyan-500 outline-none">
                                             <option value="pdf">PDF</option>
                                             <option value="video">Video</option>
                                             <option value="image">Image</option>
                                             <option value="link">External Link</option>
                                         </select>
-                                        <button onClick={addMaterial} className="p-2.5 bg-cyan-600 hover:bg-cyan-700 rounded-xl text-white">
+                                        <button onClick={addMaterial} className="p-2.5 bg-cyan-600 hover:bg-cyan-700 rounded-none text-foreground">
                                             <Plus className="w-5 h-5" />
                                         </button>
                                     </div>
@@ -406,15 +406,15 @@ export default function EditLessonPage() {
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {materials.map((m) => (
-                                    <div key={m.id} className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-2xl group">
-                                        <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400">
+                                    <div key={m.id} className="flex items-center gap-4 p-4 bg-card shadow-sm border border-border rounded-none group">
+                                        <div className="w-10 h-10 rounded-none bg-cyan-500/10 flex items-center justify-center text-cyan-400">
                                             <Paperclip className="w-5 h-5" />
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="font-bold text-sm truncate">{m.title}</p>
-                                            <p className="text-[10px] text-white/20 uppercase font-black">{m.file_type}</p>
+                                            <p className="text-[10px] text-muted-foreground uppercase font-black">{m.file_type}</p>
                                         </div>
-                                        <button onClick={() => deleteMaterial(m.id)} className="p-2 text-white/20 hover:text-rose-400 transition-colors">
+                                        <button onClick={() => deleteMaterial(m.id)} className="p-2 text-muted-foreground hover:text-rose-400 transition-colors">
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
@@ -437,7 +437,7 @@ interface TabBtnProps {
 
 function TabBtn({ active, onClick, icon: Icon, label }: TabBtnProps) {
     return (
-        <button type="button" onClick={onClick} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${active ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/40' : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
+        <button type="button" onClick={onClick} className={`flex items-center gap-2 px-5 py-2.5 rounded-none text-xs font-black uppercase tracking-widest transition-all ${active ? 'bg-cyan-600 text-foreground shadow-lg shadow-cyan-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
             <Icon className="w-4 h-4" />
             {label}
         </button>
@@ -456,13 +456,13 @@ interface FieldProps {
 function Field({ label, value, onChange, textarea, rows = 3, type = 'text' }: FieldProps) {
     return (
         <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-white/40">{label}</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</label>
             {textarea ? (
                 <textarea value={value} rows={rows} onChange={e => onChange(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none" />
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none" />
             ) : (
                 <input type={type} value={value} onChange={e => onChange(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none" />
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none" />
             )}
         </div>
     );
@@ -478,9 +478,9 @@ interface SelectFieldProps {
 function SelectField({ label, value, options, onChange }: SelectFieldProps) {
     return (
         <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-white/40">{label}</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</label>
             <select value={value} onChange={e => onChange(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-cyan-500 outline-none cursor-pointer">
+                className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none cursor-pointer">
                 {options.map((o: string) => <option key={o} value={o}>{o.replace(/[-_]/g, ' ').toUpperCase()}</option>)}
             </select>
         </div>

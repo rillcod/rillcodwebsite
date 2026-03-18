@@ -345,10 +345,10 @@ export default function Curriculum() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Hero Section */}
-        <div className="text-center py-16 bg-[#1a1a1a] border border-white/10 rounded-none shadow-lg mb-16 relative overflow-hidden border-t-8 border-t-orange-500">
+        <div className="text-center py-16 bg-[#1a1a1a] border border-border rounded-none shadow-lg mb-16 relative overflow-hidden border-t-8 border-t-orange-500">
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
           <div className="flex justify-center mb-10">
-            <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-none flex items-center justify-center ring-1 ring-orange-500/50 ring-offset-4 ring-offset-[#1a1a1a]">
+            <div className="w-20 h-20 bg-white/5 border border-border rounded-none flex items-center justify-center ring-1 ring-orange-500/50 ring-offset-4 ring-offset-[#1a1a1a]">
               <GraduationCap className="w-10 h-10 text-orange-500" />
             </div>
           </div>
@@ -360,25 +360,25 @@ export default function Curriculum() {
         </div>
 
         {/* Curriculum Overview */}
-        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 mb-16 shadow-2xl">
+        <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-2xl">
           <h2 className="text-xl font-black text-white mb-12 text-center uppercase tracking-widest italic">Protocol Overview</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div className="text-center group">
-              <div className="w-20 h-20 bg-white/5 border border-white/5 group-hover:border-orange-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-white/5 border border-border group-hover:border-orange-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6">
                 <Target className="w-8 h-8 text-orange-500" />
               </div>
               <h3 className="text-sm font-black text-white mb-2 uppercase tracking-widest">12 Years</h3>
               <p className="text-xs text-slate-500 font-bold italic">Complete educational journey from Basic 1 to SS3</p>
             </div>
             <div className="text-center group">
-              <div className="w-20 h-20 bg-white/5 border border-white/5 group-hover:border-blue-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-white/5 border border-border group-hover:border-blue-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6">
                 <Code className="w-8 h-8 text-blue-500" />
               </div>
               <h3 className="text-sm font-black text-white mb-2 uppercase tracking-widest">36+ Projects</h3>
               <p className="text-xs text-slate-500 font-bold italic">Hands-on projects with real-world applications</p>
             </div>
             <div className="text-center group">
-              <div className="w-20 h-20 bg-white/5 border border-white/5 group-hover:border-emerald-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-white/5 border border-border group-hover:border-emerald-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6">
                 <Star className="w-8 h-8 text-emerald-500" />
               </div>
               <h3 className="text-sm font-black text-white mb-2 uppercase tracking-widest">AI Integration</h3>
@@ -388,7 +388,7 @@ export default function Curriculum() {
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-10 mb-16 shadow-2xl relative overflow-hidden">
+        <div className="bg-[#1a1a1a] border border-border rounded-none p-10 mb-16 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[100px] pointer-events-none"></div>
           <div className="flex flex-col lg:flex-row gap-8 items-center justify-between relative z-10">
             {/* Search */}
@@ -401,7 +401,7 @@ export default function Curriculum() {
                   placeholder="SEARCH CURRICULUM..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-white/10 rounded-none text-[10px] font-black uppercase tracking-widest text-white placeholder:text-slate-900 focus:outline-none focus:border-orange-500 transition-all"
+                  className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-white placeholder:text-slate-900 focus:outline-none focus:border-orange-500 transition-all"
                 />
               </div>
             </div>
@@ -415,7 +415,7 @@ export default function Curriculum() {
                   className={`flex items-center gap-3 px-8 py-4 text-[10px] font-black uppercase tracking-widest rounded-none border transition-all ${
                     selectedLevel === "all"
                       ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-500/20'
-                      : 'bg-[#121212] border-white/5 text-slate-500 hover:border-white/10 hover:text-white'
+                      : 'bg-[#121212] border-border text-slate-500 hover:border-border hover:text-white'
                   }`}
                 >
                   All Sectors
@@ -427,7 +427,7 @@ export default function Curriculum() {
                     className={`flex items-center gap-3 px-8 py-4 text-[10px] font-black uppercase tracking-widest rounded-none border transition-all ${
                       selectedLevel === level.name.toLowerCase().replace(' ', '')
                         ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-500/20'
-                        : 'bg-[#121212] border-white/5 text-slate-500 hover:border-white/10 hover:text-white'
+                        : 'bg-[#121212] border-border text-slate-500 hover:border-border hover:text-white'
                     }`}
                   >
                     {level.name}
@@ -439,7 +439,7 @@ export default function Curriculum() {
         </div>
 
         {/* Nigerian Impact Stats */}
-        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 mb-16 shadow-22xl relative">
+        <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-22xl relative">
           <div className="absolute top-0 right-0 w-2 h-full bg-orange-500 font-black"></div>
           <h2 className="text-xl font-black text-white text-left mb-12 uppercase tracking-widest italic flex items-center gap-4">
             <span className="w-12 h-[1px] bg-orange-500"></span> 
@@ -459,7 +459,7 @@ export default function Curriculum() {
         </div>
 
         {/* Learning Journey Overview */}
-        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 mb-16 shadow-2xl relative overflow-hidden">
+        <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[100px] pointer-events-none"></div>
           <h2 className="text-xl font-black text-white text-center mb-12 uppercase tracking-widest italic flex items-center justify-center gap-4">
             <span className="w-12 h-[1px] bg-orange-500"></span>
@@ -469,7 +469,7 @@ export default function Curriculum() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {learningLevels.map((level, index) => (
               <div key={index} className="text-center group">
-                <div className={`w-24 h-24 bg-white/5 border border-white/5 group-hover:border-orange-500 transition-all rounded-none flex items-center justify-center mx-auto mb-8 relative`}>
+                <div className={`w-24 h-24 bg-white/5 border border-border group-hover:border-orange-500 transition-all rounded-none flex items-center justify-center mx-auto mb-8 relative`}>
                   <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   <div className="text-orange-500 group-hover:scale-110 transition-transform relative z-10">
                     {level.icon}
@@ -485,14 +485,14 @@ export default function Curriculum() {
         </div>
 
         {/* Success Stories */}
-        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 mb-16 shadow-2xl border-l-8 border-l-blue-500">
+        <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-2xl border-l-8 border-l-blue-500">
           <h2 className="text-xl font-black text-white mb-12 text-left uppercase tracking-widest italic flex items-center gap-4">
              <span className="w-12 h-[1px] bg-blue-500"></span>
              Success Protocols
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {successStories.map((story, index) => (
-              <div key={index} className="bg-[#121212] border border-white/5 p-8 rounded-none hover:border-blue-500/50 transition-all group relative overflow-hidden">
+              <div key={index} className="bg-[#121212] border border-border p-8 rounded-none hover:border-blue-500/50 transition-all group relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 text-4xl opacity-20 group-hover:opacity-40 transition-opacity">{story.image}</div>
                 <h3 className="text-lg font-black text-white mb-2 uppercase italic tracking-tight">{story.name}</h3>
                 <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-6">{story.location} • {story.grade}</p>
@@ -508,14 +508,14 @@ export default function Curriculum() {
         {/* Curriculum Sessions */}
         <div className="space-y-6 mb-16">
           {filteredSessions.map((session) => (
-            <div key={session.session} className="bg-[#1a1a1a] border border-white/10 rounded-none shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300">
+            <div key={session.session} className="bg-[#1a1a1a] border border-border rounded-none shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300">
               {/* Session Header */}
-              <div className={`p-8 bg-[#121212] border-b border-white/5 text-white relative overflow-hidden`}>
+              <div className={`p-8 bg-[#121212] border-b border-border text-white relative overflow-hidden`}>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-none -translate-y-16 translate-x-16 rotate-45"></div>
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center space-x-4">
-                      <div className="bg-white/5 border border-white/10 rounded-none p-3 shadow-lg shadow-black/20">
+                      <div className="bg-white/5 border border-border rounded-none p-3 shadow-lg shadow-black/20">
                         <BookOpen className="w-8 h-8 text-orange-500" />
                       </div>
                       <div>
@@ -525,7 +525,7 @@ export default function Curriculum() {
                     </div>
                     <button
                       onClick={() => toggleSession(session.session)}
-                      className="bg-white/5 border border-white/10 rounded-none p-3 hover:bg-orange-500 hover:text-white transition-all duration-200"
+                      className="bg-white/5 border border-border rounded-none p-3 hover:bg-orange-500 hover:text-white transition-all duration-200"
                     >
                       {expandedSessions.includes(session.session) ? (
                         <ChevronUp className="w-6 h-6" />
@@ -553,7 +553,7 @@ export default function Curriculum() {
               <div className="p-8 space-y-8 bg-[#1a1a1a]">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Nigerian Context */}
-                    <div className="bg-[#121212] border border-white/5 border-l-4 border-l-emerald-500 p-6 rounded-none shadow-xl">
+                    <div className="bg-[#121212] border border-border border-l-4 border-l-emerald-500 p-6 rounded-none shadow-xl">
                       <div className="flex items-center space-x-3 mb-4">
                         <MapPin className="w-4 h-4 text-emerald-500" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Regional Implementation</span>
@@ -562,7 +562,7 @@ export default function Curriculum() {
                     </div>
 
                     {/* Success Story */}
-                    <div className="bg-[#121212] border border-white/5 border-l-4 border-l-blue-500 p-6 rounded-none shadow-xl">
+                    <div className="bg-[#121212] border border-border border-l-4 border-l-blue-500 p-6 rounded-none shadow-xl">
                       <div className="flex items-center space-x-3 mb-4">
                         <Star className="w-4 h-4 text-blue-500" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">Success Protocol</span>
@@ -572,11 +572,11 @@ export default function Curriculum() {
                 </div>
 
                 {/* Skills */}
-                <div className="bg-[#121212] p-8 border border-white/5 rounded-none shadow-xl">
+                <div className="bg-[#121212] p-8 border border-border rounded-none shadow-xl">
                   <h4 className="text-[10px] font-black text-[#FF914D] uppercase tracking-[0.4em] mb-6 italic">Technical Stack</h4>
                   <div className="flex flex-wrap gap-3">
                     {session.skills.map((skill, index) => (
-                      <span key={index} className="bg-white/5 border border-white/5 text-slate-300 px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:border-orange-500/50 transition-all">
+                      <span key={index} className="bg-white/5 border border-border text-slate-300 px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:border-orange-500/50 transition-all">
                         {skill}
                       </span>
                     ))}
@@ -592,9 +592,9 @@ export default function Curriculum() {
                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-8 italic text-center">Operational Roadmap // 3-Term Phase</h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {session.terms.map((term, index) => (
-                          <div key={index} className="bg-[#121212] border border-white/5 rounded-none p-8 hover:border-orange-500/30 transition-all group">
+                          <div key={index} className="bg-[#121212] border border-border rounded-none p-8 hover:border-orange-500/30 transition-all group">
                             <div className="flex items-center gap-4 mb-6">
-                              <div className="w-10 h-10 bg-white/5 border border-white/5 text-orange-500 rounded-none flex items-center justify-center text-xs font-black group-hover:bg-orange-500 group-hover:text-white transition-all">
+                              <div className="w-10 h-10 bg-white/5 border border-border text-orange-500 rounded-none flex items-center justify-center text-xs font-black group-hover:bg-orange-500 group-hover:text-white transition-all">
                                 0{term.term}
                               </div>
                               <span className="text-[10px] font-black uppercase tracking-widest text-white">TERM {term.term}</span>
@@ -627,7 +627,7 @@ export default function Curriculum() {
                         </div>
                     </div>
 
-                    <div className="bg-white/5 p-6 border border-white/5 rounded-none flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div className="bg-white/5 p-6 border border-border rounded-none flex flex-col sm:flex-row items-center justify-between gap-6">
                         <div className="flex items-center gap-4">
                             <Rocket className="w-6 h-6 text-orange-500" />
                             <div>
@@ -647,7 +647,7 @@ export default function Curriculum() {
         </div>
 
         {/* Call to Action */}
-        <div className="bg-[#1a1a1a] border border-white/10 border-t-8 border-t-orange-500 rounded-none p-16 text-center shadow-2xl relative overflow-hidden">
+        <div className="bg-[#1a1a1a] border border-border border-t-8 border-t-orange-500 rounded-none p-16 text-center shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
           <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight text-white">Initialize Your <span className="text-orange-500 italic">Journey.</span></h2>
           <p className="text-sm sm:text-lg mb-12 opacity-60 max-w-2xl mx-auto font-medium italic text-slate-400 leading-relaxed">
@@ -662,7 +662,7 @@ export default function Curriculum() {
             </Link>
             <Link
               href="/contact"
-              className="w-full sm:w-auto px-16 py-6 bg-transparent border border-white/10 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:border-orange-500 transition-all"
+              className="w-full sm:w-auto px-16 py-6 bg-transparent border border-border text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:border-orange-500 transition-all"
             >
               Request Access
             </Link>

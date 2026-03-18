@@ -115,7 +115,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" dir="ltr">
+    <html lang="en" dir="ltr" >
       <head>
         <OrganizationJsonLd />
         <WebSiteJsonLd />
@@ -125,7 +125,7 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png" />
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png" />
       </head>
-      <body className={`${inter.className} bg-[#0f0f1a] text-white`}>
+      <body className={`${inter.className} bg-background text-foreground`}>
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

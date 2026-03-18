@@ -29,7 +29,7 @@ const Hero: React.FC = () => {
           
           {/* LEFT: Copy */}
           <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 border border-white/10 backdrop-blur-sm mb-6 rounded-none">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 border border-border backdrop-blur-sm mb-6 rounded-none">
               <Sparkles className="w-3.5 h-3.5 text-orange-500" />
               <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
                 STEM Excellence Nigeria
@@ -59,7 +59,7 @@ const Hero: React.FC = () => {
               </Link>
               <Link
                 href="/login"
-                className="flex items-center justify-center gap-2.5 px-10 py-5 bg-white/5 text-white font-black text-xs uppercase tracking-[0.2em] rounded-none border border-white/10 hover:bg-white/10 transition-all"
+                className="flex items-center justify-center gap-2.5 px-10 py-5 bg-white/5 text-white font-black text-xs uppercase tracking-[0.2em] rounded-none border border-border hover:bg-white/10 transition-all"
               >
                 Portal Login
               </Link>
@@ -68,7 +68,7 @@ const Hero: React.FC = () => {
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
               {stats.map((s) => (
-                <div key={s.label} className="bg-white/[0.03] border border-white/5 rounded-none p-4 sm:p-5 border-t-2 border-t-orange-500/20">
+                <div key={s.label} className="bg-white/[0.03] border border-border rounded-none p-4 sm:p-5 border-t-2 border-t-orange-500/20">
                   <p className="text-2xl sm:text-3xl font-black text-white tracking-tighter">{s.value}</p>
                   <p className="text-[8px] sm:text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">{s.label}</p>
                 </div>
@@ -80,7 +80,7 @@ const Hero: React.FC = () => {
           <div className="relative order-first lg:order-last">
             <div className="relative w-full aspect-square max-w-[500px] mx-auto group">
               {/* Floating Accent */}
-              <div className="absolute -top-4 -right-4 z-20 bg-[#161927] border border-white/10 rounded-none p-3 sm:p-5 shadow-xl backdrop-blur-md">
+              <div className="absolute -top-4 -right-4 z-20 bg-[#161927] border border-border rounded-none p-3 sm:p-5 shadow-xl backdrop-blur-md">
                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-500 rounded-none flex items-center justify-center mb-2">
                     <Cpu className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                  </div>
@@ -88,7 +88,7 @@ const Hero: React.FC = () => {
               </div>
 
               {/* Image with Sharp Frame */}
-              <div className="relative z-10 w-full h-full rounded-none overflow-hidden border border-white/10 shadow-2xl bg-slate-900 group-hover:-translate-y-1 transition-transform duration-500">
+              <div className="relative z-10 w-full h-full rounded-none overflow-hidden border border-border shadow-2xl bg-slate-900 group-hover:-translate-y-1 transition-transform duration-500">
                 <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-transparent to-transparent opacity-60 z-10" />
                 <Image 
                    src="/images/landing/hero.png" 

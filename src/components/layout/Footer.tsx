@@ -2,6 +2,7 @@
 "use client";
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   EnvelopeIcon,
   PhoneIcon,
@@ -72,7 +73,7 @@ const Footer = () => {
   ];
 
   return (
-    <footer className="bg-[#0a0a0a] text-white border-t border-white/5 py-24 relative overflow-hidden">
+    <footer className="bg-background text-foreground border-t border-border py-24 relative overflow-hidden">
       <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-blue-600/5 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-orange-600/5 blur-[100px] pointer-events-none" />
 
@@ -82,14 +83,14 @@ const Footer = () => {
           {/* Brand Info */}
           <div className="space-y-8">
             <Link href="/" className="flex items-center gap-4 group">
-              <div className="w-14 h-14 bg-orange-500 flex items-center justify-center rounded-none shadow-xl shadow-orange-500/20 group-hover:scale-110 transition-transform duration-300">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-white"><path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 3.741-3.342" /></svg>
+              <div className="w-14 h-14 bg-white/5 border border-border flex items-center justify-center rounded-none group-hover:scale-110 transition-transform duration-300 ring-1 ring-white/20 ring-offset-2 ring-offset-background">
+                <Image src="/images/logo.png" alt="Rillcod" width={44} height={44} className="object-contain" />
               </div>
               <div>
-                <h3 className="text-xl font-black text-white uppercase tracking-tight block leading-none italic">
+                <h3 className="text-xl font-black text-foreground uppercase tracking-tight block leading-none italic">
                     RILLCOD<span className="text-orange-500 not-italic">.</span>
                 </h3>
-                <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.4em] leading-none mt-1.5 whitespace-nowrap">STEM Excellence</p>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em] leading-none mt-1.5 whitespace-nowrap">STEM Excellence</p>
               </div>
             </Link>
             
@@ -108,18 +109,18 @@ const Footer = () => {
                </div>
                <div className="flex items-center gap-4 group">
                   <PhoneIcon className="w-5 h-5 text-orange-500 flex-shrink-0" />
-                  <p className="text-xs font-black text-white uppercase tracking-widest">08116600091</p>
+                  <p className="text-xs font-black text-foreground uppercase tracking-widest">08116600091</p>
                </div>
                <div className="flex items-center gap-4 group">
                   <EnvelopeIcon className="w-5 h-5 text-orange-500 flex-shrink-0" />
-                  <p className="text-xs font-black text-white lowercase tracking-widest">info@rillcod.tech</p>
+                  <p className="text-xs font-black text-foreground lowercase tracking-widest">info@rillcod.tech</p>
                </div>
             </div>
           </div>
 
           {/* Navigation */}
           <div>
-            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-10 pb-4 border-b border-white/5">Quick Protocols</h4>
+            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-10 pb-4 border-b border-border">Quick Protocols</h4>
             <ul className="space-y-4">
               {quickLinks.map((link) => (
                 <li key={link.label}>
@@ -134,7 +135,7 @@ const Footer = () => {
 
           {/* Academic Paths */}
           <div>
-            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-10 pb-4 border-b border-white/5">Academic Sectors</h4>
+            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-10 pb-4 border-b border-border">Academic Sectors</h4>
             <ul className="space-y-4">
               {programs.map((p) => (
                 <li key={p.label}>
@@ -149,11 +150,11 @@ const Footer = () => {
 
           {/* Newsletter / CTA */}
           <div>
-            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-10 pb-4 border-b border-white/5">Initialize Uplink</h4>
+            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-10 pb-4 border-b border-border">Initialize Uplink</h4>
             <p className="text-xs font-bold text-slate-500 italic mb-8">
               Stay synchronized with our latest technological deployment and curriculum updates.
             </p>
-            <Link href="/student-registration" className="block w-full py-5 bg-orange-500 text-white text-[10px] font-black uppercase tracking-[0.4em] text-center rounded-none shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all">
+            <Link href="/student-registration" className="block w-full py-5 bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-[0.4em] text-center rounded-none shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all">
               Initialize Enrollment
             </Link>
           </div>
@@ -161,17 +162,17 @@ const Footer = () => {
         </div>
 
         {/* Legal & Social */}
-        <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-10">
+        <div className="pt-12 border-t border-border flex flex-col md:flex-row items-center justify-between gap-10">
           <div className="flex flex-wrap justify-center md:justify-start gap-8">
-            <Link href="/privacy" className="text-[9px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-colors">Privacy Protocol</Link>
-            <Link href="/terms" className="text-[9px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-colors">Terms of Service</Link>
+            <Link href="/privacy" className="text-[9px] font-black text-slate-600 hover:text-foreground uppercase tracking-widest transition-colors">Privacy Protocol</Link>
+            <Link href="/terms" className="text-[9px] font-black text-slate-600 hover:text-foreground uppercase tracking-widest transition-colors">Terms of Service</Link>
           </div>
 
           <p className="text-[9px] font-black text-slate-700 uppercase tracking-[0.3em]" suppressHydrationWarning>
             © {currentYear} RILLCOD TECHNOLOGIES. ALL SYSTEMS OPERATIONAL.
           </p>
 
-          <button onClick={scrollToTop} className="flex items-center gap-4 text-xs font-black text-orange-500 uppercase tracking-widest hover:text-white transition-all group">
+          <button onClick={scrollToTop} className="flex items-center gap-4 text-xs font-black text-orange-500 uppercase tracking-widest hover:text-foreground transition-all group">
             Top <ArrowUpIcon className="w-4 h-4 group-hover:-translate-y-1 transition-transform" />
           </button>
         </div>

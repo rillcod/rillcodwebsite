@@ -223,7 +223,7 @@ export default function Testimonials() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         {/* Header */}
-        <div className="text-center mb-24 bg-[#1a1a1a] border border-white/10 p-16 rounded-none shadow-2xl border-t-8 border-t-orange-500 relative">
+        <div className="text-center mb-24 bg-[#1a1a1a] border border-border p-16 rounded-none shadow-2xl border-t-8 border-t-orange-500 relative">
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
           <div className="flex justify-center mb-10">
             <Quote className="w-16 h-16 text-orange-500 opacity-20" />
@@ -238,7 +238,7 @@ export default function Testimonials() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/5 border border-white/10 mb-24">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/5 border border-border mb-24">
           {stats.map((stat, i) => (
             <div key={i} className="bg-[#1a1a1a] p-12 text-center group hover:bg-white/[0.02] transition-colors">
               <div className="text-orange-500 mb-6 flex justify-center group-hover:scale-110 transition-transform">
@@ -259,16 +259,16 @@ export default function Testimonials() {
                   Primary Validators
                 </h2>
                 <div className="flex gap-2">
-                   <button onClick={prevTestimonial} className="p-4 bg-white/5 border border-white/10 hover:border-orange-500 text-white transition-all rounded-none">
+                   <button onClick={prevTestimonial} className="p-4 bg-white/5 border border-border hover:border-orange-500 text-white transition-all rounded-none">
                       <ArrowLeft className="w-5 h-5" />
                    </button>
-                   <button onClick={nextTestimonial} className="p-4 bg-white/5 border border-white/10 hover:border-orange-500 text-white transition-all rounded-none">
+                   <button onClick={nextTestimonial} className="p-4 bg-white/5 border border-border hover:border-orange-500 text-white transition-all rounded-none">
                       <ArrowRight className="w-5 h-5" />
                    </button>
                 </div>
              </div>
 
-             <div className="bg-[#1a1a1a] border border-white/10 p-12 lg:p-20 rounded-none shadow-2xl relative border-l-8 border-l-purple-500 overflow-hidden">
+             <div className="bg-[#1a1a1a] border border-border p-12 lg:p-20 rounded-none shadow-2xl relative border-l-8 border-l-purple-500 overflow-hidden">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/5 blur-[120px] pointer-events-none" />
                 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
@@ -292,9 +292,9 @@ export default function Testimonials() {
                       </div>
                    </div>
 
-                   <div className="lg:col-span-5 bg-[#121212] border border-white/5 p-10 rounded-none relative">
+                   <div className="lg:col-span-5 bg-[#121212] border border-border p-10 rounded-none relative">
                       <div className="flex items-center gap-6 mb-8">
-                         <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-none flex items-center justify-center text-orange-500 font-black text-2xl rotate-3">
+                         <div className="w-20 h-20 bg-white/5 border border-border rounded-none flex items-center justify-center text-orange-500 font-black text-2xl rotate-3">
                             {featuredTestimonials[currentIndex]?.name.split(' ').map(n => n[0]).join('')}
                          </div>
                          <div>
@@ -320,7 +320,7 @@ export default function Testimonials() {
         )}
 
         {/* Filter */}
-        <div className="flex flex-wrap justify-center gap-px mb-20 bg-white/5 border border-white/10 p-1 p-px">
+        <div className="flex flex-wrap justify-center gap-px mb-20 bg-white/5 border border-border p-1 p-px">
           {categories.map((cat) => (
             <button
               key={cat}
@@ -339,7 +339,7 @@ export default function Testimonials() {
         {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-32">
           {regularTestimonials.map((t, i) => (
-            <div key={i} className="bg-[#1a1a1a] border border-white/10 p-10 rounded-none hover:border-orange-500 transition-all group flex flex-col relative overflow-hidden">
+            <div key={i} className="bg-[#1a1a1a] border border-border p-10 rounded-none hover:border-orange-500 transition-all group flex flex-col relative overflow-hidden">
                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-[50px] pointer-events-none" />
                <div className="flex items-center justify-between mb-8">
                   <div className="flex gap-0.5">
@@ -354,9 +354,9 @@ export default function Testimonials() {
                   "{t.content}"
                </p>
 
-               <div className="pt-8 border-t border-white/5 mt-auto">
+               <div className="pt-8 border-t border-border mt-auto">
                   <div className="flex items-center gap-5">
-                    <div className="w-12 h-12 bg-[#121212] border border-white/5 text-orange-500 flex items-center justify-center font-black text-xs rounded-none group-hover:border-orange-500/50 transition-colors">
+                    <div className="w-12 h-12 bg-[#121212] border border-border text-orange-500 flex items-center justify-center font-black text-xs rounded-none group-hover:border-orange-500/50 transition-colors">
                        {t.name.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div>
@@ -370,7 +370,7 @@ export default function Testimonials() {
         </div>
 
         {/* CTA */}
-        <div className="bg-[#1a1a1a] border border-white/10 p-16 rounded-none text-center relative overflow-hidden border-t-8 border-t-orange-500 shadow-2xl">
+        <div className="bg-[#1a1a1a] border border-border p-16 rounded-none text-center relative overflow-hidden border-t-8 border-t-orange-500 shadow-2xl">
           <div className="absolute top-0 left-0 w-full h-full bg-orange-500/[0.02] pointer-events-none" />
           <h2 className="text-3xl font-black mb-8 uppercase italic tracking-tight leading-none">
             Ready to Initialize <br />
@@ -380,7 +380,7 @@ export default function Testimonials() {
             <Link href="/student-registration" className="px-12 py-6 bg-orange-500 text-white text-[10px] font-black uppercase tracking-[0.5em] rounded-none shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all">
               Initiate Enrollment
             </Link>
-            <Link href="/contact" className="px-12 py-6 bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-[0.5em] rounded-none hover:bg-white/10 transition-all">
+            <Link href="/contact" className="px-12 py-6 bg-white/5 border border-border text-white text-[10px] font-black uppercase tracking-[0.5em] rounded-none hover:bg-white/10 transition-all">
               Request Deployment Demo
             </Link>
           </div>

@@ -40,7 +40,7 @@ function colorClass(color: string, variant: 'text' | 'bg' | 'border' | 'ring') {
         amber: { text: 'text-amber-400', bg: 'bg-amber-500', border: 'border-amber-500', ring: 'ring-amber-500' },
         orange: { text: 'text-orange-400', bg: 'bg-orange-500', border: 'border-orange-500', ring: 'ring-orange-500' },
         rose: { text: 'text-rose-400', bg: 'bg-rose-500', border: 'border-rose-500', ring: 'ring-rose-500' },
-        violet: { text: 'text-violet-400', bg: 'bg-violet-500', border: 'border-violet-500', ring: 'ring-violet-500' },
+        orange: { text: 'text-orange-400', bg: 'bg-orange-500', border: 'border-orange-500', ring: 'ring-orange-500' },
     };
     return map[color]?.[variant] ?? '';
 }
@@ -54,7 +54,7 @@ function Badge({ status }: { status: string }) {
         missing: 'bg-rose-500/20    text-rose-400    border-rose-500/30',
     };
     return (
-        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize whitespace-nowrap ${map[status] ?? 'bg-white/10 text-white/40 border-white/10'}`}>
+        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize whitespace-nowrap ${map[status] ?? 'bg-muted text-muted-foreground border-border'}`}>
             {status}
         </span>
     );
@@ -153,24 +153,24 @@ function GradeModal({ sub, onClose, onSaved }: {
 
     return (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-            <div className="bg-[#161628] border border-white/10 rounded-t-[32px] sm:rounded-2xl w-full sm:max-w-lg shadow-2xl max-h-[92vh] flex flex-col"
+            <div className="bg-[#161628] border border-border rounded-t-[32px] rounded-none w-full sm:max-w-lg shadow-2xl max-h-[92vh] flex flex-col"
                 onClick={e => e.stopPropagation()}>
 
                 {/* Drag handle (mobile) */}
                 <div className="flex justify-center pt-3 pb-1 sm:hidden">
-                    <div className="w-10 h-1.5 bg-white/20 rounded-full" />
+                    <div className="w-10 h-1.5 bg-muted rounded-full" />
                 </div>
 
                 {/* Header */}
-                <div className="p-5 border-b border-white/10 flex items-start justify-between flex-shrink-0">
+                <div className="p-5 border-b border-border flex items-start justify-between flex-shrink-0">
                     <div className="flex-1 min-w-0 pr-4">
-                        <h3 className="font-bold text-white text-base leading-tight">{sub.assignments?.title ?? 'Grade Submission'}</h3>
+                        <h3 className="font-bold text-foreground text-base leading-tight">{sub.assignments?.title ?? 'Grade Submission'}</h3>
                         <div className="flex items-center gap-2 mt-2">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
                                 {(sub.portal_users?.full_name ?? '?')[0]}
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="text-sm font-semibold text-white truncate">{sub.portal_users?.full_name ?? 'Student'}</p>
+                                <p className="text-sm font-semibold text-foreground truncate">{sub.portal_users?.full_name ?? 'Student'}</p>
                                 <div className="flex items-center gap-2 mt-1">
                                     <select value={status} onChange={e => setStatus(e.target.value)}
                                         className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border appearance-none cursor-pointer ${
@@ -184,13 +184,13 @@ function GradeModal({ sub, onClose, onSaved }: {
                                         <option value="late">Late</option>
                                         <option value="missing">Missing</option>
                                     </select>
-                                    <p className="text-[10px] text-white/30 truncate">{sub.portal_users?.email}</p>
+                                    <p className="text-[10px] text-muted-foreground truncate">{sub.portal_users?.email}</p>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-colors flex-shrink-0">
-                        <XMarkIcon className="w-5 h-5 text-white/40" />
+                    <button onClick={onClose} className="p-2 hover:bg-muted rounded-none transition-colors flex-shrink-0">
+                        <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                     </button>
                 </div>
 
@@ -198,14 +198,14 @@ function GradeModal({ sub, onClose, onSaved }: {
                     <div className="p-5 space-y-5">
                         {/* Quick grade buttons */}
                         <div>
-                            <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Quick Grade</p>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Quick Grade</p>
                             <div className="grid grid-cols-6 gap-1.5">
                                 {QUICK_GRADES.map(q => (
                                     <button key={q.label}
                                         onClick={() => applyQuick(q.pct)}
-                                        className={`py-2.5 rounded-xl text-xs font-black transition-all border ${info?.letter === q.label
-                                                ? `${colorClass(q.color, 'bg')} text-white border-transparent`
-                                                : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'
+                                        className={`py-2.5 rounded-none text-xs font-black transition-all border ${info?.letter === q.label
+                                                ? `${colorClass(q.color, 'bg')} text-foreground border-transparent`
+                                                : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted hover:text-foreground'
                                             }`}>
                                         {q.label}
                                     </button>
@@ -214,29 +214,29 @@ function GradeModal({ sub, onClose, onSaved }: {
                         </div>
 
                         {/* Score input + ring */}
-                        <div className="flex items-center gap-5 bg-white/5 border border-white/10 rounded-2xl p-4">
+                        <div className="flex items-center gap-5 bg-card shadow-sm border border-border rounded-none p-4">
                             {info ? (
                                 <GradeRing pct={info.pct} letter={info.letter} color={info.color} size="md" />
                             ) : (
-                                <div className="w-20 h-20 rounded-full border-4 border-white/10 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-white/20 text-xs font-bold">—</span>
+                                <div className="w-20 h-20 rounded-full border-4 border-border flex items-center justify-center flex-shrink-0">
+                                    <span className="text-muted-foreground text-xs font-bold">—</span>
                                 </div>
                             )}
                             <div className="flex-1">
-                                <label className="block text-xs font-bold text-white/40 uppercase tracking-wider mb-2">
+                                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                                     Score (max {max} pts)
                                 </label>
                                 <div className="flex items-center gap-3">
                                     <input type="number" min={0} max={max} value={grade}
                                         onChange={e => { setGrade(e.target.value); setErr(''); }}
-                                        className="w-24 px-3 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white text-xl font-black text-center focus:outline-none focus:border-violet-500 transition-colors"
+                                        className="w-24 px-3 py-2.5 bg-muted border border-border rounded-none text-foreground text-xl font-black text-center focus:outline-none focus:border-orange-500 transition-colors"
                                         placeholder="0"
                                     />
-                                    <span className="text-white/30 text-sm font-bold">/ {max}</span>
+                                    <span className="text-muted-foreground text-sm font-bold">/ {max}</span>
                                 </div>
                                 {info && (
                                     <div className="mt-2 flex items-center gap-2">
-                                        <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                                             <div className={`h-full rounded-full transition-all duration-500 ${colorClass(info.color, 'bg')}`} style={{ width: `${info.pct}%` }} />
                                         </div>
                                         <span className={`text-xs font-bold ${colorClass(info.color, 'text')}`}>{info.pct}% · {info.label}</span>
@@ -250,28 +250,28 @@ function GradeModal({ sub, onClose, onSaved }: {
                             <div>
                                 <button
                                     onClick={() => setShowContent(v => !v)}
-                                    className="w-full flex items-center justify-between px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white/50 hover:text-white transition-colors">
+                                    className="w-full flex items-center justify-between px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-muted-foreground hover:text-foreground transition-colors">
                                     <span className="font-semibold">View Student Work</span>
                                     {showContent ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
                                 </button>
                                 {showContent && (
                                     <div className="mt-2 space-y-3">
-                                        <div className="bg-white/5 border border-white/10 rounded-xl p-3">
-                                            <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">Edit Student Text</label>
+                                        <div className="bg-card shadow-sm border border-border rounded-none p-3">
+                                            <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Edit Student Text</label>
                                             <textarea value={subText} rows={4}
                                                 onChange={e => setSubText(e.target.value)}
-                                                className="w-full bg-transparent text-sm text-white/70 focus:outline-none resize-none leading-relaxed"
+                                                className="w-full bg-transparent text-sm text-muted-foreground focus:outline-none resize-none leading-relaxed"
                                                 placeholder="Student text submission..."
                                             />
                                         </div>
                                         {sub.file_url && (
                                             <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
-                                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-400 hover:text-blue-300 p-3 bg-blue-400/5 rounded-xl border border-blue-400/10">
+                                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-400 hover:text-orange-500 p-3 bg-blue-400/5 rounded-none border border-blue-400/10">
                                                 <PaperClipIcon className="w-3 h-3" /> View attached file
                                             </a>
                                         )}
                                         <button onClick={handleDelete} disabled={deleting}
-                                            className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-rose-400/40 hover:text-rose-400 hover:bg-rose-400/10 rounded-xl transition-all flex items-center justify-center gap-2 border border-transparent hover:border-rose-400/20">
+                                            className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-rose-400/40 hover:text-rose-400 hover:bg-rose-400/10 rounded-none transition-all flex items-center justify-center gap-2 border border-transparent hover:border-rose-400/20">
                                             <TrashIcon className="w-3 h-3" />
                                             {deleting ? 'Deleting...' : 'Delete Submission'}
                                         </button>
@@ -281,7 +281,7 @@ function GradeModal({ sub, onClose, onSaved }: {
                         )}
 
                         {!sub.submission_text && !sub.file_url && sub.status !== 'missing' && (
-                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-sm text-amber-400 flex items-center gap-2">
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-none p-3 text-sm text-amber-400 flex items-center gap-2">
                                 <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
                                 No text or file — grade based on verbal/in-person work if applicable.
                             </div>
@@ -289,13 +289,13 @@ function GradeModal({ sub, onClose, onSaved }: {
 
                         {/* Feedback */}
                         <div>
-                            <label className="block text-xs font-bold text-white/40 uppercase tracking-wider mb-2">
-                                Feedback <span className="text-white/20 font-normal normal-case">(shown to student)</span>
+                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                                Feedback <span className="text-muted-foreground font-normal normal-case">(shown to student)</span>
                             </label>
                             <textarea value={feedback} rows={3}
                                 onChange={e => setFb(e.target.value)}
                                 placeholder="Write specific, constructive feedback for the student…"
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500 transition-colors resize-none"
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors resize-none"
                             />
                         </div>
 
@@ -304,13 +304,13 @@ function GradeModal({ sub, onClose, onSaved }: {
                 </div>
 
                 {/* Footer */}
-                <div className="p-5 border-t border-white/10 flex gap-3 flex-shrink-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                <div className="p-5 border-t border-border flex gap-3 flex-shrink-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
                     <button onClick={onClose}
-                        className="flex-1 py-3 text-sm font-semibold text-white/50 bg-white/5 hover:bg-white/10 rounded-xl transition-colors">
+                        className="flex-1 py-3 text-sm font-semibold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
                         Cancel
                     </button>
                     <button onClick={save} disabled={saving}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all disabled:opacity-60">
+                        className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-foreground rounded-none transition-all disabled:opacity-60">
                         {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                         {saving ? 'Saving…' : 'Submit Grade'}
                     </button>
@@ -340,21 +340,21 @@ function DistBar({ items }: { items: any[] }) {
     ].filter(b => b.count > 0);
 
     return (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-4">Grade Distribution · {total} graded</p>
-            <div className="flex h-8 rounded-xl overflow-hidden gap-0.5">
+        <div className="bg-card shadow-sm border border-border rounded-none p-5">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Grade Distribution · {total} graded</p>
+            <div className="flex h-8 rounded-none overflow-hidden gap-0.5">
                 {bars.map(b => (
                     <div key={b.label} title={`${b.label}: ${b.count}`}
                         className={`${b.color} flex items-center justify-center transition-all duration-500`}
                         style={{ width: `${(b.count / total) * 100}%` }}>
-                        {b.count / total > 0.1 && <span className="text-white text-[10px] font-black">{b.label}</span>}
+                        {b.count / total > 0.1 && <span className="text-foreground text-[10px] font-black">{b.label}</span>}
                     </div>
                 ))}
             </div>
             <div className="flex flex-wrap gap-3 mt-3">
                 {bars.map(b => (
-                    <span key={b.label} className="text-xs text-white/40">
-                        <span className="font-bold text-white/70">{b.label}</span> {b.count} ({Math.round((b.count / total) * 100)}%)
+                    <span key={b.label} className="text-xs text-muted-foreground">
+                        <span className="font-bold text-muted-foreground">{b.label}</span> {b.count} ({Math.round((b.count / total) * 100)}%)
                     </span>
                 ))}
             </div>
@@ -397,16 +397,16 @@ function AchievementBadges({ items }: { items: any[] }) {
     return (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {badges.map(b => (
-                <div key={b.label} className={`rounded-2xl p-4 border transition-all ${b.earned ? (
+                <div key={b.label} className={`rounded-none p-4 border transition-all ${b.earned ? (
                         b.color === 'amber' ? 'bg-amber-500/10 border-amber-500/20' :
                             b.color === 'orange' ? 'bg-orange-500/10 border-orange-500/20' :
                                 b.color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/20' :
                                     'bg-blue-500/10 border-blue-500/20'
-                    ) : 'bg-white/5 border-white/10 opacity-40 grayscale'
+                    ) : 'bg-card shadow-sm border-border opacity-40 grayscale'
                     }`}>
-                    <b.icon className={`w-5 h-5 mb-2 ${b.earned ? colorClass(b.color, 'text') : 'text-white/30'}`} />
-                    <p className={`text-xs font-black ${b.earned ? 'text-white' : 'text-white/40'}`}>{b.label}</p>
-                    <p className="text-[10px] text-white/30 mt-0.5 leading-tight">{b.desc}</p>
+                    <b.icon className={`w-5 h-5 mb-2 ${b.earned ? colorClass(b.color, 'text') : 'text-muted-foreground'}`} />
+                    <p className={`text-xs font-black ${b.earned ? 'text-foreground' : 'text-muted-foreground'}`}>{b.label}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{b.desc}</p>
                 </div>
             ))}
         </div>
@@ -432,17 +432,17 @@ function CourseBreakdown({ items }: { items: any[] }) {
 
     if (!list.length) return null;
     return (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-widest">Course Breakdown</p>
+        <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Course Breakdown</p>
             {list.map(c => (
                 <div key={c.name}>
                     <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-sm text-white/70 font-medium truncate pr-4">{c.name}</span>
+                        <span className="text-sm text-muted-foreground font-medium truncate pr-4">{c.name}</span>
                         <span className={`text-sm font-black flex-shrink-0 ${colorClass(c.info.color, 'text')}`}>
                             {c.info.letter} · {c.avg}%
                         </span>
                     </div>
-                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-2 bg-card shadow-sm rounded-full overflow-hidden">
                         <div className={`h-full rounded-full transition-all duration-700 ${colorClass(c.info.color, 'bg')}`} style={{ width: `${c.avg}%` }} />
                     </div>
                     <p className="text-[10px] text-white/25 mt-1">{c.grades.length} graded assignment{c.grades.length !== 1 ? 's' : ''}</p>
@@ -721,34 +721,34 @@ export default function GradesPage() {
 
     // ── Loading skeleton ───────────────────────────────────────
     if (authLoading || loading) return (
-        <div className="min-h-screen bg-[#0f0f1a] text-white">
+        <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
                 <div className="animate-pulse space-y-2">
-                    <div className="h-4 bg-white/10 rounded w-32" />
-                    <div className="h-8 bg-white/10 rounded w-64" />
+                    <div className="h-4 bg-muted rounded w-32" />
+                    <div className="h-8 bg-muted rounded w-64" />
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[1, 2, 3, 4].map(i => <div key={i} className="bg-white/5 border border-white/10 rounded-2xl h-28 animate-pulse" />)}
+                    {[1, 2, 3, 4].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none h-28 animate-pulse" />)}
                 </div>
                 <div className="space-y-3">
-                    {[1, 2, 3, 4, 5].map(i => <div key={i} className="bg-white/5 border border-white/10 rounded-2xl h-20 animate-pulse" />)}
+                    {[1, 2, 3, 4, 5].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none h-20 animate-pulse" />)}
                 </div>
             </div>
         </div>
     );
 
     if (!profile) return (
-        <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center">
             <div className="text-center">
-                <ClipboardDocumentCheckIcon className="w-12 h-12 mx-auto text-white/10 mb-3" />
-                <p className="text-white/30 mb-4">Sign in to view grades</p>
-                <Link href="/login" className="px-5 py-2 bg-violet-600 text-white rounded-xl text-sm font-bold">Sign In</Link>
+                <ClipboardDocumentCheckIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground mb-4">Sign in to view grades</p>
+                <Link href="/login" className="px-5 py-2 bg-orange-600 text-foreground rounded-none text-sm font-bold">Sign In</Link>
             </div>
         </div>
     );
 
     return (
-        <div className="min-h-screen bg-[#0f0f1a] text-white">
+        <div className="min-h-screen bg-background text-foreground">
             {grading && <GradeModal sub={grading} onClose={() => setGrading(null)} onSaved={handleGraded} />}
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -765,7 +765,7 @@ export default function GradesPage() {
                         <h1 className="text-2xl sm:text-3xl font-extrabold">
                             {isStaff ? 'Grades & Submissions' : 'My Academic Results'}
                         </h1>
-                        <p className="text-white/40 text-sm mt-1">
+                        <p className="text-muted-foreground text-sm mt-1">
                             {isStaff ? 'Grade student work and track class performance' : 'Your scores, feedback and progress'}
                         </p>
                     </div>
@@ -773,12 +773,12 @@ export default function GradesPage() {
                         {items.length > 0 && (
                             <>
                                 <button onClick={() => exportPDF(items, isStaff, profile)}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-bold text-white transition-all shadow-lg shadow-violet-900/20">
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 rounded-none text-sm font-bold text-foreground transition-all shadow-lg shadow-orange-900/20">
                                     <DocumentTextIcon className="w-4 h-4" />
                                     <span className="hidden sm:inline">Export PDF</span>
                                 </button>
                                 <button onClick={() => exportCSV(items, isStaff)}
-                                    className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-white/60 hover:text-white transition-all">
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-sm font-bold text-muted-foreground hover:text-foreground transition-all">
                                     <ArrowDownTrayIcon className="w-4 h-4" />
                                     <span className="hidden sm:inline">Export CSV</span>
                                 </button>
@@ -789,7 +789,7 @@ export default function GradesPage() {
 
                 {/* ── Error ─────────────────────────────────────── */}
                 {error && (
-                    <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
+                    <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
                         <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
                         <p className="text-rose-400 text-sm">{error}</p>
                     </div>
@@ -803,7 +803,7 @@ export default function GradesPage() {
                             value: totalItems,
                             sub: 'assignments',
                             icon: DocumentTextIcon,
-                            color: 'violet',
+                            color: 'orange',
                         },
                         {
                             label: isStaff ? 'Needs Grading' : 'Submitted',
@@ -824,12 +824,12 @@ export default function GradesPage() {
                             value: avgPct != null ? `${avgPct}%` : '—',
                             sub: avgPct != null ? (avgPct >= 70 ? 'Good standing' : avgPct >= 50 ? 'Needs effort' : 'At risk') : 'no grades yet',
                             icon: ChartBarIcon,
-                            color: avgPct == null ? 'violet' : avgPct >= 70 ? 'emerald' : avgPct >= 50 ? 'amber' : 'rose',
+                            color: avgPct == null ? 'orange' : avgPct >= 70 ? 'emerald' : avgPct >= 50 ? 'amber' : 'rose',
                         },
                     ].map(s => (
-                        <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5">
+                        <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-4 sm:p-5">
                             <div className="flex items-start justify-between mb-3">
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.color === 'violet' ? 'bg-violet-500/10' :
+                                <div className={`w-9 h-9 rounded-none flex items-center justify-center ${s.color === 'orange' ? 'bg-orange-500/10' :
                                         s.color === 'amber' ? 'bg-amber-500/10' :
                                             s.color === 'emerald' ? 'bg-emerald-500/10' :
                                                 'bg-rose-500/10'
@@ -837,11 +837,11 @@ export default function GradesPage() {
                                     <s.icon className={`w-4 h-4 ${colorClass(s.color, 'text')}`} />
                                 </div>
                                 {s.label === 'Graded' && totalItems > 0 && (
-                                    <div className="text-xs text-white/30">{Math.round((graded / totalItems) * 100)}%</div>
+                                    <div className="text-xs text-muted-foreground">{Math.round((graded / totalItems) * 100)}%</div>
                                 )}
                             </div>
                             <p className={`text-2xl font-extrabold ${colorClass(s.color, 'text')}`}>{s.value}</p>
-                            <p className="text-xs text-white/40 mt-1">{s.label}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
                             <p className="text-[10px] text-white/25 mt-0.5 truncate">{s.sub}</p>
                         </div>
                     ))}
@@ -849,14 +849,14 @@ export default function GradesPage() {
 
                 {/* ── Pending alert (staff) ──────────────────────── */}
                 {isStaff && pending > 0 && (
-                    <div className="flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
+                    <div className="flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-none p-4">
                         <ClockIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                             <p className="font-bold text-amber-400 text-sm">{pending} submission{pending !== 1 ? 's' : ''} waiting to be graded</p>
-                            <p className="text-xs text-white/30 mt-0.5 hidden sm:block">Click the pencil icon on any row to open the grade panel</p>
+                            <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block">Click the pencil icon on any row to open the grade panel</p>
                         </div>
                         <button onClick={() => setFilter('submitted')}
-                            className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold rounded-xl transition-colors flex-shrink-0">
+                            className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold rounded-none transition-colors flex-shrink-0">
                             Show only
                         </button>
                     </div>
@@ -869,18 +869,18 @@ export default function GradesPage() {
                 {!isStaff && items.length > 0 && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         {/* GPA Card */}
-                        <div className="lg:col-span-1 bg-gradient-to-br from-[#1a1a2e] to-[#252545] border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                        <div className="lg:col-span-1 bg-gradient-to-br from-[#1a1a2e] to-[#252545] border border-border rounded-none p-6 flex flex-col items-center justify-center text-center">
                             {avgPct != null ? (
                                 <>
                                     <GradeRing pct={avgPct} letter={pctInfo(avgPct, 100).letter} color={pctInfo(avgPct, 100).color} size="lg" />
-                                    <p className="text-xs text-white/40 uppercase tracking-widest mt-4">Overall Average</p>
-                                    <p className="text-white/60 text-sm mt-1">{pctInfo(avgPct, 100).label}</p>
-                                    <p className="text-2xl font-black text-white mt-2">{avgPct}%</p>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-widest mt-4">Overall Average</p>
+                                    <p className="text-muted-foreground text-sm mt-1">{pctInfo(avgPct, 100).label}</p>
+                                    <p className="text-2xl font-black text-foreground mt-2">{avgPct}%</p>
                                 </>
                             ) : (
                                 <>
-                                    <SparklesIcon className="w-10 h-10 text-white/10 mb-3" />
-                                    <p className="text-white/30 text-sm">No grades yet</p>
+                                    <SparklesIcon className="w-10 h-10 text-muted-foreground mb-3" />
+                                    <p className="text-muted-foreground text-sm">No grades yet</p>
                                 </>
                             )}
                         </div>
@@ -898,16 +898,16 @@ export default function GradesPage() {
                 {/* ── Filters + Sort ────────────────────────────── */}
                 <div className="flex flex-col sm:flex-row gap-2">
                     <div className="relative flex-1">
-                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <input type="text"
                             placeholder={isStaff ? 'Search by assignment or student…' : 'Search assignments…'}
                             value={search} onChange={e => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-500 transition-colors"
+                            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"
                         />
                     </div>
                     <div className="flex gap-2">
                         <select value={filter} onChange={e => setFilter(e.target.value)}
-                            className="flex-1 sm:flex-none px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
+                            className="flex-1 sm:flex-none px-3 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                             <option value="all">All Status</option>
                             <option value="submitted">Submitted</option>
                             <option value="graded">Graded</option>
@@ -915,12 +915,12 @@ export default function GradesPage() {
                             <option value="missing">Missing</option>
                         </select>
                         <button onClick={() => toggleSort('date')}
-                            className={`px-3 py-3 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${sortBy === 'date' ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}>
+                            className={`px-3 py-3 rounded-none text-xs font-bold border transition-all flex items-center gap-1 ${sortBy === 'date' ? 'bg-emerald-600 border-emerald-600 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground'}`}>
                             <ArrowsUpDownIcon className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Date</span>
                         </button>
                         <button onClick={() => toggleSort('grade')}
-                            className={`px-3 py-3 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${sortBy === 'grade' ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}>
+                            className={`px-3 py-3 rounded-none text-xs font-bold border transition-all flex items-center gap-1 ${sortBy === 'grade' ? 'bg-emerald-600 border-emerald-600 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground'}`}>
                             <ChartBarIcon className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Grade</span>
                         </button>
@@ -928,7 +928,7 @@ export default function GradesPage() {
                 </div>
 
                 {/* Count row */}
-                <div className="flex items-center justify-between text-xs text-white/30">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>{filtered.length} of {totalItems} shown</span>
                     {missing > 0 && !isStaff && (
                         <span className="text-rose-400 font-bold">{missing} missing assignment{missing !== 1 ? 's' : ''}</span>
@@ -937,15 +937,15 @@ export default function GradesPage() {
 
                 {/* ── Empty state ────────────────────────────────── */}
                 {filtered.length === 0 && !error && (
-                    <div className="text-center py-20 bg-white/5 border border-white/10 rounded-2xl">
-                        <ClipboardDocumentCheckIcon className="w-14 h-14 mx-auto text-white/10 mb-4" />
-                        <p className="text-lg font-semibold text-white/30">No submissions found</p>
-                        <p className="text-sm text-white/20 mt-1">
+                    <div className="text-center py-20 bg-card shadow-sm border border-border rounded-none">
+                        <ClipboardDocumentCheckIcon className="w-14 h-14 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-lg font-semibold text-muted-foreground">No submissions found</p>
+                        <p className="text-sm text-muted-foreground mt-1">
                             {search || filter !== 'all' ? 'Try clearing your filters.' : isStaff ? 'No students have submitted yet.' : 'No assignments yet.'}
                         </p>
                         {(search || filter !== 'all') && (
                             <button onClick={() => { setSearch(''); setFilter('all'); }}
-                                className="mt-4 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold text-white/50 transition-colors">
+                                className="mt-4 px-4 py-2 bg-muted hover:bg-muted rounded-none text-sm font-bold text-muted-foreground transition-colors">
                                 Clear Filters
                             </button>
                         )}
@@ -954,15 +954,15 @@ export default function GradesPage() {
 
                 {/* ══ STAFF LIST ═══════════════════════════════════ */}
                 {isStaff && filtered.length > 0 && (
-                    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                    <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
                         {/* Table header (desktop) */}
-                        <div className="hidden lg:grid grid-cols-[2fr_2fr_1fr_1fr_80px] gap-4 px-5 py-3 border-b border-white/10 text-xs font-bold text-white/30 uppercase tracking-wider">
-                            <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-white transition-colors text-left">
+                        <div className="hidden lg:grid grid-cols-[2fr_2fr_1fr_1fr_80px] gap-4 px-5 py-3 border-b border-border text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                            <button onClick={() => toggleSort('name')} className="flex items-center gap-1 hover:text-foreground transition-colors text-left">
                                 Student / Assignment <ArrowsUpDownIcon className="w-3 h-3" />
                             </button>
                             <span>Course</span>
                             <span>Status</span>
-                            <button onClick={() => toggleSort('grade')} className="flex items-center gap-1 hover:text-white transition-colors">
+                            <button onClick={() => toggleSort('grade')} className="flex items-center gap-1 hover:text-foreground transition-colors">
                                 Grade <ArrowsUpDownIcon className="w-3 h-3" />
                             </button>
                             <span className="text-right">Action</span>
@@ -979,22 +979,22 @@ export default function GradesPage() {
                                         {/* Main row */}
                                         <div className="flex items-center gap-3 px-4 sm:px-5 py-3.5">
                                             {/* Avatar */}
-                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
+                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
                                                 {(s.portal_users?.full_name ?? '?')[0]}
                                             </div>
 
                                             {/* Info */}
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                                                    <span className="font-semibold text-white text-sm">{s.assignments?.title ?? '—'}</span>
+                                                    <span className="font-semibold text-foreground text-sm">{s.assignments?.title ?? '—'}</span>
                                                     <Badge status={s.status} />
                                                 </div>
-                                                <p className="text-xs text-white/40 truncate">
+                                                <p className="text-xs text-muted-foreground truncate">
                                                     {s.portal_users?.full_name ?? 'Unknown'}
                                                     {s.assignments?.courses?.title ? ` · ${s.assignments.courses.title}` : ''}
                                                 </p>
                                                 {s.submitted_at && (
-                                                    <p className="text-xs text-white/20 mt-0.5 hidden sm:flex items-center gap-1">
+                                                    <p className="text-xs text-muted-foreground mt-0.5 hidden sm:flex items-center gap-1">
                                                         <CalendarIcon className="w-3 h-3" />
                                                         {new Date(s.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                                                     </p>
@@ -1009,14 +1009,14 @@ export default function GradesPage() {
                                                         <p className={`text-xs ${colorClass(info.color, 'text')} opacity-70`}>{s.grade}/{max}</p>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-white/20 text-xs">—</span>
+                                                    <span className="text-muted-foreground text-xs">—</span>
                                                 )}
                                             </div>
 
                                             {/* Expand (mobile only) */}
                                             {s.submission_text && (
                                                 <button onClick={() => toggleExpand(s.id)}
-                                                    className="p-2 text-white/20 hover:text-white transition-colors flex-shrink-0 sm:hidden">
+                                                    className="p-2 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 sm:hidden">
                                                     {expanded ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
                                                 </button>
                                             )}
@@ -1024,9 +1024,9 @@ export default function GradesPage() {
                                             {/* Grade button */}
                                             {canGrade ? (
                                                 <button onClick={() => setGrading(s)}
-                                                    className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${s.status === 'submitted' || s.status === 'late'
-                                                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                                                            : 'bg-white/5 hover:bg-white/10 text-white/30 opacity-0 group-hover:opacity-100'
+                                                    className={`p-2.5 rounded-none transition-all flex-shrink-0 ${s.status === 'submitted' || s.status === 'late'
+                                                            ? 'bg-emerald-600 hover:bg-emerald-500 text-foreground'
+                                                            : 'bg-card shadow-sm hover:bg-muted text-muted-foreground opacity-0 group-hover:opacity-100'
                                                         }`}
                                                     title={info ? 'Edit grade' : 'Grade now'}>
                                                     <PencilSquareIcon className="w-4 h-4" />
@@ -1039,9 +1039,9 @@ export default function GradesPage() {
                                         {/* Expandable submission preview */}
                                         {expanded && s.submission_text && (
                                             <div className="px-5 pb-4">
-                                                <div className="bg-white/5 border border-white/10 rounded-xl p-3 max-h-32 overflow-y-auto">
-                                                    <p className="text-xs text-white/30 uppercase tracking-wider mb-1.5">Student work</p>
-                                                    <p className="text-sm text-white/60 whitespace-pre-wrap leading-relaxed">{s.submission_text}</p>
+                                                <div className="bg-card shadow-sm border border-border rounded-none p-3 max-h-32 overflow-y-auto">
+                                                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1.5">Student work</p>
+                                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{s.submission_text}</p>
                                                 </div>
                                             </div>
                                         )}
@@ -1062,12 +1062,12 @@ export default function GradesPage() {
 
                             return (
                                 <div key={s.id}
-                                    className={`bg-white/5 border rounded-2xl overflow-hidden transition-all ${s.status === 'graded' ? 'border-emerald-500/20' :
-                                            s.status === 'missing' ? 'border-rose-500/20' : 'border-white/10'
+                                    className={`bg-card shadow-sm border rounded-none overflow-hidden transition-all ${s.status === 'graded' ? 'border-emerald-500/20' :
+                                            s.status === 'missing' ? 'border-rose-500/20' : 'border-border'
                                         }`}>
                                     {/* Top progress strip */}
                                     {info && (
-                                        <div className="h-1 bg-white/5">
+                                        <div className="h-1 bg-card shadow-sm">
                                             <div style={{ width: `${info.pct}%` }}
                                                 className={`h-1 transition-all duration-700 ${colorClass(info.color, 'bg')}`} />
                                         </div>
@@ -1080,8 +1080,8 @@ export default function GradesPage() {
                                                 {info ? (
                                                     <GradeRing pct={info.pct} letter={info.letter} color={info.color} size="sm" />
                                                 ) : (
-                                                    <div className="w-14 h-14 rounded-full border-2 border-white/10 flex items-center justify-center">
-                                                        <span className="text-white/20 text-xs font-bold">—</span>
+                                                    <div className="w-14 h-14 rounded-full border-2 border-border flex items-center justify-center">
+                                                        <span className="text-muted-foreground text-xs font-bold">—</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -1089,12 +1089,12 @@ export default function GradesPage() {
                                             {/* Content */}
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap mb-1">
-                                                    <h4 className="font-bold text-white text-sm sm:text-base leading-tight">
+                                                    <h4 className="font-bold text-foreground text-sm sm:text-base leading-tight">
                                                         {s.assignments?.title ?? 'Assignment'}
                                                     </h4>
                                                     <Badge status={s.status} />
                                                 </div>
-                                                <p className="text-xs text-white/40 truncate">
+                                                <p className="text-xs text-muted-foreground truncate">
                                                     {s.assignments?.courses?.title}
                                                     {s.assignments?.courses?.programs?.name ? ` · ${s.assignments.courses.programs.name}` : ''}
                                                 </p>
@@ -1119,7 +1119,7 @@ export default function GradesPage() {
                                                 {info && (
                                                     <div className="flex items-center gap-3 mt-2">
                                                         <span className={`text-xs font-bold ${colorClass(info.color, 'text')}`}>{info.pct}% · {info.label}</span>
-                                                        <span className="text-xs text-white/30">{s.grade}/{max} pts</span>
+                                                        <span className="text-xs text-muted-foreground">{s.grade}/{max} pts</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -1129,7 +1129,7 @@ export default function GradesPage() {
                                         {s.feedback && (
                                             <div className="mt-3">
                                                 <button onClick={() => toggleExpand(s.id)}
-                                                    className="w-full text-left flex items-center justify-between px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white/40 hover:text-white/70 transition-colors">
+                                                    className="w-full text-left flex items-center justify-between px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-muted-foreground hover:text-muted-foreground transition-colors">
                                                     <span className="flex items-center gap-1.5">
                                                         <AcademicCapIcon className="w-3.5 h-3.5" />
                                                         Teacher Feedback
@@ -1137,8 +1137,8 @@ export default function GradesPage() {
                                                     {expanded ? <ChevronUpIcon className="w-3.5 h-3.5" /> : <ChevronDownIcon className="w-3.5 h-3.5" />}
                                                 </button>
                                                 {expanded && (
-                                                    <div className="mt-2 px-3 py-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
-                                                        <p className="text-sm text-white/70 leading-relaxed">{s.feedback}</p>
+                                                    <div className="mt-2 px-3 py-3 bg-emerald-500/5 border border-emerald-500/20 rounded-none">
+                                                        <p className="text-sm text-muted-foreground leading-relaxed">{s.feedback}</p>
                                                     </div>
                                                 )}
                                             </div>

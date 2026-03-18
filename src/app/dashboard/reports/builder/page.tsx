@@ -59,12 +59,12 @@ const PROFICIENCY_OPTIONS = ['beginner', 'intermediate', 'advanced'];
 const DURATION_OPTIONS = ['Termly', '4 weeks', '6 weeks', '8 weeks', '10 weeks', '12 weeks', '3 months', '6 months', 'Full Year'];
 const PERIOD_PRESETS = ['2024/2025 First Term', '2024/2025 Second Term', '2024/2025 Third Term', '2025/2026 First Term', '2025/2026 Second Term', '2025/2026 Third Term'];
 
-const INPUT = 'w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/25 focus:outline-none focus:border-violet-500 transition-colors';
+const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div>
-            <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">{label}</label>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
             {children}
         </div>
     );
@@ -72,10 +72,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
     return (
-        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-2 px-5 py-3 bg-white/[0.03] border-b border-white/10">
+        <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-3 bg-white/[0.03] border-b border-border">
                 <span>{icon}</span>
-                <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">{title}</h3>
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{title}</h3>
             </div>
             <div className="p-5 space-y-4">{children}</div>
         </div>
@@ -86,8 +86,8 @@ function Section({ title, icon, children }: { title: string; icon: string; child
 export default function ReportBuilderPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-                <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
             </div>
         }>
             <ReportBuilderInner />
@@ -787,21 +787,21 @@ function ReportBuilderInner() {
 
     // ── Guards ────────────────────────────────────────────────────────────────
     if (authLoading || profileLoading) return (
-        <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-            <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
     // Ensure isStaff is definitely defined and checked
     if (profile && !isStaff) return (
-        <div className="min-h-screen bg-[#0f0f1a] flex flex-col items-center justify-center p-4">
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
             <ExclamationTriangleIcon className="w-12 h-12 text-amber-500 mb-4" />
-            <h1 className="text-xl font-bold text-white mb-2">Access Restricted</h1>
-            <p className="text-white/40 text-sm text-center max-w-md">
+            <h1 className="text-xl font-bold text-foreground mb-2">Access Restricted</h1>
+            <p className="text-muted-foreground text-sm text-center max-w-md">
                 You do not have permission to create or edit progress reports.
-                Please visit the <Link href="/dashboard/results" className="text-violet-400 font-bold hover:underline">Results Record Centre</Link> to view and print reports for your school.
+                Please visit the <Link href="/dashboard/results" className="text-orange-400 font-bold hover:underline">Results Record Centre</Link> to view and print reports for your school.
             </p>
-            <Link href="/dashboard/results" className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-violet-900/20">
+            <Link href="/dashboard/results" className="mt-4 inline-flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-foreground font-bold rounded-none transition-all shadow-lg shadow-orange-900/20">
                 <EyeIcon className="w-4 h-4" /> Go to Results Centre
             </Link>
         </div>
@@ -809,15 +809,15 @@ function ReportBuilderInner() {
 
     // ── Session summary bar (shown in pick/edit steps) ────────────────────────
     const SessionSummaryBar = () => (
-        <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden">
+        <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">
             <button
                 onClick={() => setSessionExpanded(e => !e)}
-                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors"
+                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-card shadow-sm transition-colors"
             >
-                <Cog6ToothIcon className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                <Cog6ToothIcon className="w-4 h-4 text-orange-400 flex-shrink-0" />
                 <div className="flex-1 text-left min-w-0">
-                    <p className="text-xs font-bold text-violet-300 uppercase tracking-widest">Session Settings</p>
-                    <p className="text-xs text-white/40 truncate mt-0.5">
+                    <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">Session Settings</p>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
                         {sessionConfig.report_term}
                         {sessionConfig.school_name && ` · ${sessionConfig.school_name}`}
                         {sessionConfig.section_class && ` · ${sessionConfig.section_class}`}
@@ -827,12 +827,12 @@ function ReportBuilderInner() {
                     </p>
                 </div>
                 {sessionExpanded
-                    ? <ChevronUpIcon className="w-4 h-4 text-white/30 flex-shrink-0" />
-                    : <ChevronDownIcon className="w-4 h-4 text-white/30 flex-shrink-0" />}
+                    ? <ChevronUpIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    : <ChevronDownIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
             </button>
 
             {sessionExpanded && (
-                <div className="border-t border-white/10 p-5 space-y-4">
+                <div className="border-t border-border p-5 space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Field label="Instructor Name">
                             <input value={sessionConfig.instructor_name}
@@ -918,19 +918,19 @@ function ReportBuilderInner() {
                         <button
                             type="button"
                             onClick={() => setSessionConfig(s => ({ ...s, show_payment_notice: !s.show_payment_notice }))}
-                            className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${sessionConfig.show_payment_notice ? 'bg-violet-600' : 'bg-white/10'}`}
+                            className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${sessionConfig.show_payment_notice ? 'bg-orange-600' : 'bg-muted'}`}
                         >
                             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${sessionConfig.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
                         </button>
                         <div>
-                            <p className="text-sm text-white/70 font-semibold">Show Next Term Payment Notice</p>
-                            <p className="text-[10px] text-white/30">Prints ₦20,000 Rillcod payment details on each report</p>
+                            <p className="text-sm text-muted-foreground font-semibold">Show Next Term Payment Notice</p>
+                            <p className="text-[10px] text-muted-foreground">Prints ₦20,000 Rillcod payment details on each report</p>
                         </div>
                     </div>
 
                     <div className="flex justify-end">
                         <button onClick={() => setSessionExpanded(false)}
-                            className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-xl transition-colors">
+                            className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-bold rounded-none transition-colors">
                             <CheckIcon className="w-3.5 h-3.5 inline mr-1" /> Done — Collapse
                         </button>
                     </div>
@@ -940,32 +940,32 @@ function ReportBuilderInner() {
     );
 
     return (
-        <div className="min-h-screen bg-[#0f0f1a] text-white">
+        <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-5">
 
                 {/* ── Page header ── */}
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div>
                         <div className="flex items-center gap-2 mb-1">
-                            <DocumentTextIcon className="w-4 h-4 text-violet-400" />
-                            <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Report Builder</span>
+                            <DocumentTextIcon className="w-4 h-4 text-orange-400" />
+                            <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Report Builder</span>
                         </div>
                         <h1 className="text-xl sm:text-3xl font-extrabold">Progress Reports</h1>
-                        <p className="text-white/40 text-xs sm:text-sm mt-0.5">Create and publish branded progress reports for each student</p>
+                        <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">Create and publish branded progress reports for each student</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <button onClick={() => setShowSettings(true)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white/60 text-xs font-bold rounded-xl transition-colors">
+                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm border border-border hover:bg-muted text-muted-foreground text-xs font-bold rounded-none transition-colors">
                             <Cog6ToothIcon className="w-3.5 h-3.5" /> Branding
                         </button>
                         {step === 'edit' && selectedStudent && (
                             <>
                                 <button onClick={() => setShowPreview(true)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition-colors">
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-none transition-colors">
                                     <SparklesIcon className="w-3.5 h-3.5" /> Preview
                                 </button>
                                 <Link href={`/dashboard/results?student=${selectedStudent.id}`}
-                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 text-xs font-bold rounded-xl transition-colors">
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 text-xs font-bold rounded-none transition-colors">
                                     <EyeIcon className="w-3.5 h-3.5" /> View Result
                                 </Link>
                             </>
@@ -980,28 +980,28 @@ function ReportBuilderInner() {
                 ══════════════════════════════════════════════════════════════ */}
                 {step === 'session' && (
                     <div className="space-y-4">
-                        <div className="bg-violet-600/10 border border-violet-500/20 rounded-2xl px-5 py-4">
-                            <p className="text-violet-300 font-bold text-sm">Step 1 of 3 — Session Setup</p>
-                            <p className="text-violet-300/60 text-xs mt-0.5">
+                        <div className="bg-orange-600/10 border border-orange-500/20 rounded-none px-5 py-4">
+                            <p className="text-orange-500 font-bold text-sm">Step 1 of 3 — Session Setup</p>
+                            <p className="text-orange-500/60 text-xs mt-0.5">
                                 Enter details that are shared for ALL students in this grading session.
                                 These will be locked when you move to individual student grading.
                             </p>
                         </div>
 
                         {/* Session fields */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
-                            <div className="flex items-center gap-2 border-b border-white/10 pb-3 mb-2">
+                        <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
+                            <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
                                 <span>📋</span>
-                                <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">Session Info</h3>
+                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Session Info</h3>
                             </div>
                             {/* Context type */}
                             <div>
-                                <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">Report Context *</label>
+                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Report Context *</label>
                                 <div className="flex gap-2">
                                     {(['school', 'bootcamp', 'online'] as const).map(type => (
                                         <button key={type} type="button"
                                             onClick={() => setSessionConfig(s => ({ ...s, school_section: type }))}
-                                            className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-violet-600 border-violet-500 text-white' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}>
+                                            className={`flex-1 py-2 rounded-none text-xs font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-orange-600 border-orange-500 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
                                             {type === 'school' ? '🏫 School' : type === 'bootcamp' ? '💻 Bootcamp' : '🌐 Online'}
                                         </button>
                                     ))}
@@ -1054,10 +1054,10 @@ function ReportBuilderInner() {
                             </div>
                         </div>
 
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
-                            <div className="flex items-center gap-2 border-b border-white/10 pb-3 mb-2">
+                        <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
+                            <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
                                 <span>🏫</span>
-                                <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">School & Class</h3>
+                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">School & Class</h3>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Field label="School *">
@@ -1087,15 +1087,15 @@ function ReportBuilderInner() {
                         </div>
 
                         {/* Payment / Fee Section — optional, won't appear on report if left blank */}
-                        <div className="bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden">
-                            <div className="flex items-center gap-2 px-5 py-3 bg-white/[0.02] border-b border-white/10">
+                        <div className="bg-white/[0.03] border border-border rounded-none overflow-hidden">
+                            <div className="flex items-center gap-2 px-5 py-3 bg-white/[0.02] border-b border-border">
                                 <span>💳</span>
-                                <h3 className="text-xs font-bold text-white/50 uppercase tracking-widest">Payment / Fee Info</h3>
+                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Payment / Fee Info</h3>
                                 <span className="ml-auto text-[10px] text-white/25 font-semibold">Optional — only appears on report if filled in</span>
                             </div>
                             <div className="p-5 space-y-4">
-                                <p className="text-[11px] text-white/30 leading-relaxed">
-                                    Use this for schools where coding is offered as an <strong className="text-white/50">extra-curricular activity</strong> (paid separately) or when different school sections (Primary vs Secondary) have separate fee structures or management. Leave blank if fees are handled by the school directly or not applicable.
+                                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                    Use this for schools where coding is offered as an <strong className="text-muted-foreground">extra-curricular activity</strong> (paid separately) or when different school sections (Primary vs Secondary) have separate fee structures or management. Leave blank if fees are handled by the school directly or not applicable.
                                 </p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <Field label="Fee Label">
@@ -1114,29 +1114,29 @@ function ReportBuilderInner() {
                                             placeholder="e.g. 15000" />
                                     </Field>
                                 </div>
-                                <p className="text-[10px] text-white/20">Per-student payment status (Paid / Outstanding / Sponsored) is set individually on each student's form in Step 3.</p>
+                                <p className="text-[10px] text-muted-foreground">Per-student payment status (Paid / Outstanding / Sponsored) is set individually on each student's form in Step 3.</p>
 
                                 {/* Next-term Rillcod payment notice toggle */}
-                                <div className="flex items-center gap-4 pt-2 border-t border-white/10">
+                                <div className="flex items-center gap-4 pt-2 border-t border-border">
                                     <button
                                         type="button"
                                         onClick={() => setSessionConfig(s => ({ ...s, show_payment_notice: !s.show_payment_notice }))}
-                                        className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${sessionConfig.show_payment_notice ? 'bg-violet-600' : 'bg-white/10'}`}
+                                        className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${sessionConfig.show_payment_notice ? 'bg-orange-600' : 'bg-muted'}`}
                                     >
                                         <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${sessionConfig.show_payment_notice ? 'translate-x-4' : 'translate-x-0'}`} />
                                     </button>
                                     <div>
-                                        <p className="text-sm text-white/70 font-semibold">Show Next Term Payment Notice</p>
-                                        <p className="text-[10px] text-white/30">Prints ₦20,000 Rillcod payment details on each report (Providus Bank · 7901178957)</p>
+                                        <p className="text-sm text-muted-foreground font-semibold">Show Next Term Payment Notice</p>
+                                        <p className="text-[10px] text-muted-foreground">Prints ₦20,000 Rillcod payment details on each report (Providus Bank · 7901178957)</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
-                            <div className="flex items-center gap-2 border-b border-white/10 pb-3 mb-2">
+                        <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
+                            <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
                                 <span>📖</span>
-                                <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">Course Details</h3>
+                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Course Details</h3>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Field label="Programme / Course *">
@@ -1182,7 +1182,7 @@ function ReportBuilderInner() {
                                 setClassFilter(sessionConfig.section_class); // pre-filter by selected class
                                 setStep('pick');
                             }}
-                            className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white font-black text-base rounded-2xl transition-all shadow-lg shadow-violet-900/30 flex items-center justify-center gap-2">
+                            className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-foreground font-black text-base rounded-none transition-all shadow-lg shadow-orange-900/30 flex items-center justify-center gap-2">
                             <UserGroupIcon className="w-5 h-5" /> Step 2: Select Students →
                         </button>
                     </div>
@@ -1193,26 +1193,26 @@ function ReportBuilderInner() {
                 ══════════════════════════════════════════════════════════════ */}
                 {step === 'pick' && (
                     <div className="space-y-4">
-                        <div className="bg-violet-600/10 border border-violet-500/20 rounded-2xl px-5 py-3">
-                            <p className="text-violet-300 font-bold text-sm">Step 2 of 3 — Select a Student to Grade</p>
-                            <p className="text-violet-300/60 text-xs mt-0.5">Session settings are locked. Click a student to enter their individual scores.</p>
+                        <div className="bg-orange-600/10 border border-orange-500/20 rounded-none px-5 py-3">
+                            <p className="text-orange-500 font-bold text-sm">Step 2 of 3 — Select a Student to Grade</p>
+                            <p className="text-orange-500/60 text-xs mt-0.5">Session settings are locked. Click a student to enter their individual scores.</p>
                         </div>
 
                         {/* Collapsible session summary */}
                         <SessionSummaryBar />
 
                         {/* Student grid */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                        <div className="bg-card shadow-sm border border-border rounded-none p-5">
                             <div className="flex items-center gap-3 mb-4 flex-wrap">
-                                <h2 className="font-bold text-white flex items-center gap-2">
-                                    <UserGroupIcon className="w-5 h-5 text-violet-400" /> Students
+                                <h2 className="font-bold text-foreground flex items-center gap-2">
+                                    <UserGroupIcon className="w-5 h-5 text-orange-400" /> Students
                                 </h2>
-                                <span className="text-xs text-white/30 bg-white/5 px-2 py-0.5 rounded-full">{filteredStudents.length} total</span>
+                                <span className="text-xs text-muted-foreground bg-card shadow-sm px-2 py-0.5 rounded-full">{filteredStudents.length} total</span>
                                 {filteredStudents.length > 0 && (
                                     <button
                                         onClick={handleBulkBuild}
                                         disabled={isBulkBuilding}
-                                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all shadow-lg shadow-violet-900/20 group"
+                                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-[0.2em] rounded-none transition-all shadow-lg shadow-orange-900/20 group"
                                     >
                                         {isBulkBuilding ? (
                                             <>
@@ -1231,14 +1231,14 @@ function ReportBuilderInner() {
                                 <div className="flex flex-wrap gap-1.5 mb-3">
                                     <button
                                         onClick={() => setClassFilter('')}
-                                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!classFilter ? 'bg-violet-600 text-white border-violet-500' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+                                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!classFilter ? 'bg-orange-600 text-foreground border-orange-500' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
                                     >
                                         All ({students.filter(s => !sessionConfig.school_name || s.school_name === sessionConfig.school_name).length})
                                     </button>
                                     {distinctClasses.map(c => (
                                         <button key={c}
                                             onClick={() => setClassFilter(classFilter === c ? '' : c)}
-                                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${classFilter === c ? 'bg-violet-600 text-white border-violet-500' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+                                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${classFilter === c ? 'bg-orange-600 text-foreground border-orange-500' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
                                         >
                                             {c} ({students.filter(s => (s as any).section_class === c && (!sessionConfig.school_name || s.school_name === sessionConfig.school_name)).length})
                                         </button>
@@ -1247,13 +1247,13 @@ function ReportBuilderInner() {
                                 <input
                                     type="search" placeholder="Search student…"
                                     value={search} onChange={e => setSearch(e.target.value)}
-                                    className="w-full mb-4 bg-white/5 border border-white/10 text-white text-sm px-4 py-2 rounded-xl placeholder:text-white/30 focus:outline-none focus:border-violet-500" />
+                                    className="w-full mb-4 bg-card shadow-sm border border-border text-foreground text-sm px-4 py-2 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500" />
                             </div>
                             {/* Grouped student grid */}
                             {(() => {
                                 const schoolScopedFiltered = filteredStudents;
                                 if (schoolScopedFiltered.length === 0) {
-                                    return <p className="text-white/30 text-sm py-8 text-center">No students found.</p>;
+                                    return <p className="text-muted-foreground text-sm py-8 text-center">No students found.</p>;
                                 }
                                 // Group by section_class; ungrouped falls under '— Unassigned —'
                                 const groups: Record<string, typeof filteredStudents> = {};
@@ -1274,23 +1274,23 @@ function ReportBuilderInner() {
                                         {sortedGroups.map(([groupName, items]) => (
                                             <div key={groupName}>
                                                 <div className="flex items-center gap-2 mb-2">
-                                                    <span className="text-[10px] font-black text-violet-400/80 uppercase tracking-widest">{groupName}</span>
-                                                    <span className="text-[9px] text-white/20 bg-white/5 px-2 py-0.5 rounded-full">{(items as any[]).length}</span>
-                                                    <div className="flex-1 h-px bg-white/5" />
+                                                    <span className="text-[10px] font-black text-orange-400/80 uppercase tracking-widest">{groupName}</span>
+                                                    <span className="text-[9px] text-muted-foreground bg-card shadow-sm px-2 py-0.5 rounded-full">{(items as any[]).length}</span>
+                                                    <div className="flex-1 h-px bg-card shadow-sm" />
                                                 </div>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                                     {(items as any[]).map(({ s, idx }) => (
                                                         <button key={s.id} onClick={() => selectStudent(s as PortalUser, idx)}
-                                                            className="text-left p-4 bg-white/5 border border-white/10 hover:border-violet-500/50 hover:bg-violet-600/10 rounded-xl transition-all">
+                                                            className="text-left p-4 bg-card shadow-sm border border-border hover:border-orange-500/50 hover:bg-orange-600/10 rounded-none transition-all">
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-sm font-black text-white flex-shrink-0">
+                                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
                                                                     {s.full_name ? s.full_name[0] : '?'}
                                                                 </div>
                                                                 <div className="min-w-0">
-                                                                    <p className="font-semibold text-white text-sm truncate">{s.full_name ?? 'Unnamed'}</p>
-                                                                    <p className="text-xs text-white/40 truncate">{s.school_name ?? s.email}</p>
+                                                                    <p className="font-semibold text-foreground text-sm truncate">{s.full_name ?? 'Unnamed'}</p>
+                                                                    <p className="text-xs text-muted-foreground truncate">{s.school_name ?? s.email}</p>
                                                                 </div>
-                                                                <span className="ml-auto text-[10px] text-white/20 font-mono flex-shrink-0">#{idx + 1}</span>
+                                                                <span className="ml-auto text-[10px] text-muted-foreground font-mono flex-shrink-0">#{idx + 1}</span>
                                                             </div>
                                                         </button>
                                                     ))}
@@ -1310,12 +1310,12 @@ function ReportBuilderInner() {
                 {step === 'edit' && selectedStudent && (
                     <div className="space-y-4">
                         {/* Step label */}
-                        <div className="bg-emerald-600/10 border border-emerald-500/20 rounded-2xl px-5 py-3 flex items-center gap-3">
+                        <div className="bg-emerald-600/10 border border-emerald-500/20 rounded-none px-5 py-3 flex items-center gap-3">
                             <div className="flex-1">
                                 <p className="text-emerald-300 font-bold text-sm">Step 3 of 3 — Enter Student Scores</p>
                                 <p className="text-emerald-300/60 text-xs mt-0.5">Session details are pre-filled. Just enter scores and evaluation for this student.</p>
                             </div>
-                            <span className="text-white/30 text-xs font-mono flex-shrink-0">
+                            <span className="text-muted-foreground text-xs font-mono flex-shrink-0">
                                 {currentStudentIdx + 1} / {filteredStudents.length}
                             </span>
                         </div>
@@ -1324,28 +1324,28 @@ function ReportBuilderInner() {
                         <SessionSummaryBar />
 
                         {/* Student navigator */}
-                        <div className="bg-[#0d1526] border border-white/10 rounded-2xl px-4 py-3 flex items-center gap-3">
+                        <div className="bg-[#0d1526] border border-border rounded-none px-4 py-3 flex items-center gap-3">
                             <button onClick={() => setStep('pick')}
-                                className="flex items-center gap-1 text-xs text-white/40 hover:text-white transition-colors flex-shrink-0">
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
                                 <ArrowLeftIcon className="w-3.5 h-3.5" />
                                 <span className="hidden sm:inline">All Students</span>
                             </button>
-                            <div className="w-px h-4 bg-white/10" />
+                            <div className="w-px h-4 bg-muted" />
                             <button
                                 disabled={currentStudentIdx <= 0}
                                 onClick={async () => {
                                     const idx = currentStudentIdx - 1;
                                     if (idx >= 0) await selectStudent(filteredStudents[idx] as PortalUser, idx);
                                 }}
-                                className="p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-white disabled:opacity-20 transition-colors flex-shrink-0">
+                                className="p-1.5 rounded-none bg-card shadow-sm text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
                                 <ArrowLeftIcon className="w-3.5 h-3.5" />
                             </button>
                             <div className="flex-1 flex items-center gap-2 min-w-0">
-                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xs font-black text-white flex-shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
                                     {selectedStudent.full_name ? selectedStudent.full_name[0] : '?'}
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="font-bold text-white text-sm truncate">{selectedStudent.full_name}</p>
+                                    <p className="font-bold text-foreground text-sm truncate">{selectedStudent.full_name}</p>
                                     {existingReport && (
                                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${form.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
                                             {form.is_published ? '✓ Published' : 'Draft'}
@@ -1359,20 +1359,20 @@ function ReportBuilderInner() {
                                     const idx = currentStudentIdx + 1;
                                     if (idx < filteredStudents.length) await selectStudent(filteredStudents[idx] as PortalUser, idx);
                                 }}
-                                className="p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-white disabled:opacity-20 transition-colors flex-shrink-0">
+                                className="p-1.5 rounded-none bg-card shadow-sm text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
                                 <ArrowLeftIcon className="w-3.5 h-3.5 rotate-180" />
                             </button>
                         </div>
 
                         {/* Alerts */}
                         {error && (
-                            <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
+                            <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
                                 <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
                                 <p className="text-rose-400 text-sm">{error}</p>
                             </div>
                         )}
                         {success && (
-                            <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+                            <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-none p-4">
                                 <CheckIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
                                 <p className="text-emerald-400 text-sm font-semibold">{success}</p>
                             </div>
@@ -1388,20 +1388,20 @@ function ReportBuilderInner() {
                                 <Section title="Student Identity" icon="👤">
                                     <div className="flex flex-col sm:flex-row items-start gap-6">
                                         <div className="relative group">
-                                            <div className="w-28 h-28 rounded-2xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden transition-colors group-hover:border-violet-500/50">
+                                            <div className="w-28 h-28 rounded-none bg-card shadow-sm border-2 border-dashed border-border flex items-center justify-center overflow-hidden transition-colors group-hover:border-orange-500/50">
                                                 {form.photo_url ? (
                                                     <img src={form.photo_url} className="w-full h-full object-cover" alt="Student" />
                                                 ) : (
-                                                    <UserGroupIcon className="w-8 h-8 text-white/20" />
+                                                    <UserGroupIcon className="w-8 h-8 text-muted-foreground" />
                                                 )}
                                                 {uploading && (
                                                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                                                        <ArrowPathIcon className="w-6 h-6 animate-spin text-white" />
+                                                        <ArrowPathIcon className="w-6 h-6 animate-spin text-foreground" />
                                                     </div>
                                                 )}
                                             </div>
-                                            <label className="absolute -bottom-2 -right-2 bg-violet-600 hover:bg-violet-500 p-2 rounded-xl border border-white/10 cursor-pointer transition-all shadow-lg hover:scale-110 active:scale-95">
-                                                <ArrowUpTrayIcon className="w-4 h-4 text-white" />
+                                            <label className="absolute -bottom-2 -right-2 bg-orange-600 hover:bg-orange-500 p-2 rounded-none border border-border cursor-pointer transition-all shadow-lg hover:scale-110 active:scale-95">
+                                                <ArrowUpTrayIcon className="w-4 h-4 text-foreground" />
                                                 <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
                                             </label>
                                         </div>
@@ -1410,19 +1410,19 @@ function ReportBuilderInner() {
                                                 <input value={form.student_name} onChange={e => setForm(f => ({ ...f, student_name: e.target.value }))} className={INPUT} />
                                             </Field>
                                             <div className="grid grid-cols-2 gap-3">
-                                                <div className="p-3 bg-white/[0.03] border border-white/10 rounded-xl">
-                                                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-0.5">School</p>
-                                                    <p className="text-sm text-white/70 font-semibold truncate">{sessionConfig.school_name || '—'}</p>
+                                                <div className="p-3 bg-white/[0.03] border border-border rounded-none">
+                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">School</p>
+                                                    <p className="text-sm text-muted-foreground font-semibold truncate">{sessionConfig.school_name || '—'}</p>
                                                 </div>
-                                                <div className="p-3 bg-white/[0.03] border border-white/10 rounded-xl">
-                                                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-1">Class</label>
+                                                <div className="p-3 bg-white/[0.03] border border-border rounded-none">
+                                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Class</label>
                                                     <select
                                                         value={form.section_class}
                                                         onChange={e => setForm(f => ({ ...f, section_class: e.target.value }))}
-                                                        className="w-full bg-transparent text-sm text-white focus:outline-none transition-colors cursor-pointer">
-                                                        <option value="" className="bg-[#0f0f1a]">Select —</option>
-                                                        {CLASS_PRESETS.map(c => <option key={c} value={c} className="bg-[#0f0f1a]">{c}</option>)}
-                                                        {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c} className="bg-[#0f0f1a]">{c}</option>)}
+                                                        className="w-full bg-transparent text-sm text-foreground focus:outline-none transition-colors cursor-pointer">
+                                                        <option value="" className="bg-background">Select —</option>
+                                                        {CLASS_PRESETS.map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
+                                                        {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
                                                     </select>
                                                 </div>
                                             </div>
@@ -1467,8 +1467,8 @@ function ReportBuilderInner() {
                                             return (
                                                 <div key={key}>
                                                     <div className="flex justify-between mb-2">
-                                                        <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{labels[key]}</label>
-                                                        <span className="text-xs font-black text-white">{val}%</span>
+                                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{labels[key]}</label>
+                                                        <span className="text-xs font-black text-foreground">{val}%</span>
                                                     </div>
                                                     <div className="flex items-center gap-4">
                                                         <input
@@ -1477,11 +1477,11 @@ function ReportBuilderInner() {
                                                             max="100"
                                                             value={form[key]}
                                                             onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                            className={`flex-1 h-3 rounded-full appearance-none cursor-pointer outline-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg ${
+                                                            className={`flex-1 h-3 rounded-full appearance-none cursor-pointer outline-none bg-muted [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg ${
                                                                 key === 'theory_score' ? '[&::-webkit-slider-thumb]:bg-indigo-500' : 
                                                                 key === 'practical_score' ? '[&::-webkit-slider-thumb]:bg-cyan-500' : 
                                                                 key === 'attendance_score' ? '[&::-webkit-slider-thumb]:bg-emerald-500' : 
-                                                                '[&::-webkit-slider-thumb]:bg-violet-500'
+                                                                '[&::-webkit-slider-thumb]:bg-orange-500'
                                                             }`}
                                                             style={{
                                                                 background: `linear-gradient(to right, ${colors[key]} ${val}%, rgba(255, 255, 255, 0.1) ${val}%)`
@@ -1490,7 +1490,7 @@ function ReportBuilderInner() {
                                                         <input
                                                             type="number" min="0" max="100" value={form[key]}
                                                             onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                            className="w-14 text-center py-1 bg-white/5 border border-white/10 rounded-lg text-xs font-bold text-white focus:outline-none focus:border-violet-500" />
+                                                            className="w-14 text-center py-1 bg-card shadow-sm border border-border rounded-none text-xs font-bold text-foreground focus:outline-none focus:border-orange-500" />
                                                     </div>
                                                 </div>
                                             );
@@ -1498,15 +1498,15 @@ function ReportBuilderInner() {
 
 
                                         {/* Overall display */}
-                                        <div className="mt-2 p-5 bg-gradient-to-br from-violet-600/20 to-indigo-600/20 border border-violet-500/20 rounded-2xl flex items-center justify-between">
+                                        <div className="mt-2 p-5 bg-gradient-to-br from-orange-600/20 to-indigo-600/20 border border-orange-500/20 rounded-none flex items-center justify-between">
                                             <div>
-                                                <p className="text-[10px] font-bold text-violet-300/40 uppercase tracking-widest">Weighted Overall</p>
-                                                <p className="text-4xl font-black text-white">{overallScore}%</p>
+                                                <p className="text-[10px] font-bold text-orange-500/40 uppercase tracking-widest">Weighted Overall</p>
+                                                <p className="text-4xl font-black text-foreground">{overallScore}%</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-[10px] font-bold text-violet-300/40 uppercase tracking-widest mb-1">Grade</p>
-                                                <div className="inline-flex w-12 h-12 rounded-xl bg-violet-600 items-center justify-center shadow-lg shadow-violet-900/40">
-                                                    <span className="text-xl font-black text-white">{overallGradeLetter}</span>
+                                                <p className="text-[10px] font-bold text-orange-500/40 uppercase tracking-widest mb-1">Grade</p>
+                                                <div className="inline-flex w-12 h-12 rounded-none bg-orange-600 items-center justify-center shadow-lg shadow-orange-900/40">
+                                                    <span className="text-xl font-black text-foreground">{overallGradeLetter}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -1522,9 +1522,9 @@ function ReportBuilderInner() {
                                         ].map(({ key, label }) => (
                                             <div key={key}>
                                                 <div className="flex items-center justify-between mb-2">
-                                                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{label}</label>
+                                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</label>
                                                     <button onClick={() => handleAIGenerate(key as any)} disabled={!!generating}
-                                                        className="flex items-center gap-1.5 text-[10px] font-bold text-violet-400 hover:text-violet-300 disabled:opacity-50 transition-all hover:translate-x-1">
+                                                        className="flex items-center gap-1.5 text-[10px] font-bold text-orange-400 hover:text-orange-500 disabled:opacity-50 transition-all hover:translate-x-1">
                                                         {generating === key ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
                                                         Generate Realistic Status
                                                     </button>
@@ -1554,9 +1554,9 @@ function ReportBuilderInner() {
                                             return (
                                                 <div key={field}>
                                                     <div className="flex items-center justify-between mb-2">
-                                                        <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{labels[field]}</label>
+                                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{labels[field]}</label>
                                                         <button onClick={() => handleAIGenerate(field)} disabled={!!generating}
-                                                            className="flex items-center gap-1.5 text-[10px] font-bold text-violet-400 hover:text-violet-300 disabled:opacity-50 transition-all hover:translate-x-1">
+                                                            className="flex items-center gap-1.5 text-[10px] font-bold text-orange-400 hover:text-orange-500 disabled:opacity-50 transition-all hover:translate-x-1">
                                                             {generating === field
                                                                 ? <ArrowPathIcon className="w-3 h-3 animate-spin" />
                                                                 : <SparklesIcon className="w-3 h-3" />}
@@ -1577,32 +1577,32 @@ function ReportBuilderInner() {
                         </div>
 
                         {/* Sticky Action Bar */}
-                        <div className="sticky bottom-0 z-40 bg-[#0f0f1a]/80 backdrop-blur-xl border-t border-white/10 p-4 transition-all mt-6 -mx-3 sm:-mx-6 lg:-mx-8">
+                        <div className="sticky bottom-0 z-40 bg-background/80 backdrop-blur-xl border-t border-border p-4 transition-all mt-6 -mx-3 sm:-mx-6 lg:-mx-8">
                             <div className="max-w-5xl mx-auto flex items-center gap-3">
                                 <button onClick={() => handleSave(false)} disabled={saving || publishing}
-                                    className="flex items-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-2xl transition-all disabled:opacity-50">
+                                    className="flex items-center gap-2 px-5 py-3 bg-card shadow-sm hover:bg-muted text-foreground text-xs font-bold rounded-none transition-all disabled:opacity-50">
                                     {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4" />}
                                     {saving ? 'Saving...' : 'Save Draft'}
                                 </button>
                                 <button onClick={() => handleSave(true)} disabled={saving || publishing}
-                                    className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-2xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+                                    className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-none transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
                                     {publishing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <RocketLaunchIcon className="w-4 h-4" />}
                                     {publishing ? 'Publishing...' : 'Publish'}
                                 </button>
                                 <button onClick={() => setShowPreview(true)}
-                                    className="flex items-center gap-2 px-5 py-3 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-2xl transition-all shadow-lg shadow-violet-900/40">
+                                    className="flex items-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-bold rounded-none transition-all shadow-lg shadow-orange-900/40">
                                     <EyeIcon className="w-4 h-4" /> Preview
                                 </button>
 
                                 <div className="ml-auto">
                                     {currentStudentIdx < filteredStudents.length - 1 ? (
                                         <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
-                                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-black rounded-2xl transition-all disabled:opacity-50 shadow-xl shadow-violet-900/30">
+                                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-500 hover:to-indigo-500 text-foreground text-xs font-black rounded-none transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
                                             Next Student <ChevronRightIcon className="w-4 h-4" />
                                         </button>
                                     ) : (
                                         <button onClick={() => { handleSave(false); setStep('pick'); }} disabled={saving || publishing}
-                                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-black rounded-2xl transition-all disabled:opacity-50 shadow-xl shadow-violet-900/30">
+                                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-500 hover:to-indigo-500 text-foreground text-xs font-black rounded-none transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
                                             Finish All <CheckCircleIcon className="w-4 h-4" />
                                         </button>
                                     )}
@@ -1618,34 +1618,34 @@ function ReportBuilderInner() {
             {
                 showSettings && (
                     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-sm">
-                        <div className="bg-[#0f0f1a] border border-white/10 rounded-t-[32px] sm:rounded-[32px] w-full sm:max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-                            <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between bg-white/[0.03]">
+                        <div className="bg-background border border-border rounded-t-[32px] sm:rounded-[32px] w-full sm:max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+                            <div className="px-6 py-5 border-b border-border flex items-center justify-between bg-white/[0.03]">
                                 <div>
-                                    <h3 className="text-xl font-extrabold text-white">Branding Settings</h3>
-                                    <p className="text-white/40 text-xs mt-0.5">Configure report header & organization details</p>
+                                    <h3 className="text-xl font-extrabold text-foreground">Branding Settings</h3>
+                                    <p className="text-muted-foreground text-xs mt-0.5">Configure report header & organization details</p>
                                 </div>
-                                <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
-                                    <XMarkIcon className="w-5 h-5 text-white/40" />
+                                <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-muted rounded-none transition-colors">
+                                    <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                                 </button>
                             </div>
 
                             <div className="p-6 overflow-y-auto space-y-5">
-                                <div className="flex items-center gap-4 p-5 bg-white/5 border border-white/10 rounded-2xl">
+                                <div className="flex items-center gap-4 p-5 bg-card shadow-sm border border-border rounded-none">
                                     <div className="relative group">
-                                        <div className="w-20 h-20 rounded-2xl bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center overflow-hidden">
+                                        <div className="w-20 h-20 rounded-none bg-card shadow-sm border-2 border-dashed border-border flex items-center justify-center overflow-hidden">
                                             {branding.logo_url ? (
                                                 <img src={branding.logo_url} className="w-full h-full object-contain p-2" alt="Logo" />
                                             ) : (
-                                                <PhotoIcon className="w-8 h-8 text-white/20" />
+                                                <PhotoIcon className="w-8 h-8 text-muted-foreground" />
                                             )}
                                             {uploading && (
                                                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                                    <ArrowPathIcon className="w-6 h-6 animate-spin text-white" />
+                                                    <ArrowPathIcon className="w-6 h-6 animate-spin text-foreground" />
                                                 </div>
                                             )}
                                         </div>
-                                        <label className="absolute -bottom-2 -right-2 bg-violet-600 hover:bg-violet-500 p-2 rounded-xl border border-white/10 cursor-pointer transition-colors shadow-lg">
-                                            <ArrowUpTrayIcon className="w-4 h-4 text-white" />
+                                        <label className="absolute -bottom-2 -right-2 bg-orange-600 hover:bg-orange-500 p-2 rounded-none border border-border cursor-pointer transition-colors shadow-lg">
+                                            <ArrowUpTrayIcon className="w-4 h-4 text-foreground" />
                                             <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
                                                 const file = e.target.files?.[0];
                                                 if (!file) return;
@@ -1666,8 +1666,8 @@ function ReportBuilderInner() {
                                         </label>
                                     </div>
                                     <div className="flex-1 space-y-1">
-                                        <h4 className="text-sm font-bold text-white">Organization Logo</h4>
-                                        <p className="text-xs text-white/40">PNG with transparent background works best.</p>
+                                        <h4 className="text-sm font-bold text-foreground">Organization Logo</h4>
+                                        <p className="text-xs text-muted-foreground">PNG with transparent background works best.</p>
                                     </div>
                                 </div>
 
@@ -1699,9 +1699,9 @@ function ReportBuilderInner() {
                                 </div>
                             </div>
 
-                            <div className="p-6 bg-white/[0.03] border-t border-white/10 flex justify-end gap-3">
+                            <div className="p-6 bg-white/[0.03] border-t border-border flex justify-end gap-3">
                                 <button onClick={() => setShowSettings(false)}
-                                    className="px-5 py-2.5 text-sm font-bold text-white/40 hover:text-white transition-colors">
+                                    className="px-5 py-2.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
                                     Cancel
                                 </button>
                                 <button onClick={async () => {
@@ -1720,7 +1720,7 @@ function ReportBuilderInner() {
                                     } finally {
                                         setSaving(false);
                                     }
-                                }} className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-violet-900/40">
+                                }} className="flex items-center gap-2 px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-all shadow-lg shadow-orange-900/40">
                                     <CheckIcon className="w-4 h-4" /> Save Branding
                                 </button>
                             </div>
@@ -1731,17 +1731,17 @@ function ReportBuilderInner() {
 
             {/* ── Live Preview Modal ── */}
             {showPreview && (
-                <div className="fixed inset-0 z-50 flex flex-col bg-[#05050a]">
-                    <div className="flex items-center gap-4 px-8 py-4 border-b border-white/5 bg-[#0a0a14]">
-                        <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
-                            <ArrowLeftIcon className="w-6 h-6 text-white/40" />
+                <div className="fixed inset-0 z-50 flex flex-col bg-background">
+                    <div className="flex items-center gap-4 px-8 py-4 border-b border-border bg-[#0a0a14]">
+                        <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-card shadow-sm rounded-none transition-colors">
+                            <ArrowLeftIcon className="w-6 h-6 text-muted-foreground" />
                         </button>
                         <div className="flex-1">
-                            <h3 className="text-white font-black">{form.student_name}</h3>
-                            <p className="text-[10px] text-white/20 uppercase tracking-[0.2em] font-bold">Report Card Preview</p>
+                            <h3 className="text-foreground font-black">{form.student_name}</h3>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold">Report Card Preview</p>
                         </div>
                         <button onClick={downloadPDF} disabled={isGeneratingPdf}
-                            className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white text-sm font-black rounded-2xl shadow-xl shadow-violet-900/30 transition-all disabled:opacity-50">
+                            className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-black rounded-none shadow-xl shadow-orange-900/30 transition-all disabled:opacity-50">
                             {isGeneratingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}
                             {isGeneratingPdf ? 'Processing...' : 'Export PDF'}
                         </button>

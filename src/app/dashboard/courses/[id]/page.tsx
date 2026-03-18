@@ -270,15 +270,15 @@ export default function CourseDetailPage() {
   };
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (error || !course) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex flex-col items-center justify-center gap-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
       <p className="text-rose-400 font-semibold">{error ?? 'Course not found'}</p>
-      <Link href="/dashboard/courses" className="text-sm text-violet-400 hover:underline">← Back to Courses</Link>
+      <Link href="/dashboard/courses" className="text-sm text-orange-400 hover:underline">← Back to Courses</Link>
     </div>
   );
 
@@ -286,25 +286,25 @@ export default function CourseDetailPage() {
   const myEnrollment = !isStaff ? enrollments[0] : null;
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Back + Header */}
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
-            <ArrowLeftIcon className="w-5 h-5 text-white/60" />
+            className="p-2 rounded-none bg-card shadow-sm hover:bg-muted border border-border transition-colors">
+            <ArrowLeftIcon className="w-5 h-5 text-muted-foreground" />
           </button>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <BookOpenIcon className="w-4 h-4 text-violet-400" />
-              <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Course</span>
+              <BookOpenIcon className="w-4 h-4 text-orange-400" />
+              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Course</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold">{course.title}</h1>
           </div>
           {canEdit && (
             <Link href={`/dashboard/courses/${id}/edit`}
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl text-sm font-bold transition-colors">
+              className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-white/15 border border-border rounded-none text-sm font-bold transition-colors">
               <PencilIcon className="w-4 h-4" /> Edit
             </Link>
           )}
@@ -316,23 +316,23 @@ export default function CourseDetailPage() {
           <div className="lg:col-span-2 space-y-6">
 
             {/* Programme card */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <h2 className="font-bold text-white mb-4">Programme</h2>
+            <div className="bg-card shadow-sm border border-border rounded-none p-6">
+              <h2 className="font-bold text-foreground mb-4">Programme</h2>
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-violet-500/20 flex items-center justify-center flex-shrink-0">
-                  <AcademicCapIcon className="w-6 h-6 text-violet-400" />
+                <div className="w-12 h-12 rounded-none bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                  <AcademicCapIcon className="w-6 h-6 text-orange-400" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <p className="font-bold text-white">{prog?.name ?? '—'}</p>
+                    <p className="font-bold text-foreground">{prog?.name ?? '—'}</p>
                     {prog?.difficulty_level && (
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${LEVEL_COLOR[prog.difficulty_level] ?? 'bg-white/10 text-white/40 border-white/10'}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${LEVEL_COLOR[prog.difficulty_level] ?? 'bg-muted text-muted-foreground border-border'}`}>
                         {prog.difficulty_level}
                       </span>
                     )}
                   </div>
-                  {prog?.description && <p className="text-sm text-white/50">{prog.description}</p>}
-                  <div className="flex items-center gap-4 mt-2 text-xs text-white/30">
+                  {prog?.description && <p className="text-sm text-muted-foreground">{prog.description}</p>}
+                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                     {prog?.duration_weeks && <span>{prog.duration_weeks} weeks</span>}
                     {course.duration_hours && (
                       <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{course.duration_hours}h</span>
@@ -341,42 +341,42 @@ export default function CourseDetailPage() {
                 </div>
               </div>
               {course.description && (
-                <p className="mt-4 text-sm text-white/50 border-t border-white/10 pt-4">{course.description}</p>
+                <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-4">{course.description}</p>
               )}
             </div>
 
             {/* Lessons */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-              <div className="p-5 border-b border-white/10 flex items-center justify-between">
-                <h2 className="font-bold text-white">Lessons</h2>
-                <span className="text-xs text-white/30">{lessons.length} lesson{lessons.length !== 1 ? 's' : ''}</span>
+            <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+              <div className="p-5 border-b border-border flex items-center justify-between">
+                <h2 className="font-bold text-foreground">Lessons</h2>
+                <span className="text-xs text-muted-foreground">{lessons.length} lesson{lessons.length !== 1 ? 's' : ''}</span>
               </div>
               {lessons.length === 0 ? (
                 <div className="py-12 text-center">
-                  <DocumentTextIcon className="w-10 h-10 mx-auto text-white/10 mb-3" />
-                  <p className="text-white/30 text-sm">No lessons added yet</p>
+                  <DocumentTextIcon className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground text-sm">No lessons added yet</p>
                 </div>
               ) : (
                 <div className="divide-y divide-white/5">
                   {lessons.map((lesson, i) => {
                     const Icon = TYPE_ICON[lesson.lesson_type] ?? DocumentTextIcon;
                     return (
-                      <div key={lesson.id} className="flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors">
-                        <span className="w-6 h-6 rounded-full bg-white/10 text-white/30 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                      <div key={lesson.id} className="flex items-center gap-4 px-5 py-4 hover:bg-card shadow-sm transition-colors">
+                        <span className="w-6 h-6 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center flex-shrink-0">
                           {i + 1}
                         </span>
-                        <div className="w-8 h-8 rounded-xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 rounded-none bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
                           <Icon className="w-4 h-4 text-cyan-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">{lesson.title}</p>
-                          <p className="text-xs text-white/30 capitalize">{lesson.lesson_type}{lesson.duration_minutes ? ` · ${lesson.duration_minutes}m` : ''}</p>
+                          <p className="text-sm font-semibold text-foreground truncate">{lesson.title}</p>
+                          <p className="text-xs text-muted-foreground capitalize">{lesson.lesson_type}{lesson.duration_minutes ? ` · ${lesson.duration_minutes}m` : ''}</p>
                         </div>
                         {lesson.status === 'published' && (
                           <CheckCircleIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                         )}
                         <Link href={`/dashboard/lessons/${lesson.id}`}
-                          className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-xl transition-colors">
+                          className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-none transition-colors">
                           <PlayIcon className="w-3 h-3" /> Open
                         </Link>
                       </div>
@@ -387,45 +387,45 @@ export default function CourseDetailPage() {
             </div>
 
             {/* Live sessions */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-              <div className="p-5 border-b border-white/10 flex items-center justify-between">
-                <h2 className="font-bold text-white">Live Sessions</h2>
-                <span className="text-xs text-white/30">{sessions.length} session{sessions.length !== 1 ? 's' : ''}</span>
+            <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+              <div className="p-5 border-b border-border flex items-center justify-between">
+                <h2 className="font-bold text-foreground">Live Sessions</h2>
+                <span className="text-xs text-muted-foreground">{sessions.length} session{sessions.length !== 1 ? 's' : ''}</span>
               </div>
               {sessionError && (
-                <div className="px-5 py-3 text-sm text-rose-400 border-b border-white/10">{sessionError}</div>
+                <div className="px-5 py-3 text-sm text-rose-400 border-b border-border">{sessionError}</div>
               )}
               {sessions.length === 0 ? (
                 <div className="py-12 text-center">
-                  <CalendarIcon className="w-10 h-10 mx-auto text-white/10 mb-3" />
-                  <p className="text-white/30 text-sm">No live sessions scheduled</p>
+                  <CalendarIcon className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground text-sm">No live sessions scheduled</p>
                 </div>
               ) : (
                 <div className="divide-y divide-white/5">
                   {sessions.map((session) => {
                     const isJoinable = session.status === 'live' || session.status === 'scheduled';
                     return (
-                      <div key={session.id} className="flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors">
-                        <div className="w-8 h-8 rounded-xl bg-violet-500/10 flex items-center justify-center flex-shrink-0">
-                          <CalendarIcon className="w-4 h-4 text-violet-400" />
+                      <div key={session.id} className="flex items-center gap-4 px-5 py-4 hover:bg-card shadow-sm transition-colors">
+                        <div className="w-8 h-8 rounded-none bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                          <CalendarIcon className="w-4 h-4 text-orange-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">{session.title}</p>
-                          <p className="text-xs text-white/30">
+                          <p className="text-sm font-semibold text-foreground truncate">{session.title}</p>
+                          <p className="text-xs text-muted-foreground">
                             {formatDateTime(session.scheduled_start)} · {session.status}
                           </p>
                         </div>
                         <button
                           onClick={() => handleJoinSession(session.id)}
                           disabled={!isJoinable}
-                          className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors ${isJoinable ? 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20' : 'text-white/30 bg-white/5 cursor-not-allowed'}`}
+                          className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-none transition-colors ${isJoinable ? 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20' : 'text-muted-foreground bg-card shadow-sm cursor-not-allowed'}`}
                         >
                           <PlayIcon className="w-3 h-3" /> Join
                         </button>
                         {canEdit && (
                           <button
                             onClick={() => loadSessionManagement(session.id)}
-                            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors ${managedSessionId === session.id ? 'text-violet-200 bg-violet-500/20' : 'text-violet-400 bg-violet-500/10 hover:bg-violet-500/20'}`}
+                            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-none transition-colors ${managedSessionId === session.id ? 'text-orange-500 bg-orange-500/20' : 'text-orange-400 bg-orange-500/10 hover:bg-orange-500/20'}`}
                           >
                             Manage
                           </button>
@@ -436,37 +436,37 @@ export default function CourseDetailPage() {
                 </div>
               )}
               {canEdit && managedSessionId && (
-                <div className="border-t border-white/10 p-5 space-y-6">
+                <div className="border-t border-border p-5 space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-bold text-white">Session Tools</p>
-                      <p className="text-xs text-white/30">Breakout rooms and live polls</p>
+                      <p className="text-sm font-bold text-foreground">Session Tools</p>
+                      <p className="text-xs text-muted-foreground">Breakout rooms and live polls</p>
                     </div>
                     <button
                       onClick={() => setManagedSessionId(null)}
-                      className="text-xs text-white/40 hover:text-white/60"
+                      className="text-xs text-muted-foreground hover:text-muted-foreground"
                     >
                       Close
                     </button>
                   </div>
 
                   {managementLoading ? (
-                    <div className="text-xs text-white/30">Loading session tools...</div>
+                    <div className="text-xs text-muted-foreground">Loading session tools...</div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-4">
+                      <div className="bg-card shadow-sm border border-border rounded-none p-4 space-y-4">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-white">Breakout Rooms</p>
-                          <span className="text-xs text-white/30">{rooms.length}</span>
+                          <p className="text-sm font-semibold text-foreground">Breakout Rooms</p>
+                          <span className="text-xs text-muted-foreground">{rooms.length}</span>
                         </div>
                         {rooms.length === 0 ? (
-                          <p className="text-xs text-white/30">No rooms created.</p>
+                          <p className="text-xs text-muted-foreground">No rooms created.</p>
                         ) : (
                           <div className="space-y-2">
                             {rooms.map((room) => (
-                              <div key={room.id} className="flex items-center justify-between text-xs text-white/70 bg-white/5 rounded-lg px-3 py-2">
+                              <div key={room.id} className="flex items-center justify-between text-xs text-muted-foreground bg-card shadow-sm rounded-none px-3 py-2">
                                 <span>{room.name}</span>
-                                <span className="text-white/30">{room.status}</span>
+                                <span className="text-muted-foreground">{room.status}</span>
                               </div>
                             ))}
                           </div>
@@ -476,37 +476,37 @@ export default function CourseDetailPage() {
                             value={roomForm.name}
                             onChange={(e) => setRoomForm((s) => ({ ...s, name: e.target.value }))}
                             placeholder="Room name"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/30"
+                            className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
                             required
                           />
                           <input
                             value={roomForm.maxParticipants}
                             onChange={(e) => setRoomForm((s) => ({ ...s, maxParticipants: e.target.value }))}
                             placeholder="Max participants (optional)"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/30"
+                            className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
                           />
                           <button
                             type="submit"
-                            className="w-full text-xs font-semibold px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
+                            className="w-full text-xs font-semibold px-3 py-2 rounded-none bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
                           >
                             Create Room
                           </button>
                         </form>
                       </div>
 
-                      <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-4">
+                      <div className="bg-card shadow-sm border border-border rounded-none p-4 space-y-4">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-white">Live Polls</p>
-                          <span className="text-xs text-white/30">{polls.length}</span>
+                          <p className="text-sm font-semibold text-foreground">Live Polls</p>
+                          <span className="text-xs text-muted-foreground">{polls.length}</span>
                         </div>
                         {polls.length === 0 ? (
-                          <p className="text-xs text-white/30">No polls created.</p>
+                          <p className="text-xs text-muted-foreground">No polls created.</p>
                         ) : (
                           <div className="space-y-2">
                             {polls.map((poll) => (
-                              <div key={poll.id} className="text-xs text-white/70 bg-white/5 rounded-lg px-3 py-2">
+                              <div key={poll.id} className="text-xs text-muted-foreground bg-card shadow-sm rounded-none px-3 py-2">
                                 <p className="font-semibold">{poll.question}</p>
-                                <p className="text-white/30">{poll.poll_type} · {poll.status}</p>
+                                <p className="text-muted-foreground">{poll.poll_type} · {poll.status}</p>
                               </div>
                             ))}
                           </div>
@@ -516,24 +516,24 @@ export default function CourseDetailPage() {
                             value={pollForm.question}
                             onChange={(e) => setPollForm((s) => ({ ...s, question: e.target.value }))}
                             placeholder="Poll question"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/30"
+                            className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
                             required
                           />
                           <div className="flex items-center gap-2">
                             <select
                               value={pollForm.pollType}
                               onChange={(e) => setPollForm((s) => ({ ...s, pollType: e.target.value }))}
-                              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                              className="flex-1 bg-card shadow-sm border border-border rounded-none px-3 py-2 text-xs text-foreground"
                             >
                               <option value="poll">Poll</option>
                               <option value="quiz">Quiz</option>
                             </select>
-                            <label className="flex items-center gap-2 text-[11px] text-white/40">
+                            <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
                               <input
                                 type="checkbox"
                                 checked={pollForm.allowMultiple}
                                 onChange={(e) => setPollForm((s) => ({ ...s, allowMultiple: e.target.checked }))}
-                                className="h-4 w-4 rounded border-white/20 bg-white/10"
+                                className="h-4 w-4 rounded border-border bg-muted"
                               />
                               Multi-select
                             </label>
@@ -549,7 +549,7 @@ export default function CourseDetailPage() {
                                   setPollForm((s) => ({ ...s, options: next }));
                                 }}
                                 placeholder={`Option ${index + 1}`}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/30"
+                                className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground"
                                 required={index < 2}
                               />
                             ))}
@@ -558,7 +558,7 @@ export default function CourseDetailPage() {
                             <button
                               type="button"
                               onClick={() => setPollForm((s) => ({ ...s, options: [...s.options, ''] }))}
-                              className="flex-1 text-xs font-semibold px-3 py-2 rounded-lg bg-white/5 text-white/60 border border-white/10 hover:bg-white/10"
+                              className="flex-1 text-xs font-semibold px-3 py-2 rounded-none bg-card shadow-sm text-muted-foreground border border-border hover:bg-muted"
                             >
                               Add option
                             </button>
@@ -566,7 +566,7 @@ export default function CourseDetailPage() {
                               <button
                                 type="button"
                                 onClick={() => setPollForm((s) => ({ ...s, options: s.options.slice(0, -1) }))}
-                                className="flex-1 text-xs font-semibold px-3 py-2 rounded-lg bg-white/5 text-white/60 border border-white/10 hover:bg-white/10"
+                                className="flex-1 text-xs font-semibold px-3 py-2 rounded-none bg-card shadow-sm text-muted-foreground border border-border hover:bg-muted"
                               >
                                 Remove option
                               </button>
@@ -574,7 +574,7 @@ export default function CourseDetailPage() {
                           </div>
                           <button
                             type="submit"
-                            className="w-full text-xs font-semibold px-3 py-2 rounded-lg bg-violet-500/20 text-violet-200 border border-violet-500/30 hover:bg-violet-500/30"
+                            className="w-full text-xs font-semibold px-3 py-2 rounded-none bg-orange-500/20 text-orange-500 border border-orange-500/30 hover:bg-orange-500/30"
                           >
                             Create Poll
                           </button>
@@ -585,23 +585,23 @@ export default function CourseDetailPage() {
                 </div>
               )}
               {canEdit && (
-                <form onSubmit={handleScheduleSession} className="p-5 border-t border-white/10 space-y-4">
+                <form onSubmit={handleScheduleSession} className="p-5 border-t border-border space-y-4">
                   <div className="flex items-center gap-2">
-                    <CalendarIcon className="w-4 h-4 text-violet-400" />
-                    <p className="text-sm font-bold text-white">Schedule a session</p>
+                    <CalendarIcon className="w-4 h-4 text-orange-400" />
+                    <p className="text-sm font-bold text-foreground">Schedule a session</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <input
                       value={sessionForm.title}
                       onChange={(e) => setSessionForm((s) => ({ ...s, title: e.target.value }))}
                       placeholder="Session title"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30"
+                      className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
                       required
                     />
                     <select
                       value={sessionForm.provider}
                       onChange={(e) => setSessionForm((s) => ({ ...s, provider: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+                      className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-sm text-foreground"
                     >
                       <option value="zoom">Zoom</option>
                       <option value="google_meet">Google Meet</option>
@@ -611,14 +611,14 @@ export default function CourseDetailPage() {
                       type="datetime-local"
                       value={sessionForm.scheduledStart}
                       onChange={(e) => setSessionForm((s) => ({ ...s, scheduledStart: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+                      className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-sm text-foreground"
                       required
                     />
                     <input
                       type="datetime-local"
                       value={sessionForm.scheduledEnd}
                       onChange={(e) => setSessionForm((s) => ({ ...s, scheduledEnd: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+                      className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-sm text-foreground"
                       required
                     />
                   </div>
@@ -626,16 +626,16 @@ export default function CourseDetailPage() {
                     value={sessionForm.description}
                     onChange={(e) => setSessionForm((s) => ({ ...s, description: e.target.value }))}
                     placeholder="Description (optional)"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30"
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
                     rows={2}
                   />
-                  <div className="flex flex-wrap gap-4 text-xs text-white/40">
+                  <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
                     <label className="flex items-center gap-2">
                       <input
                         type="checkbox"
                         checked={sessionForm.recordingEnabled}
                         onChange={(e) => setSessionForm((s) => ({ ...s, recordingEnabled: e.target.checked }))}
-                        className="h-4 w-4 rounded border-white/20 bg-white/10"
+                        className="h-4 w-4 rounded border-border bg-muted"
                       />
                       Recording
                     </label>
@@ -644,7 +644,7 @@ export default function CourseDetailPage() {
                         type="checkbox"
                         checked={sessionForm.allowBreakoutRooms}
                         onChange={(e) => setSessionForm((s) => ({ ...s, allowBreakoutRooms: e.target.checked }))}
-                        className="h-4 w-4 rounded border-white/20 bg-white/10"
+                        className="h-4 w-4 rounded border-border bg-muted"
                       />
                       Breakout rooms
                     </label>
@@ -653,7 +653,7 @@ export default function CourseDetailPage() {
                         type="checkbox"
                         checked={sessionForm.allowScreenSharing}
                         onChange={(e) => setSessionForm((s) => ({ ...s, allowScreenSharing: e.target.checked }))}
-                        className="h-4 w-4 rounded border-white/20 bg-white/10"
+                        className="h-4 w-4 rounded border-border bg-muted"
                       />
                       Screen sharing
                     </label>
@@ -662,7 +662,7 @@ export default function CourseDetailPage() {
                         type="checkbox"
                         checked={sessionForm.allowPolls}
                         onChange={(e) => setSessionForm((s) => ({ ...s, allowPolls: e.target.checked }))}
-                        className="h-4 w-4 rounded border-white/20 bg-white/10"
+                        className="h-4 w-4 rounded border-border bg-muted"
                       />
                       Polls & quizzes
                     </label>
@@ -671,7 +671,7 @@ export default function CourseDetailPage() {
                     <button
                       type="submit"
                       disabled={sessionSaving}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30 disabled:opacity-50"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-none text-sm font-bold bg-orange-500/20 text-orange-500 border border-orange-500/30 hover:bg-orange-500/30 disabled:opacity-50"
                     >
                       {sessionSaving ? 'Scheduling...' : 'Schedule Session'}
                     </button>
@@ -685,22 +685,22 @@ export default function CourseDetailPage() {
           <div className="space-y-5">
 
             {/* Status + instructor */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
+            <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-4">
               <div>
-                <p className="text-xs text-white/30 uppercase tracking-widest mb-1">Status</p>
-                <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${course.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-white/10 text-white/30 border-white/10'}`}>
+                <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Status</p>
+                <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${course.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
                   {course.is_active ? 'Active' : 'Inactive'}
                 </span>
               </div>
               {course.portal_users?.full_name && (
                 <div>
-                  <p className="text-xs text-white/30 uppercase tracking-widest mb-1">Instructor</p>
-                  <p className="text-sm font-semibold text-white">{course.portal_users.full_name}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Instructor</p>
+                  <p className="text-sm font-semibold text-foreground">{course.portal_users.full_name}</p>
                 </div>
               )}
               {myEnrollment && (
                 <div>
-                  <p className="text-xs text-white/30 uppercase tracking-widest mb-1">Your Status</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Your Status</p>
                   <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold border capitalize ${myEnrollment.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}>
                     {myEnrollment.status}
                   </span>
@@ -710,26 +710,26 @@ export default function CourseDetailPage() {
 
             {/* Enrolment stats (staff) */}
             {isStaff && (
-              <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-                <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-white">Enrolled Students</h3>
-                  <span className="text-xs text-white/30">{enrollments.length}</span>
+              <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                <div className="p-4 border-b border-border flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-foreground">Enrolled Students</h3>
+                  <span className="text-xs text-muted-foreground">{enrollments.length}</span>
                 </div>
                 {enrollments.length === 0 ? (
                   <div className="p-6 text-center">
-                    <UserGroupIcon className="w-8 h-8 mx-auto text-white/10 mb-2" />
-                    <p className="text-xs text-white/30">No enrolments yet</p>
+                    <UserGroupIcon className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-xs text-muted-foreground">No enrolments yet</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-white/5 max-h-64 overflow-y-auto">
                     {enrollments.map((enr: any) => (
                       <div key={enr.id} className="flex items-center gap-3 px-4 py-3">
-                        <div className="w-7 h-7 rounded-full bg-violet-500/20 flex items-center justify-center text-xs font-bold text-violet-400 flex-shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-orange-500/20 flex items-center justify-center text-xs font-bold text-orange-400 flex-shrink-0">
                           {(enr.portal_users?.full_name ?? '?')[0]}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-white truncate">{enr.portal_users?.full_name}</p>
-                          <p className="text-[10px] text-white/30">
+                          <p className="text-xs font-semibold text-foreground truncate">{enr.portal_users?.full_name}</p>
+                          <p className="text-[10px] text-muted-foreground">
                             {enr.enrollment_date ? new Date(enr.enrollment_date).toLocaleDateString() : '—'}
                           </p>
                         </div>
@@ -744,7 +744,7 @@ export default function CourseDetailPage() {
             )}
 
             <Link href="/dashboard/courses"
-              className="flex items-center gap-2 w-full py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-white/60 transition-colors">
+              className="flex items-center gap-2 w-full py-3 px-4 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-sm font-bold text-muted-foreground transition-colors">
               <ArrowLeftIcon className="w-4 h-4" /> All Courses
             </Link>
           </div>

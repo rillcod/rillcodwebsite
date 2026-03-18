@@ -143,42 +143,42 @@ export default function BulkDeletePage() {
   }
 
   if (authLoading || !profile) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-rose-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (!isAdmin) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center flex-col gap-4">
+    <div className="min-h-screen bg-background flex items-center justify-center flex-col gap-4">
       <ShieldExclamationIcon className="w-12 h-12 text-rose-500/40" />
-      <p className="text-white/40 font-bold">Admin access only.</p>
-      <Link href="/dashboard/students" className="text-violet-400 text-sm hover:underline">← Back to Students</Link>
+      <p className="text-muted-foreground font-bold">Admin access only.</p>
+      <Link href="/dashboard/students" className="text-orange-400 text-sm hover:underline">← Back to Students</Link>
     </div>
   );
 
   const selectedStudents = students.filter((s) => selected.has(s.id));
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] px-4 py-6 md:px-8 max-w-6xl mx-auto">
+    <div className="min-h-screen bg-background px-4 py-6 md:px-8 max-w-6xl mx-auto">
 
       {/* Header */}
       <div className="flex items-start justify-between mb-4 gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">
             <TrashIcon className="w-5 h-5 sm:w-6 sm:h-6 text-rose-500 flex-shrink-0" />
             Bulk Delete Students
           </h1>
-          <p className="text-white/40 text-xs sm:text-sm mt-1">
+          <p className="text-muted-foreground text-xs sm:text-sm mt-1">
             Permanently wipes selected students from Auth and all linked records.
           </p>
         </div>
-        <Link href="/dashboard/students" className="text-white/40 hover:text-white text-xs sm:text-sm transition-colors flex-shrink-0">
+        <Link href="/dashboard/students" className="text-muted-foreground hover:text-foreground text-xs sm:text-sm transition-colors flex-shrink-0">
           ← Back
         </Link>
       </div>
 
       {/* Danger banner */}
-      <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4 mb-5 flex items-start gap-3">
+      <div className="bg-rose-500/10 border border-rose-500/30 rounded-none p-4 mb-5 flex items-start gap-3">
         <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-rose-300/80 leading-relaxed">
           <strong className="text-rose-300">This action is irreversible.</strong>{' '}
@@ -188,17 +188,17 @@ export default function BulkDeletePage() {
 
       {/* Result banner */}
       {result && (
-        <div className={`rounded-2xl p-4 border mb-5 ${result.failed === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+        <div className={`rounded-none p-4 border mb-5 ${result.failed === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-              <p className="text-white font-bold text-sm">
+              <p className="text-foreground font-bold text-sm">
                 {result.deleted} student{result.deleted !== 1 ? 's' : ''} wiped.
                 {result.failed > 0 && <span className="text-rose-400"> {result.failed} failed.</span>}
                 {result.skipped > 0 && <span className="text-amber-400"> {result.skipped} skipped.</span>}
               </p>
             </div>
-            <button onClick={() => setResult(null)} className="text-white/30 hover:text-white flex-shrink-0">
+            <button onClick={() => setResult(null)} className="text-muted-foreground hover:text-foreground flex-shrink-0">
               <XMarkIcon className="w-5 h-5" />
             </button>
           </div>
@@ -208,12 +208,12 @@ export default function BulkDeletePage() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4">
         <div className="relative flex-1">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, email or school…"
-            className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
+            className="w-full pl-9 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
           />
         </div>
         <div className="flex gap-2">
@@ -221,7 +221,7 @@ export default function BulkDeletePage() {
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-              className="flex-1 sm:flex-none px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
+              className="flex-1 sm:flex-none px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
             >
               <option value="">All classes</option>
               {allClasses.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -230,7 +230,7 @@ export default function BulkDeletePage() {
           <button
             onClick={loadStudents}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>
@@ -240,17 +240,17 @@ export default function BulkDeletePage() {
 
       {/* Selection action bar */}
       {someSelected && (
-        <div className="flex items-center justify-between px-4 py-3 mb-4 bg-rose-500/10 border border-rose-500/30 rounded-xl gap-3 flex-wrap">
+        <div className="flex items-center justify-between px-4 py-3 mb-4 bg-rose-500/10 border border-rose-500/30 rounded-none gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-sm">
             <UserGroupIcon className="w-4 h-4 text-rose-400" />
             <span className="text-rose-300 font-bold">{selected.size} selected</span>
-            <button onClick={() => setSelected(new Set())} className="text-white/30 hover:text-white text-xs underline">
+            <button onClick={() => setSelected(new Set())} className="text-muted-foreground hover:text-foreground text-xs underline">
               Clear
             </button>
           </div>
           <button
             onClick={() => { setConfirm(''); setShowModal(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-sm transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-foreground font-bold rounded-none text-sm transition-colors"
           >
             <TrashIcon className="w-4 h-4" />
             Wipe {selected.size} Student{selected.size !== 1 ? 's' : ''}
@@ -259,13 +259,13 @@ export default function BulkDeletePage() {
       )}
 
       {/* Student list */}
-      <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden">
+      <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-white/20">
+          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <UserGroupIcon className="w-10 h-10 mb-3" />
             <p className="font-bold">No students found</p>
             {(search || classFilter) && <p className="text-xs mt-1">Try clearing the filters</p>}
@@ -275,13 +275,13 @@ export default function BulkDeletePage() {
             <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
               <table className="w-full text-xs min-w-[340px]">
                 <thead className="sticky top-0 bg-[#0b1020] z-10">
-                  <tr className="border-b border-white/10 text-white/40 uppercase tracking-wider text-[10px]">
+                  <tr className="border-b border-border text-muted-foreground uppercase tracking-wider text-[10px]">
                     <th className="px-3 sm:px-4 py-3 w-10">
                       <input
                         type="checkbox"
                         checked={allFilteredSelected}
                         onChange={toggleAll}
-                        className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-rose-500 cursor-pointer"
+                        className="w-3.5 h-3.5 rounded border-border bg-card shadow-sm accent-rose-500 cursor-pointer"
                       />
                     </th>
                     <th className="text-left px-3 py-3">Name</th>
@@ -299,7 +299,7 @@ export default function BulkDeletePage() {
                       <tr
                         key={s.id}
                         onClick={() => toggleOne(s.id)}
-                        className={`border-b border-white/5 cursor-pointer transition-colors ${
+                        className={`border-b border-border cursor-pointer transition-colors ${
                           isSelected ? 'bg-rose-500/10 hover:bg-rose-500/15' : 'hover:bg-white/[0.02]'
                         }`}
                       >
@@ -308,31 +308,31 @@ export default function BulkDeletePage() {
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleOne(s.id)}
-                            className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-rose-500 cursor-pointer"
+                            className="w-3.5 h-3.5 rounded border-border bg-card shadow-sm accent-rose-500 cursor-pointer"
                           />
                         </td>
                         <td className="px-3 py-2.5">
-                          <span className={`font-medium ${isSelected ? 'text-rose-200' : 'text-white'}`}>
+                          <span className={`font-medium ${isSelected ? 'text-rose-200' : 'text-foreground'}`}>
                             {s.full_name}
                           </span>
                           {/* Show email below name on mobile */}
-                          <span className="block sm:hidden text-white/30 font-mono text-[10px] mt-0.5 truncate max-w-[160px]">
+                          <span className="block sm:hidden text-muted-foreground font-mono text-[10px] mt-0.5 truncate max-w-[160px]">
                             {s.email}
                           </span>
                         </td>
-                        <td className="px-3 py-2.5 text-white/50 font-mono hidden sm:table-cell">{s.email}</td>
+                        <td className="px-3 py-2.5 text-muted-foreground font-mono hidden sm:table-cell">{s.email}</td>
                         <td className="px-3 py-2.5">
                           {s.section_class
                             ? <span className="inline-block px-2 py-0.5 bg-cyan-500/15 text-cyan-300 text-[10px] font-bold rounded-full border border-cyan-500/20">{s.section_class}</span>
-                            : <span className="text-white/20">—</span>}
+                            : <span className="text-muted-foreground">—</span>}
                         </td>
-                        <td className="px-3 py-2.5 text-white/40 hidden md:table-cell">{s.school_name ?? '—'}</td>
+                        <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell">{s.school_name ?? '—'}</td>
                         <td className="px-3 py-2.5 hidden sm:table-cell">
-                          <span className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded-full ${s.is_active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-white/5 text-white/30'}`}>
+                          <span className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded-full ${s.is_active ? 'bg-emerald-500/15 text-emerald-400' : 'bg-card shadow-sm text-muted-foreground'}`}>
                             {s.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td className="px-3 py-2.5 text-white/30 hidden lg:table-cell">
+                        <td className="px-3 py-2.5 text-muted-foreground hidden lg:table-cell">
                           {s.created_at ? new Date(s.created_at as string).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                         </td>
                       </tr>
@@ -342,7 +342,7 @@ export default function BulkDeletePage() {
               </table>
             </div>
 
-            <div className="px-4 py-3 border-t border-white/10 flex items-center justify-between text-xs text-white/30">
+            <div className="px-4 py-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
               <span>{filtered.length} shown · {students.length} total</span>
               {someSelected && <span className="text-rose-400 font-bold">{selected.size} selected</span>}
             </div>
@@ -353,15 +353,15 @@ export default function BulkDeletePage() {
       {/* Confirmation modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#0d1526] border border-rose-500/40 rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 w-full sm:max-w-md shadow-2xl">
+          <div className="bg-[#0d1526] border border-rose-500/40 rounded-t-2xl rounded-none p-5 sm:p-6 w-full sm:max-w-md shadow-2xl">
 
             <div className="flex items-start gap-4 mb-5">
               <div className="w-10 h-10 flex-shrink-0 rounded-full bg-rose-500/20 flex items-center justify-center">
                 <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
               </div>
               <div>
-                <h2 className="text-white font-black text-lg">Confirm Permanent Wipe</h2>
-                <p className="text-white/50 text-sm mt-1">
+                <h2 className="text-foreground font-black text-lg">Confirm Permanent Wipe</h2>
+                <p className="text-muted-foreground text-sm mt-1">
                   This will permanently delete{' '}
                   <span className="text-rose-300 font-bold">{selected.size} student account{selected.size !== 1 ? 's' : ''}</span>{' '}
                   and all their linked data.
@@ -370,19 +370,19 @@ export default function BulkDeletePage() {
             </div>
 
             {/* Selected names preview */}
-            <div className="bg-black/30 rounded-xl p-3 mb-4 max-h-32 overflow-y-auto">
+            <div className="bg-black/30 rounded-none p-3 mb-4 max-h-32 overflow-y-auto">
               {selectedStudents.slice(0, 50).map((s) => (
                 <div key={s.id} className="flex items-center gap-2 py-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" />
-                  <span className="text-white text-xs font-medium">{s.full_name}</span>
+                  <span className="text-foreground text-xs font-medium">{s.full_name}</span>
                   {s.section_class && <span className="text-cyan-400/60 text-[10px] font-mono">{s.section_class}</span>}
                 </div>
               ))}
-              {selected.size > 50 && <p className="text-white/30 text-xs mt-1">…and {selected.size - 50} more</p>}
+              {selected.size > 50 && <p className="text-muted-foreground text-xs mt-1">…and {selected.size - 50} more</p>}
             </div>
 
             {/* What gets deleted */}
-            <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-3 mb-4">
+            <div className="bg-rose-500/5 border border-rose-500/20 rounded-none p-3 mb-4">
               <p className="text-rose-300 text-[11px] font-bold mb-1.5 uppercase tracking-wider">What gets permanently deleted:</p>
               <ul className="text-rose-300/60 text-[11px] space-y-0.5 list-disc list-inside">
                 <li>Supabase Auth account</li>
@@ -395,28 +395,28 @@ export default function BulkDeletePage() {
 
             {/* Confirm input */}
             <div className="mb-4">
-              <label className="block text-white/60 text-xs font-bold mb-2">
+              <label className="block text-muted-foreground text-xs font-bold mb-2">
                 Type <span className="text-rose-400 font-mono">{CONFIRM_WORD}</span> to confirm:
               </label>
               <input
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value.toUpperCase())}
                 placeholder={CONFIRM_WORD}
-                className="w-full px-4 py-2.5 bg-black/30 border border-rose-500/30 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-rose-500 transition-colors placeholder-white/20"
+                className="w-full px-4 py-2.5 bg-black/30 border border-rose-500/30 rounded-none text-foreground font-mono text-sm focus:outline-none focus:border-rose-500 transition-colors placeholder-muted-foreground"
               />
             </div>
 
             <div className="flex gap-3">
               <button
                 onClick={() => { setShowModal(false); setConfirm(''); }}
-                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/60 font-bold rounded-xl text-sm transition-colors"
+                className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground font-bold rounded-none text-sm transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
                 disabled={confirm !== CONFIRM_WORD || deleting}
-                className="flex-1 py-3 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black rounded-none text-sm transition-colors flex items-center justify-center gap-2"
               >
                 {deleting
                   ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Wiping…</>

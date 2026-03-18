@@ -65,10 +65,10 @@ export default function NigerianSTEMShowcase() {
           {achievements.map((item) => (
             <div
               key={item.id}
-              className="group relative bg-white/[0.02] border border-white/10 rounded-none p-8 transition-all hover:bg-white/[0.04] shadow-xl border-t-2 border-t-transparent hover:border-t-orange-500"
+              className="group relative bg-white/[0.02] border border-border rounded-none p-8 transition-all hover:bg-white/[0.04] shadow-xl border-t-2 border-t-transparent hover:border-t-orange-500"
             >
               <div className="absolute top-6 right-8">
-                 <span className={`text-[10px] font-black uppercase tracking-widest ${item.color} bg-white/5 px-4 py-1.5 rounded-none border border-white/5`}>{item.badge}</span>
+                 <span className={`text-[10px] font-black uppercase tracking-widest ${item.color} bg-white/5 px-4 py-1.5 rounded-none border border-border`}>{item.badge}</span>
               </div>
               
               <div className={`w-14 h-14 ${item.bg} rounded-none flex items-center justify-center mb-6 border ${item.border} group-hover:scale-110 transition-transform`}>
@@ -99,7 +99,7 @@ export default function NigerianSTEMShowcase() {
             {testimonials.map((t) => (
               <div
                 key={t.id}
-                className="bg-[#1a1a1a] border border-white/5 rounded-none p-10 hover:bg-[#1c2032]/40 transition-all relative group shadow-2xl border-l border-l-orange-500/20 hover:border-l-orange-500"
+                className="bg-[#1a1a1a] border border-border rounded-none p-10 hover:bg-[#1c2032]/40 transition-all relative group shadow-2xl border-l border-l-orange-500/20 hover:border-l-orange-500"
               >
                 <div className="flex items-center gap-5 mb-8">
                   <div className="w-14 h-14 rounded-none bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-xl font-black text-orange-500">
@@ -115,7 +115,7 @@ export default function NigerianSTEMShowcase() {
                   "{t.quote}"
                 </p>
 
-                <div className="inline-flex items-center gap-3 px-5 py-2 bg-white/5 border border-white/10 rounded-none">
+                <div className="inline-flex items-center gap-3 px-5 py-2 bg-white/5 border border-border rounded-none">
                    <Trophy className="w-4 h-4 text-orange-400" />
                    <span className="text-[10px] font-black uppercase text-orange-400 tracking-[0.3em] font-mono">{t.achievement}</span>
                 </div>
@@ -125,7 +125,7 @@ export default function NigerianSTEMShowcase() {
         </div>
 
         {/* High-Contrast Unified CTA */}
-        <div className="relative bg-[#1a1a1a] border border-white/10 rounded-none p-10 md:p-20 overflow-hidden group shadow-2xl border-t-4 border-t-orange-500">
+        <div className="relative bg-[#1a1a1a] border border-border rounded-none p-10 md:p-20 overflow-hidden group shadow-2xl border-t-4 border-t-orange-500">
            <div className="absolute top-0 right-0 w-[50%] h-[150%] bg-blue-600/5 rotate-12 -translate-y-1/2 pointer-events-none" />
            
            <div className="relative z-10 grid lg:grid-cols-2 gap-12 items-center text-center lg:text-left">

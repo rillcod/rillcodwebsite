@@ -227,7 +227,7 @@ export default function ProgramPage() {
                 </Link>
                 <Link
                   href="/contact"
-                  className="border-2 border-white text-white px-8 py-4 rounded-full font-bold hover:bg-white hover:text-gray-800 transition-colors text-center"
+                  className="border-2 border-border text-white px-8 py-4 rounded-full font-bold hover:bg-white hover:text-gray-800 transition-colors text-center"
                 >
                   Get More Info
                 </Link>

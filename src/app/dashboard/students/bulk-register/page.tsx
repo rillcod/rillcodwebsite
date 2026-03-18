@@ -28,9 +28,18 @@ import {
   TrashIcon,
   PencilIcon,
   UserIcon,
+  RectangleGroupIcon,
 } from '@/lib/icons';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 import toast from 'react-hot-toast';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import { UserOptions } from 'jspdf-autotable';
+
+// Fix for jspdf-autotable types
+interface jsPDFWithPlugin extends jsPDF {
+  autoTable: (options: UserOptions) => jsPDF;
+}
 
 // ─── Class detection ─────────────────────────────────────────────────────────
 //
@@ -237,8 +246,165 @@ export default function BulkRegisterPage() {
   const [editingResultId, setEditingResultId] = useState<string | null>(null);
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
   const [selectedResultIds, setSelectedResultIds] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<'register' | 'vault'>('register');
+  const [activeTab, setActiveTab]= useState<'register' | 'vault'>('register');
   const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
+
+  const handleExportRosterPDF = (resultsToPrint: any[]) => {
+    const validResults = resultsToPrint.filter(r => r.status !== 'failed');
+    if (validResults.length === 0) {
+      toast.error('No valid records found for PDF export.');
+      return;
+    }
+
+    const doc = new jsPDF() as jsPDFWithPlugin;
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const batchIdStr = validResults[0].batch_id?.slice(0, 8) || 'N/A';
+
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(234, 88, 12); // Orange-600
+    doc.text('RILLCOD.', 14, 22);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('OFFICIAL STUDENT ROSTER', 14, 28);
+    
+    doc.setFontSize(10);
+    doc.text(`BATCH: ${batchIdStr}`, 196, 22, { align: 'right' });
+    doc.text(`DATE: ${dateStr}`, 196, 28, { align: 'right' });
+    
+    doc.setDrawColor(200);
+    doc.line(14, 32, 196, 32);
+
+    // Stats
+    doc.setFontSize(9);
+    doc.text(`TOTAL ENROLLED: ${validResults.length}`, 14, 40);
+    doc.text(`TARGET SECTOR: RILLCOD ACADEMY`, 14, 45);
+
+    // Table
+    const tableData = validResults.map((r, i) => [
+      i + 1,
+      r.full_name.toUpperCase(),
+      (r.class_name || 'GENERAL').toUpperCase(),
+      r.email,
+      r.password || 'N/A'
+    ]);
+
+    doc.autoTable({
+      startY: 55,
+      head: [['#', 'Full Name', 'Academic Tier', 'System Email', 'Access Cipher']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 8, font: 'courier', cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 50 },
+        4: { cellWidth: 35 }
+      }
+    });
+
+    // Footer
+    const finalY = (doc as any).lastAutoTable.finalY || 150;
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text('CONFIDENTIAL DOCUMENT • FOR ADMINISTRATIVE PURPOSES ONLY', 105, finalY + 20, { align: 'center' });
+    doc.text('PORTAL: https://rillcod.com/login', 105, finalY + 25, { align: 'center' });
+
+    doc.save(`rillcod_roster_${batchIdStr}_${new Date().getTime()}.pdf`);
+    toast.success('Roster PDF generated successfully.');
+  };
+
+  const handleExportCardsPDF = (resultsToPrint: any[]) => {
+    const validResults = resultsToPrint.filter(r => r.status !== 'failed');
+    if (validResults.length === 0) {
+      toast.error('No valid records found for PDF export.');
+      return;
+    }
+
+    const doc = new jsPDF() as jsPDFWithPlugin;
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    
+    let x = 10;
+    let y = 10;
+    const cardWidth = 90;
+    const cardHeight = 60;
+    const padding = 10;
+
+    validResults.forEach((r, i) => {
+      if (i > 0 && i % 8 === 0) {
+        doc.addPage();
+        x = 10;
+        y = 10;
+      } else if (i > 0 && i % 2 === 0) {
+        x = 10;
+        y += cardHeight + padding;
+      } else if (i > 0) {
+        x = 10 + cardWidth + padding;
+      }
+
+      // Card Border
+      doc.setDrawColor(234, 88, 12); // Orange-600
+      doc.setLineWidth(0.5);
+      doc.rect(x, y, cardWidth, cardHeight);
+
+      // Card Header
+      doc.setFontSize(12);
+      doc.setTextColor(0);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RILLCOD', x + 5, y + 10);
+      doc.setTextColor(234, 88, 12);
+      doc.text('.', x + 23, y + 10);
+      
+      doc.setFontSize(6);
+      doc.setTextColor(150);
+      doc.text('STEM EXCELLENCE • OFFICIAL NODE', x + 5, y + 14);
+
+      // Student Name
+      doc.setFontSize(10);
+      doc.setTextColor(0);
+      doc.setFont('helvetica', 'bold');
+      doc.text(r.full_name.toUpperCase(), x + 5, y + 25);
+      
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.1);
+      doc.line(x + 5, y + 27, x + 85, y + 27);
+
+      if (r.class_name) {
+          doc.setFontSize(7);
+          doc.setTextColor(234, 88, 12);
+          doc.text(r.class_name.toUpperCase(), x + 85, y + 25, { align: 'right' });
+      }
+
+      // Credentials
+      doc.setFontSize(6);
+      doc.setTextColor(100);
+      doc.text('SYSTEM IDENTITY (EMAIL)', x + 5, y + 33);
+      doc.setFontSize(8);
+      doc.setTextColor(0);
+      doc.setFont('courier', 'bold');
+      doc.text(r.email, x + 5, y + 37);
+
+      doc.setFontSize(6);
+      doc.setTextColor(100);
+      doc.text('TEMPORARY CIPHER (PASSWORD)', x + 5, y + 43);
+      doc.setFontSize(8);
+      doc.setTextColor(0);
+      doc.setFont('courier', 'bold');
+      doc.text(r.password || 'Contact Admin', x + 5, y + 47);
+
+      // Footer
+      doc.setFontSize(6);
+      doc.setTextColor(150);
+      doc.setFont('helvetica', 'normal');
+      doc.text('PORTAL: https://rillcod.com/login', x + 5, y + 54);
+      doc.text(`STATION: student/login • Issued ${dateStr}`, x + 5, y + 57);
+    });
+
+    doc.save(`rillcod_cards_${new Date().getTime()}.pdf`);
+    toast.success('Credential Cards PDF generated.');
+  };
 
   const handleMassPrintReport = (resultsToPrint: any[]) => {
     const validResults = resultsToPrint.filter(r => r.status !== 'failed');
@@ -248,7 +414,7 @@ export default function BulkRegisterPage() {
     }
 
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    const batchIdStr = validResults[0].batch_id?.slice(0,8) || 'N/A';
+    const batchIdStr = validResults[0].batch_id?.slice(0, 8) || 'N/A';
     
     const html = `
       <html><head><title>Student Registration Roster - ${dateStr}</title>
@@ -298,7 +464,7 @@ export default function BulkRegisterPage() {
           <tbody>
             ${validResults.map((r, i) => `
               <tr>
-                <td>${i+1}</td>
+                <td>${i + 1}</td>
                 <td>${r.full_name}</td>
                 <td>${r.class_name || 'GENERAL'}</td>
                 <td class="email">${r.email}</td>
@@ -310,7 +476,7 @@ export default function BulkRegisterPage() {
         <div class="footer">
           CONFIDENTIAL DOCUMENT • FOR ADMINISTRATIVE PURPOSES ONLY • PORTAL: https://rillcod.com/login
         </div>
-      <script>window.onload = () => { window.print(); window.close(); }</script>
+      <script>window.onload = () => { window.print(); }</script>
       </body></html>
     `;
 
@@ -331,10 +497,10 @@ export default function BulkRegisterPage() {
     const html = `
       <html><head><title>Mass Credentials Print - ${dateStr}</title>
       <style>
-        @media print { .page-break { page-break-after: always; } }
+        @media print { .page-break { page-break-after: always; } .card { break-inside: avoid; } }
         body { font-family: system-ui, -apple-system, sans-serif; background: #fff; margin: 0; padding: 20px; }
         .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-        .card { border: 1.5px solid #ea580c; padding: 20px; position: relative; break-inside: avoid; }
+        .card { border: 1.5px solid #ea580c; padding: 20px; position: relative; break-inside: avoid; margin-bottom: 20px; }
         .header { border-bottom: 2px solid #f3f4f6; margin-bottom: 15px; padding-bottom: 8px; display: flex; align-items:flex-end; gap: 10px;}
         .brand { font-weight: 900; font-size: 16px; font-style: italic; color: #000; letter-spacing: -0.02em; }
         .dot { color: #ea580c; font-style: normal; }
@@ -378,7 +544,7 @@ export default function BulkRegisterPage() {
           </div>
         `).join('')}
       </div>
-      <script>window.onload = () => { window.print(); window.close(); }</script>
+      <script>window.onload = () => { window.print(); }</script>
       </body></html>
     `;
 
@@ -386,6 +552,7 @@ export default function BulkRegisterPage() {
     win?.document.write(html);
     win?.document.close();
   };
+
 
   useEffect(() => {
     const saved = sessionStorage.getItem('last_bulk_reg');
@@ -412,8 +579,32 @@ export default function BulkRegisterPage() {
       setResults(data as any);
       setStep('done');
       setShowHistory(false);
+      setActiveTab('register'); // Switch to main view to see results
     }
     setLoadingHistory(false);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedResultIds.length === 0) return;
+    if (!confirm(`Permanently purge ${selectedResultIds.length} identity nodes from this batch archive? This action is irreversible.`)) return;
+    
+    setLoadingHistory(true);
+    try {
+      const res = await fetch(`/api/students/bulk-register?resultId=${selectedResultIds.join(',')}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Purge failed');
+
+      setBatchResults(prev => prev.filter(r => !selectedResultIds.includes(r.id)));
+      setSelectedResultIds([]);
+      toast.success(`${selectedResultIds.length} Nodes Purged From Vault`);
+      fetchHistory(); // refresh counts
+    } catch (err: any) {
+      toast.error('Purge failed: ' + err.message);
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   const handleDeleteBatch = async (batchId: string) => {
@@ -722,13 +913,13 @@ export default function BulkRegisterPage() {
 
   // ─── Guards ──────────────────────────────────────────────────────────────
   if (authLoading || !profile) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-none animate-spin" />
     </div>
   );
   if (!canAccess) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-      <p className="text-white/40">Access restricted to admins and teachers.</p>
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <p className="text-muted-foreground">Access restricted to admins and teachers.</p>
     </div>
   );
 
@@ -743,7 +934,7 @@ export default function BulkRegisterPage() {
   const selectedProgLabel = programmes.find((p) => p.id === selectedProgramId)?.name ?? '';
 
   // Shared input class
-  const inp = 'w-full bg-transparent border border-white/10 rounded-lg px-2 py-1.5 text-white text-xs focus:outline-none focus:border-violet-500/60 focus:bg-violet-500/5 transition-colors placeholder-white/20';
+  const inp = 'w-full bg-transparent border border-border rounded-none px-2 py-1.5 text-foreground text-xs focus:outline-none focus:border-cyan-500/60 focus:bg-cyan-500/5 transition-colors placeholder-muted-foreground';
 
   return (
     <>
@@ -751,16 +942,16 @@ export default function BulkRegisterPage() {
         
         {/* Standalone Tab Switcher */}
         <div className="max-w-7xl mx-auto mb-16">
-          <div className="flex bg-[#0d1526] p-1.5 rounded-none border border-white/5 w-fit">
+          <div className="flex flex-wrap bg-[#0d1526] p-1.5 rounded-none border border-border w-fit max-w-full">
             <button 
               onClick={() => setActiveTab('register')}
-              className={`px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'register' ? 'bg-orange-600 text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
+              className={`flex-1 sm:flex-none px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'register' ? 'bg-cyan-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Uplink Station (New)
             </button>
             <button 
               onClick={() => { setActiveTab('vault'); fetchHistory(); }}
-              className={`px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'vault' ? 'bg-cyan-600 text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
+              className={`flex-1 sm:flex-none px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'vault' ? 'bg-cyan-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Execution Vault (Archive)
             </button>
@@ -772,12 +963,12 @@ export default function BulkRegisterPage() {
             {!showHistory && (
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-orange-600 flex items-center justify-center rotate-3 border border-orange-400/20 shadow-xl shadow-orange-600/10 hover:rotate-6 transition-transform">
+                  <div className="w-12 h-12 bg-cyan-600 flex items-center justify-center rotate-3 border border-cyan-400/20 shadow-xl shadow-cyan-600/10 hover:rotate-6 transition-transform">
                     <SparklesIcon className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase">Academic Registry</h1>
-                    <p className="text-white/30 text-[10px] uppercase font-bold tracking-[0.4em] mt-1.5">Official Student Node Distribution</p>
+                    <h1 className="text-4xl font-black text-foreground italic tracking-tighter uppercase">Academic Registry</h1>
+                    <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-[0.4em] mt-1.5">Official Student Node Distribution</p>
                   </div>
                 </div>
               </div>
@@ -785,19 +976,26 @@ export default function BulkRegisterPage() {
             
         {/* Sub-Tabs for Registry Mode */}
         {step !== 'done' && (
-          <div className="flex bg-[#0d1526] p-1 border border-white/5 w-fit">
+          <div className="flex flex-wrap bg-[#0d1526] p-1 border border-border w-fit max-w-full">
             <button 
-              onClick={() => setStep('input')}
-              className={`px-8 py-3 text-[9px] font-black uppercase tracking-widest transition-all ${step !== 'single' ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white'}`}
+              onClick={() => { setStep('input'); setIsSingleModalOpen(false); }}
+              className={`flex-1 sm:flex-none px-8 py-3 text-[9px] font-black uppercase tracking-widest transition-all ${step !== 'single' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
             >
               Intelligence Import (Bulk)
             </button>
             <button 
-              onClick={() => setStep('single')}
-              className={`px-8 py-3 text-[9px] font-black uppercase tracking-widest transition-all ${step === 'single' ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white'}`}
+              onClick={() => { setStep('single'); setIsSingleModalOpen(false); }}
+              className={`flex-1 sm:flex-none px-8 py-3 text-[9px] font-black uppercase tracking-widest transition-all ${step === 'single' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
             >
               Manual Uplink (Single)
             </button>
+          </div>
+        )}
+
+        {/* ══════════════════ STEP 1 — SINGLE ══════════════════════════ */}
+        {step === 'single' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <AddStudentModal inline isOpen={true} onClose={() => {}} onSuccess={() => { setStep('input'); setActiveTab('vault'); fetchHistory(); toast.success('Identity Created. Check Vault.'); }} classId={selectedRegistryClass || undefined} />
           </div>
         )}
 
@@ -812,21 +1010,21 @@ export default function BulkRegisterPage() {
           <div className="space-y-6">
 
             {/* ── Batch Settings ──────────────────────────────────── */}
-            <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden">
+            <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">
               <button
                 onClick={() => setSettingsOpen((o) => !o)}
                 className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-white/[0.02] transition-colors"
               >
-                <div className="flex items-center gap-2 text-white/70 font-bold text-sm">
-                  <BuildingOffice2Icon className="w-4 h-4 text-violet-400" />
+                <div className="flex items-center gap-2 text-muted-foreground font-bold text-sm">
+                  <BuildingOffice2Icon className="w-4 h-4 text-orange-400" />
                   Batch Settings
-                  <span className="text-white/30 font-normal text-xs ml-1">— school, programme &amp; default class</span>
+                  <span className="text-muted-foreground font-normal text-xs ml-1">— school, programme &amp; default class</span>
                 </div>
-                <ChevronDownIcon className={`w-4 h-4 text-white/30 transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
+                <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {settingsOpen && (
-                <div className="px-4 sm:px-6 pb-6 pt-3 border-t border-white/10 space-y-5">
+                <div className="px-4 sm:px-6 pb-6 pt-3 border-t border-border space-y-5">
 
                   {/* Row 1: School + Programme */}
                   <div className={`grid gap-5 ${schools.length > 0 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
@@ -834,9 +1032,9 @@ export default function BulkRegisterPage() {
                     {/* School — admin (all schools) or teacher (their allocated schools) */}
                     {schools.length > 0 && (
                       <div>
-                        <label className="block text-white/50 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                        <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
                           <BuildingOffice2Icon className="w-3.5 h-3.5" /> School
-                          {!isAdmin && <span className="text-violet-400/60 normal-case font-normal text-[10px] ml-1">(your allocated schools)</span>}
+                          {!isAdmin && <span className="text-orange-400/60 normal-case font-normal text-[10px] ml-1">(your allocated schools)</span>}
                         </label>
                         <select
                           value={selectedSchoolId}
@@ -845,7 +1043,7 @@ export default function BulkRegisterPage() {
                             setSelectedSchoolId(e.target.value);
                             setSelectedSchoolName(e.target.value ? opt.text : '');
                           }}
-                          className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
+                          className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
                         >
                           <option value="">— Select a school —</option>
                           {schools.map((s) => (
@@ -860,13 +1058,13 @@ export default function BulkRegisterPage() {
 
                     {/* Programme */}
                     <div>
-                      <label className="block text-white/50 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                      <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
                         <BookOpenIcon className="w-3.5 h-3.5" /> Programme
                       </label>
                       <select
                         value={selectedProgramId}
                         onChange={(e) => setSelectedProgramId(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
+                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
                       >
                         <option value="">— No auto-enrolment —</option>
                         {programmes.map((p) => (
@@ -882,7 +1080,7 @@ export default function BulkRegisterPage() {
                   </div>
 
                   {/* Divider */}
-                  <div className="border-t border-white/5" />
+                  <div className="border-t border-border" />
 
                   {/* Row 2: Registry class (primary) + Standard code fallback */}
                   <div className="sm:grid sm:grid-cols-2 gap-5 space-y-5 sm:space-y-0">
@@ -890,13 +1088,13 @@ export default function BulkRegisterPage() {
                     {/* Teacher's created class — primary class assignment */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-white/50 text-xs font-bold uppercase tracking-widest flex items-center gap-1.5">
+                        <label className="text-muted-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-1.5">
                           <AcademicCapIcon className="w-3.5 h-3.5" />
                           My Class <span className="text-cyan-400/70 ml-1 normal-case font-normal">(from class registry)</span>
                         </label>
                         <Link
                           href="/dashboard/classes/add"
-                          className="flex items-center gap-1 px-2 py-0.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 rounded-lg text-cyan-400 text-[10px] font-bold transition-colors"
+                          className="flex items-center gap-1 px-2 py-0.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 rounded-none text-cyan-400 text-[10px] font-bold transition-colors"
                           title="Create a new class"
                         >
                           <PlusIcon className="w-3 h-3" /> New Class
@@ -910,7 +1108,7 @@ export default function BulkRegisterPage() {
                           value={selectedRegistryClass}
                           onChange={(e) => setSelectedRegistryClass(e.target.value)}
                           disabled={!selectedSchoolId}
-                          className="w-full px-3 py-2.5 bg-cyan-500/5 border border-cyan-500/20 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="w-full px-3 py-2.5 bg-cyan-500/5 border border-cyan-500/20 rounded-none text-sm text-foreground focus:outline-none focus:border-cyan-500/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <option value="">— No class selected —</option>
                           {filteredRegistryClasses.map((c) => (
@@ -920,7 +1118,7 @@ export default function BulkRegisterPage() {
                           ))}
                         </select>
                       ) : (
-                        <div className="px-3 py-2.5 bg-white/3 border border-white/8 rounded-xl text-white/25 text-sm italic">
+                        <div className="px-3 py-2.5 bg-white/3 border border-border rounded-none text-white/25 text-sm italic">
                           {!selectedSchoolId ? 'Select a school first.' : 'No classes found for this school.'}
                         </div>
                       )}
@@ -936,9 +1134,9 @@ export default function BulkRegisterPage() {
 
                     {/* Fallback standard class code */}
                     <div>
-                      <label className="block text-white/50 text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                      <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5">
                         <AcademicCapIcon className="w-3.5 h-3.5" />
-                        Default Class / Arm <span className="text-white/30 normal-case font-normal ml-1">(optional)</span>
+                        Default Class / Arm <span className="text-muted-foreground normal-case font-normal ml-1">(optional)</span>
                       </label>
                       <p className="text-white/25 text-[11px] mb-2">
                         Select a class or arm — students without an inline class will be placed here (e.g. JSS2A, SS1B).
@@ -946,7 +1144,7 @@ export default function BulkRegisterPage() {
                       <select
                         value={defaultClass}
                         onChange={(e) => setDefaultClass(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors"
+                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
                       >
                         <option value="">— No default code —</option>
                         <optgroup label="Primary School">
@@ -980,8 +1178,8 @@ export default function BulkRegisterPage() {
                   {/* Effective class preview */}
                   {effectiveClassCode && (
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="text-white/30">Students without inline class will be tagged:</span>
-                      <span className="px-2 py-0.5 bg-cyan-500/15 text-cyan-300 font-mono font-bold rounded-full border border-cyan-500/20">
+                      <span className="text-muted-foreground">Students without inline class will be tagged:</span>
+                      <span className="px-2 py-0.5 bg-cyan-500/15 text-cyan-300 font-mono font-bold rounded-none border border-cyan-500/20">
                         {effectiveClassCode}
                       </span>
                     </div>
@@ -991,8 +1189,8 @@ export default function BulkRegisterPage() {
             </div>
 
             {/* ── Names textarea ──────────────────────────────────── */}
-            <div className="bg-[#0d1526] border border-white/10 rounded-2xl p-6">
-              <label className="block text-white/60 text-xs font-bold uppercase tracking-widest mb-3">
+            <div className="bg-[#0d1526] border border-border rounded-none p-6">
+              <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-3">
                 Student Names — one per line
               </label>
               <textarea
@@ -1014,27 +1212,27 @@ Tolu Adesanya
 
 Ngozi Okonkwo JSS3B
 Yusuf Ibrahim SS1A`}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 resize-none focus:outline-none focus:border-violet-500/50 transition-colors font-mono leading-relaxed"
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground resize-none focus:outline-none focus:border-orange-500/50 transition-colors font-mono leading-relaxed"
               />
-              <p className="text-white/30 text-xs mt-2">
+              <p className="text-muted-foreground text-xs mt-2">
                 You can correct any mistakes in the next step — every field is editable before you register.
               </p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
-              <div className="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-5">
-                <h3 className="text-violet-300 font-bold text-sm mb-3 flex items-center gap-2">
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-none p-5">
+                <h3 className="text-orange-500 font-bold text-sm mb-3 flex items-center gap-2">
                   <ClipboardDocumentListIcon className="w-4 h-4" /> How names work
                 </h3>
-                <ul className="space-y-1.5 text-violet-300/70 text-xs list-disc list-inside">
-                  <li>With space: <span className="font-mono bg-violet-500/20 px-1 rounded">John Doe</span></li>
-                  <li>Joined: <span className="font-mono bg-violet-500/20 px-1 rounded">JohnDoe</span></li>
-                  <li>CamelCase: <span className="font-mono bg-violet-500/20 px-1 rounded">ChukwuemekaOkonkwo</span></li>
-                  <li>First name → <span className="font-mono bg-violet-500/20 px-1 rounded">firstname@rillcod.com</span></li>
+                <ul className="space-y-1.5 text-orange-500/70 text-xs list-disc list-inside">
+                  <li>With space: <span className="font-mono bg-orange-500/20 px-1 rounded">John Doe</span></li>
+                  <li>Joined: <span className="font-mono bg-orange-500/20 px-1 rounded">JohnDoe</span></li>
+                  <li>CamelCase: <span className="font-mono bg-orange-500/20 px-1 rounded">ChukwuemekaOkonkwo</span></li>
+                  <li>First name → <span className="font-mono bg-orange-500/20 px-1 rounded">firstname@rillcod.com</span></li>
                   <li>Edit anything in the next step before registering</li>
                 </ul>
               </div>
-              <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-5">
+              <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-none p-5">
                 <h3 className="text-cyan-300 font-bold text-sm mb-3 flex items-center gap-2">
                   <AcademicCapIcon className="w-4 h-4" /> How classes work
                 </h3>
@@ -1051,7 +1249,7 @@ Yusuf Ibrahim SS1A`}
             <button
               onClick={handlePreview}
               disabled={!namesText.trim()}
-              className="w-full py-3.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors text-sm"
+              className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-bold rounded-none transition-colors text-sm"
             >
               Continue to Review →
             </button>
@@ -1066,19 +1264,19 @@ Yusuf Ibrahim SS1A`}
             {(selectedSchoolId || selectedProgramId || defaultClass) && (
               <div className="flex flex-wrap gap-2 text-xs">
                 {selectedSchoolId && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-full text-violet-300">
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-none text-orange-500">
                     <BuildingOffice2Icon className="w-3.5 h-3.5" />
                     {selectedSchoolName || 'Selected school'}
                   </span>
                 )}
                 {selectedProgramId && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-300">
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-none text-emerald-300">
                     <BookOpenIcon className="w-3.5 h-3.5" />
                     Auto-enrol: {selectedProgLabel}
                   </span>
                 )}
                 {effectiveClassCode && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-full text-cyan-300 font-mono">
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-none text-cyan-300 font-mono">
                     <AcademicCapIcon className="w-3.5 h-3.5" />
                     Class: {effectiveClassCode}
                   </span>
@@ -1088,13 +1286,13 @@ Yusuf Ibrahim SS1A`}
 
             {/* Stats bar */}
             <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10 text-sm">
-                <UserGroupIcon className="w-4 h-4 text-violet-400" />
-                <span className="text-white font-bold">{preview.length}</span>
-                <span className="text-white/40">students</span>
+              <div className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm rounded-none border border-border text-sm">
+                <UserGroupIcon className="w-4 h-4 text-orange-400" />
+                <span className="text-foreground font-bold">{preview.length}</span>
+                <span className="text-muted-foreground">students</span>
               </div>
               {previewClasses.length > 0 && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-cyan-500/10 rounded-xl border border-cyan-500/20 text-sm">
+                <div className="flex items-center gap-2 px-4 py-2 bg-cyan-500/10 rounded-none border border-cyan-500/20 text-sm">
                   <AcademicCapIcon className="w-4 h-4 text-cyan-400" />
                   <span className="text-cyan-300 font-bold">{previewClasses.length}</span>
                   <span className="text-cyan-300/60 text-xs">class{previewClasses.length !== 1 ? 'es' : ''}:</span>
@@ -1102,13 +1300,13 @@ Yusuf Ibrahim SS1A`}
                 </div>
               )}
               {dups.size > 0 && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 rounded-xl border border-rose-500/20 text-xs">
+                <div className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 rounded-none border border-rose-500/20 text-xs">
                   <ExclamationTriangleIcon className="w-4 h-4 text-rose-400" />
                   <span className="text-rose-400 font-bold">Duplicate emails — fix before registering</span>
                 </div>
               )}
               {incompleteRows.length > 0 && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-xl border border-amber-500/20 text-xs">
+                <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-none border border-amber-500/20 text-xs">
                   <ExclamationTriangleIcon className="w-4 h-4 text-amber-400" />
                   <span className="text-amber-400">{incompleteRows.length} row{incompleteRows.length !== 1 ? 's' : ''} incomplete (will be skipped)</span>
                 </div>
@@ -1116,12 +1314,12 @@ Yusuf Ibrahim SS1A`}
             </div>
 
             {/* Editable table */}
-            <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10">
-                <p className="text-white/60 text-xs font-bold uppercase tracking-widest">
+            <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">
                   Click any cell to edit — changes are instant
                 </p>
-                <button onClick={handleReset} className="text-white/30 hover:text-white transition-colors" title="Back to names">
+                <button onClick={handleReset} className="text-muted-foreground hover:text-foreground transition-colors" title="Back to names">
                   <XMarkIcon className="w-5 h-5" />
                 </button>
               </div>
@@ -1129,13 +1327,13 @@ Yusuf Ibrahim SS1A`}
               <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
                 <table className="hidden md:table w-full text-xs border-separate border-spacing-0">
                   <thead className="sticky top-0 bg-[#0b1020] z-10">
-                    <tr className="text-white/40 uppercase tracking-wider text-[10px]">
-                      <th className="text-left px-3 py-2.5 border-b border-white/10 w-8">#</th>
-                      <th className="text-left px-2 py-2.5 border-b border-white/10 w-[28%]">Full Name</th>
-                      <th className="text-left px-2 py-2.5 border-b border-white/10 w-[12%]">Class</th>
-                      <th className="text-left px-2 py-2.5 border-b border-white/10 w-[28%]">Email</th>
-                      <th className="text-left px-2 py-2.5 border-b border-white/10 w-[22%]">Temp Password</th>
-                      <th className="px-2 py-2.5 border-b border-white/10 w-8" />
+                    <tr className="text-muted-foreground uppercase tracking-wider text-[10px]">
+                      <th className="text-left px-3 py-2.5 border-b border-border w-8">#</th>
+                      <th className="text-left px-2 py-2.5 border-b border-border w-[28%]">Full Name</th>
+                      <th className="text-left px-2 py-2.5 border-b border-border w-[12%]">Class</th>
+                      <th className="text-left px-2 py-2.5 border-b border-border w-[28%]">Email</th>
+                      <th className="text-left px-2 py-2.5 border-b border-border w-[22%]">Temp Password</th>
+                      <th className="px-2 py-2.5 border-b border-border w-8" />
                     </tr>
                   </thead>
                   <tbody>
@@ -1145,11 +1343,11 @@ Yusuf Ibrahim SS1A`}
                       return (
                         <tr
                           key={s.id}
-                          className={`group border-b border-white/5 transition-colors ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : 'hover:bg-white/[0.02]'
+                          className={`group border-b border-border transition-colors ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : 'hover:bg-white/[0.02]'
                             }`}
                         >
                           {/* # */}
-                          <td className="px-3 py-2 text-white/30 align-middle">{i + 1}</td>
+                          <td className="px-3 py-2 text-muted-foreground align-middle">{i + 1}</td>
 
                           {/* Full Name */}
                           <td className="px-2 py-1.5 align-middle">
@@ -1177,7 +1375,7 @@ Yusuf Ibrahim SS1A`}
                           <td className="px-2 py-1.5 align-middle">
                             <div className="relative">
                               <input
-                                className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-violet-300'}`}
+                                className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-orange-500'}`}
                                 value={s.email}
                                 onChange={(e) => updateField(s.id, 'email', e.target.value)}
                                 placeholder="email@rillcod.com"
@@ -1197,7 +1395,7 @@ Yusuf Ibrahim SS1A`}
                           <td className="px-2 py-2 align-middle text-center">
                             <button
                               onClick={() => removeRow(s.id)}
-                              className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-rose-400 transition-all rounded p-0.5"
+                              className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-rose-400 transition-all rounded p-0.5"
                               title="Remove row"
                             >
                               <XMarkIcon className="w-4 h-4" />
@@ -1217,20 +1415,20 @@ Yusuf Ibrahim SS1A`}
                     return (
                       <div key={s.id} className={`p-4 space-y-3 ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : ''}`}>
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Student #{i + 1}</span>
-                          <button onClick={() => removeRow(s.id)} className="text-white/20 hover:text-rose-400 p-1"><XMarkIcon className="w-4 h-4" /></button>
+                          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Student #{i + 1}</span>
+                          <button onClick={() => removeRow(s.id)} className="text-muted-foreground hover:text-rose-400 p-1"><XMarkIcon className="w-4 h-4" /></button>
                         </div>
                         <div className="space-y-2">
                           <input className={inp} value={s.full_name} onChange={(e) => updateField(s.id, 'full_name', e.target.value)} onBlur={(e) => onNameBlur(s.id, e.target.value)} placeholder="Full Name" />
                           <div className="flex gap-2">
                             <input className={`${inp} font-mono w-24`} value={s.class_name ?? ''} onChange={(e) => updateField(s.id, 'class_name', e.target.value)} onBlur={(e) => onClassBlur(s.id, e.target.value)} placeholder="Class" />
                             <div className="relative flex-1">
-                              <input className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-violet-300'}`} value={s.email} onChange={(e) => updateField(s.id, 'email', e.target.value)} placeholder="Email" />
+                              <input className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-orange-500'}`} value={s.email} onChange={(e) => updateField(s.id, 'email', e.target.value)} placeholder="Email" />
                               {emailDup && <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-400" />}
                             </div>
                           </div>
-                          <div className="flex items-center justify-between px-3 py-2 bg-white/5 rounded-xl border border-white/5 text-[10px]">
-                            <span className="text-white/30 uppercase font-bold">Password</span>
+                          <div className="flex items-center justify-between px-3 py-2 bg-card shadow-sm rounded-none border border-border text-[10px]">
+                            <span className="text-muted-foreground uppercase font-bold">Password</span>
                             <span className="font-mono text-amber-300/80">{s.password}</span>
                           </div>
                         </div>
@@ -1241,14 +1439,14 @@ Yusuf Ibrahim SS1A`}
               </div>
 
               {/* Add row + footer */}
-              <div className="px-4 py-3 border-t border-white/10 flex items-center justify-between gap-3 flex-wrap">
+              <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-3 flex-wrap">
                 <button
                   onClick={addRow}
-                  className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 font-bold transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-500 font-bold transition-colors"
                 >
                   <PlusIcon className="w-4 h-4" /> Add student
                 </button>
-                <p className="text-white/30 text-xs">
+                <p className="text-muted-foreground text-xs">
                   Editing name auto-updates the email if it&apos;s still @rillcod.com.
                 </p>
               </div>
@@ -1258,7 +1456,7 @@ Yusuf Ibrahim SS1A`}
             <div className="flex gap-3">
               <button
                 onClick={handleReset}
-                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/60 font-bold rounded-xl transition-colors text-sm border border-white/10"
+                className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground font-bold rounded-none transition-colors text-sm border border-border"
               >
                 ← Edit Names
               </button>
@@ -1266,7 +1464,7 @@ Yusuf Ibrahim SS1A`}
                 <button
                   onClick={handleRegister}
                   disabled={registering || dups.size > 0 || validCount === 0}
-                  className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors text-sm"
+                  className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-bold rounded-none transition-colors text-sm"
                 >
                   {registering
                     ? `Registering ${registerProgress?.done ?? 0} / ${registerProgress?.total ?? validCount}...`
@@ -1276,13 +1474,13 @@ Yusuf Ibrahim SS1A`}
                 </button>
                 {registering && registerProgress && (
                   <div className="space-y-1">
-                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 bg-card shadow-sm rounded-none overflow-hidden">
                       <div
-                        className="h-full bg-[#7a0606] rounded-full transition-all duration-300"
+                        className="h-full bg-[#7a0606] rounded-none transition-all duration-300"
                         style={{ width: `${(registerProgress.done / registerProgress.total) * 100}%` }}
                       />
                     </div>
-                    <p className="text-[10px] text-white/30 truncate">
+                    <p className="text-[10px] text-muted-foreground truncate">
                       Processing: {registerProgress.current}
                     </p>
                   </div>
@@ -1295,66 +1493,77 @@ Yusuf Ibrahim SS1A`}
         {/* ══════════════════ STEP 3 — DONE ═══════════════════════════ */}
         {step === 'done' && results && (
           <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {success && (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3 text-emerald-400">
-                <CheckCircleIcon className="w-5 h-5" />
-                <span className="text-sm font-bold">{success}</span>
-              </div>
+            {profile && (
+               <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-none p-4 flex items-center gap-3 text-emerald-400">
+                 <CheckCircleIcon className="w-5 h-5" />
+                 <span className="text-sm font-bold tracking-widest uppercase">Registry Nodes Synchronized</span>
+               </div>
             )}
-            <div className="bg-gradient-to-b from-emerald-500/10 to-[#0d1526] border border-emerald-500/20 rounded-[2.5rem] p-8 text-center relative overflow-hidden">
+            
+            <div className="bg-gradient-to-b from-orange-600 to-orange-400/10 to-[#0d1526] border border-emerald-500/20 rounded-none p-8 text-center relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
               <div className="relative z-10">
-                <div className="w-20 h-20 bg-emerald-500/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/10 border border-emerald-500/20 transform rotate-12">
-                  <CheckCircleIcon className="w-10 h-10 text-emerald-400 -rotate-12" />
+                <h2 className="text-3xl font-black text-foreground mb-2 uppercase tracking-tighter italic">Process Complete</h2>
+                <div className="flex items-center justify-center gap-4 text-emerald-400/80 font-black tracking-widest uppercase text-[10px]">
+                   <span>Success: {results.filter(r => r.status !== 'failed').length}</span>
+                   <div className="w-1 h-1 bg-white/20 rounded-none" />
+                   <span>Identity Archive Validated</span>
                 </div>
-                <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter italic">Batch success!</h2>
-                <p className="text-emerald-400/80 font-medium">
-                  {successCount} account{successCount !== 1 ? 's' : ''} successfully archived.
-                </p>
-
-                {failCount > 0 && (
-                  <div className="mt-4 px-4 py-2 bg-rose-500/10 border border-rose-500/20 rounded-xl inline-flex items-center gap-2 text-rose-400 text-sm">
-                    <ExclamationCircleIcon className="w-4 h-4" />
-                    {failCount} student{failCount !== 1 ? 's' : ''} failed — check details.
-                  </div>
-                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-              <button onClick={() => handleMassPrint(results)} className="flex items-center justify-center gap-2 px-4 py-4 bg-[#7a0606] hover:bg-[#9a0808] text-white font-black rounded-2xl transition-all shadow-lg shadow-rose-900/20 hover:-translate-y-0.5 text-[10px] uppercase">
-                <PrinterIcon className="w-4 h-4" /> Print Cards
+            <div className="flex flex-wrap gap-4 justify-center">
+              {/* Card Export Group */}
+              <div className="flex bg-[#0d1526] border border-border p-1">
+                <button onClick={() => handleExportCardsPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-orange-600 hover:bg-orange-500 text-foreground font-black text-[10px] uppercase tracking-widest transition-all">
+                  <DocumentArrowDownIcon className="w-4 h-4" /> Cards PDF
+                </button>
+                <button onClick={() => handleMassPrint(results)} className="flex items-center gap-2 px-6 py-4 bg-card hover:bg-muted text-foreground font-black text-[10px] uppercase tracking-widest transition-all border-l border-border">
+                  <PrinterIcon className="w-4 h-4" /> Print
+                </button>
+              </div>
+
+              {/* Roster Export Group */}
+              <div className="flex bg-[#0d1526] border border-border p-1">
+                <button onClick={() => handleExportRosterPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-orange-600 hover:bg-orange-500 text-foreground font-black text-[10px] uppercase tracking-widest transition-all">
+                  <DocumentArrowDownIcon className="w-4 h-4" /> Roster PDF
+                </button>
+                <button onClick={() => handleMassPrintReport(results)} className="flex items-center gap-2 px-6 py-4 bg-card hover:bg-muted text-foreground font-black text-[10px] uppercase tracking-widest transition-all border-l border-border">
+                  <PrinterIcon className="w-4 h-4" /> Print
+                </button>
+              </div>
+
+              {/* Utility Group */}
+              <button onClick={downloadCSV} className="flex items-center gap-2 px-8 py-4 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/20 text-[10px] uppercase tracking-widest">
+                <DocumentArrowDownIcon className="w-4 h-4" /> CSV
               </button>
-              <button onClick={() => handleMassPrintReport(results)} className="flex items-center justify-center gap-2 px-4 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-2xl transition-all shadow-lg shadow-orange-900/20 hover:-translate-y-0.5 text-[10px] uppercase">
-                <ClipboardDocumentListIcon className="w-4 h-4" /> Print Roster (List)
+              
+              <button onClick={handleUpdateResults} disabled={loading} className="flex items-center gap-2 px-8 py-4 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 font-bold border border-emerald-500/20 text-[10px] uppercase tracking-widest">
+                {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
+                Confirm Fixes
               </button>
-              <button onClick={downloadCSV} className="flex items-center justify-center gap-2 px-4 py-4 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-black rounded-2xl transition-all border border-cyan-500/20 text-[10px] uppercase">
-                <DocumentArrowDownIcon className="w-4 h-4" /> Download CSV
-              </button>
-              <button onClick={handleUpdateResults} disabled={loading} className="flex items-center justify-center gap-2 px-4 py-4 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 font-black rounded-2xl transition-all border border-emerald-500/20 text-xs uppercase">
-                {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CheckCircleIcon className="w-5 h-5" />}
-                Save Corrections
-              </button>
-              <button onClick={() => setStep('input')} className="flex items-center justify-center gap-2 px-4 py-4 bg-white/5 hover:bg-white/10 text-white/60 font-black rounded-2xl transition-all border border-white/10 text-xs uppercase">
-                <PlusIcon className="w-5 h-5" /> New Batch
+
+              <button onClick={() => setStep('input')} className="flex items-center gap-2 px-8 py-4 bg-card border border-border text-muted-foreground font-bold text-[10px] uppercase tracking-widest">
+                <PlusIcon className="w-4 h-4" /> New Batch
               </button>
             </div>
 
+
             {/* Results Table */}
-            <div className="bg-[#0d1526] border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl">
-              <div className="px-6 py-5 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
+            <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden shadow-2xl">
+              <div className="px-6 py-5 border-b border-border bg-white/[0.02] flex items-center justify-between">
                 <div>
-                  <h3 className="text-white font-black text-lg flex items-center gap-2 uppercase tracking-tighter">
-                    <ClipboardDocumentListIcon className="w-5 h-5 text-violet-400" />
+                  <h3 className="text-foreground font-black text-lg flex items-center gap-2 uppercase tracking-tighter">
+                    <ClipboardDocumentListIcon className="w-5 h-5 text-orange-400" />
                     Session results
                   </h3>
-                  <p className="text-white/30 text-[10px] uppercase font-black tracking-widest mt-1">Archive ID: {results[0]?.batch_id?.slice(0, 8) || 'N/A'}</p>
+                  <p className="text-muted-foreground text-[10px] uppercase font-black tracking-widest mt-1">Archive ID: {results[0]?.batch_id?.slice(0, 8) || 'N/A'}</p>
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b border-white/10 text-white/40 uppercase tracking-widest text-[9px] font-black">
+                    <tr className="border-b border-border text-muted-foreground uppercase tracking-widest text-[9px] font-black">
                       <th className="text-left px-6 py-4">#</th>
                       <th className="text-left px-4 py-4">Full Name</th>
                       <th className="text-left px-4 py-4">Class</th>
@@ -1365,9 +1574,9 @@ Yusuf Ibrahim SS1A`}
                   <tbody className="divide-y divide-white/5">
                     {results.map((r, i) => (
                       <tr key={i} className={`group transition-colors ${r.status === 'failed' ? 'bg-rose-500/5' : 'hover:bg-white/[0.01]'}`}>
-                        <td className="px-6 py-4 text-white/20 font-mono">{String(i + 1).padStart(2, '0')}</td>
+                        <td className="px-6 py-4 text-muted-foreground font-mono">{String(i + 1).padStart(2, '0')}</td>
                         <td className="px-4 py-4">
-                          <input className="bg-transparent border-none text-white font-bold w-full focus:ring-1 focus:ring-violet-500 rounded p-1" value={r.full_name} onChange={(e) => {
+                          <input className="bg-transparent border-none text-foreground font-bold w-full focus:ring-1 focus:ring-orange-500 rounded p-1" value={r.full_name} onChange={(e) => {
                             const newResults = [...results]; newResults[i].full_name = e.target.value; setResults(newResults);
                           }} />
                         </td>
@@ -1376,9 +1585,9 @@ Yusuf Ibrahim SS1A`}
                             const newResults = [...results]; newResults[i].class_name = e.target.value; setResults(newResults);
                           }} />
                         </td>
-                        <td className="px-4 py-4 font-mono text-white/60">{r.email}</td>
+                        <td className="px-4 py-4 font-mono text-muted-foreground">{r.email}</td>
                         <td className="px-6 py-4 text-right transform group-hover:scale-105 transition-transform">
-                          <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+                          <span className={`px-2 py-1 rounded-none text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
                             {r.status}
                           </span>
                         </td>
@@ -1399,7 +1608,7 @@ Yusuf Ibrahim SS1A`}
                </div>
                <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-slate-900 text-white">
+                    <tr className="bg-slate-900 text-foreground">
                       <th className="p-2 border">#</th>
                       <th className="p-2 border">Full Name</th>
                       <th className="p-2 border">Class</th>
@@ -1419,7 +1628,7 @@ Yusuf Ibrahim SS1A`}
                     ))}
                   </tbody>
                </table>
-               <div className="mt-8 p-4 bg-slate-50 border rounded-xl text-[10px] text-slate-500 italic">
+               <div className="mt-8 p-4 bg-slate-50 border rounded-none text-[10px] text-slate-500 italic">
                  Instructions: 1. Login at academy.rillcod.com 2. Use credentials above 3. Change password immediately.
                </div>
             </div>
@@ -1437,16 +1646,16 @@ Yusuf Ibrahim SS1A`}
                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-12">
                   <div className="max-w-xl">
                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-3 h-3 bg-cyan-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
+                        <div className="w-3 h-3 bg-cyan-500 rounded-none animate-pulse shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
                         <span className="text-[12px] text-cyan-400 font-black uppercase tracking-[0.4em]">Official Execution Safe</span>
                      </div>
-                     <h2 className="text-7xl font-black text-white italic uppercase tracking-tighter leading-none mb-6">Execution Vault</h2>
-                     <p className="text-white/40 text-[13px] font-medium leading-relaxed uppercase tracking-widest">A secure, encrypted repository containing every student deployment session recorded on this station.</p>
+                     <h2 className="text-7xl font-black text-foreground italic uppercase tracking-tighter leading-none mb-6">Execution Vault</h2>
+                     <p className="text-muted-foreground text-[13px] font-medium leading-relaxed uppercase tracking-widest">A secure, encrypted repository containing every student deployment session recorded on this station.</p>
                   </div>
-                  <div className="flex items-center gap-10 lg:border-l lg:border-white/10 lg:pl-10">
+                  <div className="flex items-center gap-10 lg:border-l lg:border-border lg:pl-10">
                      <div className="text-right">
-                        <p className="text-white font-black text-6xl leading-none italic">{history.length}</p>
-                        <p className="text-[10px] text-white/30 font-black uppercase tracking-[0.3em] mt-3">Active Archives</p>
+                        <p className="text-foreground font-black text-6xl leading-none italic">{history.length}</p>
+                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.3em] mt-3">Active Archives</p>
                      </div>
                      <button 
                        onClick={fetchHistory}
@@ -1460,13 +1669,13 @@ Yusuf Ibrahim SS1A`}
             </div>
 
             {loadingHistory && history.length === 0 ? (
-               <div className="h-[400px] flex flex-col items-center justify-center gap-8 bg-[#0d1526]/40 border border-white/5 italic text-white/10 uppercase tracking-[0.5em] animate-pulse">Syncing Vault Nodes...</div>
+               <div className="h-[400px] flex flex-col items-center justify-center gap-8 bg-[#0d1526]/40 border border-border italic text-muted-foreground uppercase tracking-[0.5em] animate-pulse">Syncing Vault Nodes...</div>
             ) : history.length === 0 ? (
-               <div className="h-[400px] flex flex-col items-center justify-center gap-8 bg-white/[0.02] border border-white/5 border-dashed italic text-white/20 uppercase tracking-[0.5em]">Vault Is Vacuum / Empty</div>
+               <div className="h-[400px] flex flex-col items-center justify-center gap-8 bg-white/[0.02] border border-border border-dashed italic text-muted-foreground uppercase tracking-[0.5em]">Vault Is Vacuum / Empty</div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                   {history.map((batch) => (
-                    <div key={batch.id} className="group bg-[#0d1526] border border-white/10 p-12 transition-all hover:bg-[#0d1526]/80 hover:border-cyan-500/50 hover:shadow-latest relative overflow-hidden">
+                    <div key={batch.id} className="group bg-[#0d1526] border border-border p-12 transition-all hover:bg-[#0d1526]/80 hover:border-cyan-500/50 hover:shadow-latest relative overflow-hidden">
                        <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rotate-45 translate-x-16 -translate-y-16 pointer-events-none" />
                        
                        <div className="relative z-10">
@@ -1475,7 +1684,7 @@ Yusuf Ibrahim SS1A`}
                                 {editingBatchId === batch.id ? (
                                    <input 
                                      autoFocus
-                                     className="bg-black/60 border border-cyan-500/50 px-6 py-4 text-white font-black text-3xl w-full italic outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all"
+                                     className="bg-black/60 border border-cyan-500/50 px-6 py-4 text-foreground font-black text-3xl w-full italic outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all"
                                      defaultValue={batch.class_name || 'Protocol General'}
                                      onBlur={async (e) => {
                                        await fetch('/api/students/bulk-register', {
@@ -1489,20 +1698,22 @@ Yusuf Ibrahim SS1A`}
                                      }}
                                    />
                                 ) : (
-                                   <h3 className="text-4xl font-black text-white truncate uppercase tracking-tighter italic group-hover:text-cyan-400 cursor-pointer transition-colors"
+                                   <h3 className="text-4xl font-black text-foreground truncate uppercase tracking-tighter italic group-hover:text-cyan-400 cursor-pointer transition-colors"
                                        onDoubleClick={() => setEditingBatchId(batch.id)}>
                                      {batch.class_name || 'Protocol General'}
                                    </h3>
                                 )}
-                                <div className="flex items-center gap-6 mt-5 bg-white/5 w-fit px-4 py-2 border border-white/5">
-                                   <span className="text-[10px] text-white/20 font-black uppercase tracking-[0.2em]">{new Date(batch.created_at).toLocaleDateString()}</span>
-                                   <div className="w-1.5 h-1.5 bg-white/10 rounded-full" />
+                                <div className="flex items-center gap-6 mt-5 bg-card shadow-sm w-fit px-4 py-2 border border-border">
+                                   <span className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">{new Date(batch.created_at).toLocaleDateString()}</span>
+                                   <div className="w-1.5 h-1.5 bg-muted rounded-none" />
                                    <span className="text-[10px] text-cyan-500/70 font-black uppercase tracking-[0.2em] italic">{batch.student_count} Identities Distributed</span>
                                 </div>
                              </div>
-                             <button onClick={() => handleDeleteBatch(batch.id)} className="p-5 bg-white/5 hover:bg-rose-600/20 text-white/20 hover:text-rose-500 transition-all border border-white/5 ml-4">
-                               <TrashIcon className="w-6 h-6" />
-                             </button>
+                             {['admin', 'teacher'].includes(profile?.role || '') && (
+                               <button onClick={() => handleDeleteBatch(batch.id)} className="p-5 bg-card shadow-sm hover:bg-rose-600/20 text-muted-foreground hover:text-rose-500 transition-all border border-border ml-4">
+                                 <TrashIcon className="w-6 h-6" />
+                               </button>
+                             )}
                           </div>
                           
                           <div className="flex items-center gap-4">
@@ -1521,7 +1732,7 @@ Yusuf Ibrahim SS1A`}
                                  }
                                }}
                                className={`flex-1 py-6 text-[11px] font-black uppercase tracking-[0.4em] transition-all border ${
-                                 selectedBatchId === batch.id ? 'bg-cyan-600 text-white border-cyan-400 shadow-xl shadow-cyan-600/30' : 'bg-white/5 text-white/30 hover:bg-white/10 hover:text-white border-white/5'
+                                 selectedBatchId === batch.id ? 'bg-cyan-600 text-foreground border-cyan-400 shadow-xl shadow-cyan-600/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted hover:text-foreground border-border'
                                }`}
                              >
                                {selectedBatchId === batch.id ? 'Close Archive' : 'Open Ledger'}
@@ -1533,10 +1744,22 @@ Yusuf Ibrahim SS1A`}
                                  if (data) handleMassPrintReport(data);
                                  setLoadingHistory(false);
                                }}
-                               className="px-8 py-6 bg-violet-600 hover:bg-violet-500 text-white shadow-xl shadow-violet-600/30 active:scale-95 transition-all group"
+                               className="px-6 py-4 bg-orange-900/40 hover:bg-orange-800 text-foreground border border-orange-500/30 transition-all active:scale-95"
                                title="Print Roster List"
                              >
-                               <ClipboardDocumentListIcon className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                               <PrinterIcon className="w-5 h-5" />
+                             </button>
+                             <button 
+                               onClick={async () => {
+                                 setLoadingHistory(true);
+                                 const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                                 if (data) handleExportRosterPDF(data);
+                                 setLoadingHistory(false);
+                               }}
+                               className="px-6 py-4 bg-orange-600 hover:bg-orange-500 text-foreground shadow-xl shadow-orange-600/30 active:scale-95 transition-all group"
+                               title="Export Roster PDF"
+                             >
+                               <DocumentArrowDownIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
                              </button>
                              <button 
                                onClick={async () => {
@@ -1545,91 +1768,158 @@ Yusuf Ibrahim SS1A`}
                                  if (data) handleMassPrint(data);
                                  setLoadingHistory(false);
                                }}
-                               className="px-10 py-6 bg-orange-600 hover:bg-orange-500 text-white shadow-xl shadow-orange-600/30 active:scale-95 transition-all group"
-                               title="Mass Print Student Cards"
+                               className="px-6 py-4 bg-[#7a0606] hover:bg-[#9a0808] text-foreground transition-all active:scale-95"
+                               title="Print Student Cards"
                              >
-                               <PrinterIcon className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                               <RectangleGroupIcon className="w-5 h-5" />
+                             </button>
+                             <button 
+                               onClick={async () => {
+                                 setLoadingHistory(true);
+                                 const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                                 if (data) handleExportCardsPDF(data);
+                                 setLoadingHistory(false);
+                               }}
+                               className="px-6 py-4 bg-orange-600 hover:bg-orange-500 text-foreground shadow-xl shadow-orange-600/30 active:scale-95 transition-all group"
+                               title="Export Cards PDF"
+                             >
+                               <PrinterIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
                              </button>
                           </div>
 
-                          {selectedBatchId === batch.id && (
-                             <div className="mt-12 pt-12 border-t border-white/10 space-y-4 animate-in fade-in slide-in-from-top-6 duration-700">
-                                <div className="flex items-center justify-between mb-6">
-                                   <p className="text-[11px] text-white/30 font-black uppercase tracking-[0.4em] italic">Station Member Ledger</p>
-                                   <p className="text-[9px] text-cyan-400/50 font-black tracking-[0.3em] uppercase">Sector: Distribution</p>
-                                </div>
-                                <div className="max-h-[500px] overflow-y-auto custom-scrollbar space-y-3 pr-4">
-                                   {batchResults.map((r, ri) => (
-                                      <div key={r.id} className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/5 hover:border-cyan-500/40 hover:bg-white/[0.04] transition-all group/it">
+                           {selectedBatchId === batch.id && (
+                              <div className="mt-12 pt-12 border-t border-border space-y-4 animate-in fade-in slide-in-from-top-6 duration-700">
+                                  <div className="flex items-center justify-between mb-6 px-4">
+                                     <div className="flex items-center gap-6">
+                                        <p className="text-[11px] text-muted-foreground font-black uppercase tracking-[0.4em] italic">Station Member Ledger</p>
+                                        <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 border border-border">
+                                           <input 
+                                             type="checkbox"
+                                             className="w-4 h-4 bg-transparent border-cyan-500/50 rounded-none text-cyan-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                             checked={batchResults.length > 0 && selectedResultIds.length === batchResults.length}
+                                             onChange={(e) => {
+                                               if (e.target.checked) setSelectedResultIds(batchResults.map(r => r.id));
+                                               else setSelectedResultIds([]);
+                                             }}
+                                           />
+                                           <span className="text-[9px] text-cyan-500/50 font-black uppercase tracking-widest">Select All</span>
+                                        </div>
+                                     </div>
+                                     <div className="flex items-center gap-3">
+                                        {selectedResultIds.length > 0 && (
+                                           <div className="flex bg-[#0d1526] border border-cyan-500/30 p-1 animate-in fade-in zoom-in-95 duration-200">
+                                              <button 
+                                                onClick={() => handleExportCardsPDF(batchResults.filter(r => selectedResultIds.includes(r.id)))}
+                                                className="px-3 py-1.5 bg-cyan-600/10 hover:bg-cyan-600/20 text-cyan-400 text-[9px] font-black uppercase tracking-widest transition-all"
+                                              >
+                                                 Export ({selectedResultIds.length})
+                                              </button>
+                                              <button 
+                                                onClick={() => handleMassPrint(batchResults.filter(r => selectedResultIds.includes(r.id)))}
+                                                className="px-3 py-1.5 bg-card hover:bg-muted text-foreground text-[9px] font-black uppercase tracking-widest transition-all border-l border-cyan-500/30"
+                                              >
+                                                 Print
+                                              </button>
+                                              {['admin', 'teacher'].includes(profile?.role || '') && (
+                                                <button 
+                                                  onClick={handleBulkDelete}
+                                                  className="px-3 py-1.5 bg-[#7a0606] hover:bg-[#9a0808] text-white text-[9px] font-black uppercase tracking-widest transition-all border-l border-cyan-500/30"
+                                                >
+                                                   Bulk Purge
+                                                </button>
+                                              )}
+                                           </div>
+                                        )}
+                                        <p className="text-[9px] text-cyan-400/50 font-black tracking-[0.3em] uppercase">Sector: Distribution</p>
+                                     </div>
+                                  </div>
+                                  <div className="max-h-[500px] overflow-y-auto custom-scrollbar space-y-3 pr-4">
+                                     {batchResults.map((r, ri) => (
+                                       <div key={r.id} className={`flex items-center justify-between p-6 transition-all group/it border ${selectedResultIds.includes(r.id) ? 'bg-cyan-500/5 border-cyan-500/30' : 'bg-white/[0.02] border-border hover:border-cyan-500/40 hover:bg-white/[0.04]'}`}>
                                          <div className="flex items-center gap-6 overflow-hidden">
-                                            <div className="w-12 h-12 bg-black/40 flex items-center justify-center text-[11px] font-black italic text-cyan-500/30 border border-white/5 group-hover/it:text-cyan-400 group-hover/it:border-cyan-500/40 transition-all shrink-0">
+                                           <div className="flex items-center gap-4 shrink-0">
+                                             <input
+                                               type="checkbox"
+                                               className="w-5 h-5 bg-black/40 border-border rounded-none text-cyan-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                               checked={selectedResultIds.includes(r.id)}
+                                               onChange={(e) => {
+                                                 if (e.target.checked) setSelectedResultIds(prev => [...prev, r.id]);
+                                                 else setSelectedResultIds(prev => prev.filter(id => id !== r.id));
+                                               }}
+                                             />
+                                             <div className="w-12 h-12 bg-black/40 flex items-center justify-center text-[11px] font-black italic text-cyan-500/30 border border-border group-hover/it:text-cyan-400 group-hover/it:border-cyan-500/40 transition-all">
                                                {String(ri + 1).padStart(2, '0')}
-                                            </div>
-                                            <div className="min-w-0">
-                                               {editingResultId === r.id ? (
-                                                  <div className="flex gap-3 w-full animate-in fade-in zoom-in-95 duration-200">
-                                                     <input 
-                                                       id={`edit-name-${r.id}`}
-                                                       autoFocus
-                                                       defaultValue={r.full_name}
-                                                       className="bg-black/80 border border-cyan-500/50 px-4 py-2 text-white font-black text-xs min-w-[150px] outline-none"
-                                                     />
-                                                     <input 
-                                                       id={`edit-class-${r.id}`}
-                                                       defaultValue={r.class_name || ''}
-                                                       className="bg-black/80 border border-cyan-500/50 px-4 py-2 text-cyan-400 font-black text-[10px] uppercase tracking-widest min-w-[80px] outline-none"
-                                                     />
-                                                     <button 
-                                                       onClick={async () => {
-                                                         const n = (document.getElementById(`edit-name-${r.id}`) as HTMLInputElement).value;
-                                                         const c = (document.getElementById(`edit-class-${r.id}`) as HTMLInputElement).value;
-                                                         await fetch('/api/students/bulk-register', {
-                                                            method: 'PATCH',
-                                                            headers: { 'Content-Type': 'application/json' },
-                                                            body: JSON.stringify({ type: 'result', data: { id: r.id, full_name: n, class_name: c, email: r.email } })
-                                                         });
-                                                         setEditingResultId(null);
-                                                         const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                                         if (data) setBatchResults(data);
-                                                         toast.success('Identity node updated.');
-                                                       }}
-                                                       className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 flex items-center justify-center transition-all"
-                                                     >
-                                                       <CheckCircleIcon className="w-4 h-4" />
-                                                     </button>
-                                                  </div>
-                                               ) : (
-                                                  <div onDoubleClick={() => setEditingResultId(r.id)} className="cursor-pointer">
-                                                     <p className="text-[14px] font-black text-white italic truncate uppercase tracking-tight group-hover/it:text-cyan-400 transition-colors">{r.full_name}</p>
-                                                     <p className="text-[10px] text-white/30 font-mono tracking-tighter truncate mt-1 group-hover/it:text-white/50">{r.email}</p>
-                                                  </div>
-                                               )}
-                                            </div>
+                                             </div>
+                                           </div>
+                                           <div className="min-w-0">
+                                             {editingResultId === r.id ? (
+                                               <div className="flex gap-3 w-full animate-in fade-in zoom-in-95 duration-200">
+                                                 <input
+                                                   id={`edit-name-${r.id}`}
+                                                   autoFocus
+                                                   defaultValue={r.full_name}
+                                                   className="bg-black/80 border border-cyan-500/50 px-4 py-2 text-white font-black text-xs min-w-[150px] outline-none"
+                                                 />
+                                                 <input
+                                                   id={`edit-class-${r.id}`}
+                                                   defaultValue={r.class_name || ''}
+                                                   className="bg-black/80 border border-cyan-500/50 px-4 py-2 text-cyan-400 font-black text-[10px] uppercase tracking-widest min-w-[80px] outline-none"
+                                                 />
+                                                 <button
+                                                   onClick={async () => {
+                                                     const n = (document.getElementById(`edit-name-${r.id}`) as HTMLInputElement).value;
+                                                     const c = (document.getElementById(`edit-class-${r.id}`) as HTMLInputElement).value;
+                                                     await fetch('/api/students/bulk-register', {
+                                                       method: 'PATCH',
+                                                       headers: { 'Content-Type': 'application/json' },
+                                                       body: JSON.stringify({ type: 'result', data: { id: r.id, full_name: n, class_name: c, email: r.email } })
+                                                     });
+                                                     setEditingResultId(null);
+                                                     const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                                                     if (data) setBatchResults(data);
+                                                     toast.success('Identity node updated.');
+                                                   }}
+                                                   className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 flex items-center justify-center transition-all"
+                                                 >
+                                                   <CheckCircleIcon className="w-4 h-4" />
+                                                 </button>
+                                               </div>
+                                             ) : (
+                                               <div onDoubleClick={() => setEditingResultId(r.id)} className="cursor-pointer">
+                                                 <p className="text-[14px] font-black text-foreground italic truncate uppercase tracking-tight group-hover/it:text-cyan-400 transition-colors">{r.full_name}</p>
+                                                 <p className="text-[10px] text-muted-foreground font-mono tracking-tighter truncate mt-1">{r.email}</p>
+                                               </div>
+                                             )}
+                                           </div>
                                          </div>
-                                         <div className="flex items-center gap-4 shrink-0">
+                                          <div className="flex items-center gap-4 shrink-0">
                                             {editingResultId !== r.id && (
-                                               <>
-                                                  <span className="text-[9px] font-black text-cyan-400/80 bg-cyan-400/10 px-3 py-1.5 border border-cyan-400/20 uppercase tracking-widest hidden sm:block italic">
-                                                     {r.class_name || '...'}
-                                                  </span>
-                                                  <div className="flex opacity-0 group-hover/it:opacity-100 transition-opacity gap-1">
-                                                     <button onClick={() => setEditingResultId(r.id)} className="p-2 text-white/20 hover:text-cyan-400 transition-colors"><PencilIcon className="w-4 h-4" /></button>
-                                                     <button 
-                                                       onClick={async () => {
-                                                         if (!confirm('Purge this record from the vault?')) return;
-                                                         await fetch(`/api/students/bulk-register?resultId=${r.id}`, { method: 'DELETE' });
-                                                         setBatchResults(prev => prev.filter(x => x.id !== r.id));
-                                                         fetchHistory();
-                                                         toast.success('Record purged successfully.');
-                                                       }}
-                                                       className="p-2 text-white/20 hover:text-rose-500 transition-colors"
-                                                     >
-                                                       <TrashIcon className="w-4 h-4" />
-                                                     </button>
-                                                  </div>
-                                               </>
+                                              <>
+                                                <span className="text-[9px] font-black text-cyan-400/80 bg-cyan-400/10 px-3 py-1.5 border border-cyan-400/20 uppercase tracking-widest hidden sm:block italic">
+                                                  {r.class_name || '...'}
+                                                </span>
+                                                <div className="flex opacity-0 group-hover/it:opacity-100 transition-opacity gap-1">
+                                                  <button onClick={() => setEditingResultId(r.id)} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors">
+                                                    <PencilIcon className="w-4 h-4" />
+                                                  </button>
+                                                  {['admin', 'teacher'].includes(profile?.role || '') && (
+                                                    <button
+                                                      onClick={async () => {
+                                                        if (!confirm('Purge this record from the vault?')) return;
+                                                        await fetch(`/api/students/bulk-register?resultId=${r.id}`, { method: 'DELETE' });
+                                                        setBatchResults(prev => prev.filter(x => x.id !== r.id));
+                                                        fetchHistory();
+                                                        toast.success('Record purged successfully.');
+                                                      }}
+                                                      className="p-2 text-muted-foreground hover:text-rose-500 transition-colors"
+                                                    >
+                                                      <TrashIcon className="w-4 h-4" />
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              </>
                                             )}
-                                         </div>
+                                          </div>
                                       </div>
                                    ))}
                                 </div>
@@ -1638,7 +1928,7 @@ Yusuf Ibrahim SS1A`}
                        </div>
                     </div>
                   ))}
-                </div>
+               </div>
             )}
           </div>
         )}

@@ -72,23 +72,23 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
 
   if (!isOpen) return null;
 
-  const inputCls = "w-full bg-black/40 border border-white/10 px-6 py-4 text-white text-sm font-medium focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-white/10 uppercase tracking-widest rounded-none";
+  const inputCls = "w-full bg-black/40 border border-border px-6 py-4 text-white text-sm font-medium focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-white/10 uppercase tracking-widest rounded-none";
   const labelCls = "block text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-3 italic";
 
   return (
     <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
-      <div className="bg-[#121212] border border-white/10 w-full max-w-3xl max-h-[90vh] overflow-y-auto relative shadow-2xl shadow-orange-500/5 rounded-none border-t-8 border-t-orange-500">
+      <div className="bg-[#121212] border border-border w-full max-w-3xl max-h-[90vh] overflow-y-auto relative shadow-2xl shadow-orange-500/5 rounded-none border-t-8 border-t-orange-500">
         
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 p-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white/40 hover:text-white transition-all z-20 group"
+          className="absolute top-6 right-6 p-3 bg-white/5 border border-border hover:bg-white/10 text-white/40 hover:text-white transition-all z-20 group"
         >
           <X className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
         </button>
 
         {/* Content Header */}
-        <div className="relative p-10 sm:p-16 border-b border-white/5">
+        <div className="relative p-10 sm:p-16 border-b border-border">
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
           
           <div className="flex items-center gap-3 mb-8">
@@ -116,7 +116,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
               { icon: MapPin, text: "HYBRID UPLINK", sub: "OFFICE OR REMOTE" },
               { icon: Clock, text: "06 WEEKS", sub: "INTENSIVE MODULE" }
             ].map((item, i) => (
-              <div key={i} className="p-6 bg-white/[0.02] border border-white/5 group hover:bg-white/[0.04] transition-all">
+              <div key={i} className="p-6 bg-white/[0.02] border border-border group hover:bg-white/[0.04] transition-all">
                 <item.icon className="w-5 h-5 text-orange-500 mb-4 group-hover:scale-110 transition-transform" />
                 <div className="text-[10px] font-black text-white uppercase tracking-widest">{item.text}</div>
                 <div className="text-[8px] font-bold text-slate-600 uppercase tracking-widest mt-1">{item.sub}</div>
@@ -139,7 +139,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                 { title: "Career Readiness", desc: "PROFESSIONAL WORKFLOWS & TECH OPPORTUNITY MAPPING." },
                 { title: "Certifications", desc: "RECOGNIZED ACHIEVEMENT TOKENS UPON PROTOCOL COMPLETION." }
               ].map((mod, i) => (
-                <div key={i} className="p-8 border border-white/5 bg-black/20 hover:border-orange-500/30 transition-all flex items-start gap-4">
+                <div key={i} className="p-8 border border-border bg-black/20 hover:border-orange-500/30 transition-all flex items-start gap-4">
                   <div className="w-1.5 h-1.5 bg-orange-500 mt-1.5 shadow-lg shadow-orange-500/50"></div>
                   <div>
                     <h4 className="text-[11px] font-black text-white uppercase tracking-widest mb-2">{mod.title}</h4>
@@ -151,7 +151,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
           </div>
 
           {/* Registration Form */}
-          <div className="bg-black/20 border border-white/5 p-10 sm:p-12">
+          <div className="bg-black/20 border border-border p-10 sm:p-12">
              <div className="flex items-center gap-4 mb-12">
                 <Sparkles className="w-6 h-6 text-orange-500" />
                 <h3 className="text-xl font-black text-white uppercase tracking-tighter">Initialize Registration</h3>
@@ -232,7 +232,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                 >
                   {loading ? (
                     <div className="flex items-center gap-4">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-border"></div>
                       EXECUTING UPLINK...
                     </div>
                   ) : (
@@ -247,7 +247,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
           </div>
 
           {/* Contact Node */}
-          <div className="pt-10 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-8 sm:gap-0 font-black italic">
+          <div className="pt-10 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-8 sm:gap-0 font-black italic">
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-3 text-white">
                 <Phone className="w-4 h-4 text-orange-500" />

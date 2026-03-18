@@ -145,7 +145,7 @@ export default function Contact() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative z-10">
         {/* Hero Section */}
-        <div className="text-center mb-24 bg-[#1a1a1a] border border-white/10 p-16 rounded-none shadow-2xl border-t-8 border-t-orange-500 relative">
+        <div className="text-center mb-24 bg-[#1a1a1a] border border-border p-16 rounded-none shadow-2xl border-t-8 border-t-orange-500 relative">
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
           <h1 className="text-4xl md:text-6xl font-black text-white mb-8 uppercase tracking-tight italic">
             Get in <span className="text-orange-500">Touch.</span>
@@ -160,8 +160,8 @@ export default function Contact() {
         {/* Contact Methods */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
           {contactMethods.map((method, index) => (
-            <div key={index} className="bg-[#1a1a1a] border border-white/10 rounded-none p-10 hover:border-orange-500 transition-all group">
-              <div className={`w-16 h-16 bg-white/5 border border-white/5 group-hover:border-orange-500 rounded-none flex items-center justify-center text-orange-500 mb-8 transition-all`}>
+            <div key={index} className="bg-[#1a1a1a] border border-border rounded-none p-10 hover:border-orange-500 transition-all group">
+              <div className={`w-16 h-16 bg-white/5 border border-border group-hover:border-orange-500 rounded-none flex items-center justify-center text-orange-500 mb-8 transition-all`}>
                 {method.icon}
               </div>
               <h3 className="text-xl font-black text-white mb-3 uppercase italic tracking-tighter">{method.title}</h3>
@@ -169,7 +169,7 @@ export default function Contact() {
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8">{method.contact}</p>
               <Link
                 href={method.action}
-                className={`flex items-center justify-center w-full px-8 py-4 bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-none hover:bg-orange-500 hover:border-orange-500 transition-all`}
+                className={`flex items-center justify-center w-full px-8 py-4 bg-white/5 border border-border text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-none hover:bg-orange-500 hover:border-orange-500 transition-all`}
               >
                 Establish Uplink
               </Link>
@@ -179,11 +179,11 @@ export default function Contact() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
           {/* Contact Form */}
-          <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 shadow-2xl relative border-l-8 border-l-orange-500">
+          <div className="bg-[#1a1a1a] border border-border rounded-none p-12 shadow-2xl relative border-l-8 border-l-orange-500">
             <h2 className="text-2xl font-black text-white mb-10 uppercase italic tracking-tight">Transmission Portal</h2>
             
             {isSubmitted ? (
-              <div className="text-center py-20 bg-[#121212] border border-white/5 border-l-4 border-l-emerald-500 p-8 rounded-none">
+              <div className="text-center py-20 bg-[#121212] border border-border border-l-4 border-l-emerald-500 p-8 rounded-none">
                 <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 rounded-none flex items-center justify-center mx-auto mb-8">
                   <CheckCircle className="w-10 h-10 text-emerald-500" />
                 </div>
@@ -206,7 +206,7 @@ export default function Contact() {
                        <input
                           type="text" name="name" value={formData.name} onChange={handleChange} required
                           placeholder="Your identity"
-                          className="w-full bg-[#121212] border border-white/10 pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
+                          className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
                        />
                     </div>
                     {errors.name && <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mt-2">{errors.name}</p>}
@@ -219,7 +219,7 @@ export default function Contact() {
                        <input
                           type="email" name="email" value={formData.email} onChange={handleChange} required
                           placeholder="uplink@domain.com"
-                          className="w-full bg-[#121212] border border-white/10 pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
+                          className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
                        />
                     </div>
                     {errors.email && <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mt-2">{errors.email}</p>}
@@ -234,7 +234,7 @@ export default function Contact() {
                        <input
                           type="tel" name="phone" value={formData.phone} onChange={handleChange}
                           placeholder="+234 XXX XXX XXXX"
-                          className="w-full bg-[#121212] border border-white/10 pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
+                          className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
                        />
                     </div>
                   </div>
@@ -246,7 +246,7 @@ export default function Contact() {
                        <input
                           type="text" name="school" value={formData.school} onChange={handleChange}
                           placeholder="Institutional Name"
-                          className="w-full bg-[#121212] border border-white/10 pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
+                          className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900"
                        />
                     </div>
                   </div>
@@ -256,7 +256,7 @@ export default function Contact() {
                   <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic">Subject Vector</label>
                   <select
                     name="subject" value={formData.subject} onChange={handleChange} required
-                    className="w-full bg-[#121212] border border-white/10 px-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all"
+                    className="w-full bg-[#121212] border border-border px-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all"
                   >
                     <option value="" className="bg-[#121212]">SELECT CATEGORY</option>
                     <option value="School Partnership" className="bg-[#121212]">PARTNERSHIP INQUIRY</option>
@@ -274,7 +274,7 @@ export default function Contact() {
                     <textarea
                       name="message" value={formData.message} onChange={handleChange} required rows={5}
                       placeholder="Enter detailed payload..."
-                      className="w-full bg-[#121212] border border-white/10 pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900 resize-none"
+                      className="w-full bg-[#121212] border border-border pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-900 resize-none"
                     ></textarea>
                   </div>
                 </div>
@@ -295,14 +295,14 @@ export default function Contact() {
 
           {/* Contact Information */}
           <div className="space-y-12">
-            <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 shadow-2xl relative overflow-hidden">
+            <div className="bg-[#1a1a1a] border border-border rounded-none p-12 shadow-2xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[100px] pointer-events-none" />
               <h2 className="text-xl font-black text-white mb-10 uppercase italic tracking-tight">Access Points</h2>
               <div className="space-y-8">
                 {contactInfo.map((info, index) => (
-                  <div key={index} className="bg-[#121212] border border-white/5 rounded-none p-8 hover:border-orange-500/30 transition-all group">
+                  <div key={index} className="bg-[#121212] border border-border rounded-none p-8 hover:border-orange-500/30 transition-all group">
                     <div className="flex items-start gap-6">
-                      <div className="w-12 h-12 bg-white/5 border border-white/5 group-hover:border-orange-500 rounded-none flex items-center justify-center text-orange-500 transition-all">
+                      <div className="w-12 h-12 bg-white/5 border border-border group-hover:border-orange-500 rounded-none flex items-center justify-center text-orange-500 transition-all">
                         {info.icon}
                       </div>
                       <div className="flex-1">
@@ -326,7 +326,7 @@ export default function Contact() {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-[#1a1a1a] border border-white/10 border-t-8 border-t-orange-500 p-12 text-white shadow-2xl">
+            <div className="bg-[#1a1a1a] border border-border border-t-8 border-t-orange-500 p-12 text-white shadow-2xl">
               <h3 className="text-lg font-black mb-8 uppercase italic tracking-widest">Protocol Shortcuts</h3>
               <div className="space-y-4">
                 {[
@@ -336,7 +336,7 @@ export default function Contact() {
                 ].map((action, i) => (
                   <Link
                     key={i} href={action.href}
-                    className="flex items-center justify-between p-6 bg-[#121212] border border-white/5 hover:border-orange-500/50 transition-all group"
+                    className="flex items-center justify-between p-6 bg-[#121212] border border-border hover:border-orange-500/50 transition-all group"
                   >
                     <div className="flex items-center gap-4">
                       <action.icon className="w-4 h-4 text-orange-500" />

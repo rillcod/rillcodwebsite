@@ -92,10 +92,10 @@ export default function StudentDashboard() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl p-8 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-none p-8 text-foreground shadow-lg">
         <div className="flex items-center space-x-4">
           <div className="relative w-20 h-20">
-            <Image src="/images/avatar-placeholder.svg" alt="Student Avatar" fill className="rounded-full border-4 border-white" />
+            <Image src="/images/avatar-placeholder.svg" alt="Student Avatar" fill className="rounded-full border-4 border-border" />
           </div>
           <div>
             <h1 className="text-3xl font-bold mb-2">Hi, {profile?.full_name}! 👋</h1>
@@ -103,31 +103,31 @@ export default function StudentDashboard() {
           </div>
         </div>
         <div className="grid grid-cols-3 gap-4 mt-6">
-          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 text-center">
+          <div className="bg-muted backdrop-blur-sm rounded-none p-4 text-center">
             <div className="text-2xl font-bold">{currentStreak}</div>
             <div className="text-sm">Day Streak 🔥</div>
           </div>
-          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 text-center">
+          <div className="bg-muted backdrop-blur-sm rounded-none p-4 text-center">
             <div className="text-2xl font-bold">{totalPoints}</div>
             <div className="text-sm">Points ⭐</div>
           </div>
-          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 text-center">
+          <div className="bg-muted backdrop-blur-sm rounded-none p-4 text-center">
             <div className="text-2xl font-bold">3</div>
             <div className="text-sm">Badges 🏆</div>
           </div>
         </div>
       </div>
-      <div className="bg-white rounded-3xl p-6 shadow-lg">
+      <div className="bg-white rounded-none p-6 shadow-lg">
         <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
           <BookOpenIcon className="h-6 w-6 mr-2 text-purple-500" />
           Your Learning Journey
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {lessons.map((lesson) => (
-            <div key={lesson.id} className="bg-gray-50 rounded-2xl p-4 hover:shadow-md transition-shadow">
-              <div className="relative h-40 mb-4 rounded-xl overflow-hidden">
+            <div key={lesson.id} className="bg-gray-50 rounded-none p-4 hover:shadow-md transition-shadow">
+              <div className="relative h-40 mb-4 rounded-none overflow-hidden">
                 <Image src={lesson.image} alt={lesson.title} fill className="object-cover" />
-                <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded-full text-sm font-medium">
+                <div className="absolute top-2 right-2 bg-muted px-2 py-1 rounded-full text-sm font-medium">
                   {lesson.difficulty === 'easy' ? '🌟 Easy' : lesson.difficulty === 'medium' ? '🌟🌟 Medium' : '🌟🌟🌟 Hard'}
                 </div>
               </div>
@@ -156,7 +156,7 @@ export default function StudentDashboard() {
           ))}
         </div>
       </div>
-      <div className="bg-white rounded-3xl p-6 shadow-lg">
+      <div className="bg-white rounded-none p-6 shadow-lg">
         <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
           <TrophyIcon className="h-6 w-6 mr-2 text-yellow-500" />
           Your Achievements
@@ -165,9 +165,9 @@ export default function StudentDashboard() {
           {achievements.map((achievement) => {
             const Icon = achievement.icon;
             return (
-              <div key={achievement.id} className="bg-gray-50 rounded-2xl p-6 hover:shadow-md transition-shadow">
+              <div key={achievement.id} className="bg-gray-50 rounded-none p-6 hover:shadow-md transition-shadow">
                 <div className="flex items-center space-x-4 mb-4">
-                  <div className="p-3 bg-purple-100 rounded-xl">
+                  <div className="p-3 bg-purple-100 rounded-none">
                     <Icon className="h-6 w-6 text-purple-600" />
                   </div>
                   <div>
@@ -191,19 +191,19 @@ export default function StudentDashboard() {
         </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Link href="/dashboard/playground" className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white text-center hover:shadow-lg transition-all transform hover:-translate-y-1">
+        <Link href="/dashboard/playground" className="bg-gradient-to-br from-orange-600 to-orange-400 from-orange-600 to-orange-400 rounded-none p-6 text-foreground text-center hover:shadow-lg transition-all transform hover:-translate-y-1">
           <PuzzlePieceIcon className="h-8 w-8 mx-auto mb-2" />
           <span className="font-medium">Playground</span>
         </Link>
-        <Link href="/dashboard/challenges" className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white text-center hover:shadow-lg transition-all transform hover:-translate-y-1">
+        <Link href="/dashboard/challenges" className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-none p-6 text-foreground text-center hover:shadow-lg transition-all transform hover:-translate-y-1">
           <RocketLaunchIcon className="h-8 w-8 mx-auto mb-2" />
           <span className="font-medium">Challenges</span>
         </Link>
-        <Link href="/dashboard/friends" className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl p-6 text-white text-center hover:shadow-lg transition-all transform hover:-translate-y-1">
+        <Link href="/dashboard/friends" className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-none p-6 text-foreground text-center hover:shadow-lg transition-all transform hover:-translate-y-1">
           <HeartIcon className="h-8 w-8 mx-auto mb-2" />
           <span className="font-medium">Friends</span>
         </Link>
-        <Link href="/dashboard/help" className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white text-center hover:shadow-lg transition-all transform hover:-translate-y-1">
+        <Link href="/dashboard/help" className="bg-gradient-to-br from-green-500 to-green-600 rounded-none p-6 text-foreground text-center hover:shadow-lg transition-all transform hover:-translate-y-1">
           <LightBulbIcon className="h-8 w-8 mx-auto mb-2" />
           <span className="font-medium">Help</span>
         </Link>

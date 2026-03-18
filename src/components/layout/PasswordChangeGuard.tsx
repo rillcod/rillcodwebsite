@@ -77,16 +77,16 @@ export default function PasswordChangeGuard() {
         </div>
 
         <div className="p-6 space-y-5">
-          <p className="text-white/60 text-sm leading-relaxed">
+          <p className="text-muted-foreground text-sm leading-relaxed">
             Choose a secure personal password. You will use this every time you sign in to{' '}
-            <strong className="text-white">Rillcod Technologies</strong>. Do not share it with anyone.
+            <strong className="text-foreground">Rillcod Technologies</strong>. Do not share it with anyone.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
 
             {/* New password */}
             <div>
-              <label className="block text-white/60 text-xs font-bold uppercase tracking-widest mb-2">
+              <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-2">
                 New Password
               </label>
               <div className="relative">
@@ -97,12 +97,12 @@ export default function PasswordChangeGuard() {
                   required
                   autoFocus
                   placeholder="Minimum 8 characters"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500/60 pr-11 transition-colors"
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-foreground text-sm focus:outline-none focus:border-amber-500/60 pr-11 transition-colors"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {showPw ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                 </button>
@@ -116,7 +116,7 @@ export default function PasswordChangeGuard() {
                       className={`h-1 flex-1 rounded-full transition-colors ${
                         newPw.length > threshold
                           ? ['bg-rose-500', 'bg-amber-500', 'bg-yellow-400', 'bg-emerald-500'][i]
-                          : 'bg-white/10'
+                          : 'bg-muted'
                       }`}
                     />
                   ))}
@@ -126,7 +126,7 @@ export default function PasswordChangeGuard() {
 
             {/* Confirm password */}
             <div>
-              <label className="block text-white/60 text-xs font-bold uppercase tracking-widest mb-2">
+              <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-2">
                 Confirm Password
               </label>
               <input
@@ -135,12 +135,12 @@ export default function PasswordChangeGuard() {
                 onChange={(e) => setConfirmPw(e.target.value)}
                 required
                 placeholder="Repeat your new password"
-                className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white text-sm focus:outline-none transition-colors ${
+                className={`w-full px-4 py-3 bg-card shadow-sm border rounded-xl text-foreground text-sm focus:outline-none transition-colors ${
                   mismatch
                     ? 'border-rose-500/60 focus:border-rose-500'
                     : confirmPw && !mismatch
                     ? 'border-emerald-500/40 focus:border-emerald-500'
-                    : 'border-white/10 focus:border-amber-500/60'
+                    : 'border-border focus:border-amber-500/60'
                 }`}
               />
               {mismatch && (
@@ -157,14 +157,14 @@ export default function PasswordChangeGuard() {
             <button
               type="submit"
               disabled={saving || !canSubmit}
-              className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl transition-colors flex items-center justify-center gap-2"
+              className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black rounded-xl transition-colors flex items-center justify-center gap-2"
             >
               <ShieldCheckIcon className="w-4 h-4" />
               {saving ? 'Saving…' : 'Set My Password & Continue'}
             </button>
           </form>
 
-          <p className="text-center text-white/20 text-[11px]">
+          <p className="text-center text-muted-foreground text-[11px]">
             This dialog cannot be skipped. Contact your teacher if you need help.
           </p>
         </div>

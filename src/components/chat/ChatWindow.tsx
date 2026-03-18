@@ -89,7 +89,7 @@ export function ChatWindow({ recipientId, recipientName, initialMessages = [] }:
             <CardHeader className="bg-gradient-to-r from-teal-600 to-blue-700 text-white p-4 flex flex-row items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="relative">
-                        <Avatar className="w-10 h-10 border-2 border-white/20">
+                        <Avatar className="w-10 h-10 border-2 border-border">
                             <AvatarFallback className="bg-white/10 text-white">
                                 {recipientName.substring(0, 2).toUpperCase()}
                             </AvatarFallback>

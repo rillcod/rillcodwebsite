@@ -52,11 +52,11 @@ async function loadAdminStats(supabase: ReturnType<typeof createClient>) {
                     (cbtSubs.status === 'fulfilled' ? (cbtSubs.value.count ?? 0) : 0);
 
   return [
-    { label: 'Partner Schools', value: totalSchools, icon: BuildingOfficeIcon, gradient: 'from-blue-600 to-blue-400' },
-    { label: 'Partner Accounts', value: totalPartners, icon: ShieldCheckIcon, gradient: 'from-cyan-600 to-cyan-400' },
-    { label: 'Active Teachers', value: totalTeachers, icon: AcademicCapIcon, gradient: 'from-violet-600 to-violet-400' },
-    { label: 'Total Students', value: totalStudents, icon: UserGroupIcon, gradient: 'from-emerald-600 to-emerald-400' },
-    { label: 'Submissions Graded', value: totalGraded, icon: ChartBarIcon, gradient: 'from-amber-600 to-amber-400' },
+    { label: 'Partner Schools', value: totalSchools, icon: BuildingOfficeIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
+    { label: 'Partner Accounts', value: totalPartners, icon: ShieldCheckIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
+    { label: 'Active Teachers', value: totalTeachers, icon: AcademicCapIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Total Students', value: totalStudents, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
+    { label: 'Submissions Graded', value: totalGraded, icon: ChartBarIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
   ] as DashStats[];
 }
 
@@ -96,7 +96,7 @@ async function loadAdminActivity(supabase: ReturnType<typeof createClient>): Pro
       desc: `Assignment: ${s.assignments?.title ?? '—'}`,
       time: timeAgo(s.submitted_at),
       icon: ClipboardDocumentListIcon,
-      color: s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-violet-500/20 text-violet-400',
+      color: s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400',
     });
   });
 
@@ -108,7 +108,7 @@ async function loadAdminActivity(supabase: ReturnType<typeof createClient>): Pro
       desc: `Exam: ${s.cbt_exams?.title ?? '—'}`,
       time: timeAgo(s.end_time),
       icon: AcademicCapIcon,
-      color: s.status === 'passed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-violet-500/20 text-violet-400',
+      color: s.status === 'passed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400',
     });
   });
 
@@ -206,10 +206,10 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
     : 0;
 
   return [
-    { label: 'My Classes', value: myClasses, icon: BookOpenIcon, gradient: 'from-blue-600 to-blue-400' },
-    { label: 'Total Students', value: totalStudents, icon: UserGroupIcon, gradient: 'from-emerald-600 to-emerald-400' },
-    { label: 'Pending Grading', value: pendingGrade, icon: ClipboardDocumentListIcon, gradient: 'from-amber-600 to-amber-400' },
-    { label: 'Avg Class Perf', value: `${avg}%`, icon: ChartBarIcon, gradient: 'from-violet-600 to-violet-400' },
+    { label: 'My Classes', value: myClasses, icon: BookOpenIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
+    { label: 'Total Students', value: totalStudents, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
+    { label: 'Pending Grading', value: pendingGrade, icon: ClipboardDocumentListIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
+    { label: 'Avg Class Perf', value: `${avg}%`, icon: ChartBarIcon, gradient: 'from-orange-600 to-orange-400' },
   ] as DashStats[];
 }
 
@@ -259,7 +259,7 @@ async function loadTeacherActivity(supabase: ReturnType<typeof createClient>, us
       desc: aTitleMap[s.assignment_id] ?? '—',
       time: timeAgo(s.submitted_at),
       icon: ClipboardDocumentListIcon,
-      color: s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400',
+      color: s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400',
     });
   });
 
@@ -303,10 +303,10 @@ async function loadStudentStats(supabase: ReturnType<typeof createClient>, userI
   const level = ptsData?.achievement_level || 'Bronze';
 
   return [
-    { label: 'Enrolled Courses', value: enrolled, icon: BookOpenIcon, gradient: 'from-blue-600 to-blue-400' },
-    { label: 'XP Points', value: xp, icon: TrophyIcon, gradient: 'from-amber-600 to-amber-400' },
-    { label: 'Daily Streak', value: `${streak}d 🔥`, icon: BoltIcon, gradient: 'from-rose-600 to-rose-400' },
-    { label: 'Current Level', value: level, icon: AcademicCapIcon, gradient: 'from-violet-600 to-violet-400' },
+    { label: 'Enrolled Courses', value: enrolled, icon: BookOpenIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
+    { label: 'XP Points', value: xp, icon: TrophyIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
+    { label: 'Daily Streak', value: `${streak}d 🔥`, icon: BoltIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
+    { label: 'Current Level', value: level, icon: AcademicCapIcon, gradient: 'from-orange-600 to-orange-400' },
   ] as DashStats[];
 }
 
@@ -339,7 +339,7 @@ async function loadStudentActivity(supabase: ReturnType<typeof createClient>, us
     desc: `${s.assignments?.title ?? '—'}${s.grade != null ? ` · ${s.grade}/${s.assignments?.max_points ?? 100}` : ''}`,
     time: timeAgo(s.submitted_at),
     icon: s.status === 'graded' ? TrophyIcon : ClipboardDocumentListIcon,
-    color: s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400',
+    color: s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400',
   }));
 }
 
@@ -383,10 +383,10 @@ async function loadSchoolStats(supabase: ReturnType<typeof createClient>, school
     : 0;
 
   return [
-    { label: 'Registered Students', value: totalStudents, icon: UserGroupIcon, gradient: 'from-blue-600 to-blue-400' },
-    { label: 'Assigned Teachers', value: totalTeachers, icon: AcademicCapIcon, gradient: 'from-violet-600 to-violet-400' },
-    { label: 'Student Perf. Avg', value: `${avg}%`, icon: ChartBarIcon, gradient: 'from-emerald-600 to-emerald-400' },
-    { label: 'Submissions Count', value: gradedData.length, icon: ClipboardDocumentListIcon, gradient: 'from-amber-600 to-amber-400' },
+    { label: 'Registered Students', value: totalStudents, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
+    { label: 'Assigned Teachers', value: totalTeachers, icon: AcademicCapIcon, gradient: 'from-orange-600 to-orange-400' },
+    { label: 'Student Perf. Avg', value: `${avg}%`, icon: ChartBarIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
+    { label: 'Submissions Count', value: gradedData.length, icon: ClipboardDocumentListIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
   ] as DashStats[];
 }
 
@@ -557,11 +557,11 @@ export default function DashboardPage() {
 
   // Auth session resolving (fresh visit or expired token being refreshed)
   if (loading) return (
-    <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-white/10 border-t-violet-500 rounded-full animate-spin" />
-        <p className="text-white/40 text-sm">Loading your dashboard…</p>
-        <a href="/login" className="mt-2 text-xs text-violet-400 hover:text-violet-300 underline underline-offset-2 transition-colors">
+        <div className="w-12 h-12 border-4 border-border border-t-orange-500 rounded-full animate-spin" />
+        <p className="text-muted-foreground text-sm">Loading your dashboard…</p>
+        <a href="/login" className="mt-2 text-xs text-orange-400 hover:text-orange-500 underline underline-offset-2 transition-colors">
           Sign in instead →
         </a>
       </div>
@@ -570,12 +570,12 @@ export default function DashboardPage() {
 
   // No user — redirect is queued in useEffect
   if (!user) return (
-    <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-4 text-center px-4">
         <div className="w-10 h-10 border-4 border-rose-500/20 border-t-rose-500 rounded-full animate-spin" />
-        <p className="text-white font-semibold">Redirecting to login…</p>
+        <p className="text-foreground font-semibold">Redirecting to login…</p>
         <a href="/login"
-          className="mt-2 px-6 py-2 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 text-sm font-bold rounded-xl border border-rose-600/30 transition-colors">
+          className="mt-2 px-6 py-2 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 text-sm font-bold rounded-none border border-rose-600/30 transition-colors">
           Go to Login
         </a>
       </div>
@@ -586,24 +586,24 @@ export default function DashboardPage() {
   if (profileLoading || !profile) {
     // Profile fetch finished but returned null → show error only after retries exhausted
     if (!profileLoading && !profile && profileRetryCount.current >= 2) return (
-      <div className="min-h-screen bg-[#050a17] flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
         <div className="flex flex-col items-center gap-6">
-          <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-rose-500/10 mb-2">
+          <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 rounded-none flex items-center justify-center shadow-2xl shadow-rose-500/10 mb-2">
             <ExclamationTriangleIcon className="w-10 h-10 text-rose-400" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-white font-black text-2xl tracking-tight">Account Not Found</h2>
-            <p className="text-white/40 text-sm max-w-sm leading-relaxed">
+            <h2 className="text-foreground font-black text-2xl tracking-tight">Account Not Found</h2>
+            <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">
               Your login was successful but your portal profile could not be loaded. Your account may be inactive or not yet set up.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
             <button onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white text-sm font-bold rounded-2xl border border-white/10 transition-all">
+              className="px-6 py-3 bg-card shadow-sm hover:bg-muted text-foreground text-sm font-bold rounded-none border border-border transition-all">
               Reload Page
             </button>
             <a href="/login?clear=1"
-              className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold rounded-2xl transition-all shadow-lg shadow-rose-900/40">
+              className="px-6 py-3 bg-rose-600 hover:bg-rose-500 text-foreground text-sm font-bold rounded-none transition-all shadow-lg shadow-rose-900/40">
               Sign Out &amp; Retry
             </a>
           </div>
@@ -613,10 +613,10 @@ export default function DashboardPage() {
 
     // Profile fetch still in flight — show a clean spinner
     return (
-      <div className="min-h-screen bg-[#050a17] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-white/10 border-t-violet-500 rounded-full animate-spin" />
-          <p className="text-white/40 text-sm">Setting up your workspace…</p>
+          <div className="w-12 h-12 border-4 border-border border-t-orange-500 rounded-full animate-spin" />
+          <p className="text-muted-foreground text-sm">Setting up your workspace…</p>
         </div>
       </div>
     );
@@ -629,56 +629,55 @@ export default function DashboardPage() {
     <div className="space-y-6">
 
       {/* ── Welcome Banner ── */}
-      <div className="bg-gradient-to-r from-[#0B132B] to-[#1a2b54] rounded-2xl sm:rounded-[2.5rem] shadow-2xl p-6 sm:p-10
-        flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-8 relative overflow-hidden">
+      <div className="bg-background border border-border rounded-none shadow-2xl p-6 sm:p-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-8 relative overflow-hidden">
         {/* Decorative blobs */}
         <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-white opacity-[0.03] rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-violet-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-orange-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
-          <div className="flex-shrink-0 p-4 bg-white/10 backdrop-blur-md rounded-[2.5rem] border border-white/20 shadow-2xl">
+          <div className="flex-shrink-0 p-4 bg-muted backdrop-blur-md rounded-none border border-border shadow-2xl">
             <img src="/images/logo.png" alt="Rillcod Logo" className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" />
           </div>
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <span className="px-3 py-1 bg-violet-600/80 text-white text-[10px] font-black uppercase tracking-widest rounded-full">
+              <span className="px-3 py-1 bg-orange-600/80 text-foreground text-[10px] font-black uppercase tracking-widest rounded-full">
                 {role} Portal
               </span>
-              <div className="h-px w-8 bg-white/20" />
-              <span className="text-[10px] font-bold text-blue-300/60 uppercase tracking-widest">Global Status: Online</span>
+              <div className="h-px w-8 bg-muted" />
+              <span className="text-[10px] font-bold text-orange-500/60 uppercase tracking-widest">Global Status: Online</span>
             </div>
-            <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+            <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight leading-tight">
               Welcome back,<br className="sm:hidden" /> {profile.full_name?.split(' ')?.[0] || 'User'}!
             </h1>
-            <p className="text-blue-200/60 text-sm sm:text-base mt-3 font-medium flex items-center gap-2">
+            <p className="text-orange-500/60 text-sm sm:text-base mt-3 font-medium flex items-center gap-2">
               <ClockIcon className="w-4 h-4" />
               {now ? now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
             </p>
           </div>
         </div>
 
-        <div className="relative z-10 flex sm:flex-row items-center gap-4 sm:gap-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl">
-          <div className="text-3xl sm:text-5xl font-black text-white tracking-tighter tabular-nums">
+        <div className="relative z-10 flex sm:flex-row items-center gap-4 sm:gap-6 bg-card shadow-sm backdrop-blur-xl border border-border rounded-none p-4 sm:p-6 shadow-2xl">
+          <div className="text-3xl sm:text-5xl font-black text-foreground tracking-tighter tabular-nums">
             {now ? now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '--:--'}
           </div>
-          <div className="h-8 w-px bg-white/10 hidden sm:block" />
+          <div className="h-8 w-px bg-muted hidden sm:block" />
           <div className="flex flex-col items-start gap-1">
              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
                 <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
                 <span className="text-[8px] sm:text-[10px] text-emerald-400 font-black uppercase tracking-widest">Active</span>
              </div>
-             <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest ml-1">Live Feed</p>
+             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest ml-1">Live Feed</p>
           </div>
         </div>
       </div>
 
       {/* ── Stats Grid ── */}
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Live Stats</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Live Stats</p>
         <button
           onClick={fetchDashData}
           disabled={dataLoading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all disabled:opacity-40"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted border border-border rounded-none transition-all disabled:opacity-40"
         >
           <ArrowPathIcon className={`w-3.5 h-3.5 ${dataLoading ? 'animate-spin' : ''}`} />
           Refresh
@@ -687,23 +686,23 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {dataLoading
           ? Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-6 animate-pulse">
-              <div className="h-10 w-10 bg-white/10 rounded-xl mb-4" />
-              <div className="h-8 bg-white/10 rounded w-1/2 mb-2" />
-              <div className="h-4 bg-white/5 rounded w-2/3" />
+            <div key={i} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-6 animate-pulse">
+              <div className="h-10 w-10 bg-muted rounded-none mb-4" />
+              <div className="h-8 bg-muted rounded w-1/2 mb-2" />
+              <div className="h-4 bg-card shadow-sm rounded w-2/3" />
             </div>
           ))
           : stats.map(({ label, value, icon: Icon, gradient }) => (
-            <div key={label} className="bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-7 hover:bg-white/8 hover:border-white/20 transition-all group relative overflow-hidden">
+            <div key={label} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-7 hover:bg-white/8 hover:border-border transition-all group relative overflow-hidden">
               <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${gradient} opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
               <div className="flex items-start justify-between mb-5 relative z-10">
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>
-                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-none bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-foreground" />
                 </div>
-                <span className="text-[8px] sm:text-[10px] font-black text-white/20 uppercase tracking-[0.2em] bg-white/5 px-2 py-0.5 rounded-full border border-white/5">Live</span>
+                <span className="text-[8px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-card shadow-sm px-2 py-0.5 rounded-full border border-border">Live</span>
               </div>
-              <p className="text-2xl sm:text-4xl font-black text-white tracking-tight tabular-nums relative z-10">{value}</p>
-              <p className="text-[10px] sm:text-xs text-white/30 font-black uppercase tracking-widest mt-1.5 relative z-10">{label}</p>
+              <p className="text-2xl sm:text-4xl font-black text-foreground tracking-tight tabular-nums relative z-10">{value}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest mt-1.5 relative z-10">{label}</p>
             </div>
           ))
         }
@@ -714,18 +713,18 @@ export default function DashboardPage() {
         <div className="xl:col-span-2 space-y-6">
 
           {/* Quick Actions */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-5">Quick Actions</h2>
+          <div className="bg-card shadow-sm border border-border rounded-none p-6">
+            <h2 className="text-lg font-bold text-foreground mb-5">Quick Actions</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {quickActions.map(({ name, href, icon: Icon, desc }) => (
                 <Link key={name} href={href}
-                  className="group flex items-start gap-4 p-4 rounded-xl border border-white/10 hover:border-violet-500/40 hover:bg-violet-500/5 transition-all">
-                  <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-violet-500/25 transition-colors">
-                    <Icon className="h-5 w-5 text-violet-400" />
+                  className="group flex items-start gap-4 p-4 rounded-none border border-border hover:border-orange-500/40 hover:bg-orange-500/5 transition-all">
+                  <div className="w-10 h-10 rounded-none bg-orange-500/15 border border-orange-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-orange-500/25 transition-colors">
+                    <Icon className="h-5 w-5 text-orange-400" />
                   </div>
                   <div>
-                    <p className="font-semibold text-white text-sm group-hover:text-violet-200 transition-colors">{name}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{desc}</p>
+                    <p className="font-semibold text-foreground text-sm group-hover:text-orange-500 transition-colors">{name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
                   </div>
                 </Link>
               ))}
@@ -733,13 +732,13 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent Activity — live from DB */}
-          <div className="bg-[#0a0a1a] border border-white/10 rounded-[2rem] p-6 sm:p-8 shadow-2xl">
+          <div className="bg-background border border-border rounded-none p-6 sm:p-8 shadow-2xl">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h2 className="text-xl font-black text-white tracking-tight">Recent Activity</h2>
-                <p className="text-xs text-white/30 font-medium uppercase tracking-widest mt-1">Live Platform Pulse</p>
+                <h2 className="text-xl font-black text-foreground tracking-tight">Recent Activity</h2>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">Live Platform Pulse</p>
               </div>
-              <button onClick={fetchDashData} className="p-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/30 hover:text-white border border-white/10 transition-all group" title="Refresh">
+              <button onClick={fetchDashData} className="p-3 rounded-none bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-all group" title="Refresh">
                 <ArrowPathIcon className={`w-4 h-4 ${dataLoading ? 'animate-spin' : 'group-active:rotate-180 transition-transform'}`} />
               </button>
             </div>
@@ -747,35 +746,35 @@ export default function DashboardPage() {
               <div className="space-y-4">
                 {[1, 2, 3, 4].map(i => (
                   <div key={i} className="flex items-center gap-4 animate-pulse">
-                    <div className="w-11 h-11 bg-white/5 rounded-2xl flex-shrink-0" />
+                    <div className="w-11 h-11 bg-card shadow-sm rounded-none flex-shrink-0" />
                     <div className="flex-1 space-y-3">
-                      <div className="h-4 bg-white/5 rounded w-3/4" />
-                      <div className="h-3 bg-white/5 rounded w-1/2 opacity-50" />
+                      <div className="h-4 bg-card shadow-sm rounded w-3/4" />
+                      <div className="h-3 bg-card shadow-sm rounded w-1/2 opacity-50" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : activities.length === 0 ? (
-              <div className="text-center py-16 bg-white/[0.02] border border-dashed border-white/10 rounded-3xl">
-                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/5">
-                  <ClipboardDocumentListIcon className="w-8 h-8 text-white/10" />
+              <div className="text-center py-16 bg-white/[0.02] border border-dashed border-border rounded-none">
+                <div className="w-16 h-16 bg-card shadow-sm rounded-full flex items-center justify-center mx-auto mb-4 border border-border">
+                  <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <p className="text-white/30 font-bold uppercase tracking-widest text-xs">No recent activity yet</p>
+                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">No recent activity yet</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {activities.map((a, i) => (
-                  <div key={a.id} className="group flex items-start gap-4 p-4 rounded-2xl hover:bg-white/[0.03] transition-all border border-transparent hover:border-white/5">
-                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${a.color} group-hover:scale-110 transition-transform`}>
+                  <div key={a.id} className="group flex items-start gap-4 p-4 rounded-none hover:bg-white/[0.03] transition-all border border-transparent hover:border-border">
+                    <div className={`w-11 h-11 rounded-none flex items-center justify-center flex-shrink-0 shadow-lg ${a.color} group-hover:scale-110 transition-transform`}>
                       <a.icon className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-white text-sm tracking-tight group-hover:text-blue-300 transition-colors uppercase leading-none mt-1">
+                      <p className="font-bold text-foreground text-sm tracking-tight group-hover:text-orange-500 transition-colors uppercase leading-none mt-1">
                         {a.title}
                       </p>
-                      <p className="text-xs text-white/30 mt-2 font-medium truncate">{a.desc}</p>
+                      <p className="text-xs text-muted-foreground mt-2 font-medium truncate">{a.desc}</p>
                     </div>
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest whitespace-nowrap mt-1 bg-white/5 px-2 py-0.5 rounded-full border border-white/5 group-hover:text-white/40 transition-colors">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap mt-1 bg-card shadow-sm px-2 py-0.5 rounded-full border border-border group-hover:text-muted-foreground transition-colors">
                       {a.time}
                     </span>
                   </div>
@@ -789,28 +788,28 @@ export default function DashboardPage() {
         <div className="space-y-5">
 
           {/* Role summary card */}
-          <div className="bg-gradient-to-br from-violet-600/20 to-blue-600/20 border border-violet-500/20 rounded-2xl p-6">
+          <div className="bg-gradient-to-br from-orange-600/20 from-orange-600 to-orange-400/20 border border-orange-500/20 rounded-none p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-xl font-black text-white">
+              <div className="w-12 h-12 rounded-none bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-xl font-black text-foreground">
                 {(profile.full_name ?? 'U')[0].toUpperCase()}
               </div>
               <div>
-                <p className="font-bold text-white truncate">{profile.full_name}</p>
-                <p className="text-xs text-white/40 truncate">{profile.email}</p>
+                <p className="font-bold text-foreground truncate">{profile.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
               </div>
             </div>
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border capitalize ${role === 'admin' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-              role === 'teacher' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
-                role === 'school' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' :
+              role === 'teacher' ? 'bg-orange-500/20 text-orange-400 border-blue-500/30' :
+                role === 'school' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' :
                   'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
               }`}>{role}</span>
-            <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2">
+            <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
               <Link href="/dashboard/settings"
-                className="flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors">
+                className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                 <CogIcon className="w-4 h-4" /> Account Settings
               </Link>
               <Link href="/dashboard/profile"
-                className="flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors">
+                className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                 <AcademicCapIcon className="w-4 h-4" /> Edit Profile
               </Link>
             </div>
@@ -818,29 +817,29 @@ export default function DashboardPage() {
 
           {/* Upcoming Schedule */}
           {(role === 'teacher' || role === 'student' || role === 'school') && (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+            <div className="bg-card shadow-sm border border-border rounded-none p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-white text-sm">What's Next</h3>
-                <Link href="/dashboard/timetable" className="text-[10px] font-black text-violet-400 uppercase tracking-widest hover:underline">Full View</Link>
+                <h3 className="font-bold text-foreground text-sm">What's Next</h3>
+                <Link href="/dashboard/timetable" className="text-[10px] font-black text-orange-400 uppercase tracking-widest hover:underline">Full View</Link>
               </div>
               <div className="space-y-2">
                 {upcomingSlots.length > 0 ? (
                   upcomingSlots.map(slot => (
-                    <div key={slot.id} className="p-3 bg-white/5 border border-white/10 rounded-xl relative overflow-hidden group">
-                      <div className="absolute top-0 left-0 bottom-0 w-1 bg-violet-600" />
+                    <div key={slot.id} className="p-3 bg-card shadow-sm border border-border rounded-none relative overflow-hidden group">
+                      <div className="absolute top-0 left-0 bottom-0 w-1 bg-orange-600" />
                       <div className="flex justify-between items-start gap-2">
-                        <p className="text-xs font-bold text-white truncate">{slot.subject}</p>
-                        <span className="text-[9px] font-black text-violet-400 bg-violet-400/10 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">{slot.start_time}</span>
+                        <p className="text-xs font-bold text-foreground truncate">{slot.subject}</p>
+                        <span className="text-[9px] font-black text-orange-400 bg-orange-400/10 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">{slot.start_time}</span>
                       </div>
-                      <p className="text-[10px] text-white/40 mt-1 truncate">
+                      <p className="text-[10px] text-muted-foreground mt-1 truncate">
                         {slot.room ? `📍 ${slot.room}` : 'No room set'}
                         {slot.school_name && ` · ${slot.school_name}`}
                       </p>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-6 border border-dashed border-white/10 rounded-xl">
-                    <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">No classes today</p>
+                  <div className="text-center py-6 border border-dashed border-border rounded-none">
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">No classes today</p>
                   </div>
                 )}
               </div>
@@ -848,43 +847,43 @@ export default function DashboardPage() {
           )}
 
           {role === 'student' && leaderboard.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 relative overflow-hidden group">
+            <div className="bg-card shadow-sm border border-border rounded-none p-6 relative overflow-hidden group">
                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-amber-500/10 transition-all" />
                <div className="flex items-center justify-between mb-8 relative z-10">
-                  <h2 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-3">
+                  <h2 className="text-lg font-black text-foreground uppercase tracking-tight flex items-center gap-3">
                     <TrophyIcon className="w-6 h-6 text-amber-500" /> Hall of Fame
                   </h2>
-                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Global Rank</span>
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Global Rank</span>
                </div>
                <div className="space-y-1 relative z-10">
                   {leaderboard.map((u, i) => (
-                    <div key={i} className={`flex items-center justify-between p-3 rounded-xl transition-all ${u.name === profile.full_name ? 'bg-violet-600/20 border border-violet-500/20' : 'hover:bg-white/5'}`}>
+                    <div key={i} className={`flex items-center justify-between p-3 rounded-none transition-all ${u.name === profile.full_name ? 'bg-orange-600/20 border border-orange-500/20' : 'hover:bg-card shadow-sm'}`}>
                       <div className="flex items-center gap-4">
-                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${i === 0 ? 'bg-amber-500 text-black' : i === 1 ? 'bg-slate-300 text-black' : i === 2 ? 'bg-orange-400 text-black' : 'text-white/20'}`}>
+                        <div className={`w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black ${i === 0 ? 'bg-amber-500 text-black' : i === 1 ? 'bg-slate-300 text-black' : i === 2 ? 'bg-orange-400 text-black' : 'text-muted-foreground'}`}>
                           {u.rank}
                         </div>
-                        <div className="w-8 h-8 rounded-full border border-white/10 bg-[#0a0a20] flex items-center justify-center text-[10px] font-bold text-white/40 overflow-hidden">
+                        <div className="w-8 h-8 rounded-full border border-border bg-background flex items-center justify-center text-[10px] font-bold text-muted-foreground overflow-hidden">
                           {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" alt="" /> : u.name[0]}
                         </div>
                         <div className="min-w-0">
-                           <p className="text-xs font-black text-white/90 truncate max-w-[100px]">{u.name}</p>
-                           <p className="text-[8px] font-black text-white/20 uppercase tracking-widest">{u.level}</p>
+                           <p className="text-xs font-black text-muted-foreground truncate max-w-[100px]">{u.name}</p>
+                           <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">{u.level}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-black text-white tabular-nums">{u.points}</p>
-                        <p className="text-[8px] font-black text-white/20 uppercase tracking-widest">XP</p>
+                        <p className="text-sm font-black text-foreground tabular-nums">{u.points}</p>
+                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">XP</p>
                       </div>
                     </div>
                   ))}
                </div>
-               <Link href="/dashboard/leaderboard" className="mt-8 w-full block text-center py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[9px] font-black text-white/30 hover:text-white uppercase tracking-widest transition-all">View All Champions</Link>
+               <Link href="/dashboard/leaderboard" className="mt-8 w-full block text-center py-3 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-all">View All Champions</Link>
             </div>
           )}
 
           {/* Useful links */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-            <h3 className="font-bold text-white text-sm mb-4">Navigate To</h3>
+          <div className="bg-card shadow-sm border border-border rounded-none p-5">
+            <h3 className="font-bold text-foreground text-sm mb-4">Navigate To</h3>
             <div className="space-y-1">
               {role === 'admin' && [
                 { label: 'Approvals', href: '/dashboard/approvals', icon: CheckCircleIcon },
@@ -893,8 +892,8 @@ export default function DashboardPage() {
                 { label: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:bg-white/5 hover:text-white transition-all group">
-                  <Icon className="w-4 h-4 group-hover:text-violet-400 transition-colors" />
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-none text-sm text-muted-foreground hover:bg-card shadow-sm hover:text-foreground transition-all group">
+                  <Icon className="w-4 h-4 group-hover:text-orange-400 transition-colors" />
                   {label}
                   <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
                 </Link>
@@ -906,8 +905,8 @@ export default function DashboardPage() {
                 { label: 'Profile', href: '/dashboard/profile', icon: AcademicCapIcon },
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:bg-white/5 hover:text-white transition-all group">
-                  <Icon className="w-4 h-4 group-hover:text-blue-400 transition-colors" />
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-none text-sm text-muted-foreground hover:bg-card shadow-sm hover:text-foreground transition-all group">
+                  <Icon className="w-4 h-4 group-hover:text-orange-400 transition-colors" />
                   {label}
                   <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
                 </Link>
@@ -919,7 +918,7 @@ export default function DashboardPage() {
                 { label: 'Profile', href: '/dashboard/profile', icon: BellIcon },
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:bg-white/5 hover:text-white transition-all group">
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-none text-sm text-muted-foreground hover:bg-card shadow-sm hover:text-foreground transition-all group">
                   <Icon className="w-4 h-4 group-hover:text-emerald-400 transition-colors" />
                   {label}
                   <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
@@ -932,8 +931,8 @@ export default function DashboardPage() {
                 { label: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:bg-white/5 hover:text-white transition-all group">
-                  <Icon className="w-4 h-4 group-hover:text-violet-400 transition-colors" />
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-none text-sm text-muted-foreground hover:bg-card shadow-sm hover:text-foreground transition-all group">
+                  <Icon className="w-4 h-4 group-hover:text-orange-400 transition-colors" />
                   {label}
                   <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
                 </Link>

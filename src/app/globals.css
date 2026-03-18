@@ -43,11 +43,11 @@
 
 :root {
   --radius: 0px;
-  --background: oklch(1 0 0);
+  --background: #f9fafb;
   --foreground: oklch(0.13 0.028 261.692);
-  --card: oklch(1 0 0);
+  --card: #ffffff;
   --card-foreground: oklch(0.13 0.028 261.692);
-  --popover: oklch(1 0 0);
+  --popover: #ffffff;
   --popover-foreground: oklch(0.13 0.028 261.692);
   --primary: oklch(0.21 0.034 264.665);
   --primary-foreground: oklch(0.985 0.002 247.839);
@@ -79,9 +79,9 @@
 .dark {
   --background: #121212;
   --foreground: #ffffff;
-  --card: #1a1a1a;
+  --card: rgba(255, 255, 255, 0.05);
   --card-foreground: #ffffff;
-  --popover: #1a1a1a;
+  --popover: rgba(255, 255, 255, 0.05);
   --popover-foreground: #ffffff;
   --primary: oklch(0.928 0.006 264.531);
   --primary-foreground: oklch(0.21 0.034 264.665);
@@ -159,7 +159,7 @@ img[alt="Official Signature"] {
   .text-white\/60    { color: rgba(255,255,255,0.6) !important; }
   .text-white\/40    { color: rgba(255,255,255,0.4) !important; }
   .bg-white\/10      { background-color: rgba(255,255,255,0.1) !important; }
-  .border-white\/10  { border-color: rgba(255,255,255,0.1) !important; }
+  .border-border\/10  { border-color: rgba(255,255,255,0.1) !important; }
   /* Opacity backgrounds */
   .bg-emerald-50\/50 { background-color: rgba(236,253,245,0.5) !important; }
   .bg-amber-50\/50   { background-color: rgba(255,251,235,0.5) !important; }
@@ -443,7 +443,7 @@ select {
 
 @layer utilities {
   .glass-card {
-    @apply bg-white/[0.02] backdrop-blur-2xl border border-white/10 shadow-3xl;
+    @apply bg-white/[0.02] backdrop-blur-2xl border border-border shadow-3xl;
   }
 
   .text-glow-orange {

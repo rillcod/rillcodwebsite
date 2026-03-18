@@ -73,7 +73,7 @@ export default function Header() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-[#121212]/95 backdrop-blur-xl border-b border-white/10">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-[#121212]/95 backdrop-blur-xl border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
@@ -111,8 +111,8 @@ export default function Header() {
                 <ChevronDownIcon className={`w-3 h-3 transition-transform duration-200 ${activeDropdown === 'portals' ? 'rotate-180' : ''}`} />
               </button>
               {activeDropdown === 'portals' && (
-                <div className="absolute top-full right-0 mt-4 w-64 bg-[#1a1a1a] border border-white/10 rounded-none shadow-2xl py-3 z-50">
-                  <div className="px-6 py-2 border-b border-white/5 mb-2">
+                <div className="absolute top-full right-0 mt-4 w-64 bg-[#1a1a1a] border border-border rounded-none shadow-2xl py-3 z-50">
+                  <div className="px-6 py-2 border-b border-border mb-2">
                      <span className="text-[8px] font-black text-slate-600 uppercase tracking-[0.3em]">Operational Protocols</span>
                   </div>
                   {navigation.portals.map((link, idx) => {
@@ -138,7 +138,7 @@ export default function Header() {
           </nav>
 
           <button
-            className="lg:hidden p-4 bg-white/5 border border-white/10 text-white transition-colors"
+            className="lg:hidden p-4 bg-white/5 border border-border text-white transition-colors"
             onClick={() => setMenuOpen((v) => !v)}
             aria-label="Toggle menu"
           >
@@ -160,7 +160,7 @@ export default function Header() {
             />
             
             {/* Mobile Menu */}
-            <div className="lg:hidden fixed inset-0 top-20 bg-[#121212] z-[60] overflow-y-auto border-t border-white/5 h-[calc(100vh-80px)] shadow-2xl">
+            <div className="lg:hidden fixed inset-0 top-20 bg-[#121212] z-[60] overflow-y-auto border-t border-border h-[calc(100vh-80px)] shadow-2xl">
               <nav className="flex flex-col p-8 space-y-2">
                 <div className="mb-8">
                   <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-[0.4em] mb-6">Navigation</h3>
@@ -168,7 +168,7 @@ export default function Header() {
                     <Link
                       key={link.href}
                       href={link.href}
-                      className="block text-xl font-black text-white uppercase italic tracking-tighter hover:text-orange-500 transition-colors py-4 border-b border-white/5"
+                      className="block text-xl font-black text-white uppercase italic tracking-tighter hover:text-orange-500 transition-colors py-4 border-b border-border"
                       onClick={closeMenu}
                     >
                       {link.label}
@@ -176,7 +176,7 @@ export default function Header() {
                   ))}
                 </div>
 
-                <div className="grid grid-cols-2 gap-px bg-white/5 border border-white/10 mb-8">
+                <div className="grid grid-cols-2 gap-px bg-white/5 border border-border mb-8">
                    <div className="bg-[#1a1a1a] p-6">
                       <h3 className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-4">Resources</h3>
                       {navigation.resources.map((link) => (
@@ -207,7 +207,7 @@ export default function Header() {
                         <Link
                           key={item.href}
                           href={item.href}
-                          className="flex items-center gap-4 bg-white/5 border border-white/10 p-5 text-[10px] font-black uppercase tracking-widest text-white hover:border-orange-500 transition-all font-black"
+                          className="flex items-center gap-4 bg-white/5 border border-border p-5 text-[10px] font-black uppercase tracking-widest text-white hover:border-orange-500 transition-all font-black"
                           onClick={closeMenu}
                         >
                           <Icon className="w-4 h-4 text-orange-500 fill-none" />

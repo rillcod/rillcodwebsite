@@ -24,7 +24,7 @@ const TYPE_COLOR: Record<string, string> = {
   'hands-on': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   hands_on: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   interactive: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  workshop: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  workshop: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   coding: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
 };
 
@@ -75,14 +75,14 @@ function MermaidRenderer({ code }: { code: string }) {
     return (
       <div className="my-12 p-8 sm:p-12 bg-rose-500/5 border-2 border-rose-500/10 rounded-[40px] sm:rounded-[60px] text-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="p-4 rounded-2xl bg-rose-500/20 text-rose-400">
+          <div className="p-4 rounded-none bg-rose-500/20 text-rose-400">
             <ExclamationTriangleIcon className="w-8 h-8" />
           </div>
           <div className="space-y-1">
             <p className="text-[10px] font-black text-rose-500/60 uppercase tracking-widest">Syntactic Anomaly Detected</p>
-            <p className="text-sm font-bold text-white/80">Mermaid Engine v11 Render Failure</p>
+            <p className="text-sm font-bold text-muted-foreground">Mermaid Engine v11 Render Failure</p>
           </div>
-          <pre className="mt-4 w-full p-6 bg-black/40 rounded-2xl text-[10px] font-mono text-white/30 text-left overflow-x-auto border border-white/5 italic">
+          <pre className="mt-4 w-full p-6 bg-black/40 rounded-none text-[10px] font-mono text-muted-foreground text-left overflow-x-auto border border-border italic">
             {code}
           </pre>
           <p className="text-[10px] text-rose-400/40 font-bold uppercase tracking-widest">Check diagram syntax or refresh module</p>
@@ -97,7 +97,7 @@ function MermaidRenderer({ code }: { code: string }) {
         <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
         <p className="text-[10px] font-black text-cyan-500/60 uppercase tracking-[0.3em]">System Architecture Diagram</p>
       </div>
-      <div className="bg-white/95 p-8 sm:p-12 rounded-[40px] sm:rounded-[60px] flex justify-center overflow-x-auto shadow-2xl border-4 border-white/5 relative group min-h-[100px]">
+      <div className="bg-white/95 p-8 sm:p-12 rounded-[40px] sm:rounded-[60px] flex justify-center overflow-x-auto shadow-2xl border-4 border-border relative group min-h-[100px]">
         <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
         {svg ? (
           <div 
@@ -107,7 +107,7 @@ function MermaidRenderer({ code }: { code: string }) {
         ) : (
           <div className="flex items-center gap-3">
              <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-             <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Synthesizing Diagram...</span>
+             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Synthesizing Diagram...</span>
           </div>
         )}
       </div>
@@ -130,7 +130,7 @@ function MathRenderer({ formula }: { formula: string }) {
         setHtml(`<span class="text-rose-400">Error: ${formula}</span>`);
       }
     } else {
-      setHtml(`<span class="font-serif italic text-white/80">${formula}</span>`);
+      setHtml(`<span class="font-serif italic text-muted-foreground">${formula}</span>`);
     }
   }, [formula]);
 
@@ -138,7 +138,7 @@ function MathRenderer({ formula }: { formula: string }) {
     <div className="my-12 p-10 sm:p-20 bg-indigo-500/5 border-2 border-indigo-500/10 rounded-[40px] sm:rounded-[60px] relative overflow-hidden group shadow-3xl text-center">
       <div className="absolute -left-10 -top-10 w-48 h-48 bg-indigo-500/10 blur-3xl rounded-full group-hover:scale-125 transition-transform" />
       <p className="text-[10px] font-black text-indigo-400/60 uppercase tracking-[0.4em] mb-10 relative z-10">Mathematical Synthesis</p>
-      <div className="math-container text-2xl sm:text-5xl text-white relative z-10 overflow-x-auto py-4" dangerouslySetInnerHTML={{ __html: html }} />
+      <div className="math-container text-2xl sm:text-5xl text-foreground relative z-10 overflow-x-auto py-4" dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   );
 }
@@ -154,15 +154,15 @@ function MonacoEditorBlock({ code, language }: { code: string; language?: string
   };
 
   return (
-    <div className="bg-[#050510] rounded-[2.5rem] sm:rounded-[4rem] border border-white/5 overflow-hidden shadow-2xl relative group my-12">
-      <div className="flex items-center justify-between px-8 py-5 bg-[#0a0a1a] border-b border-white/5">
+    <div className="bg-[#050510] rounded-[2.5rem] sm:rounded-[4rem] border border-border overflow-hidden shadow-2xl relative group my-12">
+      <div className="flex items-center justify-between px-8 py-5 bg-background border-b border-border">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-rose-500/30" />
           <div className="w-3 h-3 rounded-full bg-amber-500/30" />
           <div className="w-3 h-3 rounded-full bg-emerald-500/30" />
-          <span className="ml-4 text-[10px] text-white/20 uppercase font-black tracking-widest">{language || 'Code Workspace'}</span>
+          <span className="ml-4 text-[10px] text-muted-foreground uppercase font-black tracking-widest">{language || 'Code Workspace'}</span>
         </div>
-        <button onClick={handleCopy} className="p-2.5 rounded-xl bg-white/5 text-white/30 hover:text-cyan-400 hover:bg-cyan-400/10 transition-all active:scale-95">
+        <button onClick={handleCopy} className="p-2.5 rounded-none bg-card shadow-sm text-muted-foreground hover:text-cyan-400 hover:bg-cyan-400/10 transition-all active:scale-95">
            {copied ? <CheckBadgeIcon className="w-4 h-4" /> : <ClipboardIcon className="w-4 h-4" />}
         </button>
       </div>
@@ -184,10 +184,10 @@ function MonacoEditorBlock({ code, language }: { code: string; language?: string
           }}
         />
       </div>
-      <div className="px-8 py-4 bg-[#0a0a1a]/50 border-t border-white/5 flex items-center justify-between">
+      <div className="px-8 py-4 bg-background/50 border-t border-border flex items-center justify-between">
          <div className="flex items-center gap-2">
            <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
-           <span className="text-[9px] font-black text-white/20 uppercase tracking-widest italic">Live Code Environment</span>
+           <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest italic">Live Code Environment</span>
          </div>
       </div>
     </div>
@@ -205,33 +205,33 @@ function InteractiveQuiz({ block }: { block: any }) {
   };
 
   return (
-    <div className="p-10 sm:p-24 rounded-[60px] sm:rounded-[80px] border-2 border-violet-500/20 bg-[#0a0a1a] space-y-12 sm:space-y-20 relative overflow-hidden group shadow-[0_40px_100px_rgba(139,92,246,0.1)] transition-all hover:border-violet-500/40 my-12">
+    <div className="p-10 sm:p-24 rounded-[60px] sm:rounded-[80px] border-2 border-orange-500/20 bg-background space-y-12 sm:space-y-20 relative overflow-hidden group shadow-[0_40px_100px_rgba(139,92,246,0.1)] transition-all hover:border-orange-500/40 my-12">
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 sm:gap-12 relative z-10 text-center sm:text-left">
-        <div className="p-6 rounded-[2rem] bg-violet-500/10 text-violet-400 shadow-2xl ring-4 ring-violet-500/5">
+        <div className="p-6 rounded-[2rem] bg-orange-500/10 text-orange-400 shadow-2xl ring-4 ring-orange-500/5">
           <QuestionMarkCircleIcon className="w-10 h-10 sm:w-16 sm:h-16" />
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-center sm:justify-start gap-3">
-            <span className="w-2 h-2 rounded-full bg-violet-500 shadow-[0_0_10px_violet]" />
-            <p className="text-[11px] font-black text-violet-400/60 uppercase tracking-[0.4em]">Checkpoint Alpha</p>
+            <span className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_10px_orange]" />
+            <p className="text-[11px] font-black text-orange-400/60 uppercase tracking-[0.4em]">Checkpoint Alpha</p>
           </div>
-          <h3 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter text-white">Validation Sync</h3>
+          <h3 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter text-foreground">Validation Sync</h3>
         </div>
       </div>
       <div className="space-y-12 sm:space-y-20 relative z-10">
-        <p className="text-3xl sm:text-6xl font-black text-white leading-[1.1] tracking-tighter text-center sm:text-left">{block.question}</p>
+        <p className="text-3xl sm:text-6xl font-black text-foreground leading-[1.1] tracking-tighter text-center sm:text-left">{block.question}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-10">
           {block.options?.map((opt: string, optIdx: number) => {
             const isCorrect = optIdx === block.correctAnswer;
             const isSelected = selected === optIdx;
             
-            let stateClass = "border-white/5 bg-white/[0.02]";
+            let stateClass = "border-border bg-white/[0.02]";
             if (revealed) {
               if (isCorrect) stateClass = "border-emerald-500/50 bg-emerald-500/10 text-emerald-400";
               else if (isSelected) stateClass = "border-rose-500/50 bg-rose-500/10 text-rose-400";
-              else stateClass = "border-white/5 bg-white/[0.01] opacity-40";
+              else stateClass = "border-border bg-white/[0.01] opacity-40";
             } else {
-              stateClass = "border-white/5 bg-white/[0.02] hover:border-violet-500/40 hover:bg-violet-500/10";
+              stateClass = "border-border bg-white/[0.02] hover:border-orange-500/40 hover:bg-orange-500/10";
             }
 
             return (
@@ -243,10 +243,10 @@ function InteractiveQuiz({ block }: { block: any }) {
                 className={`p-8 sm:p-14 rounded-[3rem] sm:rounded-[4rem] border-2 transition-all text-left shadow-2xl relative overflow-hidden ${stateClass}`}
               >
                 <div className="flex items-center gap-8 sm:gap-12 relative z-10">
-                  <div className={`w-12 h-12 sm:w-20 sm:h-20 rounded-[1.5rem] sm:rounded-[2rem] border flex items-center justify-center text-[14px] sm:text-[20px] font-black transition-colors ${revealed && isCorrect ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : revealed && isSelected ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'bg-white/5 border-white/10 text-white/20'}`}>
+                  <div className={`w-12 h-12 sm:w-20 sm:h-20 rounded-[1.5rem] sm:rounded-[2rem] border flex items-center justify-center text-[14px] sm:text-[20px] font-black transition-colors ${revealed && isCorrect ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : revealed && isSelected ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'bg-card shadow-sm border-border text-muted-foreground'}`}>
                     {String.fromCharCode(65 + optIdx)}
                   </div>
-                  <span className={`font-black text-xl sm:text-3xl leading-tight transition-colors ${revealed && isCorrect ? 'text-white' : revealed && isSelected ? 'text-white' : revealed ? 'text-white/20' : 'text-white/50 group-hover:text-white'}`}>
+                  <span className={`font-black text-xl sm:text-3xl leading-tight transition-colors ${revealed && isCorrect ? 'text-foreground' : revealed && isSelected ? 'text-foreground' : revealed ? 'text-muted-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>
                     {opt}
                   </span>
                 </div>
@@ -268,19 +268,19 @@ function InteractiveQuiz({ block }: { block: any }) {
             <motion.div 
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
-              className="pt-10 sm:pt-20 border-t border-white/5"
+              className="pt-10 sm:pt-20 border-t border-border"
             >
               <div className="flex flex-col sm:flex-row gap-6 sm:gap-12 items-center">
-                 <div className={`p-4 rounded-2xl ${selected === block.correctAnswer ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                 <div className={`p-4 rounded-none ${selected === block.correctAnswer ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
                     {selected === block.correctAnswer ? <CheckBadgeIcon className="w-8 h-8" /> : <XMarkIcon className="w-8 h-8" />}
                  </div>
                  <div className="space-y-2 text-center sm:text-left">
-                    <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em]">Module Feedback</p>
-                    <p className="text-xl sm:text-3xl font-black text-white tracking-tight">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Module Feedback</p>
+                    <p className="text-xl sm:text-3xl font-black text-foreground tracking-tight">
                       {selected === block.correctAnswer ? "Analytical Precision Confirmed." : "Differential Data Detected. Review Required."}
                     </p>
                  </div>
-                 <button onClick={() => {setRevealed(false); setSelected(null);}} className="ml-auto px-8 py-4 bg-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/10 hover:text-white transition-all">Try Again</button>
+                 <button onClick={() => {setRevealed(false); setSelected(null);}} className="ml-auto px-8 py-4 bg-card shadow-sm rounded-none text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted hover:text-foreground transition-all">Try Again</button>
               </div>
             </motion.div>
           )}
@@ -319,7 +319,7 @@ function CompletionCelebration({ onDismiss }: { onDismiss: () => void }) {
                repeat: Infinity,
                ease: "easeOut"
              }}
-             className={`absolute w-4 h-4 rounded-full ${['bg-cyan-500', 'bg-violet-500', 'bg-amber-500', 'bg-emerald-500'][i % 4]}`}
+             className={`absolute w-4 h-4 rounded-full ${['bg-cyan-500', 'bg-orange-500', 'bg-amber-500', 'bg-emerald-500'][i % 4]}`}
            />
          ))}
       </div>
@@ -327,38 +327,38 @@ function CompletionCelebration({ onDismiss }: { onDismiss: () => void }) {
       <motion.div 
         initial={{ scale: 0.8, opacity: 0, y: 40 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="max-w-2xl w-full bg-[#0a0a20] border border-white/10 rounded-[4rem] p-12 sm:p-20 text-center space-y-12 shadow-[0_50px_100px_rgba(6,182,212,0.15)] relative"
+        className="max-w-2xl w-full bg-background border border-border rounded-[4rem] p-12 sm:p-20 text-center space-y-12 shadow-[0_50px_100px_rgba(6,182,212,0.15)] relative"
       >
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-           <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-br from-cyan-600 to-indigo-600 flex items-center justify-center text-white shadow-3xl rotate-12">
+           <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-br from-orange-600 to-orange-400 to-indigo-600 flex items-center justify-center text-foreground shadow-3xl rotate-12">
               <TrophyIcon className="w-16 h-16" />
            </div>
         </div>
 
         <div className="space-y-6 pt-10">
            <div className="flex items-center justify-center gap-4">
-              <div className="h-px w-12 bg-white/10" />
+              <div className="h-px w-12 bg-muted" />
               <p className="text-[12px] font-black text-cyan-400 uppercase tracking-[0.6em]">Academic Milestone</p>
-              <div className="h-px w-12 bg-white/10" />
+              <div className="h-px w-12 bg-muted" />
            </div>
-           <h2 className="text-5xl sm:text-8xl font-black text-white leading-none tracking-tighter">SUCCESS SYNCED</h2>
-           <p className="text-xl sm:text-3xl text-white/40 font-medium italic">You've successfully integrated the fundamental constructs of this module.</p>
+           <h2 className="text-5xl sm:text-8xl font-black text-foreground leading-none tracking-tighter">SUCCESS SYNCED</h2>
+           <p className="text-xl sm:text-3xl text-muted-foreground font-medium italic">You've successfully integrated the fundamental constructs of this module.</p>
         </div>
 
         <div className="grid grid-cols-2 gap-6">
-           <div className="bg-white/5 border border-white/5 rounded-3xl p-8">
-              <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-2">Mastery Points</p>
+           <div className="bg-card shadow-sm border border-border rounded-none p-8">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Mastery Points</p>
               <p className="text-3xl font-black text-cyan-400">+250 XP</p>
            </div>
-           <div className="bg-white/5 border border-white/5 rounded-3xl p-8">
-              <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-2">Efficiency</p>
-              <p className="text-3xl font-black text-violet-400">OPTIMAL</p>
+           <div className="bg-card shadow-sm border border-border rounded-none p-8">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Efficiency</p>
+              <p className="text-3xl font-black text-orange-400">OPTIMAL</p>
            </div>
         </div>
 
         <button 
           onClick={onDismiss}
-          className="w-full py-8 bg-white text-black font-black uppercase tracking-[0.4em] text-xs rounded-3xl hover:bg-cyan-500 hover:text-white transition-all shadow-2xl active:scale-95"
+          className="w-full py-8 bg-white text-black font-black uppercase tracking-[0.4em] text-xs rounded-none hover:bg-cyan-500 hover:text-foreground transition-all shadow-2xl active:scale-95"
         >
           Return to Hub
         </button>
@@ -377,8 +377,8 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
           case 'heading':
             return (
               <div key={i} className="relative group pt-6">
-                <div className="absolute -left-6 sm:-left-12 top-0 bottom-0 w-1.5 bg-gradient-to-b from-cyan-500 to-indigo-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                <h2 className="text-3xl sm:text-6xl font-black tracking-tight text-white leading-[1.1] break-words">
+                <div className="absolute -left-6 sm:-left-12 top-0 bottom-0 w-1.5 bg-gradient-to-b from-orange-600 to-orange-400 to-indigo-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                <h2 className="text-3xl sm:text-6xl font-black tracking-tight text-foreground leading-[1.1] break-words">
                   {block.content}
                 </h2>
               </div>
@@ -386,7 +386,7 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
           case 'text':
             return (
               <div key={i} className="relative py-4">
-                <p className="text-xl sm:text-2xl text-white/50 leading-[1.7] whitespace-pre-wrap font-medium selection:bg-cyan-500/30 break-words">
+                <p className="text-xl sm:text-2xl text-muted-foreground leading-[1.7] whitespace-pre-wrap font-medium selection:bg-cyan-500/30 break-words">
                   {block.content}
                 </p>
               </div>
@@ -396,10 +396,10 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
           case 'image':
             return (
               <div key={i} className="space-y-4 sm:space-y-8">
-                <div className="rounded-[40px] sm:rounded-[60px] overflow-hidden border border-white/10 shadow-3xl transition-all hover:scale-[1.01] duration-700 hover:border-cyan-500/20">
+                <div className="rounded-[40px] sm:rounded-[60px] overflow-hidden border border-border shadow-3xl transition-all hover:scale-[1.01] duration-700 hover:border-cyan-500/20">
                   <img src={block.url} alt={block.caption} className="w-full object-cover" />
                 </div>
-                {block.caption && <p className="text-center text-[10px] sm:text-xs text-white/20 font-black uppercase tracking-[0.3em] italic px-10">{block.caption}</p>}
+                {block.caption && <p className="text-center text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-[0.3em] italic px-10">{block.caption}</p>}
               </div>
             );
           case 'callout':
@@ -417,14 +417,14 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
                     <p className={`text-[11px] sm:text-[12px] font-black uppercase tracking-[0.3em] ${isWarning ? 'text-rose-400' : 'text-cyan-400'}`}>
                       {isWarning ? 'Strict Requirement' : 'Key Insight'}
                     </p>
-                    <p className="text-xl sm:text-3xl font-black text-white leading-relaxed tracking-tight">{block.content}</p>
+                    <p className="text-xl sm:text-3xl font-black text-foreground leading-relaxed tracking-tight">{block.content}</p>
                   </div>
                 </div>
               </div>
             );
           case 'activity':
             return (
-              <div key={i} className="p-10 sm:p-24 rounded-[60px] sm:rounded-[80px] border-2 border-emerald-500/20 bg-[#0a0a1a] space-y-12 sm:space-y-20 relative overflow-hidden group shadow-[0_40px_100px_rgba(16,185,129,0.1)] transition-all hover:border-emerald-500/40">
+              <div key={i} className="p-10 sm:p-24 rounded-[60px] sm:rounded-[80px] border-2 border-emerald-500/20 bg-background space-y-12 sm:space-y-20 relative overflow-hidden group shadow-[0_40px_100px_rgba(16,185,129,0.1)] transition-all hover:border-emerald-500/40">
                 <div className="absolute -right-32 -top-32 w-80 sm:w-[500px] h-80 sm:h-[500px] text-emerald-500/[0.03] transition-transform group-hover:scale-110 rotate-12 pointer-events-none">
                   <RocketLaunchIcon />
                 </div>
@@ -437,11 +437,11 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                       <p className="text-[11px] sm:text-[14px] font-black text-emerald-500/60 uppercase tracking-[0.5em]">Active Lab</p>
                     </div>
-                    <h3 className="text-4xl sm:text-7xl font-black uppercase tracking-tighter text-white leading-none">{block.title || 'Hands-on Synthesis'}</h3>
+                    <h3 className="text-4xl sm:text-7xl font-black uppercase tracking-tighter text-foreground leading-none">{block.title || 'Hands-on Synthesis'}</h3>
                   </div>
                 </div>
                 <div className="relative z-10 sm:pl-16 border-l-8 border-emerald-500/10 py-4">
-                  <div className="text-2xl sm:text-4xl font-medium text-white/70 leading-[1.6] whitespace-pre-wrap italic">
+                  <div className="text-2xl sm:text-4xl font-medium text-muted-foreground leading-[1.6] whitespace-pre-wrap italic">
                     {block.instructions || 'Initializing protocol. Follow the prompt.'}
                   </div>
                 </div>
@@ -452,30 +452,30 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
           case 'video':
             return (
               <div key={i} className="space-y-4 sm:space-y-8">
-                <div className="aspect-video rounded-[40px] sm:rounded-[60px] overflow-hidden border-2 border-white/10 bg-slate-900 shadow-3xl relative group">
+                <div className="aspect-video rounded-[40px] sm:rounded-[60px] overflow-hidden border-2 border-border bg-slate-900 shadow-3xl relative group">
                   <iframe
                     src={`https://www.youtube.com/embed/${block.url?.includes('v=') ? block.url.split('v=')[1].split('&')[0] : block.url?.split('/').pop()}`}
                     className="w-full h-full"
                     allowFullScreen
                   />
                 </div>
-                {block.caption && <p className="text-center text-xs sm:text-sm font-black uppercase tracking-[0.3em] text-white/20 italic px-4">{block.caption}</p>}
+                {block.caption && <p className="text-center text-xs sm:text-sm font-black uppercase tracking-[0.3em] text-muted-foreground italic px-4">{block.caption}</p>}
               </div>
             );
           case 'file':
             return (
-              <div key={i} className="p-6 sm:p-12 rounded-[40px] sm:rounded-[60px] border-2 border-white/10 bg-white/5 flex flex-col sm:flex-row items-center justify-between gap-8 group hover:border-cyan-500/30 transition-all text-center sm:text-left shadow-2xl relative overflow-hidden">
+              <div key={i} className="p-6 sm:p-12 rounded-[40px] sm:rounded-[60px] border-2 border-border bg-card shadow-sm flex flex-col sm:flex-row items-center justify-between gap-8 group hover:border-cyan-500/30 transition-all text-center sm:text-left shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-600/5 blur-3xl rounded-full" />
                 <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-10 relative z-10">
                   <div className="p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] bg-cyan-500/10 text-cyan-400 group-hover:scale-110 transition-transform shadow-xl">
                     <ArrowDownTrayIcon className="w-8 h-8 sm:w-12 sm:h-12" />
                   </div>
                   <div>
-                    <h4 className="text-xl sm:text-3xl font-black text-white group-hover:text-cyan-400 transition-colors truncate max-w-[200px] sm:max-w-md tracking-tight">{block.fileName || 'Learning Resource'}</h4>
-                    <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mt-1">Ready for Download</p>
+                    <h4 className="text-xl sm:text-3xl font-black text-foreground group-hover:text-cyan-400 transition-colors truncate max-w-[200px] sm:max-w-md tracking-tight">{block.fileName || 'Learning Resource'}</h4>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1">Ready for Download</p>
                   </div>
                 </div>
-                <a href={block.url} target="_blank" className="relative z-10 w-full sm:w-auto px-10 py-5 rounded-2xl sm:rounded-3xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs sm:text-sm uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95">Download Now</a>
+                <a href={block.url} target="_blank" className="relative z-10 w-full sm:w-auto px-10 py-5 rounded-none bg-cyan-600 hover:bg-cyan-500 text-foreground font-black text-xs sm:text-sm uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95">Download Now</a>
               </div>
             );
           case 'mermaid':
@@ -491,11 +491,11 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
 }
 
 const TabBtn = ({ active, onClick, icon: Icon, label, count }: any) => (
-  <button onClick={onClick} className={`flex items-center gap-2 sm:gap-2.5 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl transition-all relative group whitespace-nowrap ${active ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-[0_10px_30px_-10px_rgba(6,182,212,0.5)]' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
-    <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:scale-110 ${active ? 'text-white' : 'text-current'}`} />
+  <button onClick={onClick} className={`flex items-center gap-2 sm:gap-2.5 px-4 sm:px-6 py-3 sm:py-4 rounded-none transition-all relative group whitespace-nowrap ${active ? 'bg-gradient-to-r from-orange-600 to-orange-400 to-indigo-500 text-foreground shadow-[0_10px_30px_-10px_rgba(6,182,212,0.5)]' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
+    <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:scale-110 ${active ? 'text-foreground' : 'text-current'}`} />
     <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] sm:tracking-[0.15em] shrink-0">{label}</span>
     {count !== undefined && count > 0 && (
-      <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black min-w-[16px] sm:min-w-[18px] text-center ${active ? 'bg-white/20 text-white' : 'bg-white/5 text-white/20 group-hover:text-white/40'}`}>
+      <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black min-w-[16px] sm:min-w-[18px] text-center ${active ? 'bg-muted text-foreground' : 'bg-card shadow-sm text-muted-foreground group-hover:text-muted-foreground'}`}>
         {count}
       </span>
     )}
@@ -639,9 +639,9 @@ export default function LessonDetailPage() {
   };
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex flex-col items-center justify-center gap-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
       <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-      <p className="text-white/20 text-xs font-black uppercase tracking-widest">Loading Learning Environment...</p>
+      <p className="text-muted-foreground text-xs font-black uppercase tracking-widest">Loading Learning Environment...</p>
       <Script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js" strategy="afterInteractive" onLoad={() => {
         (window as any).mermaid?.initialize({ 
           startOnLoad: false, 
@@ -663,8 +663,8 @@ export default function LessonDetailPage() {
     <div className="min-h-screen bg-[#070710] flex flex-col items-center justify-center p-8 text-center gap-6">
       <ExclamationTriangleIcon className="w-16 h-16 text-rose-500/20" />
       <h2 className="text-3xl font-black text-rose-400">Lesson Error</h2>
-      <p className="text-white/40 max-w-md">{error || 'Unable to load lesson content. Please check your connection or contact support.'}</p>
-      <Link href="/dashboard" className="px-8 py-3 bg-white/5 border border-white/10 rounded-2xl text-xs font-black uppercase">Back to Dashboard</Link>
+      <p className="text-muted-foreground max-w-md">{error || 'Unable to load lesson content. Please check your connection or contact support.'}</p>
+      <Link href="/dashboard" className="px-8 py-3 bg-card shadow-sm border border-border rounded-none text-xs font-black uppercase">Back to Dashboard</Link>
     </div>
   );
 
@@ -673,24 +673,24 @@ export default function LessonDetailPage() {
   const isReading = lesson.lesson_type === 'reading';
 
   return (
-    <div className="min-h-screen bg-[#070710] text-white flex flex-col md:flex-row h-screen overflow-hidden">
+    <div className="min-h-screen bg-[#070710] text-foreground flex flex-col md:flex-row h-screen overflow-hidden">
       <AnimatePresence>
         {showCelebration && <CompletionCelebration onDismiss={() => setShowCelebration(false)} />}
       </AnimatePresence>
       {/* Mobile Header (Techy & Clean) */}
-      <div className="md:hidden p-5 border-b border-white/5 bg-[#0a0a1a]/80 backdrop-blur-xl flex items-center justify-between z-50 sticky top-0">
+      <div className="md:hidden p-5 border-b border-border bg-background/80 backdrop-blur-xl flex items-center justify-between z-50 sticky top-0">
         <div className="flex items-center gap-4">
-          <button onClick={() => setSidebarOpen(true)} className="p-3 bg-white/5 rounded-2xl text-cyan-400 hover:bg-cyan-500/10 transition-all border border-white/5 active:scale-95 shadow-xl">
+          <button onClick={() => setSidebarOpen(true)} className="p-3 bg-card shadow-sm rounded-none text-cyan-400 hover:bg-cyan-500/10 transition-all border border-border active:scale-95 shadow-xl">
             <RectangleGroupIcon className="w-5 h-5" />
           </button>
           <div className="min-w-0">
             <p className="text-[9px] font-black text-cyan-500/60 uppercase tracking-[0.2em] leading-none mb-1">In Session</p>
-            <h2 className="text-xs font-black text-white/90 truncate max-w-[150px] uppercase tracking-wider">{lesson.title}</h2>
+            <h2 className="text-xs font-black text-muted-foreground truncate max-w-[150px] uppercase tracking-wider">{lesson.title}</h2>
           </div>
         </div>
         <div className="flex items-center gap-2">
            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-           <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Live</span>
+           <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Live</span>
         </div>
       </div>
 
@@ -699,27 +699,27 @@ export default function LessonDetailPage() {
         {/* Mobile Backdrop */}
         <div className={`md:hidden absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity duration-700 ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)} />
         
-        <div className="relative h-full bg-[#0a0a1a] border-r border-white/5 flex flex-col w-[85%] max-w-[340px] md:w-full shadow-[20px_0_50px_rgba(0,0,0,0.5)]">
-          <div className="p-8 border-b border-white/5 flex items-center justify-between bg-gradient-to-br from-white/[0.02] to-transparent">
+        <div className="relative h-full bg-background border-r border-border flex flex-col w-[85%] max-w-[340px] md:w-full shadow-[20px_0_50px_rgba(0,0,0,0.5)]">
+          <div className="p-8 border-b border-border flex items-center justify-between bg-gradient-to-br from-white/[0.02] to-transparent">
             <div>
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
-                <h2 className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em]">Curriculum</h2>
+                <h2 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Curriculum</h2>
               </div>
-              <p className="font-black text-white text-lg leading-tight truncate max-w-[200px]">{lesson.courses?.programs?.name || 'Academic Track'}</p>
+              <p className="font-black text-foreground text-lg leading-tight truncate max-w-[200px]">{lesson.courses?.programs?.name || 'Academic Track'}</p>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="md:hidden p-3 bg-white/5 rounded-2xl text-white/20 hover:text-white transition-all hover:bg-rose-500/10 active:scale-95">
+            <button onClick={() => setSidebarOpen(false)} className="md:hidden p-3 bg-card shadow-sm rounded-none text-muted-foreground hover:text-foreground transition-all hover:bg-rose-500/10 active:scale-95">
               <XMarkIcon className="w-5 h-5" />
             </button>
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 custom-scrollbar bg-[#080812]">
-            <div className="px-6 py-5 bg-white/5 border border-white/5 rounded-3xl mb-6 shadow-2xl relative overflow-hidden group">
+            <div className="px-6 py-5 bg-card shadow-sm border border-border rounded-none mb-6 shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-600/10 blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform" />
               <h3 className="text-xs font-black text-cyan-400 uppercase tracking-widest relative z-10">{lesson.courses?.title || 'Operational Syllabus'}</h3>
               <div className="flex items-center gap-2 mt-2 relative z-10">
-                <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">{courseLessons.length} Modules Total</span>
-                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">{courseLessons.length} Modules Total</span>
+                <div className="h-px flex-1 bg-muted" />
               </div>
             </div>
 
@@ -730,15 +730,15 @@ export default function LessonDetailPage() {
                 return (
                   <Link key={l.id} href={`/dashboard/lessons/${l.id}${classId ? `?class_id=${classId}` : ''}`}
                     onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-4 p-4 rounded-2xl transition-all relative group overflow-hidden ${isActive ? 'bg-cyan-500/10 text-white shadow-xl ring-1 ring-cyan-500/20' : 'hover:bg-white/5 text-white/20 hover:text-white/60'}`}>
+                    className={`flex items-center gap-4 p-4 rounded-none transition-all relative group overflow-hidden ${isActive ? 'bg-cyan-500/10 text-foreground shadow-xl ring-1 ring-cyan-500/20' : 'hover:bg-card shadow-sm text-muted-foreground hover:text-muted-foreground'}`}>
                     {isActive && <div className="absolute left-0 top-0 w-1 h-full bg-cyan-500 shadow-[0_0_15px_cyan]" />}
                     
-                    <div className={`shrink-0 w-8 h-8 rounded-xl border flex items-center justify-center text-[10px] font-black transition-all ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : isActive ? 'bg-white text-black border-white' : 'border-white/10 group-hover:border-white/20 group-hover:bg-white/5'}`}>
+                    <div className={`shrink-0 w-8 h-8 rounded-none border flex items-center justify-center text-[10px] font-black transition-all ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-foreground shadow-lg shadow-emerald-500/20' : isActive ? 'bg-white text-black border-border' : 'border-border group-hover:border-border group-hover:bg-card shadow-sm'}`}>
                       {isCompleted ? <CheckBadgeIcon className="w-4 h-4" /> : idx + 1}
                     </div>
                     
                     <div className="min-w-0 flex-1">
-                      <span className={`text-[11px] font-black block truncate leading-tight uppercase tracking-wide ${isActive ? 'text-white' : 'text-current group-hover:text-white/80'}`}>{l.title}</span>
+                      <span className={`text-[11px] font-black block truncate leading-tight uppercase tracking-wide ${isActive ? 'text-foreground' : 'text-current group-hover:text-muted-foreground'}`}>{l.title}</span>
                       <div className="flex items-center gap-2 mt-1">
                          <span className="text-[8px] uppercase tracking-widest font-black opacity-30">{l.lesson_type}</span>
                          {isCompleted && <span className="text-[8px] text-emerald-500 font-bold uppercase tracking-widest">Verified</span>}
@@ -750,8 +750,8 @@ export default function LessonDetailPage() {
             </div>
           </div>
 
-          <div className="p-8 border-t border-white/5 bg-gradient-to-t from-black to-transparent">
-            <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/lessons`} className="flex items-center justify-center gap-3 px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-[10px] font-black text-white/40 hover:text-white uppercase tracking-[0.3em] transition-all shadow-xl active:scale-95 group">
+          <div className="p-8 border-t border-border bg-gradient-to-t from-black to-transparent">
+            <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/lessons`} className="flex items-center justify-center gap-3 px-6 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-[0.3em] transition-all shadow-xl active:scale-95 group">
               <ArrowLeftIcon className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> 
               {classId ? 'Leave Session' : 'Exit Hub'}
             </Link>
@@ -763,7 +763,7 @@ export default function LessonDetailPage() {
         {/* Dynamic Progress Indicator */}
         <div className="fixed top-0 left-0 right-0 h-1.5 z-[100] md:left-[0px]">
            <motion.div 
-             className="h-full bg-gradient-to-r from-cyan-500 via-indigo-500 to-violet-600 shadow-[0_0_15px_rgba(6,182,212,0.5)]"
+             className="h-full bg-gradient-to-r from-orange-600 to-orange-400 via-indigo-500 to-orange-600 shadow-[0_0_15px_rgba(6,182,212,0.5)]"
              style={{ width: `${scrollProgress}%` }}
            />
         </div>
@@ -772,7 +772,7 @@ export default function LessonDetailPage() {
           <div className={`transition-all duration-700 ${isCinemaMode ? 'h-screen w-full' : 'h-0 overflow-hidden'}`}>
              <iframe src={`https://www.youtube.com/embed/${heroVideo.url.includes('v=') ? heroVideo.url.split('v=')[1].split('&')[0] : heroVideo.url.split('/').pop()}?rel=0&autoplay=1`}
               className="w-full h-full border-0" allowFullScreen />
-             <button onClick={() => setIsCinemaMode(false)} className="absolute top-8 right-8 p-4 bg-black/60 backdrop-blur-md rounded-full text-white hover:scale-110 transition-transform">
+             <button onClick={() => setIsCinemaMode(false)} className="absolute top-8 right-8 p-4 bg-black/60 backdrop-blur-md rounded-full text-foreground hover:scale-110 transition-transform">
                <ArrowDownTrayIcon className="w-6 h-6 rotate-180" />
              </button>
           </div>
@@ -780,11 +780,11 @@ export default function LessonDetailPage() {
 
         {/* Dynamic Video Hero (Standard) */}
         {lesson.lesson_type === 'video' && heroVideo && !isCinemaMode && (
-          <div className="w-full bg-black aspect-video lg:h-[70vh] relative shadow-2xl group overflow-hidden border-b border-white/5">
+          <div className="w-full bg-black aspect-video lg:h-[70vh] relative shadow-2xl group overflow-hidden border-b border-border">
             <iframe src={`https://www.youtube.com/embed/${heroVideo.url.includes('v=') ? heroVideo.url.split('v=')[1].split('&')[0] : heroVideo.url.split('/').pop()}?rel=0&autoplay=0`}
               className="w-full h-full border-0" allowFullScreen />
             <div className="absolute top-0 left-0 right-0 p-8 flex justify-between items-start opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => setIsCinemaMode(true)} className="bg-cyan-500/80 backdrop-blur-md px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white shadow-xl hover:bg-cyan-400 transition-all">Enable Cinema Mode</button>
+              <button onClick={() => setIsCinemaMode(true)} className="bg-cyan-500/80 backdrop-blur-md px-6 py-3 rounded-none text-[11px] font-black uppercase tracking-widest text-foreground shadow-xl hover:bg-cyan-400 transition-all">Enable Cinema Mode</button>
             </div>
           </div>
         )}
@@ -794,32 +794,32 @@ export default function LessonDetailPage() {
             {/* Header */}
             <header className="space-y-10 sm:space-y-16 animate-in fade-in slide-in-from-top-12 duration-1000">
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:flex p-4 bg-white/5 border border-white/10 rounded-2xl text-white/40 hover:text-cyan-400 hover:border-cyan-500/30 transition-all shadow-xl group">
+                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:flex p-4 bg-card shadow-sm border border-border rounded-none text-muted-foreground hover:text-cyan-400 hover:border-cyan-500/30 transition-all shadow-xl group">
                   <BoltIcon className="w-6 h-6 group-hover:rotate-12 transition-transform" />
                 </button>
-                <div className={`px-6 py-2 rounded-full text-[10px] sm:text-[11px] font-black border uppercase tracking-[0.3em] shadow-3xl ${TYPE_COLOR[lesson.lesson_type] || 'bg-white/10 text-white border-white/10'}`}>
+                <div className={`px-6 py-2 rounded-full text-[10px] sm:text-[11px] font-black border uppercase tracking-[0.3em] shadow-3xl ${TYPE_COLOR[lesson.lesson_type] || 'bg-muted text-foreground border-border'}`}>
                   {lesson.lesson_type}
                 </div>
                 {lesson.duration_minutes && (
-                  <div className="text-[10px] sm:text-[11px] font-black text-white/30 uppercase tracking-[0.2em] flex items-center gap-3 bg-white/5 px-6 py-2 rounded-full border border-white/10">
+                  <div className="text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em] flex items-center gap-3 bg-card shadow-sm px-6 py-2 rounded-full border border-border">
                     <ClockIcon className="w-5 h-5 text-cyan-500" />
                     {lesson.duration_minutes} Min
                   </div>
                 )}
                 <div className="flex-1"></div>
                 {completed && (
-                  <div className="flex items-center gap-2 text-emerald-400 font-black text-[10px] sm:text-[11px] uppercase tracking-[0.3em] bg-emerald-500/10 px-6 py-2.5 rounded-2xl border border-emerald-500/20 shadow-3xl shadow-emerald-500/20">
+                  <div className="flex items-center gap-2 text-emerald-400 font-black text-[10px] sm:text-[11px] uppercase tracking-[0.3em] bg-emerald-500/10 px-6 py-2.5 rounded-none border border-emerald-500/20 shadow-3xl shadow-emerald-500/20">
                     <CheckBadgeIcon className="w-5 h-5 sm:w-6 sm:h-6" /> Mastery
                   </div>
                 )}
               </div>
               <div className="space-y-8">
-                <h1 className="text-4xl sm:text-9xl font-black tracking-[0.02em] leading-[0.9] text-white selection:bg-cyan-500 selection:text-black break-words">
+                <h1 className="text-4xl sm:text-9xl font-black tracking-[0.02em] leading-[0.9] text-foreground selection:bg-cyan-500 selection:text-black break-words">
                   {lesson.title}
                 </h1>
-                <div className="h-2 w-32 bg-gradient-to-r from-cyan-600 to-transparent rounded-full opacity-40"></div>
+                <div className="h-2 w-32 bg-gradient-to-r from-orange-600 to-orange-400 to-transparent rounded-full opacity-40"></div>
                 <div className="flex items-start gap-8 max-w-4xl">
-                  <p className="text-xl sm:text-4xl text-white/40 font-medium leading-[1.5] italic border-l-4 border-white/10 pl-8 sm:pl-12 py-3">
+                  <p className="text-xl sm:text-4xl text-muted-foreground font-medium leading-[1.5] italic border-l-4 border-border pl-8 sm:pl-12 py-3">
                     {lesson.description}
                   </p>
                 </div>
@@ -827,7 +827,7 @@ export default function LessonDetailPage() {
             </header>
             {/* Nav Tabs - Modern Glass Style */}
             <div className="sticky top-0 z-30 pt-4 pb-12 -mx-4 px-4 sm:-mx-12 sm:px-12 md:relative md:p-0 md:m-0 flex justify-center sm:justify-start">
-               <div className="flex items-center gap-1.5 sm:gap-2 bg-[#0B0B1B]/95 backdrop-blur-3xl p-2 rounded-[2rem] border border-white/10 w-fit shadow-3xl overflow-x-auto no-scrollbar max-w-full">
+               <div className="flex items-center gap-1.5 sm:gap-2 bg-[#0B0B1B]/95 backdrop-blur-3xl p-2 rounded-[2rem] border border-border w-fit shadow-3xl overflow-x-auto no-scrollbar max-w-full">
                 <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={LayoutIcon} label="Learning" />
                 <TabBtn active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} icon={PaperClipIcon} label="Resources" count={materials.length} />
                 <TabBtn active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={ClipboardDocumentListIcon} label="Tasks" count={courseAssignments.length + programQuizzes.length} />
@@ -842,13 +842,13 @@ export default function LessonDetailPage() {
                   <CanvaRenderer blocks={lesson.content_layout || []} lessonType={lesson.lesson_type} />
                   
                   {/* Lesson Complete & Navigation */}
-                  <div className="mt-24 sm:mt-40 pt-24 sm:pt-40 border-t border-white/5 flex flex-col items-center gap-12 sm:gap-20 text-center pb-40 sm:pb-56">
+                  <div className="mt-24 sm:mt-40 pt-24 sm:pt-40 border-t border-border flex flex-col items-center gap-12 sm:gap-20 text-center pb-40 sm:pb-56">
                     {!completed && profile?.role === 'student' ? (
                       <div className="relative group">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-cyan-400 via-indigo-500 to-violet-600 rounded-[3rem] sm:rounded-[4rem] blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
+                        <div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-orange-400 via-indigo-500 to-orange-600 rounded-[3rem] sm:rounded-[4rem] blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
                         <button onClick={handleMarkComplete} disabled={marking} 
-                          className="relative px-12 sm:px-20 py-8 sm:py-12 bg-[#0a0a1a] rounded-[2.8rem] sm:rounded-[3.8rem] text-white flex flex-col items-center gap-4 transition-all active:scale-95 border border-white/10">
-                          <div className="p-5 bg-cyan-500/20 rounded-3xl text-cyan-400 shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                          className="relative px-12 sm:px-20 py-8 sm:py-12 bg-background rounded-[2.8rem] sm:rounded-[3.8rem] text-foreground flex flex-col items-center gap-4 transition-all active:scale-95 border border-border">
+                          <div className="p-5 bg-cyan-500/20 rounded-none text-cyan-400 shadow-2xl group-hover:scale-110 transition-transform duration-500">
                              <CheckBadgeIcon className="w-10 h-10 sm:w-14 sm:h-14" />
                           </div>
                           <div>
@@ -863,14 +863,14 @@ export default function LessonDetailPage() {
                           <CheckBadgeIcon className="w-12 h-12 sm:w-20 sm:h-20" />
                         </div>
                         <div className="space-y-2">
-                           <h4 className="text-4xl sm:text-6xl font-black text-white italic tracking-tighter">Module Synchronized</h4>
-                           <p className="text-[11px] font-black text-white/20 uppercase tracking-[0.5em]">Advancement Recorded</p>
+                           <h4 className="text-4xl sm:text-6xl font-black text-foreground italic tracking-tighter">Module Synchronized</h4>
+                           <p className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.5em]">Advancement Recorded</p>
                         </div>
                       </div>
                     )}
 
                     {nextLesson && (
-                      <div className="w-full max-w-4xl bg-[#0a0a1a] border border-white/5 rounded-[4rem] p-10 sm:p-20 space-y-10 sm:space-y-14 group hover:border-cyan-500/20 transition-all shadow-3xl relative overflow-hidden">
+                      <div className="w-full max-w-4xl bg-background border border-border rounded-[4rem] p-10 sm:p-20 space-y-10 sm:space-y-14 group hover:border-cyan-500/20 transition-all shadow-3xl relative overflow-hidden">
                          <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-600/5 blur-[120px] -mr-32 -mt-32 pointer-events-none" />
                          <div className="space-y-6 relative z-10">
                            <div className="flex items-center justify-center gap-4">
@@ -878,14 +878,14 @@ export default function LessonDetailPage() {
                              <h5 className="text-[12px] font-black uppercase tracking-[0.5em] text-cyan-500/60">Sequence Advance</h5>
                              <div className="h-px w-12 bg-cyan-500/30" />
                            </div>
-                           <h3 className="text-4xl sm:text-7xl font-black text-white group-hover:text-cyan-400 transition-colors tracking-tighter leading-none">{nextLesson.title}</h3>
+                           <h3 className="text-4xl sm:text-7xl font-black text-foreground group-hover:text-cyan-400 transition-colors tracking-tighter leading-none">{nextLesson.title}</h3>
                            <div className="flex items-center justify-center gap-6">
-                              <span className="px-6 py-2 bg-white/5 rounded-full text-[10px] font-black uppercase tracking-widest text-white/40">{nextLesson.lesson_type}</span>
+                              <span className="px-6 py-2 bg-card shadow-sm rounded-full text-[10px] font-black uppercase tracking-widest text-muted-foreground">{nextLesson.lesson_type}</span>
                               <span className="text-[10px] font-black text-cyan-500/30 uppercase tracking-[0.3em]">Module {courseLessons.findIndex(l => l.id === nextLesson.id) + 1} of {courseLessons.length}</span>
                            </div>
                          </div>
                          <Link href={`/dashboard/lessons/${nextLesson.id}${classId ? `?class_id=${classId}` : ''}`}
-                           className="relative z-10 inline-flex items-center gap-4 px-12 sm:px-16 py-6 sm:py-8 bg-white text-black font-black uppercase text-[12px] sm:text-[14px] tracking-[0.3em] rounded-3xl hover:bg-cyan-500 hover:text-white transition-all shadow-[0_20px_60px_rgba(255,255,255,0.1)] active:scale-95 group/btn">
+                           className="relative z-10 inline-flex items-center gap-4 px-12 sm:px-16 py-6 sm:py-8 bg-white text-black font-black uppercase text-[12px] sm:text-[14px] tracking-[0.3em] rounded-none hover:bg-cyan-500 hover:text-foreground transition-all shadow-[0_20px_60px_rgba(255,255,255,0.1)] active:scale-95 group/btn">
                            Engage Module <ChevronRightIcon className="w-5 h-5 transition-transform group-hover/btn:translate-x-2" />
                          </Link>
                       </div>
@@ -898,27 +898,27 @@ export default function LessonDetailPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
                   {materials.map((m: any) => (
                     <a key={m.id} href={m.file_url} target="_blank" 
-                      className="group p-8 sm:p-10 bg-[#0a0a1a] border border-white/5 rounded-[40px] flex flex-col gap-10 hover:bg-white/[0.03] hover:border-cyan-500/30 transition-all shadow-2xl relative overflow-hidden">
+                      className="group p-8 sm:p-10 bg-background border border-border rounded-[40px] flex flex-col gap-10 hover:bg-white/[0.03] hover:border-cyan-500/30 transition-all shadow-2xl relative overflow-hidden">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-600/5 blur-3xl rounded-full" />
                       <div className="flex items-center justify-between relative z-10">
-                        <div className="p-5 bg-cyan-500/10 rounded-2xl text-cyan-400 group-hover:scale-110 transition-transform shadow-xl">
+                        <div className="p-5 bg-cyan-500/10 rounded-none text-cyan-400 group-hover:scale-110 transition-transform shadow-xl">
                           <PaperClipIcon className="w-8 h-8" />
                         </div>
-                        <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/20 group-hover:text-cyan-400 group-hover:border-cyan-500/40 group-hover:scale-110 transition-all shadow-xl">
+                        <div className="w-10 h-10 rounded-full bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-cyan-400 group-hover:border-cyan-500/40 group-hover:scale-110 transition-all shadow-xl">
                           <ArrowDownTrayIcon className="w-5 h-5" />
                         </div>
                       </div>
                       <div className="space-y-3 relative z-10">
                         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400/50">{m.file_type || 'Shared Artifact'}</p>
-                        <h4 className="font-black text-2xl text-white group-hover:text-cyan-400 transition-colors leading-tight tracking-tight">{m.title}</h4>
-                        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mt-2">{m.file_size ? `${(m.file_size / 1024 / 1024).toFixed(2)} MB` : 'Cloud Link'}</p>
+                        <h4 className="font-black text-2xl text-foreground group-hover:text-cyan-400 transition-colors leading-tight tracking-tight">{m.title}</h4>
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-2">{m.file_size ? `${(m.file_size / 1024 / 1024).toFixed(2)} MB` : 'Cloud Link'}</p>
                       </div>
                     </a>
                   ))}
                   {materials.length === 0 && (
-                    <div className="col-span-full py-40 text-center bg-[#0a0a1a] border border-dashed border-white/5 rounded-[3rem] shadow-2xl">
+                    <div className="col-span-full py-40 text-center bg-background border border-dashed border-border rounded-[3rem] shadow-2xl">
                       <PaperClipIcon className="w-16 h-16 mx-auto text-white/5 mb-6 opacity-20" />
-                      <p className="text-xl font-black text-white/20 uppercase tracking-widest">No shared resources</p>
+                      <p className="text-xl font-black text-muted-foreground uppercase tracking-widest">No shared resources</p>
                     </div>
                   )}
                 </div>
@@ -931,29 +931,29 @@ export default function LessonDetailPage() {
                       <ClipboardDocumentListIcon className="w-4 h-4" /> Module Assessments
                     </h3>
                     {courseAssignments.length === 0 ? (
-                      <p className="text-white/20 text-xs italic px-6">No specific tasks assigned for this module.</p>
+                      <p className="text-muted-foreground text-xs italic px-6">No specific tasks assigned for this module.</p>
                     ) : (
                       <div className="grid grid-cols-1 gap-4">
                         {courseAssignments.map((a: any) => (
                           <Link key={a.id} href={`/dashboard/assignments/${a.id}`} 
-                            className="p-8 sm:p-10 bg-[#0a0a1a] border border-white/5 rounded-[40px] hover:bg-amber-500/[0.03] hover:border-amber-500/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
+                            className="p-8 sm:p-10 bg-background border border-border rounded-[40px] hover:bg-amber-500/[0.03] hover:border-amber-500/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-600/5 blur-3xl rounded-full" />
                             <div className="flex items-center gap-10 relative z-10">
-                              <div className="p-6 bg-amber-500/10 border border-amber-500/20 rounded-3xl text-amber-500 group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
+                              <div className="p-6 bg-amber-500/10 border border-amber-500/20 rounded-none text-amber-500 group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
                                 <DocumentTextIcon className="w-8 h-8" />
                               </div>
                               <div className="space-y-2">
-                                <h4 className="font-black text-2xl text-white group-hover:text-amber-400 transition-colors tracking-tight">{a.title}</h4>
-                                <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/20">
-                                  <span className="px-3 py-1 bg-white/5 rounded-lg text-amber-500/60 font-black">{a.assignment_type}</span>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-white/10"></span>
-                                  <span className={a.due_date && new Date(a.due_date) < new Date() ? 'text-rose-400 animate-pulse' : 'text-white/30'}>
+                                <h4 className="font-black text-2xl text-foreground group-hover:text-amber-400 transition-colors tracking-tight">{a.title}</h4>
+                                <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                                  <span className="px-3 py-1 bg-card shadow-sm rounded-none text-amber-500/60 font-black">{a.assignment_type}</span>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-muted"></span>
+                                  <span className={a.due_date && new Date(a.due_date) < new Date() ? 'text-rose-400 animate-pulse' : 'text-muted-foreground'}>
                                     {a.due_date ? `Deadline: ${new Date(a.due_date).toLocaleDateString()}` : 'No deadline'}
                                   </span>
                                 </div>
                               </div>
                             </div>
-                            <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/10 group-hover:text-amber-400 group-hover:border-amber-500/40 group-hover:translate-x-1 transition-all shadow-xl">
+                            <div className="w-12 h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-amber-400 group-hover:border-amber-500/40 group-hover:translate-x-1 transition-all shadow-xl">
                                <ChevronRightIcon className="w-6 h-6" />
                             </div>
                           </Link>
@@ -962,32 +962,32 @@ export default function LessonDetailPage() {
                     )}
                   </div>
 
-                  <div className="space-y-6 pt-12 border-t border-white/5">
-                    <h3 className="text-xs font-black text-violet-400 uppercase tracking-[0.3em] flex items-center gap-3 px-6 py-2 bg-violet-500/5 border border-violet-500/10 rounded-full w-fit">
+                  <div className="space-y-6 pt-12 border-t border-border">
+                    <h3 className="text-xs font-black text-orange-400 uppercase tracking-[0.3em] flex items-center gap-3 px-6 py-2 bg-orange-500/5 border border-orange-500/10 rounded-full w-fit">
                       <AcademicCapIcon className="w-4 h-4" /> Curriculum Quizzes
                     </h3>
                     {programQuizzes.length === 0 ? (
-                      <p className="text-white/20 text-xs italic px-6">No quizzes found in this programme curriculum.</p>
+                      <p className="text-muted-foreground text-xs italic px-6">No quizzes found in this programme curriculum.</p>
                     ) : (
                       <div className="grid grid-cols-1 gap-4">
                         {programQuizzes.map((q: any) => (
                           <Link key={q.id} href={`/dashboard/cbt/${q.id}`} 
-                            className="p-8 sm:p-10 bg-[#0a0a1a] border border-white/5 rounded-[40px] hover:bg-violet-500/[0.03] hover:border-violet-500/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/5 blur-3xl rounded-full" />
+                            className="p-8 sm:p-10 bg-background border border-border rounded-[40px] hover:bg-orange-500/[0.03] hover:border-orange-500/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-600/5 blur-3xl rounded-full" />
                             <div className="flex items-center gap-10 relative z-10">
-                              <div className="p-6 bg-violet-500/10 border border-violet-500/20 rounded-3xl text-violet-400 group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
+                              <div className="p-6 bg-orange-500/10 border border-orange-500/20 rounded-none text-orange-400 group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
                                 <StarIcon className="w-8 h-8" />
                               </div>
                               <div className="space-y-2">
-                                <h4 className="font-black text-2xl text-white group-hover:text-violet-400 transition-colors tracking-tight">{q.title}</h4>
-                                <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/20">
-                                  <span className="px-3 py-1 bg-white/5 rounded-lg text-violet-500/60 font-black">{q.duration_minutes} Min Sync</span>
-                                  <span className="w-1.5 h-1.5 rounded-full bg-white/10"></span>
-                                  <span className="text-white/30">{q.total_questions} Logical Units</span>
+                                <h4 className="font-black text-2xl text-foreground group-hover:text-orange-400 transition-colors tracking-tight">{q.title}</h4>
+                                <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                                  <span className="px-3 py-1 bg-card shadow-sm rounded-none text-orange-500/60 font-black">{q.duration_minutes} Min Sync</span>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-muted"></span>
+                                  <span className="text-muted-foreground">{q.total_questions} Logical Units</span>
                                 </div>
                               </div>
                             </div>
-                            <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/10 group-hover:text-violet-400 group-hover:border-violet-500/40 group-hover:translate-x-1 transition-all shadow-xl">
+                            <div className="w-12 h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-orange-400 group-hover:border-orange-500/40 group-hover:translate-x-1 transition-all shadow-xl">
                                <ChevronRightIcon className="w-6 h-6" />
                             </div>
                           </Link>
@@ -1003,23 +1003,23 @@ export default function LessonDetailPage() {
                   {/* If it's a full course plan (structured) */}
                   {plans?.plan_data && Object.keys(plans.plan_data).length > 0 ? (
                     <div className="space-y-20">
-                      <div className="bg-[#0a0a20]/40 backdrop-blur-xl border border-white/10 rounded-[3rem] p-10 sm:p-20 relative overflow-hidden group shadow-3xl">
+                      <div className="bg-background/40 backdrop-blur-xl border border-border rounded-[3rem] p-10 sm:p-20 relative overflow-hidden group shadow-3xl">
                         <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-600/5 blur-[120px] -mr-48 -mt-48 group-hover:bg-cyan-600/10 transition-all duration-1000" />
                         <div className="relative z-10 space-y-8">
                            <div className="flex items-center gap-4">
-                              <div className="px-5 py-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.4em] rounded-2xl">Executive Summary</div>
-                              <div className="h-px flex-1 bg-white/5" />
+                              <div className="px-5 py-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.4em] rounded-none">Executive Summary</div>
+                              <div className="h-px flex-1 bg-card shadow-sm" />
                            </div>
-                           <h2 className="text-4xl sm:text-7xl font-black text-white leading-tight tracking-tight">{plans.plan_data.course_title}</h2>
-                           <p className="text-xl sm:text-3xl text-white/50 font-medium italic leading-relaxed border-l-4 border-cyan-500/30 pl-8">{plans.plan_data.description}</p>
+                           <h2 className="text-4xl sm:text-7xl font-black text-foreground leading-tight tracking-tight">{plans.plan_data.course_title}</h2>
+                           <p className="text-xl sm:text-3xl text-muted-foreground font-medium italic leading-relaxed border-l-4 border-cyan-500/30 pl-8">{plans.plan_data.description}</p>
                            <div className="flex flex-wrap gap-6 pt-6">
-                              <div className="bg-white/5 px-8 py-4 rounded-3xl border border-white/5">
-                                 <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-1">Grade Level</p>
-                                 <p className="text-lg font-black text-white">{plans.plan_data.grade_level}</p>
+                              <div className="bg-card shadow-sm px-8 py-4 rounded-none border border-border">
+                                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Grade Level</p>
+                                 <p className="text-lg font-black text-foreground">{plans.plan_data.grade_level}</p>
                               </div>
-                              <div className="bg-white/5 px-8 py-4 rounded-3xl border border-white/5">
-                                 <p className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-1">Duration</p>
-                                 <p className="text-lg font-black text-white">{plans.plan_data.duration}</p>
+                              <div className="bg-card shadow-sm px-8 py-4 rounded-none border border-border">
+                                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Duration</p>
+                                 <p className="text-lg font-black text-foreground">{plans.plan_data.duration}</p>
                               </div>
                            </div>
                         </div>
@@ -1027,12 +1027,12 @@ export default function LessonDetailPage() {
 
                       <div className="space-y-12">
                         <div className="flex items-center gap-6">
-                           <h3 className="text-2xl font-black text-white tracking-widest uppercase italic">Curriculum Timeline</h3>
-                           <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
+                           <h3 className="text-2xl font-black text-foreground tracking-widest uppercase italic">Curriculum Timeline</h3>
+                           <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
                         </div>
 
                         <div className="grid grid-cols-1 gap-8 relative pb-20">
-                           <div className="absolute left-7 sm:left-12 top-0 bottom-0 w-1 bg-white/5" />
+                           <div className="absolute left-7 sm:left-12 top-0 bottom-0 w-1 bg-card shadow-sm" />
                            {plans.plan_data.weeks?.map((week: any, wIdx: number) => (
                              <motion.div 
                                initial={{ opacity: 0, x: -20 }}
@@ -1041,33 +1041,33 @@ export default function LessonDetailPage() {
                                key={wIdx} 
                                className="relative pl-20 sm:pl-32 group"
                              >
-                                <div className="absolute left-0 top-6 sm:top-8 w-14 sm:w-24 h-px bg-white/10 group-hover:bg-cyan-500/50 transition-colors" />
-                                <div className={`absolute left-4 sm:left-8 top-1 sm:top-2 w-8 h-8 sm:w-12 sm:h-12 rounded-2xl border-2 flex items-center justify-center text-[10px] sm:text-[12px] font-black z-10 transition-all ${wIdx % 2 === 0 ? 'bg-cyan-600 border-cyan-400 text-white shadow-[0_0_20px_rgba(6,182,212,0.3)]' : 'bg-[#0a0a1a] border-white/10 text-white/40'}`}>
+                                <div className="absolute left-0 top-6 sm:top-8 w-14 sm:w-24 h-px bg-muted group-hover:bg-cyan-500/50 transition-colors" />
+                                <div className={`absolute left-4 sm:left-8 top-1 sm:top-2 w-8 h-8 sm:w-12 sm:h-12 rounded-none border-2 flex items-center justify-center text-[10px] sm:text-[12px] font-black z-10 transition-all ${wIdx % 2 === 0 ? 'bg-cyan-600 border-cyan-400 text-foreground shadow-[0_0_20px_rgba(6,182,212,0.3)]' : 'bg-background border-border text-muted-foreground'}`}>
                                    {week.week}
                                 </div>
-                                <div className="bg-white/5 border border-white/5 rounded-[2.5rem] p-8 sm:p-12 hover:bg-white/[0.08] hover:border-cyan-500/20 transition-all shadow-2xl">
+                                <div className="bg-card shadow-sm border border-border rounded-[2.5rem] p-8 sm:p-12 hover:bg-white/[0.08] hover:border-cyan-500/20 transition-all shadow-2xl">
                                    <div className="space-y-6">
                                       <div className="space-y-1">
                                          <p className="text-[10px] font-black text-cyan-400/60 uppercase tracking-[0.3em]">Week Focus</p>
-                                         <h4 className="text-2xl sm:text-4xl font-black text-white group-hover:text-cyan-400 transition-colors">{week.theme}</h4>
+                                         <h4 className="text-2xl sm:text-4xl font-black text-foreground group-hover:text-cyan-400 transition-colors">{week.theme}</h4>
                                       </div>
                                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-4">
                                          <div className="space-y-4">
-                                            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">Core Topics</p>
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Core Topics</p>
                                             <div className="space-y-2">
                                                {week.topics?.map((t: string, ti: number) => (
-                                                 <div key={ti} className="flex items-center gap-3 text-sm text-white/60 font-medium">
+                                                 <div key={ti} className="flex items-center gap-3 text-sm text-muted-foreground font-medium">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-cyan-500/40" /> {t}
                                                  </div>
                                                ))}
                                             </div>
                                          </div>
                                          <div className="space-y-4">
-                                            <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">Active Synthesis</p>
+                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Active Synthesis</p>
                                             <div className="space-y-2">
                                                {week.activities?.map((a: string, ai: number) => (
-                                                 <div key={ai} className="flex items-center gap-3 text-sm text-white/40 font-medium italic">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-violet-500/40" /> {a}
+                                                 <div key={ai} className="flex items-center gap-3 text-sm text-muted-foreground font-medium italic">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500/40" /> {a}
                                                  </div>
                                                ))}
                                             </div>
@@ -1081,15 +1081,15 @@ export default function LessonDetailPage() {
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pb-32">
-                         <div className="bg-white/5 border border-white/5 rounded-[3rem] p-10 sm:p-16 space-y-6">
-                            <h5 className="text-[11px] font-black text-violet-400 uppercase tracking-[0.4em]">Validation Protocol</h5>
-                            <p className="text-lg sm:text-2xl text-white/70 font-medium leading-relaxed italic">{plans.plan_data.assessment_strategy}</p>
+                         <div className="bg-card shadow-sm border border-border rounded-[3rem] p-10 sm:p-16 space-y-6">
+                            <h5 className="text-[11px] font-black text-orange-400 uppercase tracking-[0.4em]">Validation Protocol</h5>
+                            <p className="text-lg sm:text-2xl text-muted-foreground font-medium leading-relaxed italic">{plans.plan_data.assessment_strategy}</p>
                          </div>
-                         <div className="bg-white/5 border border-white/5 rounded-[3rem] p-10 sm:p-16 space-y-6">
+                         <div className="bg-card shadow-sm border border-border rounded-[3rem] p-10 sm:p-16 space-y-6">
                             <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-[0.4em]">Required Artifacts</h5>
                             <div className="flex flex-wrap gap-2">
                                {plans.plan_data.materials?.map((m: string, mi: number) => (
-                                 <span key={mi} className="px-5 py-2.5 bg-white/5 rounded-2xl text-[10px] sm:text-[11px] font-black text-white/30 uppercase tracking-widest border border-white/5">{m}</span>
+                                 <span key={mi} className="px-5 py-2.5 bg-card shadow-sm rounded-none text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-widest border border-border">{m}</span>
                                ))}
                             </div>
                          </div>
@@ -1098,15 +1098,15 @@ export default function LessonDetailPage() {
                   ) : (
                     <div className="space-y-12 sm:space-y-16">
                       <div className="relative">
-                        <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-500 to-transparent rounded-full opacity-20"></div>
+                        <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-600 to-orange-400 to-transparent rounded-full opacity-20"></div>
                         <PlanBlock title="Target Outcomes & Goals" content={plans?.objectives} />
                       </div>
                       <div className="relative">
-                        <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-violet-500 to-transparent rounded-full opacity-20"></div>
+                        <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-500 to-transparent rounded-full opacity-20"></div>
                         <PlanBlock title="Applied Learning Activities" content={plans?.activities} />
                       </div>
                       <div className="relative">
-                        <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-500 to-transparent rounded-full opacity-20"></div>
+                        <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-600 to-orange-400 to-transparent rounded-full opacity-20"></div>
                         <PlanBlock title="Assessment Strategy" content={plans?.assessment_methods} />
                       </div>
                     </div>
@@ -1128,13 +1128,13 @@ const LayoutIcon = ({ className }: any) => (
 const PlanBlock = ({ title, content }: any) => (
   <div className="space-y-8 sm:space-y-10 group">
     <div className="flex items-center gap-4">
-      <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/10" />
+      <div className="h-px flex-1 bg-gradient-to-r from-transparent to-border" />
       <h4 className="text-[10px] sm:text-[11px] font-black uppercase text-cyan-400/60 tracking-[0.4em] sm:tracking-[0.5em]">{title}</h4>
-      <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/10" />
+      <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
     </div>
-    <div className="relative p-10 sm:p-14 bg-white/5 border border-white/5 rounded-[40px] sm:rounded-[60px] shadow-2xl overflow-hidden group-hover:border-cyan-500/20 transition-all">
+    <div className="relative p-10 sm:p-14 bg-card shadow-sm border border-border rounded-[40px] sm:rounded-[60px] shadow-2xl overflow-hidden group-hover:border-cyan-500/20 transition-all">
        <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-600/5 blur-3xl rounded-full" />
-       <p className="text-xl sm:text-3xl text-white/70 leading-relaxed sm:leading-[1.8] font-medium italic whitespace-pre-wrap relative z-10">{content || 'Curriculum details for this module are still being finalized. Check back soon.'}</p>
+       <p className="text-xl sm:text-3xl text-muted-foreground leading-relaxed sm:leading-[1.8] font-medium italic whitespace-pre-wrap relative z-10">{content || 'Curriculum details for this module are still being finalized. Check back soon.'}</p>
     </div>
   </div>
 );

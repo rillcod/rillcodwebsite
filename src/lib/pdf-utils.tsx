@@ -207,7 +207,7 @@ export const OKLCH_HEX_OVERRIDES = `
 .text-white\/60{color:rgba(255,255,255,0.6)!important}
 .text-white\/40{color:rgba(255,255,255,0.4)!important}
 .bg-white\/10{background-color:rgba(255,255,255,0.1)!important}
-.border-white\/10{border-color:rgba(255,255,255,0.1)!important}
+.border-border\/10{border-color:rgba(255,255,255,0.1)!important}
 .bg-white\/5{background-color:rgba(255,255,255,0.05)!important}
 `;
 

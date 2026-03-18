@@ -228,7 +228,7 @@ export default function Team() {
         </div>
 
         {/* Team Stats */}
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/20 p-8 mb-16">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-border dark:border-gray-700/20 p-8 mb-16">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="text-center">
               <div className="flex justify-center mb-4">
@@ -274,7 +274,7 @@ export default function Team() {
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">Our Values</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {values.map((value, index) => (
-              <div key={index} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 dark:border-gray-700/20 p-6 text-center hover:shadow-xl transition-shadow">
+              <div key={index} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg border border-border dark:border-gray-700/20 p-6 text-center hover:shadow-xl transition-shadow">
                 <div className={`w-16 h-16 bg-gradient-to-r ${value.color} rounded-full flex items-center justify-center mx-auto mb-4`}>
                   <div className="text-white">
                     {value.icon}
@@ -292,7 +292,7 @@ export default function Team() {
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">Our Departments</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {departments.map((dept, index) => (
-              <div key={index} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 dark:border-gray-700/20 p-6 hover:shadow-xl transition-shadow">
+              <div key={index} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg border border-border dark:border-gray-700/20 p-6 hover:shadow-xl transition-shadow">
                 <div className={`w-16 h-16 bg-gradient-to-r ${dept.color} rounded-full flex items-center justify-center mb-4`}>
                   <div className="text-white">
                     {dept.icon}
@@ -335,7 +335,7 @@ export default function Team() {
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">Leadership Team</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredMembers.map((member, index) => (
-              <div key={index} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/20 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:scale-105">
+              <div key={index} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl shadow-xl border border-border dark:border-gray-700/20 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:scale-105">
                 {/* Header */}
                 <div className="relative h-48 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center">
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20"></div>

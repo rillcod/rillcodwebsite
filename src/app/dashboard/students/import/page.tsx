@@ -132,14 +132,14 @@ export default function ImportStudentsPage() {
   }
 
   if (authLoading || !profile) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (!canImport) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
-      <p className="text-white/40">Access restricted.</p>
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <p className="text-muted-foreground">Access restricted.</p>
     </div>
   );
 
@@ -147,28 +147,28 @@ export default function ImportStudentsPage() {
   const errorRows = parsed.filter(r => r._error);
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] px-4 py-6 md:px-8 max-w-4xl mx-auto">
+    <div className="min-h-screen bg-background px-4 py-6 md:px-8 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white">Import Students</h1>
-          <p className="text-white/40 text-sm mt-1">Upload a CSV to bulk-register students</p>
+          <h1 className="text-2xl font-black text-foreground">Import Students</h1>
+          <p className="text-muted-foreground text-sm mt-1">Upload a CSV to bulk-register students</p>
         </div>
-        <Link href="/dashboard/students" className="text-white/40 hover:text-white text-sm transition-colors">
+        <Link href="/dashboard/students" className="text-muted-foreground hover:text-foreground text-sm transition-colors">
           ← Back to Students
         </Link>
       </div>
 
       {/* Template Download */}
-      <div className="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
+      <div className="bg-orange-500/10 border border-orange-500/20 rounded-none p-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-violet-300 font-bold text-sm">Need the CSV template?</p>
-          <p className="text-violet-300/60 text-xs mt-0.5">
+          <p className="text-orange-500 font-bold text-sm">Need the CSV template?</p>
+          <p className="text-orange-500/60 text-xs mt-0.5">
             Download the template with all required columns filled in.
           </p>
         </div>
         <button
           onClick={downloadTemplate}
-          className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-colors flex-shrink-0"
+          className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-colors flex-shrink-0"
         >
           <DocumentArrowDownIcon className="w-4 h-4" /> Download Template
         </button>
@@ -184,22 +184,22 @@ export default function ImportStudentsPage() {
           if (f) handleFile(f);
         }}
         onClick={() => fileRef.current?.click()}
-        className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all mb-6 ${isDragging ? 'border-violet-400 bg-violet-500/10' : 'border-white/10 hover:border-white/30 bg-white/2'}`}
+        className={`border-2 border-dashed rounded-none p-10 text-center cursor-pointer transition-all mb-6 ${isDragging ? 'border-orange-400 bg-orange-500/10' : 'border-border hover:border-border bg-muted'}`}
       >
-        <ArrowUpTrayIcon className={`w-10 h-10 mx-auto mb-3 ${isDragging ? 'text-violet-400' : 'text-white/20'}`} />
-        <p className="text-white font-bold">{fileName || 'Drag & drop your CSV here'}</p>
-        <p className="text-white/30 text-sm mt-1">or click to browse — .csv files only</p>
+        <ArrowUpTrayIcon className={`w-10 h-10 mx-auto mb-3 ${isDragging ? 'text-orange-400' : 'text-muted-foreground'}`} />
+        <p className="text-foreground font-bold">{fileName || 'Drag & drop your CSV here'}</p>
+        <p className="text-muted-foreground text-sm mt-1">or click to browse — .csv files only</p>
         <input ref={fileRef} type="file" accept=".csv" className="hidden"
           onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
       </div>
 
       {/* Preview */}
       {parsed.length > 0 && (
-        <div className="bg-[#0d1526] border border-white/10 rounded-2xl overflow-hidden mb-6">
-          <div className="flex items-center justify-between p-5 border-b border-white/10">
+        <div className="bg-[#0d1526] border border-border rounded-none overflow-hidden mb-6">
+          <div className="flex items-center justify-between p-5 border-b border-border">
             <div className="flex items-center gap-3">
-              <UserGroupIcon className="w-5 h-5 text-white/40" />
-              <span className="text-white font-bold">{parsed.length} rows parsed</span>
+              <UserGroupIcon className="w-5 h-5 text-muted-foreground" />
+              <span className="text-foreground font-bold">{parsed.length} rows parsed</span>
               {validRows.length > 0 && (
                 <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
                   {validRows.length} valid
@@ -211,14 +211,14 @@ export default function ImportStudentsPage() {
                 </span>
               )}
             </div>
-            <button onClick={() => { setParsed([]); setFileName(''); }} className="text-white/30 hover:text-white">
+            <button onClick={() => { setParsed([]); setFileName(''); }} className="text-muted-foreground hover:text-foreground">
               <XMarkIcon className="w-5 h-5" />
             </button>
           </div>
           <div className="overflow-x-auto max-h-64">
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-[#0d1526]">
-                <tr className="border-b border-white/10 text-white/40 uppercase tracking-wider">
+                <tr className="border-b border-border text-muted-foreground uppercase tracking-wider">
                   <th className="text-left px-4 py-2">Row</th>
                   <th className="text-left px-4 py-2">Name</th>
                   <th className="text-left px-4 py-2">Email</th>
@@ -228,11 +228,11 @@ export default function ImportStudentsPage() {
               </thead>
               <tbody>
                 {parsed.map(r => (
-                  <tr key={r._row} className={`border-b border-white/5 ${r._error ? 'bg-rose-500/5' : ''}`}>
-                    <td className="px-4 py-2 text-white/30">{r._row}</td>
-                    <td className="px-4 py-2 text-white">{r.full_name}</td>
-                    <td className="px-4 py-2 text-white/60">{r.student_email}</td>
-                    <td className="px-4 py-2 text-white/40">{r.grade ?? '—'}</td>
+                  <tr key={r._row} className={`border-b border-border ${r._error ? 'bg-rose-500/5' : ''}`}>
+                    <td className="px-4 py-2 text-muted-foreground">{r._row}</td>
+                    <td className="px-4 py-2 text-foreground">{r.full_name}</td>
+                    <td className="px-4 py-2 text-muted-foreground">{r.student_email}</td>
+                    <td className="px-4 py-2 text-muted-foreground">{r.grade ?? '—'}</td>
                     <td className="px-4 py-2">
                       {r._error
                         ? <span className="text-rose-400 flex items-center gap-1"><ExclamationCircleIcon className="w-3.5 h-3.5" />{r._error}</span>
@@ -244,11 +244,11 @@ export default function ImportStudentsPage() {
             </table>
           </div>
           {validRows.length > 0 && (
-            <div className="p-4 border-t border-white/10">
+            <div className="p-4 border-t border-border">
               <button
                 onClick={runImport}
                 disabled={importing}
-                className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 text-white font-bold rounded-xl transition-colors"
+                className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 text-foreground font-bold rounded-none transition-colors"
               >
                 {importing ? 'Importing...' : `Import ${validRows.length} Students`}
               </button>
@@ -259,21 +259,21 @@ export default function ImportStudentsPage() {
 
       {/* Result */}
       {result && (
-        <div className={`rounded-2xl p-5 border ${result.failed === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
+        <div className={`rounded-none p-5 border ${result.failed === 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
           <div className="flex items-center gap-3 mb-3">
             <CheckCircleIcon className="w-6 h-6 text-emerald-400" />
-            <p className="text-white font-bold">Import Complete</p>
+            <p className="text-foreground font-bold">Import Complete</p>
           </div>
-          <p className="text-white/60 text-sm">{result.success} students imported successfully.</p>
+          <p className="text-muted-foreground text-sm">{result.success} students imported successfully.</p>
           {result.failed > 0 && <p className="text-rose-400 text-sm mt-1">{result.failed} failed.</p>}
           {result.errors.map((e, i) => (
             <p key={i} className="text-rose-400/60 text-xs mt-1 font-mono">{e}</p>
           ))}
           <div className="flex gap-3 mt-4">
-            <Link href="/dashboard/students" className="px-4 py-2 bg-white/10 text-white text-sm font-bold rounded-xl hover:bg-white/20 transition-colors">
+            <Link href="/dashboard/students" className="px-4 py-2 bg-muted text-foreground text-sm font-bold rounded-none hover:bg-muted transition-colors">
               View Students
             </Link>
-            <Link href="/dashboard/approvals" className="px-4 py-2 bg-[#7a0606] text-white text-sm font-bold rounded-xl hover:bg-[#9a0808] transition-colors">
+            <Link href="/dashboard/approvals" className="px-4 py-2 bg-[#7a0606] text-foreground text-sm font-bold rounded-none hover:bg-[#9a0808] transition-colors">
               Go to Approvals
             </Link>
           </div>
@@ -281,15 +281,15 @@ export default function ImportStudentsPage() {
       )}
 
       {/* Column reference */}
-      <div className="mt-8 bg-[#0d1526] border border-white/10 rounded-2xl p-5">
-        <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-3">CSV Column Reference</h3>
+      <div className="mt-8 bg-[#0d1526] border border-border rounded-none p-5">
+        <h3 className="text-muted-foreground text-xs font-bold uppercase tracking-widest mb-3">CSV Column Reference</h3>
         <div className="grid grid-cols-2 gap-2">
           {ALL_COLS.map(col => (
             <div key={col} className="flex items-center gap-2">
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${REQUIRED_COLS.includes(col) ? 'bg-rose-500/20 text-rose-400' : 'bg-white/5 text-white/40'}`}>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${REQUIRED_COLS.includes(col) ? 'bg-rose-500/20 text-rose-400' : 'bg-card shadow-sm text-muted-foreground'}`}>
                 {REQUIRED_COLS.includes(col) ? 'required' : 'optional'}
               </span>
-              <span className="text-white/60 text-xs font-mono">{col}</span>
+              <span className="text-muted-foreground text-xs font-mono">{col}</span>
             </div>
           ))}
         </div>

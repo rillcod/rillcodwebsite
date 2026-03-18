@@ -75,7 +75,7 @@ export default function MobileNavigation({ userRole }: MobileNavigationProps) {
       <div className={`fixed bottom-0 left-0 right-0 z-40 lg:hidden`}>
         {/* Background with blur and safe area */}
         <div className="relative">
-          <div className="absolute inset-0 bg-[#121212]/95 backdrop-blur-xl border-t border-white/10"></div>
+          <div className="absolute inset-0 bg-[#121212]/95 backdrop-blur-xl border-t border-border"></div>
           
           {/* Navigation items container */}
           <div className="relative flex items-center justify-around px-2 py-2 pb-safe">
@@ -144,8 +144,8 @@ function MobileMoreMenu({ items }: { items: Array<{ name: string; href: string; 
           />
           
           {/* Menu */}
-          <div className="absolute bottom-20 right-0 mb-2 bg-[#1a1a1a] border border-white/10 rounded-none shadow-2xl py-3 min-w-[200px] z-50">
-            <div className="px-4 py-2 border-b border-white/5 mb-2">
+          <div className="absolute bottom-20 right-0 mb-2 bg-[#1a1a1a] border border-border rounded-none shadow-2xl py-3 min-w-[200px] z-50">
+            <div className="px-4 py-2 border-b border-border mb-2">
                 <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em]">Extended Protocol</span>
             </div>
             {items.map((item) => {
@@ -192,7 +192,7 @@ export function FloatingActionButton() {
             <Link
               key={action.name}
               href={action.href}
-              className="flex items-center justify-center w-14 h-14 bg-[#1a1a1a] text-orange-500 border border-white/10 rounded-none shadow-2xl hover:border-orange-500 transition-all duration-200 transform hover:scale-110"
+              className="flex items-center justify-center w-14 h-14 bg-[#1a1a1a] text-orange-500 border border-border rounded-none shadow-2xl hover:border-orange-500 transition-all duration-200 transform hover:scale-110"
               style={{
                 animationDelay: `${index * 100}ms`,
                 animation: 'slideInUp 0.3s ease-out forwards'

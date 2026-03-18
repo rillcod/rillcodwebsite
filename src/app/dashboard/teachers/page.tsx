@@ -40,7 +40,7 @@ interface UpcomingClass {
 }
 
 const COLORS = [
-  'bg-violet-500', 'bg-blue-500', 'bg-emerald-500',
+  'bg-orange-500', 'bg-blue-500', 'bg-emerald-500',
   'bg-amber-500', 'bg-rose-500', 'bg-cyan-500'
 ];
 
@@ -49,10 +49,10 @@ export default function TeacherDashboardPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-14 h-14 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-white/50 text-sm font-medium tracking-widest uppercase">Loading Portal…</p>
+          <div className="w-14 h-14 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground text-sm font-medium tracking-widest uppercase">Loading Portal…</p>
         </div>
       </div>
     );
@@ -66,8 +66,8 @@ export default function TeacherDashboardPage() {
 
   // ── ALL OTHER ROLES: No access ──
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
-      <p className="text-white/40">You don&apos;t have access to this page.</p>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <p className="text-muted-foreground">You don&apos;t have access to this page.</p>
     </div>
   );
 }
@@ -184,7 +184,7 @@ function TeacherPersonalDashboard() {
           setRecentStudents(registeredStudents);
 
           // Performance bars from real classes
-          const COLORS_PERF = ['bg-violet-500', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500'];
+          const COLORS_PERF = ['bg-orange-500', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500'];
           setPerfData(classRows.slice(0, 4).map((c: any, i: number) => ({
             label: c.name,
             value: c.current_students && c.max_students ? Math.round((c.current_students / c.max_students) * 100) : 0,
@@ -201,24 +201,24 @@ function TeacherPersonalDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-14 h-14 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-white/50 text-sm font-medium tracking-widest uppercase">Syncing Dashboard…</p>
+          <div className="w-14 h-14 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground text-sm font-medium tracking-widest uppercase">Syncing Dashboard…</p>
         </div>
       </div>
     );
   }
 
   const statCards = [
-    { label: 'My Classes', value: stats.myClasses, icon: BookOpenIcon, color: 'from-violet-600 to-violet-400', change: '+1 this month', href: '/dashboard/classes' },
-    { label: 'Total Students', value: stats.totalStudents, icon: UserGroupIcon, color: 'from-blue-600 to-blue-400', change: '+5 this week', href: '/dashboard/students' },
-    { label: 'Pending Grades', value: stats.pendingGrades, icon: ClipboardDocumentListIcon, color: 'from-amber-600 to-amber-400', change: 'Needs attention', href: '/dashboard/assignments' },
-    { label: 'Avg Performance', value: `${stats.avgPerformance}%`, icon: ChartBarIcon, color: 'from-emerald-600 to-emerald-400', change: '+2% vs last week', href: '/dashboard/progress' },
+    { label: 'My Classes', value: stats.myClasses, icon: BookOpenIcon, color: 'from-orange-600 to-orange-400', change: '+1 this month', href: '/dashboard/classes' },
+    { label: 'Total Students', value: stats.totalStudents, icon: UserGroupIcon, color: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400', change: '+5 this week', href: '/dashboard/students' },
+    { label: 'Pending Grades', value: stats.pendingGrades, icon: ClipboardDocumentListIcon, color: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400', change: 'Needs attention', href: '/dashboard/assignments' },
+    { label: 'Avg Performance', value: `${stats.avgPerformance}%`, icon: ChartBarIcon, color: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400', change: '+2% vs last week', href: '/dashboard/progress' },
   ];
 
   const quickActions = [
-    { label: 'Create Assignment', icon: PlusIcon, href: '/dashboard/assignments', color: 'bg-violet-600 hover:bg-violet-700' },
+    { label: 'Create Assignment', icon: PlusIcon, href: '/dashboard/assignments', color: 'bg-orange-600 hover:bg-orange-700' },
     { label: 'Take Attendance', icon: CheckCircleIcon, href: '/dashboard/classes', color: 'bg-blue-600 hover:bg-blue-700' },
     { label: 'Grade Submissions', icon: PencilSquareIcon, href: '/dashboard/assignments', color: 'bg-amber-600 hover:bg-amber-700' },
     { label: 'View Progress', icon: ChartBarIcon, href: '/dashboard/progress', color: 'bg-emerald-600 hover:bg-emerald-700' },
@@ -227,47 +227,47 @@ function TeacherPersonalDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
 
         {/* Header */}
-        <div className="bg-[#0a0a1a] border border-violet-500/20 rounded-[2.5rem] sm:rounded-[4rem] p-8 sm:p-16 relative overflow-hidden shadow-2xl group">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/10 blur-[120px] -mr-64 -mt-64 pointer-events-none group-hover:bg-violet-600/20 transition-all duration-1000" />
+        <div className="bg-background border border-orange-500/20 rounded-[2.5rem] sm:rounded-[4rem] p-8 sm:p-16 relative overflow-hidden shadow-2xl group">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-600/10 blur-[120px] -mr-64 -mt-64 pointer-events-none group-hover:bg-orange-600/20 transition-all duration-1000" />
           <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-indigo-600/10 blur-[100px] -ml-32 -mb-32 pointer-events-none" />
           
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
             <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="px-5 py-2 bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[10px] font-black uppercase tracking-[0.3em] rounded-2xl shadow-xl">
+                <div className="px-5 py-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-[0.3em] rounded-none shadow-xl">
                    Teacher Nucleus
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Active Session</span>
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Active Session</span>
                 </div>
               </div>
               
-              <h1 className="text-4xl sm:text-7xl font-black text-white tracking-tighter leading-[0.9]">
+              <h1 className="text-4xl sm:text-7xl font-black text-foreground tracking-tighter leading-[0.9]">
                 Greetings, <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-indigo-400">
                   {profile?.full_name?.split(' ')?.[0] || 'Educator'}
                 </span>
               </h1>
               
               <div className="flex items-center gap-6 pt-2">
-                <div className="flex items-center gap-2.5 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white/40 shadow-xl" suppressHydrationWarning>
-                   <ClockIcon className="w-4 h-4 text-violet-500" />
+                <div className="flex items-center gap-2.5 px-6 py-3 bg-card shadow-sm border border-border rounded-none text-[11px] font-black uppercase tracking-widest text-muted-foreground shadow-xl" suppressHydrationWarning>
+                   <ClockIcon className="w-4 h-4 text-orange-500" />
                    {now ? now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
                 </div>
               </div>
             </div>
 
             <div className="hidden lg:block relative">
-               <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-[2.5rem] bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-5xl sm:text-7xl font-black text-white shadow-3xl -rotate-3 hover:rotate-0 transition-transform duration-500">
+               <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-[2.5rem] bg-gradient-to-br from-orange-600 to-indigo-600 flex items-center justify-center text-5xl sm:text-7xl font-black text-foreground shadow-3xl -rotate-3 hover:rotate-0 transition-transform duration-500">
                  {profile?.full_name?.[0].toUpperCase()}
                </div>
-               <div className="absolute -top-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl sm:rounded-3xl flex items-center justify-center text-black shadow-2xl rotate-12">
-                 <AcademicCapIcon className="w-6 h-6 sm:w-8 sm:h-8 text-violet-600" />
+               <div className="absolute -top-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-none flex items-center justify-center text-black shadow-2xl rotate-12">
+                 <AcademicCapIcon className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" />
                </div>
             </div>
           </div>
@@ -276,18 +276,18 @@ function TeacherPersonalDashboard() {
         {/* ── STAT CARDS ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {statCards.map((card) => (
-            <Link key={card.label} href={card.href} className="group relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 p-5 sm:p-6 hover:border-violet-500/30 hover:bg-white/8 transition-all duration-300">
+            <Link key={card.label} href={card.href} className="group relative overflow-hidden rounded-none bg-card shadow-sm border border-border p-5 sm:p-6 hover:border-orange-500/30 hover:bg-white/8 transition-all duration-300">
               <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
               <div className="flex items-start justify-between mb-4 sm:mb-6">
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                  <card.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white/50 group-hover:text-white transition-colors" />
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                  <card.icon className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground group-hover:text-foreground transition-colors" />
                 </div>
-                <ArrowRightIcon className="w-4 h-4 text-white/10 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                <ArrowRightIcon className="w-4 h-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-1 transition-all" />
               </div>
-              <p className="text-2xl sm:text-3xl font-black text-white mb-0.5 sm:mb-1">{card.value}</p>
-              <p className="text-[10px] sm:text-xs text-white/40 font-black uppercase tracking-widest">{card.label}</p>
-              <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
-                 <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{card.change}</span>
+              <p className="text-2xl sm:text-3xl font-black text-foreground mb-0.5 sm:mb-1">{card.value}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest">{card.label}</p>
+              <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
+                 <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{card.change}</span>
                  <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${card.color}`} />
               </div>
             </Link>
@@ -298,35 +298,35 @@ function TeacherPersonalDashboard() {
 
           {/* ── TODAY'S CLASSES ── */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="flex items-center justify-between border-b border-white/5 pb-4">
-              <h2 className="text-xl font-black text-white flex items-center gap-3">
-                <CalendarIcon className="w-6 h-6 text-violet-500" />
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <h2 className="text-xl font-black text-foreground flex items-center gap-3">
+                <CalendarIcon className="w-6 h-6 text-orange-500" />
                 Schedules
               </h2>
-              <Link href="/dashboard/classes" className="text-[10px] font-black text-violet-400 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all">
+              <Link href="/dashboard/classes" className="text-[10px] font-black text-orange-400 hover:text-foreground uppercase tracking-widest flex items-center gap-2 transition-all">
                 Registry <ArrowRightIcon className="w-3.5 h-3.5" />
               </Link>
             </div>
             
             <div className="grid grid-cols-1 gap-4">
               {upcomingClasses.length === 0 ? (
-                <div className="py-12 text-center bg-white/5 border border-white/10 rounded-2xl">
-                  <p className="text-white/20 text-xs font-black uppercase tracking-widest italic">No classes scheduled yet</p>
+                <div className="py-12 text-center bg-card shadow-sm border border-border rounded-none">
+                  <p className="text-muted-foreground text-xs font-black uppercase tracking-widest italic">No classes scheduled yet</p>
                 </div>
               ) : (
                 upcomingClasses.map((cls, i) => (
-                  <div key={cls.id} className="group flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6 hover:bg-white/10 hover:border-violet-500/30 transition-all">
-                    <div className={`w-14 h-14 rounded-2xl ${COLORS[i % COLORS.length]} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-2xl`}>
-                      <BookOpenIcon className="w-7 h-7 text-white" />
+                  <div key={cls.id} className="group flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 bg-card shadow-sm border border-border rounded-none p-5 sm:p-6 hover:bg-muted hover:border-orange-500/30 transition-all">
+                    <div className={`w-14 h-14 rounded-none ${COLORS[i % COLORS.length]} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-2xl`}>
+                      <BookOpenIcon className="w-7 h-7 text-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-black text-white mb-1.5 truncate group-hover:text-violet-400 transition-colors">{cls.name}</h3>
-                      <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-white/40">
-                        <span className="flex items-center gap-2"><ClockIcon className="w-4 h-4 text-violet-500" />{cls.time}</span>
+                      <h3 className="text-lg font-black text-foreground mb-1.5 truncate group-hover:text-orange-400 transition-colors">{cls.name}</h3>
+                      <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        <span className="flex items-center gap-2"><ClockIcon className="w-4 h-4 text-orange-500" />{cls.time}</span>
                         <span className="flex items-center gap-2"><UserGroupIcon className="w-4 h-4 text-blue-500" />{cls.students} Enrollments</span>
                       </div>
                     </div>
-                    <div className={`mt-2 sm:mt-0 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${cls.day === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-white/5 text-white/30 border-white/5'}`}>
+                    <div className={`mt-2 sm:mt-0 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${cls.day === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-card shadow-sm text-muted-foreground border-border'}`}>
                       {cls.day}
                     </div>
                   </div>
@@ -336,14 +336,14 @@ function TeacherPersonalDashboard() {
 
             {/* ── QUICK ACTIONS ── */}
             <div className="pt-6 sm:pt-8">
-              <h2 className="text-xl font-black text-white mb-6 flex items-center gap-3">
+              <h2 className="text-xl font-black text-foreground mb-6 flex items-center gap-3">
                 <TrophyIcon className="w-6 h-6 text-amber-500" />
                 Tools
               </h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {quickActions.map((action) => (
                   <Link key={action.label} href={action.href}
-                    className={`flex flex-col gap-3 ${action.color} text-white font-black text-[10px] uppercase tracking-widest px-5 py-6 rounded-2xl transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl hover:shadow-black active:scale-95 border border-white/5`}
+                    className={`flex flex-col gap-3 ${action.color} text-foreground font-black text-[10px] uppercase tracking-widest px-5 py-6 rounded-none transition-all duration-300 hover:scale-[1.05] hover:shadow-2xl hover:shadow-black active:scale-95 border border-border`}
                   >
                     <action.icon className="w-6 h-6 opacity-60" />
                     {action.label}
@@ -357,9 +357,9 @@ function TeacherPersonalDashboard() {
           <div className="space-y-6">
 
             {/* Recent Activity */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl">
-              <div className="p-5 sm:p-6 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
-                <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-3">
+            <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden shadow-2xl">
+              <div className="p-5 sm:p-6 border-b border-border flex items-center justify-between bg-white/[0.02]">
+                <h3 className="text-xs font-black text-foreground uppercase tracking-widest flex items-center gap-3">
                   <BellIcon className="w-4 h-4 text-blue-500" /> Live Logs
                 </h3>
               </div>
@@ -368,12 +368,12 @@ function TeacherPersonalDashboard() {
                   <div className="p-10 text-center opacity-20 italic text-xs font-bold uppercase tracking-widest uppercase">Idle</div>
                 ) : (
                   recentActivity.map((act) => (
-                    <div key={act.id} className="p-5 hover:bg-white/5 transition-colors group">
+                    <div key={act.id} className="p-5 hover:bg-card shadow-sm transition-colors group">
                       <div className="flex items-center justify-between mb-1">
                         <p className={`text-[10px] font-black uppercase tracking-widest ${act.color}`}>{act.title}</p>
-                        <span className="text-[9px] font-bold text-white/20">{act.time}</span>
+                        <span className="text-[9px] font-bold text-muted-foreground">{act.time}</span>
                       </div>
-                      <p className="text-sm font-bold text-white/80 group-hover:text-white transition-colors">{act.subtitle}</p>
+                      <p className="text-sm font-bold text-muted-foreground group-hover:text-foreground transition-colors">{act.subtitle}</p>
                     </div>
                   ))
                 )}
@@ -381,20 +381,20 @@ function TeacherPersonalDashboard() {
             </div>
 
             {/* Performance Summary */}
-            <div className="bg-[#0a0a20] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-violet-500/5">
-              <h3 className="text-xs font-black text-white uppercase tracking-widest mb-6 flex items-center gap-3">
+            <div className="bg-background border border-border rounded-none p-6 sm:p-8 shadow-2xl shadow-orange-500/5">
+              <h3 className="text-xs font-black text-foreground uppercase tracking-widest mb-6 flex items-center gap-3">
                 <StarIcon className="w-4 h-4 text-amber-400 shadow-xl" /> Scores
               </h3>
               <div className="space-y-6">
                 {perfData.length === 0 ? (
-                  <p className="text-white/20 text-xs italic font-bold tracking-widest uppercase px-2 py-8 text-center border-2 border-dashed border-white/5 rounded-2xl">No metrics yet</p>
+                  <p className="text-muted-foreground text-xs italic font-bold tracking-widest uppercase px-2 py-8 text-center border-2 border-dashed border-border rounded-none">No metrics yet</p>
                 ) : perfData.map((item) => (
                   <div key={item.label} className="space-y-2">
                     <div className="flex justify-between items-center px-1">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-white/40 truncate pr-4">{item.label}</span>
-                      <span className="text-xs font-black text-white">{item.value}%</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate pr-4">{item.label}</span>
+                      <span className="text-xs font-black text-foreground">{item.value}%</span>
                     </div>
-                    <div className="w-full h-1.5 rounded-full bg-white/5 p-[1px]">
+                    <div className="w-full h-1.5 rounded-full bg-card shadow-sm p-[1px]">
                       <div
                         className={`h-full rounded-full ${item.color.replace('bg-', 'bg-gradient-to-r from-')} to-white transition-all duration-1000 shadow-[0_0_8px_rgba(255,255,255,0.2)]`}
                         style={{ width: `${item.value}%` }}
@@ -408,17 +408,17 @@ function TeacherPersonalDashboard() {
             {/* Pending Grading Banner */}
             {stats.pendingGrades > 0 && (
               <div className="relative group overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-600 to-rose-600 rounded-3xl opacity-10 group-hover:opacity-20 transition-opacity"></div>
-                <div className="relative bg-white/5 border border-amber-500/20 rounded-3xl p-6 sm:p-8">
+                <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-orange-400 to-rose-600 rounded-none opacity-10 group-hover:opacity-20 transition-opacity"></div>
+                <div className="relative bg-card shadow-sm border border-amber-500/20 rounded-none p-6 sm:p-8">
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center flex-shrink-0 animate-bounce">
+                    <div className="w-12 h-12 rounded-none bg-amber-500/20 flex items-center justify-center flex-shrink-0 animate-bounce">
                       <ClipboardDocumentListIcon className="w-6 h-6 text-amber-400" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-xs font-black text-white uppercase tracking-widest">{stats.pendingGrades} Due Tasks</p>
-                      <p className="text-white/40 text-[10px] mt-1 font-bold uppercase tracking-widest">Grading backlog detected</p>
+                      <p className="text-xs font-black text-foreground uppercase tracking-widest">{stats.pendingGrades} Due Tasks</p>
+                      <p className="text-muted-foreground text-[10px] mt-1 font-bold uppercase tracking-widest">Grading backlog detected</p>
                       <Link href="/dashboard/assignments"
-                        className="inline-flex items-center gap-2 mt-4 text-[10px] font-black text-amber-400 hover:text-white uppercase tracking-widest transition-all"
+                        className="inline-flex items-center gap-2 mt-4 text-[10px] font-black text-amber-400 hover:text-foreground uppercase tracking-widest transition-all"
                       >
                         Action <ArrowRightIcon className="w-3.5 h-3.5" />
                       </Link>
@@ -431,17 +431,17 @@ function TeacherPersonalDashboard() {
         </div>
 
         {/* ── FOOTER STATS ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 bg-white/5 p-4 sm:p-6 rounded-3xl border border-white/10">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 bg-card shadow-sm p-4 sm:p-6 rounded-none border border-border">
           {[
-            { label: 'Classes', value: stats.myClasses, icon: AcademicCapIcon, color: 'text-violet-400' },
+            { label: 'Classes', value: stats.myClasses, icon: AcademicCapIcon, color: 'text-orange-400' },
             { label: 'Students', value: stats.totalStudents, icon: UserGroupIcon, color: 'text-blue-400' },
             { label: 'Pending', value: stats.pendingGrades, icon: DocumentTextIcon, color: 'text-amber-400' },
             { label: 'Efficiency', value: `${stats.avgPerformance}%`, icon: FireIcon, color: 'text-emerald-400' },
           ].map((item) => (
-            <div key={item.label} className="flex flex-col items-center justify-center py-4 px-2 hover:bg-white/5 rounded-2xl transition-all group">
+            <div key={item.label} className="flex flex-col items-center justify-center py-4 px-2 hover:bg-card shadow-sm rounded-none transition-all group">
               <item.icon className={`w-5 h-5 ${item.color} mb-3 group-hover:scale-110 transition-transform`} />
-              <p className="text-xl sm:text-2xl font-black text-white group-hover:text-violet-400 transition-colors tabular-nums">{item.value}</p>
-              <p className="text-[9px] text-white/30 font-black uppercase tracking-widest mt-1">{item.label}</p>
+              <p className="text-xl sm:text-2xl font-black text-foreground group-hover:text-orange-400 transition-colors tabular-nums">{item.value}</p>
+              <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest mt-1">{item.label}</p>
             </div>
           ))}
         </div>
@@ -685,27 +685,27 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
   );
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Credentials Modal */}
       {credentials && (
         <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#161628] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-white/10 flex items-center justify-between">
+          <div className="bg-[#161628] border border-border rounded-none w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-none flex items-center justify-center">
                   <ShieldCheckIcon className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white">Teacher Account Created</h3>
-                  <p className="text-xs text-white/40">Credentials for {credentials.name}</p>
+                  <h3 className="font-bold text-foreground">Teacher Account Created</h3>
+                  <p className="text-xs text-muted-foreground">Credentials for {credentials.name}</p>
                 </div>
               </div>
-              <button onClick={() => setCredentials(null)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
-                <XMarkIcon className="w-5 h-5 text-white/40" />
+              <button onClick={() => setCredentials(null)} className="p-2 hover:bg-muted rounded-none transition-colors">
+                <XMarkIcon className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300 flex items-start gap-2">
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-none p-3 text-xs text-amber-300 flex items-start gap-2">
                 <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <span>Copy these now. The teacher should change their password on first login.</span>
               </div>
@@ -714,14 +714,14 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                 { label: 'Temporary Password', value: credentials.tempPassword },
               ].map(({ label, value }) => (
                 <div key={label}>
-                  <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">{label}</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">{label}</p>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-mono text-sm select-all">
+                    <code className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-foreground font-mono text-sm select-all">
                       {value}
                     </code>
                     <button
                       onClick={() => navigator.clipboard.writeText(value)}
-                      className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/40 hover:text-white transition-colors">
+                      className="p-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-muted-foreground hover:text-foreground transition-colors">
                       <ClipboardIcon className="w-4 h-4" />
                     </button>
                   </div>
@@ -732,7 +732,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                   navigator.clipboard.writeText(`Email: ${credentials.email}\nPassword: ${credentials.tempPassword}`);
                   setCredentials(null);
                 }}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all">
+                className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-none transition-all">
                 <ClipboardIcon className="w-4 h-4" /> Copy & Close
               </button>
             </div>
@@ -746,14 +746,14 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <AcademicCapIcon className="w-5 h-5 text-violet-400" />
-              <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Admin · Teacher Management</span>
+              <AcademicCapIcon className="w-5 h-5 text-orange-400" />
+              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Admin · Teacher Management</span>
             </div>
             <h1 className="text-3xl font-extrabold">Teachers</h1>
-            <p className="text-white/40 text-sm mt-1">{teachers.length} teacher{teachers.length !== 1 ? 's' : ''} registered</p>
+            <p className="text-muted-foreground text-sm mt-1">{teachers.length} teacher{teachers.length !== 1 ? 's' : ''} registered</p>
           </div>
           <button onClick={() => { setEditingTeacher(null); setShowInvite(true); }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-violet-600/20">
+            className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-all shadow-lg shadow-orange-600/20">
             <PlusIcon className="w-4 h-4" /> Add Teacher
           </button>
         </div>
@@ -761,100 +761,93 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {[
-            { label: 'Total', value: teachers.length, color: 'text-white', bg: 'bg-white/5' },
+            { label: 'Total', value: teachers.length, color: 'text-foreground', bg: 'bg-card shadow-sm' },
             { label: 'Active', value: teachers.filter(t => t.is_active).length, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Inactive', value: teachers.filter(t => !t.is_active).length, color: 'text-rose-400', bg: 'bg-rose-500/10' },
           ].map(s => (
-            <div key={s.label} className={`${s.bg} border border-white/10 rounded-2xl p-5`}>
+            <div key={s.label} className={`${s.bg} border border-border rounded-none p-5`}>
               <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-white/40 mt-1">{s.label}</p>
+              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
             </div>
           ))}
         </div>
 
         {/* Search */}
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+          <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by name or email…"
-            className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/25" />
+            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors placeholder-muted-foreground" />
         </div>
 
         {/* Teacher list */}
         {loading ? (
           <div className="space-y-3">
-            {[1, 2, 3].map(i => <div key={i} className="h-20 bg-white/5 border border-white/10 rounded-2xl animate-pulse" />)}
+            {[1, 2, 3].map(i => <div key={i} className="h-20 bg-card shadow-sm border border-border rounded-none animate-pulse" />)}
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
-            <AcademicCapIcon className="w-12 h-12 mx-auto text-white/10 mb-3" />
-            <p className="text-white/30">{search ? 'No teachers match that search' : 'No teachers registered yet'}</p>
+            <AcademicCapIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+            <p className="text-muted-foreground">{search ? 'No teachers match that search' : 'No teachers registered yet'}</p>
           </div>
         ) : (
-          <div className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden">
+          <div className="bg-card shadow-sm border border-border rounded-[2rem] overflow-hidden">
             <div className="divide-y divide-white/5">
               {filtered.map(t => (
                 <div key={t.id} className="p-5 sm:p-7 hover:bg-white/[0.02] transition-all">
                   <div className="flex flex-col lg:flex-row lg:items-center gap-6 sm:gap-8">
                     
-                    {/* Left: Avatar + Identity */}
-                    <div className="flex items-center gap-4 sm:gap-6 flex-1 min-w-0">
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-sm sm:text-base font-black text-white shrink-0 shadow-2xl">
+                  <div className="flex items-center gap-4 sm:gap-6 flex-1 min-w-0">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-none bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-sm sm:text-base font-black text-foreground shrink-0 shadow-2xl">
                         {(t.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-white text-lg sm:text-xl truncate tracking-tight">{t.full_name}</h3>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-white/40 mt-1.5">
-                          <span className="flex items-center gap-1.5 truncate"><EnvelopeIcon className="w-3.5 h-3.5 text-violet-400" />{t.email}</span>
-                          {t.phone && <span className="flex items-center gap-1.5"><PhoneIcon className="w-3.5 h-3.5 text-blue-400" />{t.phone}</span>}
+                        <h3 className="font-bold text-foreground text-lg sm:text-xl truncate tracking-tight">{t.full_name}</h3>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground mt-1.5">
+                          <span className="flex items-center gap-1.5 min-w-0 truncate"><EnvelopeIcon className="w-3.5 h-3.5 text-orange-400 shrink-0" /><span className="truncate">{t.email}</span></span>
+                          {t.phone && <span className="flex items-center gap-1.5 shrink-0"><PhoneIcon className="w-3.5 h-3.5 text-blue-400" />{t.phone}</span>}
                         </div>
                       </div>
                     </div>
 
-                    {/* Middle: Deployment Status View */}
-                    <div className="flex flex-wrap items-center gap-2 lg:min-w-[200px] min-w-0">
+                    {/* Middle: Deployment Status */}
+                    <div className="hidden lg:flex flex-wrap items-center gap-2 lg:w-[180px] xl:w-[220px] shrink-0">
                       {staffDeployment[t.id]?.length > 0 ? (
-                        staffDeployment[t.id].map(a => (
-                          <div key={a.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400 uppercase tracking-widest max-w-[220px]">
-                            <BuildingOfficeIcon className="w-3.5 h-3.5 shrink-0" />
+                        staffDeployment[t.id].slice(0, 2).map(a => (
+                          <div key={a.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-none bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400 uppercase tracking-widest max-w-full">
+                            <BuildingOfficeIcon className="w-3 h-3 shrink-0" />
                             <span className="truncate">{a.schools?.name ?? 'Assigned'}</span>
                           </div>
                         ))
                       ) : (
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/10 text-[10px] font-black text-amber-500 uppercase tracking-widest shadow-lg shadow-amber-900/10">
-                          <ExclamationTriangleIcon className="w-4 h-4" />
-                          Not Assigned
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-none bg-amber-500/10 border border-amber-500/10 text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                          <ExclamationTriangleIcon className="w-3.5 h-3.5 shrink-0" />
+                          Unassigned
                         </div>
                       )}
                     </div>
 
-                    {/* Right: Actions Nucleus */}
-                    <div className="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto pt-5 lg:pt-0 border-t lg:border-0 border-white/5">
-                      <button onClick={() => startEdit(t)} 
-                        className="flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-blue-600/30 hover:-translate-y-0.5 whitespace-nowrap">
-                        <BuildingOfficeIcon className="w-4 h-4" />
-                        Manage Deployment
-                      </button>
-
-                      <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10 shrink-0">
+                    {/* Right: Action icons only */}
+                    <div className="flex items-center justify-end gap-1 shrink-0 pt-4 lg:pt-0 border-t lg:border-0 border-border w-full lg:w-auto">
+                      <div className="flex items-center gap-1 bg-card shadow-sm p-1 rounded-none border border-border">
                         <button onClick={() => toggleActive(t.id, t.is_active)}
                           disabled={toggling === t.id}
-                          className="p-2.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all disabled:opacity-50"
+                          className="p-2.5 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-all disabled:opacity-50"
                           title={t.is_active ? 'Deactivate' : 'Activate'}>
                           {toggling === t.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : (t.is_active ? <CheckCircleIcon className="w-4 h-4 text-emerald-400" /> : <XMarkIcon className="w-4 h-4 text-rose-400" />)}
                         </button>
                         <button onClick={() => startEdit(t)}
-                          className="p-2.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all"
-                          title="Edit Details">
+                          className="p-2.5 rounded-none hover:bg-blue-500/10 text-blue-400/60 hover:text-blue-400 transition-all"
+                          title="Edit / Manage Deployment">
                           <PencilSquareIcon className="w-4 h-4" />
                         </button>
                         <button onClick={() => { setResetTarget({ id: t.id, name: t.full_name }); setResetPw(''); setResetMsg(null); }}
-                          className="p-2.5 rounded-lg hover:bg-amber-500/10 text-amber-400/40 hover:text-amber-400 transition-all"
+                          className="p-2.5 rounded-none hover:bg-amber-500/10 text-amber-400/40 hover:text-amber-400 transition-all"
                           title="Reset Password">
                           <KeyIcon className="w-4 h-4" />
                         </button>
                         <button onClick={() => handleDeleteTeacher(t.id)} disabled={deleting === t.id}
-                          className="p-2.5 rounded-lg hover:bg-rose-500/10 text-rose-400/40 hover:text-rose-400 transition-all disabled:opacity-50"
+                          className="p-2.5 rounded-none hover:bg-rose-500/10 text-rose-400/40 hover:text-rose-400 transition-all disabled:opacity-50"
                           title="Delete Teacher">
                           <TrashIcon className="w-4 h-4" />
                         </button>
@@ -872,37 +865,37 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
       {resetTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setResetTarget(null)} />
-          <div className="relative w-full max-w-md bg-[#0f0f1a] border border-white/10 rounded-3xl shadow-2xl">
-            <div className="flex items-center justify-between p-6 border-b border-white/10">
+          <div className="relative w-full max-w-md bg-background border border-border rounded-none shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-border">
               <div>
                 <p className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-0.5">Admin Action</p>
-                <h2 className="text-lg font-extrabold text-white">Reset Password</h2>
-                <p className="text-sm text-white/40 mt-0.5">For: <span className="text-white/70 font-semibold">{resetTarget.name}</span></p>
+                <h2 className="text-lg font-extrabold text-foreground">Reset Password</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">For: <span className="text-muted-foreground font-semibold">{resetTarget.name}</span></p>
               </div>
-              <button onClick={() => setResetTarget(null)} className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+              <button onClick={() => setResetTarget(null)} className="p-2 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleResetPw} className="p-6 space-y-4">
               {resetMsg && (
-                <div className={`rounded-xl px-4 py-3 text-sm border ${resetMsg.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                <div className={`rounded-none px-4 py-3 text-sm border ${resetMsg.ok ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
                   {resetMsg.text}
                 </div>
               )}
               <div>
-                <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">New Password</label>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">New Password</label>
                 <input type="password" required minLength={8} value={resetPw} onChange={e => setResetPw(e.target.value)}
                   placeholder="Minimum 8 characters"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500 transition-colors placeholder-white/25" />
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors placeholder-muted-foreground" />
                 <p className="text-xs text-white/25 mt-1.5">Share this new password with the teacher via phone or in person.</p>
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setResetTarget(null)}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/60 text-sm font-bold rounded-xl border border-white/10 transition-all">
+                  className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-none border border-border transition-all">
                   Cancel
                 </button>
                 <button type="submit" disabled={resetting || resetPw.length < 8}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-500 text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50">
                   {resetting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
                   {resetting ? 'Updating…' : 'Set Password'}
                 </button>
@@ -916,26 +909,26 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
       {showInvite && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowInvite(false)} />
-          <div className="relative w-full sm:max-w-lg bg-[#0b1020] border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh]">
+          <div className="relative w-full sm:max-w-lg bg-[#0b1020] border border-border rounded-t-3xl rounded-none shadow-2xl flex flex-col max-h-[92vh]">
 
             {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-white/10 flex-shrink-0">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-border flex-shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-violet-600/20 flex items-center justify-center">
-                  <AcademicCapIcon className="w-5 h-5 text-violet-400" />
+                <div className="w-10 h-10 rounded-none bg-orange-600/20 flex items-center justify-center">
+                  <AcademicCapIcon className="w-5 h-5 text-orange-400" />
                 </div>
                 <div>
-                  <h2 className="text-base font-extrabold text-white">
+                  <h2 className="text-base font-extrabold text-foreground">
                     {editingTeacher ? 'Edit Teacher' : 'Add Teacher'}
                   </h2>
-                  <p className="text-xs text-white/30 mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {editingTeacher ? 'Update staff information' : 'Create a new staff account'}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => { setShowInvite(false); setEditingTeacher(null); setInviteErr(''); setInviteOk(''); }}
-                className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+                className="p-2 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -947,25 +940,25 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
 
                 {/* Alerts */}
                 {inviteErr && (
-                  <div className="flex items-start gap-2 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-400 text-sm">
+                  <div className="flex items-start gap-2 bg-rose-500/10 border border-rose-500/20 rounded-none px-4 py-3 text-rose-400 text-sm">
                     <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                     {inviteErr}
                   </div>
                 )}
                 {inviteOk && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 text-emerald-400 text-sm">
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-none px-4 py-3 text-emerald-400 text-sm">
                     {inviteOk}
                   </div>
                 )}
 
                 {/* ─── Personal Info ─── */}
                 <div>
-                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="h-px flex-1 bg-white/5" /><span className="shrink-0">Personal Information</span><span className="h-px flex-1 bg-white/5" />
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-card shadow-sm" /><span className="shrink-0">Personal Information</span><span className="h-px flex-1 bg-card shadow-sm" />
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="col-span-2">
-                      <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
                         Full Name <span className="text-rose-400">*</span>
                       </label>
                       <input
@@ -973,11 +966,11 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                         placeholder="e.g. Adeola Johnson"
                         value={inviteForm.full_name}
                         onChange={e => setInviteForm(p => ({ ...p, full_name: e.target.value }))}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20"
+                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors placeholder-muted-foreground"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
                         Phone
                       </label>
                       <input
@@ -985,11 +978,11 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                         placeholder="+234 800 000 0000"
                         value={inviteForm.phone}
                         onChange={e => setInviteForm(p => ({ ...p, phone: e.target.value }))}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20"
+                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors placeholder-muted-foreground"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
                         Subject / Specialisation
                       </label>
                       <input
@@ -997,7 +990,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                         placeholder="e.g. Robotics, Python"
                         value={inviteForm.subject}
                         onChange={e => setInviteForm(p => ({ ...p, subject: e.target.value }))}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20"
+                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors placeholder-muted-foreground"
                       />
                     </div>
                   </div>
@@ -1005,12 +998,12 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
 
                 {/* ─── Account Setup ─── */}
                 <div>
-                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="h-px flex-1 bg-white/5" /><span className="shrink-0">Account Setup</span><span className="h-px flex-1 bg-white/5" />
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-card shadow-sm" /><span className="shrink-0">Account Setup</span><span className="h-px flex-1 bg-card shadow-sm" />
                   </p>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
                         Email Address <span className="text-rose-400">*</span>
                       </label>
                       <input
@@ -1018,22 +1011,22 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                         placeholder="teacher@email.com"
                         value={inviteForm.email}
                         onChange={e => setInviteForm(p => ({ ...p, email: e.target.value }))}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20"
+                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors placeholder-muted-foreground"
                       />
                     </div>
                     {!editingTeacher && (
                       <div>
-                        <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
-                          Password <span className="text-white/20 normal-case font-normal">(leave blank to auto-generate)</span>
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+                          Password <span className="text-muted-foreground normal-case font-normal">(leave blank to auto-generate)</span>
                         </label>
                         <input
                           name="password" type="text"
                           placeholder="Min 8 characters — auto-generated if empty"
                           value={inviteForm.password}
                           onChange={e => setInviteForm(p => ({ ...p, password: e.target.value }))}
-                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white font-mono focus:outline-none focus:border-violet-500 transition-colors placeholder-white/20"
+                          className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground font-mono focus:outline-none focus:border-orange-500 transition-colors placeholder-muted-foreground"
                         />
-                        <p className="text-[10px] text-white/20 mt-1.5">
+                        <p className="text-[10px] text-muted-foreground mt-1.5">
                           The teacher will be prompted to change their password on first login.
                         </p>
                       </div>
@@ -1043,11 +1036,11 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
 
                 {/* ─── School Assignment ─── */}
                 <div>
-                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="h-px flex-1 bg-white/5" /><span className="shrink-0">School Assignment</span><span className="h-px flex-1 bg-white/5" />
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-card shadow-sm" /><span className="shrink-0">School Assignment</span><span className="h-px flex-1 bg-card shadow-sm" />
                   </p>
                   {schools.length === 0 ? (
-                    <div className="px-4 py-6 bg-white/3 border border-white/8 rounded-xl text-center">
+                    <div className="px-4 py-6 bg-white/3 border border-border rounded-none text-center">
                       <BuildingOfficeIcon className="w-8 h-8 text-white/15 mx-auto mb-2" />
                       <p className="text-white/25 text-sm">No schools yet — create a school first.</p>
                     </div>
@@ -1058,10 +1051,10 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                         return (
                           <label
                             key={s.id}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all border ${
+                            className={`flex items-center gap-3 px-4 py-3 rounded-none cursor-pointer transition-all border ${
                               checked
-                                ? 'bg-violet-600/10 border-violet-500/30 text-white'
-                                : 'bg-white/3 border-white/8 text-white/50 hover:bg-white/6 hover:text-white/80'
+                                ? 'bg-orange-600/10 border-orange-500/30 text-foreground'
+                                : 'bg-white/3 border-border text-muted-foreground hover:bg-white/6 hover:text-muted-foreground'
                             }`}
                           >
                             <input
@@ -1071,22 +1064,22 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                                 if (e.target.checked) setSelectedSchools(p => [...p, s.id]);
                                 else setSelectedSchools(p => p.filter(id => id !== s.id));
                               }}
-                              className="w-4 h-4 rounded border-white/10 bg-white/5 text-violet-600 focus:ring-violet-500 flex-shrink-0 accent-violet-500"
+                              className="w-4 h-4 rounded border-border bg-card shadow-sm text-orange-600 focus:ring-orange-500 flex-shrink-0 accent-orange-500"
                             />
                             <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-semibold truncate ${checked ? 'text-white' : 'text-white/60'}`}>
+                              <p className={`text-sm font-semibold truncate ${checked ? 'text-foreground' : 'text-muted-foreground'}`}>
                                 {s.name}
                               </p>
                             </div>
                             {checked && (
-                              <CheckCircleIcon className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                              <CheckCircleIcon className="w-4 h-4 text-orange-400 flex-shrink-0" />
                             )}
                           </label>
                         );
                       })}
                     </div>
                   )}
-                  <p className="text-[10px] text-white/20 mt-2">
+                  <p className="text-[10px] text-muted-foreground mt-2">
                     Teachers assigned to schools can manage results and students for those schools.
                   </p>
                 </div>
@@ -1094,18 +1087,18 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
               </div>
 
               {/* Modal footer */}
-              <div className="flex gap-3 px-6 py-4 border-t border-white/10 flex-shrink-0">
+              <div className="flex gap-3 px-6 py-4 border-t border-border flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => { setShowInvite(false); setEditingTeacher(null); setInviteErr(''); setInviteOk(''); }}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/60 text-sm font-bold rounded-xl border border-white/10 transition-all"
+                  className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground text-sm font-bold rounded-none border border-border transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={inviting}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-all disabled:opacity-50"
                 >
                   {inviting
                     ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</>

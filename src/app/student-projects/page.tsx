@@ -364,7 +364,7 @@ export default function StudentProjectsPage() {
             </a>
             <a
               href="/contact"
-              className="inline-flex items-center justify-center px-8 py-4 border-2 border-white text-white text-xl font-bold rounded-full hover:bg-white hover:text-blue-600 transform transition-all duration-300 hover:scale-105"
+              className="inline-flex items-center justify-center px-8 py-4 border-2 border-border text-white text-xl font-bold rounded-full hover:bg-white hover:text-blue-600 transform transition-all duration-300 hover:scale-105"
             >
               Get Started
             </a>

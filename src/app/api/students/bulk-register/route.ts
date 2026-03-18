@@ -354,6 +354,17 @@ export async function DELETE(request: Request) {
     }
 
     if (resultId) {
+      if (resultId.includes(',')) {
+        // Bulk delete multiple result entries
+        const ids = resultId.split(',').filter(Boolean);
+        const { error } = await supabaseAdmin
+          .from('registration_results')
+          .delete()
+          .in('id', ids);
+        if (error) throw error;
+        return NextResponse.json({ success: true, count: ids.length });
+      }
+
       // Delete single result
       const { error } = await supabaseAdmin
         .from('registration_results')

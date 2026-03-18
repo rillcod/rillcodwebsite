@@ -520,7 +520,7 @@ export default function Gallery() {
             </Link>
             <Link
               href="/contact"
-              className="inline-flex items-center justify-center px-8 py-4 border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-blue-600 transition-colors"
+              className="inline-flex items-center justify-center px-8 py-4 border-2 border-border text-white font-semibold rounded-lg hover:bg-white hover:text-blue-600 transition-colors"
             >
               <Camera className="w-5 h-5 mr-2" />
               Contact Us

@@ -26,7 +26,7 @@ function StatusBadge({ status }: { status: string }) {
     active: 'bg-blue-500/20   text-blue-400   border-blue-500/30',
   };
   return (
-    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${map[status] ?? 'bg-white/10 text-white/40 border-white/10'}`}>
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${map[status] ?? 'bg-muted text-muted-foreground border-border'}`}>
       {status}
     </span>
   );
@@ -36,7 +36,7 @@ function StatusBadge({ status }: { status: string }) {
 function Chip({ icon: Icon, text }: { icon: any; text: string }) {
   if (!text) return null;
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-white/40">
+    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
       <Icon className="w-3 h-3 flex-shrink-0" /> {text}
     </span>
   );
@@ -682,16 +682,16 @@ export default function StudentsPage() {
 
   // ─── Loading ───────────────────────────────────────────────
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div className="animate-pulse space-y-2">
-          <div className="h-4 bg-white/10 rounded w-32" />
-          <div className="h-8 bg-white/10 rounded w-64" />
+          <div className="h-4 bg-muted rounded w-32" />
+          <div className="h-8 bg-muted rounded w-64" />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => <div key={i} className="bg-white/5 border border-white/10 rounded-2xl h-24 animate-pulse" />)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none h-24 animate-pulse" />)}
         </div>
-        {[1, 2, 3].map(i => <div key={i} className="bg-white/5 border border-white/10 rounded-2xl h-24 animate-pulse" />)}
+        {[1, 2, 3].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none h-24 animate-pulse" />)}
       </div>
     </div>
   );
@@ -699,10 +699,10 @@ export default function StudentsPage() {
   if (profile?.role === 'student') return <StudentSelfView />;
 
   if (!isStaff) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center">
-        <UserGroupIcon className="w-12 h-12 mx-auto text-white/10 mb-3" />
-        <p className="text-white/40">You don&apos;t have access to this page.</p>
+        <UserGroupIcon className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+        <p className="text-muted-foreground">You don&apos;t have access to this page.</p>
       </div>
     </div>
   );
@@ -712,15 +712,15 @@ export default function StudentsPage() {
       {/* ── Bulk Enrol Modal ────────────────────────────── */}
       {showBulkEnrolModal && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#0f0f1a] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+          <div className="bg-background border border-border rounded-none w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
 
             {/* Header */}
-            <div className="p-6 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+            <div className="p-6 border-b border-border flex items-center justify-between flex-shrink-0">
               <div>
-                <h2 className="font-bold text-white">Enrol Students</h2>
-                <p className="text-xs text-white/40 mt-0.5">{selectedForEnrol.size} student{selectedForEnrol.size !== 1 ? 's' : ''} selected</p>
+                <h2 className="font-bold text-foreground">Enrol Students</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{selectedForEnrol.size} student{selectedForEnrol.size !== 1 ? 's' : ''} selected</p>
               </div>
-              <button onClick={() => { setShowBulkEnrolModal(false); setBulkEnrolMode('pick'); }} className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all">
+              <button onClick={() => { setShowBulkEnrolModal(false); setBulkEnrolMode('pick'); }} className="p-2 hover:bg-muted rounded-none text-muted-foreground hover:text-foreground transition-all">
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
@@ -729,13 +729,13 @@ export default function StudentsPage() {
             <div className="px-6 pt-5 pb-1 flex gap-2 flex-shrink-0">
               <button
                 onClick={() => setBulkEnrolMode('pick')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${bulkEnrolMode === 'pick' ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-white/10'}`}
+                className={`flex-1 py-2.5 rounded-none text-xs font-bold transition-all ${bulkEnrolMode === 'pick' ? 'bg-orange-600 text-foreground shadow-lg shadow-orange-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
               >
                 Pick Existing Class
               </button>
               <button
                 onClick={() => setBulkEnrolMode('create')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${bulkEnrolMode === 'create' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30' : 'bg-white/5 text-white/40 hover:bg-white/10 border border-white/10'}`}
+                className={`flex-1 py-2.5 rounded-none text-xs font-bold transition-all ${bulkEnrolMode === 'create' ? 'bg-emerald-600 text-foreground shadow-lg shadow-emerald-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
               >
                 + Create New Class
               </button>
@@ -770,11 +770,11 @@ export default function StudentsPage() {
                 <>
                   {scopedClasses.length === 0 ? (
                     <div className="py-10 text-center space-y-3">
-                      <AcademicCapIcon className="w-10 h-10 mx-auto text-white/10" />
-                      <p className="text-sm text-white/30">
+                      <AcademicCapIcon className="w-10 h-10 mx-auto text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
                         {classList.length === 0 ? 'No classes found.' : 'No classes match the selected students\' school.'}
                       </p>
-                      <button onClick={() => setBulkEnrolMode('create')} className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors">
+                      <button onClick={() => setBulkEnrolMode('create')} className="text-xs font-bold text-orange-400 hover:text-orange-500 transition-colors">
                         Create a new class →
                       </button>
                     </div>
@@ -788,18 +788,18 @@ export default function StudentsPage() {
                               <div
                                 key={c.id}
                                 onClick={() => setBulkEnrolClassId(c.id)}
-                                className={`flex items-center gap-3 p-3.5 border rounded-xl cursor-pointer transition-all ${bulkEnrolClassId === c.id ? 'bg-violet-600/15 border-violet-500/40' : 'bg-white/5 border-white/5 hover:border-violet-500/20 hover:bg-white/[0.07]'}`}
+                                className={`flex items-center gap-3 p-3.5 border rounded-none cursor-pointer transition-all ${bulkEnrolClassId === c.id ? 'bg-orange-600/15 border-orange-500/40' : 'bg-card shadow-sm border-border hover:border-orange-500/20 hover:bg-white/[0.07]'}`}
                               >
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${bulkEnrolClassId === c.id ? 'border-violet-400 bg-violet-600' : 'border-white/20'}`}>
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${bulkEnrolClassId === c.id ? 'border-orange-400 bg-orange-600' : 'border-border'}`}>
                                   {bulkEnrolClassId === c.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-semibold text-white truncate">{c.name}</p>
+                                  <p className="text-sm font-semibold text-foreground truncate">{c.name}</p>
                                   {c.programs?.name && (
-                                    <p className="text-[9px] text-white/30 mt-0.5">{c.programs.name}</p>
+                                    <p className="text-[9px] text-muted-foreground mt-0.5">{c.programs.name}</p>
                                   )}
                                 </div>
-                                <span className="text-[10px] font-bold text-white/30 flex-shrink-0 tabular-nums">
+                                <span className="text-[10px] font-bold text-muted-foreground flex-shrink-0 tabular-nums">
                                   {c.current_students ?? 0}{c.max_students ? `/${c.max_students}` : ''} <span className="text-white/15">students</span>
                                 </span>
                               </div>
@@ -809,13 +809,13 @@ export default function StudentsPage() {
                       ))}
                     </div>
                   )}
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-300">
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-none p-3 text-xs text-amber-300">
                     Students already in another class will be <strong>reassigned</strong>. Students outside your school boundary will be skipped.
                   </div>
                   <button
                     onClick={executeBulkEnrol}
                     disabled={!bulkEnrolClassId || bulkEnrolling}
-                    className="w-full py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-foreground font-bold rounded-none transition-all flex items-center justify-center gap-2"
                   >
                     {bulkEnrolling
                       ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Enrolling…</>
@@ -824,7 +824,7 @@ export default function StudentsPage() {
                 </>
               );})() : (
                 <>
-                  <p className="text-xs text-white/30 leading-relaxed">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     Register a new class and immediately enrol the {selectedForEnrol.size} selected student{selectedForEnrol.size !== 1 ? 's' : ''} into it.
                   </p>
                   <div className="space-y-3">
@@ -832,7 +832,7 @@ export default function StudentsPage() {
                     <select
                       value={quickClass.grade_level}
                       onChange={e => setQuickClass(q => ({ ...q, grade_level: e.target.value, name: e.target.value ? '' : q.name }))}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
                     >
                       <option value="">— Grade / Section (pick or type below) —</option>
                       {['Primary 1','Primary 2','Primary 3','Primary 4','Primary 5','Primary 6',
@@ -846,12 +846,12 @@ export default function StudentsPage() {
                       placeholder={quickClass.grade_level ? `Custom name (or use "${quickClass.grade_level}" above)` : 'Custom class name *'}
                       value={quickClass.name}
                       onChange={e => setQuickClass(q => ({ ...q, name: e.target.value, grade_level: e.target.value ? '' : q.grade_level }))}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-emerald-500 transition-colors"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"
                     />
                     <select
                       value={quickClass.program_id}
                       onChange={e => setQuickClass(q => ({ ...q, program_id: e.target.value }))}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
                     >
                       <option value="">— Programme *—</option>
                       {programsList.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -859,7 +859,7 @@ export default function StudentsPage() {
                     <select
                       value={quickClass.school_id}
                       onChange={e => setQuickClass(q => ({ ...q, school_id: e.target.value }))}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
                     >
                       <option value="">— School (optional) —</option>
                       {schoolList.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -869,13 +869,13 @@ export default function StudentsPage() {
                       placeholder="Max students (optional)"
                       value={quickClass.max_students}
                       onChange={e => setQuickClass(q => ({ ...q, max_students: e.target.value }))}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-emerald-500 transition-colors"
+                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"
                     />
                   </div>
                   <button
                     onClick={createAndEnrol}
                     disabled={creatingClass || (!quickClass.name.trim() && !quickClass.grade_level) || !quickClass.program_id}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-foreground font-bold rounded-none transition-all flex items-center justify-center gap-2"
                   >
                     {creatingClass
                       ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Creating & Enrolling…</>
@@ -892,19 +892,19 @@ export default function StudentsPage() {
       {/* ── Sync Result Modal ────────────────────────────── */}
       {syncResult && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#0f0f1a] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-white/10 flex-shrink-0">
+          <div className="bg-background border border-border rounded-none w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
               <div className="flex items-center gap-3">
                 <BoltIcon className="w-5 h-5 text-amber-400" />
-                <h2 className="text-lg font-extrabold text-white">Student Sync Complete</h2>
+                <h2 className="text-lg font-extrabold text-foreground">Student Sync Complete</h2>
               </div>
-              <button onClick={() => setSyncResult(null)} className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-all">
+              <button onClick={() => setSyncResult(null)} className="p-2 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6 overflow-y-auto space-y-4">
               {syncResult.error ? (
-                <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
+                <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
                   <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
                   <p className="text-rose-400 text-sm">{syncResult.error}</p>
                 </div>
@@ -915,16 +915,16 @@ export default function StudentsPage() {
                       { label: 'Students Fixed', value: syncResult.summary?.students_fixed ?? 0, color: 'text-emerald-400' },
                       { label: 'Errors', value: syncResult.summary?.errors ?? 0, color: 'text-rose-400' },
                     ].map(s => (
-                      <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                      <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-3 text-center">
                         <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-                        <p className="text-[10px] text-white/40 mt-0.5">{s.label}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
                       </div>
                     ))}
                   </div>
                   {syncResult.credentials?.filter((c: any) => c.password && !c.password.includes('existing')).length > 0 && (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold text-white/40 uppercase tracking-widest">New Credentials Package</p>
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">New Credentials Package</p>
                         <button 
                           onClick={() => {
                             const dateStr = new Date().toLocaleDateString('en-GB');
@@ -963,9 +963,9 @@ export default function StudentsPage() {
                       </div>
                       <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                         {syncResult.credentials.map((c: any, i: number) => (
-                          <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-3 font-mono text-xs">
-                            <p className="text-white font-bold">{c.name}</p>
-                            <p className="text-white/60 mt-0.5">{c.email}</p>
+                          <div key={i} className="bg-card shadow-sm border border-border rounded-none p-3 font-mono text-xs">
+                            <p className="text-foreground font-bold">{c.name}</p>
+                            <p className="text-muted-foreground mt-0.5">{c.email}</p>
                             <p className="text-emerald-400 font-bold mt-0.5">pw: {c.password}</p>
                           </div>
                         ))}
@@ -975,7 +975,7 @@ export default function StudentsPage() {
                   {syncResult.errors?.length > 0 && (
                     <div>
                       <p className="text-xs font-bold text-rose-400/60 uppercase tracking-widest mb-2">Errors ({syncResult.errors.length})</p>
-                      <div className="space-y-1 text-xs text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
+                      <div className="space-y-1 text-xs text-rose-400/80 bg-rose-500/5 border border-rose-500/20 rounded-none p-3">
                         {syncResult.errors.map((e: string, i: number) => <p key={i}>• {e}</p>)}
                       </div>
                     </div>
@@ -983,8 +983,8 @@ export default function StudentsPage() {
                 </>
               )}
             </div>
-            <div className="p-4 border-t border-white/10 flex-shrink-0">
-              <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-sm transition-all">
+            <div className="p-4 border-t border-border flex-shrink-0">
+              <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-foreground font-bold rounded-none text-sm transition-all">
                 Done
               </button>
             </div>
@@ -995,19 +995,19 @@ export default function StudentsPage() {
       {/* ── Credentials Modal ─────────────────────────────── */}
       {credentials && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#1a1a1a] border-l-8 border-l-emerald-500 border border-white/10 rounded-none w-full max-w-md shadow-2xl overflow-hidden shadow-emerald-500/10">
-            <div className="p-8 border-b border-white/5 flex items-center justify-between">
+          <div className="bg-[#1a1a1a] border-l-8 border-l-emerald-500 border border-border rounded-none w-full max-w-md shadow-2xl overflow-hidden shadow-emerald-500/10">
+            <div className="p-8 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 rounded-none flex items-center justify-center rotate-3">
                   <ShieldCheckIcon className="w-6 h-6 text-emerald-500" />
                 </div>
                 <div>
-                  <h3 className="font-black text-white uppercase tracking-tight italic">Uplink Successful</h3>
-                  <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Credentials for {credentials.name}</p>
+                  <h3 className="font-black text-foreground uppercase tracking-tight italic">Uplink Successful</h3>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Credentials for {credentials.name}</p>
                 </div>
               </div>
-              <button onClick={() => { setCredentials(null); load(); }} className="p-2 hover:bg-white/5 rounded-none transition-colors border border-white/5">
-                <XMarkIcon className="w-5 h-5 text-white/40" />
+              <button onClick={() => { setCredentials(null); load(); }} className="p-2 hover:bg-card shadow-sm rounded-none transition-colors border border-border">
+                <XMarkIcon className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
             
@@ -1026,12 +1026,12 @@ export default function StudentsPage() {
                 <div key={label}>
                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2">{label}</p>
                   <div className="flex items-center gap-px">
-                    <div className="flex-1 px-5 py-3.5 bg-black/40 border border-white/10 rounded-none text-white font-mono text-sm select-all">
+                    <div className="flex-1 px-5 py-3.5 bg-black/40 border border-border rounded-none text-foreground font-mono text-sm select-all">
                       {value}
                     </div>
                     <button
                       onClick={() => navigator.clipboard.writeText(value)}
-                      className="p-3.5 bg-emerald-500 text-white hover:bg-emerald-600 transition-colors rounded-none"
+                      className="p-3.5 bg-emerald-500 text-foreground hover:bg-emerald-600 transition-colors rounded-none"
                       title="Copy">
                       <ClipboardIcon className="w-5 h-5" />
                     </button>
@@ -1046,13 +1046,13 @@ export default function StudentsPage() {
                   );
                   alert('Bulk credentials copied to clipboard.');
                 }}
-                className="w-full flex items-center justify-center gap-3 py-4 bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-[0.4em] rounded-none hover:bg-white/10 transition-all mt-4">
+                className="w-full flex items-center justify-center gap-3 py-4 bg-card shadow-sm border border-border text-foreground text-[10px] font-black uppercase tracking-[0.4em] rounded-none hover:bg-muted transition-all mt-4">
                 <ClipboardIcon className="w-4 h-4" /> Copy Protocol Package
               </button>
 
               <button
                 onClick={() => { setCredentials(null); load(); }}
-                className="w-full py-5 bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.5em] rounded-none hover:bg-emerald-600 transition-all">
+                className="w-full py-5 bg-emerald-500 text-foreground font-black text-xs uppercase tracking-[0.5em] rounded-none hover:bg-emerald-600 transition-all">
                 Clear & Finalize
               </button>
             </div>
@@ -1060,42 +1060,42 @@ export default function StudentsPage() {
         </div>
       )}
 
-      <div className="min-h-screen bg-[#0f0f1a] text-white">
+      <div className="min-h-screen bg-background text-foreground">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6 sm:space-y-10">
 
           {/* ── Header ─────────────────────────────────────── */}
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 print:hidden">
             <div>
               <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <div className="p-2 rounded-none bg-blue-500/10 border border-blue-500/20">
                   <UserGroupIcon className="w-5 h-5 text-blue-400" />
                 </div>
                 <span className="text-[10px] font-black text-blue-400/80 uppercase tracking-[0.2em]">
                   Registry · {profile?.role}
                 </span>
               </div>
-              <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-none">Students</h1>
-              <p className="text-white/40 text-sm sm:text-lg mt-3 font-medium max-w-2xl">
+              <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-foreground leading-none">Students</h1>
+              <p className="text-muted-foreground text-sm sm:text-lg mt-3 font-medium max-w-2xl">
                 Manage registrations, parent info, approvals and student records
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button onClick={() => { load(); loadPortalStudents(); }} title="Refresh"
-                  className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/40 hover:text-white transition-all">
+                  className="p-3 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-muted-foreground hover:text-foreground transition-all">
                   <ArrowPathIcon className="w-4 h-4" />
                 </button>
                 <div className="flex items-center gap-2 flex-1 sm:flex-none">
                   <button onClick={handlePrintRegistry}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all print:hidden">
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest rounded-none border border-border transition-all print:hidden">
                     <PrinterIcon className="w-4 h-4" /> Print Registry
                   </button>
                   <button onClick={handlePrintAllLoginSlips}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-orange-600/20 transition-all print:hidden">
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none shadow-lg shadow-orange-600/20 transition-all print:hidden">
                     <KeyIcon className="w-4 h-4" /> Access Cards
                   </button>
                   <button onClick={exportCSV}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all print:hidden">
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest rounded-none border border-border transition-all print:hidden">
                     <ArrowDownTrayIcon className="w-4 h-4" /> Export
                   </button>
                 </div>
@@ -1106,8 +1106,8 @@ export default function StudentsPage() {
                   <button
                     onClick={handleSync}
                     disabled={syncing}
-                    className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20'
-                      : 'bg-white/5 border border-white/10 text-white/40 hover:bg-white/10 hover:text-white'
+                    className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3 text-[10px] font-black uppercase tracking-widest rounded-none transition-all disabled:opacity-50 ${gapCount ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500/20'
+                      : 'bg-card shadow-sm border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
                       }`}
                   >
                     {syncing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <BoltIcon className="w-4 h-4" />}
@@ -1121,8 +1121,8 @@ export default function StudentsPage() {
 
           {/* ── Error ──────────────────────────────────────── */}
           {error && (
-            <div className="flex items-center gap-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-5 shadow-2xl animate-shake">
-              <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center flex-shrink-0">
+            <div className="flex items-center gap-4 bg-rose-500/10 border border-rose-500/20 rounded-none p-5 shadow-2xl animate-shake">
+              <div className="w-10 h-10 rounded-none bg-rose-500/20 flex items-center justify-center flex-shrink-0">
                 <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
               </div>
               <p className="text-rose-400 text-sm font-bold">{error}</p>
@@ -1134,31 +1134,31 @@ export default function StudentsPage() {
             {([
               { label: 'Total', value: combined.length, icon: UserGroupIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', active: sourceFilter === 'all' && filter === 'all', onClick: () => { setSourceFilter('all'); setFilter('all'); } },
               { label: 'Enrolled', value: normalizedEnrolled.length, icon: AcademicCapIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', active: sourceFilter === 'enrolled', onClick: () => setSourceFilter(sourceFilter === 'enrolled' ? 'all' : 'enrolled') },
-              { label: 'Applications', value: normalizedApplications.length, icon: ClipboardDocumentListIcon, color: 'text-violet-400', bg: 'bg-violet-500/10', active: sourceFilter === 'applications', onClick: () => setSourceFilter(sourceFilter === 'applications' ? 'all' : 'applications') },
+              { label: 'Applications', value: normalizedApplications.length, icon: ClipboardDocumentListIcon, color: 'text-orange-400', bg: 'bg-orange-500/10', active: sourceFilter === 'applications', onClick: () => setSourceFilter(sourceFilter === 'applications' ? 'all' : 'applications') },
               { label: 'Pending', value: pending, icon: ClockIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', active: filter === 'pending', onClick: () => setFilter(filter === 'pending' ? 'all' : 'pending') },
             ]).map(s => (
               <button key={s.label} onClick={s.onClick}
-                className={`group relative text-left bg-white/5 border rounded-2xl sm:rounded-3xl p-5 sm:p-6 transition-all hover:bg-white/8 overflow-hidden ${s.active ? 'border-white/30 ring-1 ring-white/10' : 'border-white/10'}`}>
+                className={`group relative text-left bg-card shadow-sm border rounded-none p-5 sm:p-6 transition-all hover:bg-white/8 overflow-hidden ${s.active ? 'border-border ring-1 ring-white/10' : 'border-border'}`}>
                 <div className={`absolute top-0 right-0 w-24 h-24 ${s.bg} rounded-full blur-3xl opacity-20 -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 ${s.bg} rounded-xl sm:rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 ${s.bg} rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                   <s.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${s.color}`} />
                 </div>
                 <p className={`text-2xl sm:text-4xl font-black ${s.color} tabular-nums`}>{s.value}</p>
-                <p className="text-[10px] sm:text-xs text-white/30 font-black uppercase tracking-widest mt-1.5">{s.label}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest mt-1.5">{s.label}</p>
               </button>
             ))}
           </div>
 
           {/* ── Pending alert ───────────────────────────────── */}
           {pending > 0 && (
-            <div className="flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
+            <div className="flex items-center gap-4 bg-amber-500/10 border border-amber-500/20 rounded-none p-4">
               <ClockIcon className="w-6 h-6 text-amber-400 flex-shrink-0" />
               <div className="flex-1">
                 <p className="font-bold text-amber-400">{pending} student{pending !== 1 ? 's' : ''} awaiting approval</p>
-                <p className="text-xs text-white/30 mt-0.5">Click a student row to expand and approve</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Click a student row to expand and approve</p>
               </div>
               <button onClick={() => { setSourceFilter('applications'); setFilter('pending'); }}
-                className="px-4 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold rounded-xl transition-colors print:hidden">
+                className="px-4 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold rounded-none transition-colors print:hidden">
                 Show Pending
               </button>
             </div>
@@ -1176,20 +1176,20 @@ export default function StudentsPage() {
           <div className="flex flex-col gap-3 print:hidden">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input type="text"
                   placeholder="Search name, email, school, class, city…"
                   value={search} onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500 transition-colors" />
+                  className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-blue-500 transition-colors" />
               </div>
               <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value as any)}
-                className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
+                className="px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 cursor-pointer">
                 <option value="all">All Students</option>
                 <option value="enrolled">Enrolled Portal</option>
                 <option value="applications">Applications</option>
               </select>
               <select value={filter} onChange={e => setFilter(e.target.value)}
-                className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
+                className="px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 cursor-pointer">
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
                 <option value="pending">Pending</option>
@@ -1201,23 +1201,23 @@ export default function StudentsPage() {
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
               <span className="text-[10px] font-black text-white/25 uppercase tracking-widest flex-shrink-0 sm:mt-0 mt-1">Filter for print:</span>
               <select value={filterSchoolReg} onChange={e => setFilterSchoolReg(e.target.value)}
-                className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
+                className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 cursor-pointer">
                 <option value="">All Schools</option>
                 {distinctSchoolsReg.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
               <select value={filterClassReg} onChange={e => setFilterClassReg(e.target.value)}
-                className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer">
+                className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 cursor-pointer">
                 <option value="">All Classes / Grades</option>
                 {distinctClassesReg.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               {(filterSchoolReg || filterClassReg) && (
                 <button onClick={() => { setFilterSchoolReg(''); setFilterClassReg(''); }}
-                  className="px-3 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs text-white/40 hover:text-white transition-all flex-shrink-0">
+                  className="px-3 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs text-muted-foreground hover:text-foreground transition-all flex-shrink-0">
                   Clear
                 </button>
               )}
               <button onClick={handlePrintRegistry}
-                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex-shrink-0">
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-none transition-all flex-shrink-0">
                 <PrinterIcon className="w-3.5 h-3.5" /> Generate Registry
               </button>
             </div>
@@ -1225,10 +1225,10 @@ export default function StudentsPage() {
 
           {/* ── Empty ───────────────────────────────────────── */}
           {filtered.length === 0 && !error && (
-            <div className="text-center py-20 bg-white/5 border border-white/10 rounded-2xl">
-              <UserGroupIcon className="w-14 h-14 mx-auto text-white/10 mb-4" />
-              <p className="text-lg font-semibold text-white/30">No students found</p>
-              <p className="text-sm text-white/20 mt-1">
+            <div className="text-center py-20 bg-card shadow-sm border border-border rounded-none">
+              <UserGroupIcon className="w-14 h-14 mx-auto text-muted-foreground mb-4" />
+              <p className="text-lg font-semibold text-muted-foreground">No students found</p>
+              <p className="text-sm text-muted-foreground mt-1">
                 {search ? 'Try a different search term' : 'Students will appear here once they register or enrol'}
               </p>
             </div>
@@ -1236,12 +1236,12 @@ export default function StudentsPage() {
 
           {/* ── Unified Student List ──────────────────────────── */}
           {filtered.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-              <div className="p-5 border-b border-white/10 flex items-center justify-between">
-                <h3 className="font-bold text-white flex items-center gap-2">
+            <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+              <div className="p-5 border-b border-border flex items-center justify-between">
+                <h3 className="font-bold text-foreground flex items-center gap-2">
                   <AcademicCapIcon className="w-5 h-5 text-blue-400" /> Student Records
                 </h3>
-                <span className="text-xs text-white/30">{filtered.length} of {combined.length} shown</span>
+                <span className="text-xs text-muted-foreground">{filtered.length} of {combined.length} shown</span>
               </div>
 
               <div className="divide-y divide-white/5">
@@ -1253,33 +1253,33 @@ export default function StudentsPage() {
                     <div key={`${s._source}-${s.id}`}>
                       {/* ── Row ─── */}
                       <div
-                        className="flex items-start gap-4 p-5 hover:bg-white/5 transition-colors cursor-pointer group"
+                        className="flex items-start gap-4 p-5 hover:bg-card shadow-sm transition-colors cursor-pointer group"
                         onClick={() => setExpanded(isExpanded ? null : s.id)}>
 
                         {/* Checkbox (enrolled students only — Admin only) */}
                         {isEnrolled && profile?.role === 'admin' && (
                           <div
                             onClick={e => { e.stopPropagation(); setSelectedForEnrol(prev => { const n = new Set(prev); if (n.has(s.id)) n.delete(s.id); else n.add(s.id); return n; }); }}
-                            className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-3 transition-all cursor-pointer ${selectedForEnrol.has(s.id) ? 'bg-violet-600 border-violet-400' : 'border-white/20 hover:border-violet-400'}`}>
-                            {selectedForEnrol.has(s.id) && <CheckCircleIcon className="w-3 h-3 text-white" />}
+                            className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-3 transition-all cursor-pointer ${selectedForEnrol.has(s.id) ? 'bg-orange-600 border-orange-400' : 'border-border hover:border-orange-400'}`}>
+                            {selectedForEnrol.has(s.id) && <CheckCircleIcon className="w-3 h-3 text-foreground" />}
                           </div>
                         )}
 
                         {/* Avatar */}
-                        <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${isEnrolled ? 'from-emerald-600 to-teal-600' : 'from-blue-600 to-violet-600'} flex items-center justify-center text-sm font-black text-white flex-shrink-0 mt-0.5`}>
+                        <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${isEnrolled ? 'from-orange-600 to-orange-400 to-teal-600' : 'from-orange-600 to-orange-400 to-orange-600'} flex items-center justify-center text-sm font-black text-foreground flex-shrink-0 mt-0.5`}>
                           {(s.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                         </div>
 
                         <div className="flex-1 min-w-0">
                           {/* Name + badges */}
                           <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                            <span className="font-bold text-white">{s.full_name}</span>
-                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isEnrolled ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-violet-500/10 text-violet-400 border-violet-500/20'}`}>
+                            <span className="font-bold text-foreground">{s.full_name}</span>
+                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isEnrolled ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'}`}>
                               {isEnrolled ? 'Enrolled' : 'Application'}
                             </span>
                             <StatusBadge status={s.status} />
                             {s.gender && (
-                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/5 text-white/30 border border-white/10">
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-card shadow-sm text-muted-foreground border border-border">
                                 {s.gender}
                               </span>
                             )}
@@ -1308,10 +1308,10 @@ export default function StudentsPage() {
 
                           {/* Parent summary (applications only) */}
                           {!isEnrolled && s.parent_name && (
-                            <div className="mt-2 flex items-center gap-2 text-xs text-white/30">
+                            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                               <UserIcon className="w-3 h-3" />
-                              <span>Parent: <span className="text-white/50 font-semibold">{s.parent_name}</span></span>
-                              {s.parent_phone && <span className="text-white/20">·</span>}
+                              <span>Parent: <span className="text-muted-foreground font-semibold">{s.parent_name}</span></span>
+                              {s.parent_phone && <span className="text-muted-foreground">·</span>}
                               {s.parent_phone && <span>{s.parent_phone}</span>}
                             </div>
                           )}
@@ -1325,14 +1325,14 @@ export default function StudentsPage() {
                                 <button
                                   onClick={e => { e.stopPropagation(); approve(s.id); }}
                                   disabled={acting === s.id}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50">
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all disabled:opacity-50">
                                   <CheckCircleIcon className="w-3.5 h-3.5" />
                                   {acting === s.id ? '…' : 'Approve'}
                                 </button>
                                 <button
                                   onClick={e => { e.stopPropagation(); reject(s.id); }}
                                   disabled={acting === s.id}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50">
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all disabled:opacity-50">
                                   <XCircleIcon className="w-3.5 h-3.5" />
                                   {acting === s.id ? '…' : 'Reject'}
                                 </button>
@@ -1343,7 +1343,7 @@ export default function StudentsPage() {
                             {!isEnrolled && (
                               <button
                                 onClick={e => { e.stopPropagation(); startEdit(s); }}
-                                className="p-2 rounded-xl bg-white/5 border border-white/10 hover:border-violet-500/30 text-white/40 hover:text-white transition-all">
+                                className="p-2 rounded-none bg-card shadow-sm border border-border hover:border-orange-500/30 text-muted-foreground hover:text-foreground transition-all">
                                 <PencilSquareIcon className="w-4 h-4" />
                               </button>
                             )}
@@ -1351,11 +1351,11 @@ export default function StudentsPage() {
                               <button
                                 onClick={e => { e.stopPropagation(); handleDeleteStudent(s.id); }}
                                 disabled={deleting === s.id}
-                                className="p-2 rounded-xl bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
+                                className="p-2 rounded-none bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
                                 <XMarkIcon className="w-4 h-4" />
                               </button>
                             )}
-                            <div className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/40">
+                            <div className="p-2 rounded-none bg-card shadow-sm border border-border text-muted-foreground">
                               {isExpanded
                                 ? <ChevronUpIcon className="w-4 h-4" />
                                 : <ChevronDownIcon className="w-4 h-4" />}
@@ -1366,16 +1366,16 @@ export default function StudentsPage() {
 
                       {/* ── Expanded Detail Panel ─── */}
                       {isExpanded && (
-                        <div className="bg-white/[0.03] border-t border-white/5 p-4 sm:p-8">
+                        <div className="bg-white/[0.03] border-t border-border p-4 sm:p-8">
                           {isEnrolled ? (
                             /* Enrolled student detail */
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
-                                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
+                              <div className="bg-card shadow-sm rounded-none p-5 border border-border">
+                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
                                   <AcademicCapIcon className="w-4 h-4 text-emerald-500" /> Portal Account
                                 </p>
                                 <div className="space-y-3.5">
-                                  <InfoRow label="Email" value={s.email} icon={<EnvelopeIcon className="w-3 h-3 text-white/20" />} />
+                                  <InfoRow label="Email" value={s.email} icon={<EnvelopeIcon className="w-3 h-3 text-muted-foreground" />} />
                                   <InfoRow label="School" value={s.school_name} />
                                   <InfoRow label="Grade / Class" value={s.section_class} />
                                   <InfoRow label="Enrolled Class" value={s.class_id && classMap[s.class_id] ? classMap[s.class_id] : undefined} />
@@ -1383,13 +1383,13 @@ export default function StudentsPage() {
                                 </div>
                               </div>
                               {profile?.role !== 'school' && (
-                                <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
-                                  <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Assign School</p>
+                                <div className="bg-card shadow-sm rounded-none p-5 border border-border">
+                                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4">Assign School</p>
                                   <select
                                     value={s.school_id ?? ''}
                                     disabled={assigningSchool === s.id}
                                     onChange={e => assignStudentSchool(s.id, e.target.value)}
-                                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer disabled:opacity-40"
+                                    className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-blue-500 cursor-pointer disabled:opacity-40"
                                   >
                                     <option value="">— No School —</option>
                                     {schoolList.map(sc => (
@@ -1397,7 +1397,7 @@ export default function StudentsPage() {
                                     ))}
                                   </select>
                                   {assigningSchool === s.id && (
-                                    <p className="mt-2 text-[10px] text-white/30">Saving…</p>
+                                    <p className="mt-2 text-[10px] text-muted-foreground">Saving…</p>
                                   )}
                                 </div>
                               )}
@@ -1405,20 +1405,20 @@ export default function StudentsPage() {
                           ) : (
                             /* Application student detail */
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-                              <div className="bg-white/5 rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-white/10 shadow-2xl">
-                                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
+                              <div className="bg-card shadow-sm rounded-none p-5 sm:p-6 border border-border shadow-2xl">
+                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
                                   <UserIcon className="w-4 h-4 text-blue-500" /> Parent / Guardian
                                 </p>
                                 <div className="space-y-3.5">
                                   <InfoRow label="Name" value={s.parent_name} />
                                   <InfoRow label="Relationship" value={s.parent_relationship} />
-                                  <InfoRow label="Phone" value={s.parent_phone} icon={<PhoneIcon className="w-3 h-3 text-white/20" />} />
-                                  <InfoRow label="Email" value={s.parent_email} icon={<EnvelopeIcon className="w-3 h-3 text-white/20" />} />
+                                  <InfoRow label="Phone" value={s.parent_phone} icon={<PhoneIcon className="w-3 h-3 text-muted-foreground" />} />
+                                  <InfoRow label="Email" value={s.parent_email} icon={<EnvelopeIcon className="w-3 h-3 text-muted-foreground" />} />
                                 </div>
                               </div>
-                              <div className="bg-white/5 rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-white/10 shadow-2xl">
-                                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
-                                  <AcademicCapIcon className="w-4 h-4 text-violet-500" /> Identity
+                              <div className="bg-card shadow-sm rounded-none p-5 sm:p-6 border border-border shadow-2xl">
+                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
+                                  <AcademicCapIcon className="w-4 h-4 text-orange-500" /> Identity
                                 </p>
                                 <div className="space-y-3.5">
                                   <InfoRow label="Full Name" value={s.full_name} />
@@ -1429,8 +1429,8 @@ export default function StudentsPage() {
                                   <InfoRow label="Location" value={[s.city, s.state].filter(Boolean).join(', ')} />
                                 </div>
                               </div>
-                              <div className="bg-[#0a0a1a] rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-white/10 shadow-2xl">
-                                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
+                              <div className="bg-background rounded-none p-5 sm:p-6 border border-border shadow-2xl">
+                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
                                   <BookOpenIcon className="w-4 h-4 text-emerald-500" /> Programme
                                 </p>
                                 <div className="space-y-3.5">
@@ -1448,16 +1448,16 @@ export default function StudentsPage() {
                           )}
 
                           {/* Action bar at bottom of expanded */}
-                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mt-8 pt-8 border-t border-white/5">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mt-8 pt-8 border-t border-border">
                             {!isEnrolled && s.status === 'pending' && (profile?.role === 'admin' || profile?.role === 'teacher') && (
                               <div className="flex items-center gap-3">
                                 <button onClick={() => approve(s.id)} disabled={acting === s.id}
-                                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 shadow-2xl shadow-emerald-600/20 active:scale-95">
+                                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all disabled:opacity-50 shadow-2xl shadow-emerald-600/20 active:scale-95">
                                   <CheckCircleIcon className="w-4 h-4" />
                                   {acting === s.id ? '…' : `Approve ${s.full_name?.split(' ')[0]}`}
                                 </button>
                                 <button onClick={() => reject(s.id)} disabled={acting === s.id}
-                                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 active:scale-95">
+                                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all disabled:opacity-50 active:scale-95">
                                   <XCircleIcon className="w-4 h-4" />
                                   {acting === s.id ? '…' : 'Reject'}
                                 </button>
@@ -1465,12 +1465,12 @@ export default function StudentsPage() {
                             )}
                             {!isEnrolled && s.status === 'approved' && (
                               <div className="flex flex-wrap items-center gap-4">
-                                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
+                                <div className="flex items-center gap-2 px-4 py-2 rounded-none bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
                                   <CheckCircleIcon className="w-3.5 h-3.5" />
                                   Approved Student
                                 </div>
                                 {s.user_id ? (
-                                  <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600/10 border border-violet-500/20 text-violet-400 text-[10px] font-black uppercase tracking-widest">
+                                  <div className="flex items-center gap-2 px-4 py-2 rounded-none bg-orange-600/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest">
                                     <ShieldCheckIcon className="w-3.5 h-3.5" />
                                     Portal Active
                                   </div>
@@ -1478,7 +1478,7 @@ export default function StudentsPage() {
                                   <button
                                     onClick={() => activatePortalAccount(s.id, s.full_name)}
                                     disabled={activating === s.id}
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-2xl active:scale-95">
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all shadow-2xl active:scale-95">
                                     <KeyIcon className="w-4 h-4" />
                                     {activating === s.id ? 'Creating' : 'Activate Portal'}
                                   </button>
@@ -1486,7 +1486,7 @@ export default function StudentsPage() {
                               </div>
                             )}
                             {!isEnrolled && s.status === 'rejected' && (
-                              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest">
+                              <div className="flex items-center gap-2 px-4 py-2 rounded-none bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest">
                                 <XCircleIcon className="w-3.5 h-3.5" />
                                 Registration Rejected
                               </div>
@@ -1494,13 +1494,13 @@ export default function StudentsPage() {
                             <div className="ml-auto flex items-center gap-5">
                               {!isEnrolled && (
                                 <Link href={`/dashboard/students/${s.id}/report`}
-                                  className="flex items-center gap-2 text-[10px] font-black text-violet-400 hover:text-white uppercase tracking-widest transition-colors">
+                                  className="flex items-center gap-2 text-[10px] font-black text-orange-400 hover:text-foreground uppercase tracking-widest transition-colors">
                                   <ClipboardDocumentListIcon className="w-4 h-4" /> Report
                                 </Link>
                               )}
                               {s.parent_email && (
                                 <a href={`mailto:${s.parent_email}`}
-                                  className="flex items-center gap-2 text-[10px] font-black text-white/30 hover:text-white uppercase tracking-widest transition-colors">
+                                  className="flex items-center gap-2 text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors">
                                   <EnvelopeIcon className="w-4 h-4" /> Mail
                                 </a>
                               )}
@@ -1512,7 +1512,7 @@ export default function StudentsPage() {
                               )}
                               {isEnrolled && s.email && (
                                 <a href={`mailto:${s.email}`}
-                                  className="flex items-center gap-2 text-[10px] font-black text-white/30 hover:text-white uppercase tracking-widest transition-colors">
+                                  className="flex items-center gap-2 text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors">
                                   <EnvelopeIcon className="w-4 h-4" /> Mail
                                 </a>
                               )}
@@ -1533,17 +1533,17 @@ export default function StudentsPage() {
       {/* ── Floating Bulk Enrol Bar ───────────────────────── */}
       {selectedForEnrol.size > 0 && profile?.role === 'admin' && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 print:hidden">
-          <div className="flex items-center gap-3 bg-[#0f0f1a] border border-violet-500/40 rounded-2xl px-5 py-3 shadow-2xl shadow-violet-500/20">
-            <span className="text-sm font-bold text-white">{selectedForEnrol.size} selected</span>
+          <div className="flex items-center gap-3 bg-background border border-orange-500/40 rounded-none px-5 py-3 shadow-2xl shadow-orange-500/20">
+            <span className="text-sm font-bold text-foreground">{selectedForEnrol.size} selected</span>
             <button
               onClick={openBulkEnrol}
-              className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-all flex items-center gap-2"
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-bold rounded-none transition-all flex items-center gap-2"
             >
               <AcademicCapIcon className="w-4 h-4" /> Enrol in Class
             </button>
             <button
               onClick={() => setSelectedForEnrol(new Set())}
-              className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-all"
+              className="p-2 hover:bg-muted rounded-none text-muted-foreground hover:text-foreground transition-all"
             >
               <XMarkIcon className="w-4 h-4" />
             </button>
@@ -1563,8 +1563,8 @@ export default function StudentsPage() {
           body { background: white !important; color: black !important; }
           .bg-\[\#0f0f1a\], .bg-gradient-to-br { background: white !important; }
           .bg-white\/5, .bg-white\/8, .bg-white\/10 { background: #f9fafb !important; border-color: #e5e7eb !important; }
-          .text-white, .text-white\/60, .text-white\/40, .text-white\/30 { color: #111827 !important; }
-          .border-white\/10, .border-white\/20, .border-white\/5 { border-color: #e5e7eb !important; }
+          .text-foreground, .text-foreground\/60, .text-foreground\/40, .text-foreground\/30 { color: #111827 !important; }
+          .border-border\/10, .border-border\/20, .border-border\/5 { border-color: #e5e7eb !important; }
           .max-w-7xl { max-width: 100% !important; padding: 0 !important; }
           .shadow-xl, .shadow-lg, .shadow-blue-600\/20, .shadow-2xl { box-shadow: none !important; }
           .print\:hidden { display: none !important; }
@@ -1634,7 +1634,7 @@ function StudentSelfView() {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
@@ -1647,35 +1647,35 @@ function StudentSelfView() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* Header */}
-        <div className="bg-[#0a0a1a] border border-emerald-500/20 rounded-[2.5rem] sm:rounded-[4rem] p-8 sm:p-16 relative overflow-hidden shadow-2xl group">
+        <div className="bg-background border border-emerald-500/20 rounded-[2.5rem] sm:rounded-[4rem] p-8 sm:p-16 relative overflow-hidden shadow-2xl group">
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-600/10 blur-[120px] -mr-64 -mt-64 pointer-events-none group-hover:bg-emerald-600/20 transition-all duration-1000" />
           <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-600/10 blur-[100px] -ml-32 -mb-32 pointer-events-none" />
           
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
             <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="px-5 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.3em] rounded-2xl shadow-xl">
+                <div className="px-5 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.3em] rounded-none shadow-xl">
                   Student Portal
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">System Active</span>
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">System Active</span>
                 </div>
               </div>
               
-              <h1 className="text-4xl sm:text-7xl font-black text-white tracking-tighter leading-[0.9]">
+              <h1 className="text-4xl sm:text-7xl font-black text-foreground tracking-tighter leading-[0.9]">
                 Welcome back,<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-orange-400 from-orange-600 to-orange-400">
                   {profile?.full_name?.split(' ')?.[0] || 'Scholar'}
                 </span>
               </h1>
               
               <div className="flex items-center gap-6 pt-2">
-                <div className="flex items-center gap-2.5 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white/40 shadow-xl" suppressHydrationWarning>
+                <div className="flex items-center gap-2.5 px-6 py-3 bg-card shadow-sm border border-border rounded-none text-[11px] font-black uppercase tracking-widest text-muted-foreground shadow-xl" suppressHydrationWarning>
                    <ClockIcon className="w-4 h-4 text-emerald-500" />
                    {now ? now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
                 </div>
@@ -1683,10 +1683,10 @@ function StudentSelfView() {
             </div>
 
             <div className="hidden lg:block relative">
-               <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-[2.5rem] bg-gradient-to-br from-emerald-600 to-cyan-600 flex items-center justify-center text-5xl sm:text-7xl font-black text-white shadow-3xl rotate-3 hover:rotate-0 transition-transform duration-500">
+               <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-[2.5rem] bg-gradient-to-br from-orange-600 to-orange-400 from-orange-600 to-orange-400 flex items-center justify-center text-5xl sm:text-7xl font-black text-foreground shadow-3xl rotate-3 hover:rotate-0 transition-transform duration-500">
                  {profile?.full_name?.[0].toUpperCase()}
                </div>
-               <div className="absolute -bottom-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-2xl sm:rounded-3xl flex items-center justify-center text-black shadow-2xl -rotate-12">
+               <div className="absolute -bottom-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-none flex items-center justify-center text-black shadow-2xl -rotate-12">
                  <SparklesIcon className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" />
                </div>
             </div>
@@ -1697,17 +1697,17 @@ function StudentSelfView() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 print:hidden">
           {[
             { label: 'Enrolled Courses', value: stats.enrolled, icon: BookOpenIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-            { label: 'Work Submitted', value: stats.submitted, icon: ClipboardDocumentListIcon, color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20' },
+            { label: 'Work Submitted', value: stats.submitted, icon: ClipboardDocumentListIcon, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
             { label: 'Graded Tasks', value: stats.graded, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
             { label: 'Performance', value: stats.graded ? `${stats.letter} (${stats.avgPct}%)` : '—', icon: StarIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
           ].map(({ label, value, icon: Icon, color, bg, border }) => (
-            <div key={label} className="bg-[#0a0a1a] border border-white/5 rounded-3xl p-6 sm:p-8 hover:bg-white/[0.03] hover:border-white/10 transition-all group relative overflow-hidden shadow-2xl">
+            <div key={label} className="bg-background border border-border rounded-none p-6 sm:p-8 hover:bg-white/[0.03] hover:border-border transition-all group relative overflow-hidden shadow-2xl">
               <div className={`absolute top-0 right-0 w-24 h-24 ${bg} opacity-[0.05] blur-3xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
-              <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl ${bg} ${border} border flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 transition-transform`}>
+              <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-none ${bg} ${border} border flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 transition-transform`}>
                 <Icon className={`h-6 w-6 sm:h-8 sm:w-8 ${color}`} />
               </div>
-              <p className="text-3xl sm:text-5xl font-black text-white tracking-tighter tabular-nums relative z-10">{value}</p>
-              <p className="text-[10px] sm:text-xs text-white/20 font-black uppercase tracking-[0.2em] mt-2 relative z-10">{label}</p>
+              <p className="text-3xl sm:text-5xl font-black text-foreground tracking-tighter tabular-nums relative z-10">{value}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-[0.2em] mt-2 relative z-10">{label}</p>
             </div>
           ))}
         </div>
@@ -1716,18 +1716,18 @@ function StudentSelfView() {
           <div className="xl:col-span-2 space-y-6">
 
             {/* Quick Actions */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <h2 className="text-lg font-bold text-white mb-5">Quick Actions</h2>
+            <div className="bg-card shadow-sm border border-border rounded-none p-6">
+              <h2 className="text-lg font-bold text-foreground mb-5">Quick Actions</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {quickActions.map(({ name, href, icon: Icon, desc }) => (
                   <Link key={name} href={href}
-                    className="group flex items-start gap-4 p-4 rounded-xl border border-white/10 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-500/25 transition-colors">
+                    className="group flex items-start gap-4 p-4 rounded-none border border-border hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all">
+                    <div className="w-10 h-10 rounded-none bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-500/25 transition-colors">
                       <Icon className="h-5 w-5 text-emerald-400" />
                     </div>
                     <div>
-                      <p className="font-semibold text-white text-sm">{name}</p>
-                      <p className="text-xs text-white/40 mt-0.5">{desc}</p>
+                      <p className="font-semibold text-foreground text-sm">{name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
                     </div>
                   </Link>
                 ))}
@@ -1735,33 +1735,33 @@ function StudentSelfView() {
             </div>
 
             {/* Recent Activity */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="bg-card shadow-sm border border-border rounded-none p-6">
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-bold text-white">Recent Activity</h2>
-                <button onClick={load} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white transition-colors" title="Refresh">
+                <h2 className="text-lg font-bold text-foreground">Recent Activity</h2>
+                <button onClick={load} className="p-1.5 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Refresh">
                   <ArrowPathIcon className="w-4 h-4" />
                 </button>
               </div>
               {recent.length === 0 ? (
                 <div className="text-center py-8">
-                  <ClipboardDocumentListIcon className="w-10 h-10 mx-auto text-white/10 mb-2" />
+                  <ClipboardDocumentListIcon className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
                   <p className="text-white/25 text-sm">No recent activity yet</p>
                 </div>
               ) : (
                 <div className="space-y-1">
                   {recent.map((s: any, i: number) => (
-                    <div key={s.id} className={`flex items-start gap-3 py-3 ${i < recent.length - 1 ? 'border-b border-white/5' : ''}`}>
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'
+                    <div key={s.id} className={`flex items-start gap-3 py-3 ${i < recent.length - 1 ? 'border-b border-border' : ''}`}>
+                      <div className={`w-9 h-9 rounded-none flex items-center justify-center flex-shrink-0 mt-0.5 ${s.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'
                         }`}>
                         {s.status === 'graded'
                           ? <StarIcon className="h-4 w-4" />
                           : <ClipboardDocumentListIcon className="h-4 w-4" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white text-sm">
+                        <p className="font-semibold text-foreground text-sm">
                           {s.status === 'graded' ? 'Grade received' : 'Assignment submitted'}
                         </p>
-                        <p className="text-xs text-white/40 truncate mt-0.5">
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">
                           {s.assignments?.title ?? '—'}
                           {s.grade != null ? ` · ${s.grade}/${s.assignments?.max_points ?? 100}` : ''}
                         </p>
@@ -1778,33 +1778,33 @@ function StudentSelfView() {
 
           {/* Sidebar */}
           <div className="space-y-5">
-            <div className="bg-gradient-to-br from-emerald-600/20 to-blue-600/20 border border-emerald-500/20 rounded-2xl p-6">
+            <div className="bg-gradient-to-br from-orange-600 to-orange-400/20 from-orange-600 to-orange-400/20 border border-emerald-500/20 rounded-none p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-blue-600 flex items-center justify-center text-xl font-black text-white">
+                <div className="w-12 h-12 rounded-none bg-gradient-to-br from-orange-600 to-orange-400 from-orange-600 to-orange-400 flex items-center justify-center text-xl font-black text-foreground">
                   {(profile?.full_name ?? 'U')[0].toUpperCase()}
                 </div>
                 <div>
-                  <p className="font-bold text-white truncate">{profile?.full_name}</p>
-                  <p className="text-xs text-white/40 truncate">{profile?.email}</p>
+                  <p className="font-bold text-foreground truncate">{profile?.full_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
                 </div>
               </div>
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30 capitalize">
                 student
               </span>
-              <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+              <div className="mt-4 pt-4 border-t border-border space-y-2">
                 <Link href="/dashboard/progress"
-                  className="flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors">
+                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                   <AcademicCapIcon className="w-4 h-4" /> My Progress
                 </Link>
                 <Link href="/dashboard/settings"
-                  className="flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors">
+                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                   <UserIcon className="w-4 h-4" /> Account Settings
                 </Link>
               </div>
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-              <h3 className="font-bold text-white text-sm mb-4">Navigate To</h3>
+            <div className="bg-card shadow-sm border border-border rounded-none p-5">
+              <h3 className="font-bold text-foreground text-sm mb-4">Navigate To</h3>
               <div className="space-y-1">
                 {[
                   { label: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon },
@@ -1813,10 +1813,10 @@ function StudentSelfView() {
                   { label: 'Profile', href: '/dashboard/profile', icon: UserIcon },
                 ].map(({ label, href, icon: Icon }) => (
                   <Link key={label} href={href}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:bg-white/5 hover:text-white transition-all group">
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-none text-sm text-muted-foreground hover:bg-card shadow-sm hover:text-foreground transition-all group">
                     <Icon className="w-4 h-4 group-hover:text-emerald-400 transition-colors" />
                     {label}
-                    <span className="ml-auto opacity-0 group-hover:opacity-60 transition-opacity text-white/40">→</span>
+                    <span className="ml-auto opacity-0 group-hover:opacity-60 transition-opacity text-muted-foreground">→</span>
                   </Link>
                 ))}
               </div>
@@ -1833,8 +1833,8 @@ function InfoRow({ label, value, icon }: { label: string; value?: string | null;
   if (!value) return null;
   return (
     <div className="flex justify-between gap-2 text-xs">
-      <span className="text-white/30 flex-shrink-0">{label}</span>
-      <span className="text-white/70 font-medium text-right flex items-center gap-1">
+      <span className="text-muted-foreground flex-shrink-0">{label}</span>
+      <span className="text-muted-foreground font-medium text-right flex items-center gap-1">
         {icon}{value}
       </span>
     </div>

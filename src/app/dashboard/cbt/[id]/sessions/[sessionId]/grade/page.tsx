@@ -175,16 +175,16 @@ export default function GradeSessionPage() {
     };
 
     if (loading) return (
-        <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center">
             <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
         </div>
     );
 
     if (error || !session) return (
-        <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center text-white">
+        <div className="min-h-screen bg-background flex items-center justify-center text-foreground">
             <div className="text-center">
                 <XCircleIcon className="w-12 h-12 text-rose-500 mx-auto mb-4" />
-                <p className="text-white/60">{error || 'Session not found'}</p>
+                <p className="text-muted-foreground">{error || 'Session not found'}</p>
                 <button onClick={() => router.back()} className="mt-4 text-emerald-400 font-bold underline">Go Back</button>
             </div>
         </div>
@@ -197,26 +197,26 @@ export default function GradeSessionPage() {
     );
 
     return (
-        <div className="min-h-screen bg-[#0f0f1a] text-white">
+        <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-                <button onClick={() => router.back()} className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-all group">
+                <button onClick={() => router.back()} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-all group">
                     <ArrowLeftIcon className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Exam Details
                 </button>
 
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-none bg-emerald-500/20 flex items-center justify-center">
                                 <BookOpenIcon className="w-4 h-4 text-emerald-400" />
                             </div>
                             <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">{exam.title}</span>
                         </div>
                         <h1 className="text-4xl font-black italic tracking-tighter">Evaluation Canvas</h1>
-                        <div className="flex items-center gap-4 text-xs font-bold text-white/40">
-                            <span className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10 italic">
+                        <div className="flex items-center gap-4 text-xs font-bold text-muted-foreground">
+                            <span className="flex items-center gap-2 px-3 py-1 bg-card shadow-sm rounded-full border border-border italic">
                                 <UserIcon className="w-3.5 h-3.5 text-cyan-400" /> {session.portal_users?.full_name}
                             </span>
-                            <span className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10 italic">
+                            <span className="flex items-center gap-2 px-3 py-1 bg-card shadow-sm rounded-full border border-border italic">
                                 <ClockIcon className="w-3.5 h-3.5 text-amber-400" /> {new Date(session.end_time).toLocaleDateString()} · {new Date(session.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                         </div>
@@ -226,17 +226,17 @@ export default function GradeSessionPage() {
                         <button
                             onClick={handleAiGrade}
                             disabled={aiGrading || saving}
-                            className="flex items-center justify-center gap-2 px-6 py-4 bg-violet-600/20 hover:bg-violet-600 border border-violet-500/50 text-violet-400 hover:text-white font-black uppercase text-[10px] tracking-[0.2em] rounded-2xl transition-all disabled:opacity-50 group"
+                            className="flex items-center justify-center gap-2 px-6 py-4 bg-orange-600/20 hover:bg-orange-600 border border-orange-500/50 text-orange-400 hover:text-foreground font-black uppercase text-[10px] tracking-[0.2em] rounded-none transition-all disabled:opacity-50 group"
                         >
-                            {aiGrading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <SparklesIcon className="w-4 h-4 group-hover:rotate-12 transition-transform" />}
+                            {aiGrading ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <SparklesIcon className="w-4 h-4 group-hover:rotate-12 transition-transform" />}
                             {aiGrading ? 'AI Evaluating...' : 'Magic Auto-Grade'}
                         </button>
                         <button
                             onClick={handleSaveGrade}
                             disabled={saving || aiGrading}
-                            className="flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black uppercase text-[10px] tracking-[0.2em] rounded-2xl transition-all shadow-2xl shadow-emerald-900/40 border border-emerald-400/20 group"
+                            className="flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-foreground font-black uppercase text-[10px] tracking-[0.2em] rounded-none transition-all shadow-2xl shadow-emerald-900/40 border border-emerald-400/20 group"
                         >
-                            {saving ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <SaveIcon className="w-4 h-4 group-hover:scale-125 transition-transform" />}
+                            {saving ? <div className="w-5 h-5 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <SaveIcon className="w-4 h-4 group-hover:scale-125 transition-transform" />}
                             {saving ? 'Saving...' : 'Finalize Grade'}
                         </button>
                     </div>
@@ -250,18 +250,18 @@ export default function GradeSessionPage() {
                         return (
                             <div key={q.id} className="relative group">
                                 {/* Decorative line */}
-                                <div className="absolute -left-4 top-0 bottom-0 w-[2px] bg-gradient-to-b from-emerald-500/50 to-transparent group-hover:from-emerald-400 transition-all" />
+                                <div className="absolute -left-4 top-0 bottom-0 w-[2px] bg-gradient-to-b from-orange-600 to-orange-400/50 to-transparent group-hover:from-orange-600 to-orange-400 transition-all" />
                                 
-                                <div className="bg-white/[0.03] border border-white/10 rounded-[2.5rem] overflow-hidden backdrop-blur-sm transition-all group-hover:bg-white/[0.05] group-hover:border-emerald-500/20">
-                                    <div className="p-8 border-b border-white/10 bg-gradient-to-r from-emerald-500/[0.02] to-transparent flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                <div className="bg-white/[0.03] border border-border rounded-[2.5rem] overflow-hidden backdrop-blur-sm transition-all group-hover:bg-white/[0.05] group-hover:border-emerald-500/20">
+                                    <div className="p-8 border-b border-border bg-gradient-to-r from-orange-600 to-orange-400/[0.02] to-transparent flex flex-col md:flex-row md:items-center justify-between gap-6">
                                         <div className="flex items-start gap-6">
-                                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center text-xl font-black text-emerald-400 flex-shrink-0 shadow-lg shadow-emerald-900/40">
+                                            <div className="w-14 h-14 rounded-none bg-gradient-to-br from-orange-600 to-orange-400/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center text-xl font-black text-emerald-400 flex-shrink-0 shadow-lg shadow-emerald-900/40">
                                                 {i + 1}
                                             </div>
                                             <div>
-                                                <h3 className="text-xl font-bold text-white mb-2 leading-tight">{q.question_text}</h3>
+                                                <h3 className="text-xl font-bold text-foreground mb-2 leading-tight">{q.question_text}</h3>
                                                 <div className="flex flex-wrap gap-2">
-                                                    <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase font-black tracking-widest text-white/40 italic">
+                                                    <span className="px-3 py-1 rounded-full bg-card shadow-sm border border-border text-[10px] uppercase font-black tracking-widest text-muted-foreground italic">
                                                         {q.question_type.replace('_', ' ')}
                                                     </span>
                                                     <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] uppercase font-black tracking-widest text-emerald-400 italic">
@@ -271,13 +271,13 @@ export default function GradeSessionPage() {
                                             </div>
                                         </div>
                                         
-                                        <div className="flex flex-col items-center gap-3 p-4 bg-black/20 rounded-3xl border border-white/5">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Awarded Points</label>
+                                        <div className="flex flex-col items-center gap-3 p-4 bg-black/20 rounded-none border border-border">
+                                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Awarded Points</label>
                                             <div className="flex items-center gap-3">
                                                 <button 
                                                     type="button"
                                                     onClick={() => setManualScores({ ...manualScores, [q.id]: Math.max(0, (manualScores[q.id] || 0) - 1) })}
-                                                    className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-rose-500/20 hover:border-rose-500/30 transition-all text-white/40 hover:text-rose-400"
+                                                    className="w-10 h-10 rounded-none bg-card shadow-sm border border-border flex items-center justify-center hover:bg-rose-500/20 hover:border-rose-500/30 transition-all text-muted-foreground hover:text-rose-400"
                                                 >
                                                     <XCircleIcon className="w-5 h-5" />
                                                 </button>
@@ -290,17 +290,17 @@ export default function GradeSessionPage() {
                                                         const val = Math.min(q.points, Math.max(0, Number(e.target.value)));
                                                         setManualScores({ ...manualScores, [q.id]: val });
                                                     }}
-                                                    className="w-24 px-4 py-3 bg-emerald-500/10 border-2 border-emerald-500/40 rounded-2xl text-center text-2xl font-black text-emerald-400 focus:outline-none focus:border-emerald-400 transition-all"
+                                                    className="w-24 px-4 py-3 bg-emerald-500/10 border-2 border-emerald-500/40 rounded-none text-center text-2xl font-black text-emerald-400 focus:outline-none focus:border-emerald-400 transition-all"
                                                 />
                                                 <button 
                                                     type="button"
                                                     onClick={() => setManualScores({ ...manualScores, [q.id]: Math.min(q.points, (manualScores[q.id] || 0) + 1) })}
-                                                    className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-emerald-500/20 hover:border-emerald-500/30 transition-all text-white/40 hover:text-emerald-400"
+                                                    className="w-10 h-10 rounded-none bg-card shadow-sm border border-border flex items-center justify-center hover:bg-emerald-500/20 hover:border-emerald-500/30 transition-all text-muted-foreground hover:text-emerald-400"
                                                 >
                                                     <CheckCircleIcon className="w-5 h-5" />
                                                 </button>
                                             </div>
-                                            <div className="w-full bg-white/5 h-1.5 rounded-full mt-1 overflow-hidden">
+                                            <div className="w-full bg-card shadow-sm h-1.5 rounded-full mt-1 overflow-hidden">
                                                 <div 
                                                     className="h-full bg-emerald-500 transition-all duration-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" 
                                                     style={{ width: `${scoreWeight * 100}%` }} 
@@ -312,29 +312,29 @@ export default function GradeSessionPage() {
                                     <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
                                         <div className="space-y-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-6 h-6 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
+                                                <div className="w-6 h-6 rounded-none bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
                                                     <SparklesIcon className="w-3.5 h-3.5 text-cyan-400" />
                                                 </div>
                                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400/60">Student's Response</p>
                                             </div>
-                                            <div className="p-6 bg-white/[0.02] border border-white/10 rounded-3xl text-base leading-relaxed text-white/80 whitespace-pre-wrap font-medium shadow-inner italic">
+                                            <div className="p-6 bg-white/[0.02] border border-border rounded-none text-base leading-relaxed text-muted-foreground whitespace-pre-wrap font-medium shadow-inner italic">
                                                 {q.question_type === 'coding_blocks' ? (
                                                     <div className="space-y-3">
                                                         <div className="flex flex-wrap items-center gap-2 leading-[2.5rem]">
                                                             {(q.metadata?.logic_sentence || "").split('[BLANK]').map((part: string, pi: number, arr: string[]) => (
                                                                 <div key={pi} className="contents">
-                                                                    <span className="text-white/60">{part}</span>
+                                                                    <span className="text-muted-foreground">{part}</span>
                                                                     {pi < arr.length - 1 && (
-                                                                        <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-emerald-400 font-black italic shadow-sm">
+                                                                        <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 rounded-none text-emerald-400 font-black italic shadow-sm">
                                                                             {(session.answers[q.id] || "").split(',')[pi]?.trim() || "???"}
                                                                         </span>
                                                                     )}
                                                                 </div>
                                                             ))}
                                                         </div>
-                                                        <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/10 w-fit">
+                                                        <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-card shadow-sm rounded-none border border-border w-fit">
                                                             <div className={`w-2 h-2 rounded-full ${ (session.answers[q.id] || "").trim().toLowerCase() === (q.correct_answer || "").trim().toLowerCase() ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" }`} />
-                                                            <span className="text-[10px] font-black uppercase tracking-widest text-white/40 italic">
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">
                                                                 {(session.answers[q.id] || "").trim().toLowerCase() === (q.correct_answer || "").trim().toLowerCase() ? "Sequence Matched" : "Sequence Mismatch"}
                                                             </span>
                                                         </div>
@@ -348,12 +348,12 @@ export default function GradeSessionPage() {
                                         {q.correct_answer && (
                                             <div className="space-y-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-6 h-6 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                                                    <div className="w-6 h-6 rounded-none bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                                                         <CheckCircleIcon className="w-3.5 h-3.5" />
                                                     </div>
                                                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/60">Scoring Rubric / Answer Key</p>
                                                 </div>
-                                                <div className="p-6 bg-emerald-500/[0.03] border border-emerald-500/10 rounded-3xl text-sm leading-relaxed text-emerald-300/70 italic relative overflow-hidden group/rubric">
+                                                <div className="p-6 bg-emerald-500/[0.03] border border-emerald-500/10 rounded-none text-sm leading-relaxed text-emerald-300/70 italic relative overflow-hidden group/rubric">
                                                     <div className="absolute top-0 right-0 p-3 opacity-10">
                                                         <BookOpenIcon className="w-12 h-12" />
                                                     </div>
@@ -367,14 +367,14 @@ export default function GradeSessionPage() {
                         );
                     })}
 
-                    <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-[2.5rem] p-8 space-y-6">
+                    <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-border rounded-[2.5rem] p-8 space-y-6">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+                            <div className="w-12 h-12 rounded-none bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
                                 <SparklesIcon className="w-6 h-6 text-amber-500" />
                             </div>
                             <div>
                                 <h3 className="font-black italic text-xl">Feedback & Notes</h3>
-                                <p className="text-[10px] text-white/30 uppercase tracking-widest font-black">Personalized Student Mentorship</p>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Personalized Student Mentorship</p>
                             </div>
                         </div>
                         <textarea
@@ -382,9 +382,9 @@ export default function GradeSessionPage() {
                             onChange={(e) => setGradingNotes(e.target.value)}
                             placeholder="Provide constructive feedback for the student's growth..."
                             rows={5}
-                            className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-[2rem] text-sm text-white placeholder-white/20 focus:outline-none focus:border-emerald-500 transition-all resize-none shadow-inner"
+                            className="w-full px-6 py-5 bg-card shadow-sm border border-border rounded-[2rem] text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-all resize-none shadow-inner"
                         />
-                        <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-xl border border-amber-500/20 w-fit">
+                        <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-none border border-amber-500/20 w-fit">
                             <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                             <p className="text-[10px] text-amber-400 font-bold italic tracking-tighter">Student will view these remarks on their dashboard</p>
                         </div>

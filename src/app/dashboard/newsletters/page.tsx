@@ -173,16 +173,16 @@ export default function NewslettersPage() {
 
   if (profile?.role !== 'admin' && profile?.role !== 'school') {
     return (
-      <div className="min-h-screen bg-[#05050a] flex items-center justify-center p-6 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-violet-900/10 via-transparent to-transparent">
+      <div className="min-h-screen bg-background flex items-center justify-center p-6 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/10 via-transparent to-transparent">
         <div className="max-w-md w-full text-center space-y-6">
           <div className="w-24 h-24 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto border border-rose-500/20 text-rose-400">
              <InformationCircleIcon className="w-12 h-12" />
           </div>
-          <h1 className="text-3xl font-black tracking-tighter text-white uppercase italic">Access Denied</h1>
-          <p className="text-white/40 font-medium leading-relaxed">
+          <h1 className="text-3xl font-black tracking-tighter text-foreground uppercase italic">Access Denied</h1>
+          <p className="text-muted-foreground font-medium leading-relaxed">
             Only Administrators and School Partners can manage official newsletters. Visit the <strong>Messages</strong> tab to view published editions.
           </p>
-          <a href="/dashboard" className="inline-block px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all">
+          <a href="/dashboard" className="inline-block px-8 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground transition-all">
             Return to Command Center
           </a>
         </div>
@@ -191,30 +191,30 @@ export default function NewslettersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white p-4 sm:p-8">
+    <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <SpeakerWaveIcon className="w-5 h-5 text-violet-400" />
-              <span className="text-xs font-bold text-violet-400 uppercase tracking-widest">Premium Content</span>
+              <SpeakerWaveIcon className="w-5 h-5 text-orange-400" />
+              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Premium Content</span>
             </div>
             <h1 className="text-3xl font-extrabold">Newsletters & Announcements</h1>
-            <p className="text-white/40 text-sm mt-1">Design, AI-Draft, and push professional newsletters to everyone.</p>
+            <p className="text-muted-foreground text-sm mt-1">Design, AI-Draft, and push professional newsletters to everyone.</p>
           </div>
           {view === 'list' ? (
             <button 
               onClick={() => { setView('editor'); setActiveNewsletter({ title: '', content: '' }); }}
-              className="flex items-center gap-2 px-5 py-3 bg-violet-600 hover:bg-violet-500 rounded-2xl text-sm font-bold transition-all shadow-lg shadow-violet-900/40"
+              className="flex items-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 rounded-none text-sm font-bold transition-all shadow-lg shadow-orange-900/40"
             >
               <PlusIcon className="w-5 h-5" /> Create Newsletter
             </button>
           ) : (
             <button 
               onClick={() => setView('list')}
-              className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-sm font-bold transition-all border border-white/10"
+              className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm hover:bg-muted rounded-none text-sm font-bold transition-all border border-border"
             >
               <ArrowLeftIcon className="w-4 h-4" /> Back to List
             </button>
@@ -222,7 +222,7 @@ export default function NewslettersPage() {
         </div>
 
         {success && (
-          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3 text-emerald-400 animate-in fade-in slide-in-from-top-4">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-none p-4 flex items-center gap-3 text-emerald-400 animate-in fade-in slide-in-from-top-4">
             <CheckCircleIcon className="w-5 h-5" />
             <span className="text-sm font-bold">{success}</span>
           </div>
@@ -233,22 +233,22 @@ export default function NewslettersPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {loading ? (
               Array(3).fill(0).map((_, i) => (
-                <div key={i} className="bg-white/5 border border-white/10 rounded-[32px] h-48 animate-pulse" />
+                <div key={i} className="bg-card shadow-sm border border-border rounded-[32px] h-48 animate-pulse" />
               ))
             ) : newsletters.length === 0 ? (
               <div className="col-span-full py-20 text-center">
-                <DocumentTextIcon className="w-16 h-16 mx-auto text-white/10 mb-4" />
-                <p className="text-white/40 font-bold">No newsletters created yet.</p>
+                <DocumentTextIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground font-bold">No newsletters created yet.</p>
               </div>
             ) : (
               newsletters.map(nl => (
                 <div 
                   key={nl.id} 
                   onClick={() => { setActiveNewsletter(nl); setView('editor'); }}
-                  className="group bg-white/5 border border-white/10 rounded-[32px] p-6 hover:bg-white/8 transition-all cursor-pointer relative overflow-hidden"
+                  className="group bg-card shadow-sm border border-border rounded-[32px] p-6 hover:bg-white/8 transition-all cursor-pointer relative overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ChevronRightIcon className="w-5 h-5 text-violet-400" />
+                    <ChevronRightIcon className="w-5 h-5 text-orange-400" />
                   </div>
                   <div className="flex items-center gap-2 mb-4">
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
@@ -256,12 +256,12 @@ export default function NewslettersPage() {
                     }`}>
                       {nl.status}
                     </span>
-                    <span className="text-[9px] text-white/30 font-black uppercase tracking-widest">
+                    <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">
                       {nl.created_at ? new Date(nl.created_at).toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
-                  <h3 className="text-xl font-black text-white mb-2 line-clamp-2 tracking-tight uppercase leading-tight">{nl.title}</h3>
-                  <div className="text-sm text-white/40 line-clamp-3 mb-4 whitespace-pre-wrap h-20 overflow-hidden leading-relaxed">
+                  <h3 className="text-xl font-black text-foreground mb-2 line-clamp-2 tracking-tight uppercase leading-tight">{nl.title}</h3>
+                  <div className="text-sm text-muted-foreground line-clamp-3 mb-4 whitespace-pre-wrap h-20 overflow-hidden leading-relaxed">
                     {nl.content}
                   </div>
                 </div>
@@ -274,31 +274,31 @@ export default function NewslettersPage() {
             
             {/* Editor Sidebar (Generation) */}
             <div className="lg:col-span-4 space-y-6 sticky top-24">
-              <div className="bg-[#0f0f1a]/80 backdrop-blur-xl border border-white/10 ring-1 ring-white/10 rounded-[2.5rem] p-8 space-y-8 shadow-2xl">
+              <div className="bg-background/80 backdrop-blur-xl border border-border ring-1 ring-white/10 rounded-[2.5rem] p-8 space-y-8 shadow-2xl">
                 <div>
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-violet-600/20 rounded-xl flex items-center justify-center border border-violet-500/30">
-                      <SparklesIcon className="w-6 h-6 text-violet-400" />
+                    <div className="w-10 h-10 bg-orange-600/20 rounded-none flex items-center justify-center border border-orange-500/30">
+                      <SparklesIcon className="w-6 h-6 text-orange-400" />
                     </div>
                     <div>
                       <h3 className="text-lg font-black tracking-tight uppercase">AI Assistant</h3>
-                      <p className="text-[10px] text-white/30 font-black uppercase tracking-widest">Premium Content Engine</p>
+                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Premium Content Engine</p>
                     </div>
                   </div>
                   
-                  <p className="text-xs text-white/40 mb-6 leading-relaxed">
+                  <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
                     Enter a topic to generate a premium newsletter draft. Our AI will handle the tone, structure, and professional formatting automatically.
                   </p>
                   
                   <div className="space-y-6">
                     <div className="space-y-3">
-                       <p className="text-[10px] font-black text-white/20 uppercase tracking-widest leading-none">Perspective</p>
+                       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">Perspective</p>
                        <div className="grid grid-cols-2 gap-2">
                           {['professional', 'energetic', 'visionary'].map(t => (
                             <button
                               key={t}
                               onClick={() => setAiTone(t as any)}
-                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${aiTone === t ? 'bg-violet-600 border-violet-500 text-white' : 'bg-white/5 border-white/10 text-white/30 hover:bg-white/10'}`}
+                              className={`px-3 py-2 rounded-none text-[9px] font-black uppercase tracking-widest border transition-all ${aiTone === t ? 'bg-orange-600 border-orange-500 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
                             >
                               {t}
                             </button>
@@ -307,13 +307,13 @@ export default function NewslettersPage() {
                     </div>
 
                     <div className="space-y-3">
-                       <p className="text-[10px] font-black text-white/20 uppercase tracking-widest leading-none">Target Demographic</p>
+                       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">Target Demographic</p>
                        <div className="grid grid-cols-2 gap-2">
                           {['everyone', 'parents', 'students'].map(a => (
                             <button
                               key={a}
                               onClick={() => setAiAudience(a as any)}
-                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${aiAudience === a ? 'bg-cyan-600 border-cyan-500 text-white shadow-lg shadow-cyan-900/40' : 'bg-white/5 border-white/10 text-white/30 hover:bg-white/10'}`}
+                              className={`px-3 py-2 rounded-none text-[9px] font-black uppercase tracking-widest border transition-all ${aiAudience === a ? 'bg-cyan-600 border-cyan-500 text-foreground shadow-lg shadow-cyan-900/40' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
                             >
                               {a}
                             </button>
@@ -322,20 +322,20 @@ export default function NewslettersPage() {
                     </div>
 
                     <div className="space-y-2">
-                       <label className="text-[10px] font-black text-white/20 uppercase tracking-widest pl-1">Primary Objective / Context</label>
+                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Primary Objective / Context</label>
                        <textarea 
                          value={topic}
                          onChange={e => setTopic(e.target.value)}
                          placeholder="e.g. Announcing the new Robotics Lab session starting June 12th for JSS students..."
-                         className="w-full bg-white/5 border border-white/10 rounded-3xl px-6 py-6 text-sm text-white focus:outline-none focus:border-violet-500/50 transition-all resize-none h-64 placeholder-white/10 font-medium leading-relaxed shadow-inner"
+                         className="w-full bg-card shadow-sm border border-border rounded-none px-6 py-6 text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-all resize-none h-64 placeholder-muted-foreground font-medium leading-relaxed shadow-inner"
                        />
-                       <p className="text-[9px] text-white/20 italic pl-1">The more detail you provide, the more tailored the narrative becomes.</p>
+                       <p className="text-[9px] text-muted-foreground italic pl-1">The more detail you provide, the more tailored the narrative becomes.</p>
                     </div>
                     
                     <button 
                       onClick={handleAIGenerate}
                       disabled={generating || !topic}
-                      className="w-full py-5 bg-gradient-to-br from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 active:scale-[0.98] rounded-[2rem] text-xs font-black transition-all shadow-2xl shadow-violet-900/40 disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-[0.2em]"
+                      className="w-full py-5 bg-gradient-to-br from-orange-600 to-indigo-700 hover:from-orange-500 hover:to-indigo-600 active:scale-[0.98] rounded-[2rem] text-xs font-black transition-all shadow-2xl shadow-orange-900/40 disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-[0.2em]"
                     >
                       {generating ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SparklesIcon className="w-5 h-5" />}
                       {generating ? 'Cultivating Narrative...' : 'Generate Premium Edition'}
@@ -343,19 +343,19 @@ export default function NewslettersPage() {
                   </div>
                 </div>
 
-                <div className="pt-8 border-t border-white/5 space-y-4">
-                  <h3 className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">Official Actions</h3>
+                <div className="pt-8 border-t border-border space-y-4">
+                  <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Official Actions</h3>
                   <button 
                     onClick={handleDownloadPDF}
-                    className="w-full flex items-center gap-4 px-5 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-sm font-black transition-all border border-white/10 group"
+                    className="w-full flex items-center gap-4 px-5 py-4 bg-card shadow-sm hover:bg-muted rounded-none text-sm font-black transition-all border border-border group"
                   >
-                    <PrinterIcon className="w-5 h-5 text-violet-400 group-hover:scale-110 transition-transform" /> 
+                    <PrinterIcon className="w-5 h-5 text-orange-400 group-hover:scale-110 transition-transform" /> 
                     <span className="uppercase tracking-widest">Export PDF Archive</span>
                   </button>
                   {activeNewsletter?.id && (
                     <button 
                       onClick={() => setShowPushModal(true)}
-                      className="w-full flex items-center gap-4 px-5 py-4 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 rounded-2xl text-sm font-black transition-all border border-emerald-500/20 group"
+                      className="w-full flex items-center gap-4 px-5 py-4 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 rounded-none text-sm font-black transition-all border border-emerald-500/20 group"
                     >
                       <SpeakerWaveIcon className="w-5 h-5 group-hover:animate-pulse" /> 
                       <span className="uppercase tracking-widest">Deploy to Portal</span>
@@ -367,38 +367,38 @@ export default function NewslettersPage() {
 
             {/* Main Content Area */}
             <div className="lg:col-span-8 space-y-10">
-              <div className="bg-[#0f0f1a]/80 backdrop-blur-xl border border-white/10 ring-1 ring-white/10 rounded-[3rem] p-10 space-y-8 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
+              <div className="bg-background/80 backdrop-blur-xl border border-border ring-1 ring-white/10 rounded-[3rem] p-10 space-y-8 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-orange-500/30 to-transparent" />
                 
                 <div className="flex flex-col gap-6">
-                  <div className="flex items-center gap-4 border-b border-white/5 pb-6">
-                    <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 shrink-0">
-                      <DocumentTextIcon className="w-6 h-6 text-white/20" />
+                  <div className="flex items-center gap-4 border-b border-border pb-6">
+                    <div className="w-12 h-12 bg-card shadow-sm rounded-none flex items-center justify-center border border-border shrink-0">
+                      <DocumentTextIcon className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <input 
                       type="text"
                       value={activeNewsletter?.title || ''}
                       onChange={e => setActiveNewsletter(p => ({ ...p, title: e.target.value }))}
                       placeholder="Edition Headline..."
-                      className="w-full bg-transparent text-4xl font-black focus:outline-none placeholder-white/5 tracking-tighter uppercase italic"
+                      className="w-full bg-transparent text-4xl font-black focus:outline-none placeholder-muted-foreground tracking-tighter uppercase italic"
                     />
                   </div>
                   
                   <div className="relative group/editor px-4 sm:px-10">
-                    <div className="absolute -left-2 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-violet-500/20 to-transparent" />
+                    <div className="absolute -left-2 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-orange-500/20 to-transparent" />
                     <textarea 
                       value={activeNewsletter?.content || ''}
                       onChange={e => setActiveNewsletter(p => ({ ...p, content: e.target.value }))}
                       placeholder="Strategic communication content goes here... Use Markdown for emphasis."
-                      className="w-full bg-transparent text-lg sm:text-2xl leading-[1.8] min-h-[900px] focus:outline-none placeholder-white/5 resize-none font-serif tracking-wide scrollbar-hide selection:bg-violet-500/40 text-white/90"
+                      className="w-full bg-transparent text-lg sm:text-2xl leading-[1.8] min-h-[900px] focus:outline-none placeholder-muted-foreground resize-none font-serif tracking-wide scrollbar-hide selection:bg-orange-500/40 text-muted-foreground"
                     />
                   </div>
                 </div>
                 
-                <div className="pt-8 border-t border-white/5 flex flex-wrap justify-end gap-4">
+                <div className="pt-8 border-t border-border flex flex-wrap justify-end gap-4">
                    <button 
                     onClick={() => setShowPreview(true)}
-                    className="flex items-center gap-3 px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-[10px] font-black transition-all uppercase tracking-widest text-white/60 hover:text-white"
+                    className="flex items-center gap-3 px-6 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black transition-all uppercase tracking-widest text-muted-foreground hover:text-foreground"
                   >
                     <EyeIcon className="w-4 h-4" />
                     Live Preview
@@ -406,7 +406,7 @@ export default function NewslettersPage() {
                    <button 
                     onClick={handleSave}
                     disabled={loading || !activeNewsletter?.title}
-                    className="flex items-center gap-3 px-8 py-4 bg-violet-600 hover:bg-violet-500 rounded-2xl text-[10px] font-black transition-all shadow-2xl shadow-violet-900/40 hover:-translate-y-1 uppercase tracking-widest"
+                    className="flex items-center gap-3 px-8 py-4 bg-orange-600 hover:bg-orange-500 rounded-none text-[10px] font-black transition-all shadow-2xl shadow-orange-900/40 hover:-translate-y-1 uppercase tracking-widest"
                   >
                     {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CheckCircleIcon className="w-5 h-5" />}
                     Lock & Save
@@ -419,32 +419,32 @@ export default function NewslettersPage() {
 
         {/* Modern Slide-Over Preview Panel */}
         {showPreview && (
-          <div className="fixed inset-0 z-[60] flex flex-col bg-[#05050a]/95 backdrop-blur-2xl animate-in fade-in duration-300">
-            <div className="flex items-center justify-between p-6 border-b border-white/10 bg-[#0f0f1a]/50">
+          <div className="fixed inset-0 z-[60] flex flex-col bg-background/95 backdrop-blur-2xl animate-in fade-in duration-300">
+            <div className="flex items-center justify-between p-6 border-b border-border bg-background/50">
                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-violet-600/20 rounded-xl flex items-center justify-center border border-violet-500/30">
-                    <EyeIcon className="w-5 h-5 text-violet-400" />
+                  <div className="w-10 h-10 bg-orange-600/20 rounded-none flex items-center justify-center border border-orange-500/30">
+                    <EyeIcon className="w-5 h-5 text-orange-400" />
                   </div>
                   <div>
                      <h3 className="text-sm font-black uppercase tracking-widest">Branded A4 Preview</h3>
                      <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                        <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Active Draft Render</span>
+                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Active Draft Render</span>
                      </div>
                   </div>
                </div>
                <div className="flex items-center gap-3">
                   <button 
                     onClick={handleDownloadPDF}
-                    className="hidden sm:flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                    className="hidden sm:flex items-center gap-2 px-6 py-3 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black uppercase tracking-widest transition-all"
                   >
-                    <PrinterIcon className="w-4 h-4 text-violet-400" /> Export PDF
+                    <PrinterIcon className="w-4 h-4 text-orange-400" /> Export PDF
                   </button>
                   <button 
                     onClick={() => setShowPreview(false)}
-                    className="w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 rounded-xl transition-all group"
+                    className="w-12 h-12 flex items-center justify-center bg-card shadow-sm hover:bg-rose-500/20 rounded-none transition-all group"
                   >
-                    <XMarkIcon className="w-6 h-6 text-white/40 group-hover:text-rose-500" />
+                    <XMarkIcon className="w-6 h-6 text-muted-foreground group-hover:text-rose-500" />
                   </button>
                </div>
             </div>
@@ -457,7 +457,7 @@ export default function NewslettersPage() {
                      style={{ width: '210mm', minHeight: '297mm', padding: '25mm' }}
                   >
                        <div className="flex items-center gap-6 sm:gap-[30px] border-b-4 border-[#1a1a1a] pb-6 sm:pb-[25px] mb-10 sm:mb-[40px]">
-                         <div className="w-16 h-16 sm:w-[90px] sm:h-[90px] bg-[#1a1a1a] rounded-xl sm:rounded-[18px] flex items-center justify-center p-3 sm:p-[15px]">
+                         <div className="w-16 h-16 sm:w-[90px] sm:h-[90px] bg-[#1a1a1a] rounded-none sm:rounded-[18px] flex items-center justify-center p-3 sm:p-[15px]">
                            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain filter invert" />
                          </div>
                          <div className="flex-1">
@@ -509,17 +509,17 @@ export default function NewslettersPage() {
         {/* Push Modal */}
         {showPushModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="bg-[#161625] border border-white/10 rounded-[40px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95">
+            <div className="bg-[#161625] border border-border rounded-[40px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95">
               <div className="p-8 space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold">Push to Recipients</h3>
-                  <button onClick={() => setShowPushModal(false)} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
-                    <XMarkIcon className="w-5 h-5 text-white/40" />
+                  <button onClick={() => setShowPushModal(false)} className="p-2 hover:bg-card shadow-sm rounded-none transition-colors">
+                    <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                   </button>
                 </div>
                 
                 <div className="space-y-4">
-                  <p className="text-sm text-white/40">Select who should receive this premium newsletter. It will appear as a "View-Once" popup upon their next login.</p>
+                  <p className="text-sm text-muted-foreground">Select who should receive this premium newsletter. It will appear as a "View-Once" popup upon their next login.</p>
                   <div className="grid grid-cols-1 gap-2">
                     {[
                       { id: 'all', label: 'All Users', icon: UserGroupIcon },
@@ -530,18 +530,18 @@ export default function NewslettersPage() {
                       <button 
                         key={t.id}
                         onClick={() => setTargetType(t.id as any)}
-                        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border transition-all ${
-                          targetType === t.id ? 'bg-violet-600/10 border-violet-500/50 text-white' : 'bg-white/5 border-white/5 text-white/40 hover:bg-white/8'
+                        className={`flex items-center gap-3 px-4 py-4 rounded-none border transition-all ${
+                          targetType === t.id ? 'bg-orange-600/10 border-orange-500/50 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-white/8'
                         }`}
                       >
-                        <t.icon className={`w-5 h-5 ${targetType === t.id ? 'text-violet-400' : ''}`} />
+                        <t.icon className={`w-5 h-5 ${targetType === t.id ? 'text-orange-400' : ''}`} />
                         <span className="text-sm font-bold">{t.label}</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+                <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-none">
                   <InformationCircleIcon className="w-5 h-5 text-blue-400 shrink-0" />
                   <p className="text-[11px] text-blue-400 font-medium">This document will be embedded with the official signature for premium presentation.</p>
                 </div>
@@ -549,7 +549,7 @@ export default function NewslettersPage() {
                 <button 
                   onClick={handlePush}
                   disabled={pushing}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black rounded-2xl transition-all shadow-xl shadow-emerald-900/40 flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-black rounded-none transition-all shadow-xl shadow-emerald-900/40 flex items-center justify-center gap-2"
                 >
                   {pushing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SpeakerWaveIcon className="w-5 h-5" />}
                   Confirm & Push Newsletter
