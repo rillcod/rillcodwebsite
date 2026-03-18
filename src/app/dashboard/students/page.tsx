@@ -363,10 +363,10 @@ export default function StudentsPage() {
 
   // ── CSV export ─────────────────────────────────────────────
   const exportCSV = () => {
-    const header = ['Name', 'Status', 'Enrollment Type', 'Grade', 'School', 'Gender', 'Parent', 'Parent Phone', 'Parent Email', 'City', 'State', 'Registered'];
+    const header = ['Name', 'Status', 'Enrollment Type', 'Grade', 'School', 'Gender', 'Parent', 'Parent Phone', 'Student Email', 'City', 'State', 'Registered'];
     const rows = students.map(s => [
       s.full_name, s.status, s.enrollment_type, s.grade_level, s.school_name, s.gender,
-      s.parent_name, s.parent_phone, s.parent_email, s.city, s.state,
+      s.parent_name, s.parent_phone, s.student_email || s.parent_email, s.city, s.state,
       new Date(s.created_at).toLocaleDateString(),
     ]);
     const csv = [header, ...rows].map(r => r.map(c => `"${c ?? ''}"`).join(',')).join('\n');
@@ -394,7 +394,7 @@ export default function StudentsPage() {
     const rows = filtered.map((s, i) => {
       const isEnrolled = s._source === 'enrolled';
       const cls = s.section_class || (s.class_id && classMap[s.class_id]) || s.grade_level || '—';
-      const email = s.email || s.parent_email || '—';
+      const email = s.student_email || s.email || s.parent_email || '—';
       const school = s.school_name || '—';
       const status = s.status || '—';
       const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
@@ -532,6 +532,7 @@ export default function StudentsPage() {
     const q = search.toLowerCase();
     const ms = (s.full_name ?? '').toLowerCase().includes(q) ||
       (s.parent_email ?? '').toLowerCase().includes(q) ||
+      (s.student_email ?? '').toLowerCase().includes(q) ||
       (s.email ?? '').toLowerCase().includes(q) ||
       (s.parent_name ?? '').toLowerCase().includes(q) ||
       (s.school_name ?? '').toLowerCase().includes(q) ||
@@ -949,13 +950,10 @@ export default function StudentsPage() {
                     {syncing ? 'Syncing' : gapCount ? `Sync ${gapCount}` : 'Sync'}
                   </button>
                 )}
-                <button onClick={() => { setEditingStudent(null); setShowAdd(true); }}
-                  className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-2xl shadow-blue-600/20 active:scale-95">
-                  <PlusIcon className="w-4 h-4" /> Add Student
-                </button>
               </div>
             </div>
           </div>
+
 
           {/* ── Error ──────────────────────────────────────── */}
           {error && (
@@ -1094,8 +1092,8 @@ export default function StudentsPage() {
                         className="flex items-start gap-4 p-5 hover:bg-white/5 transition-colors cursor-pointer group"
                         onClick={() => setExpanded(isExpanded ? null : s.id)}>
 
-                        {/* Checkbox (enrolled students only) */}
-                        {isEnrolled && (
+                        {/* Checkbox (enrolled students only — Admin only) */}
+                        {isEnrolled && profile?.role === 'admin' && (
                           <div
                             onClick={e => { e.stopPropagation(); setSelectedForEnrol(prev => { const n = new Set(prev); if (n.has(s.id)) n.delete(s.id); else n.add(s.id); return n; }); }}
                             className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-3 transition-all cursor-pointer ${selectedForEnrol.has(s.id) ? 'bg-violet-600 border-violet-400' : 'border-white/20 hover:border-violet-400'}`}>
@@ -1363,7 +1361,7 @@ export default function StudentsPage() {
       </div>
 
       {/* ── Floating Bulk Enrol Bar ───────────────────────── */}
-      {selectedForEnrol.size > 0 && (
+      {selectedForEnrol.size > 0 && profile?.role === 'admin' && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 print:hidden">
           <div className="flex items-center gap-3 bg-[#0f0f1a] border border-violet-500/40 rounded-2xl px-5 py-3 shadow-2xl shadow-violet-500/20">
             <span className="text-sm font-bold text-white">{selectedForEnrol.size} selected</span>

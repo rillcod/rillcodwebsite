@@ -111,6 +111,13 @@ export async function DELETE(
   // Nullify graded_by references in submissions
   await admin.from('assignment_submissions').update({ graded_by: null }).eq('graded_by', id);
 
+  // ── Step 1.5: Nullify teacher references in classes ──────────────────
+  await admin.from('classes').update({ teacher_id: null }).eq('teacher_id', id);
+
+  // ── Step 1.6: Nullify teacher references in timetable slots ─────────
+  // We keep the slot but clear the ID/name linkage
+  await admin.from('timetable_slots').update({ teacher_id: null }).eq('teacher_id', id);
+
   // ── Step 2: If this is a school account, also delete the linked schools row ──
   if (pu?.role === 'school' && pu?.school_id) {
     // Unlink any students tied to this school first

@@ -136,7 +136,6 @@ export default function DashboardNavigation() {
           { divider: true, label: 'Students' },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
-          { name: 'Enrol Students', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon },
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
           { divider: true, label: 'Reports' },
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
@@ -155,8 +154,7 @@ export default function DashboardNavigation() {
         return [
           ...base,
           { divider: true, label: 'Learn' },
-          { name: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon },
-          { name: 'Learning Centre', href: '/dashboard/learning', icon: AcademicCapIcon },
+          { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon },
           { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
           { name: 'CBT Exams', href: '/dashboard/cbt', icon: AcademicCapIcon },
           { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
@@ -207,7 +205,7 @@ export default function DashboardNavigation() {
   const navItems = navEntries.filter((e): e is NavItem => !isDivider(e));
   const BOTTOM_NAV_NAMES = new Set(
     profile?.role === 'student'
-      ? ['Dashboard', 'My Courses', 'Code Playground', 'My Report Card', 'Messages']
+      ? ['Dashboard', 'Learning Center', 'Code Playground', 'My Report Card', 'Messages']
       : profile?.role === 'school'
         ? ['Dashboard', 'My Students', 'Student Reports', 'Messages']
         : profile?.role === 'admin'

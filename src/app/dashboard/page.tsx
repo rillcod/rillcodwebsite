@@ -8,7 +8,11 @@ import {
   CogIcon, BuildingOfficeIcon, ClipboardDocumentListIcon,
   PresentationChartLineIcon, ClockIcon, CheckCircleIcon,
   BellIcon, ArrowRightIcon, TrophyIcon, ArrowPathIcon,
-  ExclamationTriangleIcon, ShieldCheckIcon, DocumentTextIcon, BoltIcon
+  ExclamationTriangleIcon, ShieldCheckIcon, DocumentTextIcon, 
+  BoltIcon, RocketLaunchIcon, EnvelopeIcon, UserIcon,
+  ArrowRightOnRectangleIcon, Bars3Icon, XMarkIcon, SignalIcon,
+  CodeBracketIcon, CalendarDaysIcon, BanknotesIcon, VideoCameraIcon,
+  UserPlusIcon, DocumentChartBarIcon, ClipboardDocumentCheckIcon
 } from '@/lib/icons';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -432,7 +436,7 @@ const QUICK_ACTIONS = {
     { name: 'My Schools', href: '/dashboard/settings', icon: BuildingOfficeIcon, desc: 'View assigned schools' },
   ],
   student: [
-    { name: 'My Courses', href: '/dashboard/courses', icon: BookOpenIcon, desc: 'View enrolled courses' },
+    { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon, desc: 'View enrolled programs' },
     { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, desc: 'View & submit work' },
     { name: 'My Progress', href: '/dashboard/progress', icon: ChartBarIcon, desc: 'Track your progress' },
     { name: 'Grades', href: '/dashboard/grades', icon: TrophyIcon, desc: 'See your grades' },

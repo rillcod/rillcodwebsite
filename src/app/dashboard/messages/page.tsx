@@ -36,16 +36,23 @@ export default function MessagesPage() {
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
   const isAdmin = profile?.role === 'admin';
 
+  const [classFilter, setClassFilter] = useState('all');
+  const [userSearch, setUserSearch] = useState('');
+
   useEffect(() => {
     if (authLoading || !profile) return;
     setLoading(true);
     const db = createClient();
 
-    // Logic for user filtering:
-    // Admin sees all. Partner schools/teachers see only users in their school.
-    let userQuery = db.from('portal_users').select('id, full_name, email, role, school_id').neq('id', profile.id).order('full_name');
+    // 1. Fetch users with student metadata for class filtering
+    let userQuery = db.from('portal_users')
+      .select('id, full_name, email, role, school_id, students!user_id(current_class, grade_level, school_id)')
+      .neq('id', profile.id)
+      .order('full_name');
+
+    // Basic geographic filter for non-admins
     if (!isAdmin && profile.school_id) {
-      userQuery = userQuery.eq('school_id', profile.school_id);
+       // but wait, teachers might be in multiple schools. Let's fetch teacher_schools too.
     }
 
     Promise.all([
@@ -54,28 +61,75 @@ export default function MessagesPage() {
       db.from('announcements').select('*, portal_users!announcements_author_id_fkey(full_name, role, school_id)').eq('is_active', true).order('created_at', { ascending: false }),
       db.from('newsletter_delivery').select('*, newsletters(*)').eq('user_id', profile.id).order('delivered_at', { ascending: false }),
       userQuery,
-    ]).then(([inbRes, sntRes, annRes, nwlRes, usrRes]) => {
+      db.from('teacher_schools').select('teacher_id, school_id'), // Fetch all mappings for correct filtering
+      db.from('classes').select('id, name, teacher_id, school_id'),
+      db.from('students').select('*').eq('user_id', profile.id).maybeSingle(),
+    ]).then(([inbRes, sntRes, annRes, nwlRes, usrRes, tschRes, clsRes, stdRes]) => {
       setInbox(inbRes.data ?? []);
       setSent(sntRes.data ?? []);
       
+      const allTeacherSchools = tschRes.data ?? [];
+      const myTeacherSchools = new Set(allTeacherSchools.filter(ts => ts.teacher_id === profile.id).map(ts => ts.school_id));
+      const myClass = stdRes.data?.current_class || stdRes.data?.grade_level;
+      
+      const allUsers = (usrRes.data ?? []).map((u: any) => {
+        const std = u.students?.[0]; // due to the join
+        return {
+          ...u,
+          current_class: std?.current_class || std?.grade_level || null,
+          student_school_id: std?.school_id || u.school_id
+        };
+      });
+
+      // Filter users based on assignments
+      const filteredUsers = allUsers.filter((u: any) => {
+        if (isAdmin) return true;
+        
+        // School Owner: see their students + their assigned teachers
+        if (profile.role === 'school') {
+          const isMyStudent = u.role === 'student' && u.school_id === profile.school_id;
+          const isMyTeacher = u.role === 'teacher' && (
+            u.school_id === profile.school_id || 
+            allTeacherSchools.some(ts => ts.teacher_id === u.id && ts.school_id === profile.school_id)
+          );
+          return isMyStudent || isMyTeacher;
+        }
+
+        // Teacher: see school owners + students in their assigned schools
+        if (profile.role === 'teacher') {
+          const inMySchool = u.school_id === profile.school_id || myTeacherSchools.has(u.school_id);
+          const isOwner = u.role === 'school' && inMySchool;
+          const isMyStudent = u.role === 'student' && inMySchool;
+          return isOwner || isMyStudent;
+        }
+
+        // Student: see class fellows + teachers in their school
+        if (profile.role === 'student') {
+           const isClassmate = u.role === 'student' && u.school_id === profile.school_id && u.current_class === myClass;
+           const isMyTeacher = u.role === 'teacher' && u.school_id === profile.school_id;
+           const isOwner = u.role === 'school' && u.school_id === profile.school_id;
+           return isClassmate || isMyTeacher || isOwner;
+        }
+        
+        return u.school_id === profile.school_id;
+      });
+
+      setUsers(filteredUsers);
+
       // Filter announcements based on school if not admin
       let filteredAnn = annRes.data ?? [];
       if (!isAdmin) {
         filteredAnn = filteredAnn.filter(a => {
            const author: any = a.portal_users;
-           const authorSchool = author?.school_id;
-           const authorRole = author?.role;
-           // Show if from admin OR same school
-           return authorRole === 'admin' || authorSchool === profile.school_id;
+           return author?.role === 'admin' || author?.school_id === profile.school_id || myTeacherSchools.has(author?.school_id);
         });
       }
       setAnnouncements(filteredAnn);
       
       setNewsletters(nwlRes.data ?? []);
-      setUsers(usrRes.data ?? []);
       setLoading(false);
     });
-  }, [profile?.id, authLoading, profile?.school_id, isAdmin]);
+  }, [profile?.id, authLoading, profile?.school_id, profile?.role, isAdmin]);
 
   const markRead = async (msg: any) => {
     if (!msg.is_read) {
@@ -151,9 +205,9 @@ export default function MessagesPage() {
     { key: 'inbox', label: 'Inbox', icon: EnvelopeIcon, count: unread || undefined },
     { key: 'sent', label: 'Sent', icon: PaperAirplaneIcon },
     { key: 'compose', label: 'Compose', icon: PlusIcon },
-    { key: 'announcements', label: 'Announcements', icon: MegaphoneIcon },
+    profile?.role === 'admin' || profile?.role === 'teacher' ? { key: 'announcements', label: 'Announcements', icon: MegaphoneIcon } : null,
     { key: 'newsletters', label: 'Newsletters', icon: DocumentTextIcon, count: unreadNewsletters || undefined },
-  ];
+  ].filter(Boolean) as any;
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
@@ -350,25 +404,59 @@ export default function MessagesPage() {
                 </div>
                 
                 <div className="space-y-6">
-                  <div className="relative group">
-                    <label className="absolute -top-2.5 left-4 px-2 bg-[#050510] text-[10px] font-black text-[#7a0606] uppercase tracking-[0.2em] group-focus-within:text-white transition-colors">Target Recipient</label>
-                    <select 
-                      value={compose.recipient_id}
-                      onChange={e => setCompose(c => ({ ...c, recipient_id: e.target.value }))}
-                      className="w-full px-6 py-5 bg-white/[0.03] border border-white/10 rounded-3xl text-sm text-white focus:outline-none focus:border-[#7a0606] transition-all cursor-pointer appearance-none shadow-xl">
-                      <option value="">Select target coordinates...</option>
-                      {['student', 'teacher', 'school', 'admin'].map(role => {
-                         const roleUsers = users.filter(u => u.role === role);
-                         if (roleUsers.length === 0) return null;
-                         return (
-                           <optgroup key={role} label={role === 'student' ? 'CHILDREN / STUDENTS' : role.toUpperCase() + 'S'}>
-                             {roleUsers.map(u => (
-                               <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>
-                             ))}
-                           </optgroup>
-                         );
-                      })}
-                    </select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="relative group">
+                      <label className="absolute -top-2.5 left-4 px-2 bg-[#050510] text-[10px] font-black text-[#7a0606] uppercase tracking-[0.2em] group-focus-within:text-white transition-colors">Recipient</label>
+                      <select 
+                        value={compose.recipient_id}
+                        onChange={e => setCompose(c => ({ ...c, recipient_id: e.target.value }))}
+                        className="w-full px-6 py-4 bg-white/[0.03] border border-white/10 rounded-2xl text-sm text-white focus:outline-none focus:border-[#7a0606] transition-all cursor-pointer appearance-none shadow-xl">
+                        <option value="">Select individual...</option>
+                        {(() => {
+                           const filtered = users.filter(u => {
+                             const matchesSearch = !userSearch || u.full_name?.toLowerCase().includes(userSearch.toLowerCase()) || u.email?.toLowerCase().includes(userSearch.toLowerCase());
+                             const matchesClass = classFilter === 'all' || u.current_class === classFilter;
+                             return matchesSearch && matchesClass;
+                           });
+                           
+                           const grouped: Record<string, any[]> = {};
+                           filtered.forEach(u => {
+                             const key = u.role === 'student' ? (u.current_class || 'Other Students') : (u.role.toUpperCase() + 'S');
+                             if (!grouped[key]) grouped[key] = [];
+                             grouped[key].push(u);
+                           });
+
+                           return Object.entries(grouped).map(([group, members]) => (
+                             <optgroup key={group} label={group}>
+                               {members.map(u => (
+                                 <option key={u.id} value={u.id}>{u.full_name} {u.current_class ? `(${u.current_class})` : `(${u.role})`}</option>
+                               ))}
+                             </optgroup>
+                           ));
+                        })()}
+                      </select>
+                    </div>
+
+                    <div className="flex gap-2">
+                       <input 
+                         type="text"
+                         value={userSearch}
+                         onChange={e => setUserSearch(e.target.value)}
+                         placeholder="Search name..."
+                         className="flex-1 px-5 py-4 bg-white/[0.03] border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-[#7a0606]"
+                       />
+                       {(profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school') && (
+                         <select 
+                           value={classFilter}
+                           onChange={e => setClassFilter(e.target.value)}
+                           className="w-32 px-4 py-4 bg-white/[0.03] border border-white/10 rounded-2xl text-[10px] font-bold text-white/60 focus:outline-none">
+                           <option value="all">All Grades</option>
+                           {Array.from(new Set(users.filter(u => u.current_class).map(u => u.current_class))).sort().map(c => (
+                             <option key={c} value={c}>{c}</option>
+                           ))}
+                         </select>
+                       )}
+                    </div>
                   </div>
 
                   <div className="relative group">
@@ -415,7 +503,7 @@ export default function MessagesPage() {
                    <h3 className="text-xs font-black text-white/20 uppercase tracking-[0.3em] px-2">Official Academy Bulletins</h3>
                 </div>
 
-                {isStaff && (
+                {tab === 'announcements' && profile?.role === 'admin' && (
                   <div className="lg:col-span-12 bg-white/[0.03] border border-white/5 rounded-[2.5rem] p-8 space-y-6 shadow-2xl mb-8">
                     <div className="space-y-1">
                       <h4 className="text-xl font-black text-white tracking-tight">Post Broadcast</h4>

@@ -11,6 +11,7 @@ import {
   BuildingOffice2Icon, HomeIcon, InformationCircleIcon,
   PhoneIcon, AcademicCapIcon, Squares2X2Icon,
 } from '@/lib/icons';
+import { Command, ShieldCheck, Zap } from 'lucide-react';
 
 type NavIcon = React.ComponentType<{ className?: string }>;
 
@@ -29,113 +30,6 @@ const secondaryLinks = [
 ];
 
 const LOGIN_HREF = '/login';
-
-/* ─── Dropdown ───────────────────────────────────────────────── */
-function Dropdown({ label, icon: Icon, isScrolled, children }: {
-  label: string; icon: NavIcon; isScrolled: boolean; children: React.ReactNode;
-}) {
-  return (
-    <div className="relative group">
-      <button suppressHydrationWarning className={`flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors
-        ${isScrolled ? 'text-gray-800 hover:text-[#FF914D]' : 'text-white/85 hover:text-white'}`}>
-        <Icon className="w-4 h-4" />
-        {label}
-        <ChevronDownIcon className="w-3 h-3 transition-transform group-hover:rotate-180" />
-      </button>
-      <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl border border-gray-100 shadow-2xl shadow-black/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-50 overflow-hidden transform translate-y-1 group-hover:translate-y-0 text-left">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Mobile Menu — client-only, inline (no portal) ──────────── */
-function MobileMenu({
-  isOpen, onClose, isActive, user, handleLogout,
-}: {
-  isOpen: boolean; onClose: () => void;
-  isActive: (href: string) => boolean;
-  user: any; handleLogout: () => void;
-}) {
-  if (!isOpen) return null;
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 top-16 bg-black/60 backdrop-blur-sm z-[9998]"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-      {/* Drawer */}
-      <div
-        id="mobile-menu"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Mobile menu"
-        className="fixed inset-x-0 top-16 bottom-0 bg-[#0f0f1a] text-white border-t border-white/5 z-[9999] overflow-y-auto shadow-2xl"
-      >
-        <div className="p-6 space-y-8">
-          <div className="grid gap-2">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Main Menu</p>
-            {[...mainLinks, ...secondaryLinks].map(({ href, label, icon: Icon }) => (
-              <Link
-                suppressHydrationWarning
-                key={href}
-                href={href}
-                onClick={onClose}
-                className={`flex items-center gap-4 px-5 py-4 rounded-2xl text-base font-bold transition-all
-                  ${isActive(href) ? 'bg-[#FF914D]/10 text-[#FF914D]' : 'text-white/80 hover:bg-white/5 active:bg-white/10'}`}
-              >
-                <span suppressHydrationWarning className="flex items-center justify-center">
-                  <Icon className={`w-5 h-5 ${isActive(href) ? 'text-[#FF914D]' : 'text-white/40'}`} />
-                </span>
-                {label}
-              </Link>
-            ))}
-          </div>
-
-          <div className="pt-6 border-t border-white/10">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40 mb-4">Account & Access</p>
-            {user ? (
-              <div className="space-y-3">
-                <Link
-                  href="/dashboard"
-                  onClick={onClose}
-                  className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold bg-[#FF914D] text-white shadow-xl shadow-orange-500/20"
-                >
-                  <Squares2X2Icon className="w-5 h-5" /> Open My Dashboard
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold text-white/60 hover:text-rose-500 transition-colors"
-                >
-                  <ArrowLeftOnRectangleIcon className="w-5 h-5" /> Sign Out
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <Link
-                  href="/student-registration"
-                  onClick={onClose}
-                  className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold bg-[#FF914D] text-white shadow-xl shadow-orange-500/20"
-                >
-                  Student Registration
-                </Link>
-                <Link
-                  href={LOGIN_HREF}
-                  onClick={onClose}
-                  className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-base font-bold text-gray-300 bg-white/5 border border-white/10 hover:bg-white/10"
-                >
-                  <UserIcon className="w-5 h-5" /> Portal Login
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
 
 /* ─── Main component ──────────────────────────────────────────── */
 const Navigation = () => {
@@ -174,131 +68,130 @@ const Navigation = () => {
   const handleLogout = () => { window.location.href = '/api/auth/signout'; };
 
   const navLinkCls = (href: string) =>
-    `flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors ${isActive(href)
-      ? 'text-[#FF914D]'
-      : isScrolled
-        ? 'text-gray-800 hover:text-[#FF914D]'
-        : 'text-white/85 hover:text-white'
+    `flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all rounded-none ${isActive(href)
+      ? 'text-orange-500 bg-white/5'
+      : 'text-slate-300 hover:text-white hover:bg-white/5'
     }`;
 
   return (
     <>
       <nav
         suppressHydrationWarning
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
-          ? 'bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm'
-          : 'bg-gray-950/80 backdrop-blur-md border-b border-white/5'
+        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 border-b ${isScrolled
+          ? 'bg-[#121212]/95 backdrop-blur-md border-white/10 shadow-2xl py-2'
+          : 'bg-transparent border-transparent py-4'
           }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 lg:h-[72px]">
+        <div className="max-w-screen-2xl mx-auto px-6 lg:px-10">
+          <div className="flex items-center justify-between h-16">
 
-            {/* ── Logo ── */}
-            <Link href="/" className="flex items-center gap-2.5">
-              <div suppressHydrationWarning className="w-10 h-10 flex-shrink-0 overflow-hidden rounded-lg">
-                <Image src="/images/logo.png" alt="Rillcod Academy" width={40} height={40} className="w-full h-full object-contain" suppressHydrationWarning />
+            {/* ── Brand ── */}
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="w-12 h-12 bg-[#f8f8f8] border border-white/20 flex items-center justify-center rounded-none group-hover:scale-105 transition-all ring-1 ring-orange-500/50 ring-offset-2 ring-offset-[#121212]">
+                <Image src="/images/logo.png" alt="Rillcod Academy" width={32} height={32} className="object-contain" />
               </div>
-              <div className="hidden sm:block">
-                <span suppressHydrationWarning className={`text-base font-extrabold uppercase tracking-tight leading-none block ${isScrolled ? 'text-gray-900' : 'text-white'}`}>
-                  Rillcod Academy
+              <div className="hidden sm:block text-white">
+                <span className="text-xl font-black uppercase tracking-tight block leading-none italic">
+                  RILLCOD<span className="text-orange-500 not-italic">.</span>
                 </span>
-                <p suppressHydrationWarning className={`text-[10px] font-semibold uppercase tracking-widest leading-none mt-0.5 ${isScrolled ? 'text-gray-400' : 'text-white/50'}`}>
-                  STEM Education
+                <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.4em] leading-none mt-1">
+                  TECHNOLOGIES
                 </p>
               </div>
             </Link>
 
-            {/* ── Desktop nav ── */}
-            <div className="hidden lg:flex items-center gap-2">
+            {/* ── Desktop Nav ── */}
+            <div className="hidden lg:flex items-center gap-1">
               {mainLinks.map(({ href, label, icon: Icon }) => (
                 <Link suppressHydrationWarning key={href} href={href} className={navLinkCls(href)}>
-                  <Icon className="w-4 h-4" /> {label}
+                  {label}
                 </Link>
               ))}
 
-              <Dropdown label="More" icon={Bars3Icon} isScrolled={isScrolled}>
-                <div className="p-3 grid gap-1">
-                  {secondaryLinks.map(({ href, label, icon: Icon, sub }) => (
-                    <Link key={href} href={href}
-                      className="flex items-start gap-3 p-3 rounded-xl hover:bg-orange-50 transition-colors group">
-                      <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-[#FF914D] transition-colors">
-                        <Icon className="w-4 h-4 text-[#FF914D] group-hover:text-white" />
-                      </div>
-                      <div>
-                        <div className="font-bold text-gray-900 text-sm">{label}</div>
-                        <div className="text-[11px] text-gray-400 mt-0.5 leading-snug">{sub}</div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </Dropdown>
+              {/* Secure Dropdown */}
+              <div className="relative group ml-4">
+                 <button className="flex items-center gap-3 px-6 py-2.5 bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all rounded-none">
+                    Protocol <ChevronDownIcon className="w-3 h-3 group-hover:rotate-180 transition-transform" />
+                 </button>
+                 <div className="absolute top-full right-0 mt-2 w-64 bg-[#1a1a1a] border border-white/10 rounded-none shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 p-2">
+                    {secondaryLinks.map(({ href, label, icon: Icon, sub }) => (
+                      <Link key={href} href={href} className="flex flex-col p-4 hover:bg-white/5 transition-colors border-l-2 border-l-transparent hover:border-l-orange-500">
+                         <span className="text-[10px] font-black text-white uppercase tracking-widest">{label}</span>
+                         <span className="text-[8px] text-slate-500 font-bold uppercase mt-1">{sub}</span>
+                      </Link>
+                    ))}
+                 </div>
+              </div>
             </div>
 
-            {/* ── Desktop CTA ── */}
-            <div suppressHydrationWarning className="hidden lg:flex items-center gap-3">
+            {/* ── Actions ── */}
+            <div suppressHydrationWarning className="flex items-center gap-4">
               {mounted && !authLoading && (
                 user ? (
-                  <div className="flex items-center gap-3 bg-black/5 p-1 rounded-2xl">
-                    <Link href="/dashboard"
-                      className="flex items-center gap-2 px-5 py-2 text-sm font-bold rounded-xl bg-[#FF914D] text-white hover:bg-orange-500 transition-all shadow-lg shadow-orange-500/10">
-                      <Squares2X2Icon className="w-4 h-4" /> My Dashboard
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      title="Sign Out"
-                      className={`p-2 rounded-xl transition-all
-                        ${isScrolled ? 'text-gray-400 hover:text-rose-500 hover:bg-rose-50' : 'text-white/40 hover:text-white hover:bg-white/10'}`}>
-                      <ArrowLeftOnRectangleIcon className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <Link href="/dashboard"
+                    className="hidden sm:flex items-center gap-3 px-8 py-3 bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/10">
+                    <Squares2X2Icon className="w-4 h-4" /> Dashboard
+                  </Link>
                 ) : (
-                  <>
+                  <div className="hidden sm:flex items-center gap-3">
                     <Link href={LOGIN_HREF}
-                      className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl transition-all
-                        ${isScrolled ? 'text-gray-700 hover:bg-gray-100' : 'text-white/85 hover:bg-white/10'}`}>
-                      <UserIcon className="w-4 h-4" /> Portal Login
+                      className="px-6 py-3 text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-white transition-colors">
+                      Portal Login
                     </Link>
                     <Link href="/student-registration"
-                      className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl bg-white text-black hover:bg-gray-100 transition-all border border-black/10 shadow-sm">
-                      Join as Student
+                      className="px-8 py-3 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-slate-200 transition-all shadow-xl">
+                      Register Student
                     </Link>
-                  </>
+                  </div>
                 )
               )}
-              {/* Placeholder while loading to keep layout stable */}
-              {(!mounted || authLoading) && (
-                <div className="flex items-center gap-3">
-                  <div className="w-28 h-9 bg-white/5 rounded-xl" />
-                  <div className="w-32 h-9 bg-white/10 rounded-xl" />
-                </div>
-              )}
+
+              {/* Mobile Burger */}
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="lg:hidden p-3 bg-white/5 border border-white/10 text-white rounded-none hover:bg-white/10 transition-all"
+              >
+                {isOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
+              </button>
             </div>
 
-            {/* ── Mobile burger — always rendered ── */}
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              aria-expanded={isOpen}
-              aria-controls="mobile-menu"
-              suppressHydrationWarning
-              className={`lg:hidden p-2 rounded-xl transition-all
-                ${isScrolled ? 'text-gray-700 hover:bg-gray-100' : 'text-white hover:bg-white/10'}`}
-            >
-              {isOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
-            </button>
           </div>
         </div>
-      </nav>
 
-      {/* ── Mobile menu — client-only inline (no portal, no hydration mismatch) ── */}
-      {mounted && (
-        <MobileMenu
-          isOpen={isOpen}
-          onClose={() => setIsOpen(false)}
-          isActive={isActive}
-          user={user}
-          handleLogout={handleLogout}
-        />
-      )}
+        {/* ── Mobile Menu ── */}
+        {mounted && isOpen && (
+          <div className="fixed inset-0 top-[72px] z-[90] lg:hidden bg-[#121212]/98 backdrop-blur-xl border-t border-white/5 overflow-y-auto">
+             <div className="p-8 space-y-10">
+                <div className="grid gap-2">
+                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em] mb-4">Command Center</p>
+                   {[...mainLinks, ...secondaryLinks].map(({ href, label }) => (
+                     <Link key={href} href={href} className="text-lg sm:text-xl font-black text-white uppercase tracking-tight hover:text-orange-500 transition-colors py-2">
+                        {label}
+                     </Link>
+                   ))}
+                </div>
+
+                <div className="pt-10 border-t border-white/5 space-y-6">
+                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em]">System Uplink</p>
+                   {user ? (
+                     <Link href="/dashboard" className="flex items-center justify-center gap-3 w-full py-6 bg-orange-500 text-white text-xs font-black uppercase tracking-[0.2em] rounded-none shadow-2xl shadow-orange-500/20">
+                        <Zap className="w-4 h-4" /> Enter Dashboard
+                     </Link>
+                   ) : (
+                     <div className="grid gap-4">
+                        <Link href="/school-registration" className="flex items-center justify-center py-6 bg-white text-black text-xs font-black uppercase tracking-[0.2em] rounded-none shadow-xl">
+                           Register School
+                        </Link>
+                        <Link href={LOGIN_HREF} className="flex items-center justify-center py-6 bg-white/5 border border-white/10 text-white text-xs font-black uppercase tracking-[0.2em] rounded-none">
+                           Portal Login
+                        </Link>
+                     </div>
+                   )}
+                </div>
+             </div>
+          </div>
+        )}
+      </nav>
     </>
   );
 };

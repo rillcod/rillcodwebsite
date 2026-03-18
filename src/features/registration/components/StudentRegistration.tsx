@@ -16,16 +16,16 @@ const ENROLLMENT_TYPES = [
     icon: Building2,
     title: 'Partner School',
     desc: 'My child attends a school partnered with Rillcod Academy',
-    color: 'border-violet-500 bg-violet-500/10',
-    dot: 'bg-violet-400',
+    color: 'border-blue-500 bg-blue-500/10',
+    dot: 'bg-blue-400',
   },
   {
     id: 'bootcamp',
     icon: Sun,
     title: 'Summer Bootcamp',
     desc: 'Intensive seasonal programme — no school affiliation required',
-    color: 'border-[#FF914D] bg-[#FF914D]/10',
-    dot: 'bg-[#FF914D]',
+    color: 'border-orange-500 bg-orange-500/10',
+    dot: 'bg-orange-400',
   },
   {
     id: 'online',
@@ -56,10 +56,10 @@ const NIGERIAN_STATES = [
 // ─── Shared helpers ────────────────────────────────────────────────
 function Field({ label, icon: Icon, children }: { label: string; icon?: any; children: React.ReactNode }) {
   return (
-    <div>
-      <label className="block text-xs font-semibold text-white/50 uppercase tracking-widest mb-1.5">{label}</label>
-      <div className="relative">
-        {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none z-10" />}
+    <div className="space-y-2">
+      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{label}</label>
+      <div className="relative group">
+        {Icon && <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-orange-500 transition-colors pointer-events-none z-10" />}
         {children}
       </div>
     </div>
@@ -67,10 +67,10 @@ function Field({ label, icon: Icon, children }: { label: string; icon?: any; chi
 }
 
 const inputCls = (hasIcon = true) =>
-  `w-full ${hasIcon ? 'pl-10' : 'pl-4'} pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF914D]/60 focus:bg-white/8 transition-all`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-[#121212] border border-white/10 rounded-none text-sm font-bold text-white placeholder:text-slate-800 focus:outline-none focus:border-orange-500 transition-all`;
 
 const selectCls = (hasIcon = false) =>
-  `w-full ${hasIcon ? 'pl-10' : 'pl-4'} pr-8 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-[#FF914D]/60 focus:bg-white/8 transition-all appearance-none cursor-pointer`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-[#121212] border border-white/10 rounded-none text-sm font-bold text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer`;
 
 // ─── Default form state ────────────────────────────────────────────
 const defaultForm = {
@@ -109,7 +109,6 @@ const SCHEDULES: Record<string, { value: string; label: string; fee: number; fee
   ],
 };
 
-// Fallback fees per enrollment type (used before schedule is selected)
 const TYPE_FEES: Record<string, string> = {
   school:   '₦20,000 – ₦30,000',
   bootcamp: '₦35,000 – ₦60,000',
@@ -118,11 +117,7 @@ const TYPE_FEES: Record<string, string> = {
 };
 
 // ─── Main component ───────────────────────────────────────────────
-type StudentRegistrationProps = {
-  defaultEnrollmentType?: EnrollmentType;
-};
-
-export function StudentRegistration({ defaultEnrollmentType }: StudentRegistrationProps) {
+export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollmentType?: EnrollmentType }) {
   const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -155,7 +150,7 @@ export function StudentRegistration({ defaultEnrollmentType }: StudentRegistrati
 
   const next = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.enrollmentType) { setErr('Please select an enrollment type to continue.'); return; }
+    if (!form.enrollmentType) { setErr('Please specify enrollment path.'); return; }
     setErr('');
     if (step < STEPS.length - 1) setStep(s => s + 1);
   };
@@ -164,7 +159,7 @@ export function StudentRegistration({ defaultEnrollmentType }: StudentRegistrati
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.termsAgreement) { setErr('Please accept the terms to continue.'); return; }
+    if (!form.termsAgreement) { setErr('Protocol agreement required.'); return; }
     setLoading(true); setErr('');
     try {
       const res = await fetch('/api/payments/registration', {
@@ -190,69 +185,24 @@ export function StudentRegistration({ defaultEnrollmentType }: StudentRegistrati
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Registration failed');
-      // Redirect to Paystack payment page — loading stays true (page navigates away)
+      if (!res.ok) throw new Error(data.error || 'Uplink signal lost.');
       window.location.href = data.paymentUrl;
     } catch (e: any) {
-      setErr(e.message ?? 'Registration failed. Please try again.');
+      setErr(e.message ?? 'Transmission failed.');
       setLoading(false);
     }
   };
 
-  // ── Payment callback screen (returning from Paystack) ─────────
   const paymentStatus = searchParams?.get('payment');
-  const paymentName = searchParams?.get('name') ?? '';
-  const paymentType = (searchParams?.get('type') ?? '') as EnrollmentType;
-
   if (paymentStatus === 'success') {
-    const typeLabel = ENROLLMENT_TYPES.find(t => t.id === paymentType)?.title ?? 'Programme';
     return (
-      <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center bg-white/[0.04] border border-white/10 rounded-3xl p-10 backdrop-blur-sm">
-          <div className="w-20 h-20 bg-emerald-500/20 border border-emerald-500/30 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Check className="w-10 h-10 text-emerald-400" />
-          </div>
-          <div className="inline-block px-3 py-1 bg-violet-500/10 border border-violet-500/20 rounded-full text-violet-400 text-xs font-bold uppercase tracking-widest mb-4">
-            {typeLabel}
-          </div>
-          <h2 className="text-2xl font-extrabold text-white mb-3">Payment Confirmed!</h2>
-          <p className="text-white/50 text-sm leading-relaxed mb-8">
-            Thank you, <strong className="text-white">{paymentName || 'Student'}</strong>! Your {typeLabel.toLowerCase()} registration and payment have been received.
-            Our team will review your application and reach out within <strong className="text-white">24–48 hours</strong>.
-          </p>
-          <button
-            onClick={() => { window.location.href = '/online-registration'; }}
-            className="px-6 py-3 bg-[#FF914D] hover:bg-orange-400 text-white font-bold rounded-xl transition-all text-sm">
-            Register Another Student
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Success screen ─────────────────────────────────────────────
-  if (submitted) {
-    const typeLabel = ENROLLMENT_TYPES.find(t => t.id === form.enrollmentType)?.title ?? 'Programme';
-    return (
-      <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center bg-white/[0.04] border border-white/10 rounded-3xl p-10 backdrop-blur-sm">
-          <div className="w-20 h-20 bg-emerald-500/20 border border-emerald-500/30 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Check className="w-10 h-10 text-emerald-400" />
-          </div>
-          <div className="inline-block px-3 py-1 bg-violet-500/10 border border-violet-500/20 rounded-full text-violet-400 text-xs font-bold uppercase tracking-widest mb-4">
-            {typeLabel}
-          </div>
-          <h2 className="text-2xl font-extrabold text-white mb-3">Application Submitted!</h2>
-          <p className="text-white/50 text-sm leading-relaxed mb-8">
-            Thank you, <strong className="text-white">{form.fullName}</strong>! Your {typeLabel.toLowerCase()} application is under review.
-            Our team will reach out to <strong className="text-white">{form.parentEmail}</strong> within <strong className="text-white">24–48 hours</strong>.
-          </p>
-          <button
-            onClick={() => { setSubmitted(false); setStep(0); setForm(defaultForm); }}
-            className="px-6 py-3 bg-[#FF914D] hover:bg-orange-400 text-white font-bold rounded-xl transition-all text-sm">
-            Register Another Student
-          </button>
-        </div>
+      <div className="bg-[#1a1a1a] border border-white/10 p-12 text-center shadow-2xl rounded-none border-t-4 border-t-emerald-500">
+         <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-8 rounded-none">
+            <Check className="w-10 h-10 text-emerald-500" />
+         </div>
+         <h2 className="text-3xl font-black text-white uppercase tracking-tight mb-4">Confirmed</h2>
+         <p className="text-slate-400 font-bold italic mb-8">Uplink successful. Records updated. Our coordination team will reach out via secure email within 24 standard business hours.</p>
+         <button onClick={() => window.location.href = '/'} className="px-10 py-5 bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-emerald-600 transition-all">Return to Home</button>
       </div>
     );
   }
@@ -263,318 +213,194 @@ export function StudentRegistration({ defaultEnrollmentType }: StudentRegistrati
   const feeLabel = selectedSchedule?.feeLabel ?? TYPE_FEES[et] ?? '';
   const feeAmount = selectedSchedule ? `₦${selectedSchedule.fee.toLocaleString()}` : '';
 
-  // ── Main form ──────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#0a0a14] py-16 px-4">
-      {/* Background glow */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-violet-600/6 rounded-full blur-[120px]" />
-      </div>
-
-      <div className="max-w-xl mx-auto relative">
+    <div className="w-full relative py-12">
         {/* Header */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-full text-violet-400 text-xs font-bold uppercase tracking-widest mb-5">
-            <GraduationCap className="w-3.5 h-3.5" /> Student Enrollment
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-none text-orange-500 text-[10px] font-black uppercase tracking-widest mb-6">
+            <GraduationCap className="w-4 h-4" /> System Enrollment
           </div>
-          <h1 className="text-4xl font-extrabold text-white mb-3">Start Your Journey</h1>
-          <p className="text-white/40">
-            {et === 'bootcamp' && 'Register for our intensive summer coding bootcamp.'}
-            {et === 'online' && 'Enrol in our flexible, fully online digital school.'}
-            {et === 'school' && 'Register through your partner school programme.'}
-            {!et && 'Choose your path and join hundreds of students learning coding, robotics and web development.'}
-          </p>
+          <h1 className="text-4xl sm:text-6xl font-black text-white leading-none tracking-tight uppercase mb-4">
+             REGISTER <br />
+             <span className="text-white/40 italic">STUDENT.</span>
+          </h1>
         </div>
 
-        {/* Enrollment type selector — always visible */}
-        <div className="mb-6">
-          <p className="text-xs font-bold text-white/30 uppercase tracking-widest mb-3">How are you joining?</p>
-          <div className="grid grid-cols-3 gap-3">
+        {/* Enrollment Path Selector */}
+        <div className="mb-10">
+          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-4 text-center">Select Career Path</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {ENROLLMENT_TYPES.map(t => {
-              const TIcon = t.icon;
               const active = et === t.id;
               return (
                 <button
-                  key={t.id}
-                  type="button"
+                  key={t.id} type="button"
                   onClick={() => { setForm(p => ({ ...p, enrollmentType: t.id, preferredSchedule: '' })); setErr(''); }}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border text-center transition-all ${active ? t.color + ' shadow-lg' : 'border-white/10 bg-white/[0.03] hover:bg-white/8 hover:border-white/20'}`}>
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${active ? 'bg-white/20' : 'bg-white/5'}`}>
-                    <TIcon className={`w-4 h-4 ${active ? 'text-white' : 'text-white/30'}`} />
+                  className={`group flex flex-col items-center gap-4 p-8 border rounded-none transition-all ${active ? t.color + ' shadow-2xl' : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10'}`}>
+                  <div className={`w-12 h-12 flex items-center justify-center rounded-none ${active ? 'bg-white/10 border border-white/20' : 'bg-white/5 border border-white/5'}`}>
+                    <t.icon className={`w-6 h-6 ${active ? 'text-white' : 'text-slate-600'}`} />
                   </div>
-                  <div>
-                    <p className={`text-xs font-bold leading-tight ${active ? 'text-white' : 'text-white/50'}`}>{t.title}</p>
-                  </div>
-                  {active && <div className={`w-1.5 h-1.5 rounded-full ${t.dot}`} />}
+                  <p className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-white' : 'text-slate-500'}`}>{t.title}</p>
                 </button>
               );
             })}
           </div>
-          {!et && err && <p className="text-rose-400 text-xs mt-2">{err}</p>}
+          {!et && err && <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest mt-4 text-center">{err}</p>}
         </div>
 
-        {/* Stepper */}
-        <div className="flex items-center justify-center mb-8 gap-0">
-          {STEPS.map((s, i) => {
-            const done = i < step;
-            const current = i === step;
-            const SIcon = s.icon;
-            return (
-              <React.Fragment key={i}>
-                <div className="flex flex-col items-center gap-1.5">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all
-                    ${done ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' :
-                      current ? 'bg-[#FF914D] shadow-lg shadow-orange-500/30' :
-                        'bg-white/5 border border-white/10'}`}>
-                    {done
-                      ? <Check className="w-4 h-4 text-white" />
-                      : <SIcon className={`w-4 h-4 ${current ? 'text-white' : 'text-white/30'}`} />}
-                  </div>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider ${current ? 'text-white' : 'text-white/25'}`}>
-                    {s.label}
-                  </span>
+        {/* Form Matrix */}
+        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-orange-500">
+          
+          {/* Progress Strip */}
+          <div className="flex items-center justify-between mb-12 border-b border-white/5 pb-8">
+             {STEPS.map((s, i) => (
+                <div key={i} className="flex items-center gap-3">
+                   <div className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-none border ${i <= step ? 'bg-orange-500 border-orange-500 text-white' : 'border-white/10 text-slate-700'}`}>
+                      {i < step ? <Check className="w-4 h-4" /> : i + 1}
+                   </div>
+                   <span className={`text-[9px] font-black uppercase tracking-widest hidden sm:block ${i <= step ? 'text-white' : 'text-slate-700'}`}>{s.label}</span>
                 </div>
-                {i < STEPS.length - 1 && (
-                  <div className={`w-16 h-px mx-2 mb-4 transition-all ${i < step ? 'bg-emerald-500' : 'bg-white/10'}`} />
-                )}
-              </React.Fragment>
-            );
-          })}
-        </div>
+             ))}
+          </div>
 
-        {/* Form card */}
-        <div className="bg-white/[0.04] border border-white/10 rounded-3xl p-8 backdrop-blur-sm shadow-2xl shadow-black/40">
-          <form onSubmit={step < STEPS.length - 1 ? next : handleSubmit}>
-            <div className="space-y-5 min-h-[280px]">
-
-              {/* ── Step 1: Student ── */}
+          <form onSubmit={step < STEPS.length - 1 ? next : handleSubmit} className="space-y-8 min-h-[400px]">
+              
               {step === 0 && (
-                <>
-                  <h3 className="text-xs font-black uppercase tracking-widest text-white/30 pb-3 border-b border-white/10">About the Student</h3>
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] mb-8 pb-4 border-b border-white/5">01 // Personal Data</h3>
                   <Field label="Full Name *" icon={User}>
-                    <input type="text" name="fullName" value={form.fullName} onChange={set} required
-                      autoCapitalize="words"
-                      autoComplete="name"
-                      placeholder="Student's full name" className={inputCls()} />
+                    <input type="text" name="fullName" value={form.fullName} onChange={set} required placeholder="Legal Name" className={inputCls()} />
                   </Field>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label="Date of Birth *" icon={Calendar}>
-                      <input type="date" name="dateOfBirth" value={form.dateOfBirth} onChange={set} required
-                        max={new Date().toISOString().slice(0, 10)}
-                        className={inputCls() + ' cursor-pointer'} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                    <Field label="Birth Date *" icon={Calendar}>
+                      <input type="date" name="dateOfBirth" value={form.dateOfBirth} onChange={set} required className={inputCls() + ' cursor-pointer'} />
                     </Field>
                     <Field label="Gender *">
                       <select name="gender" value={form.gender} onChange={set} required className={selectCls()}>
-                        <option value="">Select…</option>
+                        <option value="">Select Protocol</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
-                        <option value="other">Prefer not to say</option>
                       </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
+                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
                     </Field>
                   </div>
-                  <Field label="Grade / Class *">
+                  <Field label="Grade Level / Class *">
                     <select name="grade" value={form.grade} onChange={set} required className={selectCls()}>
-                      <option value="">Select class…</option>
+                      <option value="">Select Academic Tier</option>
                       <option value="Primary 1-3">Primary 1–3</option>
                       <option value="Primary 4-6">Primary 4–6</option>
                       <option value="JSS 1-3">JSS 1–3</option>
                       <option value="SSS 1-3">SSS 1–3</option>
-                      <option value="University / Tertiary">University / Tertiary</option>
-                      <option value="Adult Learner">Adult Learner</option>
+                      <option value="Adult">Adult Learner</option>
                     </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
+                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
                   </Field>
-
-                  {/* School field — required for partner school, optional otherwise */}
-                  <Field label={et === 'school' ? 'Current School *' : 'School / Organisation (Optional)'} icon={School}>
+                  <Field label={et === 'school' ? 'Partner School *' : 'Origin School (Optional)'} icon={School}>
                     {et === 'school' ? (
                       <select name="currentSchool" value={form.currentSchool} onChange={set} required className={selectCls(true)}>
-                        <option value="">Select partner school…</option>
+                        <option value="">Select Verified School</option>
                         {schools.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                        <option value="Other">Other / Not listed</option>
                       </select>
                     ) : (
-                      <input type="text" name="currentSchool" value={form.currentSchool} onChange={set}
-                        autoCapitalize="words"
-                        placeholder="School name (if applicable)"
-                        className={inputCls()} />
+                      <input type="text" name="currentSchool" value={form.currentSchool} onChange={set} placeholder="Current Institution" className={inputCls()} />
                     )}
-                    {et === 'school' && <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />}
+                    {et === 'school' && <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />}
                   </Field>
-
-                  {/* Student email — useful for online/bootcamp (they may have their own) */}
-                  {(et === 'online' || et === 'bootcamp') && (
-                    <Field label="Student Email (Optional)" icon={Mail}>
-                      <input type="email" name="studentEmail" value={form.studentEmail} onChange={set}
-                        inputMode="email"
-                        autoCapitalize="none"
-                        autoCorrect="off"
-                        placeholder="student@email.com (if they have one)"
-                        className={inputCls()} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                    <Field label="City Node" icon={MapPin}>
+                       <input type="text" name="city" value={form.city} onChange={set} placeholder="e.g. Benin City" className={inputCls()} />
                     </Field>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label="City" icon={MapPin}>
-                      <input type="text" name="city" value={form.city} onChange={set}
-                        autoCapitalize="words"
-                        placeholder="e.g. Lagos" className={inputCls()} />
-                    </Field>
-                    <Field label="State *">
-                      <select name="state" value={form.state} onChange={set} required className={selectCls()}>
-                        <option value="">Select state…</option>
-                        {NIGERIAN_STATES.map(st => <option key={st} value={st}>{st}</option>)}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
+                    <Field label="State Node *">
+                       <select name="state" value={form.state} onChange={set} required className={selectCls()}>
+                          <option value="">Select Sector</option>
+                          {NIGERIAN_STATES.map(st => <option key={st} value={st}>{st}</option>)}
+                       </select>
+                       <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
                     </Field>
                   </div>
-                </>
+                </div>
               )}
 
-              {/* ── Step 2: Parent ── */}
               {step === 1 && (
-                <>
-                  <h3 className="text-xs font-black uppercase tracking-widest text-white/30 pb-3 border-b border-white/10">Parent / Guardian Information</h3>
-                  <Field label="Parent Full Name *" icon={User}>
-                    <input type="text" name="parentName" value={form.parentName} onChange={set} required
-                      autoCapitalize="words"
-                      autoComplete="name"
-                      placeholder="Parent / Guardian full name" className={inputCls()} />
-                  </Field>
-                  <Field label="Relationship to Student *" icon={Heart}>
-                    <select name="parentRelationship" value={form.parentRelationship} onChange={set} required
-                      className={selectCls(true)}>
-                      <option value="">Select…</option>
-                      <option value="Father">Father</option>
-                      <option value="Mother">Mother</option>
-                      <option value="Guardian">Guardian</option>
-                      <option value="Sibling">Sibling</option>
-                      <option value="Self">Self (adult learner)</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
-                  </Field>
-                  <Field label="Phone Number *" icon={Phone}>
-                    <input type="tel" name="parentPhone" value={form.parentPhone} onChange={set} required
-                      inputMode="tel"
-                      autoComplete="tel"
-                      placeholder="+234 800 000 0000" className={inputCls()} />
-                  </Field>
-                  <Field label="Email Address *" icon={Mail}>
-                    <input type="email" name="parentEmail" value={form.parentEmail} onChange={set} required
-                      inputMode="email"
-                      autoCapitalize="none"
-                      autoCorrect="off"
-                      autoComplete="email"
-                      placeholder="parent@email.com" className={inputCls()} />
-                  </Field>
-                </>
+                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                   <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] mb-8 pb-4 border-b border-white/5">02 // Guardian Protocol</h3>
+                   <Field label="Full Guardian Name *" icon={User}>
+                      <input type="text" name="parentName" value={form.parentName} onChange={set} required placeholder="Full Legal Name" className={inputCls()} />
+                   </Field>
+                   <Field label="Relationship *" icon={Heart}>
+                      <select name="parentRelationship" value={form.parentRelationship} onChange={set} required className={selectCls(true)}>
+                         <option value="">Select Relation</option>
+                         <option value="Father">Father</option>
+                         <option value="Mother">Mother</option>
+                         <option value="Guardian">Guardian</option>
+                      </select>
+                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                   </Field>
+                   <Field label="Direct Phone Number *" icon={Phone}>
+                      <input type="tel" name="parentPhone" value={form.parentPhone} onChange={set} required placeholder="+234..." className={inputCls()} />
+                   </Field>
+                   <Field label="Secure Email Address *" icon={Mail}>
+                      <input type="email" name="parentEmail" value={form.parentEmail} onChange={set} required placeholder="uplink@domain.com" className={inputCls()} />
+                   </Field>
+                </div>
               )}
 
-              {/* ── Step 3: Preferences ── */}
               {step === 2 && (
-                <>
-                  <h3 className="text-xs font-black uppercase tracking-widest text-white/30 pb-3 border-b border-white/10">Programme Preferences</h3>
-                  <Field label="Course Interest *" icon={BookOpen}>
-                    <select name="courseInterest" value={form.courseInterest} onChange={set} required
-                      className={selectCls(true)}>
-                      <option value="">I&apos;m interested in…</option>
-                      <option value="ICT Fundamentals">ICT Fundamentals</option>
-                      <option value="Python Programming">Python Programming</option>
-                      <option value="Web Design">Web Design &amp; Development</option>
-                      <option value="Robotics">Robotics &amp; IoT</option>
-                      <option value="AI & Data Science">AI &amp; Data Science</option>
-                      <option value="Cybersecurity Basics">Cybersecurity Basics</option>
-                      <option value="Open to anything">Open to all programmes</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
-                  </Field>
+                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                   <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] mb-8 pb-4 border-b border-white/5">03 // Final Uplink</h3>
+                   <Field label="Programme Interest *" icon={BookOpen}>
+                      <select name="courseInterest" value={form.courseInterest} onChange={set} required className={selectCls(true)}>
+                         <option value="">Select Intelligence Sector</option>
+                         <option value="Python Programming">Python Programming</option>
+                         <option value="Robotics">Robotics & IoT</option>
+                         <option value="Web Design">Web Architecture</option>
+                         <option value="AI & Data Science">AI & Data Science</option>
+                      </select>
+                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                   </Field>
 
-                  <Field label="Preferred Schedule *" icon={Calendar}>
-                    <select name="preferredSchedule" value={form.preferredSchedule} onChange={set} required
-                      className={selectCls(true)}>
-                      <option value="">Select schedule…</option>
-                      {schedules.map(s => (
-                        <option key={s.value} value={s.value}>{s.label} — {s.feeLabel}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
-                  </Field>
+                   <Field label="Engagement Schedule *" icon={Calendar}>
+                      <select name="preferredSchedule" value={form.preferredSchedule} onChange={set} required className={selectCls(true)}>
+                         <option value="">Select Time Matrix</option>
+                         {schedules.map(s => <option key={s.value} value={s.value}>{s.label} — {s.feeLabel}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                   </Field>
 
-                  <Field label="How did you hear about us?">
-                    <select name="hearAboutUs" value={form.hearAboutUs} onChange={set} className={selectCls()}>
-                      <option value="">Select…</option>
-                      <option value="Social Media">Social Media</option>
-                      <option value="Friend / Family">Friend or Family</option>
-                      <option value="School">Through School</option>
-                      <option value="Flyer / Banner">Flyer / Banner</option>
-                      <option value="Online Search">Online Search</option>
-                      <option value="Radio / TV">Radio / TV</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
-                  </Field>
+                   {et && (
+                     <div className="p-8 bg-orange-500/5 border border-white/10 rounded-none italic text-xs font-bold text-slate-400 leading-relaxed">
+                        TRANSMISSION FEE: <span className="text-orange-500 text-lg font-black not-italic ml-2">{feeAmount || TYPE_FEES[et]}</span>
+                        <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-600">Verification managed via Paystack Protocol.</p>
+                     </div>
+                   )}
 
-                  {/* Programme type badge + fee */}
-                  {et && (
-                    <div className="bg-[#FF914D]/10 border border-[#FF914D]/20 rounded-xl p-4 flex items-center gap-3">
-                      <div className="w-8 h-8 bg-[#FF914D]/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <GraduationCap className="w-4 h-4 text-[#FF914D]" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-white">
-                          {ENROLLMENT_TYPES.find(t => t.id === et)?.title}
-                          {feeLabel ? ` · ${feeLabel}` : feeLabel === '' ? ` · ${TYPE_FEES[et]}` : ''}
-                        </p>
-                        <p className="text-xs text-white/40">
-                          {feeAmount ? `${feeAmount} — pay now to secure your spot` : 'Select a schedule to see pricing'} · Powered by Paystack
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Terms */}
-                  <div className="flex items-start gap-3 bg-white/5 rounded-xl p-4 border border-white/10">
-                    <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set}
-                      className="mt-0.5 w-4 h-4 accent-[#FF914D] cursor-pointer flex-shrink-0" />
-                    <label htmlFor="terms" className="text-sm text-white/50 leading-relaxed cursor-pointer">
-                      I confirm the information above is accurate and agree to Rillcod Academy&apos;s{' '}
-                      <span className="text-[#FF914D] underline">Terms &amp; Conditions</span>.
-                    </label>
-                  </div>
-                  {err && <p className="text-rose-400 text-sm">{err}</p>}
-                </>
+                   <div className="flex items-start gap-4 p-6 bg-white/[0.02] border border-white/5 rounded-none">
+                      <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-orange-500 cursor-pointer flex-shrink-0" />
+                      <label htmlFor="terms" className="text-[11px] font-bold text-slate-500 leading-relaxed cursor-pointer italic">
+                         I hereby initialize this registration and confirm all data records are accurate. I agree to the <span className="text-orange-500 underline">Academy Service Protocols</span>.
+                      </label>
+                   </div>
+                   {err && <p className="text-rose-500 text-xs font-black uppercase tracking-widest">{err}</p>}
+                </div>
               )}
-            </div>
 
-            {/* Navigation */}
-            <div className="flex justify-between mt-8 pt-6 border-t border-white/10">
-              <button type="button" onClick={back}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white/50 bg-white/5 hover:bg-white/10 transition-all ${step === 0 ? 'invisible' : ''}`}>
-                <ArrowLeft className="w-4 h-4" /> Back
-              </button>
-              <button type="submit" disabled={loading}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-[#FF914D] hover:bg-orange-400 text-white transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50">
-                {loading ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting to payment…</>
-                ) : step < STEPS.length - 1 ? (
-                  <>Next Step <ArrowRight className="w-4 h-4" /></>
-                ) : (
-                  <>Pay {feeAmount || TYPE_FEES[et] || '...'} to Enrol <ArrowRight className="w-4 h-4" /></>
-                )}
-              </button>
-            </div>
+              {/* Control Strip */}
+              <div className="flex justify-between items-center pt-8 border-t border-white/5">
+                <button type="button" onClick={back} className={`flex items-center gap-3 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-white transition-colors ${step === 0 ? 'invisible' : ''}`}>
+                   <ArrowLeft className="w-4 h-4" /> Back
+                </button>
+                <button type="submit" disabled={loading} className="group flex items-center gap-4 px-12 py-5 bg-orange-500 text-white text-[10px] font-black uppercase tracking-[0.4em] rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 disabled:opacity-50">
+                   {loading ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Uplinking...</>
+                   ) : step < STEPS.length - 1 ? (
+                      <>Next Protocol <ArrowRight className="w-4 h-4 group-hover:translate-x-1" /></>
+                   ) : (
+                      <>Initialize Payment <ArrowRight className="w-4 h-4 group-hover:translate-x-1" /></>
+                   )}
+                </button>
+              </div>
           </form>
         </div>
-
-        {/* Trust signals */}
-        <div className="flex items-center justify-center gap-6 mt-8 text-xs text-white/20 font-medium">
-          <span>✓ Secure payment</span>
-          <span>✓ Powered by Paystack</span>
-          <span>✓ Review within 48hrs</span>
-        </div>
-      </div>
     </div>
   );
 }

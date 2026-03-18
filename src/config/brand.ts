@@ -1,4 +1,4 @@
-// Brand configuration based on Rillcod Academy logo colors
+// Brand configuration based on Rillcod Technologies logo colors
 export const brandColors = {
   // Primary colors from logo
   primary: {
@@ -60,7 +60,7 @@ export const socialLinks = {
 
 // Company information
 export const companyInfo = {
-  name: 'Rillcod Academy',
+  name: 'Rillcod Technologies',
   tagline: 'Inspiring Young Minds Through Technology',
   description: 'Transform Nigeria\'s educational system with cutting-edge technology education. Learn coding, robotics, web development, and more through fun, hands-on projects.',
   founded: '2024',
@@ -70,10 +70,10 @@ export const companyInfo = {
 // SEO configuration
 export const seoConfig = {
   siteUrl: 'https://rillcod.com',
-  siteName: 'Rillcod Academy',
-  defaultTitle: "Rillcod Academy — Nigeria's Leading STEM & Coding Academy | Benin City, Edo State",
+  siteName: 'Rillcod Technologies',
+  defaultTitle: "Rillcod Technologies — Nigeria's Leading STEM & Coding Academy | Benin City, Edo State",
   defaultDescription:
-    'Rillcod Academy is Nigeria\'s premier STEM and coding academy for children. We offer hands-on coding, robotics, AI, and web development classes in partner schools across Benin City, Edo State, and Nigeria. Empowering kids from JSS1 to SS3 with future-ready tech skills.',
+    'Rillcod Technologies is Nigeria\'s premier STEM and coding academy for children. We offer hands-on coding, robotics, AI, and web development classes in partner schools across Benin City, Edo State, and Nigeria. Empowering kids from JSS1 to SS3 with future-ready tech skills.',
   keywords: [
     // Primary
     'coding academy Nigeria',
@@ -113,7 +113,7 @@ export const seoConfig = {
     'robotics for kids Nigeria',
     'ICT fundamentals Nigeria',
     // Brand
-    'Rillcod Academy',
+    'Rillcod Technologies',
     'RILLCOD',
   ],
   locale: 'en_NG',

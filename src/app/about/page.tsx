@@ -106,47 +106,48 @@ export default function About() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Hero Section */}
-        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl shadow-lg mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">About RILLCOD Academy</h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
+        <div className="text-center py-16 bg-[#1a1a1a] border border-white/10 rounded-none shadow-lg mb-16 px-4 border-t-4 border-t-orange-500">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white mb-6 uppercase tracking-tight">About RILLCOD Academy</h1>
+          <p className="text-sm sm:text-lg text-slate-400 max-w-3xl mx-auto mb-8 font-medium italic">
             Empowering the next generation of world-class professionals through innovative, AI-integrated STEM education.
           </p>
-          <div className="w-20 h-2 bg-gradient-to-r from-blue-600 to-purple-600 mx-auto rounded-full"></div>
+          <div className="w-20 h-1 bg-orange-500 mx-auto rounded-none"></div>
         </div>
 
         {/* Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16">
           {stats.map((stat, index) => (
-            <div key={index} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center hover:shadow-xl transition-all duration-300 hover:scale-105">
-              <div className={`flex justify-center mb-4 ${stat.color}`}>
+            <div key={index} className="bg-[#1a1a1a] border border-white/10 rounded-none p-8 text-center hover:border-orange-500 transition-all border-b-2 border-b-transparent">
+              <div className={`flex justify-center mb-6 text-orange-500`}>
                 {stat.icon}
               </div>
-              <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{stat.number}</div>
-              <div className="text-gray-600 dark:text-gray-300">{stat.label}</div>
+              <div className="text-2xl sm:text-3xl font-black text-white mb-1 tracking-tighter">{stat.number}</div>
+              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</div>
             </div>
           ))}
         </div>
 
         {/* Mission, Vision, Objective */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-16">
-          <div className="space-y-12">
-            <div className="text-center">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Our Mission</h2>
-              <p className="text-lg text-gray-700 dark:text-gray-300 max-w-4xl mx-auto">
+        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 mb-16 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-none blur-[100px] pointer-events-none"></div>
+          <div className="space-y-16 relative z-10">
+            <div className="text-left border-l-2 border-orange-500 pl-8">
+              <h2 className="text-xl font-black text-white mb-4 uppercase tracking-widest">Our Mission</h2>
+              <p className="text-sm sm:text-base text-slate-400 max-w-4xl font-medium italic leading-relaxed">
                 To transform Nigeria&apos;s educational landscape by shifting from memory-based learning to a system that fosters critical thinking, creativity, and global competitiveness in AI, robotics, and digital skills.
               </p>
             </div>
             
-            <div className="text-center">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Our Vision</h2>
-              <p className="text-lg text-gray-700 dark:text-gray-300 max-w-4xl mx-auto">
+            <div className="text-left border-l-2 border-blue-500 pl-8">
+              <h2 className="text-xl font-black text-white mb-4 uppercase tracking-widest">Our Vision</h2>
+              <p className="text-sm sm:text-base text-slate-400 max-w-4xl font-medium italic leading-relaxed">
                 To equip every student with the skills to thrive in the AI-driven future, positioning Nigeria as a leader in Africa&apos;s digital transformation.
               </p>
             </div>
             
-            <div className="text-center">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Our Objective</h2>
-              <p className="text-lg text-gray-700 dark:text-gray-300 max-w-4xl mx-auto">
+            <div className="text-left border-l-2 border-emerald-500 pl-8">
+              <h2 className="text-xl font-black text-white mb-4 uppercase tracking-widest">Our Objective</h2>
+              <p className="text-sm sm:text-base text-slate-400 max-w-4xl font-medium italic leading-relaxed">
                 To deliver a 12-year, session-based curriculum that integrates AI, robotics, and traditional programming, ensuring students from Basic 1 to SS3 graduate with advanced mobile development skills, AI literacy, robotics expertise, and professional portfolios.
               </p>
             </div>
@@ -155,92 +156,76 @@ export default function About() {
 
         {/* Core Values */}
       <div className="mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">Our Core Values</h2>
+          <h2 className="text-xl font-black text-white mb-12 text-center uppercase tracking-widest italic">Our Core Values</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {values.map((value, index) => (
-              <div key={index} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center hover:shadow-xl transition-all duration-300 hover:scale-105">
-                <div className={`w-20 h-20 bg-gradient-to-r ${value.color} rounded-full flex items-center justify-center mx-auto mb-6`}>
+              <div key={index} className="bg-[#1a1a1a] border border-white/10 rounded-none p-8 hover:border-orange-500 transition-all border-b-2 border-b-transparent group">
+                <div className={`w-12 h-12 bg-white/5 rounded-none flex items-center justify-center mb-8 group-hover:scale-110 transition-transform`}>
                   {value.icon}
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{value.title}</h3>
-                <p className="text-gray-600 dark:text-gray-300">{value.description}</p>
+                <h3 className="text-sm font-black text-white mb-4 uppercase tracking-widest">{value.title}</h3>
+                <p className="text-xs text-slate-500 font-bold leading-relaxed">{value.description}</p>
               </div>
             ))}
           </div>
       </div>
 
         {/* Executive Summary */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-16">
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">Executive Summary</h2>
-          <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
+        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 mb-16 shadow-2xl border-t-4 border-t-orange-500">
+        <h2 className="text-xl font-black text-white mb-8 uppercase tracking-widest text-left">Executive Summary</h2>
+          <p className="text-sm sm:text-base text-slate-400 mb-12 italic font-medium leading-relaxed max-w-4xl">
             Transform your school into a premier AI and technology powerhouse with RILLCOD ACADEMY&apos;s 12-year, session-based program. This revolutionary curriculum blends traditional programming with cutting-edge artificial intelligence and robotics, preparing students for the Fourth Industrial Revolution while generating substantial revenue for your institution.
           </p>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <CheckCircle className="w-6 h-6 text-green-500 mt-1" />
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">Complete AI-Integrated Journey</h4>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm">Structured progression from Basic 1 to SS3, with AI and robotics embedded in every term.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <div className="space-y-6">
+              {[
+                { h: "Complete AI-Integrated Journey", p: "Structured progression from Basic 1 to SS3, with AI and robotics embedded in every term." },
+                { h: "36+ Capstone Projects", p: "Real-world solutions like smart agriculture systems, AI-powered analytics, and mobile apps." },
+                { h: "Guaranteed Revenue", p: "30% profit share with termly fees starting at ₦20,000, no upfront costs." }
+              ].map((item, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-1">{item.h}</h4>
+                    <p className="text-[11px] text-slate-500 font-bold">{item.p}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <CheckCircle className="w-6 h-6 text-green-500 mt-1" />
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">36+ Capstone Projects</h4>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm">Real-world solutions like smart agriculture systems, AI-powered analytics, and mobile apps.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <CheckCircle className="w-6 h-6 text-green-500 mt-1" />
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">Guaranteed Revenue</h4>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm">30% profit share with termly fees starting at ₦20,000, no upfront costs.</p>
-                </div>
-              </div>
+              ))}
             </div>
             
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <CheckCircle className="w-6 h-6 text-green-500 mt-1" />
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">Modern Infrastructure</h4>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm">Interactive boards, robotics kits, AI development platforms, and laptops provided by RILLCOD.</p>
+            <div className="space-y-6">
+              {[
+                { h: "Modern Infrastructure", p: "Interactive boards, robotics kits, AI development platforms, and laptops provided by RILLCOD." },
+                { h: "African Market Leadership", p: "Position your school as a pioneer in Nigeria's booming digital economy." },
+                { h: "Industry 4.0 Readiness", p: "Graduates equipped for high-paying careers in AI, IoT, and tech entrepreneurship." }
+              ].map((item, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-1">{item.h}</h4>
+                    <p className="text-[11px] text-slate-500 font-bold">{item.p}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <CheckCircle className="w-6 h-6 text-green-500 mt-1" />
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">African Market Leadership</h4>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm">Position your school as a pioneer in Nigeria&apos;s booming digital economy.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <CheckCircle className="w-6 h-6 text-green-500 mt-1" />
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">Industry 4.0 Readiness</h4>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm">Graduates equipped for high-paying careers in AI, IoT, and tech entrepreneurship.</p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
 
         {/* Achievements Timeline */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">Our Achievements</h2>
-          <div className="space-y-6">
+        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 mb-16 shadow-2xl">
+          <h2 className="text-xl font-black text-white mb-12 text-center uppercase tracking-widest italic">Our Achievements</h2>
+          <div className="space-y-4">
             {achievements.map((achievement, index) => (
-              <div key={index} className="flex items-center gap-6 p-6 bg-gray-50 dark:bg-gray-700 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                <div className="w-12 h-12 bg-blue-600 dark:bg-blue-400 rounded-full flex items-center justify-center text-white font-bold">
+              <div key={index} className="flex items-center gap-8 p-8 bg-[#121212] border border-white/5 rounded-none hover:border-orange-500 transition-all group">
+                <div className="w-16 h-16 bg-white/5 border border-white/10 rounded-none flex items-center justify-center text-orange-500 font-black text-xl group-hover:bg-orange-500 group-hover:text-white transition-all shrink-0">
                   {achievement.year.slice(-2)}
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{achievement.title}</h3>
-                  <p className="text-gray-600 dark:text-gray-300">{achievement.description}</p>
+                  <h3 className="text-sm font-black text-white uppercase tracking-widest mb-1">{achievement.title}</h3>
+                  <p className="text-xs text-slate-500 font-bold italic">{achievement.description}</p>
                 </div>
-                <div className="text-blue-600 dark:text-blue-400">
+                <div className="text-white/20 group-hover:text-orange-500 transition-colors">
                   {achievement.icon}
                 </div>
               </div>
@@ -250,55 +235,44 @@ export default function About() {
 
         {/* Team Section */}
         <div className="mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">Our Leadership Team</h2>
+          <h2 className="text-xl font-black text-white mb-12 text-center uppercase tracking-widest italic">Leadership Cadre</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {team.map((member, index) => (
-              <div key={index} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105">
-                <div className="h-48 bg-gradient-to-br from-blue-100 dark:from-blue-700 to-purple-100 dark:to-purple-700 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-20 h-20 bg-blue-600 dark:bg-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-white dark:text-gray-900 font-bold text-xl">{member.name.split(' ').map(n => n[0]).join('')}</span>
+              <div key={index} className="bg-[#1a1a1a] border border-white/10 rounded-none overflow-hidden hover:border-orange-500 transition-all flex flex-col">
+                <div className="h-48 bg-[#121212] flex items-center justify-center relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-orange-500/5 rotate-45 translate-x-12 translate-y-12 rounded-none"></div>
+                  <div className="z-10 text-center">
+                    <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-none flex items-center justify-center mx-auto mb-4 group-hover:border-orange-500 transition-all">
+                      <span className="text-white font-black text-2xl tracking-tighter italic">{member.name.split(' ').map(n => n[0]).join('')}</span>
                     </div>
-                    <p className="text-blue-600 dark:text-blue-400 font-semibold">{member.role}</p>
                   </div>
                 </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{member.name}</h3>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">{member.bio}</p>
+                <div className="p-8 flex-1 flex flex-col">
+                  <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.3em] mb-1">{member.role}</p>
+                  <h3 className="text-lg font-black text-white uppercase tracking-tight mb-4">{member.name}</h3>
+                  <p className="text-xs text-slate-500 font-bold mb-8 italic flex-1 leading-relaxed">{member.bio}</p>
                   
                   <button
                     onClick={() => toggleTeamMember(member.name)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-400 text-white dark:text-gray-900 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-500 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-[#121212] border border-white/5 text-[9px] font-black text-white uppercase tracking-widest hover:border-orange-500 transition-all"
                   >
-                    {selectedTeamMember === member.name ? (
-                      <>
-                        <ChevronUp className="w-4 h-4" />
-                        Hide Details
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="w-4 h-4" />
-                        View Details
-                      </>
-                    )}
+                    {selectedTeamMember === member.name ? 'CLOSE LOGS' : 'SPECIFICATIONS'}
                   </button>
                   
                   {selectedTeamMember === member.name && (
-                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Expertise:</h4>
-                      <div className="flex flex-wrap gap-2">
+                    <div className="mt-8 pt-8 border-t border-white/5 animate-in fade-in duration-300">
+                      <h4 className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-4 italic">Core Expertise:</h4>
+                      <div className="flex flex-wrap gap-2 mb-6">
                         {member.expertise.map((skill, idx) => (
-                          <span key={idx} className="bg-blue-100 dark:bg-blue-700 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full text-xs">
+                          <span key={idx} className="bg-white/5 text-[9px] font-black text-white px-2 py-1.5 rounded-none uppercase tracking-widest border border-white/10">
                             {skill}
                           </span>
                         ))}
                       </div>
-                      <div className="mt-4 space-y-2">
-                        <a href={`mailto:${member.email}`} className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-500">
-                          <Mail className="w-4 h-4" />
-                          {member.email}
-                        </a>
-                      </div>
+                      <a href={`mailto:${member.email}`} className="flex items-center gap-3 text-[10px] font-black text-orange-500 uppercase tracking-widest hover:text-white transition-colors">
+                        <Mail className="w-3.5 h-3.5" />
+                        UPLINK
+                      </a>
                     </div>
                   )}
                 </div>
@@ -308,24 +282,25 @@ export default function About() {
         </div>
 
         {/* CTA Section */}
-        <div className="text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-white">
-          <h2 className="text-3xl font-bold mb-4">Ready to Transform Education?</h2>
-          <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
+        <div className="text-center bg-[#1a1a1a] border border-white/10 border-t-4 border-t-orange-500 rounded-none p-16 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
+          <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight text-white">Ready to Transform <span className="text-orange-500 italic">Education?</span></h2>
+          <p className="text-sm sm:text-lg mb-12 opacity-60 max-w-2xl mx-auto font-medium italic text-slate-400 leading-relaxed">
             Join us in revolutionizing technology education and preparing students for the future of work.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <Link
               href="/school-registration"
-              className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+              className="inline-flex items-center justify-center px-12 py-5 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20"
             >
-              <Building className="w-5 h-5 mr-2" />
-              Partner Your School
+              <Building className="w-4 h-4 mr-4" />
+              Partner Now
             </Link>
             <Link
               href="/contact"
-              className="inline-flex items-center justify-center px-8 py-4 border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-blue-600 transition-colors"
+              className="inline-flex items-center justify-center px-12 py-5 bg-transparent border border-white/10 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-white hover:text-black transition-all"
             >
-              <Mail className="w-5 h-5 mr-2" />
+              <Mail className="w-4 h-4 mr-4" />
               Contact Us
             </Link>
           </div>

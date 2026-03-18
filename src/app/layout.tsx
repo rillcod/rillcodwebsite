@@ -9,11 +9,11 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   metadataBase: new URL("https://rillcod.com"),
   title: {
-    default: "Rillcod Academy — Nigeria's Leading STEM & Coding Academy | Benin City, Edo State",
-    template: "%s | Rillcod Academy",
+    default: "Rillcod Technologies — Nigeria's Leading STEM & Coding Academy | Benin City, Edo State",
+    template: "%s | Rillcod Technologies",
   },
   description:
-    "Rillcod Academy is Nigeria's premier STEM and coding academy for children. We offer hands-on coding, robotics, AI, and web development classes in partner schools across Benin City, Edo State, and Nigeria. Empowering kids from JSS1 to SS3 with future-ready tech skills.",
+    "Rillcod Technologies is Nigeria's premier STEM and coding academy for children. We offer hands-on coding, robotics, AI, and web development classes in partner schools across Benin City, Edo State, and Nigeria. Empowering kids from JSS1 to SS3 with future-ready tech skills.",
   keywords: [
     "coding academy Nigeria",
     "STEM education Nigeria",

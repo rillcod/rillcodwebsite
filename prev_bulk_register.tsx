@@ -25,11 +25,7 @@ import {
   ArrowPathIcon,
   ArchiveBoxIcon,
   ClockIcon,
-  TrashIcon,
-  PencilIcon,
-  UserIcon,
 } from '@/lib/icons';
-import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 
 // ─── Class detection ─────────────────────────────────────────────────────────
 //
@@ -73,17 +69,14 @@ function generatePassword(): string {
   return `Rillcod@${digits}`;
 }
 
-/** Generate a unique and readable email including 3 random digits. */
+/** Generate an email from a name, avoiding collisions against a set of taken emails. */
 function makeEmail(firstName: string, taken: Set<string>, skipEmail?: string): string {
   const base = firstName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'student';
-  const digits = Math.floor(100 + Math.random() * 900); // 3-digit suffix for better uniqueness
-  let email = `${base}${digits}@rillcod.com`.toLowerCase();
-
-  if (email === skipEmail?.toLowerCase() || !taken.has(email)) return email;
-
+  let email = `${base}@rillcod.com`;
+  if (email === skipEmail || !taken.has(email)) return email;
   let i = 2;
-  while (taken.has(`${base}${digits}_${i}@rillcod.com`.toLowerCase()) && `${base}${digits}_${i}@rillcod.com`.toLowerCase() !== skipEmail?.toLowerCase()) i++;
-  return `${base}${digits}_${i}@rillcod.com`.toLowerCase();
+  while (taken.has(`${base}${i}@rillcod.com`) && `${base}${i}@rillcod.com` !== skipEmail) i++;
+  return `${base}${i}@rillcod.com`;
 }
 
 // ─── Core parser ─────────────────────────────────────────────────────────────
@@ -163,7 +156,6 @@ function nextId() { return ++_idCounter; }
 
 function buildStudentList(rawLines: string[], fallbackClass?: string): GeneratedStudent[] {
   const usedEmails = new Set<string>();
-  const usedNames = new Map<string, number>(); // track name counts for batch-level uniqueness
   const students: GeneratedStudent[] = [];
   let contextClass: string | null = null;
 
@@ -177,19 +169,11 @@ function buildStudentList(rawLines: string[], fallbackClass?: string): Generated
     }
 
     const inlineClass = detectClass(line);
-    let namePart = inlineClass ? stripClass(line) : line;
+    const namePart = inlineClass ? stripClass(line) : line;
     if (!namePart) continue;
 
-    // Handle duplicate names in the batch by adding a small ID suffix if needed
-    const nameKey = namePart.toLowerCase();
-    const count = usedNames.get(nameKey) || 0;
-    usedNames.set(nameKey, count + 1);
-    if (count > 0) {
-      namePart = `${namePart} #${count + 1}`;
-    }
-
     // Priority: inline class > header context > fallback default class
-    const resolvedClass = inlineClass ?? contextClass ?? (fallbackClass ? (detectClass(fallbackClass) || fallbackClass.trim().toUpperCase()) || undefined : undefined);
+    const resolvedClass = inlineClass ?? contextClass ?? (fallbackClass ? (detectClass(fallbackClass) ?? fallbackClass.trim().toUpperCase()) || undefined : undefined);
     const first = extractFirstName(namePart);
     const email = makeEmail(first, usedEmails);
     usedEmails.add(email);
@@ -208,11 +192,9 @@ export default function BulkRegisterPage() {
   const [namesText, setNamesText] = useState('');
   const [preview, setPreview] = useState<GeneratedStudent[]>([]);
   const [registering, setRegistering] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState<string | null>(null);
   const [results, setResults] = useState<RegisterResult[] | null>(null);
   const [registerProgress, setRegisterProgress] = useState<{ done: number; total: number; current: string } | null>(null);
-  const [step, setStep] = useState<'input' | 'preview' | 'done' | 'registry' | 'single'>('input');
+  const [step, setStep] = useState<'input' | 'preview' | 'done'>('input');
 
   // ── Batch Settings ───────────────────────────────────────────────────────
   const [schools, setSchools] = useState<School[]>([]);
@@ -231,10 +213,6 @@ export default function BulkRegisterPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
-  const [batchResults, setBatchResults] = useState<any[]>([]);
-  const [editingResultId, setEditingResultId] = useState<string | null>(null);
-  const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = sessionStorage.getItem('last_bulk_reg');
@@ -263,25 +241,6 @@ export default function BulkRegisterPage() {
       setShowHistory(false);
     }
     setLoadingHistory(false);
-  };
-
-  const handleDeleteBatch = async (batchId: string) => {
-    if (!confirm('Delete this batch permanently? This will remove all student registration history for this session.')) return;
-    setLoadingHistory(true);
-    try {
-      // 1. Delete results first (if no cascade)
-      await (supabase as any).from('registration_results').delete().eq('batch_id', batchId);
-      // 2. Delete batch metadata
-      const { error } = await (supabase as any).from('registration_batches').delete().eq('id', batchId);
-
-      if (error) throw error;
-
-      setHistory(prev => prev.filter(b => b.id !== batchId));
-    } catch (err: any) {
-      alert('Delete failed: ' + err.message);
-    } finally {
-      setLoadingHistory(false);
-    }
   };
 
   const recoverLastBatch = () => {
@@ -315,7 +274,7 @@ export default function BulkRegisterPage() {
     return defaultClass;
   })();
 
-  const filteredRegistryClasses = registryClasses.filter(c =>
+  const filteredRegistryClasses = registryClasses.filter(c => 
     !selectedSchoolId || c.school_id === selectedSchoolId
   );
 
@@ -336,12 +295,12 @@ export default function BulkRegisterPage() {
       // Load registry classes via shared service (has fallback on RLS errors)
       const teacherId = profile?.role === 'teacher' ? profile?.id : undefined;
       const clsData = await fetchClasses(teacherId, undefined);
-      setRegistryClasses(clsData.map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        section_class: c.section_class ?? null,
+      setRegistryClasses(clsData.map((c: any) => ({ 
+        id: c.id, 
+        name: c.name, 
+        section_class: c.section_class ?? null, 
         school_id: c.school_id ?? null,
-        isRegistry: true
+        isRegistry: true 
       })));
 
       if (profile?.role === 'admin') {
@@ -469,7 +428,7 @@ export default function BulkRegisterPage() {
     if (!valid.length) return;
     setRegistering(true);
     setRegisterProgress({ done: 0, total: valid.length, current: valid[0]?.full_name ?? '' });
-
+    
     // Generate UUID for this batch to link results in DB
     const persistentBatchId = crypto.randomUUID();
 
@@ -479,7 +438,7 @@ export default function BulkRegisterPage() {
       for (let i = 0; i < valid.length; i += BATCH) {
         const batch = valid.slice(i, i + BATCH);
         setRegisterProgress({ done: i, total: valid.length, current: batch[0]?.full_name ?? '' });
-
+        
         const body: Record<string, any> = {
           batch_id: persistentBatchId,
           students: batch,
@@ -504,12 +463,7 @@ export default function BulkRegisterPage() {
       setResults(allResults);
       sessionStorage.setItem('last_bulk_reg', JSON.stringify({ results: allResults, date: new Date().toISOString() }));
       setHasRecoverable(true);
-      
-      // Auto-switch directly to Execution Vault (History) after successful registration
-      await fetchHistory();
-      setStep('registry');
-      setShowHistory(true);
-      
+      setStep('done');
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -518,9 +472,9 @@ export default function BulkRegisterPage() {
     }
   };
 
-  const handleReset = () => {
+  const handleReset = () => { 
     if (confirm('Are you sure? This will clear the current results.')) {
-      setNamesText(''); setPreview([]); setResults(null); setStep('input');
+      setNamesText(''); setPreview([]); setResults(null); setStep('input'); 
     }
   };
 
@@ -544,25 +498,6 @@ export default function BulkRegisterPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  const handleUpdateResults = async () => {
-    if (!results) return;
-    setLoading(true);
-    try {
-      const res = await fetch('/api/students/bulk-register', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ results }),
-      });
-      if (!res.ok) throw new Error('Failed to update records');
-      setSuccess('Records updated in both Official Registry and Portal Accounts!');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setLoading(false);
-    }
   };
 
   // ─── Guards ──────────────────────────────────────────────────────────────
@@ -595,129 +530,87 @@ export default function BulkRegisterPage() {
       {/* ── Print-only styles ──────────────────────────────────────────── */}
       <style>{`
         @media print {
-          body * { display: none !important; }
-          #printable-sheet, #printable-sheet * { display: block !important; }
-          #printable-sheet table, #printable-sheet table * { display: table !important; }
-          #printable-sheet tr, #printable-sheet tr * { display: table-row !important; }
-          #printable-sheet td, #printable-sheet td * { display: table-cell !important; }
-          #printable-sheet th, #printable-sheet th * { display: table-header-group !important; }
+          body * { visibility: hidden !important; }
+          #printable-sheet, #printable-sheet * { visibility: visible !important; }
           #printable-sheet {
-            position: absolute; inset: 0; background: #fff; color: #000; padding: 24px;
-            display: block !important;
+            position: fixed; inset: 0; background: #fff; color: #000; padding: 24px;
           }
           #printable-sheet h2  { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
           #printable-sheet p   { font-size: 12px; margin-bottom: 16px; color: #555; }
           #printable-sheet table { width: 100%; border-collapse: collapse; font-size: 11px; }
-          #printable-sheet th  { background: #1a1a2e !important; color: #fff !important; -webkit-print-color-adjust: exact; padding: 7px 9px; text-align: left; font-weight: 700; }
+          #printable-sheet th  { background: #1a1a2e; color: #fff; padding: 7px 9px; text-align: left; font-weight: 700; }
           #printable-sheet td  { border-bottom: 1px solid #e5e7eb; padding: 6px 9px; color: #111; }
-          #printable-sheet tr:nth-child(even) td { background: #f9fafb !important; -webkit-print-color-adjust: exact; }
-          #printable-sheet .cls-badge { background: #cffafe !important; color: #0e7490 !important; padding: 1px 6px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
-          #printable-sheet .badge-ok  { background: #d1fae5 !important; color: #065f46 !important; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
-          #printable-sheet .badge-fail{ background: #fee2e2 !important; color: #991b1b !important; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
+          #printable-sheet tr:nth-child(even) td { background: #f9fafb; }
+          #printable-sheet .cls-badge { background: #cffafe; color: #0e7490; padding: 1px 6px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
+          #printable-sheet .badge-ok  { background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
+          #printable-sheet .badge-fail{ background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
           #printable-sheet .footer-note { margin-top: 20px; font-size: 10px; color: #888; border-top: 1px solid #e5e7eb; padding-top: 10px; }
-          @page { margin: 1cm; size: auto; }
+          @page { margin: 1.5cm; }
         }
       `}</style>
 
       <div className="min-h-screen bg-[#0f0f1a] px-4 py-6 md:px-8 max-w-6xl mx-auto">
 
         {/* ── Header ─────────────────────────────────────────────────── */}
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-10 gap-6">
+        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div>
-            <h1 className="text-3xl font-black text-white flex items-center gap-3 italic uppercase tracking-tighter">
-              <SparklesIcon className="w-8 h-8 text-violet-400" />
-              Institutional Registry
+            <h1 className="text-2xl font-black text-white flex items-center gap-2">
+              <SparklesIcon className="w-6 h-6 text-violet-400" />
+              Register Students
             </h1>
-            <p className="text-white/40 text-[10px] uppercase font-black tracking-[0.2em] mt-1 ml-1">
-              Bulk Distribution & Archive Management
+            <p className="text-white/40 text-sm mt-1">
+              Paste names → review &amp; edit → register → print credentials
             </p>
           </div>
-          
-          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 shadow-2xl overflow-hidden shrink-0 self-start sm:self-center">
-            <button 
-              onClick={() => { setStep('input'); setShowHistory(false); }}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${(!showHistory && step !== 'registry' && step !== 'single') ? 'bg-[#7a0606] text-white shadow-lg' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-            >
-              Bulk Import
-            </button>
-            <button 
-              onClick={() => { setStep('single'); setShowHistory(false); }}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${(step === 'single') ? 'bg-blue-600 text-white shadow-lg' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-            >
-              Single Entry
-            </button>
-            <button 
-              onClick={() => { setShowHistory(true); setStep(step === 'done' || step === 'preview' ? step : 'input'); fetchHistory(); }}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showHistory ? 'bg-cyan-600 text-white shadow-lg' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-            >
-              Official Vault
-            </button>
+          <div className="flex items-center gap-3">
+            {step === 'input' && (
+              <>
+                {hasRecoverable && (
+                  <button
+                    onClick={recoverLastBatch}
+                    className="flex items-center gap-2 px-4 py-2 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 rounded-xl text-violet-400 text-sm font-bold transition-colors"
+                    title="Recover your last registration results"
+                  >
+                    <ArrowPathIcon className="w-4 h-4" /> Recall Last Batch
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowHistory(true);
+                    fetchHistory();
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-bold rounded-xl transition-colors text-sm border border-cyan-500/20"
+                  title="View official registration history"
+                >
+                  <ArchiveBoxIcon className="w-4 h-4" />
+                  Official Registry
+                </button>
+              </>
+            )}
+            <Link href="/dashboard/students" className="text-white/40 hover:text-white text-sm transition-colors">
+              ← Back to Students
+            </Link>
           </div>
         </div>
 
-        {/* Step indicator (hide for single entry) */}
-        {step !== 'single' && (
-          <div className="flex items-center gap-2 mb-8 text-xs font-bold flex-wrap">
-            {(['input', 'preview', 'done', 'registry'] as const).map((s, i) => {
-              const labels = ['1. Enter Names', '2. Edit & Register', '3. Results/Print', '4. Official Registry'];
-              const active = step === s;
-              const steps = ['input', 'preview', 'done', 'registry'];
-              const done = steps.indexOf(step as any) > i;
-              return (
-                <button 
-                  key={s} 
-                  onClick={() => {
-                    if (s === 'registry') {
-                      setStep('registry');
-                      fetchHistory();
-                    } else if (done || active) {
-                      setStep(s);
-                    }
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  {i > 0 && <div className="w-8 h-px bg-white/10" />}
-                  <span className={`px-3 py-1 rounded-full transition-colors ${active ? 'bg-violet-600 text-white' : done ? 'bg-emerald-600/30 text-emerald-400' : 'bg-white/5 text-white/30'}`}>
-                    {labels[i]}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
+        {/* ── Step indicator ─────────────────────────────────────────── */}
+        <div className="flex items-center gap-2 mb-8 text-xs font-bold flex-wrap">
+          {(['input', 'preview', 'done'] as const).map((s, i) => {
+            const labels = ['1. Enter Names', '2. Edit & Register', '3. Print Credentials'];
+            const active = step === s;
+            const done = ['input', 'preview', 'done'].indexOf(step) > i;
+            return (
+              <div key={s} className="flex items-center gap-2">
+                {i > 0 && <div className="w-8 h-px bg-white/10" />}
+                <span className={`px-3 py-1 rounded-full transition-colors ${active ? 'bg-violet-600 text-white' : done ? 'bg-emerald-600/30 text-emerald-400' : 'bg-white/5 text-white/30'}`}>
+                  {labels[i]}
+                </span>
+              </div>
+            );
+          })}
+        </div>
 
         {/* ══════════════════ STEP 1 — INPUT ══════════════════════════ */}
-        {step === 'single' && (
-          <div className="space-y-6">
-            <div className="bg-[#0d1526] border border-blue-500/20 rounded-2xl p-8 sm:p-12 text-center">
-              <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <UserIcon className="w-10 h-10 text-blue-400" />
-              </div>
-              <h2 className="text-2xl font-black text-white mb-3 italic uppercase tracking-tighter">Single Student Registration</h2>
-              <p className="text-white/40 text-sm max-w-md mx-auto mb-8">
-                Register a single student record directly into the Official Registry. This will create a pending application for approval.
-              </p>
-              <button 
-                onClick={() => setStep('single' as any)} // will open modal via useEffect or just button
-                className="group relative px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-2xl shadow-blue-600/20"
-              >
-                <div className="flex items-center gap-3">
-                  <PlusIcon className="w-5 h-5" />
-                  Open Registration Form
-                </div>
-              </button>
-            </div>
-
-            {/* Inlining the modal logic but as a tab trigger */}
-            <AddStudentModal 
-              isOpen={step === 'single'} 
-              onClose={() => setStep('input')} 
-              onSuccess={() => { setStep('registry'); fetchHistory(); }}
-            />
-          </div>
-        )}
-
         {step === 'input' && (
           <div className="space-y-6">
 
@@ -908,7 +801,7 @@ export default function BulkRegisterPage() {
               <textarea
                 value={namesText}
                 onChange={(e) => setNamesText(e.target.value)}
-                rows={24}
+                rows={14}
                 placeholder={
                   `JSS2A
 ChukwuemekaOkonkwo
@@ -1037,7 +930,7 @@ Yusuf Ibrahim SS1A`}
               </div>
 
               <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
-                <table className="hidden md:table w-full text-xs border-separate border-spacing-0">
+                <table className="w-full text-xs border-separate border-spacing-0">
                   <thead className="sticky top-0 bg-[#0b1020] z-10">
                     <tr className="text-white/40 uppercase tracking-wider text-[10px]">
                       <th className="text-left px-3 py-2.5 border-b border-white/10 w-8">#</th>
@@ -1118,36 +1011,6 @@ Yusuf Ibrahim SS1A`}
                     })}
                   </tbody>
                 </table>
-
-                {/* Mobile view */}
-                <div className="md:hidden divide-y divide-white/5">
-                  {preview.map((s, i) => {
-                    const emailDup = dups.has(s.email.toLowerCase());
-                    const incomplete = !s.full_name.trim() || !s.email.trim();
-                    return (
-                      <div key={s.id} className={`p-4 space-y-3 ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : ''}`}>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Student #{i + 1}</span>
-                          <button onClick={() => removeRow(s.id)} className="text-white/20 hover:text-rose-400 p-1"><XMarkIcon className="w-4 h-4" /></button>
-                        </div>
-                        <div className="space-y-2">
-                          <input className={inp} value={s.full_name} onChange={(e) => updateField(s.id, 'full_name', e.target.value)} onBlur={(e) => onNameBlur(s.id, e.target.value)} placeholder="Full Name" />
-                          <div className="flex gap-2">
-                            <input className={`${inp} font-mono w-24`} value={s.class_name ?? ''} onChange={(e) => updateField(s.id, 'class_name', e.target.value)} onBlur={(e) => onClassBlur(s.id, e.target.value)} placeholder="Class" />
-                            <div className="relative flex-1">
-                              <input className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-violet-300'}`} value={s.email} onChange={(e) => updateField(s.id, 'email', e.target.value)} placeholder="Email" />
-                              {emailDup && <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-400" />}
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between px-3 py-2 bg-white/5 rounded-xl border border-white/5 text-[10px]">
-                            <span className="text-white/30 uppercase font-bold">Password</span>
-                            <span className="font-mono text-amber-300/80">{s.password}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
 
               {/* Add row + footer */}
@@ -1204,58 +1067,59 @@ Yusuf Ibrahim SS1A`}
 
         {/* ══════════════════ STEP 3 — DONE ═══════════════════════════ */}
         {step === 'done' && results && (
-          <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {success && (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3 text-emerald-400">
-                <CheckCircleIcon className="w-5 h-5" />
-                <span className="text-sm font-bold">{success}</span>
-              </div>
-            )}
+          <div className="space-y-8 max-w-4xl mx-auto">
             <div className="bg-gradient-to-b from-emerald-500/10 to-[#0d1526] border border-emerald-500/20 rounded-[2.5rem] p-8 text-center relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
               <div className="relative z-10">
                 <div className="w-20 h-20 bg-emerald-500/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/10 border border-emerald-500/20 transform rotate-12">
                   <CheckCircleIcon className="w-10 h-10 text-emerald-400 -rotate-12" />
                 </div>
-                <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tighter italic">Batch success!</h2>
+                <h2 className="text-3xl font-black text-white mb-2">Registration Complete!</h2>
                 <p className="text-emerald-400/80 font-medium">
-                  {successCount} account{successCount !== 1 ? 's' : ''} successfully archived.
+                  {successCount} account{successCount !== 1 ? 's' : ''} successfully archived in Official Registry.
                 </p>
-
+                
                 {failCount > 0 && (
                   <div className="mt-4 px-4 py-2 bg-rose-500/10 border border-rose-500/20 rounded-xl inline-flex items-center gap-2 text-rose-400 text-sm">
                     <ExclamationCircleIcon className="w-4 h-4" />
-                    {failCount} student{failCount !== 1 ? 's' : ''} failed — check details.
+                    {failCount} student{failCount !== 1 ? 's' : ''} failed — check details below.
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <button onClick={() => window.print()} className="flex items-center justify-center gap-2 px-4 py-4 bg-[#7a0606] hover:bg-[#9a0808] text-white font-black rounded-2xl transition-all shadow-lg shadow-rose-900/20 hover:-translate-y-0.5 text-xs uppercase">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <button
+                onClick={() => window.print()}
+                className="flex items-center justify-center gap-3 px-6 py-4 bg-[#7a0606] hover:bg-[#9a0808] text-white font-black rounded-2xl transition-all shadow-lg shadow-rose-900/20 hover:-translate-y-0.5"
+              >
                 <PrinterIcon className="w-5 h-5" /> Print Credentials
               </button>
-              <button onClick={downloadCSV} className="flex items-center justify-center gap-2 px-4 py-4 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-black rounded-2xl transition-all border border-cyan-500/20 text-xs uppercase">
+              <button
+                onClick={downloadCSV}
+                className="flex items-center justify-center gap-3 px-6 py-4 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-bold rounded-2xl transition-all border border-cyan-500/20"
+              >
                 <DocumentArrowDownIcon className="w-5 h-5" /> Download CSV
               </button>
-              <button onClick={handleUpdateResults} disabled={loading} className="flex items-center justify-center gap-2 px-4 py-4 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 font-black rounded-2xl transition-all border border-emerald-500/20 text-xs uppercase">
-                {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CheckCircleIcon className="w-5 h-5" />}
-                Save Corrections
-              </button>
-              <button onClick={() => setStep('input')} className="flex items-center justify-center gap-2 px-4 py-4 bg-white/5 hover:bg-white/10 text-white/60 font-black rounded-2xl transition-all border border-white/10 text-xs uppercase">
-                <PlusIcon className="w-5 h-5" /> New Batch
+              <button
+                onClick={handleReset}
+                className="flex items-center justify-center gap-3 px-6 py-4 bg-white/5 hover:bg-white/10 text-white/60 font-bold rounded-2xl transition-all border border-white/10"
+              >
+                <PlusIcon className="w-5 h-5" /> Register More
               </button>
             </div>
 
-            {/* Results Table */}
             <div className="bg-[#0d1526] border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl">
               <div className="px-6 py-5 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
                 <div>
-                  <h3 className="text-white font-black text-lg flex items-center gap-2 uppercase tracking-tighter">
+                  <h3 className="text-white font-black text-lg flex items-center gap-2">
                     <ClipboardDocumentListIcon className="w-5 h-5 text-violet-400" />
-                    Session results
+                    Credentials Archive
                   </h3>
-                  <p className="text-white/30 text-[10px] uppercase font-black tracking-widest mt-1">Archive ID: {results[0]?.batch_id?.slice(0, 8) || 'N/A'}</p>
+                  <p className="text-white/30 text-xs mt-0.5">Physical distribution list for classroom use</p>
+                </div>
+                <div className="px-3 py-1 bg-violet-500/10 border border-violet-500/10 rounded-full text-violet-400 text-[10px] font-black uppercase tracking-tighter">
+                  System ID: {results[0]?.batch_id?.slice(0, 8) || 'N/A'}
                 </div>
               </div>
               <div className="overflow-x-auto">
@@ -1265,29 +1129,31 @@ Yusuf Ibrahim SS1A`}
                       <th className="text-left px-6 py-4">#</th>
                       <th className="text-left px-4 py-4">Full Name</th>
                       <th className="text-left px-4 py-4">Class</th>
-                      <th className="text-left px-4 py-4">Email / Login</th>
+                      <th className="text-left px-4 py-4">Login / ID</th>
+                      <th className="text-left px-4 py-4">Password</th>
                       <th className="text-right px-6 py-4">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {results.map((r, i) => (
                       <tr key={i} className={`group transition-colors ${r.status === 'failed' ? 'bg-rose-500/5' : 'hover:bg-white/[0.01]'}`}>
-                        <td className="px-6 py-4 text-white/20 font-mono">{String(i + 1).padStart(2, '0')}</td>
-                        <td className="px-4 py-4">
-                          <input className="bg-transparent border-none text-white font-bold w-full focus:ring-1 focus:ring-violet-500 rounded p-1" value={r.full_name} onChange={(e) => {
-                            const newResults = [...results]; newResults[i].full_name = e.target.value; setResults(newResults);
-                          }} />
+                        <td className="px-6 py-3.5 text-white/20 font-mono">{String(i + 1).padStart(2, '0')}</td>
+                        <td className="px-4 py-3.5 text-white font-bold">{r.full_name}</td>
+                        <td className="px-4 py-3.5">
+                          {r.class_name
+                            ? <span className="inline-block px-2 py-0.5 bg-cyan-500/10 text-cyan-400 text-[9px] font-black rounded-md border border-cyan-500/20 uppercase tracking-tighter">{r.class_name}</span>
+                            : <span className="text-white/10 text-[10px]">—</span>}
                         </td>
-                        <td className="px-4 py-4">
-                          <input className="bg-transparent border-none text-cyan-400 text-[10px] font-black uppercase tracking-tighter w-full focus:ring-1 focus:ring-cyan-500 rounded p-1" value={r.class_name || ''} onChange={(e) => {
-                            const newResults = [...results]; newResults[i].class_name = e.target.value; setResults(newResults);
-                          }} />
-                        </td>
-                        <td className="px-4 py-4 font-mono text-white/60">{r.email}</td>
-                        <td className="px-6 py-4 text-right transform group-hover:scale-105 transition-transform">
-                          <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
-                            {r.status}
+                        <td className="px-4 py-3.5 text-violet-300/80 font-mono text-[11px]">{r.email}</td>
+                        <td className="px-4 py-3.5">
+                          <span className="font-mono text-amber-300 font-bold bg-amber-500/5 px-2 py-1 rounded-md border border-amber-500/10">
+                            {r.status !== 'failed' ? r.password : '••••••'}
                           </span>
+                        </td>
+                        <td className="px-6 py-3.5 text-right">
+                          {r.status === 'created' && <span className="text-emerald-400 font-black text-[10px] uppercase tracking-tighter bg-emerald-400/10 px-2 py-0.5 rounded-full border border-emerald-400/20">New User</span>}
+                          {r.status === 'updated' && <span className="text-blue-400 font-black text-[10px] uppercase tracking-tighter bg-blue-400/10 px-2 py-0.5 rounded-full border border-blue-400/20">Updated</span>}
+                          {r.status === 'failed' && <span className="text-rose-400 font-black text-[10px] uppercase tracking-tighter bg-rose-400/10 px-2 py-0.5 rounded-full border border-rose-400/20 flex items-center justify-end gap-1"><ExclamationCircleIcon className="w-3 h-3" /> Error</span>}
                         </td>
                       </tr>
                     ))}
@@ -1295,261 +1161,171 @@ Yusuf Ibrahim SS1A`}
                 </table>
               </div>
             </div>
-
-            {/* Print Sheet Hidden */}
-            <div id="printable-sheet" className="hidden">
-               <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">RILLCOD ACADEMY // STUDENT CREDENTIALS</h2>
-               <div className="flex gap-4 text-sm font-bold text-slate-500 mb-6 pb-4 border-b">
-                 <span>Batch: {results[0]?.batch_id?.slice(0, 8)}</span>
-                 <span>Date: {new Date().toLocaleDateString()}</span>
-                 {selectedSchoolName && <span>School: {selectedSchoolName}</span>}
-               </div>
-               <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-slate-900 text-white">
-                      <th className="p-2 border">#</th>
-                      <th className="p-2 border">Full Name</th>
-                      <th className="p-2 border">Class</th>
-                      <th className="p-2 border">Email (Login)</th>
-                      <th className="p-2 border">Temporary Password</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.filter(r => r.status !== 'failed').map((r, i) => (
-                      <tr key={i}>
-                        <td className="p-2 border font-mono">{i+1}</td>
-                        <td className="p-2 border font-bold uppercase">{r.full_name}</td>
-                        <td className="p-2 border text-slate-500">{r.class_name || effectiveClassCode}</td>
-                        <td className="p-2 border font-mono">{r.email}</td>
-                        <td className="p-2 border font-mono font-bold">{r.password}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-               </table>
-               <div className="mt-8 p-4 bg-slate-50 border rounded-xl text-[10px] text-slate-500 italic">
-                 Instructions: 1. Login at academy.rillcod.com 2. Use credentials above 3. Change password immediately.
-               </div>
-            </div>
           </div>
         )}
+      </div>
 
-        {/* ══════════════════ OFFICIAL REGISTRY (Standalone Tab) ═════════════ */}
-        {showHistory && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-            <div className="bg-cyan-500/5 border border-cyan-500/10 rounded-[3rem] p-10 relative overflow-hidden shadow-2xl">
-               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
-               <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                 <div>
-                   <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
-                      <span className="text-[10px] text-cyan-400 font-black uppercase tracking-widest">Live Archive Connection</span>
-                   </div>
-                   <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter">Execution Vault</h2>
-                   <p className="text-white/30 text-xs font-bold uppercase tracking-widest mt-1">Registry of all finalized student distribution sessions</p>
-                 </div>
-                 <div className="flex items-center gap-4">
-                    <div className="text-right hidden md:block">
-                       <p className="text-white font-black text-xl leading-none">{history.length}</p>
-                       <p className="text-[10px] text-white/30 font-black uppercase tracking-widest mt-1">Total Batches</p>
-                    </div>
-                    <button 
-                      onClick={fetchHistory}
-                      disabled={loadingHistory}
-                      className="w-16 h-16 bg-cyan-500/10 rounded-3xl flex items-center justify-center border border-cyan-500/20 shadow-xl hover:bg-cyan-500/20 transition-all group"
-                    >
-                      <ArrowPathIcon className={`w-8 h-8 text-cyan-500 ${loadingHistory ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-                    </button>
-                 </div>
-               </div>
+      {/* ═══════════════════ PRINT-ONLY SHEET ══════════════════════════════ */}
+      {step === 'done' && results && (
+        <div id="printable-sheet">
+          <h2>Rillcod Academy — Student Login Credentials</h2>
+          <p>
+            Generated: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            {successCount} account{successCount !== 1 ? 's' : ''} created
+            {selectedSchoolName && <>&nbsp;&nbsp;|&nbsp;&nbsp;School: <strong>{selectedSchoolName}</strong></>}
+            {effectiveClassCode && <>&nbsp;&nbsp;|&nbsp;&nbsp;Class: <strong>{effectiveClassCode}</strong></>}
+            {selectedProgLabel && <>&nbsp;&nbsp;|&nbsp;&nbsp;Programme: <strong>{selectedProgLabel}</strong></>}
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            Portal: <strong>academy.rillcod.com</strong>
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th style={{ width: '3%' }}>#</th>
+                <th style={{ width: '22%' }}>Full Name</th>
+                <th style={{ width: '10%' }}>Class</th>
+                <th style={{ width: '28%' }}>Email (Login ID)</th>
+                <th style={{ width: '20%' }}>Temp Password</th>
+                <th style={{ width: '17%' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.map((r, i) => (
+                <tr key={i}>
+                  <td>{i + 1}</td>
+                  <td>{r.full_name}</td>
+                  <td>{(r.class_name || effectiveClassCode) ? <span className="cls-badge">{r.class_name || effectiveClassCode}</span> : '—'}</td>
+                  <td style={{ fontFamily: 'monospace' }}>{r.email}</td>
+                  <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{r.status !== 'failed' ? r.password : '—'}</td>
+                  <td>
+                    {r.status === 'failed'
+                      ? <span className="badge-fail">Failed</span>
+                      : <span className="badge-ok">{r.status === 'updated' ? 'Reset' : 'New'}</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="footer-note">
+            <strong>IMPORTANT — Please inform each student:</strong><br />
+            1. Go to <strong>academy.rillcod.com</strong> and click <em>Sign In</em>.<br />
+            2. Enter your email and temporary password shown above.<br />
+            3. <strong>Change your password immediately</strong> after first login — a prompt will appear automatically.<br />
+            4. Keep your credentials safe and do not share them.<br /><br />
+            This sheet is confidential. Distribute individually to each student. — Rillcod Academy IT
+          </div>
+        </div>
+      )}
+      {/* ── Registration History Overlay ── */}
+      {showHistory && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 lg:p-8">
+          <div className="absolute inset-0 bg-[#06060c]/60 backdrop-blur-xl transition-all duration-500" onClick={() => setShowHistory(false)} />
+          <div className="relative w-full max-w-5xl max-h-[85vh] bg-[#0f0f1a]/95 border border-white/10 rounded-[3rem] shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/10">
+            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+            
+            <div className="p-8 sm:px-10 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-cyan-500/10 rounded-2xl flex items-center justify-center border border-cyan-500/20 shadow-inner">
+                  <ArchiveBoxIcon className="w-7 h-7 text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-white tracking-tight uppercase">
+                    Official Registry
+                  </h3>
+                  <p className="text-xs text-white/30 font-black uppercase tracking-widest mt-0.5">Secure Batch Archive & Recovery</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowHistory(false)}
+                className="w-12 h-12 bg-white/5 hover:bg-rose-500/10 hover:text-rose-400 rounded-full flex items-center justify-center text-white/30 transition-all border border-transparent hover:border-rose-500/20 shadow-xl"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
             </div>
 
-            {loadingHistory && history.length === 0 ? (
-              <div className="h-64 flex flex-col items-center justify-center gap-4 bg-white/[0.02] rounded-[3rem] border border-white/5 italic">
-                <ArrowPathIcon className="w-8 h-8 text-cyan-500 animate-spin" />
-                <span className="text-white/20 text-[10px] font-black uppercase tracking-widest">Hydrating records...</span>
-              </div>
-            ) : history.length === 0 ? (
-              <div className="h-64 flex flex-col items-center justify-center gap-4 bg-white/[0.02] rounded-[3rem] border border-white/5 border-dashed">
-                <ArchiveBoxIcon className="w-12 h-12 text-white/5" />
-                <span className="text-white/20 text-xs font-bold uppercase">No records found. Complete a registration session first.</span>
-              </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {history.map((batch) => (
-                    <div key={batch.id} className="group bg-[#0d1526]/80 backdrop-blur-sm border border-white/10 rounded-[3rem] p-8 transition-all hover:bg-[#0d1526] hover:border-cyan-500/30 hover:shadow-2xl hover:shadow-cyan-900/20 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-cyan-500/10 transition-all" />
-                      
-                      <div className="relative z-10">
-                        <div className="flex items-start justify-between mb-6">
-                          <div className="flex-1 min-w-0">
-                            {editingBatchId === batch.id ? (
-                               <input 
-                                 autoFocus
-                                 className="bg-white/5 border border-cyan-500/50 rounded-xl px-4 py-2 text-white font-black text-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all"
-                                 defaultValue={batch.class_name || 'General Batch'}
-                                 onBlur={async (e) => {
-                                   const newName = e.target.value || null;
-                                   await fetch('/api/students/bulk-register', {
-                                     method: 'PATCH',
-                                     headers: {'Content-Type': 'application/json'},
-                                     body: JSON.stringify({ type: 'batch', data: { id: batch.id, class_name: newName } })
-                                   });
-                                   setEditingBatchId(null);
-                                   fetchHistory();
-                                 }}
-                               />
-                            ) : (
-                              <h3 className="text-2xl font-black text-white truncate uppercase tracking-tighter group-hover:text-cyan-400 transition-colors cursor-pointer"
-                                  onDoubleClick={() => setEditingBatchId(batch.id)}>
-                                {batch.class_name || 'General Batch'}
-                              </h3>
-                            )}
-                            <div className="flex items-center gap-4 mt-2">
-                               <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-lg border border-white/10">
-                                  <ClockIcon className="w-3 h-3 text-white/30" />
-                                  <span className="text-[9px] text-white/40 font-black uppercase tracking-widest">{new Date(batch.created_at).toLocaleDateString()}</span>
-                               </div>
-                               <div className="flex items-center gap-1.5 px-2.5 py-1 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
-                                  <UserGroupIcon className="w-3 h-3 text-cyan-400" />
-                                  <span className="text-[9px] text-cyan-400 font-black uppercase tracking-widest">{batch.student_count} Students</span>
-                               </div>
+            <div className="flex-1 overflow-y-auto px-8 sm:px-10 py-10 space-y-6 custom-scrollbar">
+              {loadingHistory ? (
+                <div className="h-64 flex flex-col items-center justify-center gap-6">
+                  <div className="relative">
+                    <div className="w-16 h-16 border-2 border-cyan-500/20 rounded-2xl animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-ping" />
+                    </div>
+                  </div>
+                  <div className="text-center space-y-1">
+                    <p className="text-white font-bold opacity-80">Synchronizing Vault</p>
+                    <p className="text-[10px] text-white/20 uppercase tracking-[0.2em]">Retrieving official records...</p>
+                  </div>
+                </div>
+              ) : history.length === 0 ? (
+                <div className="h-64 flex flex-col items-center justify-center opacity-40 grayscale">
+                  <ArchiveBoxIcon className="w-20 h-20 text-white/10 mb-6" />
+                  <p className="text-white font-medium">Registry is currently empty</p>
+                  <p className="text-xs text-white/20 mt-1">Newly registered batches will appear here automatically</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {history.map((batch: any) => (
+                    <div 
+                      key={batch.id}
+                      className="group relative p-6 bg-gradient-to-br from-white/[0.03] to-white/[0.01] border border-white/5 hover:border-cyan-500/30 rounded-3xl transition-all duration-300 hover:shadow-2xl hover:shadow-cyan-500/5 hover:-translate-y-1"
+                    >
+                      <div className="flex flex-col h-full gap-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1.5 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-white font-black text-lg tracking-tight truncate">{batch.class_name || 'Unnamed Batch'}</h4>
+                              <span className="px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 text-[10px] font-black rounded-lg border border-cyan-500/20 uppercase">
+                                {batch.student_count} Records
+                              </span>
                             </div>
-                          </div>
-                          
-                          <div className="flex gap-2">
-                             <button onClick={() => setEditingBatchId(batch.id)} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-white/20 hover:text-cyan-400 transition-all border border-white/5">
-                                <PencilIcon className="w-4 h-4" />
-                             </button>
-                             <button onClick={() => handleDeleteBatch(batch.id)} className="p-3 bg-white/5 hover:bg-rose-500/10 rounded-2xl text-white/20 hover:text-rose-500 transition-all border border-white/5">
-                                <TrashIcon className="w-4 h-4" />
-                             </button>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                              {batch.school_name && (
+                                <div className="flex items-center gap-1.5 text-white/40 text-[11px] font-medium">
+                                  <BuildingOffice2Icon className="w-3.5 h-3.5 text-violet-400/50" />
+                                  {batch.school_name}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5 text-white/40 text-[11px] font-medium">
+                                <ClockIcon className="w-3.5 h-3.5 text-cyan-400/50" />
+                                {new Date(batch.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </div>
+                            </div>
                           </div>
                         </div>
 
-                        {batch.school_name && (
-                          <div className="mb-8 flex items-center gap-3 px-4 py-3 bg-white/[0.03] border border-white/5 rounded-2xl">
-                            <BuildingOffice2Icon className="w-4 h-4 text-violet-400" />
-                            <div>
-                               <p className="text-[8px] text-white/20 font-black uppercase tracking-widest leading-none mb-1">Affiliated Institution</p>
-                               <p className="text-[11px] text-white/60 font-bold truncate tracking-tight">{batch.school_name}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between gap-4">
-                           <span className="text-[10px] font-mono text-white/10 tracking-widest font-black uppercase">VAULT-ID: {batch.id.slice(0, 8)}</span>
-                           <button 
-                             onClick={async () => {
-                               if (selectedBatchId === batch.id) {
-                                 setSelectedBatchId(null);
-                               } else {
-                                 setSelectedBatchId(batch.id);
-                                 setLoadingHistory(true);
-                                 const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                 if (data) setBatchResults(data);
-                                 setLoadingHistory(false);
-                               }
-                             }}
-                             className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${selectedBatchId === batch.id ? 'bg-cyan-500 text-white shadow-xl shadow-cyan-500/30 -translate-y-1' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white border border-white/5'}`}
+                        <div className="flex items-center justify-between pt-2 border-t border-white/[0.03]">
+                           <span className="text-[10px] text-white/20 font-mono tracking-tighter italic">ID: {batch.id.slice(0, 8)}</span>
+                           <button
+                             onClick={() => loadBatch(batch.id)}
+                             className="flex items-center gap-2 px-4 py-2 bg-cyan-500/10 hover:bg-cyan-600 text-cyan-400 hover:text-white font-black rounded-xl transition-all text-[11px] uppercase tracking-wider"
                            >
-                             {selectedBatchId === batch.id ? 'Close Records' : 'Open Results'}
+                             <PrinterIcon className="w-3.5 h-3.5" /> Recover Batch
                            </button>
                         </div>
-
-                        {/* Expanded View for Batch Results */}
-                        {selectedBatchId === batch.id && (
-                          <div className="mt-8 pt-8 border-t border-white/5 space-y-3 animate-in fade-in zoom-in-95 duration-300">
-                             <div className="flex items-center justify-between mb-2">
-                                <p className="text-[10px] text-white/30 font-black uppercase tracking-widest">Entry Breakdown</p>
-                                <p className="text-[10px] text-cyan-400/50 font-black tracking-widest italic">Double-click names to quick edit</p>
-                             </div>
-                             {batchResults.length === 0 ? (
-                               <div className="py-12 flex flex-col items-center justify-center gap-3">
-                                  <ArrowPathIcon className="w-6 h-6 text-cyan-500/20 animate-spin" />
-                                  <p className="text-[10px] text-white/10 uppercase font-black tracking-widest">Accessing records...</p>
-                               </div>
-                             ) : (
-                               <div className="max-h-[400px] overflow-y-auto custom-scrollbar space-y-2 pr-2">
-                                 {batchResults.map((r, ri) => (
-                                   <div key={r.id} className="group/row flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-[1.5rem] hover:bg-white/[0.05] hover:border-cyan-500/20 transition-all">
-                                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                                       <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-[10px] font-black text-white/20 border border-white/5 group-hover/row:border-cyan-500/20 group-hover/row:text-cyan-400 transition-all">
-                                          {ri + 1}
-                                       </div>
-                                       <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                         {editingResultId === r.id ? (
-                                           <div className="flex gap-2 w-full">
-                                             <input 
-                                               autoFocus
-                                               className="bg-black/40 border border-cyan-500/40 rounded-lg px-3 py-1.5 text-white text-xs flex-1 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                                               defaultValue={r.full_name}
-                                               placeholder="Name"
-                                               id={`edit-name-${r.id}`}
-                                             />
-                                              <input 
-                                                className="bg-black/60 border border-cyan-500/60 rounded-xl px-4 py-2 text-cyan-300 text-[10px] font-black uppercase tracking-widest w-40 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all font-mono"
-                                               defaultValue={r.class_name || ''}
-                                               placeholder="Class"
-                                               id={`edit-class-${r.id}`}
-                                             />
-                                             <button 
-                                               onClick={async () => {
-                                                 const name = (document.getElementById(`edit-name-${r.id}`) as HTMLInputElement).value;
-                                                 const cls = (document.getElementById(`edit-class-${r.id}`) as HTMLInputElement).value;
-                                                 await fetch(`/api/students/bulk-register`, {
-                                                   method: 'PATCH',
-                                                   headers: {'Content-Type': 'application/json'},
-                                                   body: JSON.stringify({ type: 'result', data: { id: r.id, full_name: name, class_name: cls, email: r.email } })
-                                                 });
-                                                 setEditingResultId(null);
-                                                 const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                                 if (data) setBatchResults(data);
-                                               }}
-                                               className="bg-cyan-500 text-white p-1.5 rounded-lg"
-                                             >
-                                               <CheckCircleIcon className="w-4 h-4" />
-                                             </button>
-                                           </div>
-                                         ) : (
-                                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4" onDoubleClick={() => setEditingResultId(r.id)}>
-                                             <p className="text-white font-black text-sm truncate">{r.full_name}</p>
-                                             <div className="flex items-center gap-2">
-                                               <span className="px-2 py-0.5 bg-cyan-500/10 rounded-md text-[9px] font-black text-cyan-400 uppercase tracking-widest border border-cyan-500/20">
-                                                 {r.class_name || 'N/A'}
-                                               </span>
-                                               <span className="text-[10px] text-white/20 font-mono truncate">{r.email}</span>
-                                             </div>
-                                           </div>
-                                         )}
-                                       </div>
-                                     </div>
-                                     <div className="flex gap-1 ml-4 opacity-0 group-hover/row:opacity-100 transition-all transform translate-x-2 group-hover/row:translate-x-0">
-                                        <button onClick={() => setEditingResultId(r.id)} className="p-2 hover:bg-cyan-500/10 text-white/10 hover:text-cyan-400 rounded-xl transition-all">
-                                          <PencilIcon className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button onClick={async () => {
-                                          if (!confirm('Permanently wipe this entry from the registry?')) return;
-                                          await fetch(`/api/students/bulk-register?resultId=${r.id}`, { method: 'DELETE' });
-                                          setBatchResults(prev => prev.filter(x => x.id !== r.id));
-                                          fetchHistory(); // Update student count
-                                        }} className="p-2 hover:bg-rose-500/10 text-white/10 hover:text-rose-500 rounded-xl transition-all">
-                                          <TrashIcon className="w-3.5 h-3.5" />
-                                        </button>
-                                     </div>
-                                   </div>
-                                 ))}
-                               </div>
-                             )}
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}
                 </div>
-            )}
+              )}
+            </div>
+            
+            <div className="px-10 py-8 bg-black/40 border-t border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                <span className="text-[10px] text-white/40 font-black uppercase tracking-[0.3em]">Vault Status: Persistent</span>
+              </div>
+              <button 
+                onClick={() => setShowHistory(false)}
+                className="px-8 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-2xl transition-all text-xs uppercase tracking-widest border border-white/10"
+              >
+                Close Registry
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 }

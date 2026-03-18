@@ -264,22 +264,32 @@ export default function TimetablePage() {
   async function loadTimetables(initialSchoolId?: string | null) {
     setLoading(true); setError(null);
     try {
-      const { data, error: err } = await anyDb.from('timetables')
-        .select('*, schools(name)')
+      let query = anyDb.from('timetables').select('*, schools(name)');
+
+      // Security & Visibility: If student or school partner, they can ONLY see their own school's TTs.
+      // If admin/teacher, they see all (optionally filtered by Param).
+      const finalFilterId = (isStudent || isSchool) ? profile?.school_id : initialSchoolId;
+      
+      if (finalFilterId) {
+        query = query.eq('school_id', finalFilterId);
+      }
+
+      const { data, error: err } = await query
         .order('is_active', { ascending: false })
         .order('created_at', { ascending: false });
+      
       if (err) throw err;
       const list = (data ?? []) as Timetable[];
       setTimetables(list);
       
       // Auto-select logic:
-      // 1. If school_id passed in URL, pick that school's active TT
+      // 1. If school_id passed in URL or profile, pick that school's active TT
       // 2. Else pick the global active one or first one
       let preferred = list.find(t => t.is_active);
       
-      if (initialSchoolId) {
-        const schoolTT = list.find(t => t.school_id === initialSchoolId && t.is_active) 
-                      || list.find(t => t.school_id === initialSchoolId);
+      if (finalFilterId) {
+        const schoolTT = list.find(t => t.school_id === finalFilterId && t.is_active) 
+                      || list.find(t => t.school_id === finalFilterId);
         if (schoolTT) preferred = schoolTT;
       }
 
@@ -308,14 +318,19 @@ export default function TimetablePage() {
 
   useEffect(() => {
     if (authLoading || !profile) return;
-    if (!isTeacher) loadTimetables(schoolIdParam);
+    
+    // For students and school partners, default to their assigned school
+    const defaultSchoolId = schoolIdParam || profile.school_id;
+    
+    if (!isTeacher) loadTimetables(defaultSchoolId);
+    
     if (isAdmin) {
       db.from('portal_users').select('id, full_name').eq('role', 'teacher').order('full_name')
         .then(({ data }) => setTeachers(data ?? []));
       db.from('schools').select('id, name').order('name')
         .then(({ data }) => setSchools((data ?? []) as { id: string; name: string }[]));
     }
-  }, [profile?.id, authLoading, schoolIdParam]); // eslint-disable-line
+  }, [profile?.id, authLoading, schoolIdParam, profile?.school_id, profile?.role]); // eslint-disable-line
 
   const handleSelectTT = async (id: string) => {
     setActiveTimetable(id);

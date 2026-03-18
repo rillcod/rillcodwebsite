@@ -23,7 +23,7 @@ interface AddStudentModalProps {
 }
 
 const DEFAULT_FORM = {
-    full_name: '', parent_email: '', parent_name: '', parent_phone: '',
+    full_name: '', student_email: '', parent_name: '', parent_phone: '',
     school_name: '', grade_level: '', section_class: '', city: '', state: '',
 };
 
@@ -43,7 +43,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
         if (initialData) {
             setForm({
                 full_name: initialData.full_name || '',
-                parent_email: initialData.parent_email || '',
+                student_email: initialData.student_email || initialData.parent_email || '',
                 parent_name: initialData.parent_name || '',
                 parent_phone: initialData.parent_phone || '',
                 school_name: initialData.school_name || '',
@@ -99,8 +99,8 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!form.full_name.trim() || !form.parent_email.trim() || !form.school_name.trim()) {
-            setError('Full name, parent email, and school are required.');
+        if (!form.full_name.trim() || !form.student_email.trim() || !form.school_name.trim()) {
+            setError('Full name, student email, and school are required.');
             return;
         }
         setLoading(true);
@@ -248,9 +248,9 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                                 <IconInput icon={UserIcon} name="parent_name" type="text" placeholder="Parent name"
                                     value={form.parent_name} onChange={handleChange} />
                             </Field>
-                            <Field label="Parent Email" required>
-                                <IconInput icon={EnvelopeIcon} name="parent_email" type="email" placeholder="parent@email.com"
-                                    value={form.parent_email} onChange={handleChange} required />
+                            <Field label="Student Email" required>
+                                <IconInput icon={EnvelopeIcon} name="student_email" type="email" placeholder="student@email.com"
+                                    value={form.student_email} onChange={handleChange} required />
                             </Field>
                         </div>
 

@@ -26,6 +26,8 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
+
+  --shadow-3xl: 0 35px 60px -15px rgba(0, 0, 0, 0.5);
 }
 
 @layer base {
@@ -75,12 +77,12 @@
 }
 
 .dark {
-  --background: oklch(0.13 0.028 261.692);
-  --foreground: oklch(0.985 0.002 247.839);
-  --card: oklch(0.21 0.034 264.665);
-  --card-foreground: oklch(0.985 0.002 247.839);
-  --popover: oklch(0.21 0.034 264.665);
-  --popover-foreground: oklch(0.985 0.002 247.839);
+  --background: #121212;
+  --foreground: #ffffff;
+  --card: #1a1a1a;
+  --card-foreground: #ffffff;
+  --popover: #1a1a1a;
+  --popover-foreground: #ffffff;
   --primary: oklch(0.928 0.006 264.531);
   --primary-foreground: oklch(0.21 0.034 264.665);
   --secondary: oklch(0.278 0.033 256.848);
@@ -437,6 +439,60 @@ select {
   }
 }
 
+/* ── Advanced Design System ── */
+
+@layer utilities {
+  .glass-card {
+    @apply bg-white/[0.02] backdrop-blur-2xl border border-white/10 shadow-3xl;
+  }
+
+  .text-glow-orange {
+    text-shadow: 0 0 15px rgba(255, 145, 77, 0.4);
+  }
+
+  .text-glow-white {
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+  }
+
+  .border-glow-orange {
+    box-shadow: 0 0 20px rgba(255, 145, 77, 0.1), inset 0 0 20px rgba(255, 145, 77, 0.05);
+  }
+
+  .noise-bg {
+    position: relative;
+  }
+
+  .noise-bg::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    opacity: 0.03;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+}
+
+/* ── Performance-optimized custom properties for animations ── */
+:root {
+  --ease-sharp: cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.animate-scanline {
+  animation: scanline 8s linear infinite;
+}
+
 /* Sidebar custom scrollbar — slimmer, matches dark theme */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
@@ -461,14 +517,15 @@ select {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--background);
+  background: #050510;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--muted);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--muted-foreground);
+  background: rgba(255, 255, 255, 0.1);
 }

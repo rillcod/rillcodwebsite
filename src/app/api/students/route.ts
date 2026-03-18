@@ -13,13 +13,13 @@ export async function POST(request: Request) {
   const supabase = adminClient();
   try {
     const body = await request.json();
-    const parentEmail = body.parent_email || body.parentEmail;
+    const primaryEmail = body.student_email || body.parent_email || body.studentEmail || body.parentEmail;
 
     // Check if student already exists
     const { data: existingStudent, error: checkError } = await supabase
       .from('students')
       .select('id, status')
-      .eq('parent_email', parentEmail)
+      .or(`student_email.eq."${primaryEmail}",parent_email.eq."${primaryEmail}"`)
       .single();
 
     if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
@@ -45,7 +45,8 @@ export async function POST(request: Request) {
       date_of_birth: body.date_of_birth,
       gender: body.gender,
       parent_name: body.parent_name,
-      parent_email: parentEmail,
+      parent_email: body.parent_email || primaryEmail,
+      student_email: body.student_email || (primaryEmail && !body.parent_email ? primaryEmail : null),
       parent_phone: body.parent_phone,
       school_name: body.school_name ?? null,
       current_class: body.grade_level || body.current_class,
@@ -63,7 +64,6 @@ export async function POST(request: Request) {
 
     // Optional fields that may not exist in older DB schemas — add only if provided
     if (body.enrollment_type) newStudentData.enrollment_type = body.enrollment_type;
-    if (body.student_email) newStudentData.student_email = body.student_email;
     if (body.heard_about_us) newStudentData.heard_about_us = body.heard_about_us;
     if (body.parent_relationship) newStudentData.parent_relationship = body.parent_relationship;
     if (body.school_id) newStudentData.school_id = body.school_id;

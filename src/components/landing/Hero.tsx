@@ -2,117 +2,111 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { School, Users, ArrowRight, Code2, Cpu, Zap, LogIn, TrendingUp } from 'lucide-react';
+import Image from 'next/image';
+import { School, Users, ArrowRight, Code2, Cpu, Zap, LogIn, TrendingUp, Sparkles, Orbit } from 'lucide-react';
 
 const stats = [
-  { value: '500+', label: 'Students Trained' },
-  { value: '25+', label: 'Partner Schools' },
-  { value: '15+', label: 'STEM Programs' },
-  { value: '95%', label: 'Success Rate' },
+  { value: '500+', label: 'Students' },
+  { id: 'schools', value: '25+', label: 'Schools' },
+  { id: 'stem', value: '15+', label: 'STEM' },
+  { id: 'success', value: '95%', label: 'Success' },
 ];
 
 const Hero: React.FC = () => {
   return (
     <section
       id="home"
-      className="relative min-h-screen flex items-center bg-[#0a0a0f] overflow-hidden"
+      className="relative min-h-[90svh] flex items-center bg-[#121212] overflow-hidden pt-24 pb-12 sm:pt-32 sm:pb-20"
     >
-      {/* Grid background */}
-      <div
-        className="absolute inset-0 z-0"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
-          backgroundSize: '48px 48px',
-        }}
-      />
-      {/* Accent blobs */}
-      <div className="absolute top-[-10%] left-[-5%] w-96 h-96 bg-[#FF914D] opacity-20 blur-[120px] rounded-full z-0" />
-      <div className="absolute bottom-[-5%] right-[-5%] w-80 h-80 bg-blue-600 opacity-20 blur-[100px] rounded-full z-0" />
+      {/* Background Orbs */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute top-0 right-0 w-[50%] h-[50%] bg-blue-600/5 blur-[100px] rounded-none" />
+        <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-orange-500/5 blur-[80px] rounded-none" />
+      </div>
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-28 md:py-36">
-        <div className="flex flex-col lg:flex-row items-center gap-16">
-
+      <div className="relative z-10 w-full max-w-screen-2xl mx-auto px-6 lg:px-20">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+          
           {/* LEFT: Copy */}
-          <div className="flex-1 text-center lg:text-left">
-            {/* Pill tag */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF914D]/10 border border-[#FF914D]/20 text-[#FF914D] text-[10px] font-black uppercase tracking-widest mb-8">
-              <Zap className="w-3 h-3" />
-              Nigeria&apos;s Leading STEM Academy
+          <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 border border-white/10 backdrop-blur-sm mb-6 rounded-none">
+              <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                STEM Excellence Nigeria
+              </span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl xl:text-7xl font-extrabold text-white leading-[1.05] tracking-tight mb-6">
-              Building{' '}
-              <span className="text-[#FF914D]">Nigeria&apos;s</span>{' '}
-              Next Generation<br className="hidden sm:block" /> of Tech Leaders
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white leading-[1.1] tracking-tight mb-6 uppercase">
+              Empowering <br className="hidden sm:block" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">
+                Future Leaders
+              </span>
+              <br className="hidden sm:block" />
+              Through Code.
             </h1>
 
-            <p className="text-lg text-white/50 max-w-xl mx-auto lg:mx-0 mb-10 leading-relaxed font-medium">
-              Rillcod Academy empowers Nigerian kids from Basic 1 to SS3 with hands-on coding,
-              robotics, digital entrepreneurship, and STEM skills — inside their own schools,
-              taught by expert tutors.
+            <p className="text-base sm:text-lg text-slate-400 max-w-lg mb-10 font-medium leading-relaxed italic border-l-2 border-orange-500 pl-6">
+              Empowering Nigerian students with hands-on coding, robotics, and future-forward STEM skills directly within your school.
             </p>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-14">
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mb-12">
               <Link
                 href="/school-registration"
-                className="group inline-flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-[#FF914D] to-orange-600 text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-xl shadow-orange-500/20 hover:scale-105 active:scale-95 transition-all"
+                className="group flex items-center justify-center gap-2.5 px-10 py-5 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.2em] rounded-none hover:bg-orange-600 transition-all shadow-lg"
               >
-                <School className="w-5 h-5" />
-                Partner My School
+                Register School
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
-                href="/student-registration"
-                className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-white/[0.05] backdrop-blur-md text-white font-black text-sm uppercase tracking-widest rounded-2xl border border-white/10 hover:bg-white/10 hover:scale-105 active:scale-95 transition-all"
-              >
-                <Users className="w-5 h-5" />
-                Join as Student
-              </Link>
-              <Link
                 href="/login"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 text-white/40 font-bold text-xs uppercase tracking-widest hover:text-white transition-all hover:underline underline-offset-4"
+                className="flex items-center justify-center gap-2.5 px-10 py-5 bg-white/5 text-white font-black text-xs uppercase tracking-[0.2em] rounded-none border border-white/10 hover:bg-white/10 transition-all"
               >
-                <LogIn className="w-4 h-4" />
                 Portal Login
               </Link>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
               {stats.map((s) => (
-                <div key={s.label} className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-3xl p-6 text-center shadow-xl">
-                  <p className="text-3xl font-black text-white tracking-tighter">{s.value}</p>
-                  <p className="text-[10px] text-white/40 mt-1 font-black uppercase tracking-widest">{s.label}</p>
+                <div key={s.label} className="bg-white/[0.03] border border-white/5 rounded-none p-4 sm:p-5 border-t-2 border-t-orange-500/20">
+                  <p className="text-2xl sm:text-3xl font-black text-white tracking-tighter">{s.value}</p>
+                  <p className="text-[8px] sm:text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">{s.label}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* RIGHT: Feature cards */}
-          <div className="flex-1 hidden lg:grid grid-cols-2 gap-4 w-full max-w-md">
-            {[
-              { icon: Code2,       label: 'Python & JavaScript',       bg: 'bg-[#FF914D]' },
-              { icon: Cpu,         label: 'Robotics & AI',              bg: 'bg-blue-600'  },
-              { icon: TrendingUp,  label: 'Digital Entrepreneurship',   bg: 'bg-green-500' },
-              { icon: Zap,         label: 'Basic 1 – SS3 Programmes',   bg: 'bg-purple-600' },
-            ].map(({ icon: Icon, label, bg }) => (
-              <div
-                key={label}
-                className="bg-white/[0.03] backdrop-blur-md border border-white/10 rounded-3xl p-8 flex flex-col items-start gap-4 hover:bg-white/[0.06] hover:border-white/20 transition-all duration-300 shadow-2xl group"
-              >
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${bg} bg-opacity-20 group-hover:scale-110 transition-transform`}>
-                  <Icon className={`w-6 h-6 ${bg.replace('bg-', 'text-')}`} />
-                </div>
-                <p className="text-white font-bold text-sm tracking-tight leading-tight">{label}</p>
+          {/* RIGHT: Visual Side */}
+          <div className="relative order-first lg:order-last">
+            <div className="relative w-full aspect-square max-w-[500px] mx-auto group">
+              {/* Floating Accent */}
+              <div className="absolute -top-4 -right-4 z-20 bg-[#161927] border border-white/10 rounded-none p-3 sm:p-5 shadow-xl backdrop-blur-md">
+                 <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-500 rounded-none flex items-center justify-center mb-2">
+                    <Cpu className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                 </div>
+                 <p className="text-slate-200 font-black text-[8px] sm:text-[9px] uppercase tracking-widest">Robotics Hub</p>
               </div>
-            ))}
+
+              {/* Image with Sharp Frame */}
+              <div className="relative z-10 w-full h-full rounded-none overflow-hidden border border-white/10 shadow-2xl bg-slate-900 group-hover:-translate-y-1 transition-transform duration-500">
+                <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-transparent to-transparent opacity-60 z-10" />
+                <Image 
+                   src="/images/landing/hero.png" 
+                   alt="Rillcod Excellence" 
+                   fill 
+                   className="object-cover"
+                />
+              </div>
+
+              {/* Halo */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] bg-blue-600/5 blur-[80px] rounded-none -z-10" />
+            </div>
           </div>
+
         </div>
       </div>
     </section>
   );
 };
 
-export default Hero;
+export default Hero;

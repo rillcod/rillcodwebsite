@@ -3,9 +3,10 @@
 import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { createClient } from '@/lib/supabase/client';
 import { logger } from '@/lib/logger';
-import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, Building2, ArrowRight, Loader2, ArrowLeft } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, Building2, ArrowRight, Loader2, ArrowLeft, Command, Sparkles } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from 'next/link';
+import Image from 'next/image';
 
 function LoginContent() {
   const router = useRouter();
@@ -32,7 +33,7 @@ function LoginContent() {
       supabase.auth.signOut().then(() => router.replace('/login'));
     }
     if (envMissing) {
-      setError("Missing Supabase config. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      setError("Missing configuration signal.");
     }
     return () => abortRef.current?.abort();
   }, []); // eslint-disable-line
@@ -40,26 +41,21 @@ function LoginContent() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (envMissing) return;
-    if (!selectedRole) { setError("Please select a role to continue."); return; }
+    if (!selectedRole) { setError("Role specification required."); return; }
 
     setLoading(true);
     setError(null);
-    logger.info('AUTH_ATTEMPT', { email, role: selectedRole });
 
-    // Create abort controller for timeout
     abortRef.current = new AbortController();
     const timeout = setTimeout(() => abortRef.current?.abort(), 12000);
 
     try {
-      // Step 1: Authenticate with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
       clearTimeout(timeout);
 
       if (authError) throw authError;
-      if (!authData?.user) throw new Error("Could not log in. Please try again.");
+      if (!authData?.user) throw new Error("Authentication link failure.");
 
-      // Step 2: Verify role matches AND update last_login atomically
-      // Both happen in a single query — no extra round trip
       const { data: profileData, error: profileError } = await supabase
         .from('portal_users')
         .select('role, is_active')
@@ -67,230 +63,151 @@ function LoginContent() {
         .maybeSingle();
 
       if (profileError) throw profileError;
-      if (!profileData) throw new Error("Account not found in portal. Contact your administrator.");
+      if (!profileData) throw new Error("Entity record not found.");
       if (!profileData.is_active) {
         await supabase.auth.signOut();
-        throw new Error("Your account has been deactivated. Contact your administrator.");
+        throw new Error("Protocol inactive. Access denied.");
       }
       if (profileData.role !== selectedRole) {
         await supabase.auth.signOut();
-        throw new Error(`This account is registered as a ${profileData.role}, not ${selectedRole}. Please select the correct role.`);
+        throw new Error(`Invalid role access: expected ${profileData.role}.`);
       }
 
-      logger.info('AUTH_SUCCESS', { userId: authData.user.id, role: profileData.role });
-
-      // Update last_login in the background (non-blocking, uses admin API to bypass RLS)
-      fetch('/api/auth/me', { method: 'POST' }).catch(() => { });
-
-      // Step 3: Redirect — router.push for soft navigation (faster)
       const redirectTo = searchParams?.get('redirectedFrom') || '/dashboard';
       router.push(redirectTo);
       router.refresh();
 
     } catch (err: any) {
       clearTimeout(timeout);
-      const msg = err?.message || 'Sign in failed. Please check your credentials.';
-      logger.warn('AUTH_FAILURE', { email, role: selectedRole, message: msg });
-      // Make Supabase's generic errors more user-friendly
-      setError(
-        msg.includes('Invalid login credentials')
-          ? 'Invalid email or password. Please try again.'
-          : msg.includes('Email not confirmed')
-            ? 'Please verify your email address before signing in.'
-            : msg.includes('Too many requests')
-              ? 'Too many attempts. Please wait a moment and try again.'
-              : msg
-      );
+      setError(err?.message || 'Uplink failed. Check credentials.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRoleSelect = (role: "student" | "teacher" | "admin" | "school") => {
-    setSelectedRole(role);
-    setError(null);
-    setEmail('');
-    setPassword('');
-  };
-
-
   return (
-    <div className="min-h-screen bg-[#0A0A0B] flex overflow-hidden relative selection:bg-indigo-500/30">
-      {/* Background Orbs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none" />
-
-      <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-8 relative z-10 w-full">
-        <div className="max-w-[1200px] mx-auto w-full">
-          <div className="flex flex-col lg:flex-row gap-12 lg:gap-24 items-center">
-
-            {/* Left — Role picker */}
-            <div className="w-full lg:w-1/2 flex flex-col">
-              <div className="mb-12">
-                <div className="absolute top-4 left-4 z-50">
-                  <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/70 hover:text-white transition-all backdrop-blur-md">
-                    <ArrowLeft className="w-4 h-4" />
-                    <span className="text-sm font-medium">Back to Home</span>
-                  </Link>
+    <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center p-6 lg:p-12 relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-none" />
+      <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-orange-500/5 blur-[100px] rounded-none" />
+      
+      <div className="w-full max-w-screen-xl mx-auto flex flex-col lg:flex-row gap-16 lg:gap-24 items-center relative z-10">
+        
+        {/* Left Side: Brand & Role */}
+        <div className="w-full lg:w-1/2 flex flex-col text-center lg:text-left">
+           <div className="flex flex-col items-center lg:items-start mb-12">
+              <Link href="/" className="inline-flex items-center gap-4 mb-10 group">
+                <div className="w-16 h-16 bg-[#1a1a1a] border border-white/10 flex items-center justify-center rounded-none shadow-2xl group-hover:scale-105 transition-transform ring-1 ring-white/20 ring-offset-4 ring-offset-[#121212]">
+                   <Image src="/images/logo.png" alt="Rillcod" width={40} height={40} className="object-contain" />
                 </div>
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="p-3 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md">
-                    <img src="/images/logo.png" alt="Rillcod Logo" className="w-10 h-10 object-contain" />
-                  </div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-violet-300 text-sm font-bold backdrop-blur-md">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
-                    </span>
-                    Welcome to RillCod Academy
-                  </div>
+                <div className="text-left">
+                   <span className="text-2xl font-black uppercase tracking-tight block leading-none italic text-white">RILLCOD<span className="text-orange-500 not-italic">.</span></span>
+                   <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em] leading-none mt-1.5">STEM Excellence</p>
                 </div>
-                <h2 className="text-5xl lg:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-violet-100 to-white/70 tracking-tight leading-tight mb-4">
-                  Choose Your <br className="hidden lg:block" /> Path.
-                </h2>
-                <p
-                  className="text-lg text-white/50 font-medium max-w-md"
-                  dangerouslySetInnerHTML={{ __html: 'Select your role to embark on an exceptional learning journey.' }}
-                />
+              </Link>
+
+              <div className="inline-flex items-center gap-3 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-none mb-8">
+                 <Sparkles className="w-4 h-4 text-orange-500" />
+                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Protocol Authentication</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { id: "student", icon: GraduationCap, title: "Student", desc: "Start learning", gradient: "from-blue-600/20 to-indigo-600/20", border: "border-indigo-500/30", hover: "hover:border-indigo-500/60 hover:bg-indigo-500/10", active: "border-indigo-500 bg-gradient-to-br from-blue-600/30 to-indigo-600/30 ring-1 ring-indigo-500/50 shadow-[0_0_30px_-5px_rgba(99,102,241,0.4)]", iconColor: "text-indigo-400" },
-                  { id: "teacher", icon: User, title: "Teacher", desc: "Guide students", gradient: "from-emerald-600/20 to-teal-600/20", border: "border-teal-500/30", hover: "hover:border-teal-500/60 hover:bg-teal-500/10", active: "border-teal-500 bg-gradient-to-br from-emerald-600/30 to-teal-600/30 ring-1 ring-teal-500/50 shadow-[0_0_30px_-5px_rgba(20,184,166,0.4)]", iconColor: "text-teal-400" },
-                  { id: "school", icon: Building2, title: "School", desc: "Manage institution", gradient: "from-orange-600/20 to-red-600/20", border: "border-orange-500/30", hover: "hover:border-orange-500/60 hover:bg-orange-500/10", active: "border-orange-500 bg-gradient-to-br from-orange-600/30 to-red-600/30 ring-1 ring-orange-500/50 shadow-[0_0_30px_-5px_rgba(249,115,22,0.4)]", iconColor: "text-orange-400" },
-                  { id: "admin", icon: Shield, title: "Admin", desc: "Manage academy", gradient: "from-purple-600/20 to-pink-600/20", border: "border-purple-500/30", hover: "hover:border-purple-500/60 hover:bg-purple-500/10", active: "border-purple-500 bg-gradient-to-br from-purple-600/30 to-pink-600/30 ring-1 ring-purple-500/50 shadow-[0_0_30px_-5px_rgba(168,85,247,0.4)]", iconColor: "text-purple-400" }
-                ].map((role) => (
-                  <button
-                    key={role.id}
-                    onClick={() => handleRoleSelect(role.id as any)}
-                    className={`relative p-6 rounded-2xl border transition-all duration-300 ease-out flex flex-col items-start gap-4 text-left group overflow-hidden bg-white/[0.02] backdrop-blur-xl ${selectedRole === role.id ? role.active : `${role.border} ${role.hover}`}`}
-                  >
-                    <div className={`absolute inset-0 bg-gradient-to-br ${role.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-                    <div className={`p-3 rounded-xl bg-white/5 border border-white/10 ${role.iconColor} group-hover:scale-110 transition-transform duration-300`}>
-                      <role.icon className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-white mb-1">{role.title}</h3>
-                      <p className="text-sm text-gray-500">{role.desc}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
+              <h2 className="text-4xl sm:text-6xl font-black text-white leading-[1] tracking-tight mb-8 uppercase">
+                 ENTER THE <br />
+                 <span className="text-white/40 italic">CORE MATRIX.</span>
+              </h2>
 
-            {/* Right — Login form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center">
-              <div className="w-full max-w-md relative">
-                <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 rounded-[2rem] blur-xl opacity-20" />
-                <div className="relative bg-[#0a0a14]/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 lg:p-10 shadow-2xl">
+              <p className="text-lg text-slate-400 font-medium italic border-l-2 border-orange-500 pl-6 max-w-md hidden lg:block">
+                 Access your personalized dashboard to manage curriculum, track progress, and deploy STEM assignments.
+              </p>
+           </div>
 
-                  <div className="mb-8">
-                    <h2 className="text-2xl font-bold text-white mb-2">Sign In</h2>
-                    <p className="text-sm text-white/50">Enter your credentials to access the portal.</p>
-                  </div>
-
-                  {error && (
-                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
-                      <Shield className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-red-200">{error}</p>
-                    </div>
-                  )}
-
-                  <form onSubmit={handleLogin} className="space-y-5">
-                    <div className="space-y-1.5">
-                      <label htmlFor="email" className="text-sm font-medium text-gray-300">Email</label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <Mail className="h-5 w-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
-                        </div>
-                        <input
-                          id="email"
-                          type="email"
-                          required
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          autoComplete="email"
-                          autoCapitalize="none"
-                          autoCorrect="off"
-                          inputMode="email"
-                          enterKeyHint="next"
-                          className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 text-white placeholder-white/20 transition-all outline-none"
-                          placeholder="name@example.com"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label htmlFor="password" className="text-sm font-medium text-gray-300">Password</label>
-                        <a
-                          href="/reset-password"
-                          className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
-                          Forgot password?
-                        </a>
-                      </div>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <Lock className="h-5 w-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
-                        </div>
-                        <input
-                          id="password"
-                          type={showPassword ? "text" : "password"}
-                          required
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          autoComplete="current-password"
-                          enterKeyHint="done"
-                          className="w-full pl-12 pr-12 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 text-white placeholder-white/20 transition-all outline-none"
-                          placeholder="••••••••"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-gray-300 transition-colors outline-none"
-                        >
-                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={loading || !selectedRole || envMissing}
-                      className="w-full relative flex items-center justify-center gap-2 py-4 px-4 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white rounded-xl font-bold text-sm tracking-wide shadow-lg shadow-violet-500/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0a0a14] focus:ring-violet-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden group"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                      {loading ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Signing in…
-                        </>
-                      ) : (
-                        <>
-                          Sign In to Portal
-                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                        </>
-                      )}
-                    </button>
-                  </form>
-
-                  {selectedRole && selectedRole !== 'admin' && (
-                    <p className="mt-4 text-center text-xs text-gray-500">
-                      Signing in as{' '}
-                      <span className="text-gray-300 font-semibold capitalize">{selectedRole}</span>
-                      {' · '}
-                      <a href={selectedRole === 'school' ? "/partnership" : "/student-registration"} className="text-violet-400 hover:text-violet-300 transition-colors">
-                        New? Register here →
-                      </a>
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-          </div>
+           {/* Role Selection Grid */}
+           <div className="grid grid-cols-2 gap-4 max-w-md mx-auto lg:mx-0">
+             {[
+               { id: "student", icon: GraduationCap, title: "Student", accent: "text-blue-500" },
+               { id: "teacher", icon: User, title: "Teacher", accent: "text-teal-500" },
+               { id: "school", icon: Building2, title: "School", accent: "text-orange-500" },
+               { id: "admin", icon: Shield, title: "Admin", accent: "text-purple-500" }
+             ].map((role) => (
+               <button
+                 key={role.id}
+                 onClick={() => setSelectedRole(role.id as any)}
+                 className={`group p-6 bg-white/[0.02] border rounded-none transition-all flex flex-col items-center gap-3 ${selectedRole === role.id ? 'border-orange-500 bg-white/[0.05] shadow-2xl scale-[1.02]' : 'border-white/5 hover:border-white/20'}`}
+               >
+                 <role.icon className={`w-6 h-6 ${selectedRole === role.id ? 'text-orange-500' : 'text-slate-600'} group-hover:scale-110 transition-transform`} />
+                 <span className={`text-[10px] font-black uppercase tracking-widest ${selectedRole === role.id ? 'text-white' : 'text-slate-500'}`}>{role.title}</span>
+               </button>
+             ))}
+           </div>
         </div>
+
+        {/* Right Side: Form */}
+        <div className="w-full lg:w-1/2 flex justify-center">
+           <div className="w-full max-w-md bg-[#1a1a1a] border border-white/10 p-8 md:p-12 shadow-2xl relative overflow-hidden rounded-none border-t-4 border-t-orange-500">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[100px] pointer-events-none" />
+              
+              <div className="mb-10 text-center lg:text-left">
+                 <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-2">Sign In</h3>
+                 <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Identify Credentials</p>
+              </div>
+
+              {error && (
+                <div className="mb-8 p-6 bg-red-500/10 border border-red-500/20 rounded-none flex items-start gap-4 italic text-sm text-red-400 font-medium">
+                   {error}
+                </div>
+              )}
+
+              <form onSubmit={handleLogin} className="space-y-8 relative z-10">
+                 <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Secure Email</label>
+                    <div className="relative group">
+                       <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-orange-500 transition-colors" />
+                       <input
+                          type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+                          placeholder="uplink@rillcod.com"
+                          className="w-full bg-[#121212] border border-white/10 pl-14 pr-6 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-800"
+                       />
+                    </div>
+                 </div>
+
+                 <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Access Key</label>
+                       <Link href="/reset-password" className="text-[9px] font-black text-orange-500 uppercase tracking-widest hover:text-orange-400 transition-colors">Reset Key</Link>
+                    </div>
+                    <div className="relative group">
+                       <Lock className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-orange-500 transition-colors" />
+                       <input
+                          type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full bg-[#121212] border border-white/10 pl-14 pr-14 py-5 rounded-none text-white font-bold text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-slate-800"
+                       />
+                       <button
+                          type="button" onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors"
+                       >
+                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                       </button>
+                    </div>
+                 </div>
+
+                 <button
+                    type="submit" disabled={loading || !selectedRole}
+                    className="group flex items-center justify-center gap-4 w-full px-12 py-6 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 disabled:opacity-50 hover:scale-[1.02] active:scale-95"
+                 >
+                    {loading ? 'Processing...' : 'Secure Login'}
+                    {!loading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
+                 </button>
+
+                 <div className="pt-8 border-t border-white/5 text-center">
+                    <Link href="/" className="inline-flex items-center gap-3 text-[10px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-colors">
+                       <ArrowLeft className="w-4 h-4" /> Return to Base
+                    </Link>
+                 </div>
+              </form>
+           </div>
+        </div>
+
       </div>
     </div>
   );

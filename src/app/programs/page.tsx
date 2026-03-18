@@ -310,68 +310,67 @@ export default function Programs() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Hero Section */}
-        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl shadow-lg mb-16">
+        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-none shadow-lg mb-16 px-4">
           <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-              <BookOpen className="w-10 h-10 text-white" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-none flex items-center justify-center">
+              <BookOpen className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
             </div>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">Our Learning Programs</h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-gray-900 dark:text-white mb-6 uppercase tracking-tight">Our Learning Programs</h1>
+          <p className="text-sm sm:text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8 font-medium italic">
             Discover our comprehensive range of technology education programs for students from <strong>Basic 1 to SS3</strong> — covering coding, robotics, digital entrepreneurship, and more, designed to inspire and empower every young Nigerian mind.
           </p>
-          <div className="w-20 h-2 bg-gradient-to-r from-blue-600 to-purple-600 mx-auto rounded-full"></div>
+          <div className="w-20 h-1 bg-gradient-to-r from-blue-600 to-purple-600 mx-auto rounded-none"></div>
         </div>
 
         {/* Summer School Banner */}
-        <div className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 rounded-2xl shadow-2xl border border-yellow-300 p-8 mb-16 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-24 -translate-x-24"></div>
+        <div className="bg-[#1a1a1a] border border-white/10 rounded-none shadow-2xl border-t-4 border-t-yellow-500 p-8 mb-16 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-none -translate-y-32 translate-x-32 blur-3xl"></div>
           <div className="relative z-10">
             <div className="flex flex-col lg:flex-row items-center justify-between">
               <div className="flex-1 text-white mb-6 lg:mb-0">
                 <div className="flex items-center space-x-2 mb-4">
-                  <Sun className="w-8 h-8" />
-                  <span className="text-2xl font-bold">Summer School 2026</span>
-                  <div className="bg-white/20 px-3 py-1 rounded-full text-sm font-semibold">
+                  <Sun className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
+                  <span className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white">Summer School 2026</span>
+                  <div className="bg-yellow-500/20 border border-yellow-500/20 px-3 py-1 rounded-none text-[10px] font-black uppercase tracking-widest text-yellow-500">
                     Limited Time
                   </div>
                 </div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-black mb-4 uppercase leading-tight text-white">
                   Accelerate Your Tech Journey This Summer!
                 </h2>
-                <p className="text-lg mb-6 opacity-90">
+                <p className="text-sm sm:text-base mb-6 opacity-70 font-medium italic text-white">
                   Intensive programs for JSS3 students starting <strong>June 15th, 2026</strong> and other classes from <strong>July 25th, 2026</strong>.
                   Both online and onsite options available.
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="w-5 h-5" />
-                    <span>JSS3: June 15th 2026 - 6 weeks intensive</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-slate-400">
+                    <Calendar className="w-4 h-4 text-yellow-500" />
+                    <span>JSS3: June 15th 2026 - 6 weeks</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="w-5 h-5" />
+                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-slate-400">
+                    <Calendar className="w-4 h-4 text-yellow-500" />
                     <span>Others: July 25th 2026 - 4 weeks</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <MapPin className="w-5 h-5" />
+                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-slate-400">
+                    <MapPin className="w-4 h-4 text-yellow-500" />
                     <span>Online & Onsite available</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Users className="w-5 h-5" />
+                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-slate-400">
+                    <Users className="w-4 h-4 text-yellow-500" />
                     <span>Small class sizes (8-15 students)</span>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowSummerSchoolPopup(true)}
-                  className="bg-white text-orange-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 hover:scale-105 transition-all duration-300 shadow-lg"
+                  className="w-full sm:w-auto bg-yellow-500 text-white px-10 py-5 rounded-none font-black text-xs uppercase tracking-[0.4em] hover:bg-yellow-600 transition-all shadow-xl shadow-yellow-500/20"
                 >
-                  Register for Summer School
+                  Register Now
                 </button>
               </div>
-              <div className="flex-shrink-0">
-                <div className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                  <GraduationCap className="w-16 h-16 text-white" />
+              <div className="flex-shrink-0 hidden lg:block">
+                <div className="w-32 h-32 bg-yellow-500/10 border border-yellow-500/20 rounded-none flex items-center justify-center backdrop-blur-sm">
+                  <GraduationCap className="w-16 h-16 text-yellow-500" />
                 </div>
               </div>
             </div>
@@ -379,34 +378,34 @@ export default function Programs() {
         </div>
 
         {/* Nigerian Impact Stats */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-16">
-          <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8">Our Impact Across Nigeria</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-none shadow-lg p-8 mb-16 border border-gray-100 dark:border-gray-700">
+          <h2 className="text-xl sm:text-2xl font-black text-center text-gray-900 dark:text-white mb-12 uppercase tracking-tight italic">Our Impact Across Nigeria</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
             {nigerianStats.map((stat, index) => (
               <div key={index} className="text-center group">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <div className="text-white">
+                <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700/50 rounded-none flex items-center justify-center mx-auto mb-6 transition-all border border-gray-200 dark:border-gray-600 group-hover:border-orange-500">
+                  <div className="text-gray-600 dark:text-gray-400 group-hover:text-orange-500 transition-colors">
                     {stat.icon}
                   </div>
                 </div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{stat.number}</div>
-                <div className="text-gray-600 dark:text-gray-300">{stat.label}</div>
+                <div className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-1 tracking-tighter">{stat.number}</div>
+                <div className="text-[10px] sm:text-[11px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Success Stories */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-16">
-          <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8">Success Stories from Across Nigeria</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-none shadow-lg p-8 mb-16 border border-gray-100 dark:border-gray-700">
+          <h2 className="text-xl sm:text-2xl font-black text-center text-gray-900 dark:text-white mb-12 uppercase tracking-tight italic">Success Stories</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {successStories.map((story, index) => (
-              <div key={index} className="bg-gradient-to-br from-blue-50 dark:from-blue-900/20 to-purple-50 dark:to-purple-900/20 rounded-xl p-6 border border-blue-100 dark:border-blue-800 hover:shadow-lg transition-all duration-300">
-                <div className="text-4xl mb-4">{story.image}</div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{story.name}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{story.location}</p>
-                <p className="text-gray-700 dark:text-gray-300 mb-3">{story.story}</p>
-                <div className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 px-3 py-1 rounded-full text-sm font-medium">
+              <div key={index} className="bg-gray-50 dark:bg-gray-700/30 rounded-none p-8 border border-gray-100 dark:border-gray-600 hover:border-orange-500 transition-all group">
+                <div className="text-4xl mb-6 grayscale group-hover:grayscale-0 transition-all">{story.image}</div>
+                <h3 className="text-lg font-black text-gray-900 dark:text-white mb-1 uppercase tracking-tight">{story.name}</h3>
+                <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-4">{story.location}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 font-medium italic leading-relaxed">"{story.story}"</p>
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 px-4 py-2 rounded-none text-[10px] font-black uppercase tracking-widest text-slate-500 inline-block">
                   {story.achievement}
                 </div>
               </div>
@@ -418,15 +417,15 @@ export default function Programs() {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-16">
           <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
             {/* Search */}
-            <div className="flex-1 max-w-md">
+            <div className="flex-1 max-w-md w-full">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="Search programs..."
+                  placeholder="SEARCH PROTOCOLS..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className="w-full pl-14 pr-6 py-5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-none text-xs font-black uppercase tracking-widest text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-orange-500 transition-all"
                 />
               </div>
             </div>
@@ -449,16 +448,16 @@ export default function Programs() {
             </div>
 
             {/* Sort */}
-            <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-gray-500" />
+            <div className="flex items-center gap-3 w-full lg:w-auto">
+              <Filter className="w-4 h-4 text-gray-400 shrink-0" />
               <select
                 value={selectedLevel}
                 onChange={(e) => setSelectedLevel(e.target.value)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                className="w-full lg:w-48 px-6 py-5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-none text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white focus:outline-none focus:border-orange-500 transition-all cursor-pointer appearance-none"
               >
                 {levels.map((level) => (
                   <option key={level.value} value={level.value}>
-                    {level.name}
+                    {level.name.toUpperCase()}
                   </option>
                 ))}
               </select>
@@ -467,38 +466,33 @@ export default function Programs() {
         </div>
 
         {/* Programs Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 mb-16">
           {filteredPrograms.map((program) => (
-            <div key={program.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 group">
+            <div key={program.id} className="bg-white dark:bg-gray-800 rounded-none shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all group flex flex-col">
               {/* Program Header */}
-              <div className={`bg-gradient-to-r ${program.color} p-6 text-white relative overflow-hidden`}>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
+              <div className={`p-8 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 relative overflow-hidden flex-shrink-0`}>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-none -translate-y-16 translate-x-16 rotate-45"></div>
                 <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="bg-white/20 rounded-xl p-3">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="w-12 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none flex items-center justify-center p-2 shadow-sm group-hover:border-orange-500 transition-all">
                       {program.icon}
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold">{program.price}</div>
-                      <div className="text-sm opacity-90">per program</div>
+                      <div className="text-xl font-black text-gray-900 dark:text-white tracking-tighter italic">{program.price}</div>
+                      <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Base Rate</div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-2xl font-bold">{program.title}</h3>
-                    {program.id === 'summer-school' && (
-                      <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold animate-pulse">
-                        🎯 Limited Time
-                      </div>
-                    )}
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{program.title}</h3>
                   </div>
-                  <p className="text-sm opacity-90 mb-4">{program.description}</p>
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-2">
-                      <Clock className="w-4 h-4" />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-medium italic mb-6 line-clamp-2">{program.description}</p>
+                  <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest text-slate-600">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5 text-orange-500" />
                       <span>{program.duration}</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Users className="w-4 h-4" />
+                    <div className="flex items-center gap-2">
+                      <Users className="w-3.5 h-3.5 text-blue-500" />
                       <span>{program.students}</span>
                     </div>
                   </div>
@@ -506,98 +500,59 @@ export default function Programs() {
               </div>
 
               {/* Program Content */}
-              <div className="p-6">
+              <div className="p-8 flex-1 flex flex-col">
                 {/* Nigerian Context */}
-                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 mb-4">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <MapPin className="w-4 h-4 text-green-600 dark:text-green-400" />
-                    <span className="text-sm font-semibold text-green-800 dark:text-green-300">Nigerian Context</span>
-                  </div>
-                  <p className="text-sm text-green-700 dark:text-green-300">{program.nigerianContext}</p>
+                <div className="mb-8 border-l-2 border-orange-500 pl-6">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 italic">Context Optimization</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-300 font-bold leading-relaxed">{program.nigerianContext}</p>
                 </div>
 
                 {/* Skills */}
-                <div className="mb-4">
-                  <h4 className="font-semibold text-gray-900 mb-2">Skills You'll Learn</h4>
+                <div className="mb-8">
                   <div className="flex flex-wrap gap-2">
                     {program.skills.slice(0, 3).map((skill, index) => (
-                      <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium">
+                      <span key={index} className="bg-gray-100 dark:bg-gray-700 text-[9px] font-black text-slate-600 dark:text-slate-400 px-3 py-1.5 rounded-none uppercase tracking-widest border border-gray-200 dark:border-gray-600">
                         {skill}
                       </span>
                     ))}
-                    {program.skills.length > 3 && (
-                      <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">
-                        +{program.skills.length - 3} more
-                      </span>
-                    )}
                   </div>
                 </div>
 
-                {/* Success Story */}
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Star className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-semibold text-blue-800">Success Story</span>
-                  </div>
-                  <p className="text-sm text-blue-700">{program.successStory}</p>
-                </div>
-
-                {/* Career Path */}
-                <div className="mb-6">
-                  <h4 className="font-semibold text-gray-900 mb-2">Career Path</h4>
-                  <p className="text-sm text-gray-600">{program.careerPath}</p>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex space-x-3">
+                {/* Footer Action */}
+                <div className="mt-auto space-y-3">
                   <button
                     onClick={() => toggleProgramDetails(program.id)}
-                    className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-medium hover:bg-gray-200 transition-colors duration-200"
+                    className="w-full bg-transparent border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 py-4 rounded-none text-[10px] font-black uppercase tracking-widest hover:border-orange-500 hover:text-orange-500 transition-all"
                   >
-                    {selectedProgram === program.id ? 'Hide Details' : 'View Details'}
+                    {selectedProgram === program.id ? 'CLOSE SYSTEM LOGS' : 'VIEW SPECIFICATIONS'}
                   </button>
                   {program.id === 'summer-school' ? (
                     <button
                       onClick={() => setShowSummerSchoolPopup(true)}
-                      className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-xl font-medium hover:from-yellow-600 hover:to-orange-600 transition-all duration-200 text-center"
+                      className="w-full bg-orange-500 text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.4em] hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20"
                     >
-                      Register Now
+                      INITIALIZE UPLINK
                     </button>
                   ) : (
                     <Link
                       href="/student-registration"
-                      className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-xl font-medium hover:from-blue-600 hover:to-purple-600 transition-all duration-200 text-center"
+                      className="flex items-center justify-center w-full bg-[#121212] border border-white/5 text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.4em] hover:bg-orange-500 transition-all"
                     >
-                      Enroll Now
+                      JOIN NETWORK
                     </Link>
                   )}
                 </div>
 
                 {/* Expanded Details */}
                 {selectedProgram === program.id && (
-                  <div className="mt-6 space-y-4 border-t pt-4">
+                  <div className="mt-8 space-y-6 pt-8 border-t border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-top-4 duration-300">
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">Projects You'll Build</h4>
-                      <div className="grid grid-cols-2 gap-2">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Output Deliverables</h4>
+                      <div className="space-y-2">
                         {program.projects.map((project, index) => (
-                          <div key={index} className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                            <div className="flex items-center space-x-2">
-                              <CheckCircle className="w-4 h-4 text-purple-600" />
-                              <span className="text-sm text-purple-800">{project}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">Program Features</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {program.features.map((feature, index) => (
-                          <div key={index} className="bg-green-50 border border-green-200 rounded-lg p-3">
-                            <div className="flex items-center space-x-2">
-                              <Zap className="w-4 h-4 text-green-600" />
-                              <span className="text-sm text-green-800">{feature}</span>
-                            </div>
+                          <div key={index} className="flex items-center gap-3 text-xs font-bold text-gray-700 dark:text-gray-300 capitalize italic">
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>{project}</span>
                           </div>
                         ))}
                       </div>
@@ -610,21 +565,22 @@ export default function Programs() {
         </div>
 
         {/* Call to Action */}
-        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl p-8 text-center text-white">
-          <h2 className="text-3xl font-bold mb-4">Ready to Start Your Tech Journey?</h2>
-          <p className="text-xl mb-6 opacity-90">
-            Join thousands of Nigerian students already building their future with technology
+        <div className="bg-[#1a1a1a] border border-white/10 border-t-4 border-t-orange-500 rounded-none p-12 text-center text-white shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
+          <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight">Ready to Start Your <span className="text-orange-500 italic">Tech Journey?</span></h2>
+          <p className="text-sm sm:text-lg mb-10 opacity-60 max-w-2xl mx-auto font-medium italic">
+            Join thousands of Nigerian students already building their future with technology. Secure your spot in our upcoming cohort today.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <Link
               href="/contact"
-              className="bg-white text-blue-600 px-8 py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors duration-200"
+              className="px-12 py-5 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20"
             >
               Contact Us
             </Link>
             <Link
               href="/curriculum"
-              className="bg-transparent border-2 border-white text-white px-8 py-3 rounded-xl font-semibold hover:bg-white hover:text-blue-600 transition-all duration-200"
+              className="px-12 py-5 bg-transparent border border-white/10 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-white hover:text-black transition-all"
             >
               View Curriculum
             </Link>
