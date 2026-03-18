@@ -15,7 +15,7 @@ const ENROLLMENT_TYPES = [
     id: 'school',
     icon: Building2,
     title: 'Partner School',
-    desc: 'My child attends a school partnered with Rillcod Academy',
+    desc: 'My child attends a school partnered with Rillcod Technologies',
     color: 'border-blue-500 bg-blue-500/10',
     dot: 'bg-blue-400',
   },
@@ -67,10 +67,10 @@ function Field({ label, icon: Icon, children }: { label: string; icon?: any; chi
 }
 
 const inputCls = (hasIcon = true) =>
-  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-[#121212] border border-white/10 rounded-none text-sm font-bold text-white placeholder:text-slate-800 focus:outline-none focus:border-orange-500 transition-all`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-[#1a1a1a] border border-white/20 rounded-none text-sm font-bold text-white placeholder:text-slate-700 focus:outline-none focus:border-orange-500 transition-all shadow-inner shadow-black/20`;
 
 const selectCls = (hasIcon = false) =>
-  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-[#121212] border border-white/10 rounded-none text-sm font-bold text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-[#1a1a1a] border border-white/20 rounded-none text-sm font-bold text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer shadow-inner shadow-black/20`;
 
 // ─── Default form state ────────────────────────────────────────────
 const defaultForm = {
@@ -377,7 +377,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    <div className="flex items-start gap-4 p-6 bg-white/[0.02] border border-white/5 rounded-none">
                       <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-orange-500 cursor-pointer flex-shrink-0" />
                       <label htmlFor="terms" className="text-[11px] font-bold text-slate-500 leading-relaxed cursor-pointer italic">
-                         I hereby initialize this registration and confirm all data records are accurate. I agree to the <span className="text-orange-500 underline">Academy Service Protocols</span>.
+                                 I hereby initialize this registration and confirm all data records are accurate. I agree to the <span className="text-orange-500 underline">Technologies Service Protocols</span>.
                       </label>
                    </div>
                    {err && <p className="text-rose-500 text-xs font-black uppercase tracking-widest">{err}</p>}

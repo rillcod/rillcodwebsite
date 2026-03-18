@@ -19,10 +19,10 @@ function Field({ label, icon: Icon, error, children }: { label: string; icon?: a
 }
 
 const inputCls = (hasIcon = true) =>
-    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-[#121212] border border-white/10 rounded-none text-sm font-bold text-white placeholder:text-slate-800 focus:outline-none focus:border-orange-500 transition-all`;
+    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-[#1a1a1a] border border-white/20 rounded-none text-sm font-bold text-white placeholder:text-slate-700 focus:outline-none focus:border-orange-500 transition-all shadow-inner shadow-black/20`;
 
 const selectCls = (hasIcon = false) =>
-    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-[#121212] border border-white/10 rounded-none text-sm font-bold text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer`;
+    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-[#1a1a1a] border border-white/20 rounded-none text-sm font-bold text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer shadow-inner shadow-black/20`;
 
 function PartnershipTermsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
     if (!isOpen) return null;

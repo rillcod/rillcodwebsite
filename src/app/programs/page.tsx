@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Monitor, Cat, Globe, Palette, Bot, ArrowRight, Clock, Users, Star, Search, Filter, BookOpen, Code, Zap, Target, CheckCircle, TrendingUp, Award, MapPin, Heart, Sparkles, GraduationCap, Lightbulb, Building2, Rocket, Crown, Shield, Brain, Eye, HandHeart, Globe2, Smartphone, Laptop, Gamepad2, Camera, Music, Video, FileText, BarChart3, Cpu, Database, Cloud, Wifi, Tablet, Watch, Headphones, Speaker, Printer, Keyboard, Mouse, HardDrive, Usb, Battery, Power, Settings, Lock, Unlock, Key, User, Users2, UserCheck, UserX, UserPlus, UserMinus, UserCog, UserSearch, UserCheck2, Calendar, Sun } from "lucide-react";
+import { Monitor, Cat, Globe, Palette, Bot, ArrowRight, Clock, Users, Star, Search, Filter, BookOpen, Code, Zap, Target, CheckCircle, TrendingUp, Award, MapPin, Heart, Sparkles, GraduationCap, Lightbulb, Building2, Rocket, Crown, Shield, Brain, Eye, HandHeart, Globe2, Smartphone, Laptop, Gamepad2, Camera, Music, Video, FileText, BarChart3, Cpu, Database, Cloud, Wifi, Tablet, Watch, Headphones, Speaker, Printer, Keyboard, Mouse, HardDrive, Usb, Battery, Power, Settings, Lock, Unlock, Key, User, Users2, UserCheck, UserX, UserPlus, UserMinus, UserCog, UserSearch, UserCheck2, Calendar, Sun, ChevronDown } from "lucide-react";
 import SummerSchoolPopup from "@/components/SummerSchoolPopup";
 
 const programs = [
@@ -414,53 +414,59 @@ export default function Programs() {
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-16">
-          <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
+        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-10 mb-16 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
+          <div className="flex flex-col lg:flex-row gap-8 items-center justify-between relative z-10">
             {/* Search */}
             <div className="flex-1 max-w-md w-full">
-              <div className="relative">
-                <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 italic">Filter Data Streams:</p>
+              <div className="relative group">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-800 group-focus-within:text-orange-500 transition-colors w-4 h-4 z-10" />
                 <input
                   type="text"
                   placeholder="SEARCH PROTOCOLS..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-14 pr-6 py-5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-none text-xs font-black uppercase tracking-widest text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:border-orange-500 transition-all"
+                  className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-white/10 rounded-none text-[10px] font-black uppercase tracking-widest text-white placeholder:text-slate-900 focus:outline-none focus:border-orange-500 transition-all font-bold"
                 />
               </div>
             </div>
 
             {/* Category Filter */}
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <button
-                  key={category.name}
-                  onClick={() => setSelectedCategory(category.name)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${selectedCategory === category.name
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                >
-                  {category.icon}
-                  <span className="hidden sm:inline">{category.name}</span>
-                </button>
-              ))}
+            <div className="w-full lg:w-auto">
+              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 italic">Categorical Sort:</p>
+              <div className="flex flex-wrap gap-3">
+                {categories.map((category) => (
+                  <button
+                    key={category.name}
+                    onClick={() => setSelectedCategory(category.name)}
+                    className={`flex items-center gap-3 px-6 py-4 rounded-none transition-all duration-200 text-[10px] font-black uppercase tracking-widest border ${selectedCategory === category.name
+                        ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-500/20'
+                        : 'bg-[#121212] border-white/5 text-slate-500 hover:border-white/10 hover:text-white'
+                      }`}
+                  >
+                    {category.name}
+                  </button>
+                ))}
+              </div>
             </div>
-
             {/* Sort */}
             <div className="flex items-center gap-3 w-full lg:w-auto">
-              <Filter className="w-4 h-4 text-gray-400 shrink-0" />
-              <select
-                value={selectedLevel}
-                onChange={(e) => setSelectedLevel(e.target.value)}
-                className="w-full lg:w-48 px-6 py-5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-none text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white focus:outline-none focus:border-orange-500 transition-all cursor-pointer appearance-none"
-              >
-                {levels.map((level) => (
-                  <option key={level.value} value={level.value}>
-                    {level.name.toUpperCase()}
-                  </option>
-                ))}
-              </select>
+              <Filter className="w-4 h-4 text-slate-600 shrink-0" />
+              <div className="relative w-full lg:w-48 group">
+                <select
+                  value={selectedLevel}
+                  onChange={(e) => setSelectedLevel(e.target.value)}
+                  className="w-full pl-6 pr-10 py-5 bg-[#121212] border border-white/10 rounded-none text-[10px] font-black uppercase tracking-widest text-white focus:outline-none focus:border-orange-500 transition-all cursor-pointer appearance-none"
+                >
+                  {levels.map((level) => (
+                    <option key={level.value} value={level.value}>
+                      {level.name.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 pointer-events-none group-focus-within:text-orange-500 transition-colors" />
+              </div>
             </div>
           </div>
         </div>

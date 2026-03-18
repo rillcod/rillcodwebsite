@@ -345,108 +345,114 @@ export default function Curriculum() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Hero Section */}
-        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl shadow-lg mb-16">
-          <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-              <GraduationCap className="w-10 h-10 text-white" />
+        <div className="text-center py-16 bg-[#1a1a1a] border border-white/10 rounded-none shadow-lg mb-16 relative overflow-hidden border-t-8 border-t-orange-500">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
+          <div className="flex justify-center mb-10">
+            <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-none flex items-center justify-center ring-1 ring-orange-500/50 ring-offset-4 ring-offset-[#1a1a1a]">
+              <GraduationCap className="w-10 h-10 text-orange-500" />
             </div>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">12-Year AI-Integrated Curriculum</h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
-            A comprehensive journey from Basic 1 to SS3, integrating AI, robotics, and traditional programming to prepare Nigerian students for the future.
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-6 uppercase tracking-tight">12-Year AI-Integrated <span className="text-orange-500 italic">Curriculum.</span></h1>
+          <p className="text-sm sm:text-lg text-slate-400 max-w-3xl mx-auto mb-12 font-medium italic leading-relaxed border-l-2 border-orange-500 pl-8 mx-auto inline-block text-left">
+            A comprehensive journey from Basic 1 to SS3, integrating AI, robotics, and traditional programming to prepare Nigerian students for the future of Rillcod Technologies.
           </p>
-          <div className="w-20 h-2 bg-gradient-to-r from-blue-600 to-purple-600 mx-auto rounded-full"></div>
+          <div className="w-24 h-1 bg-orange-500 mx-auto mt-8"></div>
         </div>
 
         {/* Curriculum Overview */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">Curriculum Overview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Target className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 mb-16 shadow-2xl">
+          <h2 className="text-xl font-black text-white mb-12 text-center uppercase tracking-widest italic">Protocol Overview</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-white/5 border border-white/5 group-hover:border-orange-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6">
+                <Target className="w-8 h-8 text-orange-500" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">12 Years</h3>
-              <p className="text-gray-600 dark:text-gray-300">Complete educational journey from Basic 1 to SS3</p>
+              <h3 className="text-sm font-black text-white mb-2 uppercase tracking-widest">12 Years</h3>
+              <p className="text-xs text-slate-500 font-bold italic">Complete educational journey from Basic 1 to SS3</p>
             </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Code className="w-8 h-8 text-green-600 dark:text-green-400" />
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-white/5 border border-white/5 group-hover:border-blue-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6">
+                <Code className="w-8 h-8 text-blue-500" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">36+ Projects</h3>
-              <p className="text-gray-600 dark:text-gray-300">Hands-on projects with real-world applications</p>
+              <h3 className="text-sm font-black text-white mb-2 uppercase tracking-widest">36+ Projects</h3>
+              <p className="text-xs text-slate-500 font-bold italic">Hands-on projects with real-world applications</p>
             </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Star className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-white/5 border border-white/5 group-hover:border-emerald-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6">
+                <Star className="w-8 h-8 text-emerald-500" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">AI Integration</h3>
-              <p className="text-gray-600 dark:text-gray-300">Artificial intelligence embedded throughout the curriculum</p>
+              <h3 className="text-sm font-black text-white mb-2 uppercase tracking-widest">AI Integration</h3>
+              <p className="text-xs text-slate-500 font-bold italic">Artificial intelligence embedded throughout the curriculum</p>
             </div>
           </div>
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-16">
-          <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
+        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-10 mb-16 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[100px] pointer-events-none"></div>
+          <div className="flex flex-col lg:flex-row gap-8 items-center justify-between relative z-10">
             {/* Search */}
-            <div className="flex-1 max-w-md">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <div className="flex-1 w-full lg:max-w-md">
+              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 italic">Filter Data Streams:</p>
+              <div className="relative group">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-800 group-focus-within:text-orange-500 transition-colors w-4 h-4 z-10" />
                 <input
                   type="text"
-                  placeholder="Search curriculum..."
+                  placeholder="SEARCH CURRICULUM..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-white/10 rounded-none text-[10px] font-black uppercase tracking-widest text-white placeholder:text-slate-900 focus:outline-none focus:border-orange-500 transition-all"
                 />
               </div>
             </div>
 
             {/* Level Filter */}
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setSelectedLevel("all")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                  selectedLevel === "all"
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                <BookOpen className="w-4 h-4" />
-                <span className="hidden sm:inline">All Levels</span>
-              </button>
-              {learningLevels.map((level, index) => (
+            <div className="w-full lg:w-auto">
+              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 italic">Categorical Sort:</p>
+              <div className="flex flex-wrap gap-3">
                 <button
-                  key={index}
-                  onClick={() => setSelectedLevel(level.name.toLowerCase().replace(' ', ''))}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                    selectedLevel === level.name.toLowerCase().replace(' ', '')
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  onClick={() => setSelectedLevel("all")}
+                  className={`flex items-center gap-3 px-8 py-4 text-[10px] font-black uppercase tracking-widest rounded-none border transition-all ${
+                    selectedLevel === "all"
+                      ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-500/20'
+                      : 'bg-[#121212] border-white/5 text-slate-500 hover:border-white/10 hover:text-white'
                   }`}
                 >
-                  {level.icon}
-                  <span className="hidden sm:inline">{level.name}</span>
+                  All Sectors
                 </button>
-              ))}
+                {learningLevels.map((level, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setSelectedLevel(level.name.toLowerCase().replace(' ', ''))}
+                    className={`flex items-center gap-3 px-8 py-4 text-[10px] font-black uppercase tracking-widest rounded-none border transition-all ${
+                      selectedLevel === level.name.toLowerCase().replace(' ', '')
+                        ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-500/20'
+                        : 'bg-[#121212] border-white/5 text-slate-500 hover:border-white/10 hover:text-white'
+                    }`}
+                  >
+                    {level.name}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Nigerian Impact Stats */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-16">
-          <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8">Curriculum Impact Across Nigeria</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="bg-[#1a1a1a] border border-white/10 rounded-none p-12 mb-16 shadow-22xl relative">
+          <div className="absolute top-0 right-0 w-2 h-full bg-orange-500 font-black"></div>
+          <h2 className="text-xl font-black text-white text-left mb-12 uppercase tracking-widest italic flex items-center gap-4">
+            <span className="w-12 h-[1px] bg-orange-500"></span> 
+            Continental Impact
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
             {nigerianStats.map((stat, index) => (
-              <div key={index} className="text-center group">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <div className="text-white">
+              <div key={index} className="text-left group">
+                <div className="text-orange-500 mb-6 group-hover:scale-110 transition-transform origin-left">
                     {stat.icon}
-                  </div>
                 </div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{stat.number}</div>
-                <div className="text-gray-600 dark:text-gray-300">{stat.label}</div>
+                <div className="text-3xl font-black text-white mb-1 tracking-tighter italic">{stat.number}</div>
+                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -617,23 +623,24 @@ export default function Curriculum() {
         </div>
 
         {/* Call to Action */}
-        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl p-8 text-center text-white">
-          <h2 className="text-3xl font-bold mb-4">Ready to Start Your Learning Journey?</h2>
-          <p className="text-xl mb-6 opacity-90">
-            Join thousands of Nigerian students already building their future with our comprehensive curriculum
+        <div className="bg-[#1a1a1a] border border-white/10 border-t-8 border-t-orange-500 rounded-none p-16 text-center shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
+          <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight text-white">Initialize Your <span className="text-orange-500 italic">Journey.</span></h2>
+          <p className="text-sm sm:text-lg mb-12 opacity-60 max-w-2xl mx-auto font-medium italic text-slate-400 leading-relaxed">
+            Join thousands of Nigerian students already building their future with our comprehensive 12-year AI curriculum at Rillcod Technologies.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-8 justify-center items-center">
             <Link
               href="/programs"
-              className="bg-white text-blue-600 px-8 py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors duration-200"
+              className="w-full sm:w-auto px-16 py-6 bg-white text-black font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-slate-200 transition-all shadow-2xl"
             >
-              View Programs
+              Uplink Programs
             </Link>
             <Link
               href="/contact"
-              className="bg-transparent border-2 border-white text-white px-8 py-3 rounded-xl font-semibold hover:bg-white hover:text-blue-600 transition-all duration-200"
+              className="w-full sm:w-auto px-16 py-6 bg-transparent border border-white/10 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:border-orange-500 transition-all"
             >
-              Contact Us
+              Request Access
             </Link>
           </div>
         </div>
