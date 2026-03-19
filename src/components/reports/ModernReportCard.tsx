@@ -97,92 +97,89 @@ export default function ModernReportCard({ report, orgSettings }: {
     return (
         <div
             id="modern-report-card"
-            className="bg-white text-gray-900 font-sans relative overflow-hidden flex flex-col p-8"
-            style={{ width: 794, height: 1123, margin: '0 auto', fontSize: 12, border: '1px solid #f1f5f9', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+            className="bg-white text-gray-900 font-sans relative overflow-hidden flex flex-col p-4 sm:p-8 shadow-2xl mx-auto w-[794px] min-h-[1123px] max-h-[1123px] print:shadow-none transition-all duration-500"
+            style={{ fontSize: 12.5, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
         >
             {/* Ambient Background Elements */}
-            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[150px] rounded-full -mr-40 -mt-40 pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-cyan-500/10 blur-[150px] rounded-full -ml-40 -mb-40 pointer-events-none" />
-            <div className="absolute inset-0 border-2 border-indigo-500/5 m-6 pointer-events-none rounded-[3.5rem]" />
-
-            {/* HEADER SECTION */}
-            <div className="relative z-10 flex justify-between items-center mb-2 pb-2 border-b border-gray-100">
+            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[150px] rounded-full -mr-40 -mt-40 pointer-events-none print:hidden" />
+            <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-cyan-500/10 blur-[150px] rounded-full -ml-40 -mb-40 pointer-events-none print:hidden" />
+            <div className="absolute inset-0 border-2 border-indigo-500/5 m-6 pointer-events-none rounded-[3.5rem] print:border-indigo-500/10" />            {/* HEADER SECTION */}
+            <div className="relative z-10 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-4">
-                    <div className="p-2 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50">
+                    <div className="p-2 sm:p-3 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 scale-90 sm:scale-100">
                         <img 
                           src={orgSettings?.logo_url || '/logo.png'} 
                           alt="Logo" 
                           crossOrigin="anonymous"
-                          className="w-10 h-10 object-contain"
+                          className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
                           onError={e => { (e.target as HTMLImageElement).src = '/logo.png'; }}
                         />
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <span className="w-1 h-1 rounded-full bg-indigo-500 animate-pulse" />
-                            <h2 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.4em] opacity-70">Official Academic Registry</h2>
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                            <h2 className="text-[9px] sm:text-[10px] font-black text-indigo-600 uppercase tracking-[0.4em] opacity-70">Official Academic Registry</h2>
                         </div>
-                        <h1 className="text-xl font-black uppercase tracking-tighter leading-none italic bg-gradient-to-r from-gray-900 to-gray-500 bg-clip-text text-transparent">
+                        <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tighter leading-none italic bg-gradient-to-r from-gray-900 to-gray-500 bg-clip-text text-transparent">
                             {orgSettings?.org_name || 'Rillcod Technologies'}
                         </h1>
-                        <p className="text-[8px] text-indigo-400 font-black uppercase tracking-[0.3em] mt-1">{orgSettings?.org_tagline || 'Excellence in Technology'}</p>
+                        <p className="text-[7px] sm:text-[8px] text-indigo-400 font-black uppercase tracking-[0.3em] mt-1">{orgSettings?.org_tagline || 'Excellence in Technology'}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-row-reverse sm:flex-row items-center justify-between sm:justify-end gap-6 sm:gap-10">
                     {hasPayment && feeStyle && (
                         <div className="text-right">
-                            <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest leading-none mb-1">Fee Status</p>
-                            <span className="px-2 py-0.5 rounded-full text-[8px] font-black border tracking-wider bg-white shadow-sm"
+                            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest leading-none mb-1.5">Fee Status</p>
+                            <span className="px-3 py-1 rounded-full text-[9px] font-black border tracking-wider bg-white shadow-sm"
                                 style={{ color: feeStyle.text, borderColor: `${feeStyle.text}30` }}>
                                 {feeStyle.label}
                             </span>
                         </div>
                     )}
-                    <div className="h-6 w-px bg-gradient-to-b from-transparent via-gray-100 to-transparent" />
                     <div className="text-right">
-                        <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Transcript ID</p>
-                        <p className="text-base font-black text-gray-900 tabular-nums leading-none tracking-tighter italic">{report.id?.slice(0, 8) || 'PREVIEW'}</p>
+                        <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-1">Transcript ID</p>
+                        <p className="text-lg sm:text-xl font-black text-gray-900 tabular-nums leading-none tracking-tighter italic">{report.id?.slice(0, 8) || 'PREVIEW'}</p>
                     </div>
                 </div>
             </div>
 
             {/* IDENTITY GRID */}
-            <div className="grid grid-cols-2 gap-4 mb-2 relative z-10">
-                <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-[1.5rem] p-3 shadow-sm relative overflow-hidden group">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 relative z-10">
+                <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-[1.25rem] p-4 shadow-sm relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl -mr-16 -mt-16 group-hover:scale-110 transition-transform" />
-                    <p className="text-[8px] font-black text-indigo-500 uppercase tracking-[0.3em] mb-2 opacity-60 flex items-center gap-2">
-                        <UserCircleIcon className="w-3 h-3" /> Candidate Profile
+                    <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] mb-3 opacity-60 flex items-center gap-2">
+                        <UserCircleIcon className="w-3.5 h-3.5" /> Candidate Profile
                     </p>
-                    <div className="space-y-1">
-                        <h3 className="text-base font-black text-gray-900 uppercase tracking-tight leading-tight truncate">{report.student_name || '—'}</h3>
-                        <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-4">
+                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-tight">{report.student_name || '—'}</h3>
+                        <div className="grid grid-cols-2 gap-6">
                             <div>
-                                <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Academic Level</p>
-                                <p className="text-[10px] font-bold text-gray-600 uppercase italic truncate">{report.section_class || '—'}</p>
+                                <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Academic Level</p>
+                                <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">{report.section_class || '—'}</p>
                             </div>
                             <div>
-                                <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Institution</p>
-                                <p className="text-[10px] font-bold text-gray-600 uppercase italic truncate">{report.school_name || 'Rillcod'}</p>
+                                <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Institution</p>
+                                <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">{report.school_name || 'Rillcod'}</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-[1.5rem] p-3 shadow-sm relative overflow-hidden group">
+                <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-[1.25rem] p-4 shadow-sm relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-3xl -mr-16 -mt-16 group-hover:scale-110 transition-transform" />
-                    <p className="text-[8px] font-black text-cyan-500 uppercase tracking-[0.3em] mb-2 opacity-60 flex items-center gap-2">
-                        <AcademicCapIcon className="w-3 h-3" /> Operational Details
+                    <p className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.3em] mb-3 opacity-60 flex items-center gap-2">
+                        <AcademicCapIcon className="w-3.5 h-3.5" /> Operational Details
                     </p>
-                    <div className="space-y-1">
-                        <h3 className="text-base font-black text-gray-900 uppercase tracking-tight leading-tight truncate">{report.course_name || '—'}</h3>
-                        <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-4">
+                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-tight">{report.course_name || '—'}</h3>
+                        <div className="grid grid-cols-2 gap-6">
                             <div>
-                                <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Term/Duration</p>
-                                <p className="text-[10px] font-bold text-gray-600 uppercase italic truncate">{report.report_term || report.course_duration || '—'}</p>
+                                <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Term/Duration</p>
+                                <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">{report.report_term || report.course_duration || '—'}</p>
                             </div>
                             <div>
-                                <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Session Closing</p>
-                                <p className="text-[10px] font-bold text-gray-600 uppercase italic truncate">{today}</p>
+                                <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Session Closing</p>
+                                <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">{today}</p>
                             </div>
                         </div>
                     </div>
@@ -190,16 +187,16 @@ export default function ModernReportCard({ report, orgSettings }: {
             </div>
 
             {/* MAIN METRIC HUB */}
-            <div className="relative z-10 flex flex-col gap-2 mb-2">
+            <div className="relative z-10 flex flex-col gap-4 mb-6">
                 <div className="flex items-center gap-4">
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
-                    <p className="text-[9px] font-black text-indigo-500/60 uppercase tracking-[0.6em] leading-none italic">Intelligence Matrix</p>
+                    <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-[0.6em] leading-none italic">Intelligence Matrix</p>
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
                 </div>
 
-                <div className="grid grid-cols-12 gap-3 items-stretch">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 items-stretch">
                     {/* Qualitative Bars */}
-                    <div className="col-span-8 bg-white border border-gray-100 rounded-[1.5rem] p-4 shadow-sm flex flex-col justify-between">
+                    <div className="col-span-12 sm:col-span-8 bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm flex flex-col justify-between">
                         <div className="space-y-3">
                             {[
                                 { label: 'Theory Protocols', value: theory, color: 'rgb(79, 70, 229)', icon: AcademicCapIcon, glow: 'rgba(79, 70, 229, 0.2)' },
@@ -207,32 +204,32 @@ export default function ModernReportCard({ report, orgSettings }: {
                                 { label: 'Presence Metric', value: attendance, color: 'rgb(16, 185, 129)', icon: ClockIcon, glow: 'rgba(16, 185, 129, 0.2)' },
                                 { label: 'Engagement Data', value: report.participation_score || 0, color: 'rgb(139, 92, 246)', icon: UserGroupIcon, glow: 'rgba(139, 92, 246, 0.2)' }
                             ].map(m => (
-                                <div key={m.label} className="space-y-1.5">
-                                    <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                                <div key={m.label} className="space-y-1">
+                                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
                                         <span className="text-gray-400 flex items-center gap-2">
-                                            <div className="w-4 h-4 rounded bg-gray-50 flex items-center justify-center border border-gray-100">
-                                                <m.icon className="w-2.5 h-2.5 text-gray-400" />
+                                            <div className="w-5 h-5 rounded-lg bg-gray-50 flex items-center justify-center border border-gray-100">
+                                                <m.icon className="w-3 h-3 text-gray-400" />
                                             </div>
                                             {m.label}
                                         </span>
-                                        <span style={{ color: m.color }} className="italic text-[10px]">{m.value}%</span>
+                                        <span style={{ color: m.color }} className="italic text-base">{m.value}%</span>
                                     </div>
-                                    <div className="h-1.5 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100/50">
+                                    <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100/50 shadow-inner">
                                         <div className="h-full rounded-full transition-all duration-1000 relative"
-                                            style={{ width: `${m.value}%`, backgroundColor: m.color, boxShadow: `0 0 10px ${m.glow}` }}>
-                                            <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-50" />
+                                            style={{ width: `${m.value}%`, backgroundColor: m.color, boxShadow: `0 0 15px ${m.glow}` }}>
+                                            <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-50" />
                                         </div>
                                     </div>
                                 </div>
                             ))}
-                            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-50 mt-1">
+                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 mt-2">
                                 {[
                                     { l: 'Project Grade', v: report.projects_grade, c: 'violet' },
                                     { l: 'Homework Hub', v: report.homework_grade, c: 'cyan' }
                                 ].map(g => (
-                                    <div key={g.l} className="bg-gray-50/50 border border-gray-100 px-3 py-2 rounded-xl group hover:border-indigo-500/20 transition-colors">
-                                        <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest mb-1">{g.l}</p>
-                                        <p className="text-base font-black text-gray-900 leading-none italic">{g.v || '—'}</p>
+                                    <div key={g.l} className="bg-gray-50/50 border border-gray-100 px-4 py-3 rounded-2xl group hover:border-indigo-500/20 transition-colors">
+                                        <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">{g.l}</p>
+                                        <p className="text-lg font-black text-gray-900 leading-none italic">{g.v || '—'}</p>
                                     </div>
                                 ))}
                             </div>
@@ -240,60 +237,60 @@ export default function ModernReportCard({ report, orgSettings }: {
                     </div>
 
                     {/* Master Grade */}
-                    <div className="col-span-4 bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 border border-indigo-100/30 rounded-[1.5rem] p-4 flex flex-col items-center justify-center text-center relative overflow-hidden group shadow-sm">
+                    <div className="col-span-12 sm:col-span-4 bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 border border-indigo-100/30 rounded-[1.5rem] p-4 lg:p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group shadow-sm min-h-[150px]">
                         <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] opacity-20" />
                         <div className="relative z-10 w-full flex flex-col items-center">
-                            <div className="p-1.5 rounded-xl bg-white shadow-lg mb-1 border border-indigo-50/50 group-hover:scale-110 transition-transform duration-700">
-                                <TrophyIcon className="w-4 h-4 text-amber-500" />
+                            <div className="p-2 rounded-2xl bg-white shadow-xl mb-3 border border-indigo-50/50 group-hover:scale-110 transition-transform duration-700">
+                                <TrophyIcon className="w-5 h-5 text-amber-500" />
                             </div>
-                            <p className="text-[7px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-0.5 italic">Composite Standing</p>
-                            <h3 className="text-4xl font-black leading-none italic drop-shadow-sm transition-all" style={{ color: grade.color }}>{grade.g}</h3>
-                            <div className="mt-1.5 px-3 py-0.5 bg-white border border-indigo-50 rounded-lg inline-block shadow-md">
-                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-gray-800 italic">{grade.label}</span>
+                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-1 italic">Composite Standing</p>
+                            <h3 className="text-6xl font-black leading-none italic drop-shadow-md transition-all mb-4" style={{ color: grade.color }}>{grade.g}</h3>
+                            <div className="px-5 py-1.5 bg-white border border-indigo-50 rounded-xl inline-block shadow-lg">
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-800 italic">{grade.label}</span>
                             </div>
-                            <p className="text-base font-black text-gray-200 mt-1 tabular-nums tracking-tighter italic opacity-40">{overall}% ACCURACY</p>
+                            <p className="text-lg font-black text-gray-200 mt-3 tabular-nums tracking-tighter italic opacity-40">{overall}% ACCURACY</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* MODULES & EVALUATION */}
-            <div className="grid grid-cols-12 gap-4 mb-4 relative z-10">
-                <div className="col-span-4 space-y-2">
-                    <div className="bg-gradient-to-br from-indigo-50 to-white border-l-4 border-indigo-500 p-4 rounded-xl shadow-sm">
-                        <p className="text-[7.5px] font-black text-indigo-400 uppercase tracking-widest mb-1 flex items-center gap-2">
-                            <CheckBadgeIcon className="w-2.5 h-2.5" /> Active Operative
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-4 relative z-10">
+                <div className="col-span-12 sm:col-span-4 space-y-4">
+                    <div className="bg-gradient-to-br from-indigo-50 to-white border-l-4 border-indigo-500 p-5 rounded-2xl shadow-sm">
+                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                            <CheckBadgeIcon className="w-3 h-3" /> Active Operative
                         </p>
-                        <p className="text-[12px] font-black text-gray-900/80 leading-tight uppercase tracking-tight italic truncate">{report.current_module || 'Synthetic Core'}</p>
+                        <p className="text-[14px] font-black text-gray-900/80 leading-tight uppercase tracking-tight italic truncate">{report.current_module || 'Synthetic Core'}</p>
                     </div>
-                    <div className="bg-gradient-to-br from-cyan-50 to-white border-l-4 border-cyan-500 p-4 rounded-xl shadow-sm">
-                        <p className="text-[7.5px] font-black text-cyan-400 uppercase tracking-widest mb-1 flex items-center gap-2">
-                            <BoltIcon className="w-2.5 h-2.5" /> Sequence Target
+                    <div className="bg-gradient-to-br from-cyan-50 to-white border-l-4 border-cyan-500 p-5 rounded-2xl shadow-sm">
+                        <p className="text-[9px] font-black text-cyan-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                            <BoltIcon className="w-3 h-3" /> Sequence Target
                         </p>
-                        <p className="text-[12px] font-black text-gray-900/80 leading-tight uppercase tracking-tight italic truncate">{report.next_module || 'Advanced Node'}</p>
+                        <p className="text-[14px] font-black text-gray-900/80 leading-tight uppercase tracking-tight italic truncate">{report.next_module || 'Advanced Node'}</p>
                     </div>
                 </div>
 
-                <div className="col-span-8 grid grid-cols-2 gap-3">
-                    <div className="bg-white border border-emerald-500/10 p-5 rounded-2xl relative shadow-sm hover:border-emerald-500/30 transition-colors">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2 italic">
-                                <SparklesIcon className="w-3.5 h-3.5" /> Precision Strengths
+                <div className="col-span-12 sm:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-white border border-emerald-500/10 p-4 rounded-[1.5rem] relative shadow-sm hover:border-emerald-500/30 transition-colors">
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2 italic">
+                                <SparklesIcon className="w-4 h-4" /> Precision Strengths
                             </p>
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                         </div>
-                        <p className="text-[12px] leading-[1.5] text-gray-700 font-medium line-clamp-3 italic">
+                        <p className="text-[13px] leading-relaxed text-gray-700 font-medium italic">
                             {report.key_strengths || 'Cognitive patterns indicate high analytical precision and rapid assimilation of core technical logic.'}
                         </p>
                     </div>
-                    <div className="bg-white border border-rose-500/10 p-5 rounded-2xl relative shadow-sm hover:border-rose-500/30 transition-colors">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-[8px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-2 italic">
-                                <BoltIcon className="w-3.5 h-3.5" /> Growth Vectors
+                    <div className="bg-white border border-rose-500/10 p-4 rounded-[1.5rem] relative shadow-sm hover:border-rose-500/30 transition-colors">
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-2 italic">
+                                <BoltIcon className="w-4 h-4" /> Growth Vectors
                             </p>
-                            <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                            <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                         </div>
-                        <p className="text-[12px] leading-[1.5] text-gray-700 font-medium line-clamp-3 italic">
+                        <p className="text-[13px] leading-relaxed text-gray-700 font-medium italic">
                             {report.areas_for_growth || 'Transition to complex architectural modeling is required to optimize large-scale deployment competence.'}
                         </p>
                     </div>
@@ -301,16 +298,15 @@ export default function ModernReportCard({ report, orgSettings }: {
             </div>
 
             {/* VALIDATION DECREE */}
-            {(overall >= 45 || report.has_certificate) && (
-                <div className="relative z-10 mb-4 bg-gradient-to-br from-indigo-700 to-indigo-900 rounded-3xl px-8 py-6 flex items-center gap-6 overflow-hidden shadow-2xl border border-border">
+            {(overall >= 0 || report.has_certificate) && (
+                <div className="relative z-10 mb-3 bg-gradient-to-br from-indigo-50 to-indigo-100 sm:from-indigo-700 sm:to-indigo-900 rounded-2xl px-5 py-3 sm:px-6 sm:py-4 flex items-center gap-3 sm:gap-4 overflow-hidden shadow-lg border border-indigo-200 sm:border-indigo-500/30 print:bg-white print:border-indigo-200">
                     <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 blur-[100px] -mr-40 -mt-40 pointer-events-none" />
-                    <div className="absolute left-0 bottom-0 w-80 h-80 bg-cyan-400/10 blur-[100px] -ml-40 -mb-40 pointer-events-none" />
-                    <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center border border-border shadow-inner shrink-0 scale-110">
-                        <TrophyIcon className="w-7 h-7 text-white/50" />
+                    <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white/20 sm:bg-white/10 rounded-2xl flex items-center justify-center border border-indigo-200 sm:border-white/10 shadow-inner shrink-0 scale-90 sm:scale-110 print:bg-white print:border-indigo-100">
+                        <TrophyIcon className="w-5 h-5 sm:w-7 sm:h-7 text-indigo-600 sm:text-white/50 print:text-indigo-500" />
                     </div>
-                    <div className="relative z-10 flex-1 min-w-0 py-1">
-                        <h4 className="text-[10px] font-black text-indigo-200/50 uppercase tracking-[0.6em] mb-2 italic">Official Certification Decree</h4>
-                        <p className="text-sm font-extrabold text-white leading-relaxed italic">
+                    <div className="relative z-10 flex-1 min-w-0 py-0.5 sm:py-1">
+                        <h4 className="text-[8px] sm:text-[10px] font-black text-indigo-500 sm:text-indigo-200/50 uppercase tracking-[0.4em] sm:tracking-[0.6em] mb-1 sm:mb-2 italic print:text-indigo-400">Official Certification Decree</h4>
+                        <p className="text-[11px] sm:text-sm font-extrabold text-indigo-900 sm:text-white leading-tight sm:leading-relaxed italic print:text-indigo-900">
                             {report.certificate_text || `This document officially recognizes that ${report.student_name} has successfully completed the intensive study programme in ${report.course_name}.`}
                         </p>
                     </div>
@@ -318,54 +314,54 @@ export default function ModernReportCard({ report, orgSettings }: {
             )}
 
             {/* SIGNATURE & AUTHENTICATION */}
-            <div className="mt-auto relative z-10 bg-gray-50/50 border border-gray-100 rounded-[2rem] p-4">
-                <div className="flex items-end justify-between px-4">
+            <div className="mt-auto relative z-10 bg-gray-50/50 border border-gray-100 rounded-[1.5rem] p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-10">
                     <div className="flex flex-col gap-6">
                         <div className="space-y-4">
-                            <p className="text-[10px] font-black text-indigo-500/40 uppercase tracking-[0.4em] italic mb-4">Board Verification Matrix</p>
-                            <div className="flex items-center gap-8">
-                                <div className="text-center">
+                            <p className="text-[11px] font-black text-indigo-500/40 uppercase tracking-[0.4em] italic mb-6">Board Verification Matrix</p>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-10">
+                                <div className="text-center sm:text-left">
                                     <img
                                         src="/images/signature.png"
                                         alt="Sign"
-                                        className="h-10 w-auto object-contain brightness-0 opacity-80 mb-1.5 mx-auto filter drop-shadow-lg"
+                                        className="h-12 w-auto object-contain brightness-0 opacity-80 mb-3 mx-auto sm:mx-0 filter drop-shadow-xl"
                                     />
-                                    <div className="w-32 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent mb-1.5" />
-                                    <p className="text-[11px] font-black text-gray-900 uppercase tracking-widest italic leading-none">{report.instructor_name || 'Rillcod Executive'}</p>
-                                    <p className="text-[8px] font-black text-indigo-500/30 uppercase tracking-[0.3em] mt-1">Lead Operative Directive</p>
+                                    <div className="w-40 h-px bg-gradient-to-r from-gray-300 via-gray-300 to-transparent mb-2" />
+                                    <p className="text-sm font-black text-gray-900 uppercase tracking-widest italic leading-none">{report.instructor_name || 'Rillcod Executive'}</p>
+                                    <p className="text-[9px] font-black text-indigo-500/30 uppercase tracking-[0.3em] mt-1.5">Lead Operative Directive</p>
                                 </div>
-                                <div className="w-px h-20 bg-gray-200" />
+                                <div className="hidden sm:block w-px h-20 bg-gray-200" />
                                 {report.show_payment_notice && (
-                                    <div className="flex flex-col gap-1.5 items-start justify-center pr-10 border-l border-gray-100 pl-10">
-                                        <p className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.4em] leading-none mb-2">Cycle Ledger</p>
-                                        <p className="text-2xl font-black text-gray-900 tabular-nums italic leading-none">₦20,000</p>
-                                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mt-1">RILLCOD LTD · TRUSTED</p>
-                                        <p className="text-[9px] font-black text-indigo-500/40 tracking-widest leading-none mt-1 uppercase italic">Providus Bank · 7901178957</p>
+                                    <div className="flex flex-col gap-2 items-center sm:items-start justify-center pr-0 sm:pr-10">
+                                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.4em] leading-none mb-2">Cycle Ledger</p>
+                                        <p className="text-3xl font-black text-gray-900 tabular-nums italic leading-none">₦{report.fee_amount || '20,000'}</p>
+                                        <p className="text-[12px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mt-1">RILLCOD LTD · TRUSTED</p>
+                                        <p className="text-[10px] font-black text-indigo-500/40 tracking-widest leading-none mt-1 uppercase italic">Providus Bank · 7901178957</p>
                                     </div>
                                 )}
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="p-6 bg-white rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.08)] border border-gray-50 group hover:rotate-3 transition-transform duration-500">
-                            <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) || 'preview'}`} size={90} fgColor="#1e1b4b" />
+                    <div className="flex flex-col items-center gap-6">
+                        <div className="p-6 bg-white rounded-[2.5rem] shadow-[0_25px_50px_rgba(0,0,0,0.1)] border border-gray-50 group hover:rotate-3 transition-transform duration-500 scale-110">
+                            <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) || 'preview'}`} size={100} fgColor="#1e1b4b" />
                         </div>
                         <div className="flex flex-col items-center">
-                            <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-[0.5em] italic leading-none">Secure Link</p>
-                            <div className="w-8 h-px bg-indigo-500/20 mt-2" />
+                            <p className="text-[11px] font-black text-indigo-500/60 uppercase tracking-[0.5em] italic leading-none">Secure Link</p>
+                            <div className="w-10 h-px bg-indigo-500/20 mt-3" />
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between text-[9px] font-black text-gray-300 uppercase tracking-[0.5em] pb-2 border-t border-gray-100 pt-4">
+                <div className="mt-6 flex flex-col md:flex-row md:items-center justify-between gap-4 text-[9px] font-black text-gray-300 uppercase tracking-[0.5em] pb-1 border-t border-gray-100 pt-4">
                     <span className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500/30" />
-                        Nucleus Engine v2.5 Deployment Ready
+                        <div className="w-2 h-2 rounded-full bg-indigo-500/30" />
+                        Nucleus Engine v2.5 Deployment
                     </span>
-                    <div className="flex gap-6">
-                        <span>Binary Hash: {report.id?.slice(-12).toUpperCase() || 'DATA_PREVIEW_NULL'}</span>
-                        <span className="text-indigo-400/40">rillcod.com/verify</span>
+                    <div className="flex flex-col md:flex-row gap-4 md:gap-8">
+                        <span className="truncate max-w-[200px]">Hash: {report.id?.slice(-12).toUpperCase() || 'DATA_NULL'}</span>
+                        <span className="text-indigo-400/40">verify.rillcod.com</span>
                     </div>
                 </div>
             </div>

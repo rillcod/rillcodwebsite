@@ -238,14 +238,14 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true">
                 <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" />
                 <div className="relative w-full max-w-md bg-[#1a1a1a] border-l-8 border-l-emerald-500 border border-border rounded-none shadow-latest p-0 overflow-hidden">
-                    <div className="p-8 border-b border-border flex items-center justify-between">
+                    <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center rotate-3">
+                            <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
                                 <CheckIcon className="w-6 h-6 text-emerald-500" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-black text-white uppercase tracking-tight italic">Uplink Success</h2>
-                                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest leading-none mt-1">Authorized Credentials Created</p>
+                                <h2 className="text-xl font-black text-white uppercase tracking-tight italic">Registry Sync</h2>
+                                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] leading-none mt-1.5">Scholar Uplink Finalized</p>
                             </div>
                         </div>
                     </div>
@@ -302,21 +302,23 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
     }
 
     const content = (
-        <div className={`relative w-full border border-border rounded-none shadow-2xl overflow-hidden flex flex-col border-t-8 border-t-cyan-500 ${inline ? 'bg-[#0d1526]' : 'max-w-lg bg-[#1a1a1a] max-h-[90vh]'}`}>
+        <div className={`relative w-full border border-white/10 rounded-none shadow-2xl overflow-hidden flex flex-col border-t-8 border-t-orange-600 ${inline ? 'bg-[#0a0a0a]' : 'max-w-lg bg-[#0a0a0a] max-h-[90vh]'}`}>
 
             {/* Header */}
-            <div className="flex items-center justify-between p-10 border-b border-border flex-shrink-0 relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-[60px] pointer-events-none"></div>
+            <div className="flex items-center justify-between p-8 sm:p-10 border-b border-white/5 flex-shrink-0 relative bg-[#0a0a0a]">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-orange-600/5 blur-[80px] pointer-events-none" />
                 <div>
-                    <div className="flex items-center gap-3 mb-1">
-                        <UserIcon className="w-4 h-4 text-cyan-500" />
-                        <span className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.3em]">Sector: Students</span>
+                    <div className="flex items-center gap-3 mb-3">
+                        <UserIcon className="w-4 h-4 text-orange-500" />
+                        <span className="text-[9px] font-black text-orange-500/70 uppercase tracking-[0.4em]">Sector: Students</span>
                     </div>
-                    <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">{initialData ? 'Update Record' : 'Initialize Enrollment'}</h2>
+                    <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none italic">
+                      {initialData ? 'Update Record' : 'Registry Entry'}
+                    </h2>
                 </div>
                 {!inline && (
                     <button onClick={onClose}
-                        className="p-3 rounded-none bg-white/5 border border-border hover:border-cyan-500/30 text-white/40 hover:text-white transition-all">
+                        className="w-12 h-12 flex items-center justify-center bg-white/5 border border-white/10 hover:border-orange-500/50 text-white/40 hover:text-white transition-all">
                         <XMarkIcon className="w-6 h-6" />
                     </button>
                 )}
@@ -324,12 +326,12 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
 
             {/* Scrollable form */}
             <form onSubmit={handleSubmit} className={inline ? 'flex-1' : 'overflow-y-auto flex-1 custom-scrollbar'}>
-                    <div className="p-10 space-y-10">
+                    <div className="p-6 sm:p-8 space-y-6 sm:space-y-8">
 
                         {error && (
-                            <div className="flex items-start gap-4 bg-rose-500/5 border border-rose-500/20 rounded-none px-6 py-4 border-l-4 border-l-rose-500">
-                                <ExclamationTriangleIcon className="w-5 h-5 text-rose-500 flex-shrink-0" />
-                                <p className="text-[10px] font-black uppercase tracking-widest text-rose-500 leading-relaxed">{error}</p>
+                            <div className="flex items-start gap-5 bg-rose-500/5 border border-rose-500/20 rounded-none px-8 py-5 border-l-4 border-l-rose-600">
+                                <ExclamationTriangleIcon className="w-6 h-6 text-rose-500 flex-shrink-0" />
+                                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-rose-500 leading-relaxed">{error}</p>
                             </div>
                         )}
 
@@ -359,23 +361,27 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                         {/* School */}
                         <Field label="Entity: Partner Institution" required>
                             <div className="relative group">
-                                <BuildingOfficeIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-cyan-500 transition-colors z-10" />
+                                <BuildingOfficeIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-cyan-400 transition-colors z-10" />
                                 {profile?.role === 'school' ? (
-                                    <div className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-border rounded-none text-sm text-white font-bold flex items-center gap-3 italic">
+                                    <div className="w-full pl-14 pr-6 py-5 bg-black/40 border border-border rounded-none text-sm text-white font-bold flex items-center gap-3 italic">
                                         <span className="flex-1 truncate">{form.school_name || 'Active Institution'}</span>
-                                        <span className="text-[9px] text-cyan-500 font-black uppercase bg-cyan-500/10 px-3 py-1 rounded-none border border-cyan-500/20">Locked Protocol</span>
+                                        <span className="text-[9px] text-cyan-500 font-black uppercase bg-cyan-500/10 px-3 py-1 rounded-none border border-cyan-500/40">Locked Protocol</span>
                                     </div>
-                                ) : schools.length > 0 ? (
-                                    <select name="school_name" value={form.school_name} onChange={handleChange} required
-                                        className="w-full pl-14 pr-10 py-5 bg-[#121212] border border-border rounded-none text-sm text-white font-bold focus:outline-none focus:border-cyan-500 transition-all appearance-none cursor-pointer">
-                                        <option value="" className="bg-[#1a1a1a]">SELECT VERIFIED NODE…</option>
-                                        {schools.map(s => <option key={s.id} value={s.name} className="bg-[#1a1a1a] uppercase">{s.name}</option>)}
-                                        <option value="__other__" className="bg-[#1a1a1a]">OTHER SECTOR</option>
-                                    </select>
                                 ) : (
-                                    <input name="school_name" type="text" placeholder="Institution Name" value={form.school_name}
-                                        onChange={handleChange} required
-                                        className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-border rounded-none text-sm text-white font-bold focus:outline-none focus:border-cyan-500 transition-all placeholder:text-slate-900" />
+                                    <div className="relative">
+                                        {schools.length > 0 ? (
+                                            <select name="school_name" value={form.school_name} onChange={handleChange} required
+                                                className="w-full pl-14 pr-10 py-5 bg-black/40 border border-border rounded-none text-sm text-white font-bold focus:outline-none focus:border-cyan-500/50 transition-all appearance-none cursor-pointer">
+                                                <option value="" className="bg-[#1a1a1a]">SELECT VERIFIED NODE…</option>
+                                                {schools.map(s => <option key={s.id} value={s.name} className="bg-[#1a1a1a] uppercase">{s.name}</option>)}
+                                                <option value="__other__" className="bg-[#1a1a1a]">OTHER SECTOR</option>
+                                            </select>
+                                        ) : (
+                                            <input name="school_name" type="text" placeholder="Institution Name" value={form.school_name}
+                                                onChange={handleChange} required
+                                                className="w-full pl-14 pr-6 py-5 bg-black/40 border border-border rounded-none text-sm text-white font-bold focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-slate-600 shadow-inner shadow-black/20" />
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         </Field>
@@ -384,9 +390,9 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                             <Field label="Academic Tier">
                                 <div className="relative group">
-                                    <BookOpenIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-cyan-500 transition-colors z-10" />
+                                    <BookOpenIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-cyan-400 transition-colors z-10" />
                                     <select name="grade_level" value={form.grade_level} onChange={handleChange}
-                                        className="w-full pl-14 pr-10 py-5 bg-[#121212] border border-border rounded-none text-sm text-white font-bold focus:outline-none focus:border-cyan-500 transition-all appearance-none cursor-pointer">
+                                        className="w-full pl-14 pr-10 py-5 bg-black/40 border border-border rounded-none text-sm text-white font-bold focus:outline-none focus:border-cyan-500/50 transition-all appearance-none cursor-pointer">
                                         <option value="" className="bg-[#1a1a1a]">SELECT TIER…</option>
                                         {GRADE_LEVELS.map(g => <option key={g} value={g} className="bg-[#1a1a1a] uppercase">{g}</option>)}
                                     </select>
@@ -402,28 +408,28 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                             <Field label="City Node">
                                 <input name="city" type="text" placeholder="City" value={form.city} onChange={handleChange}
-                                    className="w-full px-6 py-5 bg-[#121212] border border-border rounded-none text-sm text-white font-bold focus:outline-none focus:border-cyan-500 transition-all placeholder:text-slate-900 shadow-inner shadow-black/20" />
+                                    className="w-full px-6 py-5 bg-black/40 border border-border rounded-none text-sm text-white font-bold focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-slate-600 shadow-inner shadow-black/20" />
                             </Field>
                             <Field label="State Sector">
                                 <input name="state" type="text" placeholder="State" value={form.state} onChange={handleChange}
-                                    className="w-full px-6 py-5 bg-[#121212] border border-border rounded-none text-sm text-white font-bold focus:outline-none focus:border-cyan-500 transition-all placeholder:text-slate-900 shadow-inner shadow-black/20" />
+                                    className="w-full px-6 py-5 bg-black/40 border border-border rounded-none text-sm text-white font-bold focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-slate-600 shadow-inner shadow-black/20" />
                             </Field>
                         </div>
                     </div>
 
                     {/* Footer actions */}
-                    <div className="flex gap-px p-10 pt-4 border-t border-border flex-shrink-0">
+                    <div className="flex gap-0 p-0 border-t border-white/5 flex-shrink-0 bg-[#0a0a0a]">
                         {!inline && (
                             <button type="button" onClick={onClose}
-                                className="flex-1 py-6 bg-white/5 hover:bg-white/10 text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-[0.4em] transition-all border border-border">
+                                className="flex-1 py-8 bg-white/5 hover:bg-white/10 text-white/20 hover:text-white text-[10px] font-black uppercase tracking-[0.5em] transition-all border-r border-white/5">
                                 ABORT
                             </button>
                         )}
                         <button type="submit" disabled={loading}
-                            className="flex-[2] flex items-center justify-center gap-4 py-6 bg-cyan-600 text-white text-[10px] font-black uppercase tracking-[0.4em] transition-all disabled:opacity-50 shadow-xl shadow-cyan-600/20 hover:bg-cyan-500">
+                            className="flex-[2] flex items-center justify-center gap-4 py-8 bg-orange-600 text-white text-[11px] font-black uppercase tracking-[0.3em] transition-all disabled:opacity-50 shadow-[0_20px_60px_rgba(234,88,12,0.3)] hover:bg-orange-500 active:scale-[0.98]">
                             {loading
-                                ? <><ArrowPathIcon className="w-5 h-5 animate-spin" /> EXECUTING…</>
-                                : <><CheckIcon className="w-5 h-5" /> {initialData ? 'COMMIT UPDATE' : 'INITIALIZE RECORD'}</>}
+                                ? <><ArrowPathIcon className="w-5 h-5 animate-spin" /> SYNCHRONIZING…</>
+                                : <><CheckIcon className="w-5 h-5" /> {initialData ? 'COMMIT UPDATE' : 'UPLINK SCHOLAR'}</>}
                         </button>
                     </div>
                 </form>
@@ -443,9 +449,10 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
 /* ── Sub-components ─────────────────────────────────────── */
 function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
     return (
-        <div className="space-y-3">
-            <label className="block text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1 italic leading-none">
-                {label}{required && <span className="text-cyan-500 ml-1.5">*</span>}
+        <div className="space-y-4">
+            <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] ml-1 flex items-center gap-2">
+                <span className="w-1 h-1 bg-orange-500" />
+                {label}{required && <span className="text-orange-500 ml-1">*</span>}
             </label>
             {children}
         </div>
@@ -458,10 +465,10 @@ function IconInput({ icon: Icon, name, type, placeholder, value, onChange, requi
 }) {
     return (
         <div className="relative group">
-            <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 group-focus-within:text-cyan-500 transition-colors z-10" />
+            <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-600 group-focus-within:text-orange-500 transition-colors z-10" />
             <input name={name} type={type} placeholder={placeholder} value={value}
                 onChange={onChange} required={required}
-                className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-border rounded-none text-sm text-white font-bold focus:outline-none focus:border-cyan-500 transition-all placeholder:text-slate-900 shadow-inner shadow-black/20" />
+                className="w-full pl-16 pr-8 py-5 bg-white/5 border border-white/10 rounded-none text-sm text-white font-bold focus:outline-none focus:border-orange-500/50 focus:bg-white/[0.08] transition-all placeholder:text-gray-700" />
         </div>
     );
 }

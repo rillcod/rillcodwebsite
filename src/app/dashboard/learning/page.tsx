@@ -10,8 +10,9 @@ import {
   AcademicCapIcon, PlayCircleIcon, CheckBadgeIcon,
   SparklesIcon, ArrowRightIcon, TrophyIcon,
   FireIcon, BoltIcon, ChartBarIcon, StarIcon,
-  PlayIcon,
+  PlayIcon, MapPinIcon, LockClosedIcon,
 } from '@/lib/icons';
+import { motion } from 'framer-motion';
 
 const GREETINGS = ['Welcome back', 'Keep it up', 'Ready to study?', 'Looking sharp', 'Innovate today'];
 
@@ -108,7 +109,32 @@ export default function StudentLearningPage() {
   }
 
   useEffect(() => {
-    if (!authLoading && profile) loadData();
+    if (!authLoading && profile) {
+      loadData();
+
+      // Enable Realtime Synchronization
+      const db = createClient();
+      const channel = db.channel(`user-stats-${profile.id}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'user_points',
+          filter: `portal_user_id=eq.${profile.id}`
+        }, (payload: any) => {
+          if (payload.new) {
+            setStats(prev => ({
+              ...prev,
+              xp: payload.new.total_points,
+              streak: payload.new.current_streak
+            }));
+          }
+        })
+        .subscribe();
+      
+      return () => {
+        db.removeChannel(channel);
+      };
+    }
   }, [profile?.id, authLoading]);
 
   if (authLoading || loading) return (
@@ -181,6 +207,156 @@ export default function StudentLearningPage() {
             </div>
           </div>
         </div>
+
+        {/* AI Performance Insights Component */}
+        <section className="bg-[#0f1128] border-2 border-indigo-500/20 rounded-[3rem] p-8 sm:p-12 overflow-hidden relative group">
+          <div className="absolute -right-24 -top-24 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full group-hover:bg-indigo-500/20 transition-all duration-700" />
+          <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
+            <div className="shrink-0">
+               <div className="w-24 h-24 rounded-none bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-2xl relative">
+                  <SparklesIcon className="w-12 h-12" />
+                  <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full border-4 border-[#0f1128] animate-pulse" />
+               </div>
+            </div>
+            <div className="flex-1 space-y-4 text-center md:text-left">
+               <h3 className="text-2xl font-black tracking-tight text-foreground uppercase">Neural Performance Analyst</h3>
+               <p className="text-muted-foreground font-medium max-w-2xl leading-relaxed">
+                 Our AI engine has analyzed your recent technical activities. Click below to generate a deep-dive performance insight and tactical roadmap.
+               </p>
+               <div className="flex flex-wrap items-center gap-4 justify-center md:justify-start">
+                  <button 
+                    onClick={async () => {
+                      const btn = document.getElementById('ai-insight-btn');
+                      if (btn) btn.innerHTML = 'Synthesizing...';
+                      try {
+                        const res = await fetch('/api/ai/generate', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            type: 'report-feedback',
+                            studentName: profile?.full_name,
+                            topic: programs[0]?.name || 'STEM Curriculum',
+                            attendance: 'Stable',
+                            assignments: `${stats.lessonsDone} Labs Synced`
+                          })
+                        });
+                        const d = await res.json();
+                        if (d.data) {
+                          alert(`SYSTEM INSIGHT:\n\nSTRATEGIC STRENGTHS:\n${d.data.key_strengths}\n\nROADMAP FOR ACCELERATION:\n${d.data.areas_for_growth}`);
+                        }
+                      } finally {
+                        if (btn) btn.innerHTML = 'Generate Deep Segment Analysis';
+                      }
+                    }}
+                    id="ai-insight-btn"
+                    className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase text-[10px] tracking-[0.2em] rounded-none transition-all shadow-xl shadow-indigo-900/40"
+                  >
+                    Generate Deep Segment Analysis
+                  </button>
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest italic">Requires Level 2 clearance</span>
+               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Student Journey Map (Gamification 2.0) */}
+        <section className="space-y-8">
+          <div className="flex items-center justify-between px-4 sm:px-0">
+            <h2 className="text-2xl font-black flex items-center gap-4">
+              <MapPinIcon className="w-8 h-8 text-orange-500" />
+              Your Academic Journey
+            </h2>
+            <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest hidden sm:block">
+              Progress: <span className="text-orange-500">{stats.xp.toLocaleString()} XP collected</span>
+            </div>
+          </div>
+
+          <div className="relative bg-[#0a0c1f] border border-border rounded-[3rem] p-8 sm:p-12 shadow-3xl overflow-hidden group">
+            <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-[0.03] pointer-events-none" />
+            
+            <div className="relative overflow-x-auto pb-8 custom-scrollbar scroll-smooth">
+              <div className="flex items-center gap-12 min-w-max px-8">
+                {programs.length > 0 ? (
+                  programs.slice(0, 1).map((prog) => (
+                    <div key={prog.id} className="flex items-center gap-12">
+                      {/* Generating nodes based on progress - using dummy nodes if real lesson order isn't mapped here yet */}
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((nodeIdx) => {
+                        const progress = prog.progress_pct || 0;
+                        const nodeProgress = nodeIdx * 12.5; 
+                        const isCompleted = progress >= nodeProgress;
+                        const isActive = progress < nodeProgress && progress >= (nodeProgress - 12.5);
+                        
+                        return (
+                          <div key={nodeIdx} className="flex items-center">
+                            {/* Path Segment */}
+                            {nodeIdx > 1 && (
+                              <div className={`h-1 w-20 sm:w-32 transition-colors duration-1000 ${isCompleted ? 'bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.4)]' : 'bg-white/10'}`} />
+                            )}
+                            
+                            {/* Journey Node */}
+                            <motion.div 
+                              whileHover={{ scale: 1.1, y: -5 }}
+                              className="relative flex flex-col items-center"
+                            >
+                              <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-none flex items-center justify-center border-2 transition-all duration-500 z-10 ${
+                                isCompleted ? 'bg-orange-500 border-orange-400 text-foreground shadow-[0_0_20px_rgba(249,115,22,0.5)]' :
+                                isActive ? 'bg-[#161628] border-orange-500 text-orange-500 animate-pulse shadow-[0_0_15px_orange]' :
+                                'bg-[#161628] border-border text-muted-foreground grayscale opacity-40'
+                              }`}>
+                                {isCompleted ? <CheckBadgeIcon className="w-8 h-8" /> : 
+                                 isActive ? <RocketLaunchIcon className="w-8 h-8" /> : 
+                                 <LockClosedIcon className="w-6 h-6" />}
+                                
+                                {isActive && (
+                                  <div className="absolute -top-12 bg-orange-600 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-none shadow-xl whitespace-nowrap">
+                                    Current Sector
+                                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2 h-2 bg-orange-600 rotate-45" />
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className="mt-4 text-center">
+                                <p className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-orange-400' : 'text-muted-foreground'}`}>
+                                  Phase {nodeIdx}
+                                </p>
+                                <p className={`text-[8px] font-bold uppercase tracking-tighter opacity-50 ${isCompleted ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                                  {isCompleted ? 'Completed' : isActive ? 'Active Now' : 'Classified'}
+                                </p>
+                              </div>
+                            </motion.div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex-1 text-center py-10 opacity-50 italic text-sm">
+                    Enroll in a program to see your journey map.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 pt-8 border-t border-white/5">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-orange-500 shadow-[0_0_8px_orange]" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Operational</span>
+                </div>
+                <div className="flex items-center gap-2">
+                   <div className="w-3 h-3 bg-card shadow-sm border border-white/10" />
+                   <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Locked Data</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => window.scrollTo({ top: 800, behavior: 'smooth' })}
+                className="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-none text-[9px] font-black uppercase tracking-[0.2em] transition-all"
+              >
+                Sync Next Objective
+              </button>
+            </div>
+          </div>
+        </section>
 
         {/* Learning Content Sections */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">

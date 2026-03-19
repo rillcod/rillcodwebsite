@@ -15,8 +15,9 @@ import {
   ArrowRightOnRectangleIcon, Bars3Icon, XMarkIcon, SignalIcon,
   TrophyIcon, ShieldCheckIcon, CodeBracketIcon, RocketLaunchIcon,
   CalendarDaysIcon, BanknotesIcon, VideoCameraIcon, UserPlusIcon,
-  TrashIcon,
+  TrashIcon, SunIcon, MoonIcon
 } from '@/lib/icons';
+import ThemeToggle from '@/components/ThemeToggle';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type NavItem = { name: string; href: string; icon: any };
@@ -120,7 +121,6 @@ export default function DashboardNavigation() {
           { divider: true, label: 'System' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
           { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
-          { name: 'IoT Monitor', href: '/dashboard/iot', icon: SignalIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ];
 
@@ -224,10 +224,10 @@ export default function DashboardNavigation() {
       {/* ── Mobile Top Header ── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#121212] px-4 py-1.5 text-white border-b border-white/5 shadow-2xl">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-white/5 border border-white/10 flex items-center justify-center rounded-none ring-1 ring-white/20 ring-offset-1 ring-offset-[#121212]">
-            <Image src="/images/logo.png" alt="Rillcod" width={20} height={20} className="object-contain" priority />
+          <div className="w-7 h-7 bg-white/5 border border-white/10 flex items-center justify-center rounded-none ring-1 ring-white/20 ring-offset-1 ring-offset-[#121212]">
+            <Image src="/images/logo.png" alt="Rillcod" width={16} height={16} className="object-contain" priority />
           </div>
-          <span className="font-black uppercase tracking-widest text-sm italic">Rillcod <span className="text-orange-500">Tech</span></span>
+          <span className="font-black uppercase tracking-widest text-[11px] italic">Rillcod <span className="text-orange-500">Tech</span></span>
         </Link>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
@@ -238,12 +238,20 @@ export default function DashboardNavigation() {
               </span>
             </Link>
           )}
+          <ThemeToggle />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             className="p-1.5 text-white hover:text-[#FF914D] transition-colors rounded-lg hover:bg-white/10"
           >
             {mobileOpen ? <XMarkIcon className="w-7 h-7" /> : <Bars3Icon className="w-7 h-7" />}
+          </button>
+          <button
+            onClick={handleLogout}
+            className="p-1.5 text-rose-500 hover:text-rose-400 transition-colors rounded-lg hover:bg-rose-500/10"
+            aria-label="Sign out"
+          >
+            <ArrowRightOnRectangleIcon className="w-6 h-6" />
           </button>
         </div>
       </div>
@@ -262,7 +270,7 @@ export default function DashboardNavigation() {
         className={`
           fixed top-[53px] left-0 bottom-16 z-40 md:bottom-0
           md:static md:top-auto md:bottom-auto md:z-auto
-          flex flex-col w-[280px] md:w-64
+          flex flex-col w-[240px] md:w-56
           bg-[#121212] text-gray-200
           border-r border-white/5 shadow-2xl
           transform transition-transform duration-300 ease-in-out
@@ -272,20 +280,20 @@ export default function DashboardNavigation() {
         aria-label="Dashboard navigation"
       >
         {/* Logo (desktop only) */}
-        <div className="hidden md:flex flex-col items-center justify-center py-8 border-b border-white/5">
-          <div className="w-16 h-16 bg-white/5 border border-white/10 flex items-center justify-center rounded-none ring-1 ring-white/20 ring-offset-2 ring-offset-[#121212] mb-4">
-            <Image src="/images/logo.png" alt="Rillcod Technologies" width={44} height={44} className="object-contain" priority />
+        <div className="hidden md:flex flex-col items-center justify-center py-6 border-b border-white/5">
+          <div className="w-12 h-12 bg-white/5 border border-white/10 flex items-center justify-center rounded-none ring-1 ring-white/20 ring-offset-2 ring-offset-[#121212] mb-3">
+            <Image src="/images/logo.png" alt="Rillcod Technologies" width={32} height={32} className="object-contain" priority />
           </div>
           <div className="text-center leading-none">
-            <h1 className="text-xl font-black uppercase tracking-widest text-white italic leading-tight">RILLCOD<span className="text-orange-500">.</span></h1>
-            <p className="text-xl font-black uppercase tracking-widest text-orange-500 italic leading-tight">TECHNOLOGIES</p>
+            <h1 className="text-lg font-black uppercase tracking-widest text-white italic leading-tight">RILLCOD<span className="text-orange-500">.</span></h1>
+            <p className="text-lg font-black uppercase tracking-widest text-orange-500 italic leading-tight">TECHNOLOGIES</p>
           </div>
         </div>
 
         {/* User badge */}
-        <div className="px-4 md:px-6 py-6 flex items-center gap-4 border-b border-white/5 bg-[#0a0a0a]">
-          <div className="w-12 h-12 bg-orange-500/10 border border-orange-500/20 rounded-none flex items-center justify-center flex-shrink-0 shadow-inner">
-            <span className="text-orange-500 text-lg font-black uppercase">
+        <div className="px-4 md:px-5 py-4 flex items-center gap-3 border-b border-white/5 bg-[#0a0a0a]">
+          <div className="w-10 h-10 bg-orange-500/10 border border-orange-500/20 rounded-none flex items-center justify-center flex-shrink-0 shadow-inner">
+            <span className="text-orange-500 text-base font-black uppercase">
               {profile.full_name?.charAt(0) ?? 'U'}
             </span>
           </div>
@@ -341,7 +349,11 @@ export default function DashboardNavigation() {
         </div>
 
         {/* Bottom actions — Sign Out only */}
-        <div className="p-4 border-t border-white/5 bg-[#0a0a0a]">
+        <div className="p-4 border-t border-white/5 bg-[#0a0a0a] flex flex-col gap-2">
+          <div className="flex items-center justify-between px-4 pb-2">
+            <span className="text-[9px] font-black uppercase text-white/25">Interface</span>
+            <ThemeToggle />
+          </div>
           <button
             onClick={handleLogout}
             className="flex items-center gap-4 w-full px-4 py-4 rounded-none text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/5 transition-all"

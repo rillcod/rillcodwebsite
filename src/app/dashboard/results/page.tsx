@@ -16,6 +16,7 @@ import { ChatWindow } from '@/components/chat/ChatWindow';
 
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
+import PrintableReport from '@/components/reports/PrintableReport';
 import { ScaledReportCard, generateReportPDF } from '@/lib/pdf-utils';
 import { Database } from '@/types/supabase';
 
@@ -157,7 +158,8 @@ function ResultsPageInner() {
     const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
     const [captureReport, setCaptureReport] = useState<StudentReport | null>(null);
 
-    const pdfRef = useRef<HTMLDivElement>(null);  // single-student capture
+    const pdfRef = useRef<HTMLDivElement>(null);  // single-student capture (legacy/standard)
+    const printableRef = useRef<HTMLDivElement>(null); // modern capture
     const captureRef = useRef<HTMLDivElement>(null);  // batch capture
     const captureQueue = useRef<StudentReport[]>([]);
     const captureIdx = useRef<number>(0);
@@ -380,6 +382,25 @@ function ResultsPageInner() {
           }
         : null;
 
+    const downloadSinglePDF = async () => {
+        if (!reportToDisplay) return;
+        setIsDownloadingPdf(true);
+        try {
+            const fileName = `${reportToDisplay.student_name || 'Student'}_Report_${reportToDisplay.report_term || ''}.pdf`.replace(/\s+/g, '_');
+            
+            // We capture the HIDDEN printable component instead of the responsive screen component
+            const captureArea = printableRef.current;
+            if (!captureArea) throw new Error("Printable area not found");
+            
+            await generateReportPDF(captureArea, fileName);
+        } catch (err) {
+            console.error('PDF Error:', err);
+            alert('Could not generate PDF. Please try again.');
+        } finally {
+            setIsDownloadingPdf(false);
+        }
+    };
+
     // ── Multi-select ───────────────────────────────────────────────────────────
     function toggleSelectAll() {
         if (selectedIds.size === filtered.length && filtered.length > 0) {
@@ -399,19 +420,19 @@ function ResultsPageInner() {
     }
 
     // ── Single PDF ─────────────────────────────────────────────────────────────
-    async function downloadSinglePDF() {
-        if (!pdfRef.current || !selectedReport) return;
-        setIsDownloadingPdf(true);
-        try {
-            const name = (selectedReport.student_name ?? 'Student').replace(/\s+/g, '_');
-            await generateReportPDF(pdfRef.current, `Report_${name}.pdf`);
-        } catch (err) {
-            console.error('PDF failed:', err);
-            alert('PDF failed. Try Print → Save as PDF instead.');
-        } finally {
-            setIsDownloadingPdf(false);
-        }
-    }
+    // async function downloadSinglePDF() {
+    //     if (!pdfRef.current || !selectedReport) return;
+    //     setIsDownloadingPdf(true);
+    //     try {
+    //         const name = (selectedReport.student_name ?? 'Student').replace(/\s+/g, '_');
+    //         await generateReportPDF(pdfRef.current, `Report_${name}.pdf`);
+    //     } catch (err) {
+    //         console.error('PDF failed:', err);
+    //         alert('PDF failed. Try Print → Save as PDF instead.');
+    //     } finally {
+    //         setIsDownloadingPdf(false);
+    //     }
+    // }
 
     // ── Batch PDF ──────────────────────────────────────────────────────────────
     async function startBatchDownload() {
@@ -1053,8 +1074,8 @@ tbody tr:hover{background:#f3f4f6}
                                             <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
                                         </div>
                                     ) : reportToDisplay ? (
-                                        <div className="overflow-auto bg-gray-100 p-4 sm:p-6 lg:p-8" style={{ maxHeight: '75vh' }}>
-                                            <ScaledReportCard report={reportToDisplay}>
+                                         <div className="overflow-auto bg-gray-100 p-2 sm:p-6 lg:p-8" style={{ maxHeight: '75vh' }}>
+                                            <ScaledReportCard report={reportToDisplay} responsive={template === 'modern'}>
                                                 {template === 'standard' ? (
                                                     <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
                                                 ) : (
@@ -1222,26 +1243,26 @@ tbody tr:hover{background:#f3f4f6}
             )}
 
             {/* ══ Off-screen div — single PDF capture ══ */}
-            <div style={{ position: 'fixed', left: -9999, top: 0, width: 794, pointerEvents: 'none', zIndex: -1 }}>
-                <div ref={pdfRef}>
+            <div style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none', zIndex: -100 }} aria-hidden="true">
+                <div ref={printableRef}>
                     {reportToDisplay && (
-                        template === 'standard' ? (
-                            <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
+                        template === 'modern' ? (
+                            <PrintableReport report={reportToDisplay} orgSettings={orgSettings} />
                         ) : (
-                            <ModernReportCard report={reportToDisplay} orgSettings={orgSettings} />
+                            <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
                         )
                     )}
                 </div>
             </div>
 
             {/* ══ Off-screen div — batch PDF capture (one at a time) ══ */}
-            <div style={{ position: 'fixed', left: -9999, top: 0, width: 794, pointerEvents: 'none', zIndex: -1 }}>
+            <div style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none', zIndex: -100 }} aria-hidden="true">
                 <div ref={captureRef}>
                     {captureReport && (
-                        template === 'standard' ? (
-                            <ReportCard report={captureReport} orgSettings={orgSettings} />
+                        template === 'modern' ? (
+                            <PrintableReport report={captureReport} orgSettings={orgSettings} />
                         ) : (
-                            <ModernReportCard report={captureReport} orgSettings={orgSettings} />
+                            <ReportCard report={captureReport} orgSettings={orgSettings} />
                         )
                     )}
                 </div>

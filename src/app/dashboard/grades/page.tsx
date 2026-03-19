@@ -14,6 +14,7 @@ import {
     ArrowsUpDownIcon, SparklesIcon,
     PaperClipIcon, TrashIcon
 } from '@/lib/icons';
+import { toast } from 'sonner';
 
 // ─── Grade helpers ────────────────────────────────────────────
 function pctInfo(grade: number, max: number) {
@@ -97,6 +98,42 @@ function GradeModal({ sub, onClose, onSaved }: {
     const [deleting, setDeleting] = useState(false);
     const [err, setErr] = useState('');
     const [showContent, setShowContent] = useState(false);
+    const [isAIThinking, setIsAIThinking] = useState(false);
+
+    const generateAIFeedback = async () => {
+        if (isAIThinking) return;
+        setIsAIThinking(true);
+        setErr('');
+        try {
+            const res = await fetch('/api/ai/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'report-feedback',
+                    studentName: sub.portal_users?.full_name,
+                    topic: sub.assignments?.title,
+                    gradeLevel: sub.assignments?.grade_level || 'the unit',
+                    subject: sub.assignments?.courses?.title || 'Coding',
+                    attendance: '100%', // Placeholder or from sub
+                    assignments: `${grade}/${max} score achieved`,
+                    currentContent: subText || 'Standard submission'
+                })
+            });
+            const d = await res.json();
+            if (res.ok && d.data) {
+                const combined = `${d.data.key_strengths}\n\n${d.data.areas_for_growth}`;
+                setFb(combined);
+                toast.success('AI Feedback Generated');
+            } else {
+                throw new Error(d.error || 'Failed to generate AI feedback');
+            }
+        } catch (e: any) {
+            setErr(e.message);
+            toast.error('AI Feedback Failed');
+        } finally {
+            setIsAIThinking(false);
+        }
+    };
 
     const info = grade !== '' && !isNaN(Number(grade)) ? pctInfo(Number(grade), max) : null;
 
@@ -288,13 +325,23 @@ function GradeModal({ sub, onClose, onSaved }: {
 
                         {/* Feedback */}
                         <div>
-                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                                Feedback <span className="text-muted-foreground font-normal normal-case">(shown to student)</span>
-                            </label>
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                    Feedback <span className="text-muted-foreground font-normal normal-case">(shown to student)</span>
+                                </label>
+                                <button
+                                    onClick={generateAIFeedback}
+                                    disabled={isAIThinking}
+                                    className="flex items-center gap-1.5 px-3 py-1 bg-orange-600/10 hover:bg-orange-600/20 border border-orange-500/20 rounded-none text-[10px] font-black uppercase tracking-widest text-orange-400 transition-all disabled:opacity-50"
+                                >
+                                    {isAIThinking ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
+                                    {isAIThinking ? 'Analyzing...' : 'AI Assistant'}
+                                </button>
+                            </div>
                             <textarea value={feedback} rows={3}
                                 onChange={e => setFb(e.target.value)}
                                 placeholder="Write specific, constructive feedback for the student…"
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors resize-none"
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors resize-none min-h-[100px]"
                             />
                         </div>
 

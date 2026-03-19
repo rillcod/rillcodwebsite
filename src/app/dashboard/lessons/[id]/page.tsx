@@ -17,6 +17,7 @@ import {
 } from '@/lib/icons';
 import Script from 'next/script';
 import { motion, AnimatePresence } from 'framer-motion';
+import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 import Editor from '@monaco-editor/react';
 
 const TYPE_COLOR: Record<string, string> = {
@@ -144,53 +145,13 @@ function MathRenderer({ formula }: { formula: string }) {
 }
 
 function MonacoEditorBlock({ code, language }: { code: string; language?: string }) {
-  const [value, setValue] = useState(code);
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
-    <div className="bg-[#050510] rounded-[2.5rem] sm:rounded-[4rem] border border-border overflow-hidden shadow-2xl relative group my-12">
-      <div className="flex items-center justify-between px-8 py-5 bg-background border-b border-border">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-rose-500/30" />
-          <div className="w-3 h-3 rounded-full bg-amber-500/30" />
-          <div className="w-3 h-3 rounded-full bg-emerald-500/30" />
-          <span className="ml-4 text-[10px] text-muted-foreground uppercase font-black tracking-widest">{language || 'Code Workspace'}</span>
-        </div>
-        <button onClick={handleCopy} className="p-2.5 rounded-none bg-card shadow-sm text-muted-foreground hover:text-cyan-400 hover:bg-cyan-400/10 transition-all active:scale-95">
-           {copied ? <CheckBadgeIcon className="w-4 h-4" /> : <ClipboardIcon className="w-4 h-4" />}
-        </button>
-      </div>
-      <div className="h-[300px] sm:h-[450px] relative">
-        <Editor
-          height="100%"
-          defaultLanguage={language?.toLowerCase() || 'javascript'}
-          defaultValue={code}
-          theme="vs-dark"
-          onChange={(v) => setValue(v || '')}
-          options={{
-            minimap: { enabled: false },
-            fontSize: 14,
-            lineNumbers: 'on',
-            roundedSelection: true,
-            scrollBeyondLastLine: false,
-            automaticLayout: true,
-            padding: { top: 20, bottom: 20 }
-          }}
-        />
-      </div>
-      <div className="px-8 py-4 bg-background/50 border-t border-border flex items-center justify-between">
-         <div className="flex items-center gap-2">
-           <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
-           <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest italic">Live Code Environment</span>
-         </div>
-      </div>
-    </div>
+    <IntegratedCodeRunner 
+      initialCode={code} 
+      language={language?.toLowerCase() as any || 'javascript'} 
+      title={`${language || 'Code'} Workspace`} 
+      height={450}
+    />
   );
 }
 
@@ -205,82 +166,82 @@ function InteractiveQuiz({ block }: { block: any }) {
   };
 
   return (
-    <div className="p-10 sm:p-24 rounded-[60px] sm:rounded-[80px] border-2 border-orange-500/20 bg-background space-y-12 sm:space-y-20 relative overflow-hidden group shadow-[0_40px_100px_rgba(139,92,246,0.1)] transition-all hover:border-orange-500/40 my-12">
-      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 sm:gap-12 relative z-10 text-center sm:text-left">
-        <div className="p-6 rounded-[2rem] bg-orange-500/10 text-orange-400 shadow-2xl ring-4 ring-orange-500/5">
-          <QuestionMarkCircleIcon className="w-10 h-10 sm:w-16 sm:h-16" />
+    <div className="p-5 rounded-xl border border-orange-500/20 bg-background space-y-5 relative overflow-hidden hover:border-orange-500/40 transition-all my-6 shadow-lg">
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-orange-500/10 text-orange-400 flex-shrink-0">
+          <QuestionMarkCircleIcon className="w-5 h-5" />
         </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-center sm:justify-start gap-3">
-            <span className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_10px_orange]" />
-            <p className="text-[11px] font-black text-orange-400/60 uppercase tracking-[0.4em]">Checkpoint Alpha</p>
-          </div>
-          <h3 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter text-foreground">Validation Sync</h3>
+        <div>
+          <p className="text-[9px] font-black text-orange-400/60 uppercase tracking-[0.4em]">Checkpoint Alpha</p>
+          <h3 className="text-xs font-black uppercase tracking-widest text-foreground">Validation Sync</h3>
         </div>
       </div>
-      <div className="space-y-12 sm:space-y-20 relative z-10">
-        <p className="text-3xl sm:text-6xl font-black text-foreground leading-[1.1] tracking-tighter text-center sm:text-left">{block.question}</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-10">
+
+      <div className="space-y-4">
+        <p className="text-sm font-semibold text-foreground leading-snug">{block.question}</p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {block.options?.map((opt: string, optIdx: number) => {
             const isCorrect = optIdx === block.correctAnswer;
             const isSelected = selected === optIdx;
-            
-            let stateClass = "border-border bg-white/[0.02]";
+            let stateClass = "border-border/60 bg-white/[0.02] hover:border-orange-500/40 hover:bg-orange-500/5";
             if (revealed) {
-              if (isCorrect) stateClass = "border-emerald-500/50 bg-emerald-500/10 text-emerald-400";
-              else if (isSelected) stateClass = "border-rose-500/50 bg-rose-500/10 text-rose-400";
-              else stateClass = "border-border bg-white/[0.01] opacity-40";
-            } else {
-              stateClass = "border-border bg-white/[0.02] hover:border-orange-500/40 hover:bg-orange-500/10";
+              if (isCorrect) stateClass = "border-emerald-500/50 bg-emerald-500/10";
+              else if (isSelected) stateClass = "border-rose-500/50 bg-rose-500/10";
+              else stateClass = "border-border/30 bg-transparent opacity-40";
             }
-
             return (
-              <motion.button 
-                key={optIdx} 
+              <motion.button
+                key={optIdx}
                 onClick={() => handleSelect(optIdx)}
-                whileHover={!revealed ? { scale: 1.02, y: -4 } : {}}
-                whileTap={!revealed ? { scale: 0.98 } : {}}
-                className={`p-8 sm:p-14 rounded-[3rem] sm:rounded-[4rem] border-2 transition-all text-left shadow-2xl relative overflow-hidden ${stateClass}`}
+                whileHover={!revealed ? { scale: 1.01 } : {}}
+                whileTap={!revealed ? { scale: 0.99 } : {}}
+                className={`p-3.5 rounded-lg border transition-all text-left ${stateClass}`}
               >
-                <div className="flex items-center gap-8 sm:gap-12 relative z-10">
-                  <div className={`w-12 h-12 sm:w-20 sm:h-20 rounded-[1.5rem] sm:rounded-[2rem] border flex items-center justify-center text-[14px] sm:text-[20px] font-black transition-colors ${revealed && isCorrect ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : revealed && isSelected ? 'bg-rose-500/20 border-rose-500/40 text-rose-400' : 'bg-card shadow-sm border-border text-muted-foreground'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-7 h-7 rounded-md border flex items-center justify-center text-[11px] font-black flex-shrink-0 ${
+                    revealed && isCorrect ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                    : revealed && isSelected ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
+                    : 'bg-card border-border text-muted-foreground'
+                  }`}>
                     {String.fromCharCode(65 + optIdx)}
                   </div>
-                  <span className={`font-black text-xl sm:text-3xl leading-tight transition-colors ${revealed && isCorrect ? 'text-foreground' : revealed && isSelected ? 'text-foreground' : revealed ? 'text-muted-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>
+                  <span className={`text-xs font-medium leading-snug flex-1 ${
+                    revealed && isCorrect ? 'text-emerald-300'
+                    : revealed && isSelected ? 'text-rose-300'
+                    : 'text-muted-foreground'
+                  }`}>
                     {opt}
                   </span>
+                  {revealed && isCorrect && (
+                    <CheckCircleIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  )}
                 </div>
-                {revealed && isCorrect && isSelected && (
-                  <motion.div 
-                    initial={{ scale: 0, opacity: 0 }} 
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="absolute top-4 right-4 text-emerald-500"
-                  >
-                    <CheckCircleIcon className="w-8 h-8 sm:w-12 sm:h-12" />
-                  </motion.div>
-                )}
               </motion.button>
             );
           })}
         </div>
+
         <AnimatePresence>
           {revealed && (
-            <motion.div 
+            <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
-              className="pt-10 sm:pt-20 border-t border-border"
+              className="pt-4 border-t border-border"
             >
-              <div className="flex flex-col sm:flex-row gap-6 sm:gap-12 items-center">
-                 <div className={`p-4 rounded-none ${selected === block.correctAnswer ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
-                    {selected === block.correctAnswer ? <CheckBadgeIcon className="w-8 h-8" /> : <XMarkIcon className="w-8 h-8" />}
-                 </div>
-                 <div className="space-y-2 text-center sm:text-left">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Module Feedback</p>
-                    <p className="text-xl sm:text-3xl font-black text-foreground tracking-tight">
-                      {selected === block.correctAnswer ? "Analytical Precision Confirmed." : "Differential Data Detected. Review Required."}
-                    </p>
-                 </div>
-                 <button onClick={() => {setRevealed(false); setSelected(null);}} className="ml-auto px-8 py-4 bg-card shadow-sm rounded-none text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-muted hover:text-foreground transition-all">Try Again</button>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-md flex-shrink-0 ${selected === block.correctAnswer ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                  {selected === block.correctAnswer ? <CheckBadgeIcon className="w-4 h-4" /> : <XMarkIcon className="w-4 h-4" />}
+                </div>
+                <p className="text-xs font-medium text-foreground flex-1">
+                  {selected === block.correctAnswer ? "Correct! Well done." : "Not quite — review and try again."}
+                </p>
+                <button
+                  onClick={() => { setRevealed(false); setSelected(null); }}
+                  className="px-4 py-1.5 bg-card border border-border text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all flex-shrink-0"
+                >
+                  Retry
+                </button>
               </div>
             </motion.div>
           )}
@@ -378,7 +339,7 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
             return (
               <div key={i} className="relative group pt-6">
                 <div className="absolute -left-6 sm:-left-12 top-0 bottom-0 w-1.5 bg-gradient-to-b from-orange-600 to-orange-400 to-indigo-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                <h2 className="text-3xl sm:text-6xl font-black tracking-tight text-foreground leading-[1.1] break-words">
+                <h2 className="text-lg sm:text-2xl font-black tracking-tight text-foreground leading-snug break-words">
                   {block.content}
                 </h2>
               </div>
@@ -386,7 +347,7 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
           case 'text':
             return (
               <div key={i} className="relative py-4">
-                <p className="text-xl sm:text-2xl text-muted-foreground leading-[1.7] whitespace-pre-wrap font-medium selection:bg-cyan-500/30 break-words">
+                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed whitespace-pre-wrap font-medium selection:bg-cyan-500/30 break-words">
                   {block.content}
                 </p>
               </div>
@@ -417,34 +378,35 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
                     <p className={`text-[11px] sm:text-[12px] font-black uppercase tracking-[0.3em] ${isWarning ? 'text-rose-400' : 'text-cyan-400'}`}>
                       {isWarning ? 'Strict Requirement' : 'Key Insight'}
                     </p>
-                    <p className="text-xl sm:text-3xl font-black text-foreground leading-relaxed tracking-tight">{block.content}</p>
+                    <p className="text-sm sm:text-base font-black text-foreground leading-relaxed tracking-tight">{block.content}</p>
                   </div>
                 </div>
               </div>
             );
           case 'activity':
             return (
-              <div key={i} className="p-10 sm:p-24 rounded-[60px] sm:rounded-[80px] border-2 border-emerald-500/20 bg-background space-y-12 sm:space-y-20 relative overflow-hidden group shadow-[0_40px_100px_rgba(16,185,129,0.1)] transition-all hover:border-emerald-500/40">
-                <div className="absolute -right-32 -top-32 w-80 sm:w-[500px] h-80 sm:h-[500px] text-emerald-500/[0.03] transition-transform group-hover:scale-110 rotate-12 pointer-events-none">
-                  <RocketLaunchIcon />
-                </div>
-                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-10 sm:gap-16 relative z-10 text-center sm:text-left">
-                  <div className="p-8 sm:p-12 rounded-[3rem] sm:rounded-[4rem] bg-emerald-500/10 text-emerald-400 shadow-3xl ring-8 ring-emerald-500/5 group-hover:scale-110 transition-transform duration-700">
-                    <RocketLaunchIcon className="w-12 h-12 sm:w-24 sm:h-24 animate-pulse" />
+              <div key={i} className="p-5 rounded-xl border border-emerald-500/20 bg-background space-y-4 relative overflow-hidden hover:border-emerald-500/40 transition-all my-4 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 flex-shrink-0">
+                    <RocketLaunchIcon className="w-5 h-5" />
                   </div>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-center sm:justify-start gap-3">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <p className="text-[11px] sm:text-[14px] font-black text-emerald-500/60 uppercase tracking-[0.5em]">Active Lab</p>
-                    </div>
-                    <h3 className="text-4xl sm:text-7xl font-black uppercase tracking-tighter text-foreground leading-none">{block.title || 'Hands-on Synthesis'}</h3>
+                  <div>
+                    <p className="text-[9px] font-black text-emerald-500/60 uppercase tracking-[0.4em]">Active Lab</p>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-foreground">{block.title || 'Hands-on Synthesis'}</h3>
                   </div>
                 </div>
-                <div className="relative z-10 sm:pl-16 border-l-8 border-emerald-500/10 py-4">
-                  <div className="text-2xl sm:text-4xl font-medium text-muted-foreground leading-[1.6] whitespace-pre-wrap italic">
-                    {block.instructions || 'Initializing protocol. Follow the prompt.'}
-                  </div>
+                <div className="border-l-2 border-emerald-500/20 pl-4">
+                  <p className="text-sm font-medium text-muted-foreground leading-relaxed whitespace-pre-wrap italic">
+                    {block.instructions || 'Follow the prompt below.'}
+                  </p>
                 </div>
+                {block.is_coding && (
+                  <IntegratedCodeRunner
+                    initialCode={block.initialCode || ""}
+                    language={block.language?.toLowerCase() as any || "javascript"}
+                    title={block.title || "Activity Sandbox"}
+                  />
+                )}
               </div>
             );
           case 'quiz':
@@ -814,12 +776,12 @@ export default function LessonDetailPage() {
                 )}
               </div>
               <div className="space-y-8">
-                <h1 className="text-4xl sm:text-9xl font-black tracking-[0.02em] leading-[0.9] text-foreground selection:bg-cyan-500 selection:text-black break-words">
+                <h1 className="text-2xl sm:text-4xl font-black tracking-tight leading-[1.0] text-foreground selection:bg-cyan-500 selection:text-black break-words">
                   {lesson.title}
                 </h1>
                 <div className="h-2 w-32 bg-gradient-to-r from-orange-600 to-orange-400 to-transparent rounded-full opacity-40"></div>
                 <div className="flex items-start gap-8 max-w-4xl">
-                  <p className="text-xl sm:text-4xl text-muted-foreground font-medium leading-[1.5] italic border-l-4 border-border pl-8 sm:pl-12 py-3">
+                  <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed italic border-l-4 border-border pl-5 sm:pl-8 py-2">
                     {lesson.description}
                   </p>
                 </div>

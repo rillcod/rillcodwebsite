@@ -586,41 +586,60 @@ export default function StudentsPage() {
     const html = `
       <html><head><title>Batch Credentials - ${dateStr}</title>
       <style>
-        body { font-family: system-ui, sans-serif; padding: 40px; background: #fff; color: #111827; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .card { border: 2px solid #ea580c; padding: 20px; page-break-inside: avoid; position: relative; }
+        @page { size: A4; margin: 10mm; }
+        body { font-family: 'Inter', system-ui, sans-serif; padding: 0; background: #fff; color: #111827; margin: 0; }
+        .grid { 
+          display: grid; 
+          grid-template-columns: 1fr 1fr; 
+          grid-template-rows: repeat(4, 1fr);
+          gap: 15px; 
+          height: calc(297mm - 20mm);
+          padding: 5px;
+        }
+        .card { 
+          border: 2px solid #000; 
+          padding: 20px; 
+          display: flex; 
+          flex-direction: column; 
+          justify-content: space-between;
+          position: relative;
+          background: #fff;
+        }
         .brand { font-weight: 900; font-size: 16px; font-style: italic; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
         .dot { color: #ea580c; font-style: normal; }
-        .tagline { font-size: 7px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.3em; margin-bottom: 16px; border-bottom: 1px solid #f3f4f6; padding-bottom: 4px; }
-        .name { font-size: 14px; font-weight: 800; margin-bottom: 12px; }
-        .row { margin-bottom: 8px; }
-        .label { font-size: 8px; font-weight: 900; color: #6b7280; text-transform: uppercase; margin-bottom: 2px; }
-        .value { font-size: 12px; font-weight: 700; font-family: monospace; word-break: break-all; }
-        .footer { margin-top: 16px; font-size: 7px; color: #d1d5db; border-top: 1px dashed #e5e7eb; padding-top: 8px; }
-        @media print { body { padding: 0; } .card { border-width: 1px; } }
+        .tagline { font-size: 7px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.3em; margin-bottom: 12px; border-bottom: 1px solid #f3f4f6; padding-bottom: 4px; font-weight: 800; }
+        .name { font-size: 14px; font-weight: 900; margin-bottom: 10px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 4px; }
+        .row { margin-bottom: 10px; }
+        .label { font-size: 8px; font-weight: 900; color: #6b7280; text-transform: uppercase; margin-bottom: 2px; letter-spacing: 0.1em; }
+        .value { font-size: 11px; font-weight: 800; font-family: 'JetBrains Mono', monospace; word-break: break-all; color: #000; }
+        .footer { margin-top: auto; font-size: 7px; color: #6b7280; border-top: 1px dashed #e5e7eb; padding-top: 8px; font-weight: 700; }
+        .watermark { position: absolute; bottom: 40px; right: 20px; font-size: 24px; font-weight: 900; color: #f3f4f6; transform: rotate(-45deg); z-index: 0; pointer-events: none; }
+        @media print { 
+          body { -webkit-print-color-adjust: exact; }
+          .card { border-width: 1.5px; }
+        }
       </style>
       </head><body>
-      <div style="margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 10px;">
-        <h1 style="margin:0; font-size: 20px; font-weight:900; text-transform:uppercase;">Credential Batch Registry</h1>
-        <p style="margin:4px 0 0 0; font-size: 10px; color:#666;">Generated on ${dateStr} • ${list.length} Students</p>
-      </div>
       <div class="grid">
         ${list.map(s => `
           <div class="card">
-            <div class="brand">RILLCOD<span class="dot">.</span></div>
-            <div class="tagline">STEM Excellence Access protocol</div>
-            <div class="name">${s.full_name || s.name || 'N/A'}</div>
-            <div class="row">
-              <div class="label">Portal Login (Email)</div>
-              <div class="value">${s.email || s.student_email || 'N/A'}</div>
-            </div>
-            <div class="row">
-              <div class="label">Temporary Cipher (If assigned)</div>
-              <div class="value">********</div>
+            <div class="watermark">AUTH</div>
+            <div>
+              <div class="brand">RILLCOD<span class="dot">.</span></div>
+              <div class="tagline">STEM Excellence Access protocol</div>
+              <div class="name">${s.full_name || s.name || 'N/A'}</div>
+              <div class="row">
+                <div class="label">Portal Login (Email)</div>
+                <div class="value">${s.email || s.student_email || 'N/A'}</div>
+              </div>
+              <div class="row">
+                <div class="label">Temporary Cipher (Password)</div>
+                <div class="value">********</div>
+              </div>
             </div>
             <div class="footer">
-              Station: academy.rillcod.com/student/login<br/>
-              Identity: ${s.user_id || 'REGISTERED'}
+              STATION: academy.rillcod.com/student/login<br/>
+              CLUSTER ID: ${s.user_id?.slice(0, 8) || 'VERIFIED'}
             </div>
           </div>
         `).join('')}
@@ -1074,7 +1093,7 @@ export default function StudentsPage() {
                   Registry · {profile?.role}
                 </span>
               </div>
-              <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-foreground leading-none">Students</h1>
+              <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground leading-none">Students</h1>
               <p className="text-muted-foreground text-sm sm:text-lg mt-3 font-medium max-w-2xl">
                 Manage registrations, parent info, approvals and student records
               </p>

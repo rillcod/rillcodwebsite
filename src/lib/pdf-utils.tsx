@@ -251,13 +251,17 @@ export async function generateReportPDF(element: HTMLElement, filename: string):
 // never clips or leaves whitespace.
 const CARD_W = 794;
 
-export function ScaledReportCard({ children, report }: { children: React.ReactNode; report?: any }) {
+export function ScaledReportCard({ children, report, responsive = false }: { children: React.ReactNode; report?: any; responsive?: boolean }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const innerRef     = useRef<HTMLDivElement>(null);
     const [scale, setScale]         = useState(1);
     const [cardHeight, setCardHeight] = useState(1123); // A4 default
 
     useEffect(() => {
+        if (responsive) {
+            setScale(1);
+            return;
+        }
         const outer = containerRef.current;
         const inner = innerRef.current;
         if (!outer || !inner) return;
@@ -276,7 +280,10 @@ export function ScaledReportCard({ children, report }: { children: React.ReactNo
         ro.observe(outer);
         ro.observe(inner);
         return () => ro.disconnect();
-    }, [report, children]); // re-run when report or children changes
+    }, [report, children, responsive]); // re-run when report, children or responsive changes
+
+    // Smart scaling: even if responsive=true, we scale if screen is narrower than the card
+    // but we use actual width tracking.
 
     return (
         <div

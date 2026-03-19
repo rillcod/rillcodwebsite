@@ -1043,76 +1043,79 @@ export default function ClassDetailPage() {
           {/* Right: Sidebar */}
           <div className="space-y-8">
 
-            {/* Quick Actions */}
+            {/* Quick Actions (Operations Deck) */}
             {isStaff && (
-              <div className="bg-card shadow-sm border border-border rounded-[2.5rem] p-8 space-y-6 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-600 opacity-[0.03] blur-3xl rounded-full" />
-                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Operations Deck</h3>
-                <div className="grid grid-cols-1 gap-3">
+              <div className="bg-[#0a0a0a] border border-white/5 p-10 space-y-8 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-orange-600 opacity-[0.03] blur-[80px] pointer-events-none group-hover:opacity-[0.06] transition-all duration-700" />
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-white/30">Operations Deck</h3>
+                  <BoltIcon className="w-4 h-4 text-orange-500/50" />
+                </div>
+                <div className="grid grid-cols-1 gap-4">
                   {([
-                    { label: 'Roll Call', sub: 'SYNC REGISTRY', icon: CheckCircleIcon, btnCls: 'bg-blue-600/5 hover:bg-blue-600/10 border-blue-600/10 hover:border-blue-600/30', iconCls: 'bg-blue-600/10 text-blue-400', subCls: 'text-blue-400/60', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
-                    { label: 'Quick Task', sub: 'INITIATE ASSIGNMENT', icon: ClipboardDocumentListIcon, btnCls: 'bg-amber-600/5 hover:bg-amber-600/10 border-amber-600/10 hover:border-amber-600/30', iconCls: 'bg-amber-600/10 text-amber-400', subCls: 'text-amber-400/60', action: () => router.push('/dashboard/assignments/new') },
-                    { label: 'Add Lesson', sub: 'AUGMENT CURRICULUM', icon: BookOpenIcon, btnCls: 'bg-cyan-600/5 hover:bg-cyan-600/10 border-cyan-600/10 hover:border-cyan-600/30', iconCls: 'bg-cyan-600/10 text-cyan-400', subCls: 'text-cyan-400/60', action: () => router.push('/dashboard/lessons/add') },
-                    { label: 'Apply CBT', sub: 'SYSTEM TESTING', icon: AcademicCapIcon, btnCls: 'bg-orange-600/5 hover:bg-orange-600/10 border-orange-600/10 hover:border-orange-600/30', iconCls: 'bg-orange-600/10 text-orange-400', subCls: 'text-orange-400/60', action: () => router.push('/dashboard/cbt/new') },
+                    { label: 'Roll Call', sub: 'SYNC REGISTRY', icon: CheckCircleIcon, btnCls: 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-orange-500/30', iconCls: 'bg-blue-600/10 text-blue-400', subCls: 'text-blue-400/60', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
+                    { label: 'Quick Task', sub: 'INITIATE ASSIGNMENT', icon: ClipboardDocumentListIcon, btnCls: 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-orange-500/30', iconCls: 'bg-amber-600/10 text-amber-400', subCls: 'text-amber-400/60', action: () => router.push('/dashboard/assignments/new') },
+                    { label: 'Add Lesson', sub: 'AUGMENT CURRICULUM', icon: BookOpenIcon, btnCls: 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-orange-500/30', iconCls: 'bg-cyan-600/10 text-cyan-400', subCls: 'text-cyan-400/60', action: () => router.push('/dashboard/lessons/add') },
+                    { label: 'Apply CBT', sub: 'SYSTEM TESTING', icon: AcademicCapIcon, btnCls: 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-orange-500/30', iconCls: 'bg-orange-600/10 text-orange-400', subCls: 'text-orange-400/60', action: () => router.push('/dashboard/cbt/new') },
                   ] as const).map(btn => (
-                    <button key={btn.label} onClick={btn.action} className={`group flex items-center gap-4 w-full p-4 border rounded-[1.5rem] text-left transition-all active:scale-[0.98] ${btn.btnCls}`}>
-                      <div className={`w-12 h-12 rounded-none flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg ${btn.iconCls}`}>
+                    <button key={btn.label} onClick={btn.action} className={`group flex items-center gap-5 w-full p-5 border text-left transition-all active:scale-[0.98] ${btn.btnCls}`}>
+                      <div className={`w-12 h-12 flex items-center justify-center group-hover:scale-110 transition-transform ${btn.iconCls} border border-white/5`}>
                         <btn.icon className="w-6 h-6" />
                       </div>
-                      <div>
-                        <p className="text-[11px] font-black text-foreground uppercase tracking-tighter">{btn.label}</p>
-                        <p className={`text-[8px] font-black uppercase tracking-widest ${btn.subCls}`}>{btn.sub}</p>
+                      <div className="flex-1">
+                        <p className="text-[11px] font-black text-white uppercase tracking-widest">{btn.label}</p>
+                        <p className={`text-[8px] font-black uppercase tracking-[0.2em] mt-1 ${btn.subCls}`}>{btn.sub}</p>
                       </div>
+                      <ArrowRightIcon className="w-4 h-4 text-white/10 group-hover:text-white/40 transition-colors" />
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Students List */}
-            <div className="bg-card shadow-sm border border-border rounded-[2.5rem] overflow-hidden shadow-2xl">
-              <div className="px-8 py-6 border-b border-border flex items-center justify-between bg-white/[0.02]">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Enrolled Pioneers</h3>
-                <div className="flex items-center gap-3">
-                  <div className="px-3 py-1 bg-card shadow-sm rounded-full border border-border">
-                    <span className="text-[9px] font-black text-orange-400 tracking-widest">{enrollments.length} <span className="text-muted-foreground">/</span> {cls.max_students}</span>
-                  </div>
-                  {isStaff && (
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }}
-                        title="Enroll Existing Student"
-                        className="w-8 h-8 rounded-none bg-orange-600/20 hover:bg-orange-600/40 border border-orange-600/30 text-orange-400 flex items-center justify-center transition-all active:scale-90"
-                      >
-                        <PlusIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setShowRegisterModal(true)}
-                        title="Register New Student"
-                        className="w-8 h-8 rounded-none bg-blue-600/20 hover:bg-blue-600/40 border border-blue-600/30 text-blue-400 flex items-center justify-center transition-all active:scale-90"
-                      >
-                        <UserPlusIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
+            {/* Students List (Enrolled Pioneers) */}
+            <div className="bg-[#0a0a0a] border border-white/5 overflow-hidden shadow-2xl relative">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-600/5 blur-[60px] pointer-events-none" />
+              <div className="px-8 py-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                <div className="space-y-1">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Enrolled Pioneers</h3>
+                  <p className="text-[9px] font-bold text-orange-500 uppercase tracking-widest">{enrollments.length} <span className="text-white/10 mx-1">/</span> {cls.max_students} Saturation</p>
                 </div>
+                {isStaff && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }}
+                      title="Enroll Existing Student"
+                      className="w-10 h-10 bg-white/5 hover:bg-orange-600 border border-white/10 hover:border-orange-500 text-white transition-all active:scale-95 flex items-center justify-center"
+                    >
+                      <PlusIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => setShowRegisterModal(true)}
+                      title="Register New Student"
+                      className="w-10 h-10 bg-white/5 hover:bg-blue-600 border border-white/10 hover:border-blue-500 text-white transition-all active:scale-95 flex items-center justify-center"
+                    >
+                      <UserPlusIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
               </div>
               {enrollments.length === 0 ? (
-                <div className="p-20 text-center flex flex-col items-center justify-center px-10">
-                  <UserGroupIcon className="w-12 h-12 text-white/5 mb-6" />
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-relaxed">No student signals detected in this cluster</p>
-                  <Link href={`/dashboard/classes/${id}/edit`} className="mt-6 text-[9px] font-black text-orange-400 uppercase tracking-widest hover:text-orange-500 transition-colors">Manage Registry →</Link>
+                <div className="p-24 text-center flex flex-col items-center justify-center bg-white/[0.01]">
+                  <UserGroupIcon className="w-12 h-12 text-white/5 mb-8" />
+                  <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] leading-relaxed max-w-[200px] mx-auto">No student signals detected in this cluster sector</p>
+                  <Link href={`/dashboard/classes/${id}/edit`} className="mt-8 px-6 py-3 border border-white/5 hover:border-white/10 text-[9px] font-black text-orange-500 uppercase tracking-widest transition-all">Manage Registry →</Link>
                 </div>
               ) : (
-                <div className="divide-y divide-white/5 max-h-[500px] overflow-y-auto custom-scrollbar">
+                <div className="divide-y divide-white/5 max-h-[500px] overflow-y-auto custom-scrollbar bg-white/[0.01]">
                   {enrollments.map((enr: any) => (
-                    <div key={enr.id} className="px-8 py-5 flex items-center gap-4 hover:bg-white/[0.03] transition-all group">
-                      <div className="w-10 h-10 rounded-none bg-gradient-to-br from-orange-600 to-orange-400/10 to-orange-600/10 border border-border flex items-center justify-center text-[10px] font-black text-muted-foreground group-hover:text-orange-400 transition-all">
+                    <div key={enr.id} className="px-8 py-6 flex items-center gap-5 hover:bg-white/[0.03] transition-all group border-l-2 border-l-transparent hover:border-l-orange-500">
+                      <div className="w-12 h-12 bg-[#1a1a1a] border border-white/5 flex items-center justify-center text-[11px] font-black text-white group-hover:text-orange-400 transition-all shadow-xl">
                         {(enr.full_name ?? '?')[0]}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-black text-foreground group-hover:text-orange-400 transition-colors truncate uppercase tracking-tighter">{enr.full_name}</p>
-                        <p className="text-[9px] text-muted-foreground truncate font-medium">{enr.email}</p>
+                        <p className="text-xs font-black text-white group-hover:text-orange-400 transition-colors truncate uppercase tracking-tighter">{enr.full_name}</p>
+                        <p className="text-[9px] text-white/30 truncate font-black uppercase tracking-widest mt-1">{enr.email}</p>
                       </div>
                       {isStaff && (
                         <button
@@ -1127,9 +1130,9 @@ export default function ClassDetailPage() {
                             setEnrollments(prev => prev.filter(e => e.id !== enr.id));
                           }}
                           title="Unenroll student"
-                          className="w-7 h-7 rounded-none bg-rose-600/10 hover:bg-rose-600/30 border border-rose-600/20 text-rose-400 flex items-center justify-center transition-all active:scale-90 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100"
+                          className="w-8 h-8 bg-rose-600/10 hover:bg-rose-600 border border-rose-600/20 hover:border-rose-500 text-rose-500 hover:text-white flex items-center justify-center transition-all active:scale-90 opacity-0 group-hover:opacity-100 shadow-lg"
                         >
-                          <TrashIcon className="w-3.5 h-3.5" />
+                          <TrashIcon className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -1141,12 +1144,10 @@ export default function ClassDetailPage() {
             {isStaff && (
               <button
                 onClick={handleExportLogins}
-                className="w-full py-5 bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-600/20 rounded-none flex items-center justify-center gap-3 group transition-all"
+                className="w-full py-6 bg-emerald-600/10 hover:bg-emerald-600 hover:text-white border border-emerald-600/30 transition-all group flex items-center justify-center gap-4 active:scale-[0.98] shadow-lg"
               >
-                <div className="w-8 h-8 bg-emerald-600/20 rounded-none flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
-                  <CloudArrowDownIcon className="w-4 h-4" />
-                </div>
-                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">Export Login Credentials</span>
+                <CloudArrowDownIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-black uppercase tracking-[0.3em]">Export Login Credentials</span>
               </button>
             )}
 

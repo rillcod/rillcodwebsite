@@ -53,7 +53,7 @@ interface LabProject {
 }
 
 // ─── Robot Simulator ─────────────────────────────────────────
-function RobotSimulator({ code, isRunning, onFinish }: { code: string; isRunning: boolean; onFinish: () => void }) {
+function RobotSimulator({ code, isRunning, onFinish, commands: propCommands }: { code: string; isRunning: boolean; onFinish: () => void; commands?: any[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   useEffect(() => {
@@ -66,22 +66,26 @@ function RobotSimulator({ code, isRunning, onFinish }: { code: string; isRunning
     let robot = { x: 300, y: 300, angle: 0, color: '#8b5cf6', path: [] as {x: number, y: number, color: string, pen: boolean}[] };
     let commands: any[] = [];
     
-    const lines = code.split('\n');
-    lines.forEach(line => {
-      const move = line.match(/robot\.forward\((\d+)\)/);
-      const turn = line.match(/robot\.turnRight\((\d+)\)/);
-      const turnL = line.match(/robot\.turnLeft\((\d+)\)/);
-      const penD = line.match(/robot\.penDown\(\)/);
-      const penU = line.match(/robot\.penUp\(\)/);
-      const color = line.match(/robot\.setColor\(['"](.+)['"]\)/);
+    if (propCommands && propCommands.length > 0) {
+      commands = propCommands;
+    } else {
+      const lines = code.split('\n');
+      lines.forEach(line => {
+        const move = line.match(/robot\.forward\(\s*([\d.]+)\s*\)/);
+        const turn = line.match(/robot\.turnRight\(\s*([\d.-]+)\s*\)/);
+        const turnL = line.match(/robot\.turnLeft\(\s*([\d.-]+)\s*\)/);
+        const penD = line.match(/robot\.penDown\(\)/);
+        const penU = line.match(/robot\.penUp\(\)/);
+        const color = line.match(/robot\.setColor\(['"](.+)['"]\)/);
 
-      if (move) commands.push({ type: 'move', val: parseInt(move[1]) });
-      if (turn) commands.push({ type: 'turn', val: parseInt(turn[1]) });
-      if (turnL) commands.push({ type: 'turn', val: -parseInt(turnL[1]) });
-      if (penD) commands.push({ type: 'pen', val: true });
-      if (penU) commands.push({ type: 'pen', val: false });
-      if (color) commands.push({ type: 'color', val: color[1] });
-    });
+        if (move) commands.push({ type: 'move', val: parseFloat(move[1]) });
+        if (turn) commands.push({ type: 'turn', val: parseFloat(turn[1]) });
+        if (turnL) commands.push({ type: 'turn', val: -parseFloat(turnL[1]) });
+        if (penD) commands.push({ type: 'pen', val: true });
+        if (penU) commands.push({ type: 'pen', val: false });
+        if (color) commands.push({ type: 'color', val: color[1] });
+      });
+    }
 
     let currentCmdIdx = 0;
     let progress = 0;
@@ -90,6 +94,11 @@ function RobotSimulator({ code, isRunning, onFinish }: { code: string; isRunning
     let startX = robot.x;
     let startY = robot.y;
     let startAngle = robot.angle;
+    
+    // reset state
+    robot.x = 300; robot.y = 300; robot.angle = 0; robot.path = [];
+    isPenDown = true;
+    currentColor = '#8b5cf6';
 
     const render = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -133,7 +142,7 @@ function RobotSimulator({ code, isRunning, onFinish }: { code: string; isRunning
       ctx.beginPath(); ctx.moveTo(10, -5); ctx.lineTo(18, 0); ctx.lineTo(10, 5); ctx.fill();
       ctx.beginPath();
       ctx.arc(-8, 0, 4, 0, Math.PI * 2);
-      ctx.fillStyle = isRunning ? '#10b981' : '#f43f5e';
+      ctx.fillStyle = (isRunning && currentCmdIdx < commands.length) ? '#10b981' : '#f43f5e';
       ctx.fill();
       ctx.restore();
     };
@@ -185,25 +194,30 @@ function RobotSimulator({ code, isRunning, onFinish }: { code: string; isRunning
     };
 
     if (isRunning) {
-      requestRef = requestAnimationFrame(animate);
+      if (commands.length === 0) {
+        onFinish();
+        render();
+      } else {
+        requestRef = requestAnimationFrame(animate);
+      }
     } else {
       render(); // Static render
     }
     
     return () => cancelAnimationFrame(requestRef);
-  }, [isRunning, code, onFinish]);
+  }, [isRunning, code, onFinish, propCommands]);
 
   return (
-    <div className="relative w-full h-[350px] bg-[#0d1526] rounded-[2rem] overflow-hidden border border-border group shadow-2xl">
-      <div className="absolute top-6 left-6 z-10">
-        <div className="flex items-center gap-3 px-4 py-2 bg-black/60 backdrop-blur-xl rounded-none border border-border shadow-xl">
-          <div className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]'}`} />
-          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{isRunning ? 'Neural link Active' : 'Rill-Sim Standby'}</span>
+    <div className="relative w-full h-[220px] sm:h-[300px] bg-[#0d1526] rounded-none overflow-hidden border border-border group shadow-2xl">
+      <div className="absolute top-4 left-4 z-10">
+        <div className="flex items-center gap-2 px-3 py-1 bg-black/60 backdrop-blur-xl rounded-none border border-border shadow-xl">
+          <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]'}`} />
+          <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em]">{isRunning ? 'Active' : 'Standby'}</span>
         </div>
       </div>
       <canvas ref={canvasRef} width={600} height={600} className="w-full h-full" />
-      <div className="absolute bottom-6 right-6 text-[9px] text-muted-foreground font-mono uppercase tracking-widest bg-card shadow-sm px-3 py-1 rounded-full">
-        Vector Core v2.4 // 60FPS
+      <div className="absolute bottom-4 right-4 text-[7px] text-muted-foreground font-mono uppercase tracking-widest bg-card shadow-sm px-2 py-0.5 rounded-none">
+        Sim v2.5 // 60FPS
       </div>
     </div>
   );
@@ -245,11 +259,40 @@ export default function CodeStudioPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [showAIModal, setShowAIModal] = useState(false);
-  const [view, setView] = useState<'editor' | 'preview'>('editor');
+  const [view, setView] = useState<'editor' | 'output' | 'explorer' | 'canvas'>('editor');
   const [isPyodideLoading, setIsPyodideLoading] = useState(false);
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [liveUpdate, setLiveUpdate] = useState(true);
   const [isAIGenerating, setIsAIGenerating] = useState(false);
+  const [robotCommands, setRobotCommands] = useState<any[]>([]);
+  const [terminalHeight, setTerminalHeight] = useState(240);
+  const isResizing = useRef(false);
+
+  // ── Terminal Resizing ──
+  const startResizing = useCallback((e: any) => {
+    isResizing.current = true;
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', stopResizing);
+    document.addEventListener('touchmove', handleResize);
+    document.addEventListener('touchend', stopResizing);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    isResizing.current = false;
+    document.removeEventListener('mousemove', handleResize);
+    document.removeEventListener('mouseup', stopResizing);
+    document.removeEventListener('touchmove', handleResize);
+    document.removeEventListener('touchend', stopResizing);
+  }, []);
+
+  const handleResize = useCallback((e: any) => {
+    if (!isResizing.current) return;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const newHeight = window.innerHeight - clientY;
+    if (newHeight > 40 && newHeight < window.innerHeight * 0.7) {
+      setTerminalHeight(newHeight);
+    }
+  }, []);
 
   const isTeacher = profile?.role === 'teacher' || profile?.role === 'admin';
 
@@ -323,18 +366,53 @@ export default function CodeStudioPage() {
         pyodideRef.current.runPython(`
 import sys
 import io
+import json
 sys.stdout = io.StringIO()
 `);
+
+        if (lang === 'robotics') {
+          // Define mock robot in Python to collect commands
+          pyodideRef.current.runPython(`
+class Robot:
+    def __init__(self):
+        self.commands = []
+    def forward(self, val):
+        self.commands.append({'type': 'move', 'val': float(val)})
+    def turnRight(self, val):
+        self.commands.append({'type': 'turn', 'val': float(val)})
+    def turnLeft(self, val):
+        self.commands.append({'type': 'turn', 'val': -float(val)})
+    def penDown(self):
+        self.commands.append({'type': 'pen', 'val': True})
+    def penUp(self):
+        self.commands.append({'type': 'pen', 'val': False})
+    def setColor(self, color):
+        self.commands.append({'type': 'color', 'val': color})
+
+robot = Robot()
+`);
+          setRobotCommands([]);
+        }
         
         await pyodideRef.current.runPythonAsync(code);
+        
         const stdout = pyodideRef.current.runPython("sys.stdout.getvalue()");
         setConsoleLogs(stdout.split('\n').filter(Boolean));
+
+        if (lang === 'robotics') {
+          const cmdsJson = pyodideRef.current.runPython("json.dumps(robot.commands)");
+          const parse = JSON.parse(cmdsJson);
+          setRobotCommands(parse);
+          if (parse.length === 0) setRunning(false); // Stop if no robot commands
+        }
       } catch (err: any) {
-        console.error("Python Execution Error:", err);
+        console.error("Execution Error:", err);
         setConsoleLogs([`Error: ${err.message}`]);
         toast.error("Execution failed. Check console for details.");
-      } finally {
         setRunning(false);
+      } finally {
+        // Only set running to false here if NOT robotics (robotics finishes via onFinish)
+        if (lang !== 'robotics') setRunning(false);
       }
     } else if (lang === 'javascript') {
       try {
@@ -491,6 +569,7 @@ sys.stdout = io.StringIO()
         </div>
 
         <div className="flex items-center gap-1.5 font-black uppercase text-[9px] tracking-widest">
+            {/* Action buttons hidden on very small screens if needed, or condensed */}
           {lessonId && (
             <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/10 rounded-none text-amber-500/60">
               <BookOpenIcon className="w-3 h-3" />
@@ -538,12 +617,17 @@ sys.stdout = io.StringIO()
         
         {/* ─── Sidebar: Projects & Languages ─── */}
         <AnimatePresence>
-          {sidebarOpen && (
+          {(sidebarOpen || view === 'explorer') && (
             <motion.aside
-              initial={{ x: -300, opacity: 0 }}
+              initial={{ x: -400, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -300, opacity: 0 }}
-              className="fixed inset-y-0 left-0 w-72 md:relative md:w-72 border-r border-border bg-[#0d1526]/95 backdrop-blur-xl flex flex-col z-[50]"
+              exit={{ x: -400, opacity: 0 }}
+              className={`
+                fixed inset-y-0 left-0 w-full sm:w-80 md:relative md:w-72 
+                border-r border-border bg-[#0d1526] md:bg-[#0d1526]/95 backdrop-blur-xl 
+                flex flex-col z-[60] md:z-[50]
+                ${view !== 'explorer' && 'hidden md:flex'}
+              `}
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-black/20">
                 <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">Studio Explorer</span>
@@ -639,7 +723,19 @@ sys.stdout = io.StringIO()
         </AnimatePresence>
 
         {/* ─── Editor Canvas ─── */}
-        <div className={`flex-1 flex flex-col min-w-0 bg-[#020617] relative ${view === 'preview' && 'hidden md:flex'}`}>
+        <div className={`flex-1 flex flex-col min-w-0 bg-[#020617] relative ${view !== 'editor' && view !== 'canvas' && 'hidden md:flex'}`}>
+          {view === 'canvas' && lang === 'robotics' && (
+            <div className="flex-1 p-4 sm:p-6 flex flex-col bg-[#020617] md:hidden">
+              <div className="flex items-center gap-2 mb-4">
+                <RocketLaunchIcon className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest italic text-emerald-400/80">Flight Dynamics</h3>
+              </div>
+              <RobotSimulator code={code} isRunning={running} onFinish={() => setRunning(false)} commands={robotCommands} />
+              <div className="mt-4 p-4 bg-[#0d1526] border border-border">
+                <p className="text-[8px] text-muted-foreground uppercase font-black leading-relaxed">Visualizing kinematic trace on mobile uplink. Switch to terminal for logs.</p>
+              </div>
+            </div>
+          )}
           <div className="flex-1 flex flex-col overflow-hidden">
              {/* Tab Headers */}
             <div className="h-8 bg-[#0d1526]/50 border-b border-border flex items-center px-4 justify-between">
@@ -657,7 +753,6 @@ sys.stdout = io.StringIO()
               </div>
               <div className="flex items-center gap-2">
                  <span className="hidden sm:inline text-[10px] font-mono text-muted-foreground uppercase tracking-widest">UTF-8 // active</span>
-                 <button onClick={() => setView('preview')} className="md:hidden px-3 py-1 bg-orange-600 text-foreground text-[10px] font-black uppercase rounded-none">View Output</button>
               </div>
             </div>
 
@@ -746,16 +841,30 @@ sys.stdout = io.StringIO()
           </div>
 
           {/* ─── Console/Preview Area ─── */}
-           <div className="h-32 lg:h-40 border-t border-border flex flex-col bg-[#020617] ${view === 'editor' && 'hidden md:flex'}">
-            <div className="h-8 border-b border-border flex items-center px-4 justify-between bg-black/20">
+           <div 
+             className={`
+               border-t border-border flex flex-col bg-[#020617] relative
+               ${view !== 'output' && 'hidden md:flex'} transition-all
+             `}
+             style={{ height: view === 'output' ? `${terminalHeight}px` : 'auto' }}
+           >
+             {/* Resize Handle */}
+             <div 
+               onMouseDown={startResizing}
+               onTouchStart={startResizing}
+               className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-orange-500 transition-colors z-[60] flex items-center justify-center group"
+             >
+               <div className="w-16 h-1 bg-border rounded-full group-hover:bg-orange-600 transition-colors opacity-0 group-hover:opacity-100" />
+             </div>
+
+             <div className="h-7 border-b border-border flex items-center px-3 justify-between bg-black/20 shrink-0">
               <div className="flex items-center gap-2">
-                <CommandLineIcon className="w-4 h-4 text-emerald-400" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400/80">
-                  {lang === 'html' ? 'Mobile Live Stream' : 'Console output'}
+                <CommandLineIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-400/80">
+                  {lang === 'html' ? 'Live Stream' : 'Console'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                 <button onClick={() => setView('editor')} className="md:hidden px-3 py-1 bg-muted text-foreground text-[10px] font-black uppercase rounded-none">Code View</button>
                  {lang !== 'html' && (
                    <button onClick={() => setConsoleLogs([])} className="p-1 hover:bg-card shadow-sm rounded transition-colors" title="Clear console">
                       <TrashIcon className="w-3.5 h-3.5 text-muted-foreground hover:text-rose-400" />
@@ -763,11 +872,13 @@ sys.stdout = io.StringIO()
                  )}
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-black/40 font-mono text-xs">
-               <div className="space-y-1.5 h-full">
+            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar bg-black/40 font-mono text-[10px] sm:text-xs">
+               <div className="space-y-1 h-full">
                   {lang === 'html' ? (
-                    <div className="w-full h-full bg-white rounded-none overflow-hidden relative border-8 border-slate-900">
-                      <iframe srcDoc={code} className="w-full h-full border-0" title="Html Mobile Preview" />
+                    <div className="w-full h-full bg-slate-900 rounded-none overflow-hidden relative border-2 border-border shadow-2xl p-2 sm:p-4">
+                      <div className="w-full h-full bg-white rounded-[1rem] sm:rounded-[2rem] overflow-hidden border-8 border-slate-950 shadow-inner">
+                        <iframe srcDoc={code} className="w-full h-full border-0" title="Html Mobile Preview" />
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -789,7 +900,10 @@ sys.stdout = io.StringIO()
 
         {/* ─── Right Sidebar: Robotics Simulator ─── */}
         {lang === 'robotics' && (
-          <aside className={`hidden lg:flex w-80 lg:w-96 border-l border-border bg-[#0d1526]/30 flex flex-col ${view === 'editor' && 'hidden lg:flex'}`}>
+          <aside className={`
+            hidden lg:flex w-80 lg:w-96 border-l border-border bg-[#0d1526]/30 flex flex-col
+            ${view !== 'output' && 'hidden lg:flex'}
+          `}>
             <div className="p-4 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <RocketLaunchIcon className="w-5 h-5 text-emerald-400" />
@@ -798,7 +912,7 @@ sys.stdout = io.StringIO()
               <span className="text-[10px] font-bold text-emerald-500/50 bg-emerald-500/5 px-2 py-0.5 rounded-full border border-emerald-500/10">Active Simulation</span>
             </div>
             <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
-              <RobotSimulator code={code} isRunning={running} onFinish={() => setRunning(false)} />
+              <RobotSimulator code={code} isRunning={running} onFinish={() => setRunning(false)} commands={robotCommands} />
               
               <div className="mt-8 space-y-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -877,7 +991,50 @@ sys.stdout = io.StringIO()
              </motion.div>
           </div>
         )}
-      </AnimatePresence>
+       </AnimatePresence>
+ 
+      {/* ─── Mobile Bottom Tab Bar ─── */}
+      <div className="md:hidden h-20 border-t border-border bg-[#0d1526] flex items-center justify-around px-4 z-[70] pb-[env(safe-area-inset-bottom)]">
+        <button 
+          onClick={() => setView('explorer')}
+          className={`flex flex-col items-center gap-1.5 transition-all ${view === 'explorer' ? 'text-orange-500' : 'text-muted-foreground'}`}
+        >
+          <Squares2X2Icon className="w-5 h-5" />
+          <span className="text-[8px] font-black uppercase tracking-widest">Explorer</span>
+        </button>
+        <button 
+          onClick={() => setView('editor')}
+          className={`flex flex-col items-center gap-1.5 transition-all ${view === 'editor' ? 'text-orange-500' : 'text-muted-foreground'}`}
+        >
+          <CodeBracketIcon className="w-5 h-5" />
+          <span className="text-[8px] font-black uppercase tracking-widest">Editor</span>
+        </button>
+        <button 
+          onClick={() => setView('output')}
+          className={`flex flex-col items-center gap-1.5 transition-all ${view === 'output' ? 'text-orange-500' : 'text-muted-foreground'}`}
+        >
+          <CommandLineIcon className="w-5 h-5" />
+          <span className="text-[8px] font-black uppercase tracking-widest">Terminal</span>
+        </button>
+        {lang === 'robotics' && (
+          <button 
+            onClick={() => setView('canvas')}
+            className={`flex flex-col items-center gap-1.5 transition-all ${view === 'canvas' ? 'text-orange-500' : 'text-muted-foreground'}`}
+          >
+            <RocketLaunchIcon className="w-5 h-5" />
+            <span className="text-[8px] font-black uppercase tracking-widest">Simulation</span>
+          </button>
+        )}
+        <div className="relative">
+          <button 
+            onClick={runCode}
+            disabled={running}
+            className="w-14 h-14 bg-orange-600 flex items-center justify-center -mt-12 border-4 border-[#020617] shadow-2xl relative transition-transform active:scale-95"
+          >
+            {running ? <ArrowPathIcon className="w-7 h-7 animate-spin" /> : <PlayIcon className="w-7 h-7" />}
+          </button>
+        </div>
+      </div>
 
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }

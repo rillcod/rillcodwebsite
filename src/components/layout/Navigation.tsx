@@ -12,6 +12,7 @@ import {
   PhoneIcon, AcademicCapIcon, Squares2X2Icon,
 } from '@/lib/icons';
 import { Command, ShieldCheck, Zap } from 'lucide-react';
+import ThemeToggle from '@/components/ThemeToggle';
 
 type NavIcon = React.ComponentType<{ className?: string }>;
 
@@ -127,6 +128,9 @@ const Navigation = () => {
 
             {/* ── Actions ── */}
             <div suppressHydrationWarning className="flex items-center gap-4">
+              <div className="hidden sm:block">
+                <ThemeToggle />
+              </div>
               {mounted && !authLoading && (
                 user ? (
                   <Link href="/dashboard"
@@ -163,8 +167,11 @@ const Navigation = () => {
         {mounted && isOpen && (
           <div className="lg:hidden border-t border-border bg-background overflow-y-auto max-h-[calc(100vh-72px)]">
              <div className="p-8 space-y-10">
+                <div className="flex items-center justify-between">
+                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em]">Command Center</p>
+                   <ThemeToggle />
+                </div>
                 <div className="grid gap-2">
-                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em] mb-4">Command Center</p>
                    {[...mainLinks, ...secondaryLinks].map(({ href, label }) => (
                      <Link key={href} href={href} className="text-lg sm:text-xl font-black text-foreground uppercase tracking-tight hover:text-orange-500 transition-colors py-2">
                         {label}

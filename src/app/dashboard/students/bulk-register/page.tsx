@@ -328,9 +328,10 @@ export default function BulkRegisterPage() {
     
     let x = 10;
     let y = 10;
-    const cardWidth = 90;
-    const cardHeight = 60;
-    const padding = 10;
+    const cardWidth = 92;
+    const cardHeight = 65;
+    const paddingX = 8;
+    const paddingY = 6;
 
     validResults.forEach((r, i) => {
       if (i > 0 && i % 8 === 0) {
@@ -339,9 +340,9 @@ export default function BulkRegisterPage() {
         y = 10;
       } else if (i > 0 && i % 2 === 0) {
         x = 10;
-        y += cardHeight + padding;
+        y += cardHeight + paddingY;
       } else if (i > 0) {
-        x = 10 + cardWidth + padding;
+        x = 10 + cardWidth + paddingX;
       }
 
       // Card Border
@@ -938,20 +939,20 @@ export default function BulkRegisterPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-[#070b14] p-4 sm:p-8 md:p-12 font-sans selection:bg-cyan-500/30">
+      <div className="min-h-screen bg-[#070b14] p-4 sm:p-6 md:p-8 font-sans selection:bg-cyan-500/30">
         
         {/* Standalone Tab Switcher */}
-        <div className="max-w-7xl mx-auto mb-16">
+        <div className="max-w-7xl mx-auto mb-10">
           <div className="flex flex-wrap bg-[#0d1526] p-1.5 rounded-none border border-border w-fit max-w-full">
             <button 
               onClick={() => setActiveTab('register')}
-              className={`flex-1 sm:flex-none px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'register' ? 'bg-cyan-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`flex-1 sm:flex-none px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'register' ? 'bg-cyan-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Uplink Station (New)
             </button>
             <button 
               onClick={() => { setActiveTab('vault'); fetchHistory(); }}
-              className={`flex-1 sm:flex-none px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'vault' ? 'bg-cyan-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`flex-1 sm:flex-none px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'vault' ? 'bg-cyan-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
             >
               Execution Vault (Archive)
             </button>
@@ -962,13 +963,13 @@ export default function BulkRegisterPage() {
           <div className="max-w-4xl mx-auto space-y-12">
             {!showHistory && (
               <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-cyan-600 flex items-center justify-center rotate-3 border border-cyan-400/20 shadow-xl shadow-cyan-600/10 hover:rotate-6 transition-transform">
-                    <SparklesIcon className="w-6 h-6 text-white" />
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-cyan-600 flex items-center justify-center rotate-3 border border-cyan-400/20 shadow-xl shadow-cyan-600/10 hover:rotate-6 transition-transform">
+                    <SparklesIcon className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-4xl font-black text-foreground italic tracking-tighter uppercase">Academic Registry</h1>
-                    <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-[0.4em] mt-1.5">Official Student Node Distribution</p>
+                    <h1 className="text-xl sm:text-2xl font-black text-foreground italic tracking-tighter uppercase">Academic Registry</h1>
+                    <p className="text-muted-foreground text-[9px] uppercase font-bold tracking-[0.4em] mt-1">Official Student Node Distribution</p>
                   </div>
                 </div>
               </div>
@@ -993,13 +994,6 @@ export default function BulkRegisterPage() {
         )}
 
         {/* ══════════════════ STEP 1 — SINGLE ══════════════════════════ */}
-        {step === 'single' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <AddStudentModal inline isOpen={true} onClose={() => {}} onSuccess={() => { setStep('input'); setActiveTab('vault'); fetchHistory(); toast.success('Identity Created. Check Vault.'); }} classId={selectedRegistryClass || undefined} />
-          </div>
-        )}
-
-        {/* ══════════════════ STEP 1 — INPUT ══════════════════════════ */}
         {step === 'single' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
              <AddStudentModal inline isOpen={true} onClose={() => {}} onSuccess={() => { setStep('input'); setActiveTab('vault'); fetchHistory(); toast.success('Identity Created. Check Vault.'); }} classId={selectedRegistryClass || undefined} />
@@ -1639,30 +1633,30 @@ Yusuf Ibrahim SS1A`}
 
         {/* ══════════════════ VAULT TAB ═══════════════════════════════ */}
         {activeTab === 'vault' && (
-          <div className="max-w-6xl mx-auto space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+          <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
             {/* Vault Header (Refined) */}
-            <div className="bg-cyan-600/5 border border-cyan-500/20 p-16 relative overflow-hidden shadow-2xl">
+            <div className="bg-cyan-600/5 border border-cyan-500/20 p-3 sm:p-6 relative overflow-hidden shadow-2xl">
                <div className="absolute top-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
-               <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-12">
+               <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-12">
                   <div className="max-w-xl">
-                     <div className="flex items-center gap-3 mb-4">
-                        <div className="w-3 h-3 bg-cyan-500 rounded-none animate-pulse shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
-                        <span className="text-[12px] text-cyan-400 font-black uppercase tracking-[0.4em]">Official Execution Safe</span>
+                     <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                        <div className="w-2 h-2 bg-cyan-500 rounded-none animate-pulse shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
+                        <span className="text-[8px] sm:text-[10px] text-cyan-400 font-black uppercase tracking-[0.4em]">Official Execution Safe</span>
                      </div>
-                     <h2 className="text-7xl font-black text-foreground italic uppercase tracking-tighter leading-none mb-6">Execution Vault</h2>
-                     <p className="text-muted-foreground text-[13px] font-medium leading-relaxed uppercase tracking-widest">A secure, encrypted repository containing every student deployment session recorded on this station.</p>
+                     <h2 className="text-base sm:text-xl lg:text-2xl font-black text-foreground italic uppercase tracking-tighter leading-none mb-1 sm:mb-2 text-cyan-300/90 drop-shadow-[0_0_10px_rgba(34,211,238,0.2)]">Execution Vault</h2>
+                     <p className="text-muted-foreground text-[9px] sm:text-[10px] font-medium leading-relaxed uppercase tracking-widest hidden sm:block">A secure repository containing student deployment sessions.</p>
                   </div>
-                  <div className="flex items-center gap-10 lg:border-l lg:border-border lg:pl-10">
+                  <div className="flex items-center gap-6 sm:gap-10 lg:pl-10">
                      <div className="text-right">
-                        <p className="text-foreground font-black text-6xl leading-none italic">{history.length}</p>
-                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.3em] mt-3">Active Archives</p>
+                        <p className="text-foreground font-black text-3xl sm:text-5xl leading-none italic">{history.length}</p>
+                        <p className="text-[7px] sm:text-[9px] text-muted-foreground font-black uppercase tracking-[0.3em] mt-1.5 sm:mt-2">Active Archives</p>
                      </div>
                      <button 
                        onClick={fetchHistory}
                        disabled={loadingHistory}
-                       className="w-24 h-24 bg-cyan-600/10 border border-cyan-500/20 flex items-center justify-center hover:bg-cyan-600/20 transition-all group active:scale-95 shadow-xl shadow-cyan-600/10"
+                       className="w-14 h-14 sm:w-20 sm:h-20 bg-cyan-600/10 border border-cyan-500/20 flex items-center justify-center hover:bg-cyan-600/20 transition-all group active:scale-95 shadow-xl shadow-cyan-600/10"
                      >
-                       <ArrowPathIcon className={`w-12 h-12 text-cyan-500 ${loadingHistory ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
+                       <ArrowPathIcon className={`w-7 h-7 sm:w-10 h-10 text-cyan-500 ${loadingHistory ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
                      </button>
                   </div>
                </div>
@@ -1673,18 +1667,18 @@ Yusuf Ibrahim SS1A`}
             ) : history.length === 0 ? (
                <div className="h-[400px] flex flex-col items-center justify-center gap-8 bg-white/[0.02] border border-border border-dashed italic text-muted-foreground uppercase tracking-[0.5em]">Vault Is Vacuum / Empty</div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-10">
                   {history.map((batch) => (
-                    <div key={batch.id} className="group bg-[#0d1526] border border-border p-12 transition-all hover:bg-[#0d1526]/80 hover:border-cyan-500/50 hover:shadow-latest relative overflow-hidden">
+                    <div key={batch.id} className="group bg-[#0d1526] border border-border p-3 sm:p-6 transition-all hover:bg-[#0d1526]/80 hover:border-cyan-500/50 hover:shadow-latest relative overflow-hidden">
                        <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rotate-45 translate-x-16 -translate-y-16 pointer-events-none" />
                        
                        <div className="relative z-10">
-                          <div className="flex items-start justify-between mb-10">
+                          <div className="flex items-start justify-between mb-6 sm:mb-10">
                              <div className="flex-1 min-w-0">
                                 {editingBatchId === batch.id ? (
                                    <input 
                                      autoFocus
-                                     className="bg-black/60 border border-cyan-500/50 px-6 py-4 text-foreground font-black text-3xl w-full italic outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all"
+                                     className="bg-black/60 border border-cyan-500/50 px-4 py-2 sm:px-6 sm:py-4 text-foreground font-black text-xl sm:text-3xl w-full italic outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all"
                                      defaultValue={batch.class_name || 'Protocol General'}
                                      onBlur={async (e) => {
                                        await fetch('/api/students/bulk-register', {
@@ -1698,25 +1692,25 @@ Yusuf Ibrahim SS1A`}
                                      }}
                                    />
                                 ) : (
-                                   <h3 className="text-4xl font-black text-foreground truncate uppercase tracking-tighter italic group-hover:text-cyan-400 cursor-pointer transition-colors"
+                                   <h3 className="text-2xl sm:text-4xl font-black text-foreground truncate uppercase tracking-tighter italic group-hover:text-cyan-400 cursor-pointer transition-colors"
                                        onDoubleClick={() => setEditingBatchId(batch.id)}>
                                      {batch.class_name || 'Protocol General'}
                                    </h3>
                                 )}
-                                <div className="flex items-center gap-6 mt-5 bg-card shadow-sm w-fit px-4 py-2 border border-border">
-                                   <span className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">{new Date(batch.created_at).toLocaleDateString()}</span>
-                                   <div className="w-1.5 h-1.5 bg-muted rounded-none" />
-                                   <span className="text-[10px] text-cyan-500/70 font-black uppercase tracking-[0.2em] italic">{batch.student_count} Identities Distributed</span>
+                                <div className="flex items-center gap-4 sm:gap-6 mt-3 sm:mt-5 bg-card shadow-sm w-fit px-3 py-1.5 sm:px-4 sm:py-2 border border-border">
+                                   <span className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">{new Date(batch.created_at).toLocaleDateString()}</span>
+                                   <div className="w-1 h-1 bg-muted rounded-none" />
+                                   <span className="text-[8px] sm:text-[10px] text-cyan-500/70 font-black uppercase tracking-[0.2em] italic">{batch.student_count} Identities</span>
                                 </div>
                              </div>
                              {['admin', 'teacher'].includes(profile?.role || '') && (
-                               <button onClick={() => handleDeleteBatch(batch.id)} className="p-5 bg-card shadow-sm hover:bg-rose-600/20 text-muted-foreground hover:text-rose-500 transition-all border border-border ml-4">
-                                 <TrashIcon className="w-6 h-6" />
+                               <button onClick={() => handleDeleteBatch(batch.id)} className="p-3 bg-card shadow-sm hover:bg-rose-600/20 text-muted-foreground hover:text-rose-500 transition-all border border-border ml-3">
+                                 <TrashIcon className="w-5 h-5" />
                                </button>
                              )}
                           </div>
                           
-                          <div className="flex items-center gap-4">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-6 sm:mt-10">
                              <button 
                                onClick={async () => {
                                  if (selectedBatchId === batch.id) {
@@ -1731,60 +1725,58 @@ Yusuf Ibrahim SS1A`}
                                    setLoadingHistory(false);
                                  }
                                }}
-                               className={`flex-1 py-6 text-[11px] font-black uppercase tracking-[0.4em] transition-all border ${
+                               className={`flex-1 py-2.5 sm:py-3 text-[9px] font-black uppercase tracking-[0.2em] sm:tracking-[0.4em] transition-all border ${
                                  selectedBatchId === batch.id ? 'bg-cyan-600 text-foreground border-cyan-400 shadow-xl shadow-cyan-600/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted hover:text-foreground border-border'
                                }`}
                              >
-                               {selectedBatchId === batch.id ? 'Close Archive' : 'Open Ledger'}
+                               {selectedBatchId === batch.id ? 'Close Ledger' : 'Open Ledger'}
                              </button>
-                             <button 
-                               onClick={async () => {
-                                 setLoadingHistory(true);
-                                 const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                 if (data) handleMassPrintReport(data);
-                                 setLoadingHistory(false);
-                               }}
-                               className="px-6 py-4 bg-orange-900/40 hover:bg-orange-800 text-foreground border border-orange-500/30 transition-all active:scale-95"
-                               title="Print Roster List"
-                             >
-                               <PrinterIcon className="w-5 h-5" />
-                             </button>
-                             <button 
-                               onClick={async () => {
-                                 setLoadingHistory(true);
-                                 const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                 if (data) handleExportRosterPDF(data);
-                                 setLoadingHistory(false);
-                               }}
-                               className="px-6 py-4 bg-orange-600 hover:bg-orange-500 text-foreground shadow-xl shadow-orange-600/30 active:scale-95 transition-all group"
-                               title="Export Roster PDF"
-                             >
-                               <DocumentArrowDownIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                             </button>
-                             <button 
-                               onClick={async () => {
-                                 setLoadingHistory(true);
-                                 const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                 if (data) handleMassPrint(data);
-                                 setLoadingHistory(false);
-                               }}
-                               className="px-6 py-4 bg-[#7a0606] hover:bg-[#9a0808] text-foreground transition-all active:scale-95"
-                               title="Print Student Cards"
-                             >
-                               <RectangleGroupIcon className="w-5 h-5" />
-                             </button>
-                             <button 
-                               onClick={async () => {
-                                 setLoadingHistory(true);
-                                 const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                 if (data) handleExportCardsPDF(data);
-                                 setLoadingHistory(false);
-                               }}
-                               className="px-6 py-4 bg-orange-600 hover:bg-orange-500 text-foreground shadow-xl shadow-orange-600/30 active:scale-95 transition-all group"
-                               title="Export Cards PDF"
-                             >
-                               <PrinterIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                             </button>
+                             <div className="flex gap-1.5 sm:gap-2">
+                               <button 
+                                 onClick={async () => {
+                                   setLoadingHistory(true);
+                                   const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                                   if (data) handleExportRosterPDF(data);
+                                   setLoadingHistory(false);
+                                 }}
+                                 className="px-3 py-2 sm:px-4 sm:py-3 bg-cyan-600/10 hover:bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                               >
+                                 Export List (PDF)
+                               </button>
+                               <button 
+                                 onClick={async () => {
+                                   setLoadingHistory(true);
+                                   const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                                   if (data) handleExportCardsPDF(data);
+                                   setLoadingHistory(false);
+                                 }}
+                                 className="px-3 py-2 sm:px-4 sm:py-3 bg-cyan-600/10 hover:bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                               >
+                                 Export Cards (PDF)
+                               </button>
+                               <button 
+                                 onClick={async () => {
+                                   setLoadingHistory(true);
+                                   const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                                   if (data) handleMassPrintReport(data);
+                                   setLoadingHistory(false);
+                                 }}
+                                 className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                               >
+                                 Print List
+                               </button>
+                               <button 
+                                 onClick={async () => {
+                                   setLoadingHistory(true);
+                                   const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                                   if (data) handleMassPrint(data);
+                                   setLoadingHistory(false);
+                                 }}
+                                 className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                               >
+                                 Print Cards
+                               </button>
+                             </div>
                           </div>
 
                            {selectedBatchId === batch.id && (
@@ -1812,13 +1804,31 @@ Yusuf Ibrahim SS1A`}
                                                 onClick={() => handleExportCardsPDF(batchResults.filter(r => selectedResultIds.includes(r.id)))}
                                                 className="px-3 py-1.5 bg-cyan-600/10 hover:bg-cyan-600/20 text-cyan-400 text-[9px] font-black uppercase tracking-widest transition-all"
                                               >
-                                                 Export ({selectedResultIds.length})
+                                                 Export List (PDF)
+                                               </button>
+                                               <button 
+                                                 onClick={() => handleExportRosterPDF(batchResults.filter(r => selectedResultIds.includes(r.id)))}
+                                                 className="px-3 py-1.5 bg-cyan-600/10 hover:bg-cyan-600/20 text-cyan-400 text-[9px] font-black uppercase tracking-widest transition-all border-l border-cyan-500/30"
+                                               >
+                                                  Export Cards (PDF)
+                                               </button>
+                                               <button 
+                                                 onClick={() => handleMassPrintReport(batchResults.filter(r => selectedResultIds.includes(r.id)))}
+                                                 className="px-3 py-1.5 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border-l border-cyan-500/30"
+                                               >
+                                                  Print List
+                                               </button>
+                                               <button 
+                                                 onClick={() => handleMassPrint(batchResults.filter(r => selectedResultIds.includes(r.id)))}
+                                                 className="px-3 py-1.5 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border-l border-cyan-500/30"
+                                               >
+                                                  Print Cards
                                               </button>
                                               <button 
                                                 onClick={() => handleMassPrint(batchResults.filter(r => selectedResultIds.includes(r.id)))}
                                                 className="px-3 py-1.5 bg-card hover:bg-muted text-foreground text-[9px] font-black uppercase tracking-widest transition-all border-l border-cyan-500/30"
                                               >
-                                                 Print
+                                                 HIDDEN
                                               </button>
                                               {['admin', 'teacher'].includes(profile?.role || '') && (
                                                 <button 
@@ -1833,21 +1843,21 @@ Yusuf Ibrahim SS1A`}
                                         <p className="text-[9px] text-cyan-400/50 font-black tracking-[0.3em] uppercase">Sector: Distribution</p>
                                      </div>
                                   </div>
-                                  <div className="max-h-[500px] overflow-y-auto custom-scrollbar space-y-3 pr-4">
+                                  <div className="max-h-[500px] overflow-y-auto custom-scrollbar space-y-1.5 pr-2">
                                      {batchResults.map((r, ri) => (
-                                       <div key={r.id} className={`flex items-center justify-between p-6 transition-all group/it border ${selectedResultIds.includes(r.id) ? 'bg-cyan-500/5 border-cyan-500/30' : 'bg-white/[0.02] border-border hover:border-cyan-500/40 hover:bg-white/[0.04]'}`}>
-                                         <div className="flex items-center gap-6 overflow-hidden">
-                                           <div className="flex items-center gap-4 shrink-0">
+                                       <div key={r.id} className={`flex items-center justify-between p-2 sm:p-3 transition-all group/it border ${selectedResultIds.includes(r.id) ? 'bg-cyan-500/5 border-cyan-500/30' : 'bg-white/[0.02] border-border hover:border-cyan-500/40 hover:bg-white/[0.04]'}`}>
+                                         <div className="flex items-center gap-3 sm:gap-6 overflow-hidden">
+                                           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                                              <input
                                                type="checkbox"
-                                               className="w-5 h-5 bg-black/40 border-border rounded-none text-cyan-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                               className="w-4 h-4 bg-black/40 border-border rounded-none text-cyan-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
                                                checked={selectedResultIds.includes(r.id)}
                                                onChange={(e) => {
                                                  if (e.target.checked) setSelectedResultIds(prev => [...prev, r.id]);
                                                  else setSelectedResultIds(prev => prev.filter(id => id !== r.id));
                                                }}
                                              />
-                                             <div className="w-12 h-12 bg-black/40 flex items-center justify-center text-[11px] font-black italic text-cyan-500/30 border border-border group-hover/it:text-cyan-400 group-hover/it:border-cyan-500/40 transition-all">
+                                             <div className="w-8 h-8 bg-black/40 flex items-center justify-center text-[9px] font-black italic text-cyan-500/30 border border-border group-hover/it:text-cyan-400 group-hover/it:border-cyan-500/40 transition-all">
                                                {String(ri + 1).padStart(2, '0')}
                                              </div>
                                            </div>
@@ -1886,8 +1896,8 @@ Yusuf Ibrahim SS1A`}
                                                </div>
                                              ) : (
                                                <div onDoubleClick={() => setEditingResultId(r.id)} className="cursor-pointer">
-                                                 <p className="text-[14px] font-black text-foreground italic truncate uppercase tracking-tight group-hover/it:text-cyan-400 transition-colors">{r.full_name}</p>
-                                                 <p className="text-[10px] text-muted-foreground font-mono tracking-tighter truncate mt-1">{r.email}</p>
+                                                 <p className="text-[12px] font-black text-foreground italic truncate uppercase tracking-tight group-hover/it:text-cyan-400 transition-colors">{r.full_name}</p>
+                                                 <p className="text-[8.5px] text-muted-foreground font-mono tracking-tighter truncate mt-0.5">{r.email}</p>
                                                </div>
                                              )}
                                            </div>
@@ -1899,8 +1909,26 @@ Yusuf Ibrahim SS1A`}
                                                   {r.class_name || '...'}
                                                 </span>
                                                 <div className="flex opacity-0 group-hover/it:opacity-100 transition-opacity gap-1">
-                                                  <button onClick={() => setEditingResultId(r.id)} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors">
-                                                    <PencilIcon className="w-4 h-4" />
+                                                  <button
+                                                    onClick={() => setEditingResultId(r.id)}
+                                                    className="p-2 sm:p-2.5 bg-muted shadow-sm hover:bg-cyan-600/20 text-cyan-400/60 hover:text-cyan-400 transition-all border border-border"
+                                                    title="Edit Record"
+                                                  >
+                                                    <PencilIcon className="w-3.5 h-3.5" />
+                                                  </button>
+                                                  <button
+                                                    onClick={() => handleMassPrint([r])}
+                                                    className="p-2 sm:p-2.5 bg-muted shadow-sm hover:bg-orange-600/20 text-orange-400/60 hover:text-orange-400 transition-all border border-border"
+                                                    title="Print Card"
+                                                  >
+                                                    <PrinterIcon className="w-3.5 h-3.5" />
+                                                  </button>
+                                                  <button
+                                                    onClick={() => handleExportCardsPDF([r])}
+                                                    className="p-2 sm:p-2.5 bg-muted shadow-sm hover:bg-blue-600/20 text-blue-400/60 hover:text-blue-400 transition-all border border-border"
+                                                    title="Export PDF"
+                                                  >
+                                                    <DocumentArrowDownIcon className="w-3.5 h-3.5" />
                                                   </button>
                                                   {['admin', 'teacher'].includes(profile?.role || '') && (
                                                     <button
@@ -1911,9 +1939,10 @@ Yusuf Ibrahim SS1A`}
                                                         fetchHistory();
                                                         toast.success('Record purged successfully.');
                                                       }}
-                                                      className="p-2 text-muted-foreground hover:text-rose-500 transition-colors"
+                                                      className="p-2 sm:p-2.5 bg-muted shadow-sm hover:bg-rose-600/20 text-rose-400/60 hover:text-rose-400 transition-all border border-border"
+                                                      title="Purge Record"
                                                     >
-                                                      <TrashIcon className="w-4 h-4" />
+                                                      <TrashIcon className="w-3.5 h-3.5" />
                                                     </button>
                                                   )}
                                                 </div>
