@@ -97,7 +97,7 @@ export default function ModernReportCard({ report, orgSettings }: {
     return (
         <div
             id="modern-report-card"
-            className="bg-white text-gray-900 font-sans relative overflow-hidden flex flex-col p-4 sm:p-8 shadow-2xl mx-auto w-[794px] min-h-[1123px] max-h-[1123px] print:shadow-none transition-all duration-500"
+            className="bg-white text-gray-900 font-sans relative overflow-hidden flex flex-col p-4 sm:p-7 shadow-2xl mx-auto w-[794px] h-[1123px] print:shadow-none transition-all duration-500"
             style={{ fontSize: 12.5, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
         >
             {/* Ambient Background Elements */}
@@ -144,7 +144,7 @@ export default function ModernReportCard({ report, orgSettings }: {
             </div>
 
             {/* IDENTITY GRID */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 relative z-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3 relative z-10 shrink-0">
                 <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-[1.25rem] p-4 shadow-sm relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl -mr-16 -mt-16 group-hover:scale-110 transition-transform" />
                     <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] mb-3 opacity-60 flex items-center gap-2">
@@ -175,7 +175,10 @@ export default function ModernReportCard({ report, orgSettings }: {
                         <div className="grid grid-cols-2 gap-6">
                             <div>
                                 <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Term/Duration</p>
-                                <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">{report.report_term || report.course_duration || '—'}</p>
+                                <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">
+                                    {report.report_term || report.course_duration || '—'}
+                                    {report.report_period ? ` · ${report.report_period}` : ''}
+                                </p>
                             </div>
                             <div>
                                 <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Session Closing</p>
@@ -187,7 +190,7 @@ export default function ModernReportCard({ report, orgSettings }: {
             </div>
 
             {/* MAIN METRIC HUB */}
-            <div className="relative z-10 flex flex-col gap-4 mb-6">
+            <div className="relative z-10 flex flex-col gap-3 mb-4 shrink-0">
                 <div className="flex items-center gap-4">
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
                     <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-[0.6em] leading-none italic">Intelligence Matrix</p>
@@ -255,7 +258,7 @@ export default function ModernReportCard({ report, orgSettings }: {
             </div>
 
             {/* MODULES & EVALUATION */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 mb-4 relative z-10">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 mb-3 relative z-10 flex-1 min-h-0">
                 <div className="col-span-12 sm:col-span-4 space-y-4">
                     <div className="bg-gradient-to-br from-indigo-50 to-white border-l-4 border-indigo-500 p-5 rounded-2xl shadow-sm">
                         <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
@@ -299,14 +302,14 @@ export default function ModernReportCard({ report, orgSettings }: {
 
             {/* VALIDATION DECREE */}
             {(overall >= 0 || report.has_certificate) && (
-                <div className="relative z-10 mb-3 bg-gradient-to-br from-indigo-50 to-indigo-100 sm:from-indigo-700 sm:to-indigo-900 rounded-2xl px-5 py-3 sm:px-6 sm:py-4 flex items-center gap-3 sm:gap-4 overflow-hidden shadow-lg border border-indigo-200 sm:border-indigo-500/30 print:bg-white print:border-indigo-200">
+                <div className="relative z-10 mb-2 bg-gradient-to-br from-indigo-50 to-indigo-100 sm:from-indigo-700 sm:to-indigo-900 rounded-2xl px-5 py-2 sm:px-6 sm:py-3 flex items-center gap-3 sm:gap-4 overflow-hidden shadow-lg border border-indigo-200 sm:border-indigo-500/30 print:bg-white print:border-indigo-200 shrink-0">
                     <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 blur-[100px] -mr-40 -mt-40 pointer-events-none" />
-                    <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white/20 sm:bg-white/10 rounded-2xl flex items-center justify-center border border-indigo-200 sm:border-white/10 shadow-inner shrink-0 scale-90 sm:scale-110 print:bg-white print:border-indigo-100">
-                        <TrophyIcon className="w-5 h-5 sm:w-7 sm:h-7 text-indigo-600 sm:text-white/50 print:text-indigo-500" />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 sm:bg-white/10 rounded-xl flex items-center justify-center border border-indigo-200 sm:border-white/10 shadow-inner shrink-0 scale-90 sm:scale-100 print:bg-white print:border-indigo-100">
+                        <TrophyIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 sm:text-white/50 print:text-indigo-500" />
                     </div>
                     <div className="relative z-10 flex-1 min-w-0 py-0.5 sm:py-1">
-                        <h4 className="text-[8px] sm:text-[10px] font-black text-indigo-500 sm:text-indigo-200/50 uppercase tracking-[0.4em] sm:tracking-[0.6em] mb-1 sm:mb-2 italic print:text-indigo-400">Official Certification Decree</h4>
-                        <p className="text-[11px] sm:text-sm font-extrabold text-indigo-900 sm:text-white leading-tight sm:leading-relaxed italic print:text-indigo-900">
+                        <h4 className="text-[8px] sm:text-[9px] font-black text-indigo-500 sm:text-indigo-200/50 uppercase tracking-[0.4em] sm:tracking-[0.5em] mb-1 italic print:text-indigo-400 leading-none">Official Certification Decree</h4>
+                        <p className="text-[11px] sm:text-[13px] font-extrabold text-indigo-900 sm:text-white leading-tight sm:leading-snug italic print:text-indigo-900 truncate sm:whitespace-normal">
                             {report.certificate_text || `This document officially recognizes that ${report.student_name} has successfully completed the intensive study programme in ${report.course_name}.`}
                         </p>
                     </div>
@@ -314,7 +317,7 @@ export default function ModernReportCard({ report, orgSettings }: {
             )}
 
             {/* SIGNATURE & AUTHENTICATION */}
-            <div className="mt-auto relative z-10 bg-gray-50/50 border border-gray-100 rounded-[1.5rem] p-4 sm:p-6">
+            <div className="mt-auto relative z-10 bg-gray-50/50 border border-gray-100 rounded-[1.5rem] p-3 sm:p-5 shrink-0">
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-10">
                     <div className="flex flex-col gap-6">
                         <div className="space-y-4">

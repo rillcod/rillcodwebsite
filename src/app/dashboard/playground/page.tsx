@@ -21,8 +21,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 // Safe dynamic imports
-const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 const BlocklyEditor = dynamic(() => import('@/components/studio/BlocklyEditor'), { ssr: false });
+import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 
 import { LAB_EXAMPLES } from '@/data/lab-examples';
 
@@ -762,22 +762,13 @@ robot = Robot()
                 {editorMode === 'blocks' ? (
                   <BlocklyEditor xml={blocksXml} language={lang} onChange={(xml, genCode) => { setBlocksXml(xml); setCode(genCode); }} />
                 ) : (
-                  <MonacoEditor
+                  <IntegratedCodeRunner
                     height="100%"
-                    language={lang === 'robotics' ? 'python' : lang}
-                    theme="vs-dark"
+                    language={(lang === 'robotics' ? 'python' : lang) as any}
                     value={code}
                     onChange={(v) => { if (v !== undefined) setCode(v); }}
-                    options={{
-                      minimap: { enabled: false },
-                      fontSize: 14,
-                      fontFamily: 'JetBrains Mono, Menlo, monospace',
-                      padding: { top: 20 },
-                      scrollBeyondLastLine: false,
-                      smoothScrolling: true,
-                      cursorSmoothCaretAnimation: "on",
-                      roundedSelection: true,
-                    }}
+                    title={activeProject?.title || 'Open Workspace'}
+                    onRun={runCode}
                   />
                 )}
               </div>
@@ -1036,12 +1027,12 @@ robot = Robot()
         </div>
       </div>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.1); }
-      `}</style>
+      `}} />
     </div>
   );
 }

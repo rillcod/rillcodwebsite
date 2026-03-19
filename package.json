@@ -12,6 +12,10 @@
     "perf:mobile": "node scripts/mobile-performance.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.2.0",
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/ios": "^8.2.0",
     "@headlessui/react": "^2.2.9",
     "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-alert-dialog": "^1.1.6",
@@ -49,6 +53,7 @@
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.577.0",
     "next": "16.1.6",
+    "next-pwa": "^5.6.0",
     "next-themes": "^0.4.6",
     "openai": "^6.27.0",
     "pdfmake": "^0.3.5",

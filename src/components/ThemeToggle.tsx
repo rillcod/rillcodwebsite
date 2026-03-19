@@ -25,20 +25,20 @@ export default function ThemeToggle() {
   // Don't render until mounted to prevent hydration mismatch
   if (!mounted) {
     return (
-      <div className="w-10 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
+      <div className="w-10 h-10 bg-muted rounded-none animate-pulse"></div>
     )
   }
 
   const getThemeIcon = () => {
     switch (theme) {
       case 'light':
-        return <SunIcon className="w-5 h-5 text-yellow-500" />
+        return <SunIcon className="w-5 h-5 text-orange-500" />
       case 'dark':
-        return <MoonIcon className="w-5 h-5 text-blue-400" />
+        return <MoonIcon className="w-5 h-5 text-orange-400" />
       case 'system':
-        return <ComputerDesktopIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+        return <ComputerDesktopIcon className="w-5 h-5 text-muted-foreground" />
       default:
-        return <SunIcon className="w-5 h-5 text-yellow-500" />
+        return <SunIcon className="w-5 h-5 text-orange-500" />
     }
   }
 
@@ -58,11 +58,12 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="relative inline-flex items-center justify-center w-10 h-10 rounded-none bg-white/5 border border-white/10 hover:bg-white/10 hover:border-orange-500/30 transition-all duration-200 focus:outline-none"
+      className="relative inline-flex items-center justify-center w-10 h-10 rounded-none bg-card border border-border hover:border-orange-500 transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-orange-500"
       aria-label={getThemeLabel()}
       title={getThemeLabel()}
     >
       {getThemeIcon()}
     </button>
   )
-} 
+}
+ 

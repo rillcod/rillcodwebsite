@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo, u
 import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import type { UserProfile, AuthContextType } from '@/types';
+import { apiFetch } from '@/lib/api-fetch';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -75,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8_000);
 
-        const res = await fetch('/api/auth/me', { signal: controller.signal });
+        const res = await apiFetch('/api/auth/me', { signal: controller.signal });
         clearTimeout(timeoutId);
 
         if (!res.ok) {

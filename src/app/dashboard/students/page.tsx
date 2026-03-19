@@ -1577,10 +1577,10 @@ export default function StudentsPage() {
         initialData={editingStudent}
       />
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           body { background: white !important; color: black !important; }
-          .bg-\[\#0f0f1a\], .bg-gradient-to-br { background: white !important; }
+          .bg-[\#0f0f1a], .bg-gradient-to-br { background: white !important; }
           .bg-white\/5, .bg-white\/8, .bg-white\/10 { background: #f9fafb !important; border-color: #e5e7eb !important; }
           .text-foreground, .text-foreground\/60, .text-foreground\/40, .text-foreground\/30 { color: #111827 !important; }
           .border-border\/10, .border-border\/20, .border-border\/5 { border-color: #e5e7eb !important; }
@@ -1590,7 +1590,7 @@ export default function StudentsPage() {
           h1, h2, h3 { color: black !important; }
           .divide-white\/5 { divide-color: #e5e7eb !important; }
         }
-      `}</style>
+      `}} />
     </>
   );
 }

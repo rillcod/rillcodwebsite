@@ -1247,7 +1247,7 @@ tbody tr:hover{background:#f3f4f6}
                 <div ref={printableRef}>
                     {reportToDisplay && (
                         template === 'modern' ? (
-                            <PrintableReport report={reportToDisplay} orgSettings={orgSettings} />
+                            <ModernReportCard report={reportToDisplay} orgSettings={orgSettings} />
                         ) : (
                             <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
                         )
@@ -1260,7 +1260,7 @@ tbody tr:hover{background:#f3f4f6}
                 <div ref={captureRef}>
                     {captureReport && (
                         template === 'modern' ? (
-                            <PrintableReport report={captureReport} orgSettings={orgSettings} />
+                            <ModernReportCard report={captureReport} orgSettings={orgSettings} />
                         ) : (
                             <ReportCard report={captureReport} orgSettings={orgSettings} />
                         )

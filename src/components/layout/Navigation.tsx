@@ -70,8 +70,8 @@ const Navigation = () => {
 
   const navLinkCls = (href: string) =>
     `flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all rounded-none ${isActive(href)
-      ? 'text-orange-500 bg-card shadow-sm'
-      : 'text-slate-300 hover:text-foreground hover:bg-card shadow-sm'
+      ? 'text-orange-500 bg-muted shadow-sm'
+      : 'text-muted-foreground hover:text-foreground hover:bg-muted shadow-sm'
     }`;
 
   return (
@@ -88,13 +88,13 @@ const Navigation = () => {
           <div className="flex items-center justify-between h-16">
 
             {/* ── Brand ── */}
-            <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/5 border border-border flex items-center justify-center rounded-none group-hover:scale-105 transition-all ring-1 ring-white/20 ring-offset-2 ring-offset-[#121212]">
+            <Link href="/" className="flex items-center gap-2 sm:gap-3 group focus:outline-none">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-card border border-border flex items-center justify-center rounded-none group-hover:scale-105 transition-all ring-1 ring-border ring-offset-2 ring-offset-background">
                 <Image src="/images/logo.png" alt="Rillcod Technologies" width={36} height={36} className="object-contain" />
               </div>
               <div className="text-foreground leading-none">
                 <span className="text-2xl sm:text-3xl font-black uppercase tracking-tight block leading-tight italic">
-                  RILLCOD<span className="text-orange-500 not-italic">.</span>
+                   RILLCOD<span className="text-orange-500 not-italic">.</span>
                 </span>
                 <span className="text-2xl sm:text-3xl font-black uppercase tracking-tight block leading-tight italic text-orange-500">
                   TECHNOLOGIES
@@ -106,7 +106,7 @@ const Navigation = () => {
             <div className="hidden lg:flex items-center gap-1">
               {mainLinks.map(({ href, label, icon: Icon }) => (
                 <Link suppressHydrationWarning key={href} href={href} className={navLinkCls(href)}>
-                  {label}
+                   {label}
                 </Link>
               ))}
 
@@ -115,11 +115,11 @@ const Navigation = () => {
                  <button className="flex items-center gap-3 px-6 py-2.5 bg-card shadow-sm border border-border text-[10px] font-black uppercase tracking-widest text-foreground hover:bg-muted transition-all rounded-none">
                     Protocol <ChevronDownIcon className="w-3 h-3 group-hover:rotate-180 transition-transform" />
                  </button>
-                 <div className="absolute top-full right-0 mt-2 w-64 bg-[#1a1a1a] border border-border rounded-none shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 p-2">
+                 <div className="absolute top-full right-0 mt-2 w-64 bg-card border border-border rounded-none shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 p-2">
                     {secondaryLinks.map(({ href, label, icon: Icon, sub }) => (
-                      <Link key={href} href={href} className="flex flex-col p-4 hover:bg-card shadow-sm transition-colors border-l-2 border-l-transparent hover:border-l-orange-500">
+                      <Link key={href} href={href} className="flex flex-col p-4 hover:bg-muted shadow-sm transition-colors border-l-2 border-l-transparent hover:border-l-orange-500">
                          <span className="text-[10px] font-black text-foreground uppercase tracking-widest">{label}</span>
-                         <span className="text-[8px] text-slate-500 font-bold uppercase mt-1">{sub}</span>
+                         <span className="text-[8px] text-muted-foreground font-bold uppercase mt-1">{sub}</span>
                       </Link>
                     ))}
                  </div>
@@ -134,17 +134,17 @@ const Navigation = () => {
               {mounted && !authLoading && (
                 user ? (
                   <Link href="/dashboard"
-                    className="hidden sm:flex items-center gap-3 px-8 py-3 bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/10">
+                    className="hidden sm:flex items-center gap-3 px-8 py-3 bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/10">
                     <Squares2X2Icon className="w-4 h-4" /> Dashboard
                   </Link>
                 ) : (
                   <div className="hidden sm:flex items-center gap-3">
                     <Link href={LOGIN_HREF}
-                      className="px-6 py-3 text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-foreground transition-colors">
+                      className="px-6 py-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors">
                       Portal Login
                     </Link>
                     <Link href="/student-registration"
-                      className="px-8 py-3 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-slate-200 transition-all shadow-xl">
+                      className="px-8 py-3 bg-foreground text-background text-[10px] font-black uppercase tracking-widest rounded-none hover:opacity-90 transition-all shadow-xl">
                       Register Student
                     </Link>
                   </div>
@@ -166,23 +166,23 @@ const Navigation = () => {
         {/* ── Mobile Menu ── */}
         {mounted && isOpen && (
           <div className="lg:hidden border-t border-border bg-background overflow-y-auto max-h-[calc(100vh-72px)]">
-             <div className="p-8 space-y-10">
+             <div className="p-8 space-y-10 animate-in fade-in slide-in-from-top-4 duration-300">
                 <div className="flex items-center justify-between">
-                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em]">Command Center</p>
+                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">Command Center</p>
                    <ThemeToggle />
                 </div>
                 <div className="grid gap-2">
                    {[...mainLinks, ...secondaryLinks].map(({ href, label }) => (
-                     <Link key={href} href={href} className="text-lg sm:text-xl font-black text-foreground uppercase tracking-tight hover:text-orange-500 transition-colors py-2">
+                     <Link key={href} href={href} className="text-lg sm:text-xl font-black text-foreground uppercase tracking-tight hover:text-orange-500 transition-colors py-2 italic">
                         {label}
                      </Link>
                    ))}
                 </div>
 
                 <div className="pt-10 border-t border-border space-y-6">
-                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em]">System Uplink</p>
+                   <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">System Uplink</p>
                    {user ? (
-                     <Link href="/dashboard" className="flex items-center justify-center gap-3 w-full py-6 bg-orange-500 text-foreground text-xs font-black uppercase tracking-[0.2em] rounded-none shadow-2xl shadow-orange-500/20">
+                     <Link href="/dashboard" className="flex items-center justify-center gap-3 w-full py-6 bg-orange-500 text-white text-xs font-black uppercase tracking-[0.2em] rounded-none shadow-2xl shadow-orange-500/20">
                         <Zap className="w-4 h-4" /> Enter Dashboard
                      </Link>
                    ) : (
@@ -190,7 +190,7 @@ const Navigation = () => {
                         <Link href="/student-registration" className="flex items-center justify-center py-6 bg-orange-500 text-white text-xs font-black uppercase tracking-[0.2em] rounded-none shadow-xl shadow-orange-500/10">
                            Register Student
                         </Link>
-                        <Link href="/school-registration" className="flex items-center justify-center py-6 bg-white text-black text-xs font-black uppercase tracking-[0.2em] rounded-none shadow-xl">
+                        <Link href="/school-registration" className="flex items-center justify-center py-6 bg-foreground text-background text-xs font-black uppercase tracking-[0.2em] rounded-none shadow-xl">
                            Register School
                         </Link>
                         <Link href={LOGIN_HREF} className="flex items-center justify-center py-6 bg-card shadow-sm border border-border text-foreground text-xs font-black uppercase tracking-[0.2em] rounded-none">

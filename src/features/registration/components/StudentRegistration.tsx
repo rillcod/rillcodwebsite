@@ -57,9 +57,9 @@ const NIGERIAN_STATES = [
 function Field({ label, icon: Icon, children }: { label: string; icon?: any; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{label}</label>
+      <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">{label}</label>
       <div className="relative group">
-        {Icon && <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-orange-500 transition-colors pointer-events-none z-10" />}
+        {Icon && <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-orange-500 transition-colors pointer-events-none z-10" />}
         {children}
       </div>
     </div>
@@ -67,10 +67,10 @@ function Field({ label, icon: Icon, children }: { label: string; icon?: any; chi
 }
 
 const inputCls = (hasIcon = true) =>
-  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-[#1a1a1a] border border-border rounded-none text-sm font-bold text-white placeholder:text-slate-700 focus:outline-none focus:border-orange-500 transition-all shadow-inner shadow-black/20`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-orange-500 transition-all shadow-inner`;
 
 const selectCls = (hasIcon = false) =>
-  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-[#1a1a1a] border border-border rounded-none text-sm font-bold text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer shadow-inner shadow-black/20`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer shadow-inner`;
 
 // ─── Default form state ────────────────────────────────────────────
 const defaultForm = {
@@ -196,12 +196,12 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const paymentStatus = searchParams?.get('payment');
   if (paymentStatus === 'success') {
     return (
-      <div className="bg-[#1a1a1a] border border-border p-12 text-center shadow-2xl rounded-none border-t-4 border-t-emerald-500">
+      <div className="bg-card border border-border p-12 text-center shadow-2xl rounded-none border-t-4 border-t-emerald-500">
          <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-8 rounded-none">
             <Check className="w-10 h-10 text-emerald-500" />
          </div>
-         <h2 className="text-3xl font-black text-white uppercase tracking-tight mb-4">Confirmed</h2>
-         <p className="text-slate-400 font-bold italic mb-8">Uplink successful. Records updated. Our coordination team will reach out via secure email within 24 standard business hours.</p>
+         <h2 className="text-3xl font-black text-foreground uppercase tracking-tight mb-4">Confirmed</h2>
+         <p className="text-muted-foreground font-bold italic mb-8">Uplink successful. Records updated. Our coordination team will reach out via secure email within 24 standard business hours.</p>
          <button onClick={() => window.location.href = '/'} className="px-10 py-5 bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-emerald-600 transition-all">Return to Home</button>
       </div>
     );
@@ -220,15 +220,15 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-none text-orange-500 text-[10px] font-black uppercase tracking-widest mb-6">
             <GraduationCap className="w-4 h-4" /> System Enrollment
           </div>
-          <h1 className="text-4xl sm:text-6xl font-black text-white leading-none tracking-tight uppercase mb-4">
+          <h1 className="text-4xl sm:text-6xl font-black text-foreground leading-none tracking-tight uppercase mb-4">
              REGISTER <br />
-             <span className="text-white/40 italic">STUDENT.</span>
+             <span className="text-foreground/40 italic">STUDENT.</span>
           </h1>
         </div>
 
         {/* Enrollment Path Selector */}
         <div className="mb-10">
-          <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-4 text-center">Select Career Path</p>
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-4 text-center">Select Career Path</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {ENROLLMENT_TYPES.map(t => {
               const active = et === t.id;
@@ -236,11 +236,11 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                 <button
                   key={t.id} type="button"
                   onClick={() => { setForm(p => ({ ...p, enrollmentType: t.id, preferredSchedule: '' })); setErr(''); }}
-                  className={`group flex flex-col items-center gap-4 p-8 border rounded-none transition-all ${active ? t.color + ' shadow-2xl' : 'border-border bg-white/[0.02] hover:bg-white/[0.04] hover:border-border'}`}>
-                  <div className={`w-12 h-12 flex items-center justify-center rounded-none ${active ? 'bg-white/10 border border-border' : 'bg-white/5 border border-border'}`}>
-                    <t.icon className={`w-6 h-6 ${active ? 'text-white' : 'text-slate-600'}`} />
+                  className={`group flex flex-col items-center gap-4 p-8 border rounded-none transition-all ${active ? t.color + ' shadow-2xl' : 'border-border bg-card hover:bg-muted hover:border-border shadow-sm'}`}>
+                  <div className={`w-12 h-12 flex items-center justify-center rounded-none ${active ? 'bg-white/10 border border-border' : 'bg-background border border-border'}`}>
+                    <t.icon className={`w-6 h-6 ${active ? 'text-white' : 'text-muted-foreground'}`} />
                   </div>
-                  <p className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-white' : 'text-slate-500'}`}>{t.title}</p>
+                  <p className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-white' : 'text-muted-foreground'}`}>{t.title}</p>
                 </button>
               );
             })}
@@ -249,16 +249,16 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         </div>
 
         {/* Form Matrix */}
-        <div className="bg-[#1a1a1a] border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-orange-500">
+        <div className="bg-card border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-orange-500">
           
           {/* Progress Strip */}
           <div className="flex items-center justify-between mb-12 border-b border-border pb-8">
              {STEPS.map((s, i) => (
                 <div key={i} className="flex items-center gap-3">
-                   <div className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-none border ${i <= step ? 'bg-orange-500 border-orange-500 text-white' : 'border-border text-slate-700'}`}>
+                   <div className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-none border ${i <= step ? 'bg-orange-500 border-orange-500 text-white' : 'border-border text-muted-foreground/30'}`}>
                       {i < step ? <Check className="w-4 h-4" /> : i + 1}
                    </div>
-                   <span className={`text-[9px] font-black uppercase tracking-widest hidden sm:block ${i <= step ? 'text-white' : 'text-slate-700'}`}>{s.label}</span>
+                   <span className={`text-[9px] font-black uppercase tracking-widest hidden sm:block ${i <= step ? 'text-foreground' : 'text-muted-foreground/30'}`}>{s.label}</span>
                 </div>
              ))}
           </div>
@@ -267,7 +267,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
               
               {step === 0 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                  <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">01 // Personal Data</h3>
+                  <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">01 // Personal Data</h3>
                   <Field label="Full Name *" icon={User}>
                     <input type="text" name="fullName" value={form.fullName} onChange={set} required placeholder="Legal Name" className={inputCls()} />
                   </Field>
@@ -281,7 +281,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                       </select>
-                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                     </Field>
                   </div>
                   <Field label="Grade Level / Class *">
@@ -293,7 +293,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                       <option value="SSS 1-3">SSS 1–3</option>
                       <option value="Adult">Adult Learner</option>
                     </select>
-                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                   </Field>
                   <Field label={et === 'school' ? 'Partner School *' : 'Origin School (Optional)'} icon={School}>
                     {et === 'school' ? (
@@ -304,7 +304,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                     ) : (
                       <input type="text" name="currentSchool" value={form.currentSchool} onChange={set} placeholder="Current Institution" className={inputCls()} />
                     )}
-                    {et === 'school' && <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />}
+                    {et === 'school' && <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />}
                   </Field>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     <Field label="City Node" icon={MapPin}>
@@ -315,7 +315,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                           <option value="">Select Sector</option>
                           {NIGERIAN_STATES.map(st => <option key={st} value={st}>{st}</option>)}
                        </select>
-                       <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                       <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                     </Field>
                   </div>
                 </div>
@@ -323,7 +323,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
               {step === 1 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                   <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">02 // Guardian Protocol</h3>
+                   <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">02 // Guardian Protocol</h3>
                    <Field label="Full Guardian Name *" icon={User}>
                       <input type="text" name="parentName" value={form.parentName} onChange={set} required placeholder="Full Legal Name" className={inputCls()} />
                    </Field>
@@ -334,7 +334,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                          <option value="Mother">Mother</option>
                          <option value="Guardian">Guardian</option>
                       </select>
-                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                    </Field>
                    <Field label="Direct Phone Number *" icon={Phone}>
                       <input type="tel" name="parentPhone" value={form.parentPhone} onChange={set} required placeholder="+234..." className={inputCls()} />
@@ -347,7 +347,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
               {step === 2 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                   <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">03 // Final Uplink</h3>
+                   <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 pb-4 border-b border-border">03 // Final Uplink</h3>
                    <Field label="Programme Interest *" icon={BookOpen}>
                       <select name="courseInterest" value={form.courseInterest} onChange={set} required className={selectCls(true)}>
                          <option value="">Select Intelligence Sector</option>
@@ -356,7 +356,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                          <option value="Web Design">Web Architecture</option>
                          <option value="AI & Data Science">AI & Data Science</option>
                       </select>
-                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                    </Field>
 
                    <Field label="Engagement Schedule *" icon={Calendar}>
@@ -364,19 +364,19 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                          <option value="">Select Time Matrix</option>
                          {schedules.map(s => <option key={s.value} value={s.value}>{s.label} — {s.feeLabel}</option>)}
                       </select>
-                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                      <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                    </Field>
 
                    {et && (
-                     <div className="p-8 bg-orange-500/5 border border-border rounded-none italic text-xs font-bold text-slate-400 leading-relaxed">
+                     <div className="p-8 bg-orange-500/5 border border-border rounded-none italic text-xs font-bold text-muted-foreground leading-relaxed">
                         TRANSMISSION FEE: <span className="text-orange-500 text-lg font-black not-italic ml-2">{feeAmount || TYPE_FEES[et]}</span>
-                        <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-600">Verification managed via Paystack Protocol.</p>
+                        <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/30">Verification managed via Paystack Protocol.</p>
                      </div>
                    )}
 
-                   <div className="flex items-start gap-4 p-6 bg-white/[0.02] border border-border rounded-none">
+                   <div className="flex items-start gap-4 p-6 bg-muted/20 border border-border rounded-none shadow-inner">
                       <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-orange-500 cursor-pointer flex-shrink-0" />
-                      <label htmlFor="terms" className="text-[11px] font-bold text-slate-500 leading-relaxed cursor-pointer italic">
+                      <label htmlFor="terms" className="text-[11px] font-bold text-muted-foreground leading-relaxed cursor-pointer italic">
                                  I hereby initialize this registration and confirm all data records are accurate. I agree to the <span className="text-orange-500 underline">Technologies Service Protocols</span>.
                       </label>
                    </div>
@@ -389,7 +389,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                 <button 
                   type="button" 
                   onClick={step === 0 ? () => window.location.href = '/' : back} 
-                  className="flex items-center gap-3 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-white transition-colors"
+                  className="flex items-center gap-3 px-8 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
                 >
                    {step === 0 ? <Home className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
                    {step === 0 ? 'Home' : 'Back'}

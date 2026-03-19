@@ -560,7 +560,7 @@ export default function NewslettersPage() {
         )}
       </div>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .prose h1, .prose h2, .prose h3 { color: #111827 !important; margin-bottom: 0.5em; }
         .prose p { margin-bottom: 1em; }
         .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
@@ -569,7 +569,7 @@ export default function NewslettersPage() {
           #newsletter-print-area, #newsletter-print-area * { visibility: visible; }
           #newsletter-print-area { position: absolute; left: 0; top: 0; }
         }
-      `}</style>
+      `}} />
     </div>
   );
 }

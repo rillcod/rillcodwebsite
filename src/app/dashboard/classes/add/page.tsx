@@ -511,7 +511,7 @@ export default function AddClassPage() {
           </div>
         </form>
       </div>
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .inverted-calendar::-webkit-calendar-picker-indicator {
           filter: invert(1);
           opacity: 0.5;
@@ -530,7 +530,7 @@ export default function AddClassPage() {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(139, 92, 246, 0.5);
         }
-      `}</style>
+      `}} />
     </div>
   );
 }

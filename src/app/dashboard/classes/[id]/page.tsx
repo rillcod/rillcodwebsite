@@ -1404,7 +1404,7 @@ export default function ClassDetailPage() {
       })()}
 
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
           height: 8px;
@@ -1428,7 +1428,7 @@ export default function ClassDetailPage() {
           0% { transform: scale(0.9); opacity: 0; }
           100% { transform: scale(1); opacity: 1; }
         }
-      `}</style>
+      `}} />
       <AddStudentModal
         isOpen={showRegisterModal}
         onClose={() => setShowRegisterModal(false)}

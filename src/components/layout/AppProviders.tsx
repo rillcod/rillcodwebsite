@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/contexts/theme-context";
 import { AuthProvider } from "@/contexts/auth-context";
 import Navigation from "@/components/layout/Navigation";
 import PwaProvider from "@/components/pwa/PwaProvider";
+import PWAInstaller, { OfflineIndicator } from "@/components/PWAInstaller";
 import { Toaster } from "sonner";
 
 import { usePathname } from "next/navigation";
@@ -19,6 +20,8 @@ export default function AppProviders({ children }: { children: ReactNode }) {
       <AuthProvider>
         <Navigation />
         <PwaProvider />
+        <PWAInstaller />
+        <OfflineIndicator />
         {children}
         {!isDashboard && <WhatsAppButton />}
         <Toaster richColors position="top-right" />

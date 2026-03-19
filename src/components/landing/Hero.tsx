@@ -16,7 +16,7 @@ const Hero: React.FC = () => {
   return (
     <section
       id="home"
-      className="relative min-h-[90svh] flex items-center bg-[#121212] overflow-hidden pt-24 pb-12 sm:pt-32 sm:pb-20"
+      className="relative min-h-[90svh] flex items-center bg-background overflow-hidden pt-24 pb-12 sm:pt-32 sm:pb-20"
     >
       {/* Background Orbs */}
       <div className="absolute inset-0 z-0 overflow-hidden">
@@ -29,14 +29,14 @@ const Hero: React.FC = () => {
           
           {/* LEFT: Copy */}
           <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 border border-border backdrop-blur-sm mb-6 rounded-none">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-card border border-border backdrop-blur-sm mb-6 rounded-none">
               <Sparkles className="w-3.5 h-3.5 text-orange-500" />
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                 STEM Excellence Nigeria
               </span>
             </div>
 
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white leading-[1.1] tracking-tight mb-6 uppercase">
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-foreground leading-[1.1] tracking-tight mb-6 uppercase">
               Empowering <br className="hidden sm:block" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">
                 Future Leaders
@@ -45,7 +45,7 @@ const Hero: React.FC = () => {
               Through Code.
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-400 max-w-lg mb-10 font-medium leading-relaxed italic border-l-2 border-orange-500 pl-6">
+            <p className="text-base sm:text-lg text-muted-foreground max-w-lg mb-10 font-medium leading-relaxed italic border-l-2 border-orange-500 pl-6">
               Empowering Nigerian students with hands-on coding, robotics, and future-forward STEM skills directly within your school.
             </p>
 
@@ -59,7 +59,7 @@ const Hero: React.FC = () => {
               </Link>
               <Link
                 href="/login"
-                className="flex items-center justify-center gap-2.5 px-10 py-5 bg-white/5 text-white font-black text-xs uppercase tracking-[0.2em] rounded-none border border-border hover:bg-white/10 transition-all"
+                className="flex items-center justify-center gap-2.5 px-10 py-5 bg-card text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-none border border-border hover:bg-muted transition-all"
               >
                 Portal Login
               </Link>
@@ -68,9 +68,9 @@ const Hero: React.FC = () => {
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
               {stats.map((s) => (
-                <div key={s.label} className="bg-white/[0.03] border border-border rounded-none p-4 sm:p-5 border-t-2 border-t-orange-500/20">
-                  <p className="text-2xl sm:text-3xl font-black text-white tracking-tighter">{s.value}</p>
-                  <p className="text-[8px] sm:text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">{s.label}</p>
+                <div key={s.label} className="bg-card border border-border rounded-none p-4 sm:p-5 border-t-2 border-t-orange-500/20">
+                  <p className="text-2xl sm:text-3xl font-black text-foreground tracking-tighter">{s.value}</p>
+                  <p className="text-[8px] sm:text-[9px] text-muted-foreground font-black uppercase tracking-widest mt-1">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -80,16 +80,16 @@ const Hero: React.FC = () => {
           <div className="relative order-first lg:order-last">
             <div className="relative w-full aspect-square max-w-[500px] mx-auto group">
               {/* Floating Accent */}
-              <div className="absolute -top-4 -right-4 z-20 bg-[#161927] border border-border rounded-none p-3 sm:p-5 shadow-xl backdrop-blur-md">
+              <div className="absolute -top-4 -right-4 z-20 bg-card border border-border rounded-none p-3 sm:p-5 shadow-xl backdrop-blur-md">
                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-500 rounded-none flex items-center justify-center mb-2">
                     <Cpu className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                  </div>
-                 <p className="text-slate-200 font-black text-[8px] sm:text-[9px] uppercase tracking-widest">Robotics Hub</p>
+                 <p className="text-foreground font-black text-[8px] sm:text-[9px] uppercase tracking-widest">Robotics Hub</p>
               </div>
 
               {/* Image with Sharp Frame */}
-              <div className="relative z-10 w-full h-full rounded-none overflow-hidden border border-border shadow-2xl bg-slate-900 group-hover:-translate-y-1 transition-transform duration-500">
-                <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-transparent to-transparent opacity-60 z-10" />
+              <div className="relative z-10 w-full h-full rounded-none overflow-hidden border border-border shadow-2xl bg-muted group-hover:-translate-y-1 transition-transform duration-500">
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60 z-10" />
                 <Image 
                    src="/images/landing/hero.png" 
                    alt="Rillcod Excellence" 

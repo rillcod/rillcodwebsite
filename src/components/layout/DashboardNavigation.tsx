@@ -115,6 +115,7 @@ export default function DashboardNavigation() {
           { divider: true, label: 'Reports' },
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
           { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
+          { name: 'Manage Certificates', href: '/dashboard/certificates/management', icon: TrophyIcon },
           { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
           { divider: true, label: 'Finance' },
           { name: 'Payments', href: '/dashboard/payments', icon: BanknotesIcon },
@@ -141,6 +142,7 @@ export default function DashboardNavigation() {
           { divider: true, label: 'Reports' },
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
           { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
+          { name: 'Manage Certificates', href: '/dashboard/certificates/management', icon: TrophyIcon },
           { divider: true, label: 'Content' },
           { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
           { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
@@ -169,6 +171,7 @@ export default function DashboardNavigation() {
           { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
           { divider: true, label: 'My Progress' },
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
+          { name: 'Certificate Vault', href: '/dashboard/certificates', icon: TrophyIcon },
           { name: 'My Report Card', href: '/dashboard/results', icon: DocumentChartBarIcon },
           { divider: true, label: 'More' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
@@ -222,12 +225,12 @@ export default function DashboardNavigation() {
   return (
     <>
       {/* ── Mobile Top Header ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#121212] px-4 py-1.5 text-white border-b border-white/5 shadow-2xl">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#121212]/80 backdrop-blur-md px-4 py-1.5 text-white border-b border-white/5 shadow-2xl">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="w-7 h-7 bg-white/5 border border-white/10 flex items-center justify-center rounded-none ring-1 ring-white/20 ring-offset-1 ring-offset-[#121212]">
             <Image src="/images/logo.png" alt="Rillcod" width={16} height={16} className="object-contain" priority />
           </div>
-          <span className="font-black uppercase tracking-widest text-[11px] italic">Rillcod <span className="text-orange-500">Tech</span></span>
+          <span className="font-black uppercase tracking-widest text-[13px] italic">Rillcod <span className="text-orange-500">Tech</span></span>
         </Link>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
@@ -242,13 +245,13 @@ export default function DashboardNavigation() {
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-            className="p-1.5 text-white hover:text-[#FF914D] transition-colors rounded-lg hover:bg-white/10"
+            className="p-1.5 text-white hover:text-[#FF914D] transition-colors rounded-none hover:bg-white/10"
           >
             {mobileOpen ? <XMarkIcon className="w-7 h-7" /> : <Bars3Icon className="w-7 h-7" />}
           </button>
           <button
             onClick={handleLogout}
-            className="p-1.5 text-rose-500 hover:text-rose-400 transition-colors rounded-lg hover:bg-rose-500/10"
+            className="p-1.5 text-rose-500 hover:text-rose-400 transition-colors rounded-none hover:bg-rose-500/10"
             aria-label="Sign out"
           >
             <ArrowRightOnRectangleIcon className="w-6 h-6" />
@@ -314,7 +317,7 @@ export default function DashboardNavigation() {
               return (
                 <div key={`divider-${idx}`} className="pt-3 pb-1 px-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/25 whitespace-nowrap">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 whitespace-nowrap">
                       {entry.label}
                     </span>
                     <div className="h-px flex-1 bg-white/10" />
@@ -330,16 +333,16 @@ export default function DashboardNavigation() {
                 key={name}
                 href={href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-4 px-4 py-4 rounded-none text-[10px] font-black tracking-[0.2em] uppercase transition-all duration-300 relative group ${active
-                    ? 'bg-orange-500/10 text-orange-500'
-                    : 'text-slate-500 hover:bg-white/5 hover:text-white'
+                className={`flex items-center gap-4 px-4 py-4 rounded-none text-[12px] font-black tracking-[0.15em] uppercase transition-all duration-300 relative group ${active
+                    ? 'bg-orange-500/10 text-orange-500 shadow-[inset_0_0_20px_rgba(255,145,77,0.05)]'
+                    : 'text-zinc-100 hover:bg-white/5 hover:text-white'
                   }`}
               >
                 {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500 shadow-[0_0_15px_rgba(255,145,77,0.5)]" />}
-                <Icon className={`w-5 h-5 flex-shrink-0 transition-colors ${active ? 'text-orange-500' : 'text-slate-700 group-hover:text-slate-400'}`} />
-                <span className="truncate">{name}</span>
+                <Icon className={`w-5 h-5 flex-shrink-0 transition-colors ${active ? 'text-orange-500 drop-shadow-[0_0_8px_rgba(255,145,77,0.8)]' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                <span className={`truncate ${active ? 'drop-shadow-[0_0_10px_rgba(255,145,77,0.4)]' : ''}`}>{name}</span>
                 {name === 'Messages' && unreadCount > 0 && (
-                  <span className="ml-auto text-[10px] bg-rose-500 text-white px-1.5 py-0.5 rounded-full font-black min-w-[1.25rem] text-center">
+                  <span className="ml-auto text-[10px] bg-rose-500 text-white px-1.5 py-0.5 rounded-none font-black min-w-[1.25rem] text-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -383,7 +386,7 @@ export default function DashboardNavigation() {
                   </span>
                 )}
               </div>
-              <span className={`text-[8px] font-black uppercase tracking-widest leading-none ${active ? 'text-orange-500' : 'text-slate-700'}`}>
+              <span className={`text-[12px] font-black uppercase tracking-widest leading-none ${active ? 'text-orange-500' : 'text-zinc-400'}`}>
                 {name === 'My Courses' ? 'Courses' :
                   name === 'My Classes' ? 'Classes' :
                     name === 'My Report Card' ? 'Report' :
@@ -400,12 +403,12 @@ export default function DashboardNavigation() {
 
         <button
           onClick={handleLogout}
-          className="flex flex-col items-center gap-1 px-2 py-1 rounded-xl min-w-[3.5rem] transition-all duration-200 text-red-500 hover:text-red-400 group"
+          className="flex flex-col items-center gap-1 px-2 py-1 rounded-none min-w-[3.5rem] transition-all duration-200 text-red-500 hover:text-red-400 group"
         >
-          <div className="relative p-2 rounded-lg transition-all duration-200 group-active:bg-red-500/20">
+          <div className="relative p-2 rounded-none transition-all duration-200 group-active:bg-red-500/20">
             <ArrowRightOnRectangleIcon className="w-6 h-6" />
           </div>
-          <span className="text-[9px] font-bold uppercase tracking-wide leading-none">Sign Out</span>
+          <span className="text-[11px] font-bold uppercase tracking-wide leading-none">Sign Out</span>
         </button>
       </div>
     </>

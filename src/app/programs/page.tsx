@@ -300,63 +300,63 @@ export default function Programs() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-background font-sans">
       {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-cyan-400/10 to-blue-400/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-orange-500/10 to-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-orange-500/5 to-blue-500/5 rounded-full blur-3xl animate-pulse delay-500"></div>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Hero Section */}
-        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-none shadow-lg mb-16 px-4">
+        <div className="text-center py-16 bg-card border border-border rounded-none shadow-lg mb-16 px-4">
           <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-none flex items-center justify-center">
-              <BookOpen className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-background border border-border rounded-none flex items-center justify-center shadow-sm">
+              <BookOpen className="w-8 h-8 sm:w-10 sm:h-10 text-orange-500" />
             </div>
           </div>
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-gray-900 dark:text-white mb-6 uppercase tracking-tight">Our Learning Programs</h1>
-          <p className="text-sm sm:text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8 font-medium italic">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-foreground mb-6 uppercase tracking-tight">Our Learning Programs</h1>
+          <p className="text-sm sm:text-lg text-muted-foreground max-w-3xl mx-auto mb-8 font-medium italic">
             Discover our comprehensive range of technology education programs for students from <strong>Basic 1 to SS3</strong> — covering coding, robotics, digital entrepreneurship, and more, designed to inspire and empower every young Nigerian mind.
           </p>
-          <div className="w-20 h-1 bg-gradient-to-r from-blue-600 to-purple-600 mx-auto rounded-none"></div>
+          <div className="w-20 h-1 bg-orange-500 mx-auto rounded-none"></div>
         </div>
 
         {/* Summer School Banner */}
-        <div className="bg-[#1a1a1a] border border-border rounded-none shadow-2xl border-t-4 border-t-yellow-500 p-8 mb-16 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-none -translate-y-32 translate-x-32 blur-3xl"></div>
+        <div className="bg-card border border-border rounded-none shadow-2xl border-t-4 border-t-yellow-500 p-8 mb-16 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-none -translate-y-32 translate-x-32 blur-3xl"></div>
           <div className="relative z-10">
             <div className="flex flex-col lg:flex-row items-center justify-between">
-              <div className="flex-1 text-white mb-6 lg:mb-0">
+              <div className="flex-1 text-foreground mb-6 lg:mb-0">
                 <div className="flex items-center space-x-2 mb-4">
                   <Sun className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
-                  <span className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white">Summer School 2026</span>
+                  <span className="text-xl sm:text-2xl font-black uppercase tracking-tight text-foreground">Summer School 2026</span>
                   <div className="bg-yellow-500/20 border border-yellow-500/20 px-3 py-1 rounded-none text-[10px] font-black uppercase tracking-widest text-yellow-500">
                     Limited Time
                   </div>
                 </div>
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-black mb-4 uppercase leading-tight text-white">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-black mb-4 uppercase leading-tight text-foreground">
                   Accelerate Your Tech Journey This Summer!
                 </h2>
-                <p className="text-sm sm:text-base mb-6 opacity-70 font-medium italic text-white">
+                <p className="text-sm sm:text-base mb-6 text-muted-foreground font-medium italic">
                   Intensive programs for JSS3 students starting <strong>June 15th, 2026</strong> and other classes from <strong>July 25th, 2026</strong>.
                   Both online and onsite options available.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-slate-400">
+                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
                     <Calendar className="w-4 h-4 text-yellow-500" />
                     <span>JSS3: June 15th 2026 - 6 weeks</span>
                   </div>
-                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-slate-400">
+                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
                     <Calendar className="w-4 h-4 text-yellow-500" />
                     <span>Others: July 25th 2026 - 4 weeks</span>
                   </div>
-                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-slate-400">
+                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
                     <MapPin className="w-4 h-4 text-yellow-500" />
                     <span>Online & Onsite available</span>
                   </div>
-                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-slate-400">
+                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
                     <Users className="w-4 h-4 text-yellow-500" />
                     <span>Small class sizes (8-15 students)</span>
                   </div>
@@ -369,7 +369,7 @@ export default function Programs() {
                 </button>
               </div>
               <div className="flex-shrink-0 hidden lg:block">
-                <div className="w-32 h-32 bg-yellow-500/10 border border-yellow-500/20 rounded-none flex items-center justify-center backdrop-blur-sm">
+                <div className="w-32 h-32 bg-background border border-border rounded-none flex items-center justify-center shadow-sm">
                   <GraduationCap className="w-16 h-16 text-yellow-500" />
                 </div>
               </div>
@@ -378,34 +378,34 @@ export default function Programs() {
         </div>
 
         {/* Nigerian Impact Stats */}
-        <div className="bg-white dark:bg-gray-800 rounded-none shadow-lg p-8 mb-16 border border-gray-100 dark:border-gray-700">
-          <h2 className="text-xl sm:text-2xl font-black text-center text-gray-900 dark:text-white mb-12 uppercase tracking-tight italic">Our Impact Across Nigeria</h2>
+        <div className="bg-card border border-border rounded-none shadow-lg p-8 mb-16">
+          <h2 className="text-xl sm:text-2xl font-black text-center text-foreground mb-12 uppercase tracking-tight italic">Our Impact Across Nigeria</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
             {nigerianStats.map((stat, index) => (
               <div key={index} className="text-center group">
-                <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700/50 rounded-none flex items-center justify-center mx-auto mb-6 transition-all border border-gray-200 dark:border-gray-600 group-hover:border-orange-500">
-                  <div className="text-gray-600 dark:text-gray-400 group-hover:text-orange-500 transition-colors">
+                <div className="w-12 h-12 bg-background border border-border rounded-none flex items-center justify-center mx-auto mb-6 transition-all group-hover:border-orange-500 shadow-sm">
+                  <div className="text-muted-foreground group-hover:text-orange-500 transition-colors">
                     {stat.icon}
                   </div>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-1 tracking-tighter">{stat.number}</div>
-                <div className="text-[10px] sm:text-[11px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</div>
+                <div className="text-2xl sm:text-3xl font-black text-foreground mb-1 tracking-tighter italic">{stat.number}</div>
+                <div className="text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Success Stories */}
-        <div className="bg-white dark:bg-gray-800 rounded-none shadow-lg p-8 mb-16 border border-gray-100 dark:border-gray-700">
-          <h2 className="text-xl sm:text-2xl font-black text-center text-gray-900 dark:text-white mb-12 uppercase tracking-tight italic">Success Stories</h2>
+        <div className="bg-card border border-border rounded-none shadow-lg p-8 mb-16">
+          <h2 className="text-xl sm:text-2xl font-black text-center text-foreground mb-12 uppercase tracking-tight italic">Success Stories</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {successStories.map((story, index) => (
-              <div key={index} className="bg-gray-50 dark:bg-gray-700/30 rounded-none p-8 border border-gray-100 dark:border-gray-600 hover:border-orange-500 transition-all group">
+              <div key={index} className="bg-background rounded-none p-8 border border-border hover:border-orange-500 transition-all group shadow-sm">
                 <div className="text-4xl mb-6 grayscale group-hover:grayscale-0 transition-all">{story.image}</div>
-                <h3 className="text-lg font-black text-gray-900 dark:text-white mb-1 uppercase tracking-tight">{story.name}</h3>
+                <h3 className="text-lg font-black text-foreground mb-1 uppercase tracking-tight">{story.name}</h3>
                 <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-4">{story.location}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 font-medium italic leading-relaxed">"{story.story}"</p>
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 px-4 py-2 rounded-none text-[10px] font-black uppercase tracking-widest text-slate-500 inline-block">
+                <p className="text-sm text-muted-foreground mb-6 font-medium italic leading-relaxed">"{story.story}"</p>
+                <div className="bg-card border border-border px-4 py-2 rounded-none text-[10px] font-black uppercase tracking-widest text-muted-foreground inline-block shadow-sm">
                   {story.achievement}
                 </div>
               </div>
@@ -414,27 +414,27 @@ export default function Programs() {
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-[#1a1a1a] border border-border rounded-none p-10 mb-16 shadow-2xl relative overflow-hidden">
+        <div className="bg-card border border-border rounded-none p-10 mb-16 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
           <div className="flex flex-col lg:flex-row gap-8 items-center justify-between relative z-10">
             {/* Search */}
             <div className="flex-1 max-w-md w-full">
-              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 italic">Filter Data Streams:</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 italic">Filter Data Streams:</p>
               <div className="relative group">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-800 group-focus-within:text-orange-500 transition-colors w-4 h-4 z-10" />
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-orange-500 transition-colors w-4 h-4 z-10" />
                 <input
                   type="text"
                   placeholder="SEARCH PROTOCOLS..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-white placeholder:text-slate-900 focus:outline-none focus:border-orange-500 transition-all font-bold"
+                  className="w-full pl-14 pr-6 py-5 bg-background border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-orange-500 transition-all font-bold shadow-inner"
                 />
               </div>
             </div>
 
             {/* Category Filter */}
             <div className="w-full lg:w-auto">
-              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 italic">Categorical Sort:</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 italic">Categorical Sort:</p>
               <div className="flex flex-wrap gap-3">
                 {categories.map((category) => (
                   <button
@@ -442,7 +442,7 @@ export default function Programs() {
                     onClick={() => setSelectedCategory(category.name)}
                     className={`flex items-center gap-3 px-6 py-4 rounded-none transition-all duration-200 text-[10px] font-black uppercase tracking-widest border ${selectedCategory === category.name
                         ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-500/20'
-                        : 'bg-[#121212] border-border text-slate-500 hover:border-border hover:text-white'
+                        : 'bg-background border-border text-muted-foreground hover:border-orange-500/40 hover:text-foreground shadow-sm'
                       }`}
                   >
                     {category.name}
@@ -452,12 +452,12 @@ export default function Programs() {
             </div>
             {/* Sort */}
             <div className="flex items-center gap-3 w-full lg:w-auto">
-              <Filter className="w-4 h-4 text-slate-600 shrink-0" />
+              <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
               <div className="relative w-full lg:w-48 group">
                 <select
                   value={selectedLevel}
                   onChange={(e) => setSelectedLevel(e.target.value)}
-                  className="w-full pl-6 pr-10 py-5 bg-[#121212] border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-white focus:outline-none focus:border-orange-500 transition-all cursor-pointer appearance-none"
+                  className="w-full pl-6 pr-10 py-5 bg-background border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground focus:outline-none focus:border-orange-500 transition-all cursor-pointer appearance-none shadow-sm"
                 >
                   {levels.map((level) => (
                     <option key={level.value} value={level.value}>
@@ -465,7 +465,7 @@ export default function Programs() {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-800 pointer-events-none group-focus-within:text-orange-500 transition-colors" />
+                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none group-focus-within:text-orange-500 transition-colors" />
               </div>
             </div>
           </div>
@@ -474,25 +474,25 @@ export default function Programs() {
         {/* Programs Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 mb-16">
           {filteredPrograms.map((program) => (
-            <div key={program.id} className="bg-white dark:bg-gray-800 rounded-none shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all group flex flex-col">
+            <div key={program.id} className="bg-card rounded-none shadow-lg border border-border overflow-hidden hover:shadow-xl transition-all group flex flex-col">
               {/* Program Header */}
-              <div className={`p-8 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 relative overflow-hidden flex-shrink-0`}>
+              <div className={`p-8 bg-background border-b border-border relative overflow-hidden flex-shrink-0`}>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-none -translate-y-16 translate-x-16 rotate-45"></div>
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-8">
-                    <div className="w-12 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-none flex items-center justify-center p-2 shadow-sm group-hover:border-orange-500 transition-all">
+                    <div className="w-12 h-12 bg-card border border-border rounded-none flex items-center justify-center p-2 shadow-sm group-hover:border-orange-500 transition-all">
                       {program.icon}
                     </div>
                     <div className="text-right">
-                      <div className="text-xl font-black text-gray-900 dark:text-white tracking-tighter italic">{program.price}</div>
-                      <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Base Rate</div>
+                      <div className="text-xl font-black text-foreground tracking-tighter italic">{program.price}</div>
+                      <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Base Rate</div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{program.title}</h3>
+                    <h3 className="text-xl font-black text-foreground uppercase tracking-tight">{program.title}</h3>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 font-medium italic mb-6 line-clamp-2">{program.description}</p>
-                  <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest text-slate-600">
+                  <p className="text-xs text-muted-foreground font-medium italic mb-6 line-clamp-2">{program.description}</p>
+                  <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
                     <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5 text-orange-500" />
                       <span>{program.duration}</span>
@@ -509,15 +509,15 @@ export default function Programs() {
               <div className="p-8 flex-1 flex flex-col">
                 {/* Nigerian Context */}
                 <div className="mb-8 border-l-2 border-orange-500 pl-6">
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 italic">Context Optimization</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-300 font-bold leading-relaxed">{program.nigerianContext}</p>
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1 italic">Context Optimization</p>
+                  <p className="text-xs text-muted-foreground font-bold leading-relaxed">{program.nigerianContext}</p>
                 </div>
 
                 {/* Skills */}
                 <div className="mb-8">
                   <div className="flex flex-wrap gap-2">
                     {program.skills.slice(0, 3).map((skill, index) => (
-                      <span key={index} className="bg-gray-100 dark:bg-gray-700 text-[9px] font-black text-slate-600 dark:text-slate-400 px-3 py-1.5 rounded-none uppercase tracking-widest border border-gray-200 dark:border-gray-600">
+                      <span key={index} className="bg-background text-[9px] font-black text-muted-foreground px-3 py-1.5 rounded-none uppercase tracking-widest border border-border shadow-sm">
                         {skill}
                       </span>
                     ))}
@@ -528,7 +528,7 @@ export default function Programs() {
                 <div className="mt-auto space-y-3">
                   <button
                     onClick={() => toggleProgramDetails(program.id)}
-                    className="w-full bg-transparent border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 py-4 rounded-none text-[10px] font-black uppercase tracking-widest hover:border-orange-500 hover:text-orange-500 transition-all"
+                    className="w-full bg-transparent border border-border text-muted-foreground py-4 rounded-none text-[10px] font-black uppercase tracking-widest hover:border-orange-500 hover:text-orange-500 transition-all shadow-sm"
                   >
                     {selectedProgram === program.id ? 'CLOSE SYSTEM LOGS' : 'VIEW SPECIFICATIONS'}
                   </button>
@@ -542,7 +542,7 @@ export default function Programs() {
                   ) : (
                     <Link
                       href="/student-registration"
-                      className="flex items-center justify-center w-full bg-[#121212] border border-border text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.4em] hover:bg-orange-500 transition-all"
+                      className="flex items-center justify-center w-full bg-background border border-border text-foreground hover:text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.4em] hover:bg-orange-500 transition-all shadow-sm"
                     >
                       JOIN NETWORK
                     </Link>
@@ -551,12 +551,12 @@ export default function Programs() {
 
                 {/* Expanded Details */}
                 {selectedProgram === program.id && (
-                  <div className="mt-8 space-y-6 pt-8 border-t border-gray-100 dark:border-gray-700 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <div className="mt-8 space-y-6 pt-8 border-t border-border animate-in fade-in slide-in-from-top-4 duration-300">
                     <div>
-                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Output Deliverables</h4>
+                      <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Output Deliverables</h4>
                       <div className="space-y-2">
                         {program.projects.map((project, index) => (
-                          <div key={index} className="flex items-center gap-3 text-xs font-bold text-gray-700 dark:text-gray-300 capitalize italic">
+                          <div key={index} className="flex items-center gap-3 text-xs font-bold text-muted-foreground capitalize italic">
                             <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
                             <span>{project}</span>
                           </div>
@@ -571,10 +571,10 @@ export default function Programs() {
         </div>
 
         {/* Call to Action */}
-        <div className="bg-[#1a1a1a] border border-border border-t-4 border-t-orange-500 rounded-none p-12 text-center text-white shadow-2xl relative overflow-hidden">
+        <div className="bg-card border border-border border-t-4 border-t-orange-500 rounded-none p-12 text-center text-foreground shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
           <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight">Ready to Start Your <span className="text-orange-500 italic">Tech Journey?</span></h2>
-          <p className="text-sm sm:text-lg mb-10 opacity-60 max-w-2xl mx-auto font-medium italic">
+          <p className="text-sm sm:text-lg mb-10 opacity-60 max-w-2xl mx-auto font-medium italic text-muted-foreground">
             Join thousands of Nigerian students already building their future with technology. Secure your spot in our upcoming cohort today.
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
@@ -586,7 +586,7 @@ export default function Programs() {
             </Link>
             <Link
               href="/curriculum"
-              className="px-12 py-5 bg-transparent border border-border text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-white hover:text-black transition-all"
+              className="px-12 py-5 bg-transparent border border-border text-foreground font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-foreground hover:text-background transition-all shadow-sm"
             >
               View Curriculum
             </Link>

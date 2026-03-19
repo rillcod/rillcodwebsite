@@ -123,12 +123,13 @@ function blankForm(): SessionForm {
 // ─── Session Card ─────────────────────────────────────────────────────────────
 
 function SessionCard({
-  session, canManage, onEdit, onDelete,
+  session, canManage, onEdit, onDelete, onJoin
 }: {
   session: LiveSession;
   canManage: boolean;
   onEdit: (s: LiveSession) => void;
   onDelete: (id: string) => void;
+  onJoin: (id: string, url: string) => void;
 }) {
   const platCfg = PLATFORM_CONFIG[session.platform];
   const statusCfg = STATUS_CONFIG[session.status];
@@ -139,7 +140,7 @@ function SessionCard({
 
   return (
     <div className={`relative bg-[#0d0d0d] border flex flex-col gap-0 transition-all duration-300 overflow-hidden group
-      ${isLive ? 'border-emerald-500/40 shadow-[0_0_40px_rgba(16,185,129,0.1)]' : 'border-white/[0.06] hover:border-white/[0.12]'}`}>
+      ${isLive ? 'border-emerald-500/40 shadow-[0_0_40px_rgba(16,185,129,0.1)] scale-[1.02] z-10' : 'border-white/[0.06] hover:border-white/[0.12]'}`}>
       
       {/* Live glow strip */}
       {isLive && <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 animate-pulse" />}
@@ -224,10 +225,8 @@ function SessionCard({
       {(showJoin || showRecording) && (
         <div className="flex border-t border-white/5">
           {showJoin && (
-            <a
-              href={session.session_url!}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => onJoin(session.id, session.session_url!)}
               className={`flex-1 flex items-center justify-center gap-3 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${
                 isLive
                   ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20'
@@ -236,7 +235,7 @@ function SessionCard({
             >
               {isLive ? <SignalIcon className="w-4 h-4 animate-pulse" /> : <LinkIcon className="w-4 h-4" />}
               {isLive ? 'Join Live Now' : 'Join Session'}
-            </a>
+            </button>
           )}
           {showRecording && (
             <a
@@ -495,6 +494,31 @@ export default function LiveSessionsPage() {
   useEffect(() => {
     if (authLoading || !profile) return;
     loadData();
+
+    // ── Supabase Realtime Logic ──
+    const db = createClient();
+    const sub = db
+      .channel('live_sessions_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'live_sessions' 
+      }, (payload) => {
+        // Incrementally update session data without full reload if possible
+        if (payload.eventType === 'UPDATE') {
+          setSessions(prev => prev.map(s => 
+            s.id === payload.new.id ? { ...s, ...payload.new } : s
+          ));
+        } else if (payload.eventType === 'INSERT') {
+          // INSERT might need a reload for host/program relations
+          loadData();
+        } else if (payload.eventType === 'DELETE') {
+          setSessions(prev => prev.filter(s => s.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    return () => { db.removeChannel(sub); };
   }, [authLoading, profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = sessions.filter(s => {
@@ -553,8 +577,19 @@ export default function LiveSessionsPage() {
     try {
       const res = await fetch(`/api/live-sessions/${id}`, { method: 'DELETE' });
       if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to delete'); }
-      setSessions(prev => prev.filter(s => s.id !== id));
+      // Removal is handled by realtime subscription
     } catch (err: any) { alert(err?.message ?? 'Failed to delete session'); }
+  }
+
+  async function handleJoin(id: string, url: string) {
+    // 1. Log join attempt (Logic Improvement)
+    try {
+      await fetch(`/api/live-sessions/${id}/join`, { method: 'POST' });
+    } catch (e) {
+      console.error('Silent error recording join:', e);
+    }
+    // 2. Proceed to platform
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   if (authLoading || loading) {
@@ -694,6 +729,7 @@ export default function LiveSessionsPage() {
                 canManage={canManage && (isAdmin || s.host_id === profile?.id)}
                 onEdit={openEdit}
                 onDelete={handleDelete}
+                onJoin={handleJoin}
               />
             ))}
           </div>

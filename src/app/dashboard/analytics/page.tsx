@@ -331,7 +331,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Global Print Styles */}
-        <style jsx global>{`
+        <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page { size: A4; margin: 15mm 12mm; }
             body { background: white !important; color: #1f2937 !important; font-family: 'Segoe UI', Helvetica, Arial, sans-serif !important; }
@@ -374,7 +374,7 @@ export default function AnalyticsPage() {
             .text-blue-400 { color: #1e3a8a !important; }
             .text-orange-400 { color: #1e3a8a !important; }
           }
-        `}</style>
+        `}} />
       </div>
     </div>
   );

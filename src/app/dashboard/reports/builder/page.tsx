@@ -7,7 +7,8 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { Database } from '@/types/supabase';
-import ReportCard, { letterGrade as importedReportGrade } from '@/components/reports/ReportCard';
+import ReportCard from '@/components/reports/ReportCard';
+import ModernReportCard from '@/components/reports/ModernReportCard';
 import { generateReportPDF, ScaledReportCard } from '@/lib/pdf-utils';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
@@ -100,7 +101,7 @@ function ReportBuilderInner() {
     const prefStudentId = searchParams.get('student');
 
     const { profile, loading: authLoading, profileLoading } = useAuth();
-    
+
     // ── Permissions ──────────────────────────────────────────────────────────
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
     const isAdmin = profile?.role === 'admin';
@@ -174,6 +175,7 @@ function ReportBuilderInner() {
     const [showSettings, setShowSettings] = useState(false);
     const [milestoneInput, setMilestoneInput] = useState('');
     const [isBulkBuilding, setIsBulkBuilding] = useState(false);
+    const [reportStyle, setReportStyle] = useState<'standard'|'modern'>('standard');
     const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
     const pdfRef = useRef<HTMLDivElement>(null);
 
@@ -457,7 +459,7 @@ function ReportBuilderInner() {
     const handleBulkBuild = async () => {
         if (filteredStudents.length === 0) return;
         if (!confirm(`Are you sure you want to automatically generate reports for ${filteredStudents.length} students? This will overwrite individual drafts.`)) return;
-        
+
         setIsBulkBuilding(true);
         setBulkProgress({ current: 0, total: filteredStudents.length });
         const db = createClient();
@@ -497,7 +499,7 @@ function ReportBuilderInner() {
                 const assigPct = allAsgn.data?.length ? Math.round((subRes.data?.length || 0) / allAsgn.data.length * 100) : 0;
 
                 // 3. Map to Report Fields
-                const theory = cbtScore || Math.min(100, asgnAvg + 5); 
+                const theory = cbtScore || Math.min(100, asgnAvg + 5);
                 const practical = asgnAvg || theory;
                 const participation = Math.min(100, Math.round(attPct * 0.7 + assigPct * 0.3));
 
@@ -543,7 +545,7 @@ function ReportBuilderInner() {
             }
             setSuccess(`Successfully generated ${filteredStudents.length} report drafts!`);
             // Trigger a data refresh for student list
-            selectStudent(filteredStudents[0], 0); 
+            selectStudent(filteredStudents[0], 0);
         } catch (err: any) {
             setError('Bulk build failed: ' + err.message);
         } finally {
@@ -648,7 +650,7 @@ function ReportBuilderInner() {
             // Technical qualifiers are logic-based for accuracy
             if (['participation_grade', 'projects_grade', 'homework_grade'].includes(field)) {
                 await new Promise(r => setTimeout(r, 600)); // Brief delay for UX
-                
+
                 let prefix = '';
                 const currentText = (form as any)[field] || '';
                 if (currentText && currentText !== 'Good' && !currentText.includes('Completed') && !currentText.includes('Attended')) {
@@ -1462,7 +1464,7 @@ function ReportBuilderInner() {
                                                 attendance_score: '#10b981',
                                                 participation_score: '#8b5cf6',
                                             };
-                                            
+
                                             const val = parseInt(form[key]) || 0;
                                             return (
                                                 <div key={key}>
@@ -1477,12 +1479,11 @@ function ReportBuilderInner() {
                                                             max="100"
                                                             value={form[key]}
                                                             onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                            className={`flex-1 h-3 rounded-full appearance-none cursor-pointer outline-none bg-muted [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg ${
-                                                                key === 'theory_score' ? '[&::-webkit-slider-thumb]:bg-indigo-500' : 
-                                                                key === 'practical_score' ? '[&::-webkit-slider-thumb]:bg-cyan-500' : 
-                                                                key === 'attendance_score' ? '[&::-webkit-slider-thumb]:bg-emerald-500' : 
-                                                                '[&::-webkit-slider-thumb]:bg-orange-500'
-                                                            }`}
+                                                            className={`flex-1 h-3 rounded-full appearance-none cursor-pointer outline-none bg-muted [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg ${key === 'theory_score' ? '[&::-webkit-slider-thumb]:bg-indigo-500' :
+                                                                    key === 'practical_score' ? '[&::-webkit-slider-thumb]:bg-cyan-500' :
+                                                                        key === 'attendance_score' ? '[&::-webkit-slider-thumb]:bg-emerald-500' :
+                                                                            '[&::-webkit-slider-thumb]:bg-orange-500'
+                                                                }`}
                                                             style={{
                                                                 background: `linear-gradient(to right, ${colors[key]} ${val}%, rgba(255, 255, 255, 0.1) ${val}%)`
                                                             }}
@@ -1740,6 +1741,16 @@ function ReportBuilderInner() {
                             <h3 className="text-foreground font-black">{form.student_name}</h3>
                             <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold">Report Card Preview</p>
                         </div>
+                        <div className="flex bg-white/5 border border-white/10 mr-4">
+                            <button onClick={() => setReportStyle('standard')}
+                                className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'standard' ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:text-white'}`}>
+                                Standard
+                            </button>
+                            <button onClick={() => setReportStyle('modern')}
+                                className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'modern' ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:text-white'}`}>
+                                Modern
+                            </button>
+                        </div>
                         <button onClick={downloadPDF} disabled={isGeneratingPdf}
                             className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-black rounded-none shadow-xl shadow-orange-900/30 transition-all disabled:opacity-50">
                             {isGeneratingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}
@@ -1749,7 +1760,11 @@ function ReportBuilderInner() {
                     <div className="flex-1 overflow-auto p-4 sm:p-8 bg-black/40">
                         <div className="mx-auto rounded-[2rem] bg-white overflow-hidden shadow-2xl"
                             style={{ width: '210mm', minHeight: '297mm', transform: 'scale(0.85)', transformOrigin: 'top center' }}>
-                            <ReportCard report={previewData} orgSettings={branding as any} />
+                            {reportStyle === 'modern' ? (
+                                <ModernReportCard report={previewData} orgSettings={branding as any} />
+                            ) : (
+                                <ReportCard report={previewData} orgSettings={branding as any} />
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1757,7 +1772,11 @@ function ReportBuilderInner() {
 
             <div style={{ position: 'fixed', left: -9999, top: 0, width: '210mm', pointerEvents: 'none', zIndex: -1 }}>
                 <div ref={pdfRef}>
-                    <ReportCard report={previewData} orgSettings={branding as any} />
+                    {reportStyle === 'modern' ? (
+                        <ModernReportCard report={previewData} orgSettings={branding as any} />
+                    ) : (
+                        <ReportCard report={previewData} orgSettings={branding as any} />
+                    )}
                 </div>
             </div>
         </div >

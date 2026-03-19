@@ -163,6 +163,9 @@ function InteractiveQuiz({ block }: { block: any }) {
     if (revealed) return;
     setSelected(idx);
     setRevealed(true);
+    if (idx === block.correctAnswer && block.onComplete) {
+      block.onComplete();
+    }
   };
 
   return (
@@ -328,7 +331,7 @@ function CompletionCelebration({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: string }) {
+function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; lessonType?: string; onInteraction?: (idx: number) => void }) {
   if (!blocks || blocks.length === 0) return null;
 
   return (
@@ -405,12 +408,13 @@ function CanvaRenderer({ blocks, lessonType }: { blocks: any[]; lessonType?: str
                     initialCode={block.initialCode || ""}
                     language={block.language?.toLowerCase() as any || "javascript"}
                     title={block.title || "Activity Sandbox"}
+                    onRun={() => onInteraction?.(i)}
                   />
                 )}
               </div>
             );
           case 'quiz':
-            return <InteractiveQuiz key={i} block={block} />;
+            return <InteractiveQuiz key={i} block={{ ...block, onComplete: () => onInteraction?.(i) }} />;
           case 'video':
             return (
               <div key={i} className="space-y-4 sm:space-y-8">
@@ -495,6 +499,15 @@ export default function LessonDetailPage() {
   const [isCinemaMode, setIsCinemaMode] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [interactions, setInteractions] = useState<Set<number>>(new Set());
+
+  const handleInteraction = (idx: number) => {
+    setInteractions(prev => {
+      const next = new Set(prev);
+      next.add(idx);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const mainEl = document.querySelector('main');
@@ -801,57 +814,83 @@ export default function LessonDetailPage() {
             <div className="min-h-[50vh]">
               {activeTab === 'content' && (
                 <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                  <CanvaRenderer blocks={lesson.content_layout || []} lessonType={lesson.lesson_type} />
+                  <CanvaRenderer 
+                    blocks={lesson.content_layout || []} 
+                    lessonType={lesson.lesson_type} 
+                    onInteraction={handleInteraction}
+                  />
                   
-                  {/* Lesson Complete & Navigation */}
-                  <div className="mt-24 sm:mt-40 pt-24 sm:pt-40 border-t border-border flex flex-col items-center gap-12 sm:gap-20 text-center pb-40 sm:pb-56">
-                    {!completed && profile?.role === 'student' ? (
-                      <div className="relative group">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-orange-400 via-indigo-500 to-orange-600 rounded-[3rem] sm:rounded-[4rem] blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
-                        <button onClick={handleMarkComplete} disabled={marking} 
-                          className="relative px-12 sm:px-20 py-8 sm:py-12 bg-background rounded-[2.8rem] sm:rounded-[3.8rem] text-foreground flex flex-col items-center gap-4 transition-all active:scale-95 border border-border">
-                          <div className="p-5 bg-cyan-500/20 rounded-none text-cyan-400 shadow-2xl group-hover:scale-110 transition-transform duration-500">
-                             <CheckBadgeIcon className="w-10 h-10 sm:w-14 sm:h-14" />
-                          </div>
-                          <div>
-                            <span className="text-2xl sm:text-4xl font-black uppercase tracking-[0.2em]">{marking ? 'Processing...' : 'Sync Mastery'}</span>
-                            <span className="block text-[10px] sm:text-[12px] opacity-40 font-black uppercase tracking-[0.4em] mt-2">Close Operative Module</span>
-                          </div>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-8 group">
-                        <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-emerald-500/10 border-4 border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-[0_0_50px_rgba(16,185,129,0.2)] group-hover:scale-110 transition-transform duration-700">
-                          <CheckBadgeIcon className="w-12 h-12 sm:w-20 sm:h-20" />
-                        </div>
-                        <div className="space-y-2">
-                           <h4 className="text-4xl sm:text-6xl font-black text-foreground italic tracking-tighter">Module Synchronized</h4>
-                           <p className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.5em]">Advancement Recorded</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {nextLesson && (
-                      <div className="w-full max-w-4xl bg-background border border-border rounded-[4rem] p-10 sm:p-20 space-y-10 sm:space-y-14 group hover:border-cyan-500/20 transition-all shadow-3xl relative overflow-hidden">
-                         <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-600/5 blur-[120px] -mr-32 -mt-32 pointer-events-none" />
-                         <div className="space-y-6 relative z-10">
-                           <div className="flex items-center justify-center gap-4">
-                             <div className="h-px w-12 bg-cyan-500/30" />
-                             <h5 className="text-[12px] font-black uppercase tracking-[0.5em] text-cyan-500/60">Sequence Advance</h5>
-                             <div className="h-px w-12 bg-cyan-500/30" />
-                           </div>
-                           <h3 className="text-4xl sm:text-7xl font-black text-foreground group-hover:text-cyan-400 transition-colors tracking-tighter leading-none">{nextLesson.title}</h3>
-                           <div className="flex items-center justify-center gap-6">
-                              <span className="px-6 py-2 bg-card shadow-sm rounded-full text-[10px] font-black uppercase tracking-widest text-muted-foreground">{nextLesson.lesson_type}</span>
-                              <span className="text-[10px] font-black text-cyan-500/30 uppercase tracking-[0.3em]">Module {courseLessons.findIndex(l => l.id === nextLesson.id) + 1} of {courseLessons.length}</span>
-                           </div>
+                  {/* Logic: Interaction Progress Check */}
+                  <div className="mt-24 sm:mt-40 pt-24 border-t border-border space-y-12">
+                     {!completed && (
+                       <div className="max-w-xl mx-auto p-8 bg-[#0B0B1B] border border-white/5 space-y-6">
+                         <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.4em]">
+                           <span className="text-muted-foreground flex items-center gap-2">
+                             <div className="w-2 h-2 rounded-full bg-orange-600 animate-pulse" />
+                             Session Persistence
+                           </span>
+                           <span className="text-orange-500">{interactions.size} Blocks Validated</span>
                          </div>
-                         <Link href={`/dashboard/lessons/${nextLesson.id}${classId ? `?class_id=${classId}` : ''}`}
-                           className="relative z-10 inline-flex items-center gap-4 px-12 sm:px-16 py-6 sm:py-8 bg-white text-black font-black uppercase text-[12px] sm:text-[14px] tracking-[0.3em] rounded-none hover:bg-cyan-500 hover:text-foreground transition-all shadow-[0_20px_60px_rgba(255,255,255,0.1)] active:scale-95 group/btn">
-                           Engage Module <ChevronRightIcon className="w-5 h-5 transition-transform group-hover/btn:translate-x-2" />
-                         </Link>
-                      </div>
-                    )}
+                         <div className="h-1 bg-white/5 rounded-none overflow-hidden">
+                           <motion.div 
+                             className="h-full bg-orange-600 shadow-[0_0_15px_rgba(234,88,12,0.5)]"
+                             initial={{ width: 0 }}
+                             animate={{ width: `${Math.min(100, (interactions.size / (lesson.content_layout?.filter((b: any) => b.type === 'quiz' || b.type === 'activity').length || 1)) * 100)}%` }}
+                           />
+                         </div>
+                       </div>
+                     )}
+
+                    {/* Lesson Complete & Navigation */}
+                    <div className="flex flex-col items-center gap-12 sm:gap-20 text-center pb-40 sm:pb-56">
+                      {!completed && profile?.role === 'student' ? (
+                        <div className="relative group">
+                          <div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-orange-400 via-indigo-500 to-orange-600 rounded-[3rem] sm:rounded-[4rem] blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
+                          <button onClick={handleMarkComplete} disabled={marking} 
+                            className="relative px-12 sm:px-20 py-8 sm:py-12 bg-background rounded-[2.8rem] sm:rounded-[3.8rem] text-foreground flex flex-col items-center gap-4 transition-all active:scale-95 border border-border">
+                            <div className="p-5 bg-cyan-500/20 rounded-none text-cyan-400 shadow-2xl group-hover:scale-110 transition-transform duration-500">
+                               <CheckBadgeIcon className="w-10 h-10 sm:w-14 sm:h-14" />
+                            </div>
+                            <div>
+                              <span className="text-2xl sm:text-4xl font-black uppercase tracking-[0.2em]">{marking ? 'Processing...' : 'Sync Mastery'}</span>
+                              <span className="block text-[10px] sm:text-[12px] opacity-40 font-black uppercase tracking-[0.4em] mt-2">Close Operative Module</span>
+                            </div>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-8 group">
+                          <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-emerald-500/10 border-4 border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-[0_0_50px_rgba(16,185,129,0.2)] group-hover:scale-110 transition-transform duration-700">
+                            <CheckBadgeIcon className="w-12 h-12 sm:w-20 sm:h-20" />
+                          </div>
+                          <div className="space-y-2">
+                             <h4 className="text-4xl sm:text-6xl font-black text-foreground italic tracking-tighter">Module Synchronized</h4>
+                             <p className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.5em]">Advancement Recorded</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {nextLesson && (
+                        <div className="w-full max-w-4xl bg-background border border-border rounded-[4rem] p-10 sm:p-20 space-y-10 sm:space-y-14 group hover:border-cyan-500/20 transition-all shadow-3xl relative overflow-hidden">
+                           <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-600/5 blur-[120px] -mr-32 -mt-32 pointer-events-none" />
+                           <div className="space-y-6 relative z-10">
+                             <div className="flex items-center justify-center gap-4">
+                               <div className="h-px w-12 bg-cyan-500/30" />
+                               <h5 className="text-[12px] font-black uppercase tracking-[0.5em] text-cyan-500/60">Sequence Advance</h5>
+                               <div className="h-px w-12 bg-cyan-500/30" />
+                             </div>
+                             <h3 className="text-4xl sm:text-7xl font-black text-foreground group-hover:text-cyan-400 transition-colors tracking-tighter leading-none">{nextLesson.title}</h3>
+                             <div className="flex items-center justify-center gap-6">
+                                <span className="px-6 py-2 bg-card shadow-sm rounded-full text-[10px] font-black uppercase tracking-widest text-muted-foreground">{nextLesson.lesson_type}</span>
+                                <span className="text-[10px] font-black text-cyan-500/30 uppercase tracking-[0.3em]">Module {courseLessons.findIndex(l => l.id === nextLesson.id) + 1} of {courseLessons.length}</span>
+                             </div>
+                           </div>
+                           <Link href={`/dashboard/lessons/${nextLesson.id}${classId ? `?class_id=${classId}` : ''}`}
+                             className="relative z-10 inline-flex items-center gap-4 px-12 sm:px-16 py-6 sm:py-8 bg-white text-black font-black uppercase text-[12px] sm:text-[14px] tracking-[0.3em] rounded-none hover:bg-cyan-500 hover:text-foreground transition-all shadow-[0_20px_60px_rgba(255,255,255,0.1)] active:scale-95 group/btn">
+                             Engage Module <ChevronRightIcon className="w-5 h-5 transition-transform group-hover/btn:translate-x-2" />
+                           </Link>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

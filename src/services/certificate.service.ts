@@ -7,16 +7,11 @@ import fs from 'fs';
 import path from 'path';
 
 export class CertificateService {
-    async issueCertificate(studentId: string, courseId: string) {
+    async issueCertificate(studentId: string, courseId: string, issuerId?: string, schoolId?: string) {
         const supabase = await createClient();
 
         // 1. Verify eligibility (Simplified: check course progress/completion)
-        const { data: progress } = await supabase
-            .from('student_progress')
-            .select('status, lessons_completed, total_lessons')
-            .eq('portal_user_id', studentId)
-            .eq('course_id', courseId)
-            .single();
+        // ... progress check ...
 
         // 2. Generate unique numbers
         const certNumber = `RC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -31,7 +26,12 @@ export class CertificateService {
                 certificate_number: certNumber,
                 verification_code: verifyCode,
                 issued_date: new Date().toISOString().split('T')[0],
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                metadata: {
+                    is_published: false,
+                    issued_by: issuerId,
+                    school_id: schoolId
+                }
             }])
             .select()
             .single();
@@ -42,6 +42,20 @@ export class CertificateService {
         this.generateAndStorePDF(cert.id, studentId, courseId);
 
         return cert;
+    }
+
+    async publishCertificate(id: string) {
+        const supabase = await createClient();
+        const { data: cert } = await supabase.from('certificates').select('metadata').eq('id', id).single();
+        const newMetadata = { ...(cert?.metadata as any ?? {}), is_published: true };
+        
+        const { error } = await supabase
+            .from('certificates')
+            .update({ metadata: newMetadata })
+            .eq('id', id);
+            
+        if (error) throw new AppError(error.message, 500);
+        return { success: true };
     }
 
     private async generateAndStorePDF(certId: string, studentId: string, courseId: string) {

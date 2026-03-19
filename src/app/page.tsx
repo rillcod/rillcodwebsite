@@ -2,7 +2,7 @@ import { Hero, About, NigerianSTEMShowcase, Contact, Footer } from '@/components
 
 export default function Home() {
   return (
-    <div className="bg-[#121212]">
+    <div className="bg-background min-h-screen">
       <Hero />
       <About />
       <NigerianSTEMShowcase />

@@ -1,6 +1,24 @@
 import type { NextConfig } from "next";
+// @ts-ignore
+import withPWAInit from "next-pwa";
+
+const withPWA = withPWAInit({
+  dest: "public",
+  register: true,
+  skipWaiting: true,
+  // SafeDev PWA Mode: Disabled in development to ensure stable dashboard loading
+  disable: process.env.NODE_ENV === "development",
+});
 
 const nextConfig: NextConfig = {
+  // ── Native App Export (Uncomment these for Capacitor Android/iOS builds) ──
+  // output: 'export',
+  
+  // ── Turbopack Compatibility ──────────────────────────────────────────────
+  // silences warning for custom webpack used by next-pwa
+  // @ts-ignore
+  turbopack: {},
+
   // ── Bundle optimisations ───────────────────────────────────────
   experimental: {
     // Reduce duplicate module instances
@@ -11,6 +29,7 @@ const nextConfig: NextConfig = {
 
   // ── Image optimisation ─────────────────────────────────────────
   images: {
+    // unoptimized: true, // Uncomment this for Capacitor/PWA standalone builds
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 3600,
     remotePatterns: [
@@ -47,4 +66,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);

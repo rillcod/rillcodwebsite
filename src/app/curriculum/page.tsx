@@ -335,87 +335,87 @@ export default function Curriculum() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-background font-sans">
       {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-cyan-400/10 to-blue-400/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-orange-500/10 to-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-orange-500/5 to-blue-500/5 rounded-full blur-3xl animate-pulse delay-500"></div>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Hero Section */}
-        <div className="text-center py-16 bg-[#1a1a1a] border border-border rounded-none shadow-lg mb-16 relative overflow-hidden border-t-8 border-t-orange-500">
+        <div className="text-center py-16 bg-card border border-border rounded-none shadow-lg mb-16 relative overflow-hidden border-t-8 border-t-orange-500">
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
           <div className="flex justify-center mb-10">
-            <div className="w-20 h-20 bg-white/5 border border-border rounded-none flex items-center justify-center ring-1 ring-orange-500/50 ring-offset-4 ring-offset-[#1a1a1a]">
+            <div className="w-20 h-20 bg-background border border-border rounded-none flex items-center justify-center ring-1 ring-orange-500/50 ring-offset-4 ring-offset-card shadow-sm">
               <GraduationCap className="w-10 h-10 text-orange-500" />
             </div>
           </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-6 uppercase tracking-tight">12-Year AI-Integrated <span className="text-orange-500 italic">Curriculum.</span></h1>
-          <p className="text-sm sm:text-lg text-slate-400 max-w-3xl mx-auto mb-12 font-medium italic leading-relaxed border-l-2 border-orange-500 pl-8 mx-auto inline-block text-left">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-foreground mb-6 uppercase tracking-tight">12-Year AI-Integrated <span className="text-orange-500 italic">Curriculum.</span></h1>
+          <p className="text-sm sm:text-lg text-muted-foreground max-w-3xl mx-auto mb-12 font-medium italic leading-relaxed border-l-2 border-orange-500 pl-8 mx-auto inline-block text-left">
             A comprehensive journey from Basic 1 to SS3, integrating AI, robotics, and traditional programming to prepare Nigerian students for the future of Rillcod Technologies.
           </p>
           <div className="w-24 h-1 bg-orange-500 mx-auto mt-8"></div>
         </div>
 
         {/* Curriculum Overview */}
-        <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-2xl">
-          <h2 className="text-xl font-black text-white mb-12 text-center uppercase tracking-widest italic">Protocol Overview</h2>
+        <div className="bg-card border border-border rounded-none p-12 mb-16 shadow-2xl">
+          <h2 className="text-xl font-black text-foreground mb-12 text-center uppercase tracking-widest italic">Protocol Overview</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div className="text-center group">
-              <div className="w-20 h-20 bg-white/5 border border-border group-hover:border-orange-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-background border border-border group-hover:border-orange-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6 shadow-sm">
                 <Target className="w-8 h-8 text-orange-500" />
               </div>
-              <h3 className="text-sm font-black text-white mb-2 uppercase tracking-widest">12 Years</h3>
-              <p className="text-xs text-slate-500 font-bold italic">Complete educational journey from Basic 1 to SS3</p>
+              <h3 className="text-sm font-black text-foreground mb-2 uppercase tracking-widest">12 Years</h3>
+              <p className="text-xs text-muted-foreground font-bold italic">Complete educational journey from Basic 1 to SS3</p>
             </div>
             <div className="text-center group">
-              <div className="w-20 h-20 bg-white/5 border border-border group-hover:border-blue-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-background border border-border group-hover:border-blue-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6 shadow-sm">
                 <Code className="w-8 h-8 text-blue-500" />
               </div>
-              <h3 className="text-sm font-black text-white mb-2 uppercase tracking-widest">36+ Projects</h3>
-              <p className="text-xs text-slate-500 font-bold italic">Hands-on projects with real-world applications</p>
+              <h3 className="text-sm font-black text-foreground mb-2 uppercase tracking-widest">36+ Projects</h3>
+              <p className="text-xs text-muted-foreground font-bold italic">Hands-on projects with real-world applications</p>
             </div>
             <div className="text-center group">
-              <div className="w-20 h-20 bg-white/5 border border-border group-hover:border-emerald-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-background border border-border group-hover:border-emerald-500 transition-all rounded-none flex items-center justify-center mx-auto mb-6 shadow-sm">
                 <Star className="w-8 h-8 text-emerald-500" />
               </div>
-              <h3 className="text-sm font-black text-white mb-2 uppercase tracking-widest">AI Integration</h3>
-              <p className="text-xs text-slate-500 font-bold italic">Artificial intelligence embedded throughout the curriculum</p>
+              <h3 className="text-sm font-black text-foreground mb-2 uppercase tracking-widest">AI Integration</h3>
+              <p className="text-xs text-muted-foreground font-bold italic">Artificial intelligence embedded throughout the curriculum</p>
             </div>
           </div>
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-[#1a1a1a] border border-border rounded-none p-10 mb-16 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[100px] pointer-events-none"></div>
+        <div className="bg-card border border-border rounded-none p-10 mb-16 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
           <div className="flex flex-col lg:flex-row gap-8 items-center justify-between relative z-10">
             {/* Search */}
             <div className="flex-1 w-full lg:max-w-md">
-              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 italic">Filter Data Streams:</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 italic">Filter Data Streams:</p>
               <div className="relative group">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-800 group-focus-within:text-orange-500 transition-colors w-4 h-4 z-10" />
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-orange-500 transition-colors w-4 h-4 z-10" />
                 <input
                   type="text"
                   placeholder="SEARCH CURRICULUM..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-14 pr-6 py-5 bg-[#121212] border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-white placeholder:text-slate-900 focus:outline-none focus:border-orange-500 transition-all"
+                  className="w-full pl-14 pr-6 py-5 bg-background border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-orange-500 transition-all shadow-inner"
                 />
               </div>
             </div>
 
             {/* Level Filter */}
             <div className="w-full lg:w-auto">
-              <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 italic">Categorical Sort:</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 italic">Categorical Sort:</p>
               <div className="flex flex-wrap gap-3">
                 <button
                   onClick={() => setSelectedLevel("all")}
                   className={`flex items-center gap-3 px-8 py-4 text-[10px] font-black uppercase tracking-widest rounded-none border transition-all ${
                     selectedLevel === "all"
                       ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-500/20'
-                      : 'bg-[#121212] border-border text-slate-500 hover:border-border hover:text-white'
+                      : 'bg-background border-border text-muted-foreground hover:border-orange-500/40 hover:text-foreground shadow-sm'
                   }`}
                 >
                   All Sectors
@@ -427,7 +427,7 @@ export default function Curriculum() {
                     className={`flex items-center gap-3 px-8 py-4 text-[10px] font-black uppercase tracking-widest rounded-none border transition-all ${
                       selectedLevel === level.name.toLowerCase().replace(' ', '')
                         ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-500/20'
-                        : 'bg-[#121212] border-border text-slate-500 hover:border-border hover:text-white'
+                        : 'bg-background border-border text-muted-foreground hover:border-orange-500/40 hover:text-foreground shadow-sm'
                     }`}
                   >
                     {level.name}
@@ -439,9 +439,9 @@ export default function Curriculum() {
         </div>
 
         {/* Nigerian Impact Stats */}
-        <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-22xl relative">
+        <div className="bg-card border border-border rounded-none p-12 mb-16 shadow-2xl relative">
           <div className="absolute top-0 right-0 w-2 h-full bg-orange-500 font-black"></div>
-          <h2 className="text-xl font-black text-white text-left mb-12 uppercase tracking-widest italic flex items-center gap-4">
+          <h2 className="text-xl font-black text-foreground text-left mb-12 uppercase tracking-widest italic flex items-center gap-4">
             <span className="w-12 h-[1px] bg-orange-500"></span> 
             Continental Impact
           </h2>
@@ -451,17 +451,17 @@ export default function Curriculum() {
                 <div className="text-orange-500 mb-6 group-hover:scale-110 transition-transform origin-left">
                     {stat.icon}
                 </div>
-                <div className="text-3xl font-black text-white mb-1 tracking-tighter italic">{stat.number}</div>
-                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</div>
+                <div className="text-3xl font-black text-foreground mb-1 tracking-tighter italic">{stat.number}</div>
+                <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Learning Journey Overview */}
-        <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 blur-[100px] pointer-events-none"></div>
-          <h2 className="text-xl font-black text-white text-center mb-12 uppercase tracking-widest italic flex items-center justify-center gap-4">
+        <div className="bg-card border border-border rounded-none p-12 mb-16 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
+          <h2 className="text-xl font-black text-foreground text-center mb-12 uppercase tracking-widest italic flex items-center justify-center gap-4">
             <span className="w-12 h-[1px] bg-orange-500"></span>
             Learning Phase Roadmap
             <span className="w-12 h-[1px] bg-orange-500"></span>
@@ -469,35 +469,35 @@ export default function Curriculum() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {learningLevels.map((level, index) => (
               <div key={index} className="text-center group">
-                <div className={`w-24 h-24 bg-white/5 border border-border group-hover:border-orange-500 transition-all rounded-none flex items-center justify-center mx-auto mb-8 relative`}>
+                <div className={`w-24 h-24 bg-background border border-border group-hover:border-orange-500 transition-all rounded-none flex items-center justify-center mx-auto mb-8 relative shadow-sm`}>
                   <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   <div className="text-orange-500 group-hover:scale-110 transition-transform relative z-10">
                     {level.icon}
                   </div>
                 </div>
-                <h3 className="text-lg font-black text-white mb-4 uppercase tracking-tighter italic">{level.name}</h3>
-                <p className="text-xs text-slate-400 font-bold italic mb-4 leading-relaxed">{level.description}</p>
-                <div className="h-[1px] bg-white/5 w-12 mx-auto mb-4"></div>
-                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{level.focus}</p>
+                <h3 className="text-lg font-black text-foreground mb-4 uppercase tracking-tighter italic">{level.name}</h3>
+                <p className="text-xs text-muted-foreground font-bold italic mb-4 leading-relaxed">{level.description}</p>
+                <div className="h-[1px] bg-border w-12 mx-auto mb-4"></div>
+                <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{level.focus}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Success Stories */}
-        <div className="bg-[#1a1a1a] border border-border rounded-none p-12 mb-16 shadow-2xl border-l-8 border-l-blue-500">
-          <h2 className="text-xl font-black text-white mb-12 text-left uppercase tracking-widest italic flex items-center gap-4">
+        <div className="bg-card border border-border rounded-none p-12 mb-16 shadow-2xl border-l-8 border-l-blue-500">
+          <h2 className="text-xl font-black text-foreground mb-12 text-left uppercase tracking-widest italic flex items-center gap-4">
              <span className="w-12 h-[1px] bg-blue-500"></span>
              Success Protocols
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {successStories.map((story, index) => (
-              <div key={index} className="bg-[#121212] border border-border p-8 rounded-none hover:border-blue-500/50 transition-all group relative overflow-hidden">
+              <div key={index} className="bg-background border border-border p-8 rounded-none hover:border-blue-500/50 transition-all group relative overflow-hidden shadow-sm">
                 <div className="absolute top-0 right-0 p-4 text-4xl opacity-20 group-hover:opacity-40 transition-opacity">{story.image}</div>
-                <h3 className="text-lg font-black text-white mb-2 uppercase italic tracking-tight">{story.name}</h3>
+                <h3 className="text-lg font-black text-foreground mb-2 uppercase italic tracking-tight">{story.name}</h3>
                 <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-6">{story.location} • {story.grade}</p>
-                <p className="text-xs text-slate-400 font-bold italic mb-6 leading-relaxed relative z-10">{story.story}</p>
-                <div className="inline-block bg-blue-500/10 border border-blue-500/20 px-4 py-2 text-[10px] font-black text-blue-400 uppercase tracking-widest">
+                <p className="text-xs text-muted-foreground font-bold italic mb-6 leading-relaxed relative z-10">{story.story}</p>
+                <div className="inline-block bg-blue-500/10 border border-blue-500/20 px-4 py-2 text-[10px] font-black text-blue-400 uppercase tracking-widest shadow-sm">
                   {story.achievement}
                 </div>
               </div>
@@ -508,24 +508,24 @@ export default function Curriculum() {
         {/* Curriculum Sessions */}
         <div className="space-y-6 mb-16">
           {filteredSessions.map((session) => (
-            <div key={session.session} className="bg-[#1a1a1a] border border-border rounded-none shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300">
+            <div key={session.session} className="bg-card border border-border rounded-none shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300">
               {/* Session Header */}
-              <div className={`p-8 bg-[#121212] border-b border-border text-white relative overflow-hidden`}>
+              <div className={`p-8 bg-background border-b border-border text-foreground relative overflow-hidden`}>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-none -translate-y-16 translate-x-16 rotate-45"></div>
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center space-x-4">
-                      <div className="bg-white/5 border border-border rounded-none p-3 shadow-lg shadow-black/20">
+                      <div className="bg-card border border-border rounded-none p-3 shadow-lg">
                         <BookOpen className="w-8 h-8 text-orange-500" />
                       </div>
                       <div>
-                        <div className="text-[10px] font-black uppercase tracking-widest text-[#FF914D]">Session {session.session}</div>
-                        <div className="text-xl sm:text-2xl font-black uppercase tracking-tighter italic">{session.grade} • <span className="text-white/40">Age {session.age}</span></div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-orange-500">Session {session.session}</div>
+                        <div className="text-xl sm:text-2xl font-black uppercase tracking-tighter italic">{session.grade} • <span className="text-muted-foreground/40">Age {session.age}</span></div>
                       </div>
                     </div>
                     <button
                       onClick={() => toggleSession(session.session)}
-                      className="bg-white/5 border border-border rounded-none p-3 hover:bg-orange-500 hover:text-white transition-all duration-200"
+                      className="bg-card border border-border rounded-none p-3 hover:bg-orange-500 hover:text-white transition-all duration-200 shadow-sm"
                     >
                       {expandedSessions.includes(session.session) ? (
                         <ChevronUp className="w-6 h-6" />
@@ -534,49 +534,49 @@ export default function Curriculum() {
                       )}
                     </button>
                   </div>
-                  <h3 className="text-lg font-black mb-2 uppercase tracking-tight text-white">{session.title}</h3>
-                  <p className="text-xs text-slate-500 font-medium italic mb-6 leading-relaxed max-w-2xl">{session.description}</p>
+                  <h3 className="text-lg font-black mb-2 uppercase tracking-tight text-foreground">{session.title}</h3>
+                  <p className="text-xs text-muted-foreground font-medium italic mb-6 leading-relaxed max-w-2xl">{session.description}</p>
                   <div className="flex flex-wrap items-center gap-6">
                     <div className="flex items-center gap-2">
                       <Target className="w-3.5 h-3.5 text-orange-500" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{getLevelLabel(session.level)}</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{getLevelLabel(session.level)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Code className="w-3.5 h-3.5 text-blue-500" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{session.skills.length} Technical Skills</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{session.skills.length} Technical Skills</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Session Content */}
-              <div className="p-8 space-y-8 bg-[#1a1a1a]">
+              <div className="p-8 space-y-8 bg-card">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Nigerian Context */}
-                    <div className="bg-[#121212] border border-border border-l-4 border-l-emerald-500 p-6 rounded-none shadow-xl">
+                    <div className="bg-background border border-border border-l-4 border-l-emerald-500 p-6 rounded-none shadow-xl">
                       <div className="flex items-center space-x-3 mb-4">
                         <MapPin className="w-4 h-4 text-emerald-500" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Regional Implementation</span>
                       </div>
-                      <p className="text-xs text-slate-400 font-bold italic leading-relaxed">{session.nigerianContext}</p>
+                      <p className="text-xs text-muted-foreground font-bold italic leading-relaxed">{session.nigerianContext}</p>
                     </div>
 
                     {/* Success Story */}
-                    <div className="bg-[#121212] border border-border border-l-4 border-l-blue-500 p-6 rounded-none shadow-xl">
+                    <div className="bg-background border border-border border-l-4 border-l-blue-500 p-6 rounded-none shadow-xl">
                       <div className="flex items-center space-x-3 mb-4">
                         <Star className="w-4 h-4 text-blue-500" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">Success Protocol</span>
                       </div>
-                      <p className="text-xs text-slate-400 font-bold italic leading-relaxed">{session.successStory}</p>
+                      <p className="text-xs text-muted-foreground font-bold italic leading-relaxed">{session.successStory}</p>
                     </div>
                 </div>
 
                 {/* Skills */}
-                <div className="bg-[#121212] p-8 border border-border rounded-none shadow-xl">
-                  <h4 className="text-[10px] font-black text-[#FF914D] uppercase tracking-[0.4em] mb-6 italic">Technical Stack</h4>
+                <div className="bg-background p-8 border border-border rounded-none shadow-xl">
+                  <h4 className="text-[10px] font-black text-orange-500 uppercase tracking-[0.4em] mb-6 italic">Technical Stack</h4>
                   <div className="flex flex-wrap gap-3">
                     {session.skills.map((skill, index) => (
-                      <span key={index} className="bg-white/5 border border-border text-slate-300 px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:border-orange-500/50 transition-all">
+                      <span key={index} className="bg-card border border-border text-muted-foreground px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:border-orange-500/50 transition-all shadow-sm">
                         {skill}
                       </span>
                     ))}
@@ -586,20 +586,20 @@ export default function Curriculum() {
                 {/* Expanded Details */}
                 {expandedSessions.includes(session.session) && (
                   <div className="space-y-10 animate-in fade-in slide-in-from-top-4 duration-500">
-                    <div className="h-[1px] bg-white/5 w-full"></div>
+                    <div className="h-[1px] bg-border w-full"></div>
                     {/* Terms */}
                     <div>
-                      <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-8 italic text-center">Operational Roadmap // 3-Term Phase</h4>
+                      <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 italic text-center">Operational Roadmap // 3-Term Phase</h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {session.terms.map((term, index) => (
-                          <div key={index} className="bg-[#121212] border border-border rounded-none p-8 hover:border-orange-500/30 transition-all group">
+                          <div key={index} className="bg-background border border-border rounded-none p-8 hover:border-orange-500/30 transition-all group shadow-sm">
                             <div className="flex items-center gap-4 mb-6">
-                              <div className="w-10 h-10 bg-white/5 border border-border text-orange-500 rounded-none flex items-center justify-center text-xs font-black group-hover:bg-orange-500 group-hover:text-white transition-all">
+                              <div className="w-10 h-10 bg-card border border-border text-orange-500 rounded-none flex items-center justify-center text-xs font-black group-hover:bg-orange-500 group-hover:text-white transition-all shadow-sm">
                                 0{term.term}
                               </div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-white">TERM {term.term}</span>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-foreground">TERM {term.term}</span>
                             </div>
-                            <p className="text-xs text-slate-500 font-bold italic leading-relaxed">{term.focus}</p>
+                            <p className="text-xs text-muted-foreground font-bold italic leading-relaxed">{term.focus}</p>
                           </div>
                         ))}
                       </div>
@@ -607,35 +607,35 @@ export default function Curriculum() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Capstone Project */}
-                        <div className="bg-[#121212] border-t-4 border-t-orange-500 p-8 rounded-none shadow-2xl">
+                        <div className="bg-background border-t-4 border-t-orange-500 p-8 rounded-none shadow-2xl">
                           <div className="flex items-center space-x-3 mb-6">
                             <Award className="w-5 h-5 text-orange-500" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Capstone Objective</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground">Capstone Objective</span>
                           </div>
-                          <p className="text-xl font-black text-white italic tracking-tight mb-2 uppercase leading-none">{session.capstone}</p>
-                          <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-4">Final Validation Project</p>
+                          <p className="text-xl font-black text-foreground italic tracking-tight mb-2 uppercase leading-none">{session.capstone}</p>
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-4">Final Validation Project</p>
                         </div>
 
                         {/* Portfolio */}
-                        <div className="bg-[#121212] border-t-4 border-t-blue-500 p-8 rounded-none shadow-2xl">
+                        <div className="bg-background border-t-4 border-t-blue-500 p-8 rounded-none shadow-2xl">
                           <div className="flex items-center space-x-3 mb-6">
                             <FileText className="w-5 h-5 text-blue-500" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Artifact Portfolio</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground">Artifact Portfolio</span>
                           </div>
-                          <p className="text-sm font-black text-slate-300 italic leading-relaxed uppercase">{session.portfolio}</p>
-                          <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-4">Digital Career Assets</p>
+                          <p className="text-sm font-black text-muted-foreground italic leading-relaxed uppercase">{session.portfolio}</p>
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-4">Digital Career Assets</p>
                         </div>
                     </div>
 
-                    <div className="bg-white/5 p-6 border border-border rounded-none flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div className="bg-background p-6 border border-border rounded-none flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm">
                         <div className="flex items-center gap-4">
                             <Rocket className="w-6 h-6 text-orange-500" />
                             <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-[#FF914D]">Career Trajectory</p>
-                                <p className="text-xs font-bold text-white uppercase italic">{session.careerPath}</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-orange-500">Career Trajectory</p>
+                                <p className="text-xs font-bold text-foreground uppercase italic">{session.careerPath}</p>
                             </div>
                         </div>
-                        <Link href="/contact" className="px-8 py-4 bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest rounded-none hover:bg-orange-600 transition-all">
+                        <Link href="/contact" className="px-8 py-4 bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest rounded-none hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20">
                             Request Syllabus
                         </Link>
                     </div>
@@ -647,22 +647,22 @@ export default function Curriculum() {
         </div>
 
         {/* Call to Action */}
-        <div className="bg-[#1a1a1a] border border-border border-t-8 border-t-orange-500 rounded-none p-16 text-center shadow-2xl relative overflow-hidden">
+        <div className="bg-card border border-border border-t-8 border-t-orange-500 rounded-none p-16 text-center shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
-          <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight text-white">Initialize Your <span className="text-orange-500 italic">Journey.</span></h2>
-          <p className="text-sm sm:text-lg mb-12 opacity-60 max-w-2xl mx-auto font-medium italic text-slate-400 leading-relaxed">
+          <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight text-foreground">Initialize Your <span className="text-orange-500 italic">Journey.</span></h2>
+          <p className="text-sm sm:text-lg mb-12 opacity-60 max-w-2xl mx-auto font-medium italic text-muted-foreground leading-relaxed">
             Join thousands of Nigerian students already building their future with our comprehensive 12-year AI curriculum at Rillcod Technologies.
           </p>
           <div className="flex flex-col sm:flex-row gap-8 justify-center items-center">
             <Link
               href="/programs"
-              className="w-full sm:w-auto px-16 py-6 bg-white text-black font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-slate-200 transition-all shadow-2xl"
+              className="w-full sm:w-auto px-16 py-6 bg-foreground text-background font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-foreground/90 transition-all shadow-2xl"
             >
               Uplink Programs
             </Link>
             <Link
               href="/contact"
-              className="w-full sm:w-auto px-16 py-6 bg-transparent border border-border text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:border-orange-500 transition-all"
+              className="w-full sm:w-auto px-16 py-6 bg-transparent border border-border text-foreground font-black text-xs uppercase tracking-[0.4em] rounded-none hover:border-orange-500 transition-all"
             >
               Request Access
             </Link>

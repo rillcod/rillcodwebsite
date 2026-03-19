@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Rillcod Academy</string>
+    <string name="title_activity_main">Rillcod Academy</string>
+    <string name="package_name">com.rillcod.academy</string>
+    <string name="custom_url_scheme">com.rillcod.academy</string>
+</resources>

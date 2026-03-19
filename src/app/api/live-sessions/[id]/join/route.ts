@@ -1,15 +1,53 @@
-import { NextResponse } from 'next/server';
-import { withApiProxy, type ApiContext } from '@/lib/api-wrapper';
-import { liveSessionService } from '@/services/live-session.service';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 
-async function postHandler(req: Request, ctx: ApiContext) {
-    const id = ctx.params?.id;
-    if (!id) throw new AppError('Session ID missing', 400);
-    if (!ctx.user?.id) throw new AppError('Unauthorized', 401);
+// POST /api/live-sessions/[id]/join — Record attendance for joining student
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: sessionId } = await params;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-    const meetingUrl = await liveSessionService.joinSession(id, ctx.user.id);
-    return NextResponse.json({ success: true, data: { meetingUrl } });
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // 1. Check if session exists
+  const { data: session, error: sErr } = await supabase
+    .from('live_sessions')
+    .select('id, status')
+    .eq('id', sessionId)
+    .single();
+
+  if (sErr || !session) {
+    return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+  }
+
+  // 2. Record attendance entry
+  // We use upsert to avoid duplicate entries for the same join
+  const { data: attendance, error: aErr } = await supabase
+    .from('live_session_attendance')
+    .upsert([
+      {
+        session_id: sessionId,
+        portal_user_id: user.id,
+        joined_at: new Date().toISOString(),
+      }
+    ], { onConflict: 'session_id, portal_user_id' })
+    .select()
+    .single();
+
+  if (aErr) {
+    console.error('Error recording attendance:', aErr);
+    // Continue anyway as we don't want to block the user joining
+  }
+
+  return NextResponse.json({ 
+    success: true, 
+    message: 'Attendance recorded',
+    data: attendance 
+  });
 }
-
-export const POST = (req: any, ctx: any) => withApiProxy(postHandler)(req, ctx);

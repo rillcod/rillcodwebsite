@@ -18,106 +18,64 @@ export default function NotFound() {
   ];
 
   return (
-    <div className="min-h-screen pt-16 bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="container mx-auto px-4 md:px-6 py-16 md:py-24">
+    <div className="min-h-screen bg-background font-sans relative overflow-hidden flex items-center justify-center">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-orange-500/10 to-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+      </div>
+
+      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center">
-          {/* 404 Icon */}
-          <div className="mb-8">
-            <div className="inline-flex items-center justify-center w-32 h-32 bg-red-100 rounded-full mb-6">
-              <ExclamationTriangleIcon className="w-16 h-16 text-red-500" />
+          {/* 404 Protocol Error */}
+          <div className="mb-12">
+            <div className="inline-flex items-center justify-center w-24 h-24 bg-card border border-border rounded-none mb-8 shadow-2xl relative group">
+              <div className="absolute inset-0 bg-orange-500/10 group-hover:bg-orange-500/20 transition-all duration-300"></div>
+              <ExclamationTriangleIcon className="w-12 h-12 text-orange-500 relative z-10 animate-pulse" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500"></div>
+              <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500"></div>
             </div>
+            <h1 className="text-[120px] md:text-[180px] font-black leading-none text-foreground mb-4 tracking-tighter italic">404<span className="text-orange-500">.</span></h1>
+            <h2 className="text-xl md:text-2xl font-black text-muted-foreground uppercase tracking-[0.5em] mb-8 italic border-y border-border py-4 inline-block">
+              Sector Not Found // <span className="text-orange-500">Protocol 404</span>
+            </h2>
+            <p className="text-xs md:text-sm text-muted-foreground mb-12 max-w-lg mx-auto font-bold italic leading-relaxed uppercase tracking-widest opacity-60">
+              The requested data stream could not be located in the Rillcod mainframes. It might have been relocated or purged from the central database.
+            </p>
           </div>
 
-          {/* Error Message */}
-          <h1 className="text-6xl md:text-8xl font-bold text-gray-800 mb-4">404</h1>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-700 mb-4">
-            Page Not Found
-          </h2>
-          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-            Oops! The page you&apos;re looking for doesn&apos;t exist. It might have been moved, deleted, or you entered the wrong URL.
-          </p>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+          {/* Action Protocols */}
+          <div className="flex flex-col sm:flex-row gap-8 justify-center mb-20 relative">
             <Link
               href="/"
-              className="inline-flex items-center justify-center px-6 py-3 bg-[#FF914D] text-white rounded-full hover:bg-[#e67e3d] transform transition-all duration-300 hover:scale-105 font-semibold"
+              className="inline-flex items-center justify-center px-12 py-5 bg-foreground text-background rounded-none hover:bg-orange-500 hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl group"
             >
-              <ArrowLeftIcon className="w-5 h-5 mr-2" />
-              Go Back Home
+              <ArrowLeftIcon className="w-4 h-4 mr-3 group-hover:-translate-x-1 transition-transform" />
+              REVERT TO BASE
             </Link>
             <Link
               href="/contact"
-              className="inline-flex items-center justify-center px-6 py-3 border-2 border-[#FF914D] text-[#FF914D] rounded-full hover:bg-[#FF914D] hover:text-white transform transition-all duration-300 hover:scale-105 font-semibold"
+              className="inline-flex items-center justify-center px-12 py-5 border border-border text-foreground rounded-none hover:border-orange-500 transition-all duration-300 font-black text-[10px] uppercase tracking-[0.4em] group"
             >
-              Contact Support
+              OPEN SUPPORT UPLINK
             </Link>
           </div>
 
-          {/* Quick Links */}
-          <div className="bg-white rounded-2xl shadow-lg p-8 max-w-4xl mx-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-6">
-              Quick Navigation
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Quick Nav Grid */}
+          <div className="bg-card border border-border rounded-none p-10 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rotate-45 transform translate-x-16 -translate-y-16"></div>
+            <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-8 italic">Alternative Access Points:</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {quickLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg hover:bg-[#FF914D] hover:text-white transition-all duration-300 group"
+                  className="flex flex-col items-center justify-center p-6 bg-background border border-border rounded-none hover:border-orange-500/50 hover:bg-orange-500/5 transition-all duration-300 group"
                 >
-                  <link.icon className="w-6 h-6 text-[#FF914D] group-hover:text-white" />
-                  <span className="font-medium">{link.label}</span>
+                  <link.icon className="w-6 h-6 text-muted-foreground group-hover:text-orange-500 transition-colors mb-3" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">{link.label}</span>
                 </Link>
               ))}
-            </div>
-          </div>
-
-          {/* Help Section */}
-          <div className="mt-12 bg-blue-50 rounded-2xl p-8 max-w-4xl mx-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">
-              Need Help?
-            </h3>
-            <p className="text-gray-600 mb-6">
-              If you&apos;re looking for something specific, try these options:
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-              <div className="bg-white p-4 rounded-lg">
-                <h4 className="font-semibold text-gray-800 mb-2">Looking for Programs?</h4>
-                <p className="text-sm text-gray-600 mb-3">
-                  Explore our technology education programs for students of all ages.
-                </p>
-                <Link
-                  href="/programs"
-                  className="text-[#FF914D] hover:text-[#e67e3d] text-sm font-medium"
-                >
-                  View Programs →
-                </Link>
-              </div>
-              <div className="bg-white p-4 rounded-lg">
-                <h4 className="font-semibold text-gray-800 mb-2">School Partnership?</h4>
-                <p className="text-sm text-gray-600 mb-3">
-                  Learn how your school can partner with RILLCOD Academy.
-                </p>
-                <Link
-                  href="/schools"
-                  className="text-[#FF914D] hover:text-[#e67e3d] text-sm font-medium"
-                >
-                  Partner With Us →
-                </Link>
-              </div>
-              <div className="bg-white p-4 rounded-lg">
-                <h4 className="font-semibold text-gray-800 mb-2">Contact Support?</h4>
-                <p className="text-sm text-gray-600 mb-3">
-                  Get in touch with our team for assistance.
-                </p>
-                <Link
-                  href="/contact"
-                  className="text-[#FF914D] hover:text-[#e67e3d] text-sm font-medium"
-                >
-                  Contact Us →
-                </Link>
-              </div>
             </div>
           </div>
         </div>

@@ -238,12 +238,12 @@ function TeacherPersonalDashboard() {
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-10">
             <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="px-5 py-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-[0.3em] rounded-none shadow-xl">
+                <div className="px-5 py-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-black uppercase tracking-[0.3em] rounded-none shadow-xl">
                    Teacher Nucleus
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Active Session</span>
+                  <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Active Session</span>
                 </div>
               </div>
               
@@ -285,7 +285,7 @@ function TeacherPersonalDashboard() {
                 <ArrowRightIcon className="w-4 h-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-1 transition-all" />
               </div>
               <p className="text-2xl sm:text-3xl font-black text-foreground mb-0.5 sm:mb-1">{card.value}</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest">{card.label}</p>
+              <p className="text-xs text-slate-400 font-black uppercase tracking-widest">{card.label}</p>
               <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{card.change}</span>
                  <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${card.color}`} />
@@ -321,7 +321,7 @@ function TeacherPersonalDashboard() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-black text-foreground mb-1.5 truncate group-hover:text-orange-400 transition-colors">{cls.name}</h3>
-                      <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-4 text-xs font-bold uppercase tracking-widest text-slate-400">
                         <span className="flex items-center gap-2"><ClockIcon className="w-4 h-4 text-orange-500" />{cls.time}</span>
                         <span className="flex items-center gap-2"><UserGroupIcon className="w-4 h-4 text-blue-500" />{cls.students} Enrollments</span>
                       </div>
@@ -370,10 +370,10 @@ function TeacherPersonalDashboard() {
                   recentActivity.map((act) => (
                     <div key={act.id} className="p-5 hover:bg-card shadow-sm transition-colors group">
                       <div className="flex items-center justify-between mb-1">
-                        <p className={`text-[10px] font-black uppercase tracking-widest ${act.color}`}>{act.title}</p>
-                        <span className="text-[9px] font-bold text-muted-foreground">{act.time}</span>
+                        <p className={`text-xs font-black uppercase tracking-widest ${act.color}`}>{act.title}</p>
+                        <span className="text-xs font-bold text-slate-400">{act.time}</span>
                       </div>
-                      <p className="text-sm font-bold text-muted-foreground group-hover:text-foreground transition-colors">{act.subtitle}</p>
+                      <p className="text-sm font-bold text-slate-300 group-hover:text-foreground transition-colors">{act.subtitle}</p>
                     </div>
                   ))
                 )}
@@ -391,7 +391,7 @@ function TeacherPersonalDashboard() {
                 ) : perfData.map((item) => (
                   <div key={item.label} className="space-y-2">
                     <div className="flex justify-between items-center px-1">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate pr-4">{item.label}</span>
+                      <span className="text-xs font-black uppercase tracking-widest text-slate-400 truncate pr-4">{item.label}</span>
                       <span className="text-xs font-black text-foreground">{item.value}%</span>
                     </div>
                     <div className="w-full h-1.5 rounded-full bg-card shadow-sm p-[1px]">
@@ -441,7 +441,7 @@ function TeacherPersonalDashboard() {
             <div key={item.label} className="flex flex-col items-center justify-center py-4 px-2 hover:bg-card shadow-sm rounded-none transition-all group">
               <item.icon className={`w-5 h-5 ${item.color} mb-3 group-hover:scale-110 transition-transform`} />
               <p className="text-xl sm:text-2xl font-black text-foreground group-hover:text-orange-400 transition-colors tabular-nums">{item.value}</p>
-              <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest mt-1">{item.label}</p>
+              <p className="text-xs text-slate-400 font-black uppercase tracking-widest mt-1">{item.label}</p>
             </div>
           ))}
         </div>
@@ -810,10 +810,10 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                       </div>
                     </div>
 
-                    {/* Middle: Deployment Status */}
-                    <div className="hidden lg:flex flex-wrap items-center gap-2 lg:w-[180px] xl:w-[220px] shrink-0">
+                    {/* Middle: Deployment Status - Visible on md+ */}
+                    <div className="hidden md:flex flex-wrap items-center gap-2 md:w-[200px] lg:w-[240px] shrink-0">
                       {staffDeployment[t.id]?.length > 0 ? (
-                        staffDeployment[t.id].slice(0, 2).map(a => (
+                        staffDeployment[t.id].map(a => (
                           <div key={a.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-none bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400 uppercase tracking-widest max-w-full">
                             <BuildingOfficeIcon className="w-3 h-3 shrink-0" />
                             <span className="truncate">{a.schools?.name ?? 'Assigned'}</span>
