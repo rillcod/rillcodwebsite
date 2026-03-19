@@ -58,7 +58,7 @@ export default function NewslettersPage() {
   const pdfRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (profile?.role === 'admin' || profile?.role === 'school') {
+    if (profile?.role === 'admin') {
       loadNewsletters();
     }
   }, [profile]);
@@ -171,7 +171,9 @@ export default function NewslettersPage() {
     await generateReportPDF(pdfRef.current, `${activeNewsletter?.title || 'Newsletter'}.pdf`);
   }
 
-  if (profile?.role !== 'admin' && profile?.role !== 'school') {
+  const isManager = profile?.role === 'admin' || profile?.role === 'teacher';
+
+  if (profile?.role !== 'admin' && profile?.role !== 'school' && profile?.role !== 'teacher' && profile?.role !== 'student') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/10 via-transparent to-transparent">
         <div className="max-w-md w-full text-center space-y-6">
@@ -180,7 +182,7 @@ export default function NewslettersPage() {
           </div>
           <h1 className="text-3xl font-black tracking-tighter text-foreground uppercase italic">Access Denied</h1>
           <p className="text-muted-foreground font-medium leading-relaxed">
-            Only Administrators and School Partners can manage official newsletters. Visit the <strong>Messages</strong> tab to view published editions.
+            Visit the <strong>Command Center</strong> for authorized activities.
           </p>
           <a href="/dashboard" className="inline-block px-8 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground transition-all">
             Return to Command Center
@@ -199,24 +201,30 @@ export default function NewslettersPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <SpeakerWaveIcon className="w-5 h-5 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Premium Content</span>
+              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Official Channel</span>
             </div>
-            <h1 className="text-3xl font-extrabold">Newsletters & Announcements</h1>
-            <p className="text-muted-foreground text-sm mt-1">Design, AI-Draft, and push professional newsletters to everyone.</p>
+            <h1 className="text-3xl font-extrabold">{isManager ? 'Newsletter Console' : 'Official Newsletters'}</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              {isManager 
+                ? 'Design, AI-Draft, and push professional newsletters to all stakeholders.' 
+                : 'Stay updated with the latest news, technological trends, and school announcements.'}
+            </p>
           </div>
           {view === 'list' ? (
-            <button 
-              onClick={() => { setView('editor'); setActiveNewsletter({ title: '', content: '' }); }}
-              className="flex items-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 rounded-none text-sm font-bold transition-all shadow-lg shadow-orange-900/40"
-            >
-              <PlusIcon className="w-5 h-5" /> Create Newsletter
-            </button>
+            isManager && (
+              <button 
+                onClick={() => { setView('editor'); setActiveNewsletter({ title: '', content: '' }); }}
+                className="flex items-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 rounded-none text-sm font-bold transition-all shadow-lg shadow-orange-900/40"
+              >
+                <PlusIcon className="w-5 h-5" /> Create Newsletter
+              </button>
+            )
           ) : (
             <button 
               onClick={() => setView('list')}
               className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm hover:bg-muted rounded-none text-sm font-bold transition-all border border-border"
             >
-              <ArrowLeftIcon className="w-4 h-4" /> Back to List
+              <ArrowLeftIcon className="w-4 h-4" /> {isManager ? 'Back to Console' : 'Back to News'}
             </button>
           )}
         </div>

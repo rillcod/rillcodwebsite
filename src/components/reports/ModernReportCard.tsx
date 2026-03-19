@@ -95,286 +95,231 @@ export default function ModernReportCard({ report, orgSettings }: {
     const feeStyle = report.fee_status ? FEE_STATUS_STYLE[report.fee_status] : null;
 
     return (
-        <div
-            id="modern-report-card"
-            className="bg-white text-gray-900 font-sans relative overflow-hidden flex flex-col p-4 sm:p-7 shadow-2xl mx-auto w-[794px] h-[1123px] print:shadow-none transition-all duration-500"
-            style={{ fontSize: 12.5, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+        <div 
+          id="modern-report-card" 
+          className="bg-white text-slate-900 font-sans relative overflow-hidden flex flex-col p-10 shadow-2xl mx-auto printable-modern"
+          style={{ width: '210mm', height: '297mm', minHeight: '297mm', boxSizing: 'border-box', WebkitPrintColorAdjust: 'exact' }}
         >
-            {/* Ambient Background Elements */}
-            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[150px] rounded-full -mr-40 -mt-40 pointer-events-none print:hidden" />
-            <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-cyan-500/10 blur-[150px] rounded-full -ml-40 -mb-40 pointer-events-none print:hidden" />
-            <div className="absolute inset-0 border-2 border-indigo-500/5 m-6 pointer-events-none rounded-[3.5rem] print:border-indigo-500/10" />            {/* HEADER SECTION */}
-            <div className="relative z-10 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 pb-3 border-b border-gray-100">
-                <div className="flex items-center gap-4">
-                    <div className="p-2 sm:p-3 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 scale-90 sm:scale-100">
+            <style dangerouslySetInnerHTML={{ __html: `
+                @media print {
+                    @page { size: A4; margin: 0; }
+                    body { margin: 0; padding: 0; }
+                    .printable-modern { 
+                        box-shadow: none !important; 
+                        width: 210mm !important; 
+                        height: 297mm !important; 
+                    }
+                }
+            ` }} />
+
+            {/* Background Texture */}
+            <div className="absolute inset-0 border-[16px] border-slate-50 pointer-events-none" />
+            <div className="absolute inset-0 border border-slate-100 m-8 pointer-events-none" />
+            
+            {/* Header Section */}
+            <div className="relative z-10 flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8">
+                <div className="flex gap-6">
+                    <div className="p-4 bg-slate-950 rounded-none shadow-lg">
                         <img 
                           src={orgSettings?.logo_url || '/logo.png'} 
                           alt="Logo" 
                           crossOrigin="anonymous"
-                          className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
+                          className="w-14 h-14 object-contain brightness-0 invert"
                           onError={e => { (e.target as HTMLImageElement).src = '/logo.png'; }}
                         />
                     </div>
                     <div>
-                        <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                            <h2 className="text-[9px] sm:text-[10px] font-black text-indigo-600 uppercase tracking-[0.4em] opacity-70">Official Academic Registry</h2>
-                        </div>
-                        <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tighter leading-none italic bg-gradient-to-r from-gray-900 to-gray-500 bg-clip-text text-transparent">
+                        <h1 className="text-2xl font-black uppercase tracking-tighter leading-none italic mb-1">
                             {orgSettings?.org_name || 'Rillcod Technologies'}
                         </h1>
-                        <p className="text-[7px] sm:text-[8px] text-indigo-400 font-black uppercase tracking-[0.3em] mt-1">{orgSettings?.org_tagline || 'Excellence in Technology'}</p>
+                        <p className="text-[9px] text-teal-600 font-black uppercase tracking-[0.4em] mb-3">
+                            {orgSettings?.org_tagline || 'Technical Excellence Consortium'}
+                        </p>
+                        <div className="flex gap-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                            <span>ID: {report.id?.slice(0, 8) || 'PREVIEW'}</span>
+                            <span>DATE: {today}</span>
+                        </div>
                     </div>
                 </div>
-                <div className="flex flex-row-reverse sm:flex-row items-center justify-between sm:justify-end gap-6 sm:gap-10">
+                <div className="text-right">
+                    <div className="inline-block px-4 py-1.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.3em] mb-3 italic">
+                        Progress Report
+                    </div>
                     {hasPayment && feeStyle && (
-                        <div className="text-right">
-                            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest leading-none mb-1.5">Fee Status</p>
-                            <span className="px-3 py-1 rounded-full text-[9px] font-black border tracking-wider bg-white shadow-sm"
-                                style={{ color: feeStyle.text, borderColor: `${feeStyle.text}30` }}>
-                                {feeStyle.label}
-                            </span>
+                        <div className="flex items-center justify-end gap-2 px-3 py-1 bg-slate-50 border border-slate-200">
+                           <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">FEE {feeStyle.label}</span>
+                           {report.fee_amount && <span className="text-[10px] font-black italic">₦{report.fee_amount}</span>}
                         </div>
                     )}
-                    <div className="text-right">
-                        <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-1">Transcript ID</p>
-                        <p className="text-lg sm:text-xl font-black text-gray-900 tabular-nums leading-none tracking-tighter italic">{report.id?.slice(0, 8) || 'PREVIEW'}</p>
+                </div>
+            </div>
+
+            {/* Content Identity Grid */}
+            <div className="relative z-10 grid grid-cols-[1fr_200px] gap-8 mb-8">
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                        <p className="text-[10px] items-center gap-2 font-black text-slate-400 uppercase tracking-[0.4em] flex">
+                            <UserCircleIcon className="w-4 h-4 text-teal-500" /> Student Profile
+                        </p>
+                        <h2 className="text-4xl font-black uppercase tracking-tighter italic border-b-4 border-teal-500 pb-2">
+                            {report.student_name || 'Valued Learner'}
+                        </h2>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                            <div>
+                                <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Programme / Course</p>
+                                <p className="text-sm font-black text-slate-900 uppercase italic leading-tight">{report.course_name || 'STEM Advancement'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Term / Period</p>
+                                <p className="text-sm font-black text-slate-900 uppercase italic leading-tight">{report.report_term || 'S1-2024'}{report.report_period ? ` · ${report.report_period}` : ''}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Academic Level</p>
+                                <p className="text-sm font-black text-slate-900 uppercase italic leading-tight">{report.section_class || 'Grade Level'}</p>
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Affiliated School</p>
+                                <p className="text-sm font-black text-slate-900 uppercase italic leading-tight">{report.school_name || 'Rillcod Global'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Photo Area */}
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-36 h-44 bg-slate-50 border-2 border-slate-900 relative overflow-hidden shadow-lg">
+                        {report.photo_url ? (
+                            <img src={report.photo_url} alt="Student" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-slate-100">
+                                <UserCircleIcon className="w-16 h-16 text-slate-300 opacity-50" />
+                            </div>
+                        )}
+                        <div className="absolute inset-0 border border-white/20 pointer-events-none" />
+                    </div>
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.4em]">Official Transcript Photo</p>
+                </div>
+            </div>
+
+            {/* Performance Hub */}
+            <div className="relative z-10 grid grid-cols-12 gap-8 mb-8">
+                <div className="col-span-12">
+                    <div className="flex items-center gap-4 mb-4">
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.5em] text-slate-900 italic">Technical Matrix</h3>
+                        <div className="h-[2px] flex-1 bg-slate-100" />
+                    </div>
+                </div>
+
+                <div className="col-span-8 space-y-5">
+                    {[
+                        { label: 'Theory Protocols', value: theory, color: 'bg-indigo-600' },
+                        { label: 'Practical Synthesis', value: practical, color: 'bg-teal-600' },
+                        { label: 'Presence Metric', value: attendance, color: 'bg-slate-900' },
+                        { label: 'Engagement Data', value: report.participation_score || 0, color: 'bg-orange-600' }
+                    ].map(m => (
+                        <div key={m.label} className="space-y-2">
+                            <div className="flex justify-between items-end">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.label}</span>
+                                <span className="text-lg font-black italic tabular-nums text-slate-900">{m.value}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-slate-50 border border-slate-100">
+                                <div className={`h-full ${m.color}`} style={{ width: `${m.value}%` }} />
+                            </div>
+                        </div>
+                    ))}
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                        <div className="p-4 bg-slate-50 rounded-none border-l-4 border-indigo-400">
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Project Grade</p>
+                            <p className="text-lg font-black text-slate-900 italic uppercase leading-none">{report.projects_grade || '—'}</p>
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-none border-l-4 border-teal-400">
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Homework Hub</p>
+                            <p className="text-lg font-black text-slate-900 italic uppercase leading-none">{report.homework_grade || '—'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="col-span-4 flex flex-col items-center justify-center text-center bg-slate-950 p-6 shadow-xl relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-teal-500" />
+                    <p className="text-[9px] font-black text-teal-500 uppercase tracking-[0.4em] mb-4 italic">Composite Standing</p>
+                    <h3 className="text-8xl font-black italic leading-none text-white tracking-tighter mb-4 drop-shadow-lg">{grade.g}</h3>
+                    <div className="px-6 py-2 bg-teal-600 text-white text-[11px] font-black uppercase tracking-[0.2em] shadow-lg">
+                        {grade.label}
                     </div>
                 </div>
             </div>
 
-            {/* IDENTITY GRID */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3 relative z-10 shrink-0">
-                <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-[1.25rem] p-4 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl -mr-16 -mt-16 group-hover:scale-110 transition-transform" />
-                    <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] mb-3 opacity-60 flex items-center gap-2">
-                        <UserCircleIcon className="w-3.5 h-3.5" /> Candidate Profile
+            {/* Qualitative Insights */}
+            <div className="relative z-10 grid grid-cols-2 gap-8 mb-8 flex-1">
+                <div className="p-6 bg-slate-50 border border-slate-100 relative">
+                    <div className="flex items-center gap-2 mb-3">
+                        <SparklesIcon className="w-5 h-5 text-teal-600" />
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 italic">Precision Strengths</h4>
+                    </div>
+                    <p className="text-[12px] leading-relaxed text-slate-600 font-bold italic">
+                        {report.key_strengths || 'The student shows consistent effort and a dedicated approach to complex problem-solving patterns.'}
                     </p>
-                    <div className="space-y-4">
-                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-tight">{report.student_name || '—'}</h3>
-                        <div className="grid grid-cols-2 gap-6">
-                            <div>
-                                <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Academic Level</p>
-                                <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">{report.section_class || '—'}</p>
-                            </div>
-                            <div>
-                                <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Institution</p>
-                                <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">{report.school_name || 'Rillcod'}</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
-
-                <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-[1.25rem] p-4 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 blur-3xl -mr-16 -mt-16 group-hover:scale-110 transition-transform" />
-                    <p className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.3em] mb-3 opacity-60 flex items-center gap-2">
-                        <AcademicCapIcon className="w-3.5 h-3.5" /> Operational Details
+                <div className="p-6 bg-slate-50 border border-slate-100 relative">
+                    <div className="flex items-center gap-2 mb-3">
+                        <BoltIcon className="w-5 h-5 text-indigo-600" />
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 italic">Growth Vectors</h4>
+                    </div>
+                    <p className="text-[12px] leading-relaxed text-slate-600 font-bold italic">
+                        {report.areas_for_growth || 'Focus on architectural modularity and technical documentation will optimize larger scale deployment competence.'}
                     </p>
-                    <div className="space-y-4">
-                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-tight">{report.course_name || '—'}</h3>
-                        <div className="grid grid-cols-2 gap-6">
-                            <div>
-                                <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Term/Duration</p>
-                                <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">
-                                    {report.report_term || report.course_duration || '—'}
-                                    {report.report_period ? ` · ${report.report_period}` : ''}
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Session Closing</p>
-                                <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">{today}</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
-            {/* MAIN METRIC HUB */}
-            <div className="relative z-10 flex flex-col gap-3 mb-4 shrink-0">
-                <div className="flex items-center gap-4">
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
-                    <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-[0.6em] leading-none italic">Intelligence Matrix</p>
-                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 items-stretch">
-                    {/* Qualitative Bars */}
-                    <div className="col-span-12 sm:col-span-8 bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm flex flex-col justify-between">
-                        <div className="space-y-3">
-                            {[
-                                { label: 'Theory Protocols', value: theory, color: 'rgb(79, 70, 229)', icon: AcademicCapIcon, glow: 'rgba(79, 70, 229, 0.2)' },
-                                { label: 'Practical Synthesis', value: practical, color: 'rgb(6, 182, 212)', icon: BoltIcon, glow: 'rgba(6, 182, 212, 0.2)' },
-                                { label: 'Presence Metric', value: attendance, color: 'rgb(16, 185, 129)', icon: ClockIcon, glow: 'rgba(16, 185, 129, 0.2)' },
-                                { label: 'Engagement Data', value: report.participation_score || 0, color: 'rgb(139, 92, 246)', icon: UserGroupIcon, glow: 'rgba(139, 92, 246, 0.2)' }
-                            ].map(m => (
-                                <div key={m.label} className="space-y-1">
-                                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                                        <span className="text-gray-400 flex items-center gap-2">
-                                            <div className="w-5 h-5 rounded-lg bg-gray-50 flex items-center justify-center border border-gray-100">
-                                                <m.icon className="w-3 h-3 text-gray-400" />
-                                            </div>
-                                            {m.label}
-                                        </span>
-                                        <span style={{ color: m.color }} className="italic text-base">{m.value}%</span>
-                                    </div>
-                                    <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100/50 shadow-inner">
-                                        <div className="h-full rounded-full transition-all duration-1000 relative"
-                                            style={{ width: `${m.value}%`, backgroundColor: m.color, boxShadow: `0 0 15px ${m.glow}` }}>
-                                            <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-50" />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 mt-2">
-                                {[
-                                    { l: 'Project Grade', v: report.projects_grade, c: 'violet' },
-                                    { l: 'Homework Hub', v: report.homework_grade, c: 'cyan' }
-                                ].map(g => (
-                                    <div key={g.l} className="bg-gray-50/50 border border-gray-100 px-4 py-3 rounded-2xl group hover:border-indigo-500/20 transition-colors">
-                                        <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">{g.l}</p>
-                                        <p className="text-lg font-black text-gray-900 leading-none italic">{g.v || '—'}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Master Grade */}
-                    <div className="col-span-12 sm:col-span-4 bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 border border-indigo-100/30 rounded-[1.5rem] p-4 lg:p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group shadow-sm min-h-[150px]">
-                        <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] opacity-20" />
-                        <div className="relative z-10 w-full flex flex-col items-center">
-                            <div className="p-2 rounded-2xl bg-white shadow-xl mb-3 border border-indigo-50/50 group-hover:scale-110 transition-transform duration-700">
-                                <TrophyIcon className="w-5 h-5 text-amber-500" />
-                            </div>
-                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-1 italic">Composite Standing</p>
-                            <h3 className="text-6xl font-black leading-none italic drop-shadow-md transition-all mb-4" style={{ color: grade.color }}>{grade.g}</h3>
-                            <div className="px-5 py-1.5 bg-white border border-indigo-50 rounded-xl inline-block shadow-lg">
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-800 italic">{grade.label}</span>
-                            </div>
-                            <p className="text-lg font-black text-gray-200 mt-3 tabular-nums tracking-tighter italic opacity-40">{overall}% ACCURACY</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* MODULES & EVALUATION */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 mb-3 relative z-10 flex-1 min-h-0">
-                <div className="col-span-12 sm:col-span-4 space-y-4">
-                    <div className="bg-gradient-to-br from-indigo-50 to-white border-l-4 border-indigo-500 p-5 rounded-2xl shadow-sm">
-                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                            <CheckBadgeIcon className="w-3 h-3" /> Active Operative
-                        </p>
-                        <p className="text-[14px] font-black text-gray-900/80 leading-tight uppercase tracking-tight italic truncate">{report.current_module || 'Synthetic Core'}</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-cyan-50 to-white border-l-4 border-cyan-500 p-5 rounded-2xl shadow-sm">
-                        <p className="text-[9px] font-black text-cyan-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                            <BoltIcon className="w-3 h-3" /> Sequence Target
-                        </p>
-                        <p className="text-[14px] font-black text-gray-900/80 leading-tight uppercase tracking-tight italic truncate">{report.next_module || 'Advanced Node'}</p>
-                    </div>
-                </div>
-
-                <div className="col-span-12 sm:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="bg-white border border-emerald-500/10 p-4 rounded-[1.5rem] relative shadow-sm hover:border-emerald-500/30 transition-colors">
-                        <div className="flex items-center justify-between mb-3">
-                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2 italic">
-                                <SparklesIcon className="w-4 h-4" /> Precision Strengths
-                            </p>
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        </div>
-                        <p className="text-[13px] leading-relaxed text-gray-700 font-medium italic">
-                            {report.key_strengths || 'Cognitive patterns indicate high analytical precision and rapid assimilation of core technical logic.'}
-                        </p>
-                    </div>
-                    <div className="bg-white border border-rose-500/10 p-4 rounded-[1.5rem] relative shadow-sm hover:border-rose-500/30 transition-colors">
-                        <div className="flex items-center justify-between mb-3">
-                            <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-2 italic">
-                                <BoltIcon className="w-4 h-4" /> Growth Vectors
-                            </p>
-                            <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                        </div>
-                        <p className="text-[13px] leading-relaxed text-gray-700 font-medium italic">
-                            {report.areas_for_growth || 'Transition to complex architectural modeling is required to optimize large-scale deployment competence.'}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* VALIDATION DECREE */}
-            {(overall >= 0 || report.has_certificate) && (
-                <div className="relative z-10 mb-2 bg-gradient-to-br from-indigo-50 to-indigo-100 sm:from-indigo-700 sm:to-indigo-900 rounded-2xl px-5 py-2 sm:px-6 sm:py-3 flex items-center gap-3 sm:gap-4 overflow-hidden shadow-lg border border-indigo-200 sm:border-indigo-500/30 print:bg-white print:border-indigo-200 shrink-0">
-                    <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 blur-[100px] -mr-40 -mt-40 pointer-events-none" />
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 sm:bg-white/10 rounded-xl flex items-center justify-center border border-indigo-200 sm:border-white/10 shadow-inner shrink-0 scale-90 sm:scale-100 print:bg-white print:border-indigo-100">
-                        <TrophyIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 sm:text-white/50 print:text-indigo-500" />
-                    </div>
-                    <div className="relative z-10 flex-1 min-w-0 py-0.5 sm:py-1">
-                        <h4 className="text-[8px] sm:text-[9px] font-black text-indigo-500 sm:text-indigo-200/50 uppercase tracking-[0.4em] sm:tracking-[0.5em] mb-1 italic print:text-indigo-400 leading-none">Official Certification Decree</h4>
-                        <p className="text-[11px] sm:text-[13px] font-extrabold text-indigo-900 sm:text-white leading-tight sm:leading-snug italic print:text-indigo-900 truncate sm:whitespace-normal">
-                            {report.certificate_text || `This document officially recognizes that ${report.student_name} has successfully completed the intensive study programme in ${report.course_name}.`}
+            {/* Validation Decree */}
+            {(overall >= 45 || report.has_certificate) && (
+                <div className="relative z-10 mb-8 p-6 bg-white border-y-4 border-slate-900 flex items-center gap-6">
+                    <TrophyIcon className="w-10 h-10 text-teal-500 shrink-0" />
+                    <div>
+                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.8em] mb-1 italic leading-none">Official Graduation Decree</p>
+                        <p className="text-sm font-black text-slate-900 leading-tight italic">
+                            {report.certificate_text || `This document officially recognizes the mastery demonstrated by ${report.student_name} in ${report.course_name}.`}
                         </p>
                     </div>
                 </div>
             )}
 
-            {/* SIGNATURE & AUTHENTICATION */}
-            <div className="mt-auto relative z-10 bg-gray-50/50 border border-gray-100 rounded-[1.5rem] p-3 sm:p-5 shrink-0">
-                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-10">
-                    <div className="flex flex-col gap-6">
-                        <div className="space-y-4">
-                            <p className="text-[11px] font-black text-indigo-500/40 uppercase tracking-[0.4em] italic mb-6">Board Verification Matrix</p>
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-10">
-                                <div className="text-center sm:text-left">
-                                    <img
-                                        src="/images/signature.png"
-                                        alt="Sign"
-                                        className="h-12 w-auto object-contain brightness-0 opacity-80 mb-3 mx-auto sm:mx-0 filter drop-shadow-xl"
-                                    />
-                                    <div className="w-40 h-px bg-gradient-to-r from-gray-300 via-gray-300 to-transparent mb-2" />
-                                    <p className="text-sm font-black text-gray-900 uppercase tracking-widest italic leading-none">{report.instructor_name || 'Rillcod Executive'}</p>
-                                    <p className="text-[9px] font-black text-indigo-500/30 uppercase tracking-[0.3em] mt-1.5">Lead Operative Directive</p>
-                                </div>
-                                <div className="hidden sm:block w-px h-20 bg-gray-200" />
-                                {report.show_payment_notice && (
-                                    <div className="flex flex-col gap-2 items-center sm:items-start justify-center pr-0 sm:pr-10">
-                                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.4em] leading-none mb-2">Cycle Ledger</p>
-                                        <p className="text-3xl font-black text-gray-900 tabular-nums italic leading-none">₦{report.fee_amount || '20,000'}</p>
-                                        <p className="text-[12px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mt-1">RILLCOD LTD · TRUSTED</p>
-                                        <p className="text-[10px] font-black text-indigo-500/40 tracking-widest leading-none mt-1 uppercase italic">Providus Bank · 7901178957</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+            {/* Board Verification & Signatures */}
+            <div className="relative z-10 mt-auto grid grid-cols-[1fr_200px] gap-12 pt-8">
+                <div className="flex gap-16">
+                    <div className="text-center">
+                        <img src="/images/signature.png" alt="Director" className="h-12 mx-auto mb-2 mix-blend-multiply opacity-90" crossOrigin="anonymous" />
+                        <div className="w-40 h-[2px] bg-slate-900 mx-auto mb-1" />
+                        <p className="text-[10px] font-black text-slate-900 uppercase italic">Board Director</p>
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Rillcod Technologies</p>
                     </div>
-
-                    <div className="flex flex-col items-center gap-6">
-                        <div className="p-6 bg-white rounded-[2.5rem] shadow-[0_25px_50px_rgba(0,0,0,0.1)] border border-gray-50 group hover:rotate-3 transition-transform duration-500 scale-110">
-                            <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) || 'preview'}`} size={100} fgColor="#1e1b4b" />
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <p className="text-[11px] font-black text-indigo-500/60 uppercase tracking-[0.5em] italic leading-none">Secure Link</p>
-                            <div className="w-10 h-px bg-indigo-500/20 mt-3" />
-                        </div>
+                    <div className="text-center">
+                        <img src="/images/signature.png" alt="Head" className="h-12 mx-auto mb-2 mix-blend-multiply opacity-70" crossOrigin="anonymous" />
+                        <div className="w-40 h-[2px] bg-slate-900 mx-auto mb-1" />
+                        <p className="text-[10px] font-black text-slate-900 uppercase italic">Academic Head</p>
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Mastery Assessor</p>
                     </div>
                 </div>
 
-                <div className="mt-6 flex flex-col md:flex-row md:items-center justify-between gap-4 text-[9px] font-black text-gray-300 uppercase tracking-[0.5em] pb-1 border-t border-gray-100 pt-4">
-                    <span className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-indigo-500/30" />
-                        Nucleus Engine v2.5 Deployment
-                    </span>
-                    <div className="flex flex-col md:flex-row gap-4 md:gap-8">
-                        <span className="truncate max-w-[200px]">Hash: {report.id?.slice(-12).toUpperCase() || 'DATA_NULL'}</span>
-                        <span className="text-indigo-400/40">verify.rillcod.com</span>
+                <div className="flex flex-col items-center gap-2">
+                    <div className="p-3 bg-white border border-slate-100 shadow-sm">
+                        <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) || 'preview'}`} size={80} fgColor="#020617" />
                     </div>
+                    <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.4em]">Verify Hash</p>
                 </div>
             </div>
+
             {/* Footer Stripes */}
-            <div className="absolute bottom-0 inset-x-0 h-2 flex">
+            <div className="absolute bottom-0 inset-x-0 h-4 flex">
+                <div className="flex-1 bg-slate-950" />
+                <div className="flex-1 bg-teal-500" />
                 <div className="flex-1 bg-indigo-500" />
-                <div className="flex-1 bg-cyan-500" />
-                <div className="flex-1 bg-emerald-500" />
-                <div className="flex-1 bg-violet-500" />
-                <div className="flex-1 bg-rose-500" />
+                <div className="flex-1 bg-orange-500" />
             </div>
         </div>
     );

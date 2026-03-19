@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const HF_API = 'https://router.huggingface.co/hf-inference/models';
+const HF_API = 'https://api-inference.huggingface.co/models';
 const MODEL = 'openai/whisper-large-v3';
 
 export async function POST(req: NextRequest) {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     }
 
     const formData = await req.formData();
-    const file = formData.get('audio') as File | null;
+    const file = (formData.get('audio') || formData.get('file')) as File | null;
 
     if (!file) {
       return NextResponse.json({ error: 'audio file is required' }, { status: 400 });

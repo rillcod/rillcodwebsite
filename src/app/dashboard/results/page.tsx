@@ -257,19 +257,25 @@ function ResultsPageInner() {
             if (!isAdmin) {
                 finalQuery = finalQuery.eq('role', 'student');
                 const parts: string[] = [];
-                if (assignedSchoolIds.length > 0)
-                    parts.push(`school_id.in.(${assignedSchoolIds.join(',')})`);
-                assignedSchoolNames.forEach(n =>
-                    parts.push(`school_name.eq."${n.replace(/"/g, '\\"')}"`)
-                );
-                // Also match students directly enrolled in teacher's classes
-                if (teacherClassIds.length > 0)
-                    parts.push(`class_id.in.(${teacherClassIds.join(',')})`);
+                
+                // DATA SCOPE: Ensure strictly their own school's records
+                if (isSchoolRole && profile?.school_id) {
+                    finalQuery = finalQuery.eq('school_id', profile.school_id);
+                } else if (!isAdmin) {
+                    // Teacher or other staff: scope by assigned schools or classes
+                    if (assignedSchoolIds.length > 0)
+                        parts.push(`school_id.in.(${assignedSchoolIds.join(',')})`);
+                    assignedSchoolNames.forEach(n =>
+                        parts.push(`school_name.eq."${n.replace(/"/g, '\\"')}"`)
+                    );
+                    if (teacherClassIds.length > 0)
+                        parts.push(`class_id.in.(${teacherClassIds.join(',')})`);
 
-                if (parts.length > 0) {
-                    finalQuery = (finalQuery as any).or(parts.join(','));
-                } else {
-                    finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+                    if (parts.length > 0) {
+                        finalQuery = (finalQuery as any).or(parts.join(','));
+                    } else {
+                        finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+                    }
                 }
             }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,6 @@ function adminClient() {
 }
 
 // GET /api/classes/[id]/students
-// Returns students enrolled in this class (class_id = classId)
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -19,14 +19,30 @@ export async function GET(
   try {
     const { id: classId } = await params;
     const admin = adminClient();
+    const serverSupabase = await createServerClient();
 
+    // ── Authorization & Multi-tenant Check ──
+    const { data: { user }, error: authErr } = await serverSupabase.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { data: caller } = await admin.from('portal_users').select('role, school_id').eq('id', user.id).single();
+    if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    // ── Class Verification & Leak Prevention ──
     const { data: cls, error: clsErr } = await admin
       .from('classes')
-      .select('name, max_students, current_students, program_id')
+      .select('name, max_students, current_students, program_id, school_id')
       .eq('id', classId)
       .single();
 
     if (clsErr || !cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+
+    // Enforce school boundary for school role
+    if (caller.role === 'school' && caller.school_id !== cls.school_id) {
+        return NextResponse.json({ error: 'Access denied: Class outside your scope' }, { status: 403 });
+    }
 
     // Primary: students directly assigned to this class via class_id FK
     const { data: directStudents, error } = await admin

@@ -27,16 +27,12 @@ async function getHandler(req: Request, ctx: ApiContext) {
 }
 
 async function postHandler(req: Request, ctx: ApiContext) {
-    if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'school' && ctx.user?.role !== 'teacher') {
-        throw new AppError('Not authorized to mark attendance', 403, true);
+    if (ctx.user?.role !== 'admin' && ctx.user?.role !== 'teacher') {
+        throw new AppError('Only administrators and teachers can mark attendance', 403, true);
     }
 
     const { data, errorResponse } = await withValidation(req as any, createAttendanceSchema);
     if (errorResponse) return errorResponse;
-
-    if (ctx.user?.role === 'school' && !ctx.user?.tenantId) {
-        throw new AppError('Tenant context missing', 403, true);
-    }
 
     const attendance = await attendanceService.createAttendance(data!, ctx.user?.tenantId as string);
 

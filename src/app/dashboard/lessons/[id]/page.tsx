@@ -19,6 +19,11 @@ import Script from 'next/script';
 import { motion, AnimatePresence } from 'framer-motion';
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 import Editor from '@monaco-editor/react';
+import * as d3 from 'd3';
+import dynamic from 'next/dynamic';
+
+const CodeVisualizer = dynamic(() => import('@/components/visualizer/CodeVisualizer'), { ssr: false }) as any;
+const ReactPlayer = dynamic(() => import('react-player'), { ssr: false }) as any;
 
 const TYPE_COLOR: Record<string, string> = {
   video: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
@@ -45,15 +50,32 @@ function MermaidRenderer({ code }: { code: string }) {
       if (!mermaid) return;
 
       try {
-        // Strip any accidental markdown formatting the AI might have saved
+        // Strip any accidental markdown formatting or AI chatter
         let processedCode = code.trim();
-        processedCode = processedCode.replace(/^```mermaid\s*\n?/i, '');
-        processedCode = processedCode.replace(/^```\s*\n?/i, '');
-        processedCode = processedCode.replace(/\n?```$/i, '');
+        
+        // Remove markdown blocks if they exist
+        const match = processedCode.match(/```mermaid([\s\S]*?)```/);
+        if (match) {
+          processedCode = match[1].trim();
+        } else {
+          processedCode = processedCode.replace(/^```mermaid\s*\n?/i, '');
+          processedCode = processedCode.replace(/^```\s*\n?/i, '');
+          processedCode = processedCode.replace(/\n?```$/i, '');
+        }
+        
+        // Fix common AI mistakes
+        processedCode = processedCode.replace(/&quot;/g, '"');
+        processedCode = processedCode.replace(/&lt;/g, '<');
+        processedCode = processedCode.replace(/&gt;/g, '>');
         processedCode = processedCode.trim();
 
         if (processedCode.startsWith('graph')) {
           processedCode = processedCode.replace(/^graph/, 'flowchart');
+        }
+
+        // Validate basic mermaid start
+        if (!/^(flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph|journey|quadrantChart|mindmap|timeline)/i.test(processedCode)) {
+           throw new Error("Invalid Mermaid Diagram Type or Syntax");
         }
 
         const { svg } = await mermaid.render(chartId, processedCode);
@@ -152,6 +174,141 @@ function MonacoEditorBlock({ code, language }: { code: string; language?: string
       title={`${language || 'Code'} Workspace`} 
       height={450}
     />
+  );
+}
+
+function D3ChartRenderer({ type, dataset }: { type: string; dataset: any[] }) {
+  const ref = useState<SVGSVGElement | null>(null)[0];
+  const containerRef = (node: SVGSVGElement) => {
+    if (!node) return;
+    d3.select(node).selectAll("*").remove();
+    const width = 600;
+    const height = 300;
+    const svg = d3.select(node)
+      .attr("viewBox", `0 0 ${width} ${height}`)
+      .attr("preserveAspectRatio", "xMidYMid meet");
+
+    if (type === 'bar') {
+      const x = d3.scaleBand().domain(dataset.map((_, i) => i.toString())).range([0, width]).padding(0.1);
+      const y = d3.scaleLinear().domain([0, (d3.max(dataset as number[]) || 100)]).range([height, 0]);
+      svg.selectAll("rect")
+        .data(dataset)
+        .enter()
+        .append("rect")
+        .attr("x", (_: any, i: number) => x(i.toString())!)
+        .attr("y", (d: any) => y(d))
+        .attr("width", x.bandwidth())
+        .attr("height", (d: any) => height - y(d))
+        .attr("fill", "#06b6d4")
+        .attr("rx", 4);
+    } else if (type === 'line' || type === 'area') {
+      const x = d3.scaleLinear().domain([0, dataset.length - 1]).range([0, width]);
+      const y = d3.scaleLinear().domain([0, (d3.max(dataset as number[]) || 100)]).range([height, 0]);
+      const line = d3.line<any>().x((_: any, i: number) => x(i)).y((d: any) => y(d)).curve(d3.curveBasis);
+      
+      if (type === 'area') {
+        const area = d3.area<any>().x((_: any, i: number) => x(i)).y0(height).y1((d: any) => y(d)).curve(d3.curveBasis);
+        svg.append("path").datum(dataset).attr("fill", "rgba(6, 182, 212, 0.2)").attr("d", area);
+      }
+      
+      svg.append("path")
+        .datum(dataset)
+        .attr("fill", "none")
+        .attr("stroke", type === 'area' ? "#06b6d4" : "#ea580c")
+        .attr("stroke-width", 3)
+        .attr("d", line);
+    } else if (type === 'pie') {
+      const radius = Math.min(width, height) / 2;
+      const g = svg.append("g").attr("transform", `translate(${width / 2}, ${height / 2})`);
+      const color = d3.scaleOrdinal(d3.schemeCategory10);
+      const pie = d3.pie<any>().value(d => d);
+      const path = d3.arc<any>().outerRadius(radius - 10).innerRadius(0);
+      const arc = g.selectAll(".arc").data(pie(dataset)).enter().append("g").attr("class", "arc");
+      arc.append("path").attr("d", path as any).attr("fill", (d: any) => color(d.data));
+    }
+  };
+
+  return (
+    <div className="my-10 p-6 bg-card border border-border shadow-3xl rounded-[30px] overflow-hidden">
+      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Live Data Visualization</p>
+      <svg ref={containerRef} className="w-full h-auto max-h-[400px]" />
+    </div>
+  );
+}
+
+function MotionGraphicRenderer({ type, config }: { type: string; config: any }) {
+  return (
+    <div className="my-10 p-10 bg-[#0B0B1B] border border-white/5 rounded-[40px] flex items-center justify-center relative overflow-hidden h-[300px]">
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent" />
+      {type === 'pulse' && (
+        <motion.div 
+          animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0] }} 
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          className="w-32 h-32 bg-cyan-500/20 border-2 border-cyan-500/50 backdrop-blur-xl"
+        />
+      )}
+      {type === 'wave' && (
+        <div className="flex gap-2 items-end h-32">
+          {[...Array(12)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="w-4 bg-indigo-500/30 border-t-2 border-indigo-400"
+              animate={{ height: [20, 100, 20] }}
+              transition={{ duration: 2, repeat: Infinity, delay: i * 0.1, ease: "easeInOut" }}
+            />
+          ))}
+        </div>
+      )}
+      {type === 'grid' && (
+        <div className="grid grid-cols-6 gap-4">
+          {[...Array(24)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="w-4 h-4 rounded-sm"
+              animate={{ 
+                backgroundColor: ["rgba(6, 182, 212, 0.1)", "rgba(6, 182, 212, 0.8)", "rgba(6, 182, 212, 0.1)"],
+                scale: [1, 1.5, 1]
+              }}
+              transition={{ duration: 3, repeat: Infinity, delay: (i % 6) * 0.2 + Math.floor(i / 6) * 0.2 }}
+            />
+          ))}
+        </div>
+      )}
+      {type === 'orbit' && (
+        <div className="relative">
+          <motion.div className="w-4 h-4 bg-orange-500 rounded-full" />
+          {[...Array(config.nodes || 3)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-2 h-2 bg-indigo-400 rounded-full"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 5 / (i + 1), repeat: Infinity, ease: "linear" }}
+              style={{ originX: "50%", originY: "50%", marginLeft: (i + 1) * 30 }}
+            />
+          ))}
+        </div>
+      )}
+      {type === 'particles' && (
+        <div className="relative w-full h-full">
+           {[...Array(20)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-white/40 rounded-full"
+              animate={{ 
+                x: [Math.random() * 400 - 200, Math.random() * 400 - 200],
+                y: [Math.random() * 200 - 100, Math.random() * 200 - 100],
+                opacity: [0, 1, 0]
+              }}
+              transition={{ duration: Math.random() * 5 + 3, repeat: Infinity, ease: "linear" }}
+              style={{ left: "50%", top: "50%" }}
+            />
+          ))}
+        </div>
+      )}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-black text-muted-foreground uppercase tracking-[0.5em] opacity-40">
+        Engineered Motion
+      </div>
+    </div>
   );
 }
 
@@ -388,28 +545,50 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
             );
           case 'activity':
             return (
-              <div key={i} className="p-5 rounded-xl border border-emerald-500/20 bg-background space-y-4 relative overflow-hidden hover:border-emerald-500/40 transition-all my-4 shadow-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 flex-shrink-0">
-                    <RocketLaunchIcon className="w-5 h-5" />
+              <div key={i} className="p-8 sm:p-12 rounded-[40px] sm:rounded-[60px] border-2 border-emerald-500/20 bg-emerald-500/5 space-y-8 relative overflow-hidden transition-all my-12 shadow-3xl group/activity">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl pointer-events-none" />
+                <div className="flex items-center gap-6">
+                  <div className="p-4 rounded-2xl bg-emerald-500/20 text-emerald-400 flex-shrink-0 shadow-lg group-hover/activity:scale-110 transition-transform">
+                    <RocketLaunchIcon className="w-8 h-8" />
                   </div>
                   <div>
-                    <p className="text-[9px] font-black text-emerald-500/60 uppercase tracking-[0.4em]">Active Lab</p>
-                    <h3 className="text-xs font-black uppercase tracking-widest text-foreground">{block.title || 'Hands-on Synthesis'}</h3>
+                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.5em] mb-1">Interactive Synthesis Lab</p>
+                    <h3 className="text-xl font-black uppercase tracking-tight text-foreground">{block.title || 'Practical Implementation'}</h3>
                   </div>
                 </div>
-                <div className="border-l-2 border-emerald-500/20 pl-4">
-                  <p className="text-sm font-medium text-muted-foreground leading-relaxed whitespace-pre-wrap italic">
-                    {block.instructions || 'Follow the prompt below.'}
-                  </p>
+                
+                <div className="space-y-6">
+                  {block.steps && Array.isArray(block.steps) ? (
+                    <div className="grid gap-4">
+                      {block.steps.map((step: string, sIdx: number) => (
+                        <div key={sIdx} className="flex gap-4 p-4 rounded-2xl bg-background/50 border border-emerald-500/10 hover:border-emerald-500/30 transition-all group/step">
+                          <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-400 shrink-0">
+                            {sIdx + 1}
+                          </div>
+                          <p className="text-sm font-medium text-muted-foreground leading-relaxed pt-1 group-hover/step:text-foreground transition-colors">
+                            {step}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="border-l-4 border-emerald-500/40 pl-6 py-2">
+                       <p className="text-lg font-medium text-foreground leading-relaxed whitespace-pre-wrap italic opacity-80">
+                        {block.instructions || 'Follow the experiential learning prompt below.'}
+                      </p>
+                    </div>
+                  )}
                 </div>
+
                 {block.is_coding && (
-                  <IntegratedCodeRunner
-                    initialCode={block.initialCode || ""}
-                    language={block.language?.toLowerCase() as any || "javascript"}
-                    title={block.title || "Activity Sandbox"}
-                    onRun={() => onInteraction?.(i)}
-                  />
+                  <div className="mt-8">
+                    <IntegratedCodeRunner
+                      initialCode={block.initialCode || ""}
+                      language={block.language?.toLowerCase() as any || "javascript"}
+                      title={block.title || "Implementation Sandbox"}
+                      onRun={() => onInteraction?.(i)}
+                    />
+                  </div>
                 )}
               </div>
             );
@@ -419,15 +598,80 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
             return (
               <div key={i} className="space-y-4 sm:space-y-8">
                 <div className="aspect-video rounded-[40px] sm:rounded-[60px] overflow-hidden border-2 border-border bg-slate-900 shadow-3xl relative group">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${block.url?.includes('v=') ? block.url.split('v=')[1].split('&')[0] : block.url?.split('/').pop()}`}
-                    className="w-full h-full"
-                    allowFullScreen
+                  <ReactPlayer
+                    url={block.url}
+                    width="100%"
+                    height="100%"
+                    controls={true}
+                    light={true}
+                    playIcon={<div className="p-8 bg-cyan-600 rounded-full text-foreground shadow-3xl animate-pulse"><PlayIcon className="w-12 h-12" /></div>}
                   />
                 </div>
                 {block.caption && <p className="text-center text-xs sm:text-sm font-black uppercase tracking-[0.3em] text-muted-foreground italic px-4">{block.caption}</p>}
               </div>
             );
+          case 'visualizer':
+            return (
+              <div key={i} className="my-10">
+                <CodeVisualizer 
+                  visualizationType={block.visualType || 'sorting'} 
+                  codeData={block.visualData || { step: 0, totalSteps: 10, variables: {}, visualizationState: {} }} 
+                />
+              </div>
+            );
+          case 'scratch':
+            return (
+              <div key={i} className="p-8 sm:p-12 rounded-[40px] sm:rounded-[60px] border-2 border-orange-500/20 bg-orange-500/5 space-y-8 my-12 shadow-3xl group/scratch">
+                <div className="flex items-center gap-6">
+                  <div className="p-4 rounded-2xl bg-orange-500/20 text-orange-400 flex-shrink-0 shadow-lg group-hover/scratch:scale-110 transition-transform">
+                    <RectangleGroupIcon className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-orange-500 uppercase tracking-[0.5em] mb-1">Early Learner Visual Lab (KG - Basic 6)</p>
+                    <h3 className="text-xl font-black uppercase tracking-tight text-foreground">Scratch Sequence & Fixing Guide</h3>
+                  </div>
+                </div>
+
+                {block.projectId && (
+                  <div className="aspect-video rounded-[3rem] overflow-hidden border-2 border-orange-500/20 shadow-2xl bg-black">
+                    <iframe 
+                      src={`https://turbowarp.org/${block.projectId}/embed`}
+                      className="w-full h-full"
+                      allowTransparency
+                      allowFullScreen
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <div className="space-y-4">
+                     <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Logic Block Sequence</p>
+                     <div className="space-y-2">
+                       {(block.blocks || ['when green flag clicked', 'move 10 steps']).map((bText: string, bIdx: number) => (
+                         <div key={bIdx} className="px-5 py-3 bg-orange-500/20 border border-orange-500/30 rounded-2xl text-[11px] font-black text-orange-100 w-fit shadow-md transform hover:translate-x-1 transition-transform cursor-default">
+                           {bText.toUpperCase()}
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                   <div className="space-y-4">
+                     <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-2">
+                        <BoltIcon className="w-4 h-4" /> Step-by-Step Fixing Guide
+                     </p>
+                     <div className="relative">
+                        <div className="absolute -left-4 top-0 bottom-0 w-1 bg-rose-500/20 rounded-full" />
+                        <p className="text-sm sm:text-base font-medium text-muted-foreground leading-relaxed italic bg-black/20 p-6 rounded-3xl border border-white/5 shadow-inner">
+                            {block.instructions || 'Review the block sequence carefully. Can you spot the error? Fix the blocks to complete the mission!'}
+                        </p>
+                     </div>
+                   </div>
+                </div>
+              </div>
+            );
+          case 'd3-chart':
+            return <D3ChartRenderer key={i} type={block.chartType} dataset={block.dataset || []} />;
+          case 'motion-graphics':
+            return <MotionGraphicRenderer key={i} type={block.animationType} config={block.config || {}} />;
           case 'file':
             return (
               <div key={i} className="p-6 sm:p-12 rounded-[40px] sm:rounded-[60px] border-2 border-border bg-card shadow-sm flex flex-col sm:flex-row items-center justify-between gap-8 group hover:border-cyan-500/30 transition-all text-center sm:text-left shadow-2xl relative overflow-hidden">
@@ -813,12 +1057,32 @@ export default function LessonDetailPage() {
             {/* Display Area */}
             <div className="min-h-[50vh]">
               {activeTab === 'content' && (
-                <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 space-y-20">
                   <CanvaRenderer 
                     blocks={lesson.content_layout || []} 
                     lessonType={lesson.lesson_type} 
                     onInteraction={handleInteraction}
                   />
+
+                  {lesson.lesson_notes && (
+                    <div className="mt-32 pt-32 border-t border-border space-y-12">
+                      <div className="flex items-center gap-4">
+                        <div className="h-px flex-1 bg-muted" />
+                        <h3 className="text-[12px] font-black uppercase text-indigo-400 tracking-[0.6em]">Academic Transcript</h3>
+                        <div className="h-px flex-1 bg-muted" />
+                      </div>
+                      <div className="max-w-none bg-card p-12 sm:p-20 rounded-[4rem] border border-border shadow-3xl relative overflow-hidden group/notes">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[120px] pointer-events-none" />
+                        <div className="text-muted-foreground leading-loose text-lg whitespace-pre-wrap font-medium space-y-6">
+                           {lesson.lesson_notes.split('\n\n').map((para: string, idx: number) => {
+                             if (para.startsWith('##')) return <h2 key={idx} className="text-2xl font-black text-foreground pt-4 border-b border-white/5 pb-2 uppercase tracking-widest">{para.replace('##', '').trim()}</h2>;
+                             if (para.startsWith('#')) return <h1 key={idx} className="text-4xl font-black text-foreground pt-6">{para.replace('#', '').trim()}</h1>;
+                             return <p key={idx}>{para}</p>;
+                           })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Logic: Interaction Progress Check */}
                   <div className="mt-24 sm:mt-40 pt-24 border-t border-border space-y-12">
@@ -1098,9 +1362,15 @@ export default function LessonDetailPage() {
                     </div>
                   ) : (
                     <div className="space-y-12 sm:space-y-16">
+                      {lesson.objectives && lesson.objectives.length > 0 && (
+                        <div className="relative">
+                          <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-600 to-cyan-400 to-transparent rounded-full opacity-40"></div>
+                          <PlanBlock title="Target Learning Outcomes" content={lesson.objectives.join('\n\n')} />
+                        </div>
+                      )}
                       <div className="relative">
                         <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-600 to-orange-400 to-transparent rounded-full opacity-20"></div>
-                        <PlanBlock title="Target Outcomes & Goals" content={plans?.objectives} />
+                        <PlanBlock title="Curriculum Goals" content={plans?.objectives || lesson.description} />
                       </div>
                       <div className="relative">
                         <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-500 to-transparent rounded-full opacity-20"></div>

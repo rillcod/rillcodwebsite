@@ -5,11 +5,11 @@ import {
     PlusIcon, TrashIcon, ChevronUpIcon, ChevronDownIcon,
     TypeIcon, HeadingIcon, CodeIcon, ImageIcon, InfoIcon, AlertTriangleIcon,
     GripVerticalIcon, ActivityIcon, HelpCircleIcon, VideoIcon, FileTextIcon,
-    Share2Icon, SigmaIcon, SparklesIcon, Wand2Icon
+    Share2Icon, SigmaIcon, SparklesIcon, Wand2Icon, PuzzleIcon
 } from 'lucide-react';
 
 interface Block {
-    type: 'text' | 'heading' | 'code' | 'image' | 'callout' | 'activity' | 'quiz' | 'video' | 'file' | 'mermaid' | 'math';
+    type: 'text' | 'heading' | 'code' | 'image' | 'callout' | 'activity' | 'quiz' | 'video' | 'file' | 'mermaid' | 'math' | 'visualizer' | 'motion-graphics' | 'd3-chart' | 'scratch';
     content?: string;
     language?: string;
     url?: string;
@@ -24,6 +24,17 @@ interface Block {
     code?: string; // For mermaid
     formula?: string; // For math
     id?: string; // For AI image generation and potentially other blocks
+    visualType?: string;
+    visualData?: any;
+    animationType?: string;
+    config?: any;
+    chartType?: string;
+    dataset?: any[];
+    steps?: string[];
+    is_coding?: boolean;
+    initialCode?: string;
+    projectId?: string;
+    blocks?: string[];
 }
 
 interface CanvaEditorProps {
@@ -38,6 +49,10 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
         if (type === 'callout') newBlock.style = 'info';
         if (type === 'mermaid') newBlock.code = 'graph TD\n    A[Start] --> B[End]';
         if (type === 'math') newBlock.formula = 'E = mc^2';
+        if (type === 'visualizer') { newBlock.visualType = 'physics'; newBlock.visualData = { variables: {}, totalSteps: 10 }; }
+        if (type === 'motion-graphics') { newBlock.animationType = 'orbit'; newBlock.config = { nodes: 3 }; }
+        if (type === 'd3-chart') { newBlock.chartType = 'bar'; newBlock.dataset = [10, 20, 30, 40]; }
+        if (type === 'scratch') { newBlock.projectId = ''; newBlock.blocks = ['when flag clicked', 'move 10 steps']; }
         onChange([...layout, newBlock]);
     };
 
@@ -109,6 +124,11 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                     <ToolbarButton onClick={() => addBlock('callout')} icon={InfoIcon} label="Tip" />
                     <ToolbarButton onClick={() => addBlock('activity')} icon={ActivityIcon} label="Activity" />
                     <ToolbarButton onClick={() => addBlock('quiz')} icon={HelpCircleIcon} label="Quiz" />
+                    <div className="h-6 w-px bg-white/10 mx-1 self-center" />
+                    <ToolbarButton onClick={() => addBlock('visualizer')} icon={ActivityIcon} label="Visualizer" className="border-cyan-500/30 text-cyan-400" />
+                    <ToolbarButton onClick={() => addBlock('motion-graphics')} icon={SparklesIcon} label="Motion" className="border-indigo-500/30 text-indigo-400" />
+                    <ToolbarButton onClick={() => addBlock('d3-chart')} icon={ActivityIcon} label="Chart" className="border-orange-500/30 text-orange-400" />
+                    <ToolbarButton onClick={() => addBlock('scratch')} icon={PuzzleIcon} label="Scratch" className="border-rose-500/30 text-rose-400" />
                     <button
                         type="button"
                         onClick={handleAiImage}
@@ -229,21 +249,68 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                 )}
 
                                 {block.type === 'activity' && (
-                                    <div className="space-y-3">
-                                        <input
-                                            type="text"
-                                            value={block.title || ''}
-                                            onChange={e => updateBlock(i, { title: e.target.value })}
-                                            placeholder="Activity Title (e.g., Coding Challenge)..."
-                                            className="w-full bg-transparent border-b border-border py-1 text-sm font-bold focus:outline-none focus:border-cyan-500"
-                                        />
-                                        <textarea
-                                            rows={3}
-                                            value={block.instructions || ''}
-                                            onChange={e => updateBlock(i, { instructions: e.target.value })}
-                                            placeholder="Step-by-step instructions for students..."
-                                            className="w-full bg-white/5 border border-border rounded-xl p-3 text-xs focus:outline-none focus:border-cyan-500 resize-none"
-                                        />
+                                    <div className="space-y-4 p-4 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
+                                        <div className="flex items-center justify-between">
+                                            <input
+                                                type="text"
+                                                value={block.title || ''}
+                                                onChange={e => updateBlock(i, { title: e.target.value })}
+                                                placeholder="Activity Title (e.g., Coding Challenge)..."
+                                                className="bg-transparent border-b border-white/10 py-1 text-sm font-bold focus:outline-none focus:border-emerald-500"
+                                            />
+                                            <label className="flex items-center gap-2 text-[10px] text-emerald-400 font-black uppercase">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={block.is_coding} 
+                                                    onChange={e => updateBlock(i, { is_coding: e.target.checked })}
+                                                    className="accent-emerald-500"
+                                                />
+                                                Coding Lab
+                                            </label>
+                                        </div>
+                                        
+                                        <div className="space-y-3">
+                                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Action Steps</p>
+                                            {(block.steps || ['Select a target', 'Apply logic']).map((s, sIdx) => (
+                                                <div key={sIdx} className="flex gap-2">
+                                                    <span className="w-6 h-6 rounded bg-black/40 flex items-center justify-center text-[10px] font-black text-emerald-500">{sIdx + 1}</span>
+                                                    <input 
+                                                        value={s} 
+                                                        onChange={e => {
+                                                            const next = [...(block.steps || [])];
+                                                            next[sIdx] = e.target.value;
+                                                            updateBlock(i, { steps: next });
+                                                        }}
+                                                        className="flex-1 bg-black/40 border border-white/5 rounded px-3 py-1 text-xs text-white"
+                                                    />
+                                                    <button 
+                                                        onClick={() => {
+                                                            const next = (block.steps || []).filter((_, idx) => idx !== sIdx);
+                                                            updateBlock(i, { steps: next });
+                                                        }}
+                                                        className="p-1 hover:text-rose-400 opacity-40 hover:opacity-100"
+                                                    >
+                                                        <TrashIcon className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <button 
+                                                onClick={() => updateBlock(i, { steps: [...(block.steps || []), ''] })} 
+                                                className="text-[9px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1 hover:text-emerald-300"
+                                            >
+                                                <PlusIcon className="w-3 h-3" /> Add Step
+                                            </button>
+                                        </div>
+
+                                        {block.is_coding && (
+                                            <textarea
+                                                rows={4}
+                                                value={block.initialCode || ''}
+                                                onChange={e => updateBlock(i, { initialCode: e.target.value })}
+                                                placeholder="Initial workspace code (starter snippets)..."
+                                                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs font-mono text-cyan-400 focus:outline-none"
+                                            />
+                                        )}
                                     </div>
                                 )}
 
@@ -343,6 +410,69 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
                                         </div>
                                     </div>
                                 )}
+                                {block.type === 'visualizer' && (
+                                    <div className="space-y-4 p-4 bg-cyan-500/5 rounded-xl border border-cyan-500/10">
+                                        <div className="flex gap-4">
+                                            <select 
+                                                value={block.visualType} 
+                                                onChange={e => updateBlock(i, { visualType: e.target.value })}
+                                                className="bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] text-cyan-400 font-bold outline-none"
+                                            >
+                                                {['physics', 'sorting', 'turtle', 'loops', 'stateMachine'].map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+                                            </select>
+                                            <p className="text-[10px] text-white/40 font-medium">Configure visualization logic and parameters below.</p>
+                                        </div>
+                                        <textarea
+                                            value={JSON.stringify(block.visualData, null, 2)}
+                                            onChange={e => {
+                                                try { updateBlock(i, { visualData: JSON.parse(e.target.value) }); } catch(err) {}
+                                            }}
+                                            className="w-full bg-black/60 border border-white/5 p-3 rounded-lg font-mono text-[10px] text-white/80 h-32 outline-none focus:border-cyan-500"
+                                        />
+                                    </div>
+                                )}
+                                {block.type === 'motion-graphics' && (
+                                    <div className="space-y-4 p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/10">
+                                        <div className="flex gap-4">
+                                            <select 
+                                                value={block.animationType} 
+                                                onChange={e => updateBlock(i, { animationType: e.target.value })}
+                                                className="bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] text-indigo-300 font-bold outline-none"
+                                            >
+                                                {['orbit', 'pulse', 'wave', 'grid', 'particles'].map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+                                            </select>
+                                            <label className="flex items-center gap-2 text-[10px] text-white/40">
+                                                Nodes:
+                                                <input 
+                                                    type="number" 
+                                                    value={block.config?.nodes || 0} 
+                                                    onChange={e => updateBlock(i, { config: { ...block.config, nodes: parseInt(e.target.value) }})}
+                                                    className="w-12 bg-black/40 border-white/10 rounded px-1"
+                                                />
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
+                                {block.type === 'd3-chart' && (
+                                    <div className="space-y-4 p-4 bg-orange-500/5 rounded-xl border border-orange-500/10">
+                                        <div className="flex gap-4">
+                                            <select 
+                                                value={block.chartType} 
+                                                onChange={e => updateBlock(i, { chartType: e.target.value })}
+                                                className="bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] text-orange-400 font-bold outline-none"
+                                            >
+                                                {['bar', 'line', 'pie', 'area'].map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+                                            </select>
+                                            <input 
+                                                type="text" 
+                                                value={(block.dataset || []).join(', ')} 
+                                                onChange={e => updateBlock(i, { dataset: e.target.value.split(',').map(n => parseFloat(n.trim()) || 0) })}
+                                                placeholder="Data: 10, 20, 30"
+                                                className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] text-white"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -352,9 +482,9 @@ export default function CanvaEditor({ layout, onChange }: CanvaEditorProps) {
     );
 }
 
-function ToolbarButton({ onClick, icon: Icon, label }: any) {
+function ToolbarButton({ onClick, icon: Icon, label, className }: any) {
     return (
-        <button type="button" onClick={onClick} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-border rounded-lg text-white/60 hover:text-white transition-all text-[10px] font-bold uppercase tracking-widest">
+        <button type="button" onClick={onClick} className={`flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-border rounded-lg text-white/60 hover:text-white transition-all text-[10px] font-bold uppercase tracking-widest ${className || ''}`}>
             <Icon className="w-3.5 h-3.5" />
             {label}
         </button>

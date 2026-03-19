@@ -17,8 +17,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
-// Safe dynamic import for Monaco
+// Safe dynamic imports
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
+const CodeVisualizer = dynamic<any>(() => import('@/components/visualizer/CodeVisualizer'), { ssr: false });
 
 interface IntegratedCodeRunnerProps {
   initialCode?: string;
@@ -55,7 +56,8 @@ export default function IntegratedCodeRunner({
   const [isPyodideLoading, setIsPyodideLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [view, setView] = useState<'editor' | 'output'>('editor');
+  const [view, setView] = useState<'editor' | 'output' | 'visualizer'>('editor');
+  const [visualStep, setVisualStep] = useState(0);
 
   const generateAI = async () => {
     const prompt = window.prompt("What code should I generate?");
@@ -230,6 +232,12 @@ export default function IntegratedCodeRunner({
               >
                 Output
               </button>
+              <button
+                onClick={() => setView('visualizer')}
+                className={`px-3 py-1 text-[9px] font-black uppercase transition-all ${view === 'visualizer' ? 'bg-cyan-500 text-white shadow-[0_0_10px_rgba(6,182,212,0.4)]' : 'text-muted-foreground hover:text-white border-l border-white/5'}`}
+              >
+                Visualizer
+              </button>
             </div>
           </div>
 
@@ -317,7 +325,7 @@ export default function IntegratedCodeRunner({
                 }}
               />
             </motion.div>
-          ) : (
+          ) : view === 'output' ? (
             <motion.div
               key="output"
               initial={{ opacity: 0 }}
@@ -346,6 +354,37 @@ export default function IntegratedCodeRunner({
                   </div>
                 )}
               </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="visualizer"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="absolute inset-0"
+            >
+               <CodeVisualizer 
+                  visualizationType={
+                    lang === 'python' ? 'sorting' : 
+                    lang === 'javascript' ? 'loops' : 
+                    lang === 'robotics' ? 'turtle' : 'sorting'
+                  }
+                  codeData={{
+                    step: visualStep,
+                    totalSteps: 20,
+                    variables: { i: visualStep, lang: lang },
+                    visualizationState: lang === 'python' ? {
+                      array: [50, 20, 80, 40, 90, 10],
+                      comparing: [visualStep % 6]
+                    } : lang === 'robotics' ? {
+                      turtle: { x: 0.5, y: 0.5, hue: 120, path: [] }
+                    } : {
+                      iterations: Array.from({length: 8}, (_,i) => i)
+                    }
+                  }}
+                  onStepChange={setVisualStep}
+               />
             </motion.div>
           )}
         </AnimatePresence>

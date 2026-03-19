@@ -9,16 +9,22 @@ async function listHandler(req: Request, ctx: ApiContext) {
 
     const { role, id } = ctx.user!;
 
-    // 1. School Owners have NO access
-    if (role === 'school') {
-        return NextResponse.json({ success: true, data: [] });
-    }
-
-    let query = supabase.from('certificates').select('*, courses(title), portal_users(full_name)');
+    let query = supabase.from('certificates').select(`
+        *, 
+        courses(title, program:program_id(name)), 
+        portal_users(full_name, school_id, section_class, grade_level)
+    `);
 
     if (role === 'student') {
         // Students only see their own PUBLISHED certificates
         query = query.eq('portal_user_id', id).eq('metadata->>is_published', 'true');
+    } else if (role === 'school') {
+        // School Owners see all certificates for their school
+        if (ctx.user?.tenantId) {
+            query = query.eq('metadata->>school_id', ctx.user.tenantId);
+        } else {
+            return NextResponse.json({ success: true, data: [] });
+        }
     } else if (role === 'teacher') {
         // Teachers see certificates for students in their assigned schools
         const { data: schools } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', id);
@@ -48,6 +54,9 @@ async function verifyHandler(req: Request, ctx: ApiContext) {
 }
 
 async function issueHandler(req: Request, ctx: ApiContext) {
+    const { role } = ctx.user!;
+    if (role !== 'admin' && role !== 'teacher') throw new AppError('Unauthorized', 403);
+
     const { studentId, courseId, schoolId } = await req.json();
     if (!studentId || !courseId) throw new AppError('Missing studentId or courseId', 400);
     const cert = await certificateService.issueCertificate(studentId, courseId, ctx.user!.id, schoolId);

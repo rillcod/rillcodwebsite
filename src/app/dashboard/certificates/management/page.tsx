@@ -94,22 +94,17 @@ export default function CertificateManagement() {
         }
     }
 
-    if (profile?.role === 'school') {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-950 p-6 text-center">
-                <div className="space-y-4">
-                    <XMarkIcon className="w-16 h-16 text-rose-500 mx-auto" />
-                    <h1 className="text-2xl font-black text-white uppercase tracking-widest">Access Denied</h1>
-                    <p className="text-slate-400 max-w-md">School owners do not have permission to manage institutional certificates. This is reserved for Academic Admins and Teachers.</p>
-                </div>
-            </div>
-        );
-    }
+    const isAdmin = profile?.role === 'admin';
+    const isTeacher = profile?.role === 'teacher';
+    const canManage = isAdmin || isTeacher;
+    const isViewer = profile?.role === 'school';
 
     const filtered = certificates.filter(c => 
         c.portal_users?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.courses?.title?.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    const titlePrefix = isAdmin ? 'Institutional' : 'School';
 
     return (
         <div className="min-h-screen bg-slate-950 p-6 lg:p-10 space-y-8">
@@ -121,7 +116,7 @@ export default function CertificateManagement() {
                         <span className="text-xs font-black uppercase tracking-[0.3em] text-teal-400">Management Portal</span>
                     </div>
                     <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter">
-                        Institutional <span className="text-teal-500">Certifications</span>
+                        {titlePrefix} <span className="text-teal-500">Certifications</span>
                     </h1>
                 </div>
 
@@ -136,12 +131,14 @@ export default function CertificateManagement() {
                             className="bg-slate-950 border border-slate-800 py-2.5 pl-10 pr-4 text-xs font-black uppercase text-white w-64 focus:border-teal-500 outline-none"
                         />
                     </div>
-                    <button 
-                        onClick={() => setShowIssueModal(true)}
-                        className="px-6 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2"
-                    >
-                        <PlusIcon className="w-4 h-4" /> Issue Certificate
-                    </button>
+                    {canManage && (
+                        <button 
+                            onClick={() => setShowIssueModal(true)}
+                            className="px-6 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                        >
+                            <PlusIcon className="w-4 h-4" /> Issue Certificate
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -190,7 +187,7 @@ export default function CertificateManagement() {
                                     )}
                                 </td>
                                 <td className="px-6 py-5 text-right">
-                                    {!cert.metadata?.is_published && (
+                                    {!cert.metadata?.is_published && canManage && (
                                         <button 
                                             onClick={() => handlePublish(cert.id)}
                                             className="px-4 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/30 text-xs font-black uppercase tracking-widest transition-all"
@@ -198,8 +195,10 @@ export default function CertificateManagement() {
                                             Publish
                                         </button>
                                     )}
-                                    {cert.metadata?.is_published && (
-                                        <span className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Verified</span>
+                                    {(cert.metadata?.is_published || isViewer) && (
+                                        <span className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">
+                                            {cert.metadata?.is_published ? 'Verified' : 'Draft'}
+                                        </span>
                                     )}
                                 </td>
                             </tr>

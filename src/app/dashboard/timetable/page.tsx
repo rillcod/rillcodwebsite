@@ -272,6 +272,11 @@ export default function TimetablePage() {
       
       if (finalFilterId) {
         query = query.eq('school_id', finalFilterId);
+      } else if (isStudent || isSchool) {
+        // If restricted role but no school_id, must not show anything
+        setTimetables([]);
+        setLoading(false);
+        return;
       }
 
       const { data, error: err } = await query

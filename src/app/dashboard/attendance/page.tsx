@@ -38,7 +38,10 @@ function AttendanceContent() {
   const router = useRouter();
   const rawClassId = searchParams.get('class_id');
   const classIdFromQuery = React.useMemo(() => rawClassId, [rawClassId]);
-  const [activeTab, setActiveTab] = useState<'mark' | 'log'>('mark');
+  const isManager = profile?.role === 'admin' || profile?.role === 'teacher';
+  const isSchoolRole = profile?.role === 'school';
+  const isCanMark = isManager;
+  const [activeTab, setActiveTab] = useState<'mark' | 'log'>(isCanMark ? 'mark' : 'log');
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [sessions, setSessions] = useState<any[]>([]);
@@ -467,10 +470,12 @@ function AttendanceContent() {
         {/* Tabs */}
         {selectedClass && (
           <div className="flex items-center gap-1 p-1 bg-card shadow-sm border border-border rounded-none w-fit">
-            <button onClick={() => setActiveTab('mark')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-none transition-all ${activeTab === 'mark' ? 'bg-teal-600 text-foreground shadow-lg shadow-teal-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
-              <ClipboardDocumentCheckIcon className="w-4 h-4" /> Mark Attendance
-            </button>
+            {isCanMark && (
+              <button onClick={() => setActiveTab('mark')}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-none transition-all ${activeTab === 'mark' ? 'bg-teal-600 text-foreground shadow-lg shadow-teal-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
+                <ClipboardDocumentCheckIcon className="w-4 h-4" /> Mark Attendance
+              </button>
+            )}
             <button onClick={() => setActiveTab('log')}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-none transition-all ${activeTab === 'log' ? 'bg-teal-600 text-foreground shadow-lg shadow-teal-900/40' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
               <TableCellsIcon className="w-4 h-4" /> Attendance Log
@@ -513,7 +518,7 @@ function AttendanceContent() {
                 </div>
               </div>
 
-              {selectedClass && (
+              {selectedClass && isCanMark && (
                 <div className="flex flex-col gap-4 pt-2">
                   <div className="flex flex-col sm:flex-row items-center gap-3">
                     <button onClick={quickMarkToday} disabled={loading}
@@ -602,29 +607,31 @@ function AttendanceContent() {
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">{students.length} students</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {/* Mark all buttons */}
-                    {['present', 'absent'].map(s => (
-                      <button key={s} onClick={() => {
-                        const next: Record<string, { status: string; notes: string }> = {};
-                        students.forEach((st: any) => next[st.id] = { status: s, notes: attendance[st.id]?.notes ?? '' });
-                        setAttendance(next);
-                        setSaved(false);
-                      }}
-                        className="px-3 py-1.5 text-xs font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors capitalize">
-                        All {s}
+                    <div className="flex items-center gap-2">
+                      {/* Mark all buttons */}
+                      {isCanMark && ['present', 'absent'].map(s => (
+                        <button key={s} onClick={() => {
+                          const next: Record<string, { status: string; notes: string }> = {};
+                          students.forEach((st: any) => next[st.id] = { status: s, notes: attendance[st.id]?.notes ?? '' });
+                          setAttendance(next);
+                          setSaved(false);
+                        }}
+                          className="px-3 py-1.5 text-xs font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors capitalize">
+                          All {s}
+                        </button>
+                      ))}
+                      <button onClick={handlePrintSession}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border rounded-none transition-colors">
+                        <PrinterIcon className="w-4 h-4" />
                       </button>
-                    ))}
-                    <button onClick={handlePrintSession}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border rounded-none transition-colors">
-                      <PrinterIcon className="w-4 h-4" />
-                    </button>
-                    <button onClick={handleSave} disabled={saving}
-                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-teal-600 hover:bg-teal-500 text-foreground rounded-none transition-colors disabled:opacity-50">
-                      {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : saved ? <CheckIcon className="w-3.5 h-3.5" /> : <ClipboardDocumentCheckIcon className="w-3.5 h-3.5" />}
-                      {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Attendance'}
-                    </button>
-                  </div>
+                      {isCanMark && (
+                        <button onClick={handleSave} disabled={saving}
+                          className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-teal-600 hover:bg-teal-500 text-foreground rounded-none transition-colors disabled:opacity-50">
+                          {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : saved ? <CheckIcon className="w-3.5 h-3.5" /> : <ClipboardDocumentCheckIcon className="w-3.5 h-3.5" />}
+                          {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Attendance'}
+                        </button>
+                      )}
+                    </div>
                 </div>
 
                 <div className="divide-y divide-white/5">
@@ -644,13 +651,23 @@ function AttendanceContent() {
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           {Object.entries(STATUS_CONFIG).map(([val, c]) => (
-                          <button key={val} onClick={() => { setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], status: val } })); setSaved(false); }}
-                              className={`px-2.5 py-1.5 rounded-none text-xs font-bold border transition-all ${att.status === val ? `${c.color} scale-105` : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
+                          <button key={val} onClick={() => { 
+                                if (!isCanMark) return;
+                                setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], status: val } })); 
+                                setSaved(false); 
+                            }}
+                              disabled={!isCanMark}
+                              className={`px-2.5 py-1.5 rounded-none text-xs font-bold border transition-all ${att.status === val ? `${c.color} scale-105` : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'} ${!isCanMark ? 'cursor-default' : ''}`}>
                               {c.label}
                             </button>
                           ))}
                           <input type="text" value={att.notes} placeholder="Notes"
-                            onChange={e => { setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], notes: e.target.value } })); setSaved(false); }}
+                            readOnly={!isCanMark}
+                            onChange={e => { 
+                                if (!isCanMark) return;
+                                setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], notes: e.target.value } })); 
+                                setSaved(false); 
+                            }}
                             className="hidden sm:block w-28 px-2 py-1.5 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-teal-500 transition-colors" />
                         </div>
                       </div>

@@ -16,14 +16,24 @@ interface CertificateProps {
         certificate_number: string;
         verification_code: string;
         issued_date: string;
-        courses: { title: string };
-        portal_users?: { full_name: string };
+        courses: { 
+            title: string;
+            program?: { name: string };
+        };
+        portal_users?: { 
+            full_name: string;
+            section_class?: string;
+            grade_level?: string;
+        };
     };
 }
+
+type TemplateType = 'vanguard' | 'academic' | 'future';
 
 export function CertificateCard({ cert }: CertificateProps) {
     const certRef = useRef<HTMLDivElement>(null);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [template, setTemplate] = useState<TemplateType>('vanguard');
 
     const handleDownload = async () => {
         if (!certRef.current) return;
@@ -56,81 +66,152 @@ export function CertificateCard({ cert }: CertificateProps) {
         }
     };
 
+    const studentName = cert.portal_users?.full_name || 'Valued Learner';
+    const courseTitle = cert.courses.title;
+    const programName = cert.courses.program?.name || 'STEM Advancement Program';
+    const studentClass = cert.portal_users?.section_class || cert.portal_users?.grade_level || 'N/A';
+
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
+            {/* Template Selector */}
+            <div className="flex justify-center gap-2 p-1 bg-slate-900/50 border border-slate-800 rounded-none w-fit mx-auto">
+                {(['vanguard', 'academic', 'future'] as TemplateType[]).map((t) => (
+                    <button
+                        key={t}
+                        onClick={() => setTemplate(t)}
+                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${template === t ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                        {t}
+                    </button>
+                ))}
+            </div>
+
             <Card 
                 ref={certRef}
-                className="group relative w-full overflow-hidden border-none shadow-2xl hover:shadow-teal-500/10 transition-all duration-500 bg-slate-950"
-                style={{ minHeight: '560px' }}
+                className={`group relative w-full overflow-hidden border-none shadow-2xl transition-all duration-700 ${
+                    template === 'vanguard' ? 'bg-slate-950' : 
+                    template === 'academic' ? 'bg-[#fcfbf7]' : 
+                    'bg-[#020617]'
+                }`}
+                style={{ minHeight: '620px' }}
             >
-                {/* Decorative Background Patterns */}
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950" />
-                <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full -mr-32 -mt-32 blur-3xl" />
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full -ml-32 -mb-32 blur-3xl" />
+                {/* ─ VANGUARD TEMPLATE ────────────────────────────────────────── */}
+                {template === 'vanguard' && (
+                    <>
+                        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950" />
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full -mr-32 -mt-32 blur-3xl" />
+                        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full -ml-32 -mb-32 blur-3xl" />
+                        <div className="absolute inset-6 border border-teal-500/20 rounded-none pointer-events-none" />
+                        <div className="absolute inset-8 border border-white/5 rounded-none pointer-events-none" />
+                    </>
+                )}
 
-                {/* Golden Border Embellishment */}
-                <div className="absolute inset-4 border border-teal-500/20 rounded-xl pointer-events-none" />
+                {/* ─ ACADEMIC TEMPLATE ────────────────────────────────────────── */}
+                {template === 'academic' && (
+                    <>
+                        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#1e293b 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+                        <div className="absolute inset-6 border-4 border-[#1e293b] pointer-events-none" />
+                        <div className="absolute inset-8 border border-[#1e293b]/20 pointer-events-none" />
+                        {/* Corner Ornaments */}
+                        {[0, 90, 180, 270].map(deg => (
+                            <div key={deg} className="absolute w-12 h-12 border-t-4 border-l-4 border-[#1e293b]" style={{ top: deg < 180 ? '24px' : 'auto', bottom: deg >= 180 ? '24px' : 'auto', left: (deg === 0 || deg === 270) ? '24px' : 'auto', right: (deg === 90 || deg === 180) ? '24px' : 'auto', transform: `rotate(${deg}deg)` }} />
+                        ))}
+                    </>
+                )}
 
-                <CardContent className="relative p-10 text-center space-y-6">
-                    {/* Header Logo */}
-                    <div className="flex justify-center mb-2">
+                {/* ─ FUTURE TEMPLATE ───────────────────────────────────────────── */}
+                {template === 'future' && (
+                    <>
+                        <div className="absolute inset-0 bg-[url(/images/grid.svg)] opacity-20 pointer-events-none" />
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,rgba(20,184,166,0.1),transparent_70%)]" />
+                        <div className="absolute inset-0 border-[20px] border-teal-500/5 pointer-events-none" />
+                        <div className="absolute top-0 left-0 w-full h-1 bg-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.5)]" />
+                        <div className="absolute bottom-0 left-0 w-full h-1 bg-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.5)]" />
+                    </>
+                )}
+
+                <CardContent className="relative p-12 text-center flex flex-col items-center justify-between h-full space-y-8">
+                    {/* Header Logotype */}
+                    <div className="space-y-4">
                         <img 
                             src="/images/logo.png" 
-                            alt="Rillcod Logo" 
-                            className="h-12 w-auto brightness-110 grayscale-0"
+                            alt="Rillcod" 
+                            className={`h-12 mx-auto ${template === 'academic' ? 'brightness-50' : 'brightness-125'}`}
                             crossOrigin="anonymous"
                         />
-                    </div>
-
-                    <div className="flex justify-center">
-                        <div className="p-4 rounded-full bg-teal-500/10 ring-4 ring-teal-500/5">
-                            <TrophyIcon className="w-12 h-12 text-teal-400" />
+                        <div className={`text-[10px] font-black uppercase tracking-[0.4em] ${template === 'academic' ? 'text-slate-800' : 'text-teal-500'}`}>
+                            RILLCODE TECHNOLOGIES &middot; STEM ACADEMY
                         </div>
                     </div>
 
-                    <div className="space-y-1">
-                        <Badge variant="outline" className="text-teal-400 border-teal-500/30 uppercase tracking-[0.2em] text-[10px] font-black px-4 py-1 rounded-none bg-teal-500/5">
-                            Certificate of Completion
-                        </Badge>
-                        <h2 className="text-2xl font-black text-white tracking-tighter uppercase italic">
-                            {cert.courses.title}
-                        </h2>
-                        <div className="flex items-center justify-center gap-2 text-slate-400 mt-2">
-                            <CheckBadgeIcon className="w-4 h-4 text-teal-500" />
-                            <span className="text-[10px] font-black uppercase tracking-widest opacity-60 italic">Successfully Validated & Verified</span>
+                    {/* Main Title Area */}
+                    <div className="space-y-6">
+                        <div className="space-y-2">
+                            <h3 className={`text-[11px] font-black uppercase tracking-[0.3em] ${template === 'academic' ? 'text-slate-500 italic' : 'text-slate-400'}`}>
+                                Institutional Honors & Certification
+                            </h3>
+                            <h2 className={`text-5xl font-black italic tracking-tighter uppercase leading-none ${
+                                template === 'academic' ? 'text-[#1e293b]' : 'text-white'
+                            }`}>
+                                Certificate of <span className="text-teal-500">Completion</span>
+                            </h2>
+                        </div>
+
+                        <div className={`w-24 h-[1px] mx-auto ${template === 'academic' ? 'bg-slate-300' : 'bg-white/10'}`} />
+
+                        <div className="space-y-2">
+                            <p className={`text-[10px] uppercase tracking-[0.3em] font-black ${template === 'academic' ? 'text-slate-500' : 'text-slate-400'}`}>
+                                This is to certify that
+                            </p>
+                            <h1 className={`text-4xl font-black italic uppercase tracking-tight ${
+                                template === 'academic' ? 'text-[#1e293b] border-b-2 border-teal-500 pb-2' : 'text-teal-400'
+                            }`}>
+                                {studentName}
+                            </h1>
+                        </div>
+
+                        <div className="space-y-3">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">
+                                has successfully completed mastery of
+                            </p>
+                            <div>
+                                <h4 className={`text-2xl font-black uppercase ${template === 'academic' ? 'text-slate-800' : 'text-white'}`}>
+                                    {courseTitle}
+                                </h4>
+                                <p className="text-[10px] font-black text-teal-600 uppercase tracking-[0.2em] mt-1">
+                                    {programName} &bull; CLASS: {studentClass}
+                                </p>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="py-4 border-y border-white/5 space-y-1">
-                        <p className="text-slate-500 text-[9px] uppercase tracking-[0.3em] font-black">This Honors Award is Granted To</p>
-                        <p className="text-3xl font-black text-teal-500 italic uppercase tracking-tight">
-                            {cert.portal_users?.full_name || 'Valued Learner'}
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-8 text-left max-w-sm mx-auto">
-                        <div>
-                            <p className="text-slate-500 text-[9px] uppercase font-black tracking-widest opacity-50">Issued On</p>
-                            <p className="text-white text-xs font-black italic">{format(new Date(cert.issued_date), 'MMMM dd, yyyy')}</p>
+                    {/* Verification & Signatures */}
+                    <div className="w-full grid grid-cols-3 items-end gap-4 pt-8">
+                        {/* Left: QR Placeholder */}
+                        <div className="flex flex-col items-start gap-2 h-full justify-end">
+                            <div className={`p-1 border ${template === 'academic' ? 'border-slate-300 bg-white' : 'border-white/10 bg-slate-900/50'}`}>
+                                <QrCodeIcon className={`w-14 h-14 ${template === 'academic' ? 'text-slate-800' : 'text-teal-500 opacity-80'}`} />
+                            </div>
+                            <div className="text-left">
+                                <p className="text-[7px] font-black uppercase text-slate-500 tracking-widest">Verify ID</p>
+                                <p className={`text-[9px] font-mono font-black ${template === 'academic' ? 'text-slate-800' : 'text-white'}`}>{cert.verification_code}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-slate-500 text-[9px] uppercase font-black tracking-widest opacity-50">Verify ID</p>
-                            <p className="text-white text-xs font-black font-mono tracking-tighter text-teal-500/80">{cert.verification_code}</p>
-                        </div>
-                    </div>
 
-                    {/* Signature Section */}
-                    <div className="pt-6 flex justify-center items-end gap-12 border-t border-white/5 mx-auto max-w-sm">
+                        {/* Middle/Center: Signature 1 */}
                         <div className="flex flex-col items-center">
-                            <img 
-                                src="/images/signature.png" 
-                                alt="Signature" 
-                                className="h-10 w-auto object-contain brightness-200 contrast-150 mix-blend-screen"
-                                crossOrigin="anonymous"
-                            />
-                            <div className="w-32 h-[1px] bg-white/20 my-1" />
-                            <p className="text-[10px] font-black text-white italic">Mr Osahon</p>
-                            <p className="text-[8px] font-black uppercase text-slate-500 tracking-widest">Director</p>
+                            <img src="/images/signature.png" alt="Director" className={`h-12 w-auto mb-1 ${template === 'vanguard' ? 'brightness-[100]' : 'contrast-125'}`} crossOrigin="anonymous" />
+                            <div className={`w-full h-[1.5px] mb-2 ${template === 'academic' ? 'bg-slate-800' : 'bg-teal-500'}`} />
+                            <p className={`text-[9px] font-black uppercase ${template === 'academic' ? 'text-slate-800' : 'text-white'}`}>Director, STEM Studies</p>
+                            <p className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">Rillcod Technologies</p>
+                        </div>
+
+                        {/* Right: Signature 2 */}
+                        <div className="flex flex-col items-center">
+                            <img src="/images/signature.png" alt="Head" className={`h-12 w-auto mb-1 opacity-80 ${template === 'vanguard' ? 'brightness-[100]' : 'contrast-125'}`} crossOrigin="anonymous" />
+                            <div className={`w-full h-[1.5px] mb-2 ${template === 'academic' ? 'bg-slate-800' : 'bg-teal-500'}`} />
+                            <p className={`text-[9px] font-black uppercase ${template === 'academic' ? 'text-slate-800' : 'text-white'}`}>Academic Head</p>
+                            <p className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">Quality Assurance</p>
                         </div>
                     </div>
                 </CardContent>
@@ -140,25 +221,17 @@ export function CertificateCard({ cert }: CertificateProps) {
                 <button 
                     onClick={handleDownload}
                     disabled={isDownloading}
-                    className="flex-1 max-w-[200px] flex items-center justify-center gap-2 py-3 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-none transition-all shadow-lg shadow-teal-900/40"
+                    className="flex-1 max-w-[240px] flex items-center justify-center gap-3 py-4 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-teal-900/40"
                 >
-                    {isDownloading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
-                    {isDownloading ? 'Processing...' : 'Download PDF'}
+                    {isDownloading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowDownTrayIcon className="w-5 h-5 shadow-lg" />}
+                    {isDownloading ? 'SYNCHRONIZING...' : 'Official Download'}
                 </button>
                 <button 
                     onClick={handleShare}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-black uppercase tracking-widest rounded-none border border-slate-700 transition-all"
+                    className="px-6 py-4 bg-slate-900 hover:bg-slate-800 text-slate-400 text-[10px] font-black border border-slate-800 tracking-widest transition-all"
                 >
-                    <ShareIcon className="w-4 h-4" /> Share
+                    SHARE MASTER
                 </button>
-                <a 
-                    href={`/verify/${cert.verification_code}`}
-                    target="_blank"
-                    className="p-3 bg-slate-900 border border-slate-800 text-teal-400 hover:bg-teal-500/10 transition-all rounded-none"
-                    title="Verification Page"
-                >
-                    <QrCodeIcon className="w-5 h-5" />
-                </a>
             </div>
         </div>
     );

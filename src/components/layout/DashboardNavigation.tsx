@@ -194,7 +194,6 @@ export default function DashboardNavigation() {
           { name: 'Payments', href: '/dashboard/payments', icon: BanknotesIcon },
           { divider: true, label: 'More' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
-          { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ];
 

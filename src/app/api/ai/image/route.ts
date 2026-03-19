@@ -36,7 +36,12 @@ export async function POST(req: NextRequest) {
         method: 'POST',
         body: JSON.stringify({
           inputs: enrichedPrompt,
-          parameters: { num_inference_steps: 4 },
+          parameters: {
+            num_inference_steps: 4,
+            guidance_scale: 3.5,
+            width: 1024,
+            height: 1024,
+          },
         }),
       }
     );

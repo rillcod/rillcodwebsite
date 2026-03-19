@@ -256,15 +256,15 @@ export default function AddLessonPage() {
             className="w-full flex items-center justify-between px-5 py-4 text-left"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-none bg-orange-500/20 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-orange-400" />
+              <div className="w-10 h-10 rounded-none bg-orange-500/20 flex items-center justify-center border border-orange-500/30">
+                <Sparkles className="w-5 h-5 text-orange-400" />
               </div>
               <div>
-                <p className="text-sm font-bold text-foreground">Generate with AI</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm font-black text-foreground uppercase tracking-widest">Premium AI Lesson Engine</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tight">
                   {lastModel
-                    ? <span>Last built with <span className="text-orange-400">{lastModel.split('/').pop()}</span></span>
-                    : 'Auto-fill title, notes, and visual content blocks'}
+                    ? <span>Engine: <span className="text-orange-400">{lastModel.split('/').pop()}</span></span>
+                    : 'Generates D3 Charts, Framer Motion Graphics, and 1500+ word Academic Notes'}
                 </p>
               </div>
             </div>
@@ -320,11 +320,14 @@ export default function AddLessonPage() {
                   {aiGenerating ? 'Building lesson...' : 'Full AI Build'}
                 </button>
               </div>
-              <p className="text-[10px] text-muted-foreground">
-                <strong className="text-muted-foreground">Full AI Build</strong> — generates title, description, notes, and all visual content blocks.
-                Use <strong className="text-muted-foreground">Generate Notes</strong> (in the notes field) to only rewrite the study notes.
-                Press <kbd className="px-1 py-0.5 bg-muted rounded text-[9px]">Enter</kbd> in topic to quick-build.
-              </p>
+              <div className="p-4 bg-orange-500/5 border border-orange-500/10 rounded-none space-y-2">
+                <p className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em]">Strategy Overview</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Our core engine will now mandate at least 15 content blocks including <span className="text-foreground font-bold">D3.js Data Visualizations</span>, 
+                  <span className="text-foreground font-bold">Framer Motion Graphics</span>, and a deep-dive <span className="text-foreground font-bold">Academic Transcript</span> 
+                  tailored specifically for Nigerian Basic 1–SS3 standards.
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -422,6 +425,18 @@ export default function AddLessonPage() {
           onTranscript={(text) => setForm(prev => ({
             ...prev,
             description: prev.description ? `${prev.description}\n\n${text}` : text,
+          }))}
+          onImageGenerated={(url) => setForm(prev => ({
+            ...prev,
+            lesson_notes: prev.lesson_notes ? `${prev.lesson_notes}\n\n![Lesson Image](${url})` : `![Lesson Image](${url})`,
+          }))}
+          onVideoGenerated={(url) => setForm(prev => ({
+            ...prev,
+            lesson_notes: prev.lesson_notes ? `${prev.lesson_notes}\n\n[Neural Video Asset](${url})` : `[Neural Video Asset](${url})`,
+          }))}
+          onGraphicGenerated={(type, data) => setForm(prev => ({
+            ...prev,
+            lesson_notes: prev.lesson_notes ? `${prev.lesson_notes}\n\n--- AI Graphics Synthesized (${type}) ---\n${JSON.stringify(data, null, 2)}` : `--- AI Graphics Synthesized (${type}) ---\n${JSON.stringify(data, null, 2)}`,
           }))}
         />
       </div>

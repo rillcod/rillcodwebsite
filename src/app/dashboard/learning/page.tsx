@@ -13,7 +13,8 @@ import {
   PlayIcon, MapPinIcon, LockClosedIcon,
   ShieldCheckIcon,
 } from '@/lib/icons';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import CodeVisualizer, { CodeData, VisualizationType } from '@/components/visualizer/CodeVisualizer';
 
 const GREETINGS = ['Welcome back', 'Keep it up', 'Ready to study?', 'Looking sharp', 'Innovate today'];
 
@@ -32,6 +33,19 @@ export default function StudentLearningPage() {
   const [aiInsight, setAiInsight] = useState<{strengths: string, growth: string} | null>(null);
   const [generatingInsight, setGeneratingInsight] = useState(false);
   const [nextLesson, setNextLesson] = useState<any>(null);
+  
+  // Visual Insight State
+  const [visualStep, setVisualStep] = useState(0);
+  const [visualType] = useState<VisualizationType>('sorting');
+  const visualData: CodeData = {
+    step: visualStep,
+    totalSteps: 10,
+    variables: { i: visualStep, comparison: 'Active' },
+    visualizationState: {
+      array: [24, 12, 5, 42, 1, 9, 33, 15],
+      comparing: [visualStep % 8, (visualStep + 1) % 8]
+    }
+  };
   
   const [greeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
 
@@ -326,7 +340,7 @@ export default function StudentLearningPage() {
           </div>
 
           <div className="relative bg-[#0d0d0d] border border-white/5 p-8 sm:p-12 overflow-hidden group">
-            <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-[0.02] pointer-events-none" />
+            <div className="absolute inset-0 bg-[url(/images/grid.svg)] bg-center opacity-[0.02] pointer-events-none" />
             
             <div className="relative overflow-x-auto pb-8 custom-scrollbar scroll-smooth">
               <div className="flex items-center gap-12 min-w-max px-8">
@@ -403,6 +417,22 @@ export default function StudentLearningPage() {
                 {nextLesson ? `Sync: ${nextLesson.title}` : 'Sync Next Objective'}
               </Link>
             </div>
+          </div>
+        </section>
+
+        {/* Visual Intelligence Matrix Section */}
+        <section className="space-y-6">
+          <div className="flex flex-col gap-1">
+             <p className="text-[9px] font-black text-cyan-500 uppercase tracking-[0.4em]">Visual Intelligence Matrix</p>
+             <h2 className="text-2xl font-black uppercase italic">Neural Insight: Array Sorter</h2>
+          </div>
+          <div className="bg-[#0d0d0d] border border-white/5 overflow-hidden">
+             <CodeVisualizer 
+                visualizationType={visualType}
+                codeData={visualData}
+                onStepChange={setVisualStep}
+                className="border-none shadow-none"
+             />
           </div>
         </section>
 

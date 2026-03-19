@@ -8,7 +8,7 @@ import {
   ChartBarIcon, AcademicCapIcon, CheckCircleIcon, ClockIcon,
   TrophyIcon, BookOpenIcon, ClipboardDocumentCheckIcon,
   ArrowTrendingUpIcon, StarIcon, ExclamationTriangleIcon,
-  SparklesIcon
+  SparklesIcon, BuildingOfficeIcon
 } from '@/lib/icons';
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -114,21 +114,30 @@ export default function ProgressPage() {
           }
 
           // 5. Initial Filter by school for non-admins
+          let filteredSubs = subsData;
+          let filteredEnr = enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : [];
+
           if (role !== 'admin') {
             if (assignedSchoolIds.length > 0 || assignedSchoolNames.length > 0) {
-              subsData = subsData.filter((s: any) => {
+              filteredSubs = subsData.filter((s: any) => {
                 const u = s.portal_users;
                 if (!u) return false;
                 return assignedSchoolIds.includes(u.school_id) || assignedSchoolNames.includes(u.school_name);
               });
+              filteredEnr = filteredEnr.filter((e: any) => {
+                const u = e.portal_users;
+                if (!u) return false;
+                return assignedSchoolIds.includes(u.school_id) || assignedSchoolNames.includes(u.school_name);
+              });
             } else {
-              subsData = [];
+              filteredSubs = [];
+              filteredEnr = [];
             }
           }
 
           if (!cancelled) {
-            setSubmissions(subsData);
-            setEnrollments(enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : []);
+            setSubmissions(filteredSubs);
+            setEnrollments(filteredEnr);
           }
         } else {
           // Student: own submissions + enrollments
@@ -352,7 +361,7 @@ export default function ProgressPage() {
                 className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2 text-sm focus:outline-none focus:border-orange-500 transition-colors"
               />
             </div>
-            {role === 'admin' && (
+            {role === 'admin' ? (
               <select
                 value={selectedSchool}
                 onChange={(e) => setSelectedSchool(e.target.value)}
@@ -361,6 +370,10 @@ export default function ProgressPage() {
                 <option value="all">All Schools</option>
                 {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+            ) : (
+                <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-none text-xs font-black text-orange-400/60 uppercase tracking-widest flex items-center gap-2">
+                    <BuildingOfficeIcon className="w-3 h-3" /> {schools.find(s => s.id === profile?.school_id)?.name || profile?.school_name || 'My School'}
+                </div>
             )}
             <select
               value={selectedClass}

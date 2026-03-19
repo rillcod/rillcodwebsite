@@ -21,17 +21,29 @@ const MODELS = [
   "mistralai/mistral-large-2411",             // Complex reasoning fallback
   "meta-llama/llama-3.1-8b-instruct:free",    // Fast free fallback
   "mistralai/mistral-7b-instruct:free"        // Emergency fallback
-];
+];const SYSTEM_PROMPT = `You are an elite STEM & Robotics Curriculum Architect for Rillcod Technologies. 
+Your mission is to engineer high-fidelity, visually stunning, and academically rigorous educational content for the Nigerian elite education sector (Basic 1 to SS3).
 
-const SYSTEM_PROMPT = `You are an expert STEM curriculum designer for Rillcod Technologies. You create engaging, age-appropriate educational content. 
-You can use specialized blocks in content_layout:
-- 'mermaid': for flowcharts/diagrams (flowchart TD...)
-- 'math': for LaTeX formulas (E = mc^2)
-- 'code': for programming snippets
-- 'coding_blocks': for visual logic tasks (sentence with [BLANK] placeholders, options, and correct ordering)
-- 'image': for illustrations
-- 'video': for educational videos
-Always return valid JSON only. For Nigerian context (Basic 1 to SS3), the tone is premium and modern.`;
+CORE PHILOSOPHY:
+- "The Rillcod Standard": Every lesson must feel premium, modern, and technologically advanced. 
+- "Nigerian Excellence": Tone should be high-expectation, visionary, and encouraging. Use British English.
+- "Visual-First Learning": Maximize the use of specialized blocks (Mermaid, Motion Graphics, D3, Visualizers) to explain complex concepts.
+
+SPECIALIZED BLOCKS (MANDATORY VARIETY):
+- 'mermaid': High-precision system architecture or flowcharts. Use 'flowchart TD'. No markdown fences.
+- 'motion-graphics': Premium Framer Motion animations (orbit|pulse|flow|grid|particles).
+- 'd3-chart': Data-driven insights (bar|line|pie|area).
+- 'visualizer': Real-time algorithm/logic simulation (sorting|physics|turtle|loops|stateMachine).
+- 'activity': Practical 'Hands-on Sync' with explicit 'steps' (Array of strings).
+- 'scratch': For KG-Basic 6 only. 'projectId' (optional), 'blocks' (Array), and 'instructions' (Step-by-Step Fixing Guide).
+- 'quiz': Validation checkpoints with 'question', 'options', and 'correctAnswer' (Index).
+
+EXTENSIVENESS: 
+Lesson notes ("lesson_notes" field) MUST be at least 1500 words of deep, academic discourse, structured with professional headers. 
+For KG-Basic 6: Focus on "Mental Models", "Visual Logic Strategies", and "Step-by-Step Debugging".
+For JSS1-SS3: Focus on "Technical Architecture", "Algorithmic Complexity", and "Global Tech Trends".
+
+Return ONLY valid JSON.`;
 
 type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation';
 
@@ -100,61 +112,59 @@ Maintain a balance between prestigious academic standards and the vibrant, goal-
     case 'lesson-notes':
       return `Generate ONLY the lesson notes for a Rillcod Technologies class session.
 Topic: "${req.topic}"
-Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
+Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
 Subject: ${req.subject ?? 'Coding & Technology'}
 Duration: ${req.durationMinutes ?? 60} minutes
 
 Return a JSON object with this exact shape:
 {
-  "lesson_notes": "string — COMPREHENSIVE markdown-formatted study notes for the student, 500-800 words minimum. Structure with ## headings, bullet points, bold key terms, and concrete examples. Cover: introduction, key concepts, worked examples, and a summary."
+  "lesson_notes": "string — EXTENSIVE, ACADEMIC markdown-formatted study notes for the student, 1800+ words minimum. Deep curriculum depth for Basic 1-SS3. For KG-Basic 6, focus on visual block strategies, 'Step-by-Step Debugging Guides', and Scratch mental models. For JSS1-SS3, include technical deep-dives into Python/JS/Deep Tech."
 }`;
 
     case 'lesson':
-      return `Generate a COMPLETE, RICH lesson for a Rillcod Technologies class session.
+      return `Generate a PREMIER, MULTI-DIMENSIONAL lesson for Rillcod Technologies.
 Topic: "${req.topic}"
-Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
+Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
 Subject: ${req.subject ?? 'Coding & Technology'}
 Duration: ${req.durationMinutes ?? 60} minutes
 Lesson type: ${req.contentType ?? 'hands-on'}
 
 Return a JSON object with this exact shape:
 {
-  "title": "string — engaging, specific lesson title",
-  "description": "string — 2-3 sentence lesson overview for teachers",
-  "lesson_notes": "string — COMPREHENSIVE markdown study notes, 500-800 words. Use ## headings, bullet points, bold key terms. Cover intro, concepts, examples, summary.",
-  "objectives": ["string — at least 3 clear learning objectives"],
+  "title": "string — elite, technical title",
+  "description": "string — visionary overview",
+  "lesson_notes": "string — 1500+ words of extensive academic material.",
+  "objectives": ["string — at least 5 clear learning objectives"],
   "content_layout": [
-    { "type": "heading", "content": "Learning Objectives" },
-    { "type": "text", "content": "string" },
-    { "type": "callout", "style": "info", "content": "string — key concept callout" },
-    { "type": "heading", "content": "Core Concepts" },
-    { "type": "text", "content": "string — explanation" },
-    { "type": "code", "language": "python", "content": "string — working example" },
-    { "type": "mermaid", "code": "flowchart TD\nA-->B" },
-    { "type": "activity", "title": "string", "instructions": "string — step-by-step activity" },
-    { "type": "callout", "style": "tip", "content": "string — pro tip" },
-    { "type": "quiz", "question": "string", "options": ["A","B","C","D"], "correct_answer": "string" },
-    { "type": "heading", "content": "Summary" },
-    { "type": "text", "content": "string — summary paragraph" }
+    { "type": "mermaid", "content": "flowchart TD\\nA-->B" },
+    { "type": "motion-graphics", "animationType": "particles | flow | orbit", "config": { "nodes": 12 } },
+    { "type": "d3-chart", "chartType": "area | line | bar", "dataset": [20, 45, 28, 80, 99] },
+    { "type": "visualizer", "visualType": "loops | sorting | stateMachine", "visualData": { "variables": {}, "totalSteps": 20, "step": 0, "visualizationState": {} } },
+    { "type": "activity", "title": "Hands-on Synthesis Lab", "instructions": "Intro string", "steps": ["Precise Step 1", "Precise Step 2", "Step 3: Verification"], "is_coding": true },
+    { "type": "scratch", "projectId": "string (optional)", "instructions": "STRICT Step-by-Step Block Fixing/Debugging Guide for children", "blocks": ["BLOCK 1", "BLOCK 2", "BLOCK 3"] },
+    { "type": "quiz", "question": "Technical Validation", "options": ["A","B","C","D"], "correctAnswer": 0 }
   ],
-  "video_url": "string or null — a real relevant YouTube URL if one exists, otherwise null",
-  "tags": ["string — at least 3 tags"],
+  "video_url": "string — Relevant High-Quality YouTube URL",
+  "tags": ["STEM", "Technology", "Nigeria", "Innovation"],
   "duration_minutes": ${req.durationMinutes ?? 60},
   "lesson_type": "${req.contentType ?? 'hands-on'}"
 }
 
-CRITICAL requirements:
-1. content_layout MUST have at least 10 blocks — use the full structure above as a guide.
-2. lesson_notes must be 500+ words with real educational content, not placeholder text.
-3. For coding/STEM topics always include a working code block.
-4. For topics with processes or relationships, include a mermaid diagram.
-5. Always end with at least one quiz block.
-6. Nigerian school context (Basic 1–SS3), premium and modern tone.`;
+MANDATORY RULES FOR PREMIUM ILLUSTRATION & GRADE LEVEL ADAPTATION:
+1. Grade Range: Basic 1–SS3 (KG-Primary 6 focus on Scratch/visual logic; JSS1-SS3 focus on Python/JS/Deep Tech).
+2. For KG–Basic 6: EVERY lesson MUST include a 'scratch' block with a logical sequence of blocks and a "Step-by-Step Fixing Guide" to help them debug.
+3. Every lesson MUST include at least ONE 'visualizer' block.
+4. Every lesson MUST include at least ONE 'motion-graphics' block.
+5. Every lesson MUST include at least ONE 'd3-chart' block.
+6. content_layout MUST have AT LEAST 12 blocks.
+7. Mermaid code must NEVER contain triple backticks. It must be a raw string.
+8. Nigerian School Context (Basic 1–SS3), sharp, premium, and goal-oriented tone.
+9. Lesson notes MUST be 1500+ words.`;
 
     case 'assignment':
       return `Generate an assignment for Rillcod Technologies students.
 Topic: "${req.topic}"
-Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
+Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
 Subject: ${req.subject ?? 'Coding & Technology'}
 Max Points: 100
 
@@ -187,7 +197,7 @@ Include at least 5 relevant questions total.`;
       const qCount = req.questionCount ?? 10;
       return `Generate a Computer Based Test (CBT) for Rillcod Technologies.
 Topic: "${req.topic}"
-Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
+Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
 Subject: ${req.subject ?? 'Coding & Technology'}
 Number of questions required: EXACTLY ${qCount} questions. You MUST generate all ${qCount} questions — do not stop early.
 

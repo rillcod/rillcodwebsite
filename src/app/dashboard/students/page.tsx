@@ -583,63 +583,90 @@ export default function StudentsPage() {
     }
 
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const logoUrl = window.location.origin + '/images/logo.png';
+
     const html = `
       <html><head><title>Batch Credentials - ${dateStr}</title>
       <style>
-        @page { size: A4; margin: 10mm; }
-        body { font-family: 'Inter', system-ui, sans-serif; padding: 0; background: #fff; color: #111827; margin: 0; }
+        @page { size: A4; margin: 0; }
+        body { font-family: 'Inter', system-ui, sans-serif; padding: 10mm; background: #fff; color: #111827; margin: 0; }
         .grid { 
           display: grid; 
           grid-template-columns: 1fr 1fr; 
           grid-template-rows: repeat(4, 1fr);
-          gap: 15px; 
-          height: calc(297mm - 20mm);
-          padding: 5px;
+          gap: 12px;
+          row-gap: 10mm;
+          height: 270mm;
+          width: 190mm;
+          margin: auto;
         }
         .card { 
-          border: 2px solid #000; 
-          padding: 20px; 
+          border: 1.5px solid #121212; 
+          padding: 18px; 
           display: flex; 
           flex-direction: column; 
-          justify-content: space-between;
           position: relative;
           background: #fff;
+          overflow: hidden;
+          height: 60mm;
         }
-        .brand { font-weight: 900; font-size: 16px; font-style: italic; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
-        .dot { color: #ea580c; font-style: normal; }
-        .tagline { font-size: 7px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.3em; margin-bottom: 12px; border-bottom: 1px solid #f3f4f6; padding-bottom: 4px; font-weight: 800; }
-        .name { font-size: 14px; font-weight: 900; margin-bottom: 10px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 4px; }
-        .row { margin-bottom: 10px; }
-        .label { font-size: 8px; font-weight: 900; color: #6b7280; text-transform: uppercase; margin-bottom: 2px; letter-spacing: 0.1em; }
-        .value { font-size: 11px; font-weight: 800; font-family: 'JetBrains Mono', monospace; word-break: break-all; color: #000; }
-        .footer { margin-top: auto; font-size: 7px; color: #6b7280; border-top: 1px dashed #e5e7eb; padding-top: 8px; font-weight: 700; }
-        .watermark { position: absolute; bottom: 40px; right: 20px; font-size: 24px; font-weight: 900; color: #f3f4f6; transform: rotate(-45deg); z-index: 0; pointer-events: none; }
+        .header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #f3f4f6; padding-bottom: 10px; }
+        .logo { width: 32px; height: 32px; object-fit: contain; }
+        .brand-text { flex: 1; }
+        .brand { font-weight: 900; font-size: 11px; color: #121212; letter-spacing: -0.5px; line-height: 1; text-transform: uppercase; }
+        .tagline { font-size: 6px; color: #ea580c; text-transform: uppercase; font-weight: 900; letter-spacing: 1px; margin-top: 2px; }
+        
+        .title-badge { font-size: 8px; font-weight: 900; background: #121212; color: #fff; padding: 3px 8px; width: fit-content; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px; }
+        
+        .name { font-size: 14px; font-weight: 900; margin-bottom: 14px; text-transform: uppercase; color: #121212; border-left: 3px solid #ea580c; padding-left: 8px; }
+        
+        .details { display: grid; grid-template-columns: 1fr; gap: 8px; }
+        .label { font-size: 6px; font-weight: 900; color: #9ca3af; text-transform: uppercase; margin-bottom: 1px; letter-spacing: 0.5px; }
+        .value { font-size: 10px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: #121212; word-break: break-all; }
+        
+        .footer { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; font-size: 6px; color: #9ca3af; font-weight: 700; border-top: 1px dashed #f3f4f6; padding-top: 8px; }
+        .station { color: #121212; opacity: 0.6; font-size: 7px; }
+        .class-badge { background: #121212; padding: 3px 8px; color: #fff; font-weight: 900; font-size: 8px; text-transform: uppercase; }
+
         @media print { 
           body { -webkit-print-color-adjust: exact; }
-          .card { border-width: 1.5px; }
+          .card { page-break-inside: avoid; }
         }
       </style>
       </head><body>
       <div class="grid">
         ${list.map(s => `
           <div class="card">
-            <div class="watermark">AUTH</div>
-            <div>
-              <div class="brand">RILLCOD<span class="dot">.</span></div>
-              <div class="tagline">STEM Excellence Access protocol</div>
-              <div class="name">${s.full_name || s.name || 'N/A'}</div>
-              <div class="row">
-                <div class="label">Portal Login (Email)</div>
+            <div class="header">
+              <img src="${logoUrl}" class="logo" />
+              <div class="brand-text">
+                <div class="brand">RILLCODE TECHNOLOGIES</div>
+                <div class="tagline">STEM EXCELLENCE PROTOCOL</div>
+              </div>
+            </div>
+            
+            <div class="title-badge">ACCESS CARD</div>
+            <div class="name">${s.full_name || s.name || 'N/A'}</div>
+            
+            <div class="details">
+              <div class="field">
+                <div class="label">Portal Access (Login Email)</div>
                 <div class="value">${s.email || s.student_email || 'N/A'}</div>
               </div>
-              <div class="row">
+              <div class="field">
                 <div class="label">Temporary Cipher (Password)</div>
                 <div class="value">********</div>
               </div>
             </div>
+            
             <div class="footer">
-              STATION: academy.rillcod.com/student/login<br/>
-              CLUSTER ID: ${s.user_id?.slice(0, 8) || 'VERIFIED'}
+              <div>
+                <span class="station">academy.rillcod.com</span><br/>
+                STATION ID: ${s.user_id?.slice(0, 8) || 'RC-VERIFIED'}
+              </div>
+              <div class="class-badge">
+                ${s.section_class || s.grade_level || 'N/A'}
+              </div>
             </div>
           </div>
         `).join('')}
