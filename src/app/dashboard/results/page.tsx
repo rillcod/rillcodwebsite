@@ -10,17 +10,19 @@ import {
     PrinterIcon, AcademicCapIcon, MagnifyingGlassIcon,
     TrophyIcon, DocumentTextIcon, PencilSquareIcon, CheckCircleIcon,
     ArrowDownTrayIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon,
-    TrashIcon, XMarkIcon, SparklesIcon
+    TrashIcon, XMarkIcon
 } from '@/lib/icons';
-import { ChatWindow } from '@/components/chat/ChatWindow';
 
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
 import { ScaledReportCard, generateReportPDF } from '@/lib/pdf-utils';
 import { Database } from '@/types/supabase';
+import { cn } from '@/lib/utils';
 
-type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
+type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'] & {
+  template_id?: string | null;
+};
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
 type OrgSettings = Database['public']['Tables']['report_settings']['Row'];
 
@@ -35,7 +37,7 @@ function GradeDistribution({ students, reportsMap }: { students: PortalUser[], r
             else if (gradeChar === 'C') counts.C++;
             else if (gradeChar === 'D') counts.D++;
             else if (gradeChar === 'F') counts.F++;
-            else counts.F++; // Map E or others to F for consistency
+            else counts.F++; 
         } else {
             counts.none++;
         }
@@ -45,74 +47,54 @@ function GradeDistribution({ students, reportsMap }: { students: PortalUser[], r
     const totalWithGrades = students.length - counts.none;
 
     return (
-        <div className="bg-background/60 border border-border rounded-none p-4 mb-4 shadow-xl overflow-hidden relative group">
-            {/* Background Glow */}
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-orange-600/10 blur-[50px] rounded-full pointer-events-none" />
+        <div className="bg-[#111113] border border-white/[0.05] p-5 shadow-2xl overflow-hidden relative group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-[60px] rounded-full pointer-events-none" />
             
-            <div className="flex items-center justify-between mb-4 px-1">
-                <div className="flex flex-col">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400 italic">Grade Distribution</p>
-                    <div className="flex items-center gap-2">
-                        <p className="text-[8px] font-bold text-muted-foreground uppercase">Telemetry Analysis</p>
-                        <button 
-                            onClick={() => (window as any).toggleTelemetryAI?.()}
-                            className="flex items-center gap-1 px-1.5 py-0.5 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[8px] font-black transition-all border border-orange-500/20"
-                        >
-                            <SparklesIcon className="w-2.5 h-2.5" />
-                            ASK AI
-                        </button>
-                    </div>
-                </div>
-                <div className="flex gap-2">
-                   {['A','B','C','D','F'].map(g => (
-                       <div key={g} className="flex flex-col items-center">
-                           <span className="text-[8px] font-black text-muted-foreground">{g}</span>
-                           <span className="text-[10px] font-black text-muted-foreground">{counts[g as keyof typeof counts]}</span>
-                       </div>
-                   ))}
+            <div className="flex items-center justify-between mb-6">
+                <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary italic leading-none mb-1.5">Cohort Distribution</p>
                 </div>
             </div>
 
-            <div className="flex items-end gap-2 h-24 mb-1">
+            <div className="flex items-end gap-3 h-28 mb-4">
                 {(['A', 'B', 'C', 'D', 'F'] as const).map(g => {
                     const count = counts[g];
                     const h = totalWithGrades > 0 ? (count / max) * 100 : 0;
                     const colors = { 
-                        A: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400 shadow-emerald-500/20', 
-                        B: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400 shadow-blue-500/20', 
-                        C: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400 shadow-amber-500/20', 
-                        D: 'from-indigo-600 to-indigo-400 shadow-indigo-500/20', 
-                        F: 'from-rose-600 to-rose-400 shadow-rose-500/20' 
+                        A: 'from-primary/80 to-primary/40', 
+                        B: 'from-blue-600/80 to-blue-400/40', 
+                        C: 'from-amber-600/80 to-amber-400/40', 
+                        D: 'from-indigo-600/80 to-indigo-400/40', 
+                        F: 'from-rose-600/80 to-rose-400/40' 
                     };
                     return (
-                        <div key={g} className="flex-1 flex flex-col items-center gap-2 group/bar">
-                            <div className="w-full bg-white/[0.03] rounded-t-lg overflow-hidden flex flex-col justify-end h-full relative border border-border">
+                        <div key={g} className="flex-1 flex flex-col items-center gap-3 group/bar">
+                            <div className="w-full bg-white/[0.02] border border-white/[0.05] flex flex-col justify-end h-full relative overflow-hidden">
                                 {count > 0 && (
                                     <div 
-                                        className={`w-full bg-gradient-to-t ${colors[g]} opacity-80 group-hover/bar:opacity-100 transition-all duration-1000 ease-out shadow-lg relative`} 
+                                        className={`w-full bg-gradient-to-t ${colors[g]} transition-all duration-700 ease-out relative`} 
                                         style={{ height: `${h}%` }}
                                     >
-                                        {/* Animated Shine */}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-transparent via-border to-transparent translate-y-full group-hover/bar:translate-y-[-100%] transition-transform duration-1000" />
-                                        
-                                        {/* Top Glow Dot */}
-                                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] opacity-0 group-hover/bar:opacity-100 transition-opacity" />
+                                        <div className="absolute top-0 inset-x-0 h-px bg-white/20" />
                                     </div>
                                 )}
                             </div>
-                            <span className="text-[10px] font-black text-muted-foreground group-hover/bar:text-muted-foreground transition-colors uppercase">{g}</span>
+                            <div className="text-center space-y-0.5">
+                                <span className="block text-[10px] font-black text-slate-300">{g}</span>
+                                <span className="block text-[9px] font-bold text-slate-500">{count}</span>
+                            </div>
                         </div>
                     );
                 })}
             </div>
 
-            {/* Total Indicator */}
-            <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Active Monitoring</span>
+            <div className="pt-4 border-t border-white/[0.05] flex items-center justify-between">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{totalWithGrades} DATA POINTS ANALYZED</span>
+                <div className="flex -space-x-1.5">
+                    {[1,2,3].map(i => (
+                        <div key={i} className="w-4 h-4 rounded-full border border-[#111113] bg-slate-800" />
+                    ))}
                 </div>
-                <span className="text-[9px] font-bold text-muted-foreground italic">{totalWithGrades} Reports Analyzed</span>
             </div>
         </div>
     );
@@ -134,7 +116,8 @@ function ResultsPageInner() {
     const [selectedStudent, setSelectedStudent] = useState<PortalUser | null>(null);
     const [selectedReport, setSelectedReport] = useState<StudentReport | null>(null);
     const [loadingReport, setLoadingReport] = useState(false);
-    const [template, setTemplate] = useState<'standard' | 'modern'>('standard');
+    const [template, setTemplate] = useState<'standard' | 'modern'>('modern');
+    const [modernTemplateId, setModernTemplateId] = useState<'industrial' | 'executive' | 'futuristic'>('industrial');
 
     // ── Filters ────────────────────────────────────────────────────────────────
     const [search, setSearch] = useState('');
@@ -164,13 +147,6 @@ function ResultsPageInner() {
     const captureQueue = useRef<StudentReport[]>([]);
     const captureIdx = useRef<number>(0);
     const [showSidebar, setShowSidebar] = useState(true);
-    const [showAI, setShowAI] = useState(false);
-
-    // Expose toggle for GradeDistribution component
-    useEffect(() => {
-        (window as any).toggleTelemetryAI = () => setShowAI(prev => !prev);
-        return () => { delete (window as any).toggleTelemetryAI; };
-    }, []);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
     // School partners can VIEW and PRINT but cannot create or edit reports
@@ -382,9 +358,10 @@ function ResultsPageInner() {
     const reportToDisplay: StudentReport | null = selectedReport
         ? {
             ...selectedReport,
+            template_id: modernTemplateId,
             student_name: selectedReport.student_name || selectedStudent?.full_name || null,
-            school_name: (selectedReport.school_name || (selectedStudent ? studentSchoolName(selectedStudent) : null) || null) as any,
-            section_class: (selectedReport.section_class || (selectedStudent ? studentClassName(selectedStudent) : null) || null) as any,
+            school_name: selectedReport.school_name || (selectedStudent ? studentSchoolName(selectedStudent) : null) || null,
+            section_class: selectedReport.section_class || (selectedStudent ? studentClassName(selectedStudent) : null) || null,
           }
         : null;
 
@@ -945,7 +922,7 @@ tbody tr:hover{background:#f3f4f6}
                     )}
 
                     {/* ══ Report panel ══ */}
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1 w-full">
                         {(selectedStudent || !isStaff) ? (
 
                             (loadingReport || selectedReport) ? (
@@ -1007,17 +984,40 @@ tbody tr:hover{background:#f3f4f6}
                                             <div className="flex bg-card shadow-sm p-1 rounded-none border border-border h-9 flex-shrink-0">
                                                 <button 
                                                   onClick={() => setTemplate('standard')}
-                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'standard' ? 'bg-orange-600 text-foreground shadow-lg shadow-orange-900/40' : 'text-muted-foreground hover:text-muted-foreground'}`}
+                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'standard' ? 'bg-orange-600 text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
                                                 >
                                                     Standard
                                                 </button>
                                                 <button 
                                                   onClick={() => setTemplate('modern')}
-                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'modern' ? 'bg-orange-600 text-foreground shadow-lg shadow-orange-900/40' : 'text-muted-foreground hover:text-muted-foreground'}`}
+                                                  className={`px-3 py-1 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${template === 'modern' ? 'bg-orange-600 text-foreground' : 'text-muted-foreground hover:text-muted-foreground'}`}
                                                 >
                                                     Modern
                                                 </button>
                                             </div>
+
+                                            {template === 'modern' && (
+                                                <div className="flex bg-card shadow-sm p-1 rounded-none border border-border h-9 flex-shrink-0 items-center gap-1.5 px-2">
+                                                    {[
+                                                        { id: 'industrial', name: 'Ind.', color: 'bg-slate-900', border: 'border-orange-500' },
+                                                        { id: 'executive', name: 'Exec.', color: 'bg-[#FDFBF2]', border: 'border-slate-800' },
+                                                        { id: 'futuristic', name: 'Fut.', color: 'bg-[#050510]', border: 'border-cyan-500' }
+                                                    ].map((t) => (
+                                                        <button 
+                                                            key={t.id}
+                                                            onClick={() => setModernTemplateId(t.id as any)}
+                                                            title={t.name}
+                                                            className={cn(
+                                                                "relative w-7 h-5 flex items-center justify-center transition-all overflow-hidden border border-white/10",
+                                                                modernTemplateId === t.id ? "ring-2 ring-orange-500 ring-offset-1 ring-offset-card scale-110" : "opacity-40 hover:opacity-100"
+                                                            )}
+                                                        >
+                                                            <div className={cn("absolute inset-0", t.color)} />
+                                                            <div className={cn("absolute inset-0.5 border-[0.5px]", t.border, "opacity-20")} />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
 
                                             {/* Action set */}
                                             <div className="flex items-center gap-2 h-9">
@@ -1325,34 +1325,6 @@ tbody tr:hover{background:#f3f4f6}
                             >
                                 {isSavingEdit ? 'Saving…' : 'Save Changes'}
                             </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {/* ══ AI Telemetry Chat ══ */}
-            {showAI && (
-                <div className="fixed bottom-6 right-6 z-[100] w-full max-w-sm animate-in slide-in-from-right-10 duration-500">
-                    <div className="relative group">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-violet-600 rounded-[2rem] blur opacity-25 group-hover:opacity-50 transition duration-1000" />
-                        <div className="relative">
-                            <div className="absolute top-4 right-4 z-50">
-                                <button onClick={() => setShowAI(false)} className="p-2 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-all">
-                                    <XMarkIcon className="w-5 h-5" />
-                                </button>
-                            </div>
-                            <ChatWindow 
-                                recipientId="ai-telemetry" 
-                                recipientName="Telemetry AI Assistant" 
-                                initialMessages={[
-                                    {
-                                        id: '1',
-                                        sender_id: 'ai',
-                                        recipient_id: profile?.id || 'user',
-                                        content: `Hello ${profile?.full_name?.split(' ')[0] || 'Teacher'}! I'm your Telemetry AI Assistant. I can help you analyze student performance and provide insights. How can I help you today?`,
-                                        created_at: new Date().toISOString()
-                                    }
-                                ]} 
-                            />
                         </div>
                     </div>
                 </div>

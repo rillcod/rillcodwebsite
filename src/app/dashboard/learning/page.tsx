@@ -14,7 +14,6 @@ import {
   ShieldCheckIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
-import CodeVisualizer, { CodeData, VisualizationType } from '@/components/visualizer/CodeVisualizer';
 
 const GREETINGS = ['Welcome back', 'Keep it up', 'Ready to study?', 'Looking sharp', 'Innovate today'];
 
@@ -34,20 +33,11 @@ export default function StudentLearningPage() {
   const [generatingInsight, setGeneratingInsight] = useState(false);
   const [nextLesson, setNextLesson] = useState<any>(null);
   
-  // Visual Insight State
-  const [visualStep, setVisualStep] = useState(0);
-  const [visualType] = useState<VisualizationType>('sorting');
-  const visualData: CodeData = {
-    step: visualStep,
-    totalSteps: 10,
-    variables: { i: visualStep, comparison: 'Active' },
-    visualizationState: {
-      array: [24, 12, 5, 42, 1, 9, 33, 15],
-      comparing: [visualStep % 8, (visualStep + 1) % 8]
-    }
-  };
-  
   const [greeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
+  const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set());
+  const [badges, setBadges] = useState<any[]>([]);
+  const [pendingAssignments, setPendingAssignments] = useState(0);
+  const [dailyMissions, setDailyMissions] = useState<any[]>([]);
 
   async function loadData() {
     if (!profile) return;
@@ -142,6 +132,31 @@ export default function StudentLearningPage() {
         setNextLesson(next || firstProgramLessons?.[0]);
       }
 
+      // Fetch completed lesson IDs for journey map
+      const { data: completedProgress } = await db
+        .from('lesson_progress')
+        .select('lesson_id')
+        .eq('portal_user_id', profile.id)
+        .eq('status', 'completed');
+      setCompletedLessonIds(new Set(completedProgress?.map((p: any) => p.lesson_id) || []));
+
+      // Fetch recent badges
+      const { data: badgesData } = await db
+        .from('user_badges')
+        .select('awarded_at, badges(name, description, icon_url)')
+        .eq('user_id', profile.id)
+        .order('awarded_at', { ascending: false })
+        .limit(4);
+      setBadges((badgesData || []).map((b: any) => b.badges).filter(Boolean));
+
+      // Fetch pending assignments count
+      const { count: pendingCount } = await db
+        .from('assignment_submissions')
+        .select('id', { count: 'exact', head: true })
+        .eq('portal_user_id', profile.id)
+        .eq('status', 'submitted');
+      setPendingAssignments(pendingCount || 0);
+
     } catch (err) {
       console.error('Error loading learning data:', err);
     } finally {
@@ -178,6 +193,64 @@ export default function StudentLearningPage() {
     }
   }, [profile?.id, authLoading]);
 
+  useEffect(() => {
+    if (loading) return;
+    const missions: any[] = [];
+
+    // Mission 1: Complete next lesson
+    if (nextLesson) {
+      missions.push({
+        id: 'lesson',
+        label: 'Complete Today\'s Lesson',
+        desc: nextLesson.title,
+        xp: 10,
+        emoji: '📚',
+        href: `/dashboard/lessons/${nextLesson.id}`,
+        done: completedLessonIds.has(nextLesson.id),
+        color: 'border-l-cyan-500 bg-cyan-500/5 text-cyan-400'
+      });
+    }
+
+    // Mission 2: Submit assignment or take quiz
+    if (pendingAssignments > 0) {
+      missions.push({
+        id: 'assignment',
+        label: `Submit ${pendingAssignments} Assignment${pendingAssignments > 1 ? 's' : ''}`,
+        desc: 'Your work is waiting for submission',
+        xp: 25,
+        emoji: '📝',
+        href: '/dashboard/assignments',
+        done: false,
+        color: 'border-l-orange-500 bg-orange-500/5 text-orange-400'
+      });
+    } else {
+      missions.push({
+        id: 'quiz',
+        label: 'Take a CBT Exam',
+        desc: 'Test your knowledge today',
+        xp: 50,
+        emoji: '🎯',
+        href: '/dashboard/cbt',
+        done: false,
+        color: 'border-l-violet-500 bg-violet-500/5 text-violet-400'
+      });
+    }
+
+    // Mission 3: Check leaderboard (always available)
+    missions.push({
+      id: 'streak',
+      label: stats.streak > 0 ? 'Daily Streak Active!' : 'Start Your Streak',
+      desc: stats.streak > 0 ? `${stats.streak}-day streak — keep it going!` : 'Log in and complete a lesson to start',
+      xp: 10,
+      emoji: stats.streak > 0 ? '🔥' : '⚡',
+      href: '/dashboard/leaderboard',
+      done: stats.streak > 0,
+      color: stats.streak > 0 ? 'border-l-emerald-500 bg-emerald-500/5 text-emerald-400' : 'border-l-amber-500 bg-amber-500/5 text-amber-400'
+    });
+
+    setDailyMissions(missions);
+  }, [loading, nextLesson, pendingAssignments, stats.streak, completedLessonIds]);
+
   if (authLoading || loading) return (
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
       <div className="flex flex-col items-center gap-6">
@@ -186,6 +259,18 @@ export default function StudentLearningPage() {
       </div>
     </div>
   );
+
+  const LEVEL_CONFIG = [
+    { name: 'Bronze', min: 0, max: 499, color: 'text-amber-700', bar: 'bg-amber-600' },
+    { name: 'Silver', min: 500, max: 1999, color: 'text-slate-400', bar: 'bg-slate-400' },
+    { name: 'Gold', min: 2000, max: 4999, color: 'text-amber-400', bar: 'bg-amber-400' },
+    { name: 'Platinum', min: 5000, max: 9999, color: 'text-cyan-400', bar: 'bg-cyan-400' },
+  ];
+  const currentLevelConfig = LEVEL_CONFIG.find(l => stats.xp >= l.min && stats.xp <= l.max) || LEVEL_CONFIG[0];
+  const nextLevelConfig = LEVEL_CONFIG[LEVEL_CONFIG.indexOf(currentLevelConfig) + 1];
+  const xpProgress = nextLevelConfig
+    ? Math.min(100, ((stats.xp - currentLevelConfig.min) / (nextLevelConfig.min - currentLevelConfig.min)) * 100)
+    : 100;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-orange-600/30">
@@ -325,114 +410,183 @@ export default function StudentLearningPage() {
           </div>
         </section>
 
-        {/* Student Journey Map (Gamification 2.0) */}
+        {/* Daily Missions */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <p className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.4em]">Today's Objectives</p>
+              <h2 className="text-2xl font-black uppercase italic flex items-center gap-3">Daily Missions <span className="text-emerald-500 text-lg">🎯</span></h2>
+            </div>
+            <div className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] hidden sm:block">
+              Earn XP • Complete all 3
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {dailyMissions.map((mission, idx) => (
+              <motion.a
+                key={mission.id}
+                href={mission.href}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className={`relative group flex flex-col gap-4 p-6 bg-[#0d0d0d] border border-l-4 ${mission.color} border-white/5 hover:border-l-4 transition-all ${mission.done ? 'opacity-60' : 'hover:scale-[1.01]'}`}
+              >
+                {mission.done && (
+                  <div className="absolute top-3 right-3 w-5 h-5 bg-emerald-500 flex items-center justify-center text-[10px]">✓</div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-3xl">{mission.emoji}</span>
+                  <span className="text-[9px] font-black text-white/20 uppercase tracking-widest px-2 py-1 border border-white/10">
+                    +{mission.xp} XP
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-black text-white uppercase tracking-tight leading-tight mb-1">
+                    {mission.done ? <s className="opacity-50">{mission.label}</s> : mission.label}
+                  </p>
+                  <p className="text-[10px] text-white/30 font-medium leading-relaxed">{mission.desc}</p>
+                </div>
+              </motion.a>
+            ))}
+          </div>
+        </section>
+
+        {/* XP Level Progress */}
+        <section className="bg-[#0d0d0d] border border-white/5 p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <div className="flex items-center gap-5 flex-1">
+              <div className={`w-14 h-14 border-2 ${currentLevelConfig.bar.replace('bg-', 'border-')} flex items-center justify-center`}>
+                <span className={`text-2xl font-black ${currentLevelConfig.color}`}>
+                  {currentLevelConfig.name === 'Bronze' ? '🥉' : currentLevelConfig.name === 'Silver' ? '🥈' : currentLevelConfig.name === 'Gold' ? '🥇' : '💎'}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-2">
+                  <p className={`text-[9px] font-black uppercase tracking-[0.4em] ${currentLevelConfig.color}`}>{currentLevelConfig.name} Level</p>
+                  {nextLevelConfig && (
+                    <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">
+                      {nextLevelConfig.name} in {(nextLevelConfig.min - stats.xp).toLocaleString()} XP
+                    </p>
+                  )}
+                </div>
+                <div className="h-2 w-full bg-white/5 overflow-hidden">
+                  <motion.div
+                    className={`h-full ${currentLevelConfig.bar}`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${xpProgress}%` }}
+                    transition={{ duration: 1.2, ease: 'easeOut' }}
+                  />
+                </div>
+                <p className="text-[8px] font-black text-white/20 uppercase tracking-widest mt-1.5">{stats.xp.toLocaleString()} / {(nextLevelConfig?.min || stats.xp).toLocaleString()} XP</p>
+              </div>
+            </div>
+            {badges.length > 0 && (
+              <div className="flex items-center gap-3 shrink-0">
+                <p className="text-[8px] font-black text-white/20 uppercase tracking-widest mr-1">Badges</p>
+                {badges.slice(0, 4).map((badge: any, i: number) => (
+                  <div key={i} title={badge.name} className="w-10 h-10 bg-white/5 border border-white/10 flex items-center justify-center text-xl">
+                    {badge.icon_url ? <img src={badge.icon_url} alt={badge.name} className="w-6 h-6" /> : '🏅'}
+                  </div>
+                ))}
+                {badges.length === 0 && <span className="text-[9px] text-white/20 font-black">Complete missions to earn badges</span>}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Real Journey Map */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1">
               <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.4em]">Phase Tracking</p>
-              <h2 className="text-2xl font-black flex items-center gap-4 uppercase italic">
-                Journey Map
-              </h2>
+              <h2 className="text-2xl font-black flex items-center gap-4 uppercase italic">Lesson Journey</h2>
             </div>
             <div className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] hidden sm:block">
-              Progress: <span className="text-orange-500">{stats.xp.toLocaleString()} XP collected</span>
+              Progress: <span className="text-orange-500">{stats.lessonsDone} lessons completed</span>
             </div>
           </div>
 
-          <div className="relative bg-[#0d0d0d] border border-white/5 p-8 sm:p-12 overflow-hidden group">
-            <div className="absolute inset-0 bg-[url(/images/grid.svg)] bg-center opacity-[0.02] pointer-events-none" />
-            
+          <div className="relative bg-[#0d0d0d] border border-white/5 p-8 sm:p-12 overflow-hidden">
             <div className="relative overflow-x-auto pb-8 custom-scrollbar scroll-smooth">
-              <div className="flex items-center gap-12 min-w-max px-8">
-                {programs.length > 0 ? (
-                  programs.slice(0, 1).map((prog) => (
-                    <div key={prog.id} className="flex items-center gap-12">
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map((nodeIdx) => {
-                        const progress = prog.progress_pct || 0;
-                        const nodeProgress = nodeIdx * 12.5; 
-                        const isCompleted = progress >= nodeProgress;
-                        const isActive = progress < nodeProgress && progress >= (nodeProgress - 12.5);
-                        
-                        return (
-                          <div key={nodeIdx} className="flex items-center">
-                            {nodeIdx > 1 && (
-                              <div className={`h-0.5 w-20 sm:w-32 transition-colors duration-1000 ${isCompleted ? 'bg-orange-600 shadow-[0_0_15px_rgba(234,88,12,0.3)]' : 'bg-white/5'}`} />
+              <div className="flex items-center gap-6 sm:gap-10 min-w-max px-4">
+                {lessons.length > 0 ? (
+                  lessons.map((lesson, lessonIdx) => {
+                    const isCompleted = completedLessonIds.has(lesson.id);
+                    const isActive = !isCompleted && (lessonIdx === 0 || completedLessonIds.has(lessons[lessonIdx - 1]?.id));
+                    return (
+                      <div key={lesson.id} className="flex items-center">
+                        {lessonIdx > 0 && (
+                          <div className={`h-0.5 w-12 sm:w-20 transition-colors duration-1000 mr-6 sm:mr-10 ${completedLessonIds.has(lessons[lessonIdx - 1]?.id) ? 'bg-orange-600 shadow-[0_0_10px_rgba(234,88,12,0.3)]' : 'bg-white/5'}`} />
+                        )}
+                        <motion.a
+                          href={`/dashboard/lessons/${lesson.id}`}
+                          whileHover={{ scale: 1.05, y: -3 }}
+                          className="relative flex flex-col items-center gap-3 group cursor-pointer"
+                        >
+                          <div className={`w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center border-2 transition-all duration-300 shadow-lg ${
+                            isCompleted
+                              ? 'bg-orange-600 border-orange-500 text-white shadow-orange-600/30'
+                              : isActive
+                              ? 'bg-orange-600/10 border-orange-600 text-orange-500 animate-pulse shadow-orange-600/20'
+                              : 'bg-white/[0.02] border-white/10 text-white/20'
+                          }`}>
+                            {isCompleted ? (
+                              <CheckBadgeIcon className="w-8 h-8" />
+                            ) : isActive ? (
+                              <RocketLaunchIcon className="w-8 h-8" />
+                            ) : (
+                              <LockClosedIcon className="w-5 h-5" />
                             )}
-                            
-                            <motion.div 
-                              whileHover={{ scale: 1.05, y: -2 }}
-                              className="relative flex flex-col items-center"
-                            >
-                              <div className={`w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center border transition-all duration-500 z-10 ${
-                                isCompleted ? 'bg-orange-600 border-orange-500 text-white shadow-lg shadow-orange-600/20' :
-                                isActive ? 'bg-orange-600/10 border-orange-600 text-orange-500 animate-pulse' :
-                                'bg-white/5 border-white/10 text-white/10 grayscale'
-                              }`}>
-                                {isCompleted ? <CheckBadgeIcon className="w-8 h-8" /> : 
-                                 isActive ? <RocketLaunchIcon className="w-8 h-8" /> : 
-                                 <LockClosedIcon className="w-5 h-5" />}
-                                
-                                {isActive && (
-                                  <div className="absolute -top-12 bg-orange-600 text-white text-[8px] font-black uppercase px-3 py-1.5 shadow-xl whitespace-nowrap tracking-widest">
-                                    Current Sector
-                                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2 h-2 bg-orange-600 rotate-45" />
-                                  </div>
-                                )}
+                            {isActive && (
+                              <div className="absolute -top-10 bg-orange-600 text-white text-[8px] font-black uppercase px-2.5 py-1.5 whitespace-nowrap tracking-widest shadow-xl">
+                                Up Next
+                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2 h-2 bg-orange-600 rotate-45" />
                               </div>
-                              
-                              <div className="mt-4 text-center">
-                                <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${isActive ? 'text-orange-500' : 'text-white/20'}`}>
-                                  Phase {nodeIdx}
-                                </p>
-                              </div>
-                            </motion.div>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  ))
+                          <div className="text-center max-w-[80px] sm:max-w-[100px]">
+                            <p className={`text-[8px] font-black uppercase tracking-widest leading-none mb-1 ${isActive ? 'text-orange-500' : isCompleted ? 'text-white/50' : 'text-white/15'}`}>
+                              {lesson.lesson_type || 'Lesson'}
+                            </p>
+                            <p className={`text-[9px] font-black leading-tight truncate w-full text-center ${isCompleted ? 'line-through text-white/30' : isActive ? 'text-white' : 'text-white/20'}`}>
+                              {lesson.title}
+                            </p>
+                            <p className="text-[8px] text-white/20 font-black mt-0.5">+10 XP</p>
+                          </div>
+                        </motion.a>
+                      </div>
+                    );
+                  })
                 ) : (
-                  <div className="flex-1 text-center py-10 opacity-20 text-[10px] uppercase font-black tracking-widest">
-                    No active journey data available.
+                  <div className="flex-1 text-center py-16 opacity-20 text-[10px] uppercase font-black tracking-widest min-w-[300px]">
+                    No lessons available yet. Enroll in a program to begin.
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 pt-8 border-t border-white/5">
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-6 pt-6 border-t border-white/5">
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-orange-600" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Active Link</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Completed</span>
                 </div>
                 <div className="flex items-center gap-2">
-                   <div className="w-2 h-2 bg-white/5 border border-white/10" />
-                   <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Encrypted Sector</span>
+                  <div className="w-2 h-2 bg-orange-600/30 border border-orange-600 animate-pulse" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Current</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-white/5 border border-white/10" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Locked</span>
                 </div>
               </div>
-              <Link 
+              <a
                 href={nextLesson ? `/dashboard/lessons/${nextLesson.id}` : '/dashboard/lessons'}
-                className="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-[9px] font-black uppercase tracking-[0.25em] transition-all"
+                className="px-8 py-3 bg-orange-600 hover:bg-orange-500 text-white text-[9px] font-black uppercase tracking-[0.25em] transition-all shadow-lg shadow-orange-600/20"
               >
-                {nextLesson ? `Sync: ${nextLesson.title}` : 'Sync Next Objective'}
-              </Link>
+                {nextLesson ? `Continue: ${nextLesson.title.slice(0, 25)}${nextLesson.title.length > 25 ? '...' : ''}` : 'Browse Lessons'}
+              </a>
             </div>
-          </div>
-        </section>
-
-        {/* Visual Intelligence Matrix Section */}
-        <section className="space-y-6">
-          <div className="flex flex-col gap-1">
-             <p className="text-[9px] font-black text-cyan-500 uppercase tracking-[0.4em]">Visual Intelligence Matrix</p>
-             <h2 className="text-2xl font-black uppercase italic">Neural Insight: Array Sorter</h2>
-          </div>
-          <div className="bg-[#0d0d0d] border border-white/5 overflow-hidden">
-             <CodeVisualizer 
-                visualizationType={visualType}
-                codeData={visualData}
-                onStepChange={setVisualStep}
-                className="border-none shadow-none"
-             />
           </div>
         </section>
 
@@ -546,67 +700,67 @@ export default function StudentLearningPage() {
            <div className="space-y-10">
               
               {/* Profile Overview */}
-              <div className="bg-gradient-to-br from-orange-600/10 from-orange-600 to-orange-400/10 border border-border rounded-[3rem] p-8 shadow-3xl text-center">
-                 <div className="relative w-24 h-24 mx-auto mb-6">
-                    <div className="absolute inset-0 bg-gradient-to-br from-orange-500 from-orange-600 to-orange-400 rounded-none rotate-6 animate-pulse opacity-50" />
-                    <div className="relative w-full h-full bg-[#0a0c1f] border border-border rounded-none flex items-center justify-center text-3xl font-black text-foreground shadow-2xl">
-                       {profile?.full_name?.[0].toUpperCase()}
+              <div className="bg-[#0d0d0d] border border-white/5 p-8 text-center">
+                 <div className="relative w-20 h-20 mx-auto mb-6">
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-600 to-orange-400 rotate-6 opacity-30" />
+                    <div className="relative w-full h-full bg-[#0a0a0a] border border-white/10 flex items-center justify-center text-3xl font-black text-white">
+                       {profile?.full_name?.[0]?.toUpperCase() || '?'}
                     </div>
                  </div>
-                 <h3 className="text-xl font-black text-foreground">{profile?.full_name}</h3>
-                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-1">Academy Member · {profile?.school_name || 'Rillcod'}</p>
-                 
+                 <h3 className="text-lg font-black text-white">{profile?.full_name}</h3>
+                 <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mt-1">Academy Member · {profile?.school_name || 'Rillcod'}</p>
+
                  <div className="grid grid-cols-2 gap-3 mt-8">
-                    <div className="p-4 bg-card shadow-sm rounded-[1.5rem] border border-border">
-                       <p className="text-lg font-black">{stats.xp > 1000 ? (stats.xp/1000).toFixed(1) + 'k' : stats.xp}</p>
-                       <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">XP</p>
+                    <div className="p-4 bg-white/[0.02] border border-white/5">
+                       <p className="text-xl font-black text-white">{stats.xp > 1000 ? (stats.xp/1000).toFixed(1) + 'k' : stats.xp}</p>
+                       <p className="text-[8px] font-black text-white/30 uppercase tracking-widest mt-1">XP</p>
                     </div>
-                    <div className="p-4 bg-card shadow-sm rounded-[1.5rem] border border-border">
-                       <p className="text-lg font-black">{stats.lessonsDone}</p>
-                       <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Done</p>
+                    <div className="p-4 bg-white/[0.02] border border-white/5">
+                       <p className="text-xl font-black text-white">{stats.lessonsDone}</p>
+                       <p className="text-[8px] font-black text-white/30 uppercase tracking-widest mt-1">Done</p>
                     </div>
                  </div>
               </div>
 
-              {/* Dynamic Leaderborad Sidebar */}
-              <div className="bg-[#0a0b18] border border-border rounded-[3rem] p-8 shadow-3xl">
+              {/* Dynamic Leaderboard Sidebar */}
+              <div className="bg-[#0d0d0d] border border-white/5 p-8">
                  <div className="flex items-center justify-between mb-8">
-                    <h3 className="font-black flex items-center gap-3">
-                       <TrophyIcon className="w-6 h-6 text-amber-500" />
+                    <h3 className="font-black flex items-center gap-3 text-white uppercase tracking-tight text-base">
+                       <TrophyIcon className="w-5 h-5 text-amber-500" />
                        Leaderboard
                     </h3>
-                    <div className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase tracking-widest border border-emerald-500/20 rounded-full animate-pulse">Live</div>
+                    <div className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase tracking-widest border border-emerald-500/20 animate-pulse">Live</div>
                  </div>
-                 
-                 <div className="space-y-4">
+
+                 <div className="space-y-3">
                     {leaderboard.map(member => (
-                       <div key={member.name} className={`flex items-center justify-between p-4 rounded-none border ${member.isMe ? 'bg-orange-600/10 border-orange-500/20' : 'bg-white/[0.02] border-border hover:bg-card shadow-sm'} transition-all`}>
+                       <div key={member.name} className={`flex items-center justify-between p-4 border transition-all ${member.isMe ? 'bg-orange-600/10 border-orange-500/20' : 'bg-white/[0.02] border-white/5 hover:border-white/10'}`}>
                           <div className="flex items-center gap-3 min-w-0">
-                             <div className={`w-8 h-8 rounded-none ${member.rank===1?'bg-amber-500':member.rank===2?'bg-orange-600':'bg-slate-400'} flex items-center justify-center text-[10px] font-black text-foreground shadow-lg`}>
+                             <div className={`w-8 h-8 flex items-center justify-center text-[10px] font-black text-white ${member.rank===1?'bg-amber-500':member.rank===2?'bg-orange-600':'bg-slate-500'}`}>
                                 {member.rank}
                              </div>
-                             <p className={`text-xs font-bold truncate ${member.isMe ? 'text-foreground' : 'text-muted-foreground'}`}>{member.name} {member.isMe && '(You)'}</p>
+                             <p className={`text-xs font-black truncate ${member.isMe ? 'text-white' : 'text-white/50'}`}>{member.name} {member.isMe && '(You)'}</p>
                           </div>
-                          <span className={`text-[10px] font-black tabular-nums ${member.rank===1?'text-amber-500':'text-muted-foreground'}`}>{member.pts.toLocaleString()} XP</span>
+                          <span className={`text-[10px] font-black tabular-nums ${member.rank===1?'text-amber-500':'text-white/30'}`}>{member.pts.toLocaleString()} XP</span>
                        </div>
                     ))}
                     {leaderboard.length === 0 && (
-                      <p className="text-center py-4 text-xs text-muted-foreground italic">No rankings available yet.</p>
+                      <p className="text-center py-6 text-[10px] text-white/20 font-black uppercase tracking-widest">No rankings yet. Be the first!</p>
                     )}
                  </div>
-                 
-                 <Link href="/dashboard/leaderboard" className="mt-8 block py-4 text-center text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest bg-card shadow-sm border border-border rounded-none transition-all">
+
+                 <Link href="/dashboard/leaderboard" className="mt-6 block py-3 text-center text-[9px] font-black text-white/30 hover:text-white uppercase tracking-widest bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all">
                     View Full Rankings →
                  </Link>
               </div>
 
               {/* Action Banner */}
-              <div className="relative group bg-gradient-to-br from-[#7a0606] to-[#af0a0a] rounded-[3rem] p-8 text-center shadow-3xl overflow-hidden hover:scale-[1.02] transition-transform">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-muted blur-2xl rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000" />
-                 <BoltIcon className="w-12 h-12 text-foreground mx-auto mb-4 drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]" />
-                 <h4 className="text-xl font-black text-foreground mb-2 tracking-tight">Practice Arena</h4>
-                 <p className="text-xs text-muted-foreground mb-6 leading-relaxed font-medium">Step into the coding playground to experiment with hardware and software projects.</p>
-                 <Link href="/dashboard/playground" className="block w-full py-4 bg-white text-[#7a0606] font-black rounded-[1.5rem] text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">
+              <div className="relative group bg-gradient-to-br from-[#7a0606] to-[#af0a0a] p-8 text-center overflow-hidden hover:scale-[1.01] transition-transform">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-2xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000" />
+                 <BoltIcon className="w-10 h-10 text-white mx-auto mb-4 drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]" />
+                 <h4 className="text-xl font-black text-white mb-2 tracking-tight uppercase italic">Practice Arena</h4>
+                 <p className="text-xs text-white/60 mb-6 leading-relaxed font-medium">Step into the coding playground to experiment with hardware and software projects.</p>
+                 <Link href="/dashboard/playground" className="block w-full py-3 bg-white text-[#7a0606] font-black text-[9px] uppercase tracking-widest shadow-xl transition-all active:scale-95 hover:bg-orange-50">
                     Launch Playground
                  </Link>
               </div>

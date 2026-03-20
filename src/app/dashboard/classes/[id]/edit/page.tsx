@@ -143,7 +143,7 @@ export default function EditClassPage() {
                         const sName = schools.find(s => s.id === form.school_id)?.name;
                         const unassigned = 'and(school_id.is.null,school_name.is.null)';
                         if (sName) {
-                            poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}",${unassigned}`);
+                            poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq.${sName},${unassigned}`);
                         } else {
                             poolQuery = poolQuery.or(`school_id.eq.${form.school_id},${unassigned}`);
                         }
@@ -153,7 +153,7 @@ export default function EditClassPage() {
                     if (form.school_id) {
                         const sName = schools.find(s => s.id === form.school_id)?.name;
                         if (sName) {
-                            poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}"`);
+                            poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq.${sName}`);
                         } else {
                             poolQuery = poolQuery.in('school_id', [form.school_id]);
                         }
@@ -181,7 +181,7 @@ export default function EditClassPage() {
                 if (form.school_id) {
                     const sName = schools.find(s => s.id === form.school_id)?.name;
                     if (sName) {
-                        pendingQuery = pendingQuery.or(`school_id.eq.${form.school_id},school_name.eq."${sName}",created_by.eq.${profile?.id || ''}`);
+                        pendingQuery = pendingQuery.or(`school_id.eq.${form.school_id},school_name.eq.${sName},created_by.eq.${profile?.id || ''}`);
                     } else {
                         pendingQuery = pendingQuery.or(`school_id.eq.${form.school_id},created_by.eq.${profile?.id || ''}`);
                     }
@@ -308,8 +308,8 @@ export default function EditClassPage() {
                         <BookOpenIcon className="w-5 h-5 text-blue-400" />
                         <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Edit Class</span>
                     </div>
-                    <h1 className="text-3xl font-extrabold">Manage Group</h1>
-                    <p className="text-muted-foreground text-sm mt-1">Update settings and students</p>
+                    <h1 className="text-3xl font-extrabold">Edit Class</h1>
+                    <p className="text-muted-foreground text-sm mt-1">Update class settings and manage enrolled students.</p>
                 </div>
 
                 {error && (

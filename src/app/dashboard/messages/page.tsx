@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   EnvelopeIcon, PaperAirplaneIcon, MegaphoneIcon, PlusIcon,
   ArrowPathIcon, CheckIcon, TrashIcon, UserIcon,
-  ExclamationTriangleIcon, DocumentTextIcon,
+  ExclamationTriangleIcon, DocumentTextIcon, XMarkIcon,
 } from '@/lib/icons';
 
 type Tab = 'inbox' | 'sent' | 'compose' | 'announcements' | 'newsletters';
@@ -38,6 +38,7 @@ export default function MessagesPage() {
 
   const [classFilter, setClassFilter] = useState('all');
   const [userSearch, setUserSearch] = useState('');
+  const [openNewsletter, setOpenNewsletter] = useState<any>(null);
 
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -130,6 +131,19 @@ export default function MessagesPage() {
       setLoading(false);
     });
   }, [profile?.id, authLoading, profile?.school_id, profile?.role, isAdmin]);
+
+  const handleDeleteMessage = async (id: string) => {
+    if (!confirm('Delete this message?')) return;
+    const res = await fetch(`/api/messages/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_deleted: true }),
+    });
+    if (res.ok) {
+      setInbox(prev => prev.filter(m => m.id !== id));
+      if (selected?.id === id) setSelected(null);
+    }
+  };
 
   const markRead = async (msg: any) => {
     if (!msg.is_read) {
@@ -279,10 +293,10 @@ export default function MessagesPage() {
                   ) : (
                     <div className="flex flex-col gap-2">
                       {inbox.map(msg => (
-                        <button key={msg.id} onClick={() => markRead(msg)}
-                          className={`group w-full text-left p-5 rounded-none border transition-all duration-300 relative ${
-                            selected?.id === msg.id 
-                            ? 'bg-[#7a0606]/10 border-[#7a0606]/30' 
+                        <div key={msg.id} onClick={() => markRead(msg)}
+                          className={`group w-full text-left p-5 rounded-none border transition-all duration-300 relative cursor-pointer ${
+                            selected?.id === msg.id
+                            ? 'bg-[#7a0606]/10 border-[#7a0606]/30'
                             : 'bg-white/[0.02] border-border hover:border-border hover:bg-white/[0.04]'
                           }`}>
                           <div className="flex items-start gap-4">
@@ -303,7 +317,12 @@ export default function MessagesPage() {
                             </div>
                             {!msg.is_read && <div className="absolute top-4 right-4 w-2 h-2 bg-[#7a0606] rounded-full shadow-[0_0_10px_#7a0606]" />}
                           </div>
-                        </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}
+                            className="absolute top-3 right-3 w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-rose-400 transition-all">
+                            <TrashIcon className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -503,7 +522,7 @@ export default function MessagesPage() {
                    <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em] px-2">Official Academy Bulletins</h3>
                 </div>
 
-                {tab === 'announcements' && profile?.role === 'admin' && (
+                {tab === 'announcements' && (profile?.role === 'admin' || profile?.role === 'teacher') && (
                   <div className="lg:col-span-12 bg-white/[0.03] border border-border rounded-[2.5rem] p-8 space-y-6 shadow-2xl mb-8">
                     <div className="space-y-1">
                       <h4 className="text-xl font-black text-foreground tracking-tight">Post Broadcast</h4>
@@ -626,13 +645,8 @@ export default function MessagesPage() {
                              <p className="text-[13px] text-muted-foreground line-clamp-4 leading-relaxed font-medium mb-6">{nl.content}</p>
                            </div>
 
-                           <button 
-                             onClick={() => {
-                               const params = new URLSearchParams(window.location.search);
-                               params.set('newsletterId', nl.id);
-                               window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
-                               window.dispatchEvent(new PopStateEvent('popstate'));
-                             }}
+                           <button
+                             onClick={() => setOpenNewsletter(nl)}
                              className="w-full py-4 bg-card shadow-sm border border-border rounded-none text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 hover:bg-[#FF914D] hover:text-[#05050a] hover:border-[#FF914D] hover:scale-[1.02] flex items-center justify-center gap-2 group-hover:shadow-[0_10px_30px_rgba(255,145,77,0.2)]">
                              <DocumentTextIcon className="w-4 h-4" /> Open Signal
                            </button>
@@ -646,6 +660,24 @@ export default function MessagesPage() {
                   <div className="text-center py-32 bg-white/[0.01] border border-dashed border-border rounded-[3rem] opacity-30 flex flex-col items-center">
                     <DocumentTextIcon className="w-20 h-20 mb-6" />
                     <p className="text-base font-black uppercase tracking-[0.5em]">No Editions Found</p>
+                  </div>
+                )}
+
+                {openNewsletter && (
+                  <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setOpenNewsletter(null)}>
+                    <div className="bg-[#0d0d16] border border-border rounded-[2.5rem] max-w-2xl w-full max-h-[80vh] overflow-y-auto p-8 space-y-6" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-between">
+                        <div className="px-3 py-1 bg-[#FF914D]/10 rounded-full border border-[#FF914D]/20">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-[#FF914D]">Premium Edition</span>
+                        </div>
+                        <button onClick={() => setOpenNewsletter(null)} className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground">
+                          <XMarkIcon className="w-5 h-5" />
+                        </button>
+                      </div>
+                      <h2 className="text-2xl font-black text-foreground tracking-tight">{openNewsletter.title}</h2>
+                      <p className="text-xs text-muted-foreground font-bold">{new Date(openNewsletter.published_at || openNewsletter.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                      <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap font-medium">{openNewsletter.content}</div>
+                    </div>
                   </div>
                 )}
               </div>

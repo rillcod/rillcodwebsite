@@ -1,7 +1,6 @@
 // @refresh reset
 'use client';
 
-
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -11,22 +10,33 @@ import {
   TrashIcon, ClockIcon, UserGroupIcon, CheckCircleIcon,
   VideoCameraIcon, PlayIcon, DocumentTextIcon, BoltIcon,
   SparklesIcon, ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon,
-  ChevronRightIcon, CalendarIcon
+  ChevronRightIcon, CalendarIcon, ArrowPathIcon, ExclamationTriangleIcon,
+  AcademicCapIcon,
 } from '@/lib/icons';
 
 const STATUS_BADGE: Record<string, string> = {
   completed: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  active: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  active:    'bg-blue-500/20 text-blue-400 border-blue-500/30',
   scheduled: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  draft: 'bg-muted text-muted-foreground',
+  draft:     'bg-muted text-muted-foreground border-border',
 };
-const TYPE_COLORS: Record<string, string> = {
-  video: 'text-rose-400',
-  'hands-on': 'text-cyan-400',
-  hands_on: 'text-cyan-400',
-  interactive: 'text-amber-400',
-  workshop: 'text-orange-400',
-  coding: 'text-emerald-400',
+
+const TYPE_ICON: Record<string, React.ElementType> = {
+  video:       VideoCameraIcon,
+  interactive: PlayIcon,
+  hands_on:    BoltIcon,
+  'hands-on':  BoltIcon,
+  workshop:    BookOpenIcon,
+  coding:      DocumentTextIcon,
+};
+
+const TYPE_COLOR: Record<string, string> = {
+  video:       'bg-rose-500/10 text-rose-400',
+  interactive: 'bg-amber-500/10 text-amber-400',
+  hands_on:    'bg-cyan-500/10 text-cyan-400',
+  'hands-on':  'bg-cyan-500/10 text-cyan-400',
+  workshop:    'bg-orange-500/10 text-orange-400',
+  coding:      'bg-emerald-500/10 text-emerald-400',
 };
 
 export default function LessonsPage() {
@@ -46,7 +56,6 @@ export default function LessonsPage() {
   const [planGenerating, setPlanGenerating] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
   const [planResult, setPlanResult] = useState<any | null>(null);
-  // Save plan state
   const [savingPlan, setSavingPlan] = useState(false);
   const [planSaved, setPlanSaved] = useState(false);
   const [planSaveError, setPlanSaveError] = useState<string | null>(null);
@@ -56,31 +65,30 @@ export default function LessonsPage() {
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete lesson "${title}"? This cannot be undone.`)) return;
     setDeleting(id);
-    const res = await fetch(`/api/lessons/${id}`, { method: 'DELETE' });
-    if (!res.ok) { const j = await res.json(); alert(j.error || 'Delete failed'); }
-    else { setLessons(prev => prev.filter(l => l.id !== id)); }
-    setDeleting(null);
+    try {
+      const res = await fetch(`/api/lessons/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        alert(j.error || 'Delete failed');
+      } else {
+        setLessons(prev => prev.filter(l => l.id !== id));
+      }
+    } catch {
+      alert('Delete failed — network error');
+    } finally {
+      setDeleting(null);
+    }
   };
 
-  // Load courses when AI panel opens (needed for save)
   useEffect(() => {
     if (!planOpen || !profile || courses.length > 0) return;
-    
-    const fetchData = async () => {
-      let query = createClient()
-        .from('courses')
-        .select('id, title, school_id')
-        .eq('is_active', true);
-
-      if (profile?.school_id) {
-        query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
-      }
-      
+    const fetchCourses = async () => {
+      let query = createClient().from('courses').select('id, title, school_id').eq('is_active', true);
+      if (profile?.school_id) query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
       const { data } = await query.order('title');
       setCourses(data ?? []);
     };
-
-    fetchData();
+    fetchCourses();
   }, [planOpen, profile?.id, profile?.school_id]); // eslint-disable-line
 
   const handleSavePlan = async () => {
@@ -89,12 +97,10 @@ export default function LessonsPage() {
     setSavingPlan(true);
     setPlanSaveError(null);
     try {
-      // Build lesson plan data for API
       const objectives = (planResult.objectives ?? []).join('\n');
       const activities = (planResult.weeks ?? []).map((w: any) =>
         `Week ${w.week} — ${w.theme}:\n${(w.activities ?? []).map((a: string) => `• ${a}`).join('\n')}`
       ).join('\n\n');
-
       const res = await fetch('/api/lessons', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -105,8 +111,7 @@ export default function LessonsPage() {
           status: 'draft',
           course_id: planCourseId,
           lesson_plan: {
-            objectives,
-            activities,
+            objectives, activities,
             assessment_methods: planResult.assessment_strategy ?? '',
             staff_notes: `Grade: ${planResult.grade_level} | Duration: ${planResult.duration}\nMaterials: ${(planResult.materials ?? []).join(', ')}`,
             plan_data: planResult,
@@ -116,9 +121,7 @@ export default function LessonsPage() {
       });
       if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save plan'); }
       const { data: newLesson } = await res.json();
-
       setPlanSaved(true);
-      // Refresh lessons list
       setLessons(prev => [{
         id: newLesson.id, title: planResult.course_title || planTopic,
         description: planResult.description, lesson_type: 'interactive',
@@ -143,12 +146,7 @@ export default function LessonsPage() {
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'lesson-plan',
-          topic: planTopic,
-          gradeLevel: planGrade,
-          termWeeks: parseInt(planWeeks) || 12,
-        }),
+        body: JSON.stringify({ type: 'lesson-plan', topic: planTopic, gradeLevel: planGrade, termWeeks: parseInt(planWeeks) || 12 }),
       });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? 'Generation failed');
@@ -164,38 +162,29 @@ export default function LessonsPage() {
     if (authLoading || !profile) return;
     let cancelled = false;
     async function load() {
-      setLoading(true);
-      setError(null);
+      setLoading(true); setError(null);
       try {
-        let lessons: any[];
+        let result: any[];
         if (profile!.role === 'student') {
-          // Students use client Supabase filtered by their enrollments
           const supabase = createClient();
-          const { data: enr } = await supabase
-            .from('enrollments').select('program_id').eq('user_id', profile!.id);
+          const { data: enr } = await supabase.from('enrollments').select('program_id').eq('user_id', profile!.id);
           const programIds = (enr ?? []).map((e: any) => e.program_id);
           if (!programIds.length) { if (!cancelled) setLessons([]); return; }
-          const { data: courseData } = await supabase
-            .from('courses').select('id').in('program_id', programIds);
+          const { data: courseData } = await supabase.from('courses').select('id').in('program_id', programIds);
           const courseIds = (courseData ?? []).map((c: any) => c.id);
           if (!courseIds.length) { if (!cancelled) setLessons([]); return; }
-          const { data, error: err } = await supabase
-            .from('lessons')
-            .select(`id, title, description, lesson_type, status, duration_minutes,
-              session_date, video_url, created_by, created_at,
-              courses ( id, title, programs ( name ) )`)
-            .in('course_id', courseIds)
-            .order('created_at', { ascending: false });
+          const { data, error: err } = await supabase.from('lessons')
+            .select('id, title, description, lesson_type, status, duration_minutes, session_date, video_url, created_by, created_at, courses(id, title, programs(name))')
+            .in('course_id', courseIds).order('created_at', { ascending: false });
           if (err) throw err;
-          lessons = data ?? [];
+          result = data ?? [];
         } else {
-          // Staff: use admin API to bypass RLS
           const res = await fetch('/api/lessons', { cache: 'no-store' });
           if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to load lessons'); }
           const json = await res.json();
-          lessons = json.data ?? [];
+          result = json.data ?? [];
         }
-        if (!cancelled) setLessons(lessons);
+        if (!cancelled) setLessons(result);
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load lessons');
       } finally {
@@ -207,499 +196,466 @@ export default function LessonsPage() {
   }, [profile?.id, authLoading]); // eslint-disable-line
 
   const filtered = lessons.filter(l => {
-    const ms = (l.title ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (l.courses?.title ?? '').toLowerCase().includes(search.toLowerCase());
-    const mst = filterStatus === 'all' || l.status === filterStatus;
-    return ms && mst;
+    const q = search.toLowerCase();
+    const matchText = (l.title ?? '').toLowerCase().includes(q) || (l.courses?.title ?? '').toLowerCase().includes(q);
+    const matchStatus = filterStatus === 'all' || l.status === filterStatus;
+    return matchText && matchStatus;
   });
 
   const completed = lessons.filter(l => l.status === 'completed').length;
-  const active = lessons.filter(l => l.status === 'active').length;
+  const active    = lessons.filter(l => l.status === 'active').length;
+  const isStaff   = profile?.role === 'admin' || profile?.role === 'teacher';
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-muted-foreground text-sm">Loading lessons…</p>
-      </div>
+      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="space-y-8 pb-20">
 
-        {/* Header */}
-        <div className="bg-background border border-border rounded-none sm:rounded-[2.5rem] p-6 sm:p-10 relative overflow-hidden shadow-2xl">
-          {/* Decorative blobs */}
-          <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-white opacity-[0.03] rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-cyan-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="px-3 py-1 bg-cyan-600/80 text-foreground text-[10px] font-black uppercase tracking-widest rounded-full">
-                  Learning Content
-                </span>
-                <div className="h-px w-8 bg-muted" />
-                <span className="text-[10px] font-bold text-cyan-300/60 uppercase tracking-widest">Modules & Materials</span>
-              </div>
-              <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight leading-tight">
-                Course Lessons
-              </h1>
-              <p className="text-orange-500/60 text-sm sm:text-base mt-3 font-medium flex items-center gap-2">
-                <BookOpenIcon className="w-4 h-4" />
-                Manage, track, and generate educational content
-              </p>
-            </div>
-            {(profile?.role === 'admin' || profile?.role === 'teacher') && (
-              <Link href="/dashboard/lessons/add"
-                className="group inline-flex items-center justify-center gap-3 px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-foreground font-black text-sm uppercase tracking-widest rounded-none transition-all hover:scale-105 shadow-2xl shadow-cyan-900/60 active:scale-95">
-                <PlusIcon className="w-5 h-5 flex-shrink-0 group-hover:rotate-90 transition-transform" /> 
-                Create Lesson
-              </Link>
-            )}
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <BookOpenIcon className="w-5 h-5 text-orange-400" />
+            <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Lessons</span>
           </div>
+          <h1 className="text-3xl font-extrabold text-foreground">Course Lessons</h1>
+          <p className="text-muted-foreground text-sm mt-1">Manage and track all lesson content across courses.</p>
         </div>
-
-        {error && (
-          <div className="bg-rose-500/10 border border-rose-500/20 rounded-none p-4 text-rose-400 text-sm">{error}</div>
+        {isStaff && (
+          <Link
+            href="/dashboard/lessons/add"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30 flex-shrink-0"
+          >
+            <PlusIcon className="w-4 h-4" /> Add Lesson
+          </Link>
         )}
+      </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 px-1 sm:px-0">
-          {[
-            { label: 'Total Content', value: lessons.length, icon: BookOpenIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
-            { label: 'Completed', value: completed, icon: CheckCircleIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
-            { label: 'Active Now', value: active, icon: BoltIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
-            { label: 'Completion', value: lessons.length ? `${Math.round((completed / lessons.length) * 100)}%` : '0%', icon: ClockIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
-          ].map((s) => (
-            <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-7 hover:bg-white/8 transition-all group relative overflow-hidden">
-               <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${s.gradient} opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
-              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-none bg-gradient-to-br ${s.gradient} flex items-center justify-center mb-4 sm:mb-6 shadow-xl group-hover:scale-110 transition-transform`}>
-                <s.icon className="w-5 h-5 sm:w-6 sm:h-6 text-foreground" />
-              </div>
-              <p className="text-2xl sm:text-4xl font-black text-foreground tracking-tight tabular-nums relative z-10">{s.value}</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest mt-1.5 relative z-10">{s.label}</p>
-            </div>
-          ))}
+      {/* Error */}
+      {error && (
+        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm rounded-none">
+          <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button onClick={() => window.location.reload()} className="text-xs underline hover:text-rose-300">Retry</button>
         </div>
+      )}
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input type="text" placeholder="Search lessons…" value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-cyan-500 transition-colors" />
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Lessons',    value: lessons.length,                                                              icon: BookOpenIcon,    bg: 'bg-orange-500/10', color: 'text-orange-400' },
+          { label: 'Active',           value: active,                                                                      icon: BoltIcon,        bg: 'bg-blue-500/10',   color: 'text-blue-400'   },
+          { label: 'Completed',        value: completed,                                                                   icon: CheckCircleIcon, bg: 'bg-emerald-500/10',color: 'text-emerald-400'},
+          { label: 'Completion Rate',  value: lessons.length ? `${Math.round((completed / lessons.length) * 100)}%` : '0%', icon: ClockIcon,      bg: 'bg-purple-500/10', color: 'text-purple-400' },
+        ].map(s => (
+          <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5">
+            <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
+              <s.icon className={`w-5 h-5 ${s.color}`} />
+            </div>
+            <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
+            <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
           </div>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-cyan-500 cursor-pointer appearance-none">
-            <option value="all">All Content</option>
-            <option value="completed">Completed</option>
-            <option value="active">Active</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="draft">Draft</option>
-          </select>
+        ))}
+      </div>
+
+      {/* Search & Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search by lesson or course name..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500 transition-colors"
+          />
         </div>
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          className="px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 cursor-pointer transition-colors"
+        >
+          <option value="all">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="completed">Completed</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="draft">Draft</option>
+        </select>
+      </div>
 
-        {/* Lesson List */}
-        {filtered.length === 0 ? (
-          <div className="text-center py-24 sm:py-32 bg-background border border-dashed border-border rounded-[2.5rem] shadow-2xl">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-card shadow-sm rounded-full flex items-center justify-center mx-auto mb-8 border border-border">
-              <BookOpenIcon className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground" />
-            </div>
-            <p className="text-2xl font-black text-muted-foreground tracking-tight">No modules found</p>
-            <p className="text-sm text-muted-foreground mt-3 font-medium uppercase tracking-widest">Refine your search or filters</p>
+      {/* Lessons list */}
+      {filtered.length === 0 ? (
+        <div className="bg-card shadow-sm border border-border rounded-none p-16 flex flex-col items-center justify-center text-center">
+          <div className="w-12 h-12 bg-orange-500/10 flex items-center justify-center mb-4">
+            <BookOpenIcon className="w-6 h-6 text-orange-400" />
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-5">
-            {filtered.map((lesson: any) => {
-              const attendanceCount = lesson.attendance?.length ?? 0;
-              const completedAttendance = lesson.attendance?.filter((a: any) => a.status === 'present').length ?? 0;
-              const typeColor = TYPE_COLORS[lesson.lesson_type] || 'text-muted-foreground';
-              const typeBg = typeColor.replace('text-', 'bg-').replace('400', '500/10');
-              
-              return (
-                <div key={lesson.id} className="group bg-background border border-border rounded-none sm:rounded-[2rem] p-6 sm:p-8 hover:bg-white/[0.03] hover:border-cyan-500/30 transition-all relative overflow-hidden shadow-2xl">
-                  {/* Subtle Background Accent */}
-                  <div className={`absolute top-0 left-0 w-1.5 h-full ${typeColor.replace('text-', 'bg-') || 'bg-muted'} opacity-50`} />
-                  
-                  <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-6 sm:gap-10">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-6 mb-6">
-                        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-none ${typeBg} flex items-center justify-center flex-shrink-0 shadow-xl group-hover:scale-110 transition-transform`}>
-                          {lesson.lesson_type === 'video' ? <VideoCameraIcon className="w-7 h-7 sm:w-8 sm:h-8" /> :
-                            lesson.lesson_type === 'interactive' ? <PlayIcon className="w-7 h-7 sm:w-8 sm:h-8" /> :
-                              <BookOpenIcon className="w-7 h-7 sm:w-8 sm:h-8" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-3 mb-2.5">
-                            <h3 className="text-xl sm:text-2xl font-black text-foreground group-hover:text-cyan-300 transition-colors truncate tracking-tight">{lesson.title}</h3>
-                            <div className={`px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] border shadow-xl ${STATUS_BADGE[lesson.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
-                              {lesson.status}
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] sm:text-xs font-black text-muted-foreground uppercase tracking-[0.15em]">
-                            <span className="flex items-center gap-2 truncate max-w-[200px] sm:max-w-none">
-                               <BuildingOfficeIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                               {lesson.courses?.title}
-                            </span>
-                            <span className="w-1 h-1 bg-muted rounded-full hidden sm:block" />
-                            <span className={`px-2 py-0.5 rounded-none ${typeBg} ${typeColor}`}>
-                               {lesson.lesson_type?.replace(/[-_]/g, ' ')}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {lesson.description && (
-                        <p className="text-sm sm:text-base text-muted-foreground font-medium line-clamp-2 mb-8 sm:pl-20 border-l-2 border-border sm:border-0">
-                          {lesson.description}
-                        </p>
-                      )}
-
-                      <div className="flex flex-wrap items-center gap-4 sm:gap-8 text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-[0.2em] sm:pl-20">
-                        {lesson.duration_minutes && (
-                          <span className="flex items-center gap-2 bg-card shadow-sm px-3 py-1.5 rounded-full border border-border">
-                            <ClockIcon className="w-4 h-4 text-cyan-500/50" /> {lesson.duration_minutes}m
-                          </span>
-                        )}
-                        {lesson.session_date && (
-                          <span className="flex items-center gap-2 bg-card shadow-sm px-3 py-1.5 rounded-full border border-border">
-                            <CalendarIcon className="w-4 h-4 text-orange-500/50" /> {new Date(lesson.session_date).toLocaleDateString('en-GB')}
-                          </span>
-                        )}
-                        {attendanceCount > 0 && (
-                          <div className="flex items-center gap-4 bg-card shadow-sm px-4 py-2 rounded-none border border-border">
-                            <UserGroupIcon className="w-4 h-4 text-emerald-500/50" />
-                            <div className="flex items-center gap-3">
-                              <span className="text-emerald-400 font-black">{Math.round((completedAttendance / attendanceCount) * 100)}%</span>
-                              <div className="w-16 sm:w-24 h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all duration-1000"
-                                  style={{ width: `${Math.round((completedAttendance / attendanceCount) * 100)}%` }} />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-row lg:flex-col items-center gap-3 flex-shrink-0 pt-6 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border lg:pl-10">
-                      <Link href={`/dashboard/lessons/${lesson.id}`}
-                        className="flex-1 lg:flex-none w-full flex items-center justify-center gap-3 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-foreground hover:text-cyan-400 bg-card shadow-sm hover:bg-muted border border-border rounded-none transition-all group/btn shadow-xl active:scale-95">
-                        <EyeIcon className="w-4 h-4 group-hover/btn:scale-110 transition-transform" /> 
-                        <span className="hidden sm:inline">Modules</span>
-                        <span className="sm:hidden text-[9px]">View</span>
-                      </Link>
-                      {(profile?.role === 'admin' || profile?.role === 'teacher') && (
-                        <div className="flex flex-1 lg:flex-none gap-2 w-full lg:w-auto">
-                          <Link href={`/dashboard/lessons/${lesson.id}/edit`}
-                             className="flex-1 flex items-center justify-center gap-2 px-4 py-4 text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted border border-border rounded-none transition-all active:scale-95 shadow-xl">
-                             <PencilIcon className="w-4 h-4" />
-                          </Link>
-                          <button
-                            onClick={() => handleDelete(lesson.id, lesson.title)}
-                            disabled={deleting === lesson.id}
-                            className="flex-1 flex items-center justify-center p-4 text-rose-500/60 hover:text-rose-400 bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/10 rounded-none transition-all disabled:opacity-40 active:scale-95 shadow-xl">
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Quick Actions */}
-        {(profile?.role === 'admin' || profile?.role === 'teacher') && (
-          <div className="bg-background border border-border rounded-[2.5rem] p-8 sm:p-12 relative overflow-hidden shadow-2xl">
-            <div className="absolute top-0 left-0 w-64 h-64 bg-cyan-600/5 blur-[100px] -ml-32 -mt-32 pointer-events-none" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-10">
-                <div>
-                  <h3 className="text-2xl font-black text-foreground tracking-tight flex items-center gap-3">
-                    <BoltIcon className="w-8 h-8 text-amber-400" /> Architect Console
-                  </h3>
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mt-1">Management Utilities</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                {[
-                  { label: 'Content Engine', desc: 'Synthesize new modules', icon: VideoCameraIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', href: '/dashboard/lessons/add' },
-                  { label: 'Assessment Lab', desc: 'Deploy new challenges', icon: DocumentTextIcon, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', href: '/dashboard/assignments/new' },
-                  { label: 'CBT Hub', desc: 'Coordinate examinations', icon: PlayIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', href: '/dashboard/cbt' },
-                  { label: 'Registry', desc: 'Calibrate learning groups', icon: UserGroupIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', href: '/dashboard/classes' },
-                ].map((a) => (
-                  <Link key={a.label} href={a.href}
-                    className="group flex flex-col items-start gap-6 p-8 bg-card shadow-sm border border-border rounded-none transition-all hover:bg-muted hover:border-border hover:scale-[1.02] shadow-2xl relative overflow-hidden">
-                    <div className={`absolute top-0 right-0 w-24 h-24 ${a.bg} opacity-[0.05] blur-3xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
-                    <div className={`w-14 h-14 rounded-none ${a.bg} ${a.border} border flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>
-                      <a.icon className={`w-7 h-7 ${a.color}`} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-1">{a.label}</h4>
-                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-[0.1em]">{a.desc}</p>
-                    </div>
-                    <div className="mt-4 w-full flex justify-end">
-                       <ChevronRightIcon className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-all group-hover:translate-x-1" />
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* AI Lesson Plan Generator */}
-        {(profile?.role === 'admin' || profile?.role === 'teacher') && (
-          <div className="bg-background border border-orange-500/30 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600/10 blur-[100px] -mr-32 -mt-32 pointer-events-none" />
-            
-            <button
-              type="button"
-              onClick={() => { setPlanOpen(o => !o); setPlanResult(null); setPlanError(null); }}
-              className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between p-8 sm:p-10 text-left relative z-10 group"
+          <h3 className="text-base font-bold text-foreground mb-1">No lessons found</h3>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            {filterStatus !== 'all' || search
+              ? 'No lessons match your search. Try adjusting the filters.'
+              : 'No lessons yet. Click "Add Lesson" to create your first one.'}
+          </p>
+          {isStaff && !search && filterStatus === 'all' && (
+            <Link
+              href="/dashboard/lessons/add"
+              className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none transition-colors"
             >
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 rounded-none bg-gradient-to-br from-orange-600 to-indigo-600 flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
-                  <SparklesIcon className="w-8 h-8 text-foreground animate-pulse" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black text-foreground tracking-tight">AI Orchestrator</h3>
-                  <p className="text-sm text-muted-foreground mt-1 font-medium uppercase tracking-widest">Intelligent Curriculum Synthesis</p>
-                </div>
-              </div>
-              <div className="mt-6 sm:mt-0 flex items-center gap-3 px-6 py-3 bg-card shadow-sm border border-border rounded-none group-hover:bg-orange-600 group-hover:border-orange-500 transition-all font-black text-[10px] uppercase tracking-widest text-muted-foreground group-hover:text-foreground">
-                {planOpen ? 'Dismiss' : 'Synthesize Plan'} 
-                {planOpen ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
-              </div>
-            </button>
+              <PlusIcon className="w-4 h-4" /> Add Lesson
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          {filtered.map((lesson: any) => {
+            const TypeIcon = TYPE_ICON[lesson.lesson_type] ?? BookOpenIcon;
+            const typeColor = TYPE_COLOR[lesson.lesson_type] ?? 'bg-muted text-muted-foreground';
+            const statusColor =
+              lesson.status === 'active'    ? 'bg-emerald-500' :
+              lesson.status === 'completed' ? 'bg-blue-500'    :
+              lesson.status === 'scheduled' ? 'bg-amber-500'   : 'bg-muted';
 
-            {planOpen && (
-              <div className="px-6 pb-6 space-y-6 border-t border-orange-500/20">
-                {planError && (
-                  <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-none px-4 py-3 mt-4">{planError}</p>
-                )}
+            return (
+              <div key={lesson.id} className="bg-card shadow-sm border border-border rounded-none flex flex-col overflow-hidden">
+                {/* Top accent bar by type */}
+                <div className={`h-1 w-full ${lesson.lesson_type === 'video' ? 'bg-rose-500' : lesson.lesson_type === 'coding' ? 'bg-emerald-500' : lesson.lesson_type === 'interactive' ? 'bg-amber-500' : 'bg-orange-500'}`} />
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4">
-                  <div className="space-y-1 md:col-span-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Subject / Course Name *</p>
-                    <input
-                      value={planTopic}
-                      onChange={e => setPlanTopic(e.target.value)}
-                      placeholder="e.g. Python Programming for Beginners"
-                      className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500"
-                    />
+                <div className="p-5 flex flex-col sm:flex-row gap-4">
+                  {/* Icon */}
+                  <div className={`w-11 h-11 flex items-center justify-center flex-shrink-0 ${typeColor}`}>
+                    <TypeIcon className="w-5 h-5" />
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Grade Level</p>
-                    <select
-                      value={planGrade}
-                      onChange={e => setPlanGrade(e.target.value)}
-                      className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500"
-                    >
-                      {['Basic 1–Basic 3', 'Basic 4–Basic 6', 'JSS1–JSS3', 'SS1–SS3', 'JSS1–SS3', 'Basic 1–SS3'].map(g => (
-                        <option key={g} value={g}>{g}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term Length (weeks)</p>
-                    <select
-                      value={planWeeks}
-                      onChange={e => setPlanWeeks(e.target.value)}
-                      className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500"
-                    >
-                      {['8', '10', '12', '14', '16'].map(w => (
-                        <option key={w} value={w}>{w} weeks</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={handleGeneratePlan}
-                  disabled={planGenerating}
-                  className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-60 text-foreground font-black text-sm uppercase tracking-widest rounded-none transition-all"
-                >
-                  {planGenerating ? (
-                    <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <SparklesIcon className="w-4 h-4" />
-                  )}
-                  {planGenerating ? 'Generating plan...' : 'Generate Lesson Plan'}
-                </button>
-
-                {/* Plan Result */}
-                {planResult && (
-                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    <div className="bg-card shadow-sm border border-border rounded-none p-8 sm:p-12 relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-orange-600/10 blur-3xl rounded-full" />
-                      <div className="relative z-10">
-                        <h4 className="font-black text-3xl sm:text-4xl text-foreground mb-2 tracking-tight">{planResult.course_title}</h4>
-                        <p className="text-lg text-muted-foreground mb-8 font-medium italic border-l-2 border-border pl-6 py-2">{planResult.description}</p>
-                        <div className="flex flex-wrap gap-4 text-[10px] font-black uppercase tracking-widest mb-10">
-                          <span className="px-5 py-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 rounded-none shadow-xl">{planResult.grade_level}</span>
-                          <span className="px-5 py-2 bg-card shadow-sm border border-border text-muted-foreground rounded-none shadow-xl">{planResult.duration}</span>
-                        </div>
-                        {planResult.objectives?.length > 0 && (
-                          <div className="mb-4">
-                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-orange-400/60 mb-6">Foundational Objectives</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              {planResult.objectives.map((o: string, i: number) => (
-                                <div key={i} className="text-sm text-muted-foreground flex items-start gap-4 p-4 bg-card shadow-sm border border-border rounded-none group/obj hover:bg-orange-600/5 transition-all">
-                                  <div className="w-6 h-6 rounded-none bg-orange-500/20 text-orange-400 flex items-center justify-center flex-shrink-0 group-hover/obj:scale-110 transition-transform">✓</div>
-                                  <span className="font-medium leading-relaxed">{o}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-start gap-2">
+                      <h3 className="text-base font-bold text-foreground truncate flex-1">{lesson.title}</h3>
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize flex-shrink-0 ${STATUS_BADGE[lesson.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                        {lesson.status ?? 'draft'}
+                      </span>
                     </div>
 
-                    {/* Week-by-week table */}
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-4 mb-2">
-                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
-                        <p className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground">Learning Map</p>
-                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
+                    {lesson.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-2">{lesson.description}</p>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      {lesson.courses?.title && (
+                        <span className="flex items-center gap-1">
+                          <BuildingOfficeIcon className="w-3.5 h-3.5" />
+                          {lesson.courses.title}
+                        </span>
+                      )}
+                      {lesson.lesson_type && (
+                        <span className={`px-2 py-0.5 text-[10px] font-bold uppercase ${typeColor}`}>
+                          {lesson.lesson_type.replace(/[-_]/g, ' ')}
+                        </span>
+                      )}
+                      {lesson.duration_minutes && (
+                        <span className="flex items-center gap-1">
+                          <ClockIcon className="w-3.5 h-3.5" />
+                          {lesson.duration_minutes}m
+                        </span>
+                      )}
+                      {lesson.session_date && (
+                        <span className="flex items-center gap-1">
+                          <CalendarIcon className="w-3.5 h-3.5" />
+                          {new Date(lesson.session_date).toLocaleDateString('en-GB')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex sm:flex-col items-center gap-2 flex-shrink-0 sm:justify-center">
+                    <Link
+                      href={`/dashboard/lessons/${lesson.id}`}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-card shadow-sm hover:bg-orange-500/10 hover:text-orange-400 border border-border text-xs font-bold text-muted-foreground rounded-none transition-colors"
+                    >
+                      <EyeIcon className="w-3.5 h-3.5" /> View
+                    </Link>
+                    {isStaff && (
+                      <div className="flex gap-2">
+                        <Link
+                          href={`/dashboard/lessons/${lesson.id}/edit`}
+                          className="flex items-center justify-center w-8 h-8 bg-card shadow-sm hover:bg-muted border border-border text-muted-foreground rounded-none transition-colors"
+                        >
+                          <PencilIcon className="w-3.5 h-3.5" />
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(lesson.id, lesson.title)}
+                          disabled={deleting === lesson.id}
+                          className="flex items-center justify-center w-8 h-8 bg-rose-500/5 hover:bg-rose-500/15 border border-rose-500/20 text-rose-400 rounded-none transition-colors disabled:opacity-40"
+                        >
+                          {deleting === lesson.id
+                            ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                            : <TrashIcon className="w-3.5 h-3.5" />}
+                        </button>
                       </div>
-                      
-                      <div className="grid grid-cols-1 gap-4">
-                        {(planResult.weeks ?? []).map((week: any) => (
-                          <div key={week.week} className="bg-card shadow-sm border border-border rounded-[2rem] p-6 sm:p-8 hover:bg-white/[0.08] transition-all group overflow-hidden relative">
-                            <div className="absolute top-0 left-0 w-1 h-full bg-orange-600/40 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                              <div className="lg:col-span-3 flex items-start gap-5">
-                                <span className="w-14 h-14 rounded-none bg-gradient-to-br from-orange-600 to-indigo-600 text-foreground font-black text-xl flex items-center justify-center flex-shrink-0 shadow-2xl group-hover:scale-110 transition-transform">
-                                  {week.week}
-                                </span>
-                                <div>
-                                  <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1">Theme</p>
-                                  <p className="font-black text-foreground text-lg leading-tight tracking-tight">{week.theme}</p>
-                                </div>
-                              </div>
-                              
-                              <div className="lg:col-span-3">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Modular Topics</p>
-                                <div className="space-y-1.5">
-                                  {(week.topics ?? []).map((t: string, i: number) => (
-                                    <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
-                                      <span className="w-1 h-1 rounded-full bg-orange-500/40" /> {t}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                              
-                              <div className="lg:col-span-3">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Active Engagement</p>
-                                <div className="space-y-1.5">
-                                  {(week.activities ?? []).map((a: string, i: number) => (
-                                    <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground font-medium italic">
-                                      <span className="w-1 h-1 rounded-full bg-emerald-500/40" /> {a}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                              
-                              <div className="lg:col-span-3 bg-card shadow-sm rounded-none p-5 border border-border">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Milestone</p>
-                                <p className="text-sm text-muted-foreground font-medium leading-relaxed">{week.assessment}</p>
-                              </div>
-                            </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      {isStaff && (
+        <div className="bg-card shadow-sm border border-border rounded-none p-6">
+          <h2 className="text-sm font-bold text-foreground mb-4">Teaching Tools</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { label: 'Add Lesson',    desc: 'Create lesson content',   icon: BookOpenIcon,       color: 'text-orange-400', bg: 'bg-orange-500/10', href: '/dashboard/lessons/add'      },
+              { label: 'Assignments',   desc: 'Tasks & assessments',     icon: DocumentTextIcon,   color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/dashboard/assignments/new'  },
+              { label: 'CBT Exams',     desc: 'Online examinations',     icon: AcademicCapIcon,    color: 'text-emerald-400',bg: 'bg-emerald-500/10',href: '/dashboard/cbt'              },
+              { label: 'Classes',       desc: 'Manage class groups',     icon: UserGroupIcon,      color: 'text-amber-400',  bg: 'bg-amber-500/10',  href: '/dashboard/classes'          },
+            ].map(a => (
+              <Link
+                key={a.label}
+                href={a.href}
+                className="flex items-center gap-3 p-3 border border-border hover:border-orange-500/40 hover:bg-orange-500/5 transition-colors rounded-none group"
+              >
+                <div className={`w-8 h-8 ${a.bg} flex items-center justify-center flex-shrink-0`}>
+                  <a.icon className={`w-4 h-4 ${a.color}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-foreground group-hover:text-orange-400 transition-colors">{a.label}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{a.desc}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* AI Lesson Plan Generator */}
+      {isStaff && (
+        <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+          <button
+            type="button"
+            onClick={() => { setPlanOpen(o => !o); setPlanResult(null); setPlanError(null); }}
+            className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-muted transition-colors"
+          >
+            <div className="flex items-center gap-4">
+              <div className={`w-10 h-10 bg-orange-500/10 flex items-center justify-center border border-orange-500/20 transition-all ${planOpen ? 'border-orange-500' : ''}`}>
+                <SparklesIcon className="w-5 h-5 text-orange-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-foreground">AI Lesson Plan Generator</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Generate a full term lesson plan using AI</p>
+              </div>
+            </div>
+            {planOpen
+              ? <ChevronUpIcon className="w-4 h-4 text-orange-400" />
+              : <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />}
+          </button>
+
+          {planOpen && (
+            <div className="px-6 pb-6 space-y-5 border-t border-border">
+              {planError && (
+                <p className="mt-4 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-4 py-3">{planError}</p>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4">
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Subject / Course Name *</label>
+                  <input
+                    value={planTopic}
+                    onChange={e => setPlanTopic(e.target.value)}
+                    placeholder="e.g. Python Programming for Beginners"
+                    className="w-full bg-background border border-border px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Grade Level</label>
+                  <select
+                    value={planGrade}
+                    onChange={e => setPlanGrade(e.target.value)}
+                    className="w-full bg-background border border-border px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500 transition-colors"
+                  >
+                    {['Basic 1–Basic 3', 'Basic 4–Basic 6', 'JSS1–JSS3', 'SS1–SS3', 'JSS1–SS3', 'Basic 1–SS3'].map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Term Length</label>
+                  <select
+                    value={planWeeks}
+                    onChange={e => setPlanWeeks(e.target.value)}
+                    className="w-full bg-background border border-border px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500 transition-colors"
+                  >
+                    {['8', '10', '12', '14', '16'].map(w => (
+                      <option key={w} value={w}>{w} weeks</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGeneratePlan}
+                disabled={planGenerating}
+                className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-60 text-white font-bold text-sm rounded-none transition-colors"
+              >
+                {planGenerating
+                  ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                  : <SparklesIcon className="w-4 h-4" />}
+                {planGenerating ? 'Generating...' : 'Generate Lesson Plan'}
+              </button>
+
+              {/* Plan result */}
+              {planResult && (
+                <div className="space-y-6 pt-2">
+                  {/* Overview */}
+                  <div className="bg-background border border-border p-6">
+                    <h4 className="text-xl font-extrabold text-foreground mb-1">{planResult.course_title}</h4>
+                    <p className="text-sm text-muted-foreground mb-4 border-l-2 border-orange-500/30 pl-3">{planResult.description}</p>
+                    <div className="flex flex-wrap gap-3 text-xs font-bold uppercase">
+                      <span className="px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-400">{planResult.grade_level}</span>
+                      <span className="px-3 py-1 bg-card border border-border text-muted-foreground">{planResult.duration}</span>
+                    </div>
+                  </div>
+
+                  {/* Learning Objectives */}
+                  {planResult.objectives?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Learning Objectives</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {planResult.objectives.map((o: string, i: number) => (
+                          <div key={i} className="flex items-start gap-3 p-3 bg-background border border-border text-sm text-muted-foreground">
+                            <CheckCircleIcon className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" />
+                            <span>{o}</span>
                           </div>
                         ))}
                       </div>
                     </div>
+                  )}
 
-                    {(planResult.materials?.length > 0 || planResult.assessment_strategy) && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {planResult.assessment_strategy && (
-                          <div className="bg-card shadow-sm border border-border rounded-[2rem] p-8 sm:p-10">
-                            <h5 className="text-[11px] font-black uppercase tracking-[0.2em] text-orange-400 mb-4">Quality Assurance</h5>
-                            <p className="text-lg text-muted-foreground font-medium leading-relaxed">{planResult.assessment_strategy}</p>
-                          </div>
-                        )}
-                        {planResult.materials?.length > 0 && (
-                          <div className="bg-card shadow-sm border border-border rounded-[2rem] p-8 sm:p-10">
-                            <h5 className="text-[11px] font-black uppercase tracking-[0.2em] text-orange-400 mb-6">Toolkit & Artifacts</h5>
-                            <div className="flex flex-wrap gap-2">
-                              {planResult.materials.map((m: string, i: number) => (
-                                <span key={i} className="px-4 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-muted-foreground font-black uppercase tracking-widest inline-block">
-                                  {m}
-                                </span>
-                              ))}
+                  {/* Weekly breakdown */}
+                  <div>
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Weekly Breakdown</p>
+                    <div className="space-y-3">
+                      {(planResult.weeks ?? []).map((week: any) => (
+                        <div key={week.week} className="bg-background border border-border p-4 grid grid-cols-1 lg:grid-cols-4 gap-4">
+                          <div className="flex items-start gap-3">
+                            <span className="w-8 h-8 bg-orange-600 text-white font-extrabold text-sm flex items-center justify-center flex-shrink-0">
+                              {week.week}
+                            </span>
+                            <div>
+                              <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wide">Theme</p>
+                              <p className="text-sm font-semibold text-foreground leading-tight">{week.theme}</p>
                             </div>
                           </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Save Plan to DB */}
-                    {planSaved ? (
-                      <div className="flex items-center gap-5 bg-emerald-500/10 border border-emerald-500/20 rounded-none px-8 py-6 shadow-2xl">
-                        <div className="w-12 h-12 rounded-none bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                           <CheckCircleIcon className="w-6 h-6" />
+                          <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1.5">Topics</p>
+                            <ul className="space-y-1">
+                              {(week.topics ?? []).map((t: string, i: number) => (
+                                <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                                  <span className="w-1 h-1 rounded-full bg-orange-500/50 mt-1.5 flex-shrink-0" />{t}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1.5">Activities</p>
+                            <ul className="space-y-1">
+                              {(week.activities ?? []).map((a: string, i: number) => (
+                                <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground italic">
+                                  <span className="w-1 h-1 rounded-full bg-emerald-500/50 mt-1.5 flex-shrink-0" />{a}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div className="bg-card border border-border p-3">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1">Assessment</p>
+                            <p className="text-xs text-muted-foreground">{week.assessment}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-emerald-400 font-black text-lg uppercase tracking-tight">Synthesis Complete</p>
-                          <p className="text-muted-foreground text-xs mt-0.5 font-medium uppercase tracking-widest">Plan archived to course curriculum</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-[#0B0B1B] border border-orange-500/20 rounded-[2.5rem] p-8 sm:p-10 space-y-6 shadow-3xl">
-                        <div>
-                          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-orange-400 mb-2">Commit to Repository</p>
-                          <p className="text-muted-foreground text-sm font-medium">Select a master curriculum to attach this synthesized plan.</p>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-4">
-                          <select
-                            value={planCourseId}
-                            onChange={e => { setPlanCourseId(e.target.value); setPlanSaveError(null); }}
-                            className="flex-1 bg-card shadow-sm border border-border rounded-none px-6 py-4 text-sm text-foreground outline-none focus:border-orange-500 transition-all cursor-pointer"
-                          >
-                            <option value="" className="bg-background">Select curriculum...</option>
-                            {courses.map(c => <option key={c.id} value={c.id} className="bg-background">{c.title}</option>)}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={handleSavePlan}
-                            disabled={savingPlan || !planCourseId}
-                            className="flex items-center justify-center gap-3 px-10 py-4 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-none transition-all shadow-2xl active:scale-95"
-                          >
-                            {savingPlan
-                              ? <><div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> Committing…</>
-                              : <><SparklesIcon className="w-4 h-4" /> Save Plan</>
-                            }
-                          </button>
-                        </div>
-                        {planSaveError && <p className="text-xs text-rose-400 bg-rose-500/10 px-4 py-2 rounded-none border border-rose-500/20">{planSaveError}</p>}
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => { setPlanResult(null); setPlanTopic(''); setPlanSaved(false); setPlanCourseId(''); }}
-                      className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Clear plan
-                    </button>
+                      ))}
+                    </div>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
-      </div>
+                  {/* Materials & Strategy */}
+                  {(planResult.materials?.length > 0 || planResult.assessment_strategy) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {planResult.assessment_strategy && (
+                        <div className="bg-background border border-border p-4">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Assessment Strategy</p>
+                          <p className="text-sm text-muted-foreground">{planResult.assessment_strategy}</p>
+                        </div>
+                      )}
+                      {planResult.materials?.length > 0 && (
+                        <div className="bg-background border border-border p-4">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Materials</p>
+                          <div className="flex flex-wrap gap-2">
+                            {planResult.materials.map((m: string, i: number) => (
+                              <span key={i} className="px-3 py-1 bg-card border border-border text-xs text-muted-foreground font-bold">{m}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Save to course */}
+                  {planSaved ? (
+                    <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 px-5 py-4">
+                      <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-bold text-emerald-400">Plan saved!</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Lesson plan saved to the selected course.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-background border border-orange-500/20 p-5 space-y-4">
+                      <div>
+                        <p className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-1">Save to Course</p>
+                        <p className="text-sm text-muted-foreground">Select a course to attach this lesson plan to.</p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <select
+                          value={planCourseId}
+                          onChange={e => { setPlanCourseId(e.target.value); setPlanSaveError(null); }}
+                          className="flex-1 bg-card border border-border px-4 py-2.5 text-sm text-foreground outline-none focus:border-orange-500 transition-colors"
+                        >
+                          <option value="">Select course...</option>
+                          {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleSavePlan}
+                          disabled={savingPlan || !planCourseId}
+                          className="flex items-center justify-center gap-2 px-6 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-bold text-sm rounded-none transition-colors"
+                        >
+                          {savingPlan
+                            ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</>
+                            : <><SparklesIcon className="w-4 h-4" /> Save Plan</>}
+                        </button>
+                      </div>
+                      {planSaveError && <p className="text-xs text-rose-400 bg-rose-500/10 px-3 py-2 border border-rose-500/20">{planSaveError}</p>}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => { setPlanResult(null); setPlanTopic(''); setPlanSaved(false); setPlanSaveError(null); setPlanCourseId(''); }}
+                    className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Clear plan
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   );
 }

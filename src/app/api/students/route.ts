@@ -185,12 +185,19 @@ export async function GET(request: Request) {
     if (caller.role === 'admin') {
       // Admin sees all — no filter
     } else if (caller.role === 'school') {
-      // Filter by school profile id or school_id
-      const ids: string[] = [];
-      if (caller.id) ids.push(caller.id);
-      if (caller.school_id) ids.push(caller.school_id);
-      if (ids.length > 0) {
-        query = query.in('school_id', ids) as any;
+      // Filter by school_id, with school_name fallback for legacy registrations
+      if (caller.school_id) {
+        const schoolNames: string[] = [];
+        if (caller.school_name) schoolNames.push(caller.school_name);
+        const { data: schoolRow } = await supabase.from('schools').select('name').eq('id', caller.school_id).maybeSingle();
+        if (schoolRow?.name && !schoolNames.includes(schoolRow.name)) schoolNames.push(schoolRow.name);
+        const parts: string[] = [`school_id.eq.${caller.school_id}`];
+        schoolNames.forEach(n => parts.push(`school_name.eq."${n}"`));
+        query = query.or(parts.join(',')) as any;
+      } else if (caller.school_name) {
+        query = query.eq('school_name', caller.school_name) as any;
+      } else {
+        return NextResponse.json({ data: [] });
       }
     } else if (caller.role === 'teacher') {
       // Collect all school IDs from teacher_schools + teacher's own school_id

@@ -9,40 +9,57 @@ function adminClient() {
   );
 }
 
-async function requireAdmin() {
+async function getCallerRole(userId: string) {
   const supabase = await createServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return null;
   const { data: caller } = await supabase
     .from('portal_users')
     .select('role, id')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single();
-  if (!caller || caller.role !== 'admin') return null;
-  return caller;
+  return caller ?? null;
 }
 
-// PATCH /api/portal-users/[id] — update full_name, role, phone, is_active
+// PATCH /api/portal-users/[id] — update profile fields
+// - Admins can update any user's full_name, role, phone, is_active, bio, email, is_deleted, avatar_url
+// - Any authenticated user can update their OWN full_name, phone, bio, avatar_url (self-edit)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireAdmin();
-  if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  const supabase = await createServerClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const body = await request.json();
-  const { full_name, role, phone, is_active, bio, email, is_deleted, avatar_url } = body;
+  const isSelf = user.id === id;
+  const caller = await getCallerRole(user.id);
+  const isAdmin = caller?.role === 'admin';
 
+  if (!isAdmin && !isSelf) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+  }
+
+  const body = await request.json();
   const update: Record<string, any> = { updated_at: new Date().toISOString() };
-  if (full_name  !== undefined) update.full_name  = full_name;
-  if (role       !== undefined) update.role       = role;
-  if (phone      !== undefined) update.phone      = phone;
-  if (is_active  !== undefined) update.is_active  = is_active;
-  if (bio        !== undefined) update.bio        = bio ?? null;
-  if (email      !== undefined) update.email      = email?.trim().toLowerCase() ?? null;
-  if (is_deleted !== undefined) update.is_deleted = is_deleted;
-  if (avatar_url !== undefined) update.avatar_url = avatar_url ?? null;
+
+  if (isAdmin) {
+    // Admin can update all fields
+    const { full_name, role, phone, is_active, bio, email, is_deleted, avatar_url } = body;
+    if (full_name  !== undefined) update.full_name  = full_name;
+    if (role       !== undefined) update.role       = role;
+    if (phone      !== undefined) update.phone      = phone;
+    if (is_active  !== undefined) update.is_active  = is_active;
+    if (bio        !== undefined) update.bio        = bio ?? null;
+    if (email      !== undefined) update.email      = email?.trim().toLowerCase() ?? null;
+    if (is_deleted !== undefined) update.is_deleted = is_deleted;
+    if (avatar_url !== undefined) update.avatar_url = avatar_url ?? null;
+  } else {
+    // Self-edit: only safe profile fields
+    if ('full_name'  in body) update.full_name  = body.full_name;
+    if ('phone'      in body) update.phone      = body.phone ?? null;
+    if ('bio'        in body) update.bio        = body.bio ?? null;
+    if ('avatar_url' in body) update.avatar_url = body.avatar_url ?? null;
+  }
 
   const admin = adminClient();
 
@@ -57,8 +74,8 @@ export async function PATCH(
 
   // Keep auth.users metadata in sync so role/name are consistent everywhere
   const metaUpdate: Record<string, any> = {};
-  if (full_name !== undefined) metaUpdate.full_name = full_name;
-  if (role !== undefined) metaUpdate.role = role;
+  if (update.full_name !== undefined) metaUpdate.full_name = update.full_name;
+  if (update.role      !== undefined) metaUpdate.role      = update.role;
   if (Object.keys(metaUpdate).length > 0) {
     await admin.auth.admin.updateUserById(id, { user_metadata: metaUpdate });
   }
@@ -72,8 +89,11 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireAdmin();
-  if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  const supabase = await createServerClient();
+  const { data: { user }, error: deleteAuthErr } = await supabase.auth.getUser();
+  if (deleteAuthErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const caller = await getCallerRole(user.id);
+  if (!caller || caller.role !== 'admin') return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
   const { id } = await params;
 

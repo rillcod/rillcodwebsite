@@ -1,14 +1,14 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeftIcon, AcademicCapIcon, ClockIcon, CheckCircleIcon,
-  XCircleIcon, UserGroupIcon, ChartBarIcon, PencilIcon,
+  XCircleIcon, UserGroupIcon, ChartBarIcon, PencilIcon, PrinterIcon,
 } from '@/lib/icons';
 
 export default function ExamDetailPage() {
@@ -20,6 +20,13 @@ export default function ExamDetailPage() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [printMenuOpen, setPrintMenuOpen] = useState(false);
+  const [printFilter, setPrintFilter] = useState<'all' | 'mcq' | 'theory'>('all');
+  const [printMcqCount, setPrintMcqCount] = useState<string>('');      // '' = all
+  const [printTheoryCount, setPrintTheoryCount] = useState<string>(''); // '' = all
+  const [printDuration, setPrintDuration] = useState<string>('');       // '' = use exam default
+  const [printPassMark, setPrintPassMark] = useState<string>('');       // '' = use exam default
+  const printMenuRef = useRef<HTMLDivElement>(null);
 
   const role = profile?.role ?? '';
   const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
@@ -55,7 +62,7 @@ export default function ExamDetailPage() {
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
   if (!exam) return (
@@ -67,8 +74,329 @@ export default function ExamDetailPage() {
   const totalPoints = questions.reduce((s, q) => s + (q.points ?? 0), 0);
   const mySession = !isStaff ? sessions[0] : null;
 
+  const handlePrintExam = (mode: 'student' | 'staff' = 'student', filter: 'all' | 'mcq' | 'theory' = 'all') => {
+    const today = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
+    const schoolName = profile?.school_name || 'RILLCOD TECHNOLOGIES';
+    const logoUrl = window.location.origin + '/logo.png';
+
+    const allMcq  = questions.filter((q: any) =>  q.options && Array.isArray(q.options) && q.options.length > 0);
+    const allOpen = questions.filter((q: any) => !q.options || !Array.isArray(q.options) || q.options.length === 0);
+
+    // Apply count limits from print settings
+    const mcqLimit   = printMcqCount    ? Math.max(1, parseInt(printMcqCount,    10)) : undefined;
+    const theoryLimit = printTheoryCount ? Math.max(1, parseInt(printTheoryCount, 10)) : undefined;
+
+    const rawMcq  = filter === 'theory' ? [] : allMcq;
+    const rawOpen = filter === 'mcq'    ? [] : allOpen;
+    const mcqQuestions  = mcqLimit   ? rawMcq.slice(0, mcqLimit)   : rawMcq;
+    const openQuestions = theoryLimit ? rawOpen.slice(0, theoryLimit) : rawOpen;
+
+    if (mcqQuestions.length === 0 && openQuestions.length === 0) {
+      alert(`No ${filter === 'mcq' ? 'objective (MCQ)' : 'theory'} questions found in this exam.`);
+      return;
+    }
+
+    // Override duration / pass mark if set in print settings
+    const durationVal  = printDuration  ? parseInt(printDuration,  10) : exam.duration_minutes;
+    const passMarkVal  = printPassMark  ? parseInt(printPassMark,  10) : (exam.passing_score ?? 70);
+
+    const mcqPoints  = mcqQuestions.reduce((s: number, q: any)  => s + (q.points ?? 0), 0);
+    const openPoints = openQuestions.reduce((s: number, q: any) => s + (q.points ?? 0), 0);
+    const examTypeLabel = filter === 'mcq' ? 'OBJECTIVE EXAMINATION' : filter === 'theory' ? 'THEORY EXAMINATION' : 'EXAMINATION';
+
+    // Lines per question type
+    const lineCount = (q: any) => q.question_type === 'essay' ? 12 : q.question_type === 'fill_blank' ? 4 : 8;
+
+    const renderQuestion = (q: any, globalNum: number) => {
+      const isMCQ    = q.options && Array.isArray(q.options) && q.options.length > 0;
+      const isCorrect = (opt: string) => mode === 'staff' && opt === q.correct_answer;
+      return `
+      <div class="q-block">
+        <div class="q-header">
+          <span class="q-num">${globalNum}.</span>
+          <div class="q-text">${q.question_text ?? ''}</div>
+          <span class="q-pts">${q.points ?? 1} mark${(q.points ?? 1) !== 1 ? 's' : ''}</span>
+        </div>
+        ${isMCQ ? `
+        <div class="options">
+          ${(q.options as string[]).map((opt: string, oi: number) => `
+          <div class="opt ${isCorrect(opt) ? 'correct' : ''}">
+            <span class="bubble">${String.fromCharCode(65 + oi)}</span>
+            <span class="opt-text">${opt}</span>
+            ${isCorrect(opt) ? '<span class="tick">✓</span>' : ''}
+          </div>`).join('')}
+        </div>` : `
+        <div class="ans-block">
+          ${Array.from({ length: lineCount(q) }).map(() => '<div class="ans-line"></div>').join('')}
+        </div>`}
+      </div>`;
+    };
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>${exam.title}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Times New Roman', Georgia, serif; background: #fff; color: #000; font-size: 11.5pt; }
+  @page { size: A4 portrait; margin: 15mm 18mm 14mm; }
+  .page { width: 100%; }
+
+  /* ══ OFFICIAL HEADER ══ */
+  .official-hdr { display: flex; align-items: center; gap: 14pt; padding-bottom: 10pt; border-bottom: 3pt double #000; margin-bottom: 5pt; }
+  .hdr-logo { width: 52pt; height: 52pt; object-fit: contain; flex-shrink: 0; }
+  .hdr-org { flex: 1; text-align: center; }
+  .hdr-school { font-size: 13pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; line-height: 1.2; }
+  .hdr-brand  { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #444; margin-top: 2pt; }
+  .hdr-web    { font-size: 7.5pt; color: #888; margin-top: 1pt; }
+  .hdr-type   { background: #000; color: #fff; padding: 5pt 10pt; font-size: 7.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; text-align: center; flex-shrink: 0; align-self: flex-start; margin-top: 4pt; }
+
+  /* ══ EXAM TITLE BAND ══ */
+  .title-band { text-align: center; margin: 8pt 0; }
+  .exam-title { font-size: 15pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+  .exam-sub   { font-size: 9pt; color: #555; margin-top: 3pt; }
+
+  /* ══ META GRID ══ */
+  .meta-grid { display: grid; grid-template-columns: repeat(5, 1fr); border: 1pt solid #000; margin: 8pt 0; }
+  .meta-cell { padding: 5pt 6pt; border-right: 1pt solid #aaa; text-align: center; }
+  .meta-cell:last-child { border-right: none; }
+  .meta-label { font-size: 6.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #666; display: block; margin-bottom: 2pt; }
+  .meta-val   { font-size: 10pt; font-weight: 700; display: block; }
+
+  /* ══ STUDENT INFO BOX ══ */
+  .stu-box { display: grid; grid-template-columns: 2.5fr 1fr 1fr 1fr; border: 1.5pt solid #000; margin: 8pt 0; }
+  .stu-field { padding: 6pt 8pt 4pt; border-right: 1pt solid #888; }
+  .stu-field:last-child { border-right: none; }
+  .stu-label { font-size: 7pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #555; display: block; margin-bottom: 5pt; }
+  .stu-line  { border-bottom: 1pt solid #333; height: 13pt; }
+
+  /* ══ INSTRUCTIONS ══ */
+  .instructions { background: #f5f5f5; border: 1pt solid #ccc; border-left: 4pt solid #000; padding: 7pt 10pt; margin: 8pt 0 12pt; font-size: 9.5pt; line-height: 1.6; }
+  .instructions b { font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ══ SECTION HEADER ══ */
+  .section-hdr { display: flex; align-items: center; gap: 8pt; margin: 14pt 0 10pt; }
+  .s-rule  { flex: 1; border-top: 1.5pt solid #000; }
+  .s-title { font-size: 9.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; white-space: nowrap; padding: 0 8pt; border: 1pt solid #000; }
+  .s-pts   { font-size: 8.5pt; color: #444; font-weight: 700; white-space: nowrap; }
+
+  /* ══ QUESTIONS ══ */
+  .q-block  { margin-bottom: 18pt; page-break-inside: avoid; }
+  .q-header { display: flex; gap: 8pt; align-items: flex-start; margin-bottom: 6pt; }
+  .q-num    { font-size: 11pt; font-weight: 900; min-width: 22pt; flex-shrink: 0; padding-top: 1pt; }
+  .q-text   { flex: 1; font-size: 11.5pt; line-height: 1.6; }
+  .q-pts    { font-size: 8pt; font-weight: 700; color: #555; white-space: nowrap; flex-shrink: 0; font-style: italic; padding-top: 3pt; }
+
+  /* MCQ options — 2-column grid */
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 5pt 20pt; margin: 4pt 0 0 30pt; }
+  .opt     { display: flex; align-items: flex-start; gap: 6pt; font-size: 10.5pt; line-height: 1.45; padding: 2pt 0; }
+  .opt.correct { font-weight: 700; }
+  .bubble  { display: inline-flex; align-items: center; justify-content: center; width: 15pt; height: 15pt; border: 1.2pt solid #000; border-radius: 50%; font-size: 8.5pt; font-weight: 900; flex-shrink: 0; margin-top: 0.5pt; }
+  .opt.correct .bubble { background: #000; color: #fff; }
+  .opt-text { flex: 1; }
+  .tick    { font-size: 9pt; font-weight: 900; margin-left: 3pt; }
+
+  /* Theory answer lines — generous spacing */
+  .ans-block { margin: 4pt 0 0 30pt; }
+  .ans-line  { border-bottom: 0.8pt solid #bbb; height: 24pt; margin-bottom: 1pt; }
+
+  /* ══ SCORE BOX (bottom of student page) ══ */
+  .score-box { border: 1.5pt solid #000; display: flex; margin-top: 20pt; page-break-inside: avoid; }
+  .score-cell { flex: 1; padding: 6pt 10pt; border-right: 1pt solid #aaa; text-align: center; }
+  .score-cell:last-child { border-right: none; }
+  .score-label { font-size: 7pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #666; display: block; margin-bottom: 8pt; }
+  .score-space { height: 16pt; border-bottom: 1pt solid #333; }
+
+  /* ══ PAGE FOOTER ══ */
+  .page-footer { margin-top: 14pt; border-top: 0.75pt solid #ccc; padding-top: 5pt; display: flex; justify-content: space-between; font-size: 7.5pt; color: #777; font-style: italic; }
+
+  /* ══ ANSWER KEY PAGE ══ */
+  .ak-page { page-break-before: always; }
+  .ak-official { display: flex; align-items: center; gap: 10pt; border-bottom: 3pt double #000; padding-bottom: 8pt; margin-bottom: 12pt; }
+  .ak-logo { width: 38pt; height: 38pt; object-fit: contain; }
+  .ak-org  { flex: 1; }
+  .ak-school { font-size: 11pt; font-weight: 900; text-transform: uppercase; }
+  .ak-brand  { font-size: 7pt; text-transform: uppercase; letter-spacing: 2px; color: #555; margin-top: 1pt; }
+  .ak-badge  { background: #000; color: #fff; padding: 4pt 10pt; font-size: 7pt; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
+  .ak-exam-title { font-size: 13pt; font-weight: 900; text-transform: uppercase; text-align: center; margin: 8pt 0 4pt; letter-spacing: 1px; }
+  .ak-sub { text-align: center; font-size: 8pt; color: #c00; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 14pt; }
+
+  .ak-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5pt; margin-bottom: 18pt; }
+  .ak-cell { border: 1pt solid #ccc; padding: 5pt; text-align: center; }
+  .ak-qn   { font-size: 7pt; color: #888; font-weight: 900; text-transform: uppercase; }
+  .ak-ans  { font-size: 11pt; font-weight: 900; margin-top: 2pt; }
+
+  .ak-open-title { font-size: 8.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10pt; border-bottom: 1pt solid #ddd; padding-bottom: 4pt; }
+  .ak-item { margin-bottom: 14pt; page-break-inside: avoid; padding-left: 10pt; border-left: 2pt solid #ddd; }
+  .ak-q    { font-size: 10.5pt; font-weight: 700; margin-bottom: 4pt; }
+  .ak-a    { font-size: 10pt; color: #222; line-height: 1.6; }
+  .ak-a-label { font-size: 7pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 2pt; }
+
+  .sig-row { display: flex; gap: 20pt; margin-top: 24pt; }
+  .sig-block { flex: 1; border-top: 1pt solid #333; padding-top: 4pt; }
+  .sig-label { font-size: 7.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #555; }
+
+  .score-tbl { width: 100%; border-collapse: collapse; margin-top: 18pt; font-size: 10pt; }
+  .score-tbl th, .score-tbl td { border: 1pt solid #aaa; padding: 6pt 10pt; text-align: left; }
+  .score-tbl th { background: #f0f0f0; font-weight: 900; font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; }
+
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .q-block  { page-break-inside: avoid; }
+    .ak-item  { page-break-inside: avoid; }
+    .ak-page  { page-break-before: always; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══ OFFICIAL HEADER ══ -->
+  <div class="official-hdr">
+    <img src="${logoUrl}" class="hdr-logo" onerror="this.style.display='none'" />
+    <div class="hdr-org">
+      <div class="hdr-school">${schoolName}</div>
+      <div class="hdr-brand">Rillcod Technologies · Coding &amp; STEM Academy</div>
+      <div class="hdr-web">www.rillcod.com</div>
+    </div>
+    <div class="hdr-type">${examTypeLabel}</div>
+  </div>
+
+  <!-- ══ EXAM TITLE ══ -->
+  <div class="title-band">
+    <div class="exam-title">${exam.title}</div>
+    ${exam.programs?.name || exam.courses?.title ? `<div class="exam-sub">${[exam.programs?.name, exam.courses?.title].filter(Boolean).join(' · ')}</div>` : ''}
+  </div>
+
+  <!-- ══ META GRID ══ -->
+  <div class="meta-grid">
+    <div class="meta-cell"><span class="meta-label">Duration</span><span class="meta-val">${durationVal ? durationVal + ' min' : '—'}</span></div>
+    <div class="meta-cell"><span class="meta-label">Total Marks</span><span class="meta-val">${mcqPoints + openPoints}</span></div>
+    <div class="meta-cell"><span class="meta-label">Pass Mark</span><span class="meta-val">${passMarkVal}%</span></div>
+    <div class="meta-cell"><span class="meta-label">Questions</span><span class="meta-val">${mcqQuestions.length + openQuestions.length}</span></div>
+    <div class="meta-cell"><span class="meta-label">Date</span><span class="meta-val">${today}</span></div>
+  </div>
+
+  <!-- ══ STUDENT INFO BOX ══ -->
+  <div class="stu-box">
+    <div class="stu-field"><span class="stu-label">Student Full Name</span><div class="stu-line"></div></div>
+    <div class="stu-field"><span class="stu-label">Class / Grade</span><div class="stu-line"></div></div>
+    <div class="stu-field"><span class="stu-label">Admission No.</span><div class="stu-line"></div></div>
+    <div class="stu-field"><span class="stu-label">Score / Marks</span><div class="stu-line"></div></div>
+  </div>
+
+  <!-- ══ INSTRUCTIONS ══ -->
+  <div class="instructions">
+    <b>Instructions to Candidates:</b>&nbsp;
+    ${exam.description ? exam.description + ' ' : ''}
+    Answer <u>ALL</u> questions.${mcqQuestions.length > 0 ? ' For objective questions, <strong>circle</strong> the letter of the correct answer — do <em>not</em> tick or underline.' : ''}${openQuestions.length > 0 ? ' Write your answers legibly in the spaces provided. Use a blue or black biro.' : ''} No unauthorised materials. Mobile phones must be switched off.
+  </div>
+
+  <!-- ══ SECTION A: MCQ ══ -->
+  ${mcqQuestions.length > 0 ? `
+  <div class="section-hdr">
+    <div class="s-rule"></div>
+    <span class="s-title">Section A — Objective Questions</span>
+    <span class="s-pts">[${mcqPoints} marks]</span>
+    <div class="s-rule"></div>
+  </div>
+  ${mcqQuestions.map((q: any, i: number) => renderQuestion(q, i + 1)).join('')}
+  ` : ''}
+
+  <!-- ══ SECTION B: THEORY ══ -->
+  ${openQuestions.length > 0 ? `
+  <div class="section-hdr">
+    <div class="s-rule"></div>
+    <span class="s-title">Section B — Theory Questions</span>
+    <span class="s-pts">[${openPoints} marks]</span>
+    <div class="s-rule"></div>
+  </div>
+  ${openQuestions.map((q: any, i: number) => renderQuestion(q, mcqQuestions.length + i + 1)).join('')}
+  ` : ''}
+
+  <!-- ══ SCORE BOX ══ -->
+  <div class="score-box">
+    ${mcqQuestions.length > 0 ? `<div class="score-cell"><span class="score-label">Section A Score</span><div class="score-space"></div></div>` : ''}
+    ${openQuestions.length > 0 ? `<div class="score-cell"><span class="score-label">Section B Score</span><div class="score-space"></div></div>` : ''}
+    <div class="score-cell"><span class="score-label">Total Score</span><div class="score-space"></div></div>
+    <div class="score-cell"><span class="score-label">Examiner's Signature</span><div class="score-space"></div></div>
+  </div>
+
+  <!-- ══ FOOTER ══ -->
+  <div class="page-footer">
+    <span>${schoolName} · ${examTypeLabel} · ${today}</span>
+    <span>www.rillcod.com</span>
+  </div>
+</div>
+
+${mode === 'staff' ? `
+<!-- ══════════════ ANSWER KEY / MARKING SCHEME ══════════════ -->
+<div class="page ak-page">
+  <div class="ak-official">
+    <img src="${logoUrl}" class="ak-logo" onerror="this.style.display='none'" />
+    <div class="ak-org">
+      <div class="ak-school">${schoolName}</div>
+      <div class="ak-brand">Rillcod Technologies · Coding &amp; STEM Academy</div>
+    </div>
+    <div class="ak-badge">Marking Scheme — Staff Only</div>
+  </div>
+  <div class="ak-exam-title">${exam.title}</div>
+  <div class="ak-sub">Confidential — Do Not Distribute to Students</div>
+
+  ${mcqQuestions.length > 0 ? `
+  <div class="ak-open-title">Section A — Objective Answer Key</div>
+  <div class="ak-grid">
+    ${mcqQuestions.map((q: any, i: number) => `
+    <div class="ak-cell">
+      <div class="ak-qn">Q${i + 1}</div>
+      <div class="ak-ans">${q.correct_answer ?? '—'}</div>
+    </div>`).join('')}
+  </div>` : ''}
+
+  ${openQuestions.length > 0 ? `
+  <div class="ak-open-title">Section B — Theory Model Answers</div>
+  ${openQuestions.map((q: any, i: number) => `
+  <div class="ak-item">
+    <div class="ak-q">${mcqQuestions.length + i + 1}. ${q.question_text}</div>
+    <div class="ak-a-label">Expected Answer / Marking Guide:</div>
+    <div class="ak-a">${q.correct_answer ? q.correct_answer : '<em style="color:#aaa">No model answer provided</em>'}</div>
+  </div>`).join('')}` : ''}
+
+  <table class="score-tbl">
+    <thead>
+      <tr><th>Section</th><th>Questions</th><th>Max Marks</th><th>Score Obtained</th><th>Remarks</th></tr>
+    </thead>
+    <tbody>
+      ${mcqQuestions.length > 0 ? `<tr><td>Section A — Objective</td><td>${mcqQuestions.length}</td><td>${mcqPoints}</td><td></td><td></td></tr>` : ''}
+      ${openQuestions.length > 0 ? `<tr><td>Section B — Theory</td><td>${openQuestions.length}</td><td>${openPoints}</td><td></td><td></td></tr>` : ''}
+      <tr><td><strong>TOTAL</strong></td><td><strong>${mcqQuestions.length + openQuestions.length}</strong></td><td><strong>${totalPoints}</strong></td><td></td><td></td></tr>
+    </tbody>
+  </table>
+
+  <div class="sig-row">
+    <div class="sig-block"><span class="sig-label">Examiner's Signature &amp; Date</span></div>
+    <div class="sig-block"><span class="sig-label">Co-ordinator's Signature &amp; Date</span></div>
+    <div class="sig-block"><span class="sig-label">Head of Department</span></div>
+  </div>
+
+  <div class="page-footer">
+    <span>${schoolName} — Marking Scheme</span>
+    <span>Staff Copy · ${today}</span>
+  </div>
+</div>
+` : ''}
+
+<script>window.onload = () => { window.print(); }</script>
+</body>
+</html>`;
+    const win = window.open('', '_blank');
+    win?.document.write(html);
+    win?.document.close();
+  };
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="space-y-6 pb-20">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/cbt`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeftIcon className="w-4 h-4" /> {classId ? 'Back to Class' : 'Back to CBT'}
@@ -90,10 +418,127 @@ export default function ExamDetailPage() {
                 {exam.is_active ? 'Active' : 'Inactive'}
               </span>
               {isStaff && (
-                <Link href={`/dashboard/cbt/${exam.id}/edit`}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-none transition-colors">
-                  <PencilIcon className="w-3.5 h-3.5" /> Edit Exam
-                </Link>
+                <>
+                  {/* Print dropdown */}
+                  <div className="relative" ref={printMenuRef}>
+                    <button
+                      onClick={() => setPrintMenuOpen(o => !o)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-xs font-bold rounded-none transition-colors">
+                      <PrinterIcon className="w-3.5 h-3.5" /> Print
+                      <svg className="w-3 h-3 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    {printMenuOpen && (
+                      <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border shadow-2xl shadow-black/40 rounded-none w-72" onMouseLeave={() => setPrintMenuOpen(false)}>
+
+                        {/* ── Section: Question Type ── */}
+                        <div className="px-4 py-2.5 border-b border-border">
+                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">Question Type</p>
+                          <div className="flex gap-1">
+                            {(['all', 'mcq', 'theory'] as const).map(f => (
+                              <button key={f} onClick={() => setPrintFilter(f)}
+                                className={`flex-1 px-2 py-1 text-[9px] font-black uppercase rounded-none border transition-colors ${printFilter === f ? 'bg-orange-500/20 border-orange-500/30 text-orange-400' : 'bg-muted border-border text-muted-foreground hover:text-foreground'}`}>
+                                {f === 'all' ? 'Both' : f === 'mcq' ? 'Objective' : 'Theory'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* ── Section: Question Counts ── */}
+                        <div className="px-4 py-3 border-b border-border space-y-2.5">
+                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Question Count</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {printFilter !== 'theory' && (
+                              <div>
+                                <label className="block text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                                  Obj / MCQ
+                                  <span className="text-orange-400/60 ml-1 normal-case font-normal">({questions.filter((q:any) => q.options?.length > 0).length} avail)</span>
+                                </label>
+                                <input
+                                  type="number" min="1"
+                                  max={questions.filter((q:any) => q.options?.length > 0).length}
+                                  value={printMcqCount}
+                                  onChange={e => setPrintMcqCount(e.target.value)}
+                                  placeholder="All"
+                                  className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/50 rounded-none"
+                                />
+                              </div>
+                            )}
+                            {printFilter !== 'mcq' && (
+                              <div>
+                                <label className="block text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                                  Theory
+                                  <span className="text-orange-400/60 ml-1 normal-case font-normal">({questions.filter((q:any) => !q.options?.length).length} avail)</span>
+                                </label>
+                                <input
+                                  type="number" min="1"
+                                  max={questions.filter((q:any) => !q.options?.length).length}
+                                  value={printTheoryCount}
+                                  onChange={e => setPrintTheoryCount(e.target.value)}
+                                  placeholder="All"
+                                  className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/50 rounded-none"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* ── Section: Exam Settings ── */}
+                        <div className="px-4 py-3 border-b border-border space-y-2.5">
+                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Exam Settings</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                                Duration (min)
+                              </label>
+                              <input
+                                type="number" min="1"
+                                value={printDuration}
+                                onChange={e => setPrintDuration(e.target.value)}
+                                placeholder={exam?.duration_minutes ? String(exam.duration_minutes) : 'Auto'}
+                                className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/50 rounded-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                                Pass Mark (%)
+                              </label>
+                              <input
+                                type="number" min="1" max="100"
+                                value={printPassMark}
+                                onChange={e => setPrintPassMark(e.target.value)}
+                                placeholder={String(exam?.passing_score ?? 70)}
+                                className="w-full px-2 py-1.5 bg-muted border border-border text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500/50 rounded-none"
+                              />
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => { setPrintMcqCount(''); setPrintTheoryCount(''); setPrintDuration(''); setPrintPassMark(''); }}
+                            className="text-[8px] font-bold text-muted-foreground hover:text-orange-400 uppercase tracking-widest transition-colors">
+                            Reset to defaults
+                          </button>
+                        </div>
+
+                        {/* ── Print Actions ── */}
+                        <button
+                          onClick={() => { setPrintMenuOpen(false); handlePrintExam('student', printFilter); }}
+                          className="w-full text-left px-4 py-3 text-xs font-bold hover:bg-muted transition-colors border-b border-border flex flex-col gap-0.5">
+                          <span className="text-foreground">Student Copy</span>
+                          <span className="text-muted-foreground font-normal">Questions only, no answers</span>
+                        </button>
+                        <button
+                          onClick={() => { setPrintMenuOpen(false); handlePrintExam('staff', printFilter); }}
+                          className="w-full text-left px-4 py-3 text-xs font-bold hover:bg-muted transition-colors flex flex-col gap-0.5">
+                          <span className="text-orange-400">Staff Copy + Answer Key</span>
+                          <span className="text-muted-foreground font-normal">Includes marked answers &amp; key</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <Link href={`/dashboard/cbt/${exam.id}/edit`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-none transition-colors">
+                    <PencilIcon className="w-3.5 h-3.5" /> Edit Exam
+                  </Link>
+                </>
               )}
             </div>
           </div>

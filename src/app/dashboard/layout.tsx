@@ -3,6 +3,7 @@ import DashboardShell from '@/components/layout/DashboardShell';
 import CommandPalette from '@/components/layout/CommandPalette';
 import PasswordChangeGuard from '@/components/layout/PasswordChangeGuard';
 import { Suspense } from 'react';
+import Script from 'next/script';
 
 export default function DashboardLayout({
   children,
@@ -24,6 +25,9 @@ export default function DashboardLayout({
       <DashboardShell>
         {children}
       </DashboardShell>
+
+      {/* Puter.js — free-tier AI SDK (browser only, no API key needed) */}
+      <Script src="https://js.puter.com/v2/" strategy="lazyOnload" />
     </div>
   );
 }

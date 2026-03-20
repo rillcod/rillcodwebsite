@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import StudentDashboardWidget from '@/components/dashboard/StudentDashboard';
 
 /* ── Types ────────────────────────────────────────────── */
 interface DashStats { label: string; value: string | number; change?: string; icon: any; gradient: string }
@@ -167,8 +168,9 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
   if (schoolIds.length > 0 || schoolNames.length > 0) {
     const orParts: string[] = [];
     if (schoolIds.length > 0) orParts.push(`school_id.in.(${schoolIds.join(',')})`);
-    if (schoolNames.length > 0) schoolNames.forEach(n => orParts.push(`school_name.eq."${n}"`));
-    appsQuery = supabase.from('students').select('id', { count: 'exact', head: true }).or(orParts.join(','));
+    if (schoolNames.length > 0) schoolNames.forEach(n => orParts.push(`school_name.eq.${n}`));
+    // Only count pre-portal students (user_id IS NULL) to avoid double-counting with portal_users
+    appsQuery = supabase.from('students').select('id', { count: 'exact', head: true }).is('user_id', null).or(orParts.join(','));
   } else {
     appsQuery = Promise.resolve({ count: 0 });
   }
@@ -177,6 +179,10 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
   const { data: myAsgns } = await supabase.from('assignments').select('id').eq('created_by', userId);
   const aIds = (myAsgns ?? []).map((a: any) => a.id);
 
+  // Get teacher's exam IDs to scope CBT stats
+  const { data: myExams } = await supabase.from('cbt_exams').select('id').eq('created_by', userId);
+  const eIds = (myExams ?? []).map((e: any) => e.id);
+
   const [classes, portalStus, apps, pendingAsgn, pendingCbt, subsAsgn] = await Promise.allSettled([
     classQuery,
     portalStudentQuery,
@@ -184,7 +190,9 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
     aIds.length > 0
       ? supabase.from('assignment_submissions').select('id', { count: 'exact', head: true }).eq('status', 'submitted').in('assignment_id', aIds)
       : Promise.resolve({ count: 0 }),
-    supabase.from('cbt_sessions').select('id', { count: 'exact', head: true }).eq('status', 'pending_grading'),
+    eIds.length > 0
+      ? supabase.from('cbt_sessions').select('id', { count: 'exact', head: true }).eq('status', 'pending_grading').in('exam_id', eIds)
+      : Promise.resolve({ count: 0 }),
     aIds.length > 0
       ? supabase.from('assignment_submissions').select('grade').not('grade', 'is', null).in('assignment_id', aIds).limit(200)
       : Promise.resolve({ data: [] }),
@@ -213,6 +221,39 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
   ] as DashStats[];
 }
 
+async function loadTeacherActionCenter(supabase: ReturnType<typeof createClient>, userId: string) {
+  // Scope to THIS teacher's own assignments and exams only
+  const [myAsgns, myExams] = await Promise.all([
+    supabase.from('assignments').select('id').eq('created_by', userId),
+    supabase.from('cbt_exams').select('id').eq('created_by', userId),
+  ]);
+  const aIds = (myAsgns.data ?? []).map((a: any) => a.id);
+  const eIds = (myExams.data ?? []).map((e: any) => e.id);
+
+  const [ungradedSubs, ungradedCbt] = await Promise.allSettled([
+    aIds.length > 0
+      ? supabase
+          .from('assignment_submissions')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'submitted')
+          .is('grade', null)
+          .in('assignment_id', aIds)
+      : Promise.resolve({ count: 0 }),
+    eIds.length > 0
+      ? supabase
+          .from('cbt_sessions')
+          .select('id', { count: 'exact', head: true })
+          .eq('needs_grading', true)
+          .in('exam_id', eIds)
+      : Promise.resolve({ count: 0 }),
+  ]);
+
+  const ungradedAssignments = ungradedSubs.status === 'fulfilled' ? (ungradedSubs.value.count ?? 0) : 0;
+  const ungradedExams = ungradedCbt.status === 'fulfilled' ? (ungradedCbt.value.count ?? 0) : 0;
+
+  return { ungradedAssignments, ungradedExams };
+}
+
 async function loadTeacherActivity(supabase: ReturnType<typeof createClient>, userId: string): Promise<Activity[]> {
   // Step 1: get teacher's assignment IDs to filter submissions correctly
   const { data: myAsgns } = await supabase.from('assignments').select('id, title').eq('created_by', userId);
@@ -220,15 +261,22 @@ async function loadTeacherActivity(supabase: ReturnType<typeof createClient>, us
   const aTitleMap: Record<string, string> = {};
   (myAsgns ?? []).forEach((a: any) => { aTitleMap[a.id] = a.title; });
 
+  // Get teacher's exam IDs to scope CBT activity
+  const { data: myExamsAct } = await supabase.from('cbt_exams').select('id').eq('created_by', userId);
+  const eIdsAct = (myExamsAct ?? []).map((e: any) => e.id);
+
   const [asgnRes, cbtRes] = await Promise.all([
     aIds.length > 0
       ? supabase.from('assignment_submissions')
           .select('id, status, submitted_at, assignment_id, portal_user_id, user_id')
           .in('assignment_id', aIds).order('submitted_at', { ascending: false }).limit(5)
       : Promise.resolve({ data: [] }),
-    supabase.from('cbt_sessions')
-      .select('id, status, end_time, user_id, cbt_exams(title)')
-      .order('end_time', { ascending: false }).limit(5)
+    eIdsAct.length > 0
+      ? supabase.from('cbt_sessions')
+          .select('id, status, end_time, user_id, cbt_exams(title)')
+          .in('exam_id', eIdsAct)
+          .order('end_time', { ascending: false }).limit(5)
+      : Promise.resolve({ data: [] }),
   ]);
 
   // Enrich submission user names via separate lookup
@@ -346,7 +394,7 @@ async function loadStudentActivity(supabase: ReturnType<typeof createClient>, us
 async function loadSchoolStats(supabase: ReturnType<typeof createClient>, schoolId: string, schoolName?: string | null) {
   let studentQuery = supabase.from('students').select('id', { count: 'exact', head: true });
   if (schoolName) {
-    studentQuery = studentQuery.or(`school_id.eq.${schoolId},school_name.eq."${schoolName}"`);
+    studentQuery = studentQuery.or(`school_id.eq.${schoolId},school_name.eq.${schoolName}`);
   } else {
     studentQuery = studentQuery.eq('school_id', schoolId);
   }
@@ -433,7 +481,7 @@ const QUICK_ACTIONS = {
     { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon, desc: 'View student roster' },
     { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, desc: 'Create & grade work' },
     { name: 'Classes', href: '/dashboard/classes', icon: BookOpenIcon, desc: 'Manage your classes' },
-    { name: 'My Schools', href: '/dashboard/settings', icon: BuildingOfficeIcon, desc: 'View assigned schools' },
+    { name: 'My Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon, desc: 'View assigned schools' },
   ],
   student: [
     { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon, desc: 'View enrolled programs' },
@@ -459,6 +507,7 @@ export default function DashboardPage() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [upcomingSlots, setUpcomingSlots] = useState<Slot[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+  const [teacherActionCenter, setTeacherActionCenter] = useState<{ ungradedAssignments: number; ungradedExams: number } | null>(null);
   // Track how many auto-retries we've done before showing the "not found" error
   const profileRetryCount = useRef(0);
 
@@ -528,6 +577,10 @@ export default function DashboardPage() {
       setStats(s as any[]);
       setActivities(a);
       setLeaderboard(l);
+      if (role === 'teacher') {
+        const actionCenter = await loadTeacherActionCenter(supabase, profile.id);
+        setTeacherActionCenter(actionCenter);
+      }
       await loadUpcomingSlots(supabase, role, profile.id, profile.school_id || undefined);
     } catch { /* silent */ } finally {
       setDataLoading(false);
@@ -671,7 +724,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Stats Grid ── */}
+      {/* ── Stats Grid (hidden for students — StudentDashboardWidget shows richer stats) ── */}
+      <div className={role === 'student' ? 'hidden' : ''}>
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Live Stats</p>
         <button
@@ -707,8 +761,92 @@ export default function DashboardPage() {
           ))
         }
       </div>
+      </div>{/* end stats grid wrapper */}
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      {/* Teacher Smart Command Center */}
+      {profile?.role === 'teacher' && teacherActionCenter !== null && (
+        <div className="bg-card border border-border rounded-none p-6 sm:p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/5 blur-[80px] -mr-24 -mt-24 pointer-events-none" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.4em]">Smart Command Center</p>
+                <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Grading Queue</h2>
+              </div>
+              <div className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border rounded-none ${
+                (teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
+                  ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 animate-pulse'
+                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+              }`}>
+                {(teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
+                  ? `${teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams} Pending`
+                  : 'All Clear ✓'
+                }
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Link
+                href="/dashboard/assignments"
+                className={`group flex items-center gap-4 p-5 border rounded-none transition-all hover:scale-[1.01] ${
+                  teacherActionCenter.ungradedAssignments > 0
+                    ? 'bg-rose-500/5 border-rose-500/20 hover:border-rose-500/40'
+                    : 'bg-card border-border hover:border-border'
+                }`}
+              >
+                <div className={`w-12 h-12 flex items-center justify-center text-2xl font-black rounded-none ${
+                  teacherActionCenter.ungradedAssignments > 0 ? 'bg-rose-500/20' : 'bg-emerald-500/10'
+                }`}>
+                  {teacherActionCenter.ungradedAssignments > 0 ? '📋' : '✅'}
+                </div>
+                <div>
+                  <p className={`text-2xl font-black tabular-nums ${teacherActionCenter.ungradedAssignments > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    {teacherActionCenter.ungradedAssignments}
+                  </p>
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Assignments</p>
+                </div>
+                <ArrowRightIcon className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+              </Link>
+              <Link
+                href="/dashboard/cbt"
+                className={`group flex items-center gap-4 p-5 border rounded-none transition-all hover:scale-[1.01] ${
+                  teacherActionCenter.ungradedExams > 0
+                    ? 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40'
+                    : 'bg-card border-border hover:border-border'
+                }`}
+              >
+                <div className={`w-12 h-12 flex items-center justify-center text-2xl font-black rounded-none ${
+                  teacherActionCenter.ungradedExams > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/10'
+                }`}>
+                  {teacherActionCenter.ungradedExams > 0 ? '📝' : '✅'}
+                </div>
+                <div>
+                  <p className={`text-2xl font-black tabular-nums ${teacherActionCenter.ungradedExams > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {teacherActionCenter.ungradedExams}
+                  </p>
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">CBT Exams</p>
+                </div>
+                <ArrowRightIcon className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+              </Link>
+              <Link
+                href="/dashboard/lessons/add"
+                className="group flex items-center gap-4 p-5 bg-orange-500/5 border border-orange-500/20 hover:border-orange-500/40 rounded-none transition-all hover:scale-[1.01]"
+              >
+                <div className="w-12 h-12 bg-orange-500/20 flex items-center justify-center text-2xl rounded-none">✨</div>
+                <div>
+                  <p className="text-sm font-black text-orange-400 uppercase tracking-tight">AI Lesson</p>
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Generate Now</p>
+                </div>
+                <ArrowRightIcon className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Student Smart Dashboard (replaces generic grid for students) ── */}
+      {role === 'student' && <StudentDashboardWidget />}
+
+      <div className={`grid grid-cols-1 xl:grid-cols-3 gap-6 ${role === 'student' ? 'hidden' : ''}`}>
         {/* ── Left: Quick Actions + Activity ── */}
         <div className="xl:col-span-2 space-y-6">
 
@@ -846,6 +984,43 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {role === 'student' && stats.length > 0 && (() => {
+            const xpStat = stats.find((s: any) => s.label === 'XP Points');
+            const streakStat = stats.find((s: any) => s.label === 'Daily Streak');
+            const levelStat = stats.find((s: any) => s.label === 'Current Level');
+            const xp = typeof xpStat?.value === 'number' ? xpStat.value : parseInt(String(xpStat?.value || '0'));
+            const level = String(levelStat?.value || 'Bronze');
+            const NEXT = { Bronze: 500, Silver: 2000, Gold: 5000, Platinum: 5000 } as Record<string, number>;
+            const CUR = { Bronze: 0, Silver: 500, Gold: 2000, Platinum: 5000 } as Record<string, number>;
+            const nextXp = NEXT[level] ?? 500;
+            const curXp = CUR[level] ?? 0;
+            const pct = level === 'Platinum' ? 100 : Math.min(100, ((xp - curXp) / (nextXp - curXp)) * 100);
+            const NEXT_LEVEL: Record<string, string> = { Bronze: 'Silver', Silver: 'Gold', Gold: 'Platinum', Platinum: '∞' };
+            return (
+              <div className="bg-card border border-border rounded-none p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-black text-foreground text-sm uppercase tracking-tight">XP Progress</h3>
+                  <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">{level}</span>
+                </div>
+                <div>
+                  <div className="flex justify-between text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">
+                    <span>{xp.toLocaleString()} XP</span>
+                    <span>→ {NEXT_LEVEL[level]} @ {nextXp.toLocaleString()}</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-none overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-1000"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+                <Link href="/dashboard/learning" className="block text-center py-2.5 bg-orange-600/10 hover:bg-orange-600/20 border border-orange-500/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all">
+                  Go to Learning Center →
+                </Link>
+              </div>
+            );
+          })()}
+
           {role === 'student' && leaderboard.length > 0 && (
             <div className="bg-card shadow-sm border border-border rounded-none p-6 relative overflow-hidden group">
                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-amber-500/10 transition-all" />
@@ -899,9 +1074,9 @@ export default function DashboardPage() {
                 </Link>
               ))}
               {role === 'teacher' && [
-                { label: 'Grades', href: '/dashboard/grades', icon: TrophyIcon },
+                { label: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
                 { label: 'Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
-                { label: 'Progress', href: '/dashboard/progress', icon: ChartBarIcon },
+                { label: 'CBT Centre', href: '/dashboard/cbt', icon: ClipboardDocumentCheckIcon },
                 { label: 'Profile', href: '/dashboard/profile', icon: AcademicCapIcon },
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}

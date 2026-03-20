@@ -31,6 +31,9 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
 
+    const { searchParams } = new URL(_request.url);
+    const schoolFilter = searchParams.get('school_id');
+
     let query = admin
       .from('classes')
       .select(`
@@ -41,6 +44,10 @@ export async function GET(_request: NextRequest) {
         schools ( id, name )
       `)
       .order('created_at', { ascending: false });
+
+    if (schoolFilter) {
+      query = query.eq('school_id', schoolFilter) as any;
+    }
 
     if (caller.role === 'teacher') {
       // Get all school_ids for this teacher from teacher_schools junction table
@@ -156,6 +163,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    // Teachers can only create classes assigned to themselves
+    if (caller.role === 'teacher') {
+      body.teacher_id = caller.id;
+    }
     const { data, error } = await admin
       .from('classes')
       .insert({ ...body, created_at: new Date().toISOString() })

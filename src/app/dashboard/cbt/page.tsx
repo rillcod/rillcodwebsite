@@ -151,8 +151,16 @@ export default function CBTPage() {
                           {exam.is_active ? 'Active' : 'Inactive'}
                         </span>
                         {!isStaff && studentSession && (
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${studentSession.status === 'passed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : studentSession.status === 'failed' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}>
-                            {studentSession.status === 'passed' ? `Passed · ${studentSession.score}%` : studentSession.status === 'failed' ? `Failed · ${studentSession.score}%` : 'Completed'}
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                            studentSession.status === 'passed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                            studentSession.status === 'failed' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
+                            studentSession.status === 'pending_grading' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                            'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                          }`}>
+                            {studentSession.status === 'passed' ? `Passed · ${studentSession.score}%` :
+                             studentSession.status === 'failed' ? `Failed · ${studentSession.score}%` :
+                             studentSession.status === 'pending_grading' ? 'Pending Review' :
+                             'Submitted'}
                           </span>
                         )}
                       </div>

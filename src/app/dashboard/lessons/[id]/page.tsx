@@ -13,7 +13,7 @@ import {
   PhotoIcon, BoltIcon, CheckBadgeIcon, LockClosedIcon,
   InformationCircleIcon, ExclamationTriangleIcon, RocketLaunchIcon,
   QuestionMarkCircleIcon, ChevronRightIcon, XMarkIcon,
-  RectangleGroupIcon, ClipboardIcon, TrophyIcon, StarIcon
+  RectangleGroupIcon, ClipboardIcon, TrophyIcon, StarIcon, PlusIcon
 } from '@/lib/icons';
 import Script from 'next/script';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,9 +21,227 @@ import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 import Editor from '@monaco-editor/react';
 import * as d3 from 'd3';
 import dynamic from 'next/dynamic';
+import NeuralVoiceReader from '@/components/ai/NeuralVoiceReader';
 
 const CodeVisualizer = dynamic(() => import('@/components/visualizer/CodeVisualizer'), { ssr: false }) as any;
+
+function VisualizerBlock({ block }: { block: any }) {
+  const [step, setStep] = useState(0);
+  const codeData = {
+    step,
+    totalSteps: block.visualData?.totalSteps ?? 10,
+    variables: block.visualData?.variables ?? {},
+    visualizationState: block.visualData?.visualizationState ?? {},
+    currentLine: block.visualData?.currentLine,
+  };
+  return (
+    <div className="my-10 space-y-3">
+      {(block.title || block.concept) && (
+        <div className="flex items-center gap-3 px-1">
+          <div className="w-1 h-4 bg-cyan-500 rounded-full" />
+          <p className="text-[10px] font-black text-cyan-400/70 uppercase tracking-widest">{block.title || block.concept}</p>
+        </div>
+      )}
+      <div className="bg-[#0a0a0a] border border-white/5 overflow-hidden">
+        <CodeVisualizer
+          visualizationType={block.visualType || 'sorting'}
+          codeData={codeData}
+          onStepChange={setStep}
+        />
+      </div>
+    </div>
+  );
+}
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false }) as any;
+
+// ── Scratch-style visual block renderer ─────────────────────────────────────
+type ScratchBlockCategory = 'event' | 'motion' | 'looks' | 'sound' | 'control' | 'sensing' | 'operator' | 'variable' | 'custom';
+
+function categorizeScratchBlock(text: string): ScratchBlockCategory {
+  const t = text.toLowerCase();
+  if (/when|broadcast|receive|clicked|pressed|start|flag/.test(t)) return 'event';
+  if (/move|turn|go to|glide|point|set x|set y|bounce|position|direction/.test(t)) return 'motion';
+  if (/say|think|show|hide|switch costume|next costume|size|effect|looks|graphic/.test(t)) return 'looks';
+  if (/play sound|stop sound|volume|note|instrument|rest/.test(t)) return 'sound';
+  if (/forever|repeat|if|else|wait|stop|create clone|run without/.test(t)) return 'control';
+  if (/touching|key|mouse|ask|answer|distance|timer|current|loud|video|webcam/.test(t)) return 'sensing';
+  if (/\+|\-|\*|\/|=|>|<|and|or|not|random|round|abs|floor|ceiling|sqrt|mod|join|letter|length|contains/.test(t)) return 'operator';
+  if (/set|change|show variable|hide variable|add to list|delete|insert|replace|item/.test(t)) return 'variable';
+  return 'custom';
+}
+
+const SCRATCH_COLORS: Record<ScratchBlockCategory, { bg: string; border: string; text: string }> = {
+  event:    { bg: '#FFD500', border: '#CC9900', text: '#1a1a00' },
+  motion:   { bg: '#4C97FF', border: '#2E6CC4', text: '#fff' },
+  looks:    { bg: '#9966FF', border: '#6633CC', text: '#fff' },
+  sound:    { bg: '#CF63CF', border: '#8E3A8E', text: '#fff' },
+  control:  { bg: '#FFAB19', border: '#CC7A00', text: '#fff' },
+  sensing:  { bg: '#5CB1D6', border: '#2E7EA6', text: '#fff' },
+  operator: { bg: '#59C059', border: '#2E8E2E', text: '#fff' },
+  variable: { bg: '#FF8C1A', border: '#CC5500', text: '#fff' },
+  custom:   { bg: '#FF6680', border: '#CC2244', text: '#fff' },
+};
+
+const SCRATCH_ICONS: Record<ScratchBlockCategory, string> = {
+  event: '🚩', motion: '🔵', looks: '💬', sound: '🔊',
+  control: '🔄', sensing: '❓', operator: '➕', variable: '📦', custom: '⚙️',
+};
+
+function isHatBlock(text: string): boolean {
+  const t = text.toLowerCase();
+  return /^when|^on (flag|key|click|start)|^broadcast received/.test(t);
+}
+
+function isCBlock(text: string): boolean {
+  const t = text.toLowerCase();
+  return /^(forever|repeat|if\b|else\b)/.test(t);
+}
+
+function ScratchBlockPiece({ text, index, total }: { text: string; index: number; total: number }) {
+  const cat = categorizeScratchBlock(text);
+  const colors = SCRATCH_COLORS[cat];
+  const hat = isHatBlock(text);
+  const cBlock = isCBlock(text);
+  const isLast = index === total - 1;
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-block', marginBottom: isLast ? 0 : -1 }}>
+      {/* Top notch connector (puzzle bump in) — skip on hat blocks */}
+      {!hat && index > 0 && (
+        <div style={{
+          position: 'absolute', top: 0, left: 20,
+          width: 20, height: 4,
+          backgroundColor: '#0d0d1a',
+          borderRadius: '0 0 4px 4px',
+          zIndex: 2,
+        }} />
+      )}
+
+      {/* Block body */}
+      <div style={{
+        backgroundColor: colors.bg,
+        border: `2px solid ${colors.border}`,
+        borderRadius: hat ? '20px 20px 4px 4px' : '4px',
+        paddingTop: hat ? '10px' : '8px',
+        paddingBottom: isLast ? '8px' : '12px',
+        paddingLeft: cBlock ? '10px' : '14px',
+        paddingRight: '18px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        minWidth: '180px',
+        maxWidth: '100%',
+        boxShadow: `0 2px 0 ${colors.border}`,
+        position: 'relative',
+        cursor: 'default',
+        userSelect: 'none',
+      }}>
+        <span style={{ fontSize: '14px', flexShrink: 0 }}>{SCRATCH_ICONS[cat]}</span>
+        <span style={{
+          color: colors.text,
+          fontSize: '12px',
+          fontWeight: 900,
+          fontFamily: 'monospace',
+          letterSpacing: '0.02em',
+          textShadow: cat === 'event' ? 'none' : '0 1px 1px rgba(0,0,0,0.3)',
+        }}>
+          {text}
+        </span>
+      </div>
+
+      {/* Bottom notch connector (puzzle bump out) — skip on last block */}
+      {!isLast && (
+        <div style={{
+          position: 'absolute', bottom: 0, left: 20,
+          width: 20, height: 4,
+          backgroundColor: colors.bg,
+          border: `2px solid ${colors.border}`,
+          borderTop: 'none',
+          borderRadius: '0 0 4px 4px',
+          zIndex: 3,
+        }} />
+      )}
+    </div>
+  );
+}
+
+function ScratchBlockRenderer({ blocks, instructions }: { blocks: string[]; instructions?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const blockList = blocks?.length ? blocks : [
+    'when flag clicked',
+    'say "Hello! Ready to code?" for 2 seconds',
+    'move 10 steps',
+    'wait 1 seconds',
+    'say "Great job!" for 2 seconds',
+  ];
+
+  const copyAll = () => {
+    navigator.clipboard.writeText(blockList.join('\n'));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Scratch workspace */}
+      <div style={{
+        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%)',
+        border: '2px solid rgba(255,213,0,0.2)',
+        borderRadius: 8,
+        padding: '24px',
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        {/* Scratch logo watermark */}
+        <div style={{ position: 'absolute', top: 8, right: 12, opacity: 0.12, fontSize: 11, fontWeight: 900, color: '#FFD500', letterSpacing: '0.1em' }}>
+          SCRATCH BLOCKS
+        </div>
+
+        {/* Grid dots background */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+          pointerEvents: 'none',
+        }} />
+
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {blockList.map((text, i) => (
+            <ScratchBlockPiece key={i} text={text} index={i} total={blockList.length} />
+          ))}
+        </div>
+      </div>
+
+      {/* Legend + copy */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2">
+          {(Object.entries(SCRATCH_COLORS) as [ScratchBlockCategory, typeof SCRATCH_COLORS[ScratchBlockCategory]][])
+            .filter(([cat]) => blockList.some(b => categorizeScratchBlock(b) === cat))
+            .map(([cat, col]) => (
+              <span key={cat} style={{ backgroundColor: col.bg, color: col.text, border: `1px solid ${col.border}` }}
+                className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded">
+                {SCRATCH_ICONS[cat]} {cat}
+              </span>
+            ))}
+        </div>
+        <button onClick={copyAll} className="text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white/70 transition-colors flex items-center gap-1">
+          {copied ? '✓ Copied!' : '⧉ Copy blocks'}
+        </button>
+      </div>
+
+      {/* Instructions */}
+      {instructions && (
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded p-4">
+          <p className="text-[10px] font-black text-yellow-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+            🚩 Step-by-Step Guide
+          </p>
+          <p className="text-sm text-white/70 leading-relaxed whitespace-pre-line">{instructions}</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const TYPE_COLOR: Record<string, string> = {
   video: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
@@ -45,70 +263,89 @@ function MermaidRenderer({ code }: { code: string }) {
     if (typeof window === 'undefined') return;
 
     const renderDiagram = async () => {
-      // Ensure mermaid is loaded
       const mermaid = (window as any).mermaid;
       if (!mermaid) return;
 
       try {
-        // Strip any accidental markdown formatting or AI chatter
         let processedCode = code.trim();
-        
-        // Remove markdown blocks if they exist
-        const match = processedCode.match(/```mermaid([\s\S]*?)```/);
-        if (match) {
-          processedCode = match[1].trim();
-        } else {
-          processedCode = processedCode.replace(/^```mermaid\s*\n?/i, '');
-          processedCode = processedCode.replace(/^```\s*\n?/i, '');
-          processedCode = processedCode.replace(/\n?```$/i, '');
-        }
-        
-        // Fix common AI mistakes
-        processedCode = processedCode.replace(/&quot;/g, '"');
-        processedCode = processedCode.replace(/&lt;/g, '<');
-        processedCode = processedCode.replace(/&gt;/g, '>');
-        processedCode = processedCode.trim();
 
-        if (processedCode.startsWith('graph')) {
-          processedCode = processedCode.replace(/^graph/, 'flowchart');
-        }
+        // Strip markdown fences
+        const fenceMatch = processedCode.match(/```(?:mermaid)?([\s\S]*?)```/);
+        if (fenceMatch) processedCode = fenceMatch[1].trim();
+        processedCode = processedCode.replace(/^```mermaid\s*\n?/i, '').replace(/^```\s*\n?/i, '').replace(/\n?```$/i, '').trim();
 
-        // Validate basic mermaid start
-        if (!/^(flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph|journey|quadrantChart|mindmap|timeline)/i.test(processedCode)) {
-           throw new Error("Invalid Mermaid Diagram Type or Syntax");
+        // Decode HTML entities
+        processedCode = processedCode.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&#39;/g, "'");
+
+        // Normalise graph → flowchart
+        if (/^graph\s+/i.test(processedCode)) processedCode = processedCode.replace(/^graph\s+/i, 'flowchart ');
+
+        // Strip unsupported node shapes AI likes to invent (keep only standard ones)
+        // Replace {{...}} with ([...]) and {{{...}}} with [...] which mermaid supports
+        processedCode = processedCode.replace(/\{\{\{([^}]+)\}\}\}/g, '[$1]');
+        processedCode = processedCode.replace(/\{\{([^}]+)\}\}/g, '([$1])');
+
+        // Remove any lines with bare-word emoji that break parsing
+        processedCode = processedCode.split('\n').map(line => {
+          // Strip inline comments that AI sometimes adds
+          return line.replace(/\/\/.*$/, '').replace(/#.*$/, (m, offset) => {
+            // Only strip # comments if not inside a string
+            const before = line.slice(0, offset);
+            const quoteCount = (before.match(/"/g) || []).length;
+            return quoteCount % 2 === 0 ? '' : m;
+          });
+        }).join('\n').trim();
+
+        // Validate diagram type
+        const VALID_START = /^(flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph|journey|quadrantChart|mindmap|timeline|xychart|block)/i;
+        if (!VALID_START.test(processedCode)) {
+          // Try to auto-wrap as a flowchart if it looks like nodes+edges
+          if (/-->|---/.test(processedCode)) {
+            processedCode = `flowchart TD\n${processedCode}`;
+          } else {
+            throw new Error('Unrecognised diagram type');
+          }
         }
 
         const { svg } = await mermaid.render(chartId, processedCode);
         setSvg(svg);
         setError(null);
       } catch (e: any) {
-        console.error("Mermaid Render Error:", e);
-        // Mermaid throws errors as strings sometimes or as objects with a 'str' property
-        const msg = typeof e === 'string' ? e : e.message || e.str || "Diagram Syntax Error";
+        console.error('Mermaid Render Error:', e);
+        const msg = typeof e === 'string' ? e : e.message || e.str || 'Diagram syntax error';
         setError(msg);
       }
     };
 
-    // Small delay to ensure initialization is done if called from Script onLoad
-    const timer = setTimeout(renderDiagram, 100);
+    // Poll until mermaid is available (script may still be loading)
+    let attempts = 0;
+    const tryRender = () => {
+      if ((window as any).mermaid) {
+        renderDiagram();
+      } else if (attempts < 20) {
+        attempts++;
+        setTimeout(tryRender, 300);
+      }
+    };
+    const timer = setTimeout(tryRender, 100);
     return () => clearTimeout(timer);
   }, [code, chartId]);
 
   if (error) {
     return (
-      <div className="my-12 p-8 sm:p-12 bg-rose-500/5 border-2 border-rose-500/10 rounded-[40px] sm:rounded-[60px] text-center">
+      <div className="my-12 p-8 sm:p-12 bg-rose-500/5 border-2 border-rose-500/10 rounded-none sm:rounded-none text-center">
         <div className="flex flex-col items-center gap-4">
           <div className="p-4 rounded-none bg-rose-500/20 text-rose-400">
             <ExclamationTriangleIcon className="w-8 h-8" />
           </div>
           <div className="space-y-1">
-            <p className="text-[10px] font-black text-rose-500/60 uppercase tracking-widest">Syntactic Anomaly Detected</p>
-            <p className="text-sm font-bold text-muted-foreground">Mermaid Engine v11 Render Failure</p>
+            <p className="text-[10px] font-black text-rose-500/60 uppercase tracking-widest">Oops! A Tiny Snag</p>
+            <p className="text-sm font-bold text-muted-foreground">The visual map is taking a quick nap. Refresh to wake it up!</p>
           </div>
-          <pre className="mt-4 w-full p-6 bg-black/40 rounded-none text-[10px] font-mono text-muted-foreground text-left overflow-x-auto border border-border italic">
+          <pre className="mt-4 w-full p-6 bg-black/40 rounded-none text-[10px] font-mono text-muted-foreground text-left overflow-x-auto border border-border italic text-rose-300/80">
             {code}
           </pre>
-          <p className="text-[10px] text-rose-400/40 font-bold uppercase tracking-widest">Check diagram syntax or refresh module</p>
+          <p className="text-[10px] text-rose-400/40 font-black uppercase tracking-widest">Double check the blocks or hit refresh to see the path!</p>
         </div>
       </div>
     );
@@ -117,20 +354,20 @@ function MermaidRenderer({ code }: { code: string }) {
   return (
     <div className="my-12 space-y-4">
       <div className="flex items-center gap-3 px-6">
-        <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
-        <p className="text-[10px] font-black text-cyan-500/60 uppercase tracking-[0.3em]">System Architecture Diagram</p>
+        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+        <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-[0.3em]">Our Learning Adventure Map</p>
       </div>
-      <div className="bg-white/95 p-8 sm:p-12 rounded-[40px] sm:rounded-[60px] flex justify-center overflow-x-auto shadow-2xl border-4 border-border relative group min-h-[100px]">
+      <div className="bg-white/95 p-8 sm:p-12 rounded-none sm:rounded-none flex justify-center overflow-x-auto shadow-2xl border-4 border-border relative group min-h-[100px]">
         <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
         {svg ? (
-          <div 
-            className="w-full h-full flex justify-center" 
-            dangerouslySetInnerHTML={{ __html: svg }} 
+          <div
+            className="w-full h-full flex justify-center"
+            dangerouslySetInnerHTML={{ __html: svg }}
           />
         ) : (
           <div className="flex items-center gap-3">
-             <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Synthesizing Diagram...</span>
+            <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Synthesizing Diagram...</span>
           </div>
         )}
       </div>
@@ -158,7 +395,7 @@ function MathRenderer({ formula }: { formula: string }) {
   }, [formula]);
 
   return (
-    <div className="my-12 p-10 sm:p-20 bg-indigo-500/5 border-2 border-indigo-500/10 rounded-[40px] sm:rounded-[60px] relative overflow-hidden group shadow-3xl text-center">
+    <div className="my-12 p-10 sm:p-20 bg-indigo-500/5 border-2 border-indigo-500/10 rounded-none sm:rounded-none relative overflow-hidden group shadow-3xl text-center">
       <div className="absolute -left-10 -top-10 w-48 h-48 bg-indigo-500/10 blur-3xl rounded-full group-hover:scale-125 transition-transform" />
       <p className="text-[10px] font-black text-indigo-400/60 uppercase tracking-[0.4em] mb-10 relative z-10">Mathematical Synthesis</p>
       <div className="math-container text-2xl sm:text-5xl text-foreground relative z-10 overflow-x-auto py-4" dangerouslySetInnerHTML={{ __html: html }} />
@@ -168,146 +405,353 @@ function MathRenderer({ formula }: { formula: string }) {
 
 function MonacoEditorBlock({ code, language }: { code: string; language?: string }) {
   return (
-    <IntegratedCodeRunner 
-      initialCode={code} 
-      language={language?.toLowerCase() as any || 'javascript'} 
-      title={`${language || 'Code'} Workspace`} 
+    <IntegratedCodeRunner
+      initialCode={code}
+      language={language?.toLowerCase() as any || 'javascript'}
+      title={`${language || 'Code'} Workspace`}
       height={450}
     />
   );
 }
 
-function D3ChartRenderer({ type, dataset }: { type: string; dataset: any[] }) {
-  const ref = useState<SVGSVGElement | null>(null)[0];
+function D3ChartRenderer({ type, dataset, labels }: { type: string; dataset: any[]; labels?: string[] }) {
+  const CHART_COLORS = ['#06b6d4', '#8b5cf6', '#f97316', '#10b981', '#ef4444', '#f59e0b', '#3b82f6', '#ec4899'];
+
   const containerRef = (node: SVGSVGElement) => {
-    if (!node) return;
-    d3.select(node).selectAll("*").remove();
-    const width = 600;
-    const height = 300;
+    if (!node || !dataset.length) return;
+    d3.select(node).selectAll('*').remove();
+
+    const margin = { top: 20, right: 20, bottom: labels?.length ? 50 : 30, left: 40 };
+    const totalW = 620;
+    const totalH = 320;
+    const width = totalW - margin.left - margin.right;
+    const height = totalH - margin.top - margin.bottom;
+
     const svg = d3.select(node)
-      .attr("viewBox", `0 0 ${width} ${height}`)
-      .attr("preserveAspectRatio", "xMidYMid meet");
+      .attr('viewBox', `0 0 ${totalW} ${totalH}`)
+      .attr('preserveAspectRatio', 'xMidYMid meet');
+
+    // Defs for gradient
+    const defs = svg.append('defs');
+    dataset.forEach((_, i) => {
+      const grad = defs.append('linearGradient').attr('id', `bar-grad-${i}`).attr('x1', '0').attr('y1', '0').attr('x2', '0').attr('y2', '1');
+      const c = CHART_COLORS[i % CHART_COLORS.length];
+      grad.append('stop').attr('offset', '0%').attr('stop-color', c).attr('stop-opacity', 0.9);
+      grad.append('stop').attr('offset', '100%').attr('stop-color', c).attr('stop-opacity', 0.3);
+    });
+
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    // Grid lines
+    const maxVal = (d3.max(dataset as number[]) || 100) * 1.1;
 
     if (type === 'bar') {
-      const x = d3.scaleBand().domain(dataset.map((_, i) => i.toString())).range([0, width]).padding(0.1);
-      const y = d3.scaleLinear().domain([0, (d3.max(dataset as number[]) || 100)]).range([height, 0]);
-      svg.selectAll("rect")
-        .data(dataset)
-        .enter()
-        .append("rect")
-        .attr("x", (_: any, i: number) => x(i.toString())!)
-        .attr("y", (d: any) => y(d))
-        .attr("width", x.bandwidth())
-        .attr("height", (d: any) => height - y(d))
-        .attr("fill", "#06b6d4")
-        .attr("rx", 4);
+      const domainLabels = (labels && labels.length === dataset.length) ? labels : dataset.map((_, i) => `${i + 1}`);
+      const x = d3.scaleBand().domain(domainLabels).range([0, width]).padding(0.25);
+      const y = d3.scaleLinear().domain([0, maxVal]).range([height, 0]);
+
+      // Horizontal grid
+      g.append('g').attr('class', 'grid').selectAll('line').data(y.ticks(5)).enter()
+        .append('line').attr('x1', 0).attr('x2', width).attr('y1', d => y(d)).attr('y2', d => y(d))
+        .attr('stroke', 'rgba(255,255,255,0.05)').attr('stroke-width', 1);
+
+      // Bars
+      g.selectAll('rect').data(dataset).enter().append('rect')
+        .attr('x', (_: any, i: number) => x(domainLabels[i])!)
+        .attr('y', height)
+        .attr('width', x.bandwidth())
+        .attr('height', 0)
+        .attr('fill', (_: any, i: number) => `url(#bar-grad-${i})`)
+        .attr('rx', 2)
+        .transition().duration(700).delay((_: any, i: number) => i * 60)
+        .attr('y', (d: any) => y(d))
+        .attr('height', (d: any) => height - y(d));
+
+      // X axis labels
+      g.append('g').attr('transform', `translate(0,${height})`)
+        .call(d3.axisBottom(x).tickSize(0))
+        .select('.domain').remove();
+      g.selectAll('.tick text').attr('fill', 'rgba(255,255,255,0.35)').attr('font-size', '9px').attr('font-weight', '700')
+        .attr('dy', '1.2em').attr('text-anchor', 'middle')
+        .each(function(this: any) {
+          const el = d3.select(this);
+          const txt = el.text();
+          if (txt.length > 10) { el.text(txt.slice(0, 9) + '…'); }
+        });
+
     } else if (type === 'line' || type === 'area') {
       const x = d3.scaleLinear().domain([0, dataset.length - 1]).range([0, width]);
-      const y = d3.scaleLinear().domain([0, (d3.max(dataset as number[]) || 100)]).range([height, 0]);
-      const line = d3.line<any>().x((_: any, i: number) => x(i)).y((d: any) => y(d)).curve(d3.curveBasis);
-      
+      const y = d3.scaleLinear().domain([0, maxVal]).range([height, 0]);
+      const lineGen = d3.line<any>().x((_: any, i: number) => x(i)).y((d: any) => y(d)).curve(d3.curveCatmullRom);
+
       if (type === 'area') {
-        const area = d3.area<any>().x((_: any, i: number) => x(i)).y0(height).y1((d: any) => y(d)).curve(d3.curveBasis);
-        svg.append("path").datum(dataset).attr("fill", "rgba(6, 182, 212, 0.2)").attr("d", area);
+        const areaGen = d3.area<any>().x((_: any, i: number) => x(i)).y0(height).y1((d: any) => y(d)).curve(d3.curveCatmullRom);
+        g.append('path').datum(dataset).attr('fill', 'rgba(6,182,212,0.12)').attr('d', areaGen);
       }
-      
-      svg.append("path")
-        .datum(dataset)
-        .attr("fill", "none")
-        .attr("stroke", type === 'area' ? "#06b6d4" : "#ea580c")
-        .attr("stroke-width", 3)
-        .attr("d", line);
+      const stroke = type === 'area' ? '#06b6d4' : '#f97316';
+      const path = g.append('path').datum(dataset).attr('fill', 'none').attr('stroke', stroke).attr('stroke-width', 2.5).attr('d', lineGen);
+      const totalLen = (path.node() as SVGPathElement)?.getTotalLength?.() || 600;
+      path.attr('stroke-dasharray', totalLen).attr('stroke-dashoffset', totalLen)
+        .transition().duration(1000).attr('stroke-dashoffset', 0);
+
+      // Dots
+      g.selectAll('circle').data(dataset).enter().append('circle')
+        .attr('cx', (_: any, i: number) => x(i)).attr('cy', (d: any) => y(d)).attr('r', 4)
+        .attr('fill', stroke).attr('opacity', 0).transition().duration(600).delay((_: any, i: number) => i * 80).attr('opacity', 1);
+
+      // X axis labels
+      if (labels?.length) {
+        const xBand = d3.scaleBand().domain(labels).range([0, width]);
+        g.append('g').attr('transform', `translate(0,${height})`).call(d3.axisBottom(xBand).tickSize(0))
+          .select('.domain').remove();
+        g.selectAll('.tick text').attr('fill', 'rgba(255,255,255,0.35)').attr('font-size', '9px').attr('font-weight', '700').attr('dy', '1.2em');
+      }
     } else if (type === 'pie') {
       const radius = Math.min(width, height) / 2;
-      const g = svg.append("g").attr("transform", `translate(${width / 2}, ${height / 2})`);
-      const color = d3.scaleOrdinal(d3.schemeCategory10);
-      const pie = d3.pie<any>().value(d => d);
-      const path = d3.arc<any>().outerRadius(radius - 10).innerRadius(0);
-      const arc = g.selectAll(".arc").data(pie(dataset)).enter().append("g").attr("class", "arc");
-      arc.append("path").attr("d", path as any).attr("fill", (d: any) => color(d.data));
+      const pg = g.append('g').attr('transform', `translate(${width / 2},${height / 2})`);
+      const pie = d3.pie<any>().value(d => d).sort(null);
+      const arc = d3.arc<any>().outerRadius(radius - 10).innerRadius(radius * 0.4);
+      const arcs = pg.selectAll('.arc').data(pie(dataset)).enter().append('g');
+      arcs.append('path').attr('fill', (_: any, i: number) => CHART_COLORS[i % CHART_COLORS.length])
+        .attr('stroke', 'rgba(0,0,0,0.3)').attr('stroke-width', 1)
+        .transition().duration(800).attrTween('d', function(this: any, d: any) {
+          const i = d3.interpolate({ startAngle: 0, endAngle: 0 }, d);
+          return (t: number) => arc(i(t)) ?? '';
+        });
     }
   };
 
   return (
-    <div className="my-10 p-6 bg-card border border-border shadow-3xl rounded-[30px] overflow-hidden">
-      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Live Data Visualization</p>
-      <svg ref={containerRef} className="w-full h-auto max-h-[400px]" />
+    <div className="p-5 bg-[#08081A] border border-white/5 rounded-none overflow-hidden">
+      <svg ref={containerRef} className="w-full h-auto" style={{ maxHeight: 340 }} />
     </div>
   );
 }
 
-function MotionGraphicRenderer({ type, config }: { type: string; config: any }) {
+const MOTION_COLORS = [
+  { bg: 'bg-cyan-500/20',    border: 'border-cyan-500/40',    text: 'text-cyan-400',    glow: 'rgba(6,182,212,0.5)'    },
+  { bg: 'bg-violet-500/20',  border: 'border-violet-500/40',  text: 'text-violet-400',  glow: 'rgba(139,92,246,0.5)'   },
+  { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-400', glow: 'rgba(16,185,129,0.5)'   },
+  { bg: 'bg-orange-500/20',  border: 'border-orange-500/40',  text: 'text-orange-400',  glow: 'rgba(249,115,22,0.5)'   },
+  { bg: 'bg-rose-500/20',    border: 'border-rose-500/40',    text: 'text-rose-400',    glow: 'rgba(244,63,94,0.5)'    },
+  { bg: 'bg-amber-500/20',   border: 'border-amber-500/40',   text: 'text-amber-400',   glow: 'rgba(245,158,11,0.5)'   },
+];
+
+function MotionGraphicRenderer({ type, config, title }: { type: string; config: any; title?: string }) {
+  const labels: string[] = config?.labels || [];
+  const nodeCount: number = config?.nodes || (labels.length > 0 ? labels.length : 5);
+  const effectiveLabels = labels.length > 0 ? labels : Array.from({ length: Math.min(nodeCount, 7) }, (_, i) => `Step ${i + 1}`);
+
   return (
-    <div className="my-10 p-10 bg-[#0B0B1B] border border-white/5 rounded-[40px] flex items-center justify-center relative overflow-hidden h-[300px]">
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent" />
-      {type === 'pulse' && (
-        <motion.div 
-          animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0] }} 
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          className="w-32 h-32 bg-cyan-500/20 border-2 border-cyan-500/50 backdrop-blur-xl"
-        />
-      )}
-      {type === 'wave' && (
-        <div className="flex gap-2 items-end h-32">
-          {[...Array(12)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="w-4 bg-indigo-500/30 border-t-2 border-indigo-400"
-              animate={{ height: [20, 100, 20] }}
-              transition={{ duration: 2, repeat: Infinity, delay: i * 0.1, ease: "easeInOut" }}
-            />
-          ))}
-        </div>
-      )}
-      {type === 'grid' && (
-        <div className="grid grid-cols-6 gap-4">
-          {[...Array(24)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="w-4 h-4 rounded-sm"
-              animate={{ 
-                backgroundColor: ["rgba(6, 182, 212, 0.1)", "rgba(6, 182, 212, 0.8)", "rgba(6, 182, 212, 0.1)"],
-                scale: [1, 1.5, 1]
-              }}
-              transition={{ duration: 3, repeat: Infinity, delay: (i % 6) * 0.2 + Math.floor(i / 6) * 0.2 }}
-            />
-          ))}
-        </div>
-      )}
-      {type === 'orbit' && (
-        <div className="relative">
-          <motion.div className="w-4 h-4 bg-orange-500 rounded-full" />
-          {[...Array(config.nodes || 3)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-2 h-2 bg-indigo-400 rounded-full"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 5 / (i + 1), repeat: Infinity, ease: "linear" }}
-              style={{ originX: "50%", originY: "50%", marginLeft: (i + 1) * 30 }}
-            />
-          ))}
-        </div>
-      )}
-      {type === 'particles' && (
-        <div className="relative w-full h-full">
-           {[...Array(20)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 bg-white/40 rounded-full"
-              animate={{ 
-                x: [Math.random() * 400 - 200, Math.random() * 400 - 200],
-                y: [Math.random() * 200 - 100, Math.random() * 200 - 100],
-                opacity: [0, 1, 0]
-              }}
-              transition={{ duration: Math.random() * 5 + 3, repeat: Infinity, ease: "linear" }}
-              style={{ left: "50%", top: "50%" }}
-            />
-          ))}
-        </div>
-      )}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-black text-muted-foreground uppercase tracking-[0.5em] opacity-40">
-        Engineered Motion
+    <div className="my-10 relative rounded-none border border-white/5 bg-[#05050F] overflow-hidden" style={{ minHeight: '340px' }}>
+      {/* Layered gradient backdrops */}
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/50 via-transparent to-cyan-950/30 pointer-events-none" />
+      <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-600/5 blur-3xl rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-40 h-40 bg-cyan-600/5 blur-3xl rounded-full pointer-events-none" />
+
+      {/* Scan line */}
+      <motion.div
+        animate={{ y: [0, 340, 0] }}
+        transition={{ duration: 9, repeat: Infinity, ease: 'linear' }}
+        className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-500/25 to-transparent pointer-events-none z-10"
+      />
+
+      {/* Header */}
+      <div className="absolute top-4 left-5 z-10 flex flex-col gap-0.5">
+        <p className="text-[8px] font-black text-indigo-400/50 uppercase tracking-[0.5em]">Motion Illustration</p>
+        {title && <p className="text-[11px] font-black text-white/60 uppercase tracking-tight max-w-[260px] truncate">{title}</p>}
       </div>
+      <div className="absolute top-4 right-5 z-10">
+        <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-[8px] font-black text-indigo-400/60 uppercase tracking-widest">{type}</span>
+      </div>
+
+      <div className="flex items-center justify-center h-[340px] px-6 pt-10">
+
+        {/* ── FLOW — horizontal pipeline with animated data dots ── */}
+        {type === 'flow' && (
+          <div className="flex items-center w-full max-w-2xl overflow-x-auto pb-2 gap-0">
+            {effectiveLabels.slice(0, 6).map((label, i) => {
+              const col = MOTION_COLORS[i % MOTION_COLORS.length];
+              const isLast = i === effectiveLabels.slice(0, 6).length - 1;
+              return (
+                <div key={i} className="flex items-center flex-shrink-0" style={{ flex: isLast ? '0 0 auto' : '1 1 0' }}>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.22, type: 'spring', stiffness: 180 }}
+                    className="flex flex-col items-center gap-2 flex-shrink-0"
+                  >
+                    <motion.div
+                      animate={{ boxShadow: [`0 0 0px ${col.glow}`, `0 0 18px ${col.glow}`, `0 0 0px ${col.glow}`] }}
+                      transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.35 }}
+                      className={`w-14 h-14 ${col.bg} border ${col.border} flex items-center justify-center rounded-none`}
+                    >
+                      <span className={`text-lg font-black ${col.text}`}>{i + 1}</span>
+                    </motion.div>
+                    <p className={`text-[8px] font-black ${col.text} uppercase tracking-wider text-center max-w-[56px] leading-tight`}>{label}</p>
+                  </motion.div>
+                  {!isLast && (
+                    <div className="relative flex-1 mx-2 flex items-center" style={{ minWidth: 24, marginBottom: 16 }}>
+                      <div className="w-full h-px bg-white/10" />
+                      <motion.div
+                        animate={{ x: ['0%', '100%'] }}
+                        transition={{ duration: 1.8, repeat: Infinity, ease: 'linear', delay: i * 0.3 }}
+                        className="absolute w-2 h-2 rounded-full bg-cyan-400/70 top-1/2 -translate-y-1/2"
+                        style={{ left: 0 }}
+                      />
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 border-t-[3px] border-b-[3px] border-l-[5px] border-t-transparent border-b-transparent border-l-white/20" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── NETWORK — center concept + orbiting nodes ── */}
+        {type === 'network' && (
+          <div className="relative" style={{ width: 260, height: 260 }}>
+            <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 0 }}>
+              {effectiveLabels.slice(1, 7).map((_, i, arr) => {
+                const angle = (i / arr.length) * Math.PI * 2 - Math.PI / 2;
+                return (
+                  <motion.g
+                    key={i}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: i * 0.12 + 0.3, duration: 0.4 }}
+                  >
+                    <line
+                      x1={130} y1={130}
+                      x2={130 + 102 * Math.cos(angle)}
+                      y2={130 + 102 * Math.sin(angle)}
+                      stroke="rgba(99,102,241,0.2)"
+                      strokeWidth="1.5"
+                      strokeDasharray="5 4"
+                    />
+                  </motion.g>
+                );
+              })}
+            </svg>
+            <motion.div
+              animate={{ scale: [1, 1.07, 1] }}
+              transition={{ duration: 3.5, repeat: Infinity }}
+              className="absolute w-20 h-20 bg-orange-500/20 border-2 border-orange-500/50 flex items-center justify-center z-10 shadow-[0_0_28px_rgba(249,115,22,0.3)]"
+              style={{ left: '50%', top: '50%', transform: 'translate(-50%,-50%)' }}
+            >
+              <p className="text-[8px] font-black text-orange-300 uppercase text-center leading-tight px-1">{effectiveLabels[0] || 'Core'}</p>
+            </motion.div>
+            {effectiveLabels.slice(1, 7).map((label, i, arr) => {
+              const angle = (i / arr.length) * Math.PI * 2 - Math.PI / 2;
+              const col = MOTION_COLORS[i % MOTION_COLORS.length];
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.15 + 0.5, type: 'spring' }}
+                  className={`absolute w-12 h-12 ${col.bg} border ${col.border} flex items-center justify-center z-10`}
+                  style={{ left: 130 + 102 * Math.cos(angle), top: 130 + 102 * Math.sin(angle), transform: 'translate(-50%,-50%)' }}
+                >
+                  <p className={`text-[7px] font-black ${col.text} text-center leading-tight px-0.5`}>{label}</p>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── ORBIT — enhanced planetary rings ── */}
+        {type === 'orbit' && (
+          <div className="relative flex items-center justify-center" style={{ width: 240, height: 240 }}>
+            {[...Array(config?.nodes || 3)].map((_, i) => {
+              const r = (i + 1) * 40;
+              const col = MOTION_COLORS[i % MOTION_COLORS.length];
+              return (
+                <div key={i}>
+                  <div className={`absolute rounded-full border ${col.border} opacity-15`} style={{ width: r * 2, height: r * 2, left: '50%', top: '50%', transform: 'translate(-50%,-50%)' }} />
+                  <motion.div
+                    animate={{ rotate: i % 2 === 0 ? 360 : -360 }}
+                    transition={{ duration: 5 + i * 2.5, repeat: Infinity, ease: 'linear' }}
+                    className="absolute"
+                    style={{ width: r * 2, height: r * 2, left: '50%', top: '50%', transform: 'translate(-50%,-50%)' }}
+                  >
+                    <div className={`absolute w-3 h-3 ${col.bg} border ${col.border} top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-lg`} />
+                  </motion.div>
+                </div>
+              );
+            })}
+            <motion.div
+              animate={{ scale: [1, 1.12, 1], rotate: 360 }}
+              transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+              className="absolute w-14 h-14 bg-orange-500/25 border-2 border-orange-500/50 flex items-center justify-center shadow-[0_0_25px_rgba(249,115,22,0.4)] z-10"
+            >
+              <div className="w-4 h-4 rounded-full bg-orange-400" />
+            </motion.div>
+          </div>
+        )}
+
+        {/* ── PARTICLES — multi-color concept burst ── */}
+        {type === 'particles' && (
+          <div className="relative w-full h-52">
+            {[...Array(28)].map((_, i) => {
+              const col = MOTION_COLORS[i % MOTION_COLORS.length];
+              return (
+                <motion.div
+                  key={i}
+                  className={`absolute w-1.5 h-1.5 rounded-full ${col.bg} border ${col.border}`}
+                  animate={{ x: [Math.random() * 500 - 250, Math.random() * 500 - 250], y: [Math.random() * 160 - 80, Math.random() * 160 - 80], opacity: [0, 0.9, 0], scale: [0, 1.5, 0] }}
+                  transition={{ duration: Math.random() * 4 + 2.5, repeat: Infinity, ease: 'easeInOut', delay: Math.random() * 3 }}
+                  style={{ left: '50%', top: '50%' }}
+                />
+              );
+            })}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <motion.p animate={{ opacity: [0.05, 0.15, 0.05] }} transition={{ duration: 3, repeat: Infinity }} className="text-5xl font-black text-white/10 uppercase tracking-[0.3em] select-none">LIVE</motion.p>
+            </div>
+          </div>
+        )}
+
+        {/* ── WAVE — multi-color frequency bars ── */}
+        {type === 'wave' && (
+          <div className="flex gap-1 items-end h-40">
+            {[...Array(20)].map((_, i) => {
+              const col = MOTION_COLORS[i % MOTION_COLORS.length];
+              return (
+                <motion.div
+                  key={i}
+                  className={`flex-1 ${col.bg} border-t ${col.border} min-w-[8px] rounded-none`}
+                  animate={{ height: [12, Math.random() * 110 + 20, 12] }}
+                  transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.07, ease: 'easeInOut' }}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── PULSE — concentric rings with center glow ── */}
+        {(type === 'pulse' || (!['flow','network','orbit','particles','wave'].includes(type))) && (
+          <div className="relative flex items-center justify-center">
+            {[...Array(3)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute border border-cyan-500/30 rounded-none"
+                animate={{ scale: [1, 2.5 + i * 0.6], opacity: [0.5, 0] }}
+                transition={{ duration: 2.2, repeat: Infinity, delay: i * 0.65, ease: 'easeOut' }}
+                style={{ width: 80, height: 80 }}
+              />
+            ))}
+            <motion.div
+              animate={{ scale: [1, 1.08, 1], rotate: [0, 90, 0] }}
+              transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="w-20 h-20 bg-cyan-500/20 border-2 border-cyan-500/50 flex items-center justify-center shadow-[0_0_32px_rgba(6,182,212,0.4)]"
+            >
+              <div className="w-8 h-8 bg-cyan-500/40 border border-cyan-400/50" />
+            </motion.div>
+          </div>
+        )}
+
+      </div>
+
     </div>
   );
 }
@@ -326,14 +770,14 @@ function InteractiveQuiz({ block }: { block: any }) {
   };
 
   return (
-    <div className="p-5 rounded-xl border border-orange-500/20 bg-background space-y-5 relative overflow-hidden hover:border-orange-500/40 transition-all my-6 shadow-lg">
+    <div className="p-5 rounded-none border border-orange-500/20 bg-background space-y-5 relative overflow-hidden hover:border-orange-500/40 transition-all my-6 shadow-lg">
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-orange-500/10 text-orange-400 flex-shrink-0">
+        <div className="p-2 rounded-none bg-orange-500/10 text-orange-400 flex-shrink-0">
           <QuestionMarkCircleIcon className="w-5 h-5" />
         </div>
         <div>
-          <p className="text-[9px] font-black text-orange-400/60 uppercase tracking-[0.4em]">Checkpoint Alpha</p>
-          <h3 className="text-xs font-black uppercase tracking-widest text-foreground">Validation Sync</h3>
+          <p className="text-[9px] font-bold text-orange-400 uppercase tracking-widest">Quick Check</p>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-foreground">Quiz</h3>
         </div>
       </div>
 
@@ -356,21 +800,19 @@ function InteractiveQuiz({ block }: { block: any }) {
                 onClick={() => handleSelect(optIdx)}
                 whileHover={!revealed ? { scale: 1.01 } : {}}
                 whileTap={!revealed ? { scale: 0.99 } : {}}
-                className={`p-3.5 rounded-lg border transition-all text-left ${stateClass}`}
+                className={`p-3.5 rounded-none border transition-all text-left ${stateClass}`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-7 h-7 rounded-md border flex items-center justify-center text-[11px] font-black flex-shrink-0 ${
-                    revealed && isCorrect ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
-                    : revealed && isSelected ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
-                    : 'bg-card border-border text-muted-foreground'
-                  }`}>
+                  <div className={`w-7 h-7 rounded-none border flex items-center justify-center text-[11px] font-black flex-shrink-0 ${revealed && isCorrect ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                      : revealed && isSelected ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
+                        : 'bg-card border-border text-muted-foreground'
+                    }`}>
                     {String.fromCharCode(65 + optIdx)}
                   </div>
-                  <span className={`text-xs font-medium leading-snug flex-1 ${
-                    revealed && isCorrect ? 'text-emerald-300'
-                    : revealed && isSelected ? 'text-rose-300'
-                    : 'text-muted-foreground'
-                  }`}>
+                  <span className={`text-xs font-medium leading-snug flex-1 ${revealed && isCorrect ? 'text-emerald-300'
+                      : revealed && isSelected ? 'text-rose-300'
+                        : 'text-muted-foreground'
+                    }`}>
                     {opt}
                   </span>
                   {revealed && isCorrect && (
@@ -390,7 +832,7 @@ function InteractiveQuiz({ block }: { block: any }) {
               className="pt-4 border-t border-border"
             >
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-md flex-shrink-0 ${selected === block.correctAnswer ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                <div className={`p-2 rounded-none flex-shrink-0 ${selected === block.correctAnswer ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
                   {selected === block.correctAnswer ? <CheckBadgeIcon className="w-4 h-4" /> : <XMarkIcon className="w-4 h-4" />}
                 </div>
                 <p className="text-xs font-medium text-foreground flex-1">
@@ -413,75 +855,75 @@ function InteractiveQuiz({ block }: { block: any }) {
 
 function CompletionCelebration({ onDismiss }: { onDismiss: () => void }) {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-6"
     >
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-         {[...Array(30)].map((_, i) => (
-           <motion.div
-             key={i}
-             initial={{ 
-               x: "50%", 
-               y: "50%", 
-               scale: 0,
-               rotate: 0 
-             }}
-             animate={{ 
-               x: `${Math.random() * 100}%`, 
-               y: `${Math.random() * 100}%`, 
-               scale: [0, 1, 0.5],
-               rotate: 360,
-               opacity: [0, 1, 0]
-             }}
-             transition={{ 
-               duration: 3 + Math.random() * 2, 
-               repeat: Infinity,
-               ease: "easeOut"
-             }}
-             className={`absolute w-4 h-4 rounded-full ${['bg-cyan-500', 'bg-orange-500', 'bg-amber-500', 'bg-emerald-500'][i % 4]}`}
-           />
-         ))}
+        {[...Array(30)].map((_, i) => (
+          <motion.div
+            key={i}
+            initial={{
+              x: "50%",
+              y: "50%",
+              scale: 0,
+              rotate: 0
+            }}
+            animate={{
+              x: `${Math.random() * 100}%`,
+              y: `${Math.random() * 100}%`,
+              scale: [0, 1, 0.5],
+              rotate: 360,
+              opacity: [0, 1, 0]
+            }}
+            transition={{
+              duration: 3 + Math.random() * 2,
+              repeat: Infinity,
+              ease: "easeOut"
+            }}
+            className={`absolute w-4 h-4 rounded-full ${['bg-cyan-500', 'bg-orange-500', 'bg-amber-500', 'bg-emerald-500'][i % 4]}`}
+          />
+        ))}
       </div>
 
-      <motion.div 
+      <motion.div
         initial={{ scale: 0.8, opacity: 0, y: 40 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="max-w-2xl w-full bg-background border border-border rounded-[4rem] p-12 sm:p-20 text-center space-y-12 shadow-[0_50px_100px_rgba(6,182,212,0.15)] relative"
+        className="max-w-2xl w-full bg-background border border-border rounded-none p-12 sm:p-20 text-center space-y-12 shadow-[0_50px_100px_rgba(6,182,212,0.15)] relative"
       >
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-           <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-br from-orange-600 to-orange-400 to-indigo-600 flex items-center justify-center text-foreground shadow-3xl rotate-12">
-              <TrophyIcon className="w-16 h-16" />
-           </div>
+          <div className="w-32 h-32 rounded-none bg-gradient-to-br from-orange-600 to-orange-400 to-indigo-600 flex items-center justify-center text-foreground shadow-3xl rotate-12">
+            <TrophyIcon className="w-16 h-16" />
+          </div>
         </div>
 
         <div className="space-y-6 pt-10">
-           <div className="flex items-center justify-center gap-4">
-              <div className="h-px w-12 bg-muted" />
-              <p className="text-[12px] font-black text-cyan-400 uppercase tracking-[0.6em]">Academic Milestone</p>
-              <div className="h-px w-12 bg-muted" />
-           </div>
-           <h2 className="text-5xl sm:text-8xl font-black text-foreground leading-none tracking-tighter">SUCCESS SYNCED</h2>
-           <p className="text-xl sm:text-3xl text-muted-foreground font-medium italic">You've successfully integrated the fundamental constructs of this module.</p>
+          <div className="flex items-center justify-center gap-4">
+            <div className="h-px w-12 bg-muted" />
+            <p className="text-[12px] font-bold text-orange-400 uppercase tracking-widest">Achievement</p>
+            <div className="h-px w-12 bg-muted" />
+          </div>
+          <h2 className="text-5xl sm:text-7xl font-black text-foreground leading-none tracking-tighter">LESSON COMPLETE!</h2>
+          <p className="text-xl sm:text-2xl text-muted-foreground font-medium">You've successfully completed this lesson.</p>
         </div>
 
         <div className="grid grid-cols-2 gap-6">
-           <div className="bg-card shadow-sm border border-border rounded-none p-8">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Mastery Points</p>
-              <p className="text-3xl font-black text-cyan-400">+250 XP</p>
-           </div>
-           <div className="bg-card shadow-sm border border-border rounded-none p-8">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Efficiency</p>
-              <p className="text-3xl font-black text-orange-400">OPTIMAL</p>
-           </div>
+          <div className="bg-card shadow-sm border border-border rounded-none p-8">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">XP Earned</p>
+            <p className="text-3xl font-black text-orange-400">+250 XP</p>
+          </div>
+          <div className="bg-card shadow-sm border border-border rounded-none p-8">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Status</p>
+            <p className="text-3xl font-black text-emerald-400">COMPLETE</p>
+          </div>
         </div>
 
-        <button 
+        <button
           onClick={onDismiss}
-          className="w-full py-8 bg-white text-black font-black uppercase tracking-[0.4em] text-xs rounded-none hover:bg-cyan-500 hover:text-foreground transition-all shadow-2xl active:scale-95"
+          className="w-full py-8 bg-orange-600 hover:bg-orange-500 text-white font-black uppercase tracking-[0.4em] text-xs rounded-none transition-all shadow-2xl active:scale-95"
         >
-          Return to Hub
+          Continue
         </button>
       </motion.div>
     </motion.div>
@@ -517,7 +959,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
           case 'image':
             return (
               <div key={i} className="space-y-4 sm:space-y-8">
-                <div className="rounded-[40px] sm:rounded-[60px] overflow-hidden border border-border shadow-3xl transition-all hover:scale-[1.01] duration-700 hover:border-cyan-500/20">
+                <div className="rounded-none sm:rounded-none overflow-hidden border border-border shadow-3xl transition-all hover:scale-[1.01] duration-700 hover:border-cyan-500/20">
                   <img src={block.url} alt={block.caption} className="w-full object-cover" />
                 </div>
                 {block.caption && <p className="text-center text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-[0.3em] italic px-10">{block.caption}</p>}
@@ -526,12 +968,12 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
           case 'callout':
             const isWarning = block.style === 'warning';
             return (
-              <div key={i} className={`p-8 sm:p-16 rounded-[40px] sm:rounded-[60px] border-2 shadow-2xl relative overflow-hidden group ${isWarning ? 'bg-rose-500/5 border-rose-500/10' : 'bg-cyan-500/5 border-cyan-500/10'}`}>
+              <div key={i} className={`p-8 sm:p-16 rounded-none sm:rounded-none border-2 shadow-2xl relative overflow-hidden group ${isWarning ? 'bg-rose-500/5 border-rose-500/10' : 'bg-cyan-500/5 border-cyan-500/10'}`}>
                 <div className={`absolute -right-12 -top-12 w-48 sm:w-64 h-48 sm:h-64 opacity-[0.03] transition-transform group-hover:scale-110 ${isWarning ? 'text-rose-500' : 'text-cyan-500'}`}>
                   {isWarning ? <ExclamationTriangleIcon /> : <InformationCircleIcon />}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-8 sm:gap-12 relative z-10">
-                  <div className={`shrink-0 p-5 sm:p-7 rounded-[2rem] sm:rounded-[2.5rem] shadow-xl ${isWarning ? 'bg-rose-500/20 text-rose-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
+                  <div className={`shrink-0 p-5 sm:p-7 rounded-none sm:rounded-none shadow-xl ${isWarning ? 'bg-rose-500/20 text-rose-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
                     {isWarning ? <ExclamationTriangleIcon className="w-10 h-10 sm:w-16 sm:h-16" /> : <InformationCircleIcon className="w-10 h-10 sm:w-16 sm:h-16" />}
                   </div>
                   <div className="space-y-3">
@@ -545,10 +987,10 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
             );
           case 'activity':
             return (
-              <div key={i} className="p-8 sm:p-12 rounded-[40px] sm:rounded-[60px] border-2 border-emerald-500/20 bg-emerald-500/5 space-y-8 relative overflow-hidden transition-all my-12 shadow-3xl group/activity">
+              <div key={i} className="p-8 sm:p-12 rounded-none sm:rounded-none border-2 border-emerald-500/20 bg-emerald-500/5 space-y-8 relative overflow-hidden transition-all my-12 shadow-3xl group/activity">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl pointer-events-none" />
                 <div className="flex items-center gap-6">
-                  <div className="p-4 rounded-2xl bg-emerald-500/20 text-emerald-400 flex-shrink-0 shadow-lg group-hover/activity:scale-110 transition-transform">
+                  <div className="p-4 rounded-none bg-emerald-500/20 text-emerald-400 flex-shrink-0 shadow-lg group-hover/activity:scale-110 transition-transform">
                     <RocketLaunchIcon className="w-8 h-8" />
                   </div>
                   <div>
@@ -556,12 +998,12 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
                     <h3 className="text-xl font-black uppercase tracking-tight text-foreground">{block.title || 'Practical Implementation'}</h3>
                   </div>
                 </div>
-                
+
                 <div className="space-y-6">
                   {block.steps && Array.isArray(block.steps) ? (
                     <div className="grid gap-4">
                       {block.steps.map((step: string, sIdx: number) => (
-                        <div key={sIdx} className="flex gap-4 p-4 rounded-2xl bg-background/50 border border-emerald-500/10 hover:border-emerald-500/30 transition-all group/step">
+                        <div key={sIdx} className="flex gap-4 p-4 rounded-none bg-background/50 border border-emerald-500/10 hover:border-emerald-500/30 transition-all group/step">
                           <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-400 shrink-0">
                             {sIdx + 1}
                           </div>
@@ -573,7 +1015,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
                     </div>
                   ) : (
                     <div className="border-l-4 border-emerald-500/40 pl-6 py-2">
-                       <p className="text-lg font-medium text-foreground leading-relaxed whitespace-pre-wrap italic opacity-80">
+                      <p className="text-lg font-medium text-foreground leading-relaxed whitespace-pre-wrap italic opacity-80">
                         {block.instructions || 'Follow the experiential learning prompt below.'}
                       </p>
                     </div>
@@ -597,7 +1039,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
           case 'video':
             return (
               <div key={i} className="space-y-4 sm:space-y-8">
-                <div className="aspect-video rounded-[40px] sm:rounded-[60px] overflow-hidden border-2 border-border bg-slate-900 shadow-3xl relative group">
+                <div className="aspect-video rounded-none sm:rounded-none overflow-hidden border-2 border-border bg-slate-900 shadow-3xl relative group">
                   <ReactPlayer
                     url={block.url}
                     width="100%"
@@ -610,74 +1052,27 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
                 {block.caption && <p className="text-center text-xs sm:text-sm font-black uppercase tracking-[0.3em] text-muted-foreground italic px-4">{block.caption}</p>}
               </div>
             );
-          case 'visualizer':
-            return (
-              <div key={i} className="my-10">
-                <CodeVisualizer 
-                  visualizationType={block.visualType || 'sorting'} 
-                  codeData={block.visualData || { step: 0, totalSteps: 10, variables: {}, visualizationState: {} }} 
-                />
-              </div>
-            );
           case 'scratch':
             return (
-              <div key={i} className="p-8 sm:p-12 rounded-[40px] sm:rounded-[60px] border-2 border-orange-500/20 bg-orange-500/5 space-y-8 my-12 shadow-3xl group/scratch">
-                <div className="flex items-center gap-6">
-                  <div className="p-4 rounded-2xl bg-orange-500/20 text-orange-400 flex-shrink-0 shadow-lg group-hover/scratch:scale-110 transition-transform">
-                    <RectangleGroupIcon className="w-8 h-8" />
+              <div key={i} className="border-2 border-yellow-500/20 bg-yellow-500/5 space-y-6 my-12 p-6 sm:p-10">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-yellow-500/20 text-yellow-400 flex-shrink-0">
+                    <RectangleGroupIcon className="w-7 h-7" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-orange-500 uppercase tracking-[0.5em] mb-1">Early Learner Visual Lab (KG - Basic 6)</p>
-                    <h3 className="text-xl font-black uppercase tracking-tight text-foreground">Scratch Sequence & Fixing Guide</h3>
+                    <p className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.4em] mb-0.5">Visual Coding Lab — KG to Basic 6</p>
+                    <h3 className="text-lg font-black uppercase tracking-tight text-foreground">Scratch Block Mission</h3>
                   </div>
                 </div>
-
-                {block.projectId && (
-                  <div className="aspect-video rounded-[3rem] overflow-hidden border-2 border-orange-500/20 shadow-2xl bg-black">
-                    <iframe 
-                      src={`https://turbowarp.org/${block.projectId}/embed`}
-                      className="w-full h-full"
-                      allowTransparency
-                      allowFullScreen
-                    />
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                   <div className="space-y-4">
-                     <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Logic Block Sequence</p>
-                     <div className="space-y-2">
-                       {(block.blocks || ['when green flag clicked', 'move 10 steps']).map((bText: string, bIdx: number) => (
-                         <div key={bIdx} className="px-5 py-3 bg-orange-500/20 border border-orange-500/30 rounded-2xl text-[11px] font-black text-orange-100 w-fit shadow-md transform hover:translate-x-1 transition-transform cursor-default">
-                           {bText.toUpperCase()}
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                   <div className="space-y-4">
-                     <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-2">
-                        <BoltIcon className="w-4 h-4" /> Step-by-Step Fixing Guide
-                     </p>
-                     <div className="relative">
-                        <div className="absolute -left-4 top-0 bottom-0 w-1 bg-rose-500/20 rounded-full" />
-                        <p className="text-sm sm:text-base font-medium text-muted-foreground leading-relaxed italic bg-black/20 p-6 rounded-3xl border border-white/5 shadow-inner">
-                            {block.instructions || 'Review the block sequence carefully. Can you spot the error? Fix the blocks to complete the mission!'}
-                        </p>
-                     </div>
-                   </div>
-                </div>
+                <ScratchBlockRenderer blocks={block.blocks || []} instructions={block.instructions} />
               </div>
             );
-          case 'd3-chart':
-            return <D3ChartRenderer key={i} type={block.chartType} dataset={block.dataset || []} />;
-          case 'motion-graphics':
-            return <MotionGraphicRenderer key={i} type={block.animationType} config={block.config || {}} />;
           case 'file':
             return (
-              <div key={i} className="p-6 sm:p-12 rounded-[40px] sm:rounded-[60px] border-2 border-border bg-card shadow-sm flex flex-col sm:flex-row items-center justify-between gap-8 group hover:border-cyan-500/30 transition-all text-center sm:text-left shadow-2xl relative overflow-hidden">
+              <div key={i} className="p-6 sm:p-12 rounded-none sm:rounded-none border-2 border-border bg-card shadow-sm flex flex-col sm:flex-row items-center justify-between gap-8 group hover:border-cyan-500/30 transition-all text-center sm:text-left shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-600/5 blur-3xl rounded-full" />
                 <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-10 relative z-10">
-                  <div className="p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] bg-cyan-500/10 text-cyan-400 group-hover:scale-110 transition-transform shadow-xl">
+                  <div className="p-5 sm:p-8 rounded-none sm:rounded-none bg-cyan-500/10 text-cyan-400 group-hover:scale-110 transition-transform shadow-xl">
                     <ArrowDownTrayIcon className="w-8 h-8 sm:w-12 sm:h-12" />
                   </div>
                   <div>
@@ -688,10 +1083,131 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
                 <a href={block.url} target="_blank" className="relative z-10 w-full sm:w-auto px-10 py-5 rounded-none bg-cyan-600 hover:bg-cyan-500 text-foreground font-black text-xs sm:text-sm uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95">Download Now</a>
               </div>
             );
-          case 'mermaid':
-            return <MermaidRenderer key={i} code={block.code || ''} />;
+          case 'illustration': {
+            const INFO_COLORS = [
+              { accent: 'border-l-cyan-500',    num: 'bg-cyan-500',    text: 'text-cyan-400',    bg: 'bg-cyan-500/5'    },
+              { accent: 'border-l-violet-500',  num: 'bg-violet-500',  text: 'text-violet-400',  bg: 'bg-violet-500/5'  },
+              { accent: 'border-l-orange-500',  num: 'bg-orange-500',  text: 'text-orange-400',  bg: 'bg-orange-500/5'  },
+              { accent: 'border-l-emerald-500', num: 'bg-emerald-500', text: 'text-emerald-400', bg: 'bg-emerald-500/5' },
+              { accent: 'border-l-rose-500',    num: 'bg-rose-500',    text: 'text-rose-400',    bg: 'bg-rose-500/5'    },
+              { accent: 'border-l-amber-500',   num: 'bg-amber-500',   text: 'text-amber-400',   bg: 'bg-amber-500/5'   },
+            ];
+            return (
+              <div key={i} className="my-10 space-y-5">
+                <div className="flex items-center gap-4">
+                  <div className="h-px flex-1 bg-gradient-to-r from-indigo-500/30 to-transparent" />
+                  <h3 className="text-[11px] font-black text-white/40 uppercase tracking-[0.4em] shrink-0 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
+                    {block.title || 'Key Concepts'}
+                  </h3>
+                  <div className="h-px flex-1 bg-gradient-to-l from-indigo-500/30 to-transparent" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(block.items || []).map((item: any, idx: number) => {
+                    const col = INFO_COLORS[idx % INFO_COLORS.length];
+                    return (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, x: idx % 2 === 0 ? -16 : 16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.09, type: 'spring', stiffness: 150 }}
+                        className={`flex gap-4 p-4 bg-background border border-border border-l-4 ${col.accent} ${col.bg} group hover:border-opacity-60 transition-all`}
+                      >
+                        <div className={`w-7 h-7 ${col.num} rounded-none flex items-center justify-center text-[10px] font-black text-white shrink-0 shadow-md mt-0.5`}>
+                          {idx + 1}
+                        </div>
+                        <div className="space-y-1 flex-1 min-w-0">
+                          <p className={`text-[9px] font-black ${col.text} uppercase tracking-widest leading-none`}>{item.label}</p>
+                          <p className="text-sm font-medium text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">{item.value}</p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
+          case 'code-map':
+            return (
+              <div key={i} className="my-10 p-10 bg-card border border-white/5 rounded-none shadow-3xl lg:p-16">
+                <p className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.4em] mb-10">Logic Maps & Flow</p>
+                <div className="space-y-6">
+                  {(block.components || []).map((comp: any, idx: number) => (
+                    <div key={idx} className="flex gap-8 group">
+                      <div className="flex flex-col items-center">
+                        <div className="w-4 h-4 rounded-full bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.5)] group-hover:scale-125 transition-transform" />
+                        {idx < (block.components.length - 1) && <div className="w-0.5 h-full bg-cyan-500/20 my-2" />}
+                      </div>
+                      <div className="pb-8">
+                        <h4 className="text-lg font-black text-white uppercase tracking-tight mb-2 italic group-hover:text-cyan-400 transition-colors">{comp.name}</h4>
+                        <p className="text-sm text-white/40 leading-relaxed max-w-2xl">{comp.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          case 'assignment-block':
+            return (
+              <div key={i} className="my-12 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-none border-2 border-emerald-500/20 shadow-4xl animate-pulse-slow" />
+                <div className="relative p-10 lg:p-16 space-y-8">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-none bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/40 rotate-3 group-hover:rotate-0 transition-transform duration-500">
+                      <TrophyIcon className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-emerald-500 uppercase tracking-widest leading-none mb-1">Capstone Level-Up Challenge</h4>
+                      <h3 className="text-3xl lg:text-4xl font-black text-foreground uppercase tracking-tight italic leading-tight">{block.title || 'Mastery Synthesis'}</h3>
+                    </div>
+                  </div>
+                  
+                  <div className="p-8 bg-white/40 backdrop-blur-xl border border-white/40 rounded-none shadow-xl">
+                    <p className="text-sm lg:text-base font-medium text-muted-foreground leading-relaxed italic whitespace-pre-wrap mb-8">
+                      {block.instructions}
+                    </p>
+                    {block.deliverables && block.deliverables.length > 0 && (
+                      <div className="space-y-4 pt-6 border-t border-emerald-500/20">
+                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.3em]">Required Deliverables</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {block.deliverables.map((del: string, idx: number) => (
+                            <div key={idx} className="flex items-center gap-3 p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-none">
+                              <div className="w-5 h-5 rounded-none bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-600 italic">{idx + 1}</div>
+                              <span className="text-xs font-bold text-foreground/80 uppercase tracking-wider">{del}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
           case 'math':
             return <MathRenderer key={i} formula={block.formula || ''} />;
+          case 'motion-graphics':
+            return (
+              <MotionGraphicRenderer
+                key={i}
+                type={block.animationType || 'particles'}
+                config={block.config || {}}
+                title={block.title || block.concept}
+              />
+            );
+          case 'd3-chart':
+            return (
+              <div key={i} className="my-10 space-y-3">
+                {(block.title || block.concept) && (
+                  <div className="flex items-center gap-3 px-1">
+                    <div className="w-1 h-4 bg-orange-500 rounded-full" />
+                    <p className="text-[10px] font-black text-orange-400/70 uppercase tracking-widest">{block.title || block.concept}</p>
+                  </div>
+                )}
+                <D3ChartRenderer type={block.chartType || 'bar'} dataset={block.dataset || []} labels={block.labels} />
+              </div>
+            );
+          case 'visualizer':
+            return <VisualizerBlock key={i} block={block} />;
           default:
             return null;
         }
@@ -738,6 +1254,7 @@ export default function LessonDetailPage() {
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [marking, setMarking] = useState(false);
   const [markError, setMarkError] = useState<string | null>(null);
+  const [generatingNotes, setGeneratingNotes] = useState(false);
   const startTimeRef = useState<number>(() => Date.now())[0];
   const [notesRead, setNotesRead] = useState(false);
   const [isCinemaMode, setIsCinemaMode] = useState(false);
@@ -751,6 +1268,38 @@ export default function LessonDetailPage() {
       next.add(idx);
       return next;
     });
+  };
+
+  const handleGenerateNotes = async () => {
+    if (!lesson || generatingNotes) return;
+    setGeneratingNotes(true);
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'lesson-notes',
+          topic: lesson.title,
+          gradeLevel: lesson.grade_level || 'JSS1–SS3',
+          subject: lesson.subject || undefined,
+          durationMinutes: lesson.duration_minutes || 60,
+        }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? 'Generation failed');
+      const notes = payload.data?.lesson_notes;
+      if (notes) {
+        // Save to DB
+        const db = createClient();
+        await db.from('lessons').update({ lesson_notes: notes }).eq('id', id);
+        // Update local state
+        setLesson((prev: any) => ({ ...prev, lesson_notes: notes }));
+      }
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to generate notes. Please try again.');
+    } finally {
+      setGeneratingNotes(false);
+    }
   };
 
   useEffect(() => {
@@ -810,7 +1359,7 @@ export default function LessonDetailPage() {
       if (lessonObj.course_id) {
         const [cLessons, cAsgns, cQuizzes] = await Promise.all([
           db.from('lessons').select('id, title, order_index, lesson_type').eq('course_id', lessonObj.course_id).order('order_index', { ascending: true }),
-          db.from('assignments').select('id, title, assignment_type, due_date').eq('course_id', lessonObj.course_id),
+          db.from('assignments').select('id, title, assignment_type, due_date').eq('lesson_id', lessonObj.id),
           db.from('cbt_exams').select('id, title, duration_minutes, total_points').eq('program_id', lessonObj.courses?.program_id || lessonObj.courses?.programs?.id || '')
         ]);
         setCourseLessons(cLessons.data ?? []);
@@ -819,7 +1368,7 @@ export default function LessonDetailPage() {
       }
 
       if (profile.role === 'student') {
-        const { data: progress } = await db.from('lesson_progress').select('lesson_id, completed_at').eq('user_id', profile.id);
+        const { data: progress } = await db.from('lesson_progress').select('lesson_id, completed_at').eq('portal_user_id', profile.id);
         const cIds = new Set<string>();
         progress?.forEach((p: any) => { if (p.completed_at) cIds.add(p.lesson_id); });
         setCompletedIds(cIds);
@@ -857,33 +1406,46 @@ export default function LessonDetailPage() {
     }
   };
 
-  if (authLoading || loading) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-      <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-      <p className="text-muted-foreground text-xs font-black uppercase tracking-widest">Loading Learning Environment...</p>
+  // Scripts always rendered so Mermaid/KaTeX load regardless of auth/data state
+  const alwaysScripts = (
+    <>
       <Script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js" strategy="afterInteractive" onLoad={() => {
-        (window as any).mermaid?.initialize({ 
-          startOnLoad: false, 
-          theme: 'neutral',
+        (window as any).mermaid?.initialize({
+          startOnLoad: false,
+          theme: 'base',
+          themeVariables: {
+            primaryColor: '#4f46e5',
+            primaryTextColor: '#1e293b',
+            primaryBorderColor: '#4f46e5',
+            lineColor: '#6366f1',
+            secondaryColor: '#06b6d4',
+            tertiaryColor: '#f8fafc',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '12px'
+          },
           securityLevel: 'loose',
-          flowchart: { 
-            htmlLabels: true,
-            useMaxWidth: true,
-            curve: 'basis'
-          }
+          flowchart: { htmlLabels: true, useMaxWidth: true, curve: 'basis' }
         });
       }} />
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
       <Script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" strategy="afterInteractive" />
+    </>
+  );
+
+  if (authLoading || loading) return (
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+      {alwaysScripts}
+      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Loading lesson...</p>
     </div>
   );
 
   if (error || !lesson) return (
-    <div className="min-h-screen bg-[#070710] flex flex-col items-center justify-center p-8 text-center gap-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-center gap-6">
       <ExclamationTriangleIcon className="w-16 h-16 text-rose-500/20" />
-      <h2 className="text-3xl font-black text-rose-400">Lesson Error</h2>
+      <h2 className="text-2xl font-bold text-rose-400">Could not load lesson</h2>
       <p className="text-muted-foreground max-w-md">{error || 'Unable to load lesson content. Please check your connection or contact support.'}</p>
-      <Link href="/dashboard" className="px-8 py-3 bg-card shadow-sm border border-border rounded-none text-xs font-black uppercase">Back to Dashboard</Link>
+      <Link href="/dashboard/lessons" className="px-6 py-2.5 bg-card shadow-sm border border-border rounded-none text-xs font-bold">Back to Lessons</Link>
     </div>
   );
 
@@ -893,6 +1455,7 @@ export default function LessonDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#070710] text-foreground flex flex-col md:flex-row h-screen overflow-hidden">
+      {alwaysScripts}
       <AnimatePresence>
         {showCelebration && <CompletionCelebration onDismiss={() => setShowCelebration(false)} />}
       </AnimatePresence>
@@ -903,13 +1466,13 @@ export default function LessonDetailPage() {
             <RectangleGroupIcon className="w-5 h-5" />
           </button>
           <div className="min-w-0">
-            <p className="text-[9px] font-black text-cyan-500/60 uppercase tracking-[0.2em] leading-none mb-1">In Session</p>
-            <h2 className="text-xs font-black text-muted-foreground truncate max-w-[150px] uppercase tracking-wider">{lesson.title}</h2>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1">Lesson</p>
+            <h2 className="text-xs font-bold text-foreground truncate max-w-[150px]">{lesson.title}</h2>
           </div>
         </div>
         <div className="flex items-center gap-2">
-           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-           <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Live</span>
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Live</span>
         </div>
       </div>
 
@@ -917,7 +1480,7 @@ export default function LessonDetailPage() {
       <aside className={`fixed inset-0 z-[60] md:relative md:inset-auto transition-all duration-700 ease-in-out md:translate-x-0 ${sidebarOpen ? 'translate-x-0 w-full md:w-[360px]' : '-translate-x-full w-full md:w-0 overflow-hidden'}`}>
         {/* Mobile Backdrop */}
         <div className={`md:hidden absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity duration-700 ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)} />
-        
+
         <div className="relative h-full bg-background border-r border-border flex flex-col w-[85%] max-w-[340px] md:w-full shadow-[20px_0_50px_rgba(0,0,0,0.5)]">
           <div className="p-8 border-b border-border flex items-center justify-between bg-gradient-to-br from-white/[0.02] to-transparent">
             <div>
@@ -931,13 +1494,13 @@ export default function LessonDetailPage() {
               <XMarkIcon className="w-5 h-5" />
             </button>
           </div>
-          
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 custom-scrollbar bg-[#080812]">
+
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 custom-scrollbar bg-card/20">
             <div className="px-6 py-5 bg-card shadow-sm border border-border rounded-none mb-6 shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-600/10 blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform" />
-              <h3 className="text-xs font-black text-cyan-400 uppercase tracking-widest relative z-10">{lesson.courses?.title || 'Operational Syllabus'}</h3>
+              <h3 className="text-xs font-bold text-orange-400 uppercase tracking-widest relative z-10">{lesson.courses?.title || 'Course'}</h3>
               <div className="flex items-center gap-2 mt-2 relative z-10">
-                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">{courseLessons.length} Modules Total</span>
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em]">{courseLessons.length} lessons</span>
                 <div className="h-px flex-1 bg-muted" />
               </div>
             </div>
@@ -951,16 +1514,16 @@ export default function LessonDetailPage() {
                     onClick={() => setSidebarOpen(false)}
                     className={`flex items-center gap-4 p-4 rounded-none transition-all relative group overflow-hidden ${isActive ? 'bg-cyan-500/10 text-foreground shadow-xl ring-1 ring-cyan-500/20' : 'hover:bg-card shadow-sm text-muted-foreground hover:text-muted-foreground'}`}>
                     {isActive && <div className="absolute left-0 top-0 w-1 h-full bg-cyan-500 shadow-[0_0_15px_cyan]" />}
-                    
+
                     <div className={`shrink-0 w-8 h-8 rounded-none border flex items-center justify-center text-[10px] font-black transition-all ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-foreground shadow-lg shadow-emerald-500/20' : isActive ? 'bg-white text-black border-border' : 'border-border group-hover:border-border group-hover:bg-card shadow-sm'}`}>
                       {isCompleted ? <CheckBadgeIcon className="w-4 h-4" /> : idx + 1}
                     </div>
-                    
+
                     <div className="min-w-0 flex-1">
                       <span className={`text-[11px] font-black block truncate leading-tight uppercase tracking-wide ${isActive ? 'text-foreground' : 'text-current group-hover:text-muted-foreground'}`}>{l.title}</span>
                       <div className="flex items-center gap-2 mt-1">
-                         <span className="text-[8px] uppercase tracking-widest font-black opacity-30">{l.lesson_type}</span>
-                         {isCompleted && <span className="text-[8px] text-emerald-500 font-bold uppercase tracking-widest">Verified</span>}
+                        <span className="text-[8px] uppercase tracking-widest font-black opacity-30">{l.lesson_type}</span>
+                        {isCompleted && <span className="text-[8px] text-emerald-500 font-bold uppercase tracking-widest">Done</span>}
                       </div>
                     </div>
                   </Link>
@@ -971,29 +1534,29 @@ export default function LessonDetailPage() {
 
           <div className="p-8 border-t border-border bg-gradient-to-t from-black to-transparent">
             <Link href={classId ? `/dashboard/classes/${classId}` : `/dashboard/lessons`} className="flex items-center justify-center gap-3 px-6 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-[0.3em] transition-all shadow-xl active:scale-95 group">
-              <ArrowLeftIcon className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> 
-              {classId ? 'Leave Session' : 'Exit Hub'}
+              <ArrowLeftIcon className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+              {classId ? 'Back to Class' : 'Back to Lessons'}
             </Link>
           </div>
         </div>
       </aside>
 
-      <main className={`flex-1 overflow-y-auto relative ${isCinemaMode ? 'bg-black' : 'bg-[#070710]'} custom-scrollbar scroll-smooth`}>
+      <main className={`flex-1 overflow-y-auto relative ${isCinemaMode ? 'bg-black' : 'bg-background'} custom-scrollbar scroll-smooth`}>
         {/* Dynamic Progress Indicator */}
         <div className="fixed top-0 left-0 right-0 h-1.5 z-[100] md:left-[0px]">
-           <motion.div 
-             className="h-full bg-gradient-to-r from-orange-600 to-orange-400 via-indigo-500 to-orange-600 shadow-[0_0_15px_rgba(6,182,212,0.5)]"
-             style={{ width: `${scrollProgress}%` }}
-           />
+          <motion.div
+            className="h-full bg-gradient-to-r from-orange-600 to-orange-400 via-indigo-500 to-orange-600 shadow-[0_0_15px_rgba(6,182,212,0.5)]"
+            style={{ width: `${scrollProgress}%` }}
+          />
         </div>
         {/* Cinema Mode Toggle (for video) */}
         {lesson.lesson_type === 'video' && heroVideo && (
           <div className={`transition-all duration-700 ${isCinemaMode ? 'h-screen w-full' : 'h-0 overflow-hidden'}`}>
-             <iframe src={`https://www.youtube.com/embed/${heroVideo.url.includes('v=') ? heroVideo.url.split('v=')[1].split('&')[0] : heroVideo.url.split('/').pop()}?rel=0&autoplay=1`}
+            <iframe src={`https://www.youtube.com/embed/${heroVideo.url.includes('v=') ? heroVideo.url.split('v=')[1].split('&')[0] : heroVideo.url.split('/').pop()}?rel=0&autoplay=1`}
               className="w-full h-full border-0" allowFullScreen />
-             <button onClick={() => setIsCinemaMode(false)} className="absolute top-8 right-8 p-4 bg-black/60 backdrop-blur-md rounded-full text-foreground hover:scale-110 transition-transform">
-               <ArrowDownTrayIcon className="w-6 h-6 rotate-180" />
-             </button>
+            <button onClick={() => setIsCinemaMode(false)} className="absolute top-8 right-8 p-4 bg-black/60 backdrop-blur-md rounded-full text-foreground hover:scale-110 transition-transform">
+              <ArrowDownTrayIcon className="w-6 h-6 rotate-180" />
+            </button>
           </div>
         )}
 
@@ -1046,11 +1609,11 @@ export default function LessonDetailPage() {
             </header>
             {/* Nav Tabs - Modern Glass Style */}
             <div className="sticky top-0 z-30 pt-4 pb-12 -mx-4 px-4 sm:-mx-12 sm:px-12 md:relative md:p-0 md:m-0 flex justify-center sm:justify-start">
-               <div className="flex items-center gap-1.5 sm:gap-2 bg-[#0B0B1B]/95 backdrop-blur-3xl p-2 rounded-[2rem] border border-border w-fit shadow-3xl overflow-x-auto no-scrollbar max-w-full">
-                <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={LayoutIcon} label="Learning" />
+              <div className="flex items-center gap-1.5 sm:gap-2 bg-card/95 backdrop-blur-3xl p-2 rounded-none border border-border w-fit shadow-3xl overflow-x-auto no-scrollbar max-w-full">
+                <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')} icon={BookOpenIcon} label="Lesson" />
                 <TabBtn active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} icon={PaperClipIcon} label="Resources" count={materials.length} />
-                <TabBtn active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={ClipboardDocumentListIcon} label="Tasks" count={courseAssignments.length + programQuizzes.length} />
-                <TabBtn active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={AcademicCapIcon} label="Plan" />
+                <TabBtn active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={ClipboardDocumentListIcon} label="Assignments" count={courseAssignments.length + programQuizzes.length} />
+                <TabBtn active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={AcademicCapIcon} label="Lesson Plan" />
               </div>
             </div>
 
@@ -1058,66 +1621,141 @@ export default function LessonDetailPage() {
             <div className="min-h-[50vh]">
               {activeTab === 'content' && (
                 <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 space-y-20">
-                  <CanvaRenderer 
-                    blocks={lesson.content_layout || []} 
-                    lessonType={lesson.lesson_type} 
+                  {/* Lesson Intro Strip */}
+                  <div className="flex items-center gap-4 p-5 bg-card border border-border">
+                    <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                      <BookOpenIcon className="w-5 h-5 text-indigo-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Now viewing</p>
+                      <p className="text-sm font-bold text-foreground truncate">{lesson.title}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{lesson.duration_minutes || 60} min</span>
+                      {lesson.duration_minutes && (
+                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest border-l border-border pl-3">
+                          ~{Math.ceil((lesson.lesson_notes?.split(' ').length || 0) / 200)} min read
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* PRIMARY: Study Notes First */}
+                  <div className="space-y-12">
+                    <div className="flex items-center gap-4">
+                      <div className="h-px bg-indigo-500/20 w-12" />
+                      <h3 className="text-[11px] font-bold uppercase text-indigo-400 tracking-widest">Study Notes</h3>
+                      <div className="h-px flex-1 bg-indigo-500/10" />
+                      <div className="flex items-center gap-2 ml-auto">
+                        {lesson.lesson_notes && (
+                          <NeuralVoiceReader content={lesson.lesson_notes} title={lesson.title} />
+                        )}
+                        {isStaff && (
+                          <button
+                            onClick={handleGenerateNotes}
+                            disabled={generatingNotes}
+                            className="flex items-center gap-2 px-4 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all disabled:opacity-50"
+                          >
+                            {generatingNotes ? (
+                              <><div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" /> Generating...</>
+                            ) : (
+                              <><span className="text-base">✦</span> {lesson.lesson_notes ? 'Regenerate' : 'Generate Notes'}</>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {lesson.lesson_notes ? (
+                      <div className="max-w-none bg-card p-12 sm:p-20 rounded-none border border-border shadow-[0_20px_50px_rgba(0,0,0,0.3)] relative overflow-hidden group/notes">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[120px] pointer-events-none" />
+                        <div className="text-muted-foreground leading-relaxed text-base font-medium space-y-4">
+                          {lesson.lesson_notes.split('\n\n').map((para: string, idx: number) => {
+                            if (para.startsWith('### ')) return <h3 key={idx} className="text-lg font-black text-foreground pt-3 uppercase tracking-wide">{para.replace('### ', '').trim()}</h3>;
+                            if (para.startsWith('## ')) return <h2 key={idx} className="text-2xl font-black text-foreground pt-4 border-b border-white/5 pb-2 uppercase tracking-widest">{para.replace('## ', '').trim()}</h2>;
+                            if (para.startsWith('# ')) return <h1 key={idx} className="text-2xl font-black text-foreground pt-6">{para.replace('# ', '').trim()}</h1>;
+                            if (para.startsWith('- ') || para.startsWith('* ')) {
+                              const items = para.split('\n').filter(Boolean);
+                              return <ul key={idx} className="list-none space-y-2 pl-0">{items.map((item, ii) => <li key={ii} className="flex gap-3 items-start"><span className="text-indigo-500 mt-1 shrink-0">▸</span><span>{item.replace(/^[-*]\s*/, '')}</span></li>)}</ul>;
+                            }
+                            // Simple table support: lines starting with |
+                            if (para.includes('|') && para.split('\n').some(l => l.trim().startsWith('|'))) {
+                              const rows = para.split('\n').filter(l => l.trim().startsWith('|'));
+                              const cells = rows.map(r => r.split('|').filter(c => c.trim() !== '').map(c => c.trim()));
+                              if (cells.length > 0) {
+                                return (
+                                  <div key={idx} className="overflow-x-auto">
+                                    <table className="w-full text-xs border-collapse">
+                                      {cells.map((row, ri) => (
+                                        <tr key={ri} className={ri === 0 ? 'bg-white/5 font-black text-foreground' : 'border-t border-white/5 text-muted-foreground'}>
+                                          {row.map((cell, ci) => (
+                                            ri === 0
+                                              ? <th key={ci} className="px-4 py-2 text-left text-[10px] uppercase tracking-widest">{cell}</th>
+                                              : <td key={ci} className="px-4 py-2">{cell}</td>
+                                          ))}
+                                        </tr>
+                                      ))}
+                                    </table>
+                                  </div>
+                                );
+                              }
+                            }
+                            const bold = para.replace(/\*\*(.+?)\*\*/g, '<strong class="text-foreground font-black">$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>');
+                            return <p key={idx} className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: bold }} />;
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="max-w-none bg-card p-12 sm:p-20 rounded-none border border-dashed border-indigo-500/20 flex flex-col items-center justify-center gap-6 text-center min-h-[200px]">
+                        <div className="text-4xl opacity-30">📖</div>
+                        <div>
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">No study notes yet</p>
+                          <p className="text-sm text-muted-foreground font-medium">{isStaff ? 'Click "Generate Notes" above to create in-depth study material for this lesson.' : 'Detailed study notes will appear here once published by your instructor.'}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <CanvaRenderer
+                    blocks={lesson.content_layout || []}
+                    lessonType={lesson.lesson_type}
                     onInteraction={handleInteraction}
                   />
 
-                  {lesson.lesson_notes && (
-                    <div className="mt-32 pt-32 border-t border-border space-y-12">
-                      <div className="flex items-center gap-4">
-                        <div className="h-px flex-1 bg-muted" />
-                        <h3 className="text-[12px] font-black uppercase text-indigo-400 tracking-[0.6em]">Academic Transcript</h3>
-                        <div className="h-px flex-1 bg-muted" />
-                      </div>
-                      <div className="max-w-none bg-card p-12 sm:p-20 rounded-[4rem] border border-border shadow-3xl relative overflow-hidden group/notes">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[120px] pointer-events-none" />
-                        <div className="text-muted-foreground leading-loose text-lg whitespace-pre-wrap font-medium space-y-6">
-                           {lesson.lesson_notes.split('\n\n').map((para: string, idx: number) => {
-                             if (para.startsWith('##')) return <h2 key={idx} className="text-2xl font-black text-foreground pt-4 border-b border-white/5 pb-2 uppercase tracking-widest">{para.replace('##', '').trim()}</h2>;
-                             if (para.startsWith('#')) return <h1 key={idx} className="text-4xl font-black text-foreground pt-6">{para.replace('#', '').trim()}</h1>;
-                             return <p key={idx}>{para}</p>;
-                           })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  
+
                   {/* Logic: Interaction Progress Check */}
                   <div className="mt-24 sm:mt-40 pt-24 border-t border-border space-y-12">
-                     {!completed && (
-                       <div className="max-w-xl mx-auto p-8 bg-[#0B0B1B] border border-white/5 space-y-6">
-                         <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.4em]">
-                           <span className="text-muted-foreground flex items-center gap-2">
-                             <div className="w-2 h-2 rounded-full bg-orange-600 animate-pulse" />
-                             Session Persistence
-                           </span>
-                           <span className="text-orange-500">{interactions.size} Blocks Validated</span>
-                         </div>
-                         <div className="h-1 bg-white/5 rounded-none overflow-hidden">
-                           <motion.div 
-                             className="h-full bg-orange-600 shadow-[0_0_15px_rgba(234,88,12,0.5)]"
-                             initial={{ width: 0 }}
-                             animate={{ width: `${Math.min(100, (interactions.size / (lesson.content_layout?.filter((b: any) => b.type === 'quiz' || b.type === 'activity').length || 1)) * 100)}%` }}
-                           />
-                         </div>
-                       </div>
-                     )}
+                    {!completed && (
+                      <div className="max-w-xl mx-auto p-8 bg-card border border-white/5 space-y-6">
+                        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.4em]">
+                          <span className="text-muted-foreground flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-orange-600 animate-pulse" />
+                            Progress
+                          </span>
+                          <span className="text-orange-500">{interactions.size} interactive blocks done</span>
+                        </div>
+                        <div className="h-1 bg-white/5 rounded-none overflow-hidden">
+                          <motion.div
+                            className="h-full bg-orange-600 shadow-[0_0_15px_rgba(234,88,12,0.5)]"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min(100, (interactions.size / (lesson.content_layout?.filter((b: any) => b.type === 'quiz' || b.type === 'activity').length || 1)) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     {/* Lesson Complete & Navigation */}
                     <div className="flex flex-col items-center gap-12 sm:gap-20 text-center pb-40 sm:pb-56">
                       {!completed && profile?.role === 'student' ? (
                         <div className="relative group">
-                          <div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-orange-400 via-indigo-500 to-orange-600 rounded-[3rem] sm:rounded-[4rem] blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
-                          <button onClick={handleMarkComplete} disabled={marking} 
-                            className="relative px-12 sm:px-20 py-8 sm:py-12 bg-background rounded-[2.8rem] sm:rounded-[3.8rem] text-foreground flex flex-col items-center gap-4 transition-all active:scale-95 border border-border">
+                          <div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-orange-400 via-indigo-500 to-orange-600 rounded-none sm:rounded-none blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
+                          <button onClick={handleMarkComplete} disabled={marking}
+                            className="relative px-12 sm:px-20 py-8 sm:py-12 bg-background rounded-none sm:rounded-none text-foreground flex flex-col items-center gap-4 transition-all active:scale-95 border border-border">
                             <div className="p-5 bg-cyan-500/20 rounded-none text-cyan-400 shadow-2xl group-hover:scale-110 transition-transform duration-500">
-                               <CheckBadgeIcon className="w-10 h-10 sm:w-14 sm:h-14" />
+                              <CheckBadgeIcon className="w-10 h-10 sm:w-14 sm:h-14" />
                             </div>
                             <div>
-                              <span className="text-2xl sm:text-4xl font-black uppercase tracking-[0.2em]">{marking ? 'Processing...' : 'Sync Mastery'}</span>
-                              <span className="block text-[10px] sm:text-[12px] opacity-40 font-black uppercase tracking-[0.4em] mt-2">Close Operative Module</span>
+                              <span className="text-xl sm:text-3xl font-black uppercase tracking-[0.2em]">{marking ? 'Saving...' : 'Mark as Complete'}</span>
+                              <span className="block text-[10px] sm:text-[12px] opacity-40 font-black uppercase tracking-[0.4em] mt-2">Mark this lesson as completed</span>
                             </div>
                           </button>
                         </div>
@@ -1127,31 +1765,31 @@ export default function LessonDetailPage() {
                             <CheckBadgeIcon className="w-12 h-12 sm:w-20 sm:h-20" />
                           </div>
                           <div className="space-y-2">
-                             <h4 className="text-4xl sm:text-6xl font-black text-foreground italic tracking-tighter">Module Synchronized</h4>
-                             <p className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.5em]">Advancement Recorded</p>
+                            <h4 className="text-3xl sm:text-4xl font-black text-foreground italic tracking-tighter">Lesson Completed</h4>
+                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Progress saved</p>
                           </div>
                         </div>
                       )}
 
                       {nextLesson && (
-                        <div className="w-full max-w-4xl bg-background border border-border rounded-[4rem] p-10 sm:p-20 space-y-10 sm:space-y-14 group hover:border-cyan-500/20 transition-all shadow-3xl relative overflow-hidden">
-                           <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-600/5 blur-[120px] -mr-32 -mt-32 pointer-events-none" />
-                           <div className="space-y-6 relative z-10">
-                             <div className="flex items-center justify-center gap-4">
-                               <div className="h-px w-12 bg-cyan-500/30" />
-                               <h5 className="text-[12px] font-black uppercase tracking-[0.5em] text-cyan-500/60">Sequence Advance</h5>
-                               <div className="h-px w-12 bg-cyan-500/30" />
-                             </div>
-                             <h3 className="text-4xl sm:text-7xl font-black text-foreground group-hover:text-cyan-400 transition-colors tracking-tighter leading-none">{nextLesson.title}</h3>
-                             <div className="flex items-center justify-center gap-6">
-                                <span className="px-6 py-2 bg-card shadow-sm rounded-full text-[10px] font-black uppercase tracking-widest text-muted-foreground">{nextLesson.lesson_type}</span>
-                                <span className="text-[10px] font-black text-cyan-500/30 uppercase tracking-[0.3em]">Module {courseLessons.findIndex(l => l.id === nextLesson.id) + 1} of {courseLessons.length}</span>
-                             </div>
-                           </div>
-                           <Link href={`/dashboard/lessons/${nextLesson.id}${classId ? `?class_id=${classId}` : ''}`}
-                             className="relative z-10 inline-flex items-center gap-4 px-12 sm:px-16 py-6 sm:py-8 bg-white text-black font-black uppercase text-[12px] sm:text-[14px] tracking-[0.3em] rounded-none hover:bg-cyan-500 hover:text-foreground transition-all shadow-[0_20px_60px_rgba(255,255,255,0.1)] active:scale-95 group/btn">
-                             Engage Module <ChevronRightIcon className="w-5 h-5 transition-transform group-hover/btn:translate-x-2" />
-                           </Link>
+                        <div className="w-full max-w-4xl bg-background border border-border rounded-none p-10 sm:p-20 space-y-10 sm:space-y-14 group hover:border-cyan-500/20 transition-all shadow-3xl relative overflow-hidden">
+                          <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-600/5 blur-[120px] -mr-32 -mt-32 pointer-events-none" />
+                          <div className="space-y-6 relative z-10">
+                            <div className="flex items-center justify-center gap-4">
+                              <div className="h-px w-12 bg-cyan-500/30" />
+                              <h5 className="text-[12px] font-bold uppercase tracking-widest text-muted-foreground">Next Lesson</h5>
+                              <div className="h-px w-12 bg-cyan-500/30" />
+                            </div>
+                            <h3 className="text-3xl sm:text-5xl font-black text-foreground group-hover:text-cyan-400 transition-colors tracking-tighter leading-none">{nextLesson.title}</h3>
+                            <div className="flex items-center justify-center gap-6">
+                              <span className="px-6 py-2 bg-card shadow-sm rounded-full text-[10px] font-black uppercase tracking-widest text-muted-foreground">{nextLesson.lesson_type}</span>
+                              <span className="text-[10px] font-black text-cyan-500/30 uppercase tracking-[0.3em]">Module {courseLessons.findIndex(l => l.id === nextLesson.id) + 1} of {courseLessons.length}</span>
+                            </div>
+                          </div>
+                          <Link href={`/dashboard/lessons/${nextLesson.id}${classId ? `?class_id=${classId}` : ''}`}
+                            className="relative z-10 inline-flex items-center gap-4 px-12 sm:px-16 py-6 sm:py-8 bg-white text-black font-black uppercase text-[12px] sm:text-[14px] tracking-[0.3em] rounded-none hover:bg-cyan-500 hover:text-foreground transition-all shadow-[0_20px_60px_rgba(255,255,255,0.1)] active:scale-95 group/btn">
+                            Start Lesson <ChevronRightIcon className="w-5 h-5 transition-transform group-hover/btn:translate-x-2" />
+                          </Link>
                         </div>
                       )}
                     </div>
@@ -1162,8 +1800,8 @@ export default function LessonDetailPage() {
               {activeTab === 'materials' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
                   {materials.map((m: any) => (
-                    <a key={m.id} href={m.file_url} target="_blank" 
-                      className="group p-8 sm:p-10 bg-background border border-border rounded-[40px] flex flex-col gap-10 hover:bg-white/[0.03] hover:border-cyan-500/30 transition-all shadow-2xl relative overflow-hidden">
+                    <a key={m.id} href={m.file_url} target="_blank"
+                      className="group p-8 sm:p-10 bg-background border border-border rounded-none flex flex-col gap-10 hover:bg-white/[0.03] hover:border-cyan-500/30 transition-all shadow-2xl relative overflow-hidden">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-600/5 blur-3xl rounded-full" />
                       <div className="flex items-center justify-between relative z-10">
                         <div className="p-5 bg-cyan-500/10 rounded-none text-cyan-400 group-hover:scale-110 transition-transform shadow-xl">
@@ -1174,14 +1812,14 @@ export default function LessonDetailPage() {
                         </div>
                       </div>
                       <div className="space-y-3 relative z-10">
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400/50">{m.file_type || 'Shared Artifact'}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{m.file_type || 'Resource'}</p>
                         <h4 className="font-black text-2xl text-foreground group-hover:text-cyan-400 transition-colors leading-tight tracking-tight">{m.title}</h4>
                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-2">{m.file_size ? `${(m.file_size / 1024 / 1024).toFixed(2)} MB` : 'Cloud Link'}</p>
                       </div>
                     </a>
                   ))}
                   {materials.length === 0 && (
-                    <div className="col-span-full py-40 text-center bg-background border border-dashed border-border rounded-[3rem] shadow-2xl">
+                    <div className="col-span-full py-40 text-center bg-background border border-dashed border-border rounded-none shadow-2xl">
                       <PaperClipIcon className="w-16 h-16 mx-auto text-white/5 mb-6 opacity-20" />
                       <p className="text-xl font-black text-muted-foreground uppercase tracking-widest">No shared resources</p>
                     </div>
@@ -1192,16 +1830,35 @@ export default function LessonDetailPage() {
               {activeTab === 'tasks' && (
                 <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32">
                   <div className="space-y-6">
-                    <h3 className="text-xs font-black text-amber-500 uppercase tracking-[0.3em] flex items-center gap-3 px-6 py-2 bg-amber-500/5 border border-amber-500/10 rounded-full w-fit">
-                      <ClipboardDocumentListIcon className="w-4 h-4" /> Module Assessments
-                    </h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-amber-500 uppercase tracking-widest flex items-center gap-2 px-4 py-1.5 bg-amber-500/5 border border-amber-500/10 w-fit">
+                        <ClipboardDocumentListIcon className="w-4 h-4" /> Assignments
+                      </h3>
+                      {isStaff && (
+                        <Link
+                          href={`/dashboard/assignments/new?lesson_id=${lesson?.id}&course_id=${lesson?.course_id ?? ''}`}
+                          className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold uppercase tracking-widest transition-colors"
+                        >
+                          <PlusIcon className="w-3.5 h-3.5" /> Add Assignment
+                        </Link>
+                      )}
+                    </div>
                     {courseAssignments.length === 0 ? (
-                      <p className="text-muted-foreground text-xs italic px-6">No specific tasks assigned for this module.</p>
+                      <div className="flex flex-col items-center gap-3 py-12 text-center">
+                        <ClipboardDocumentListIcon className="w-10 h-10 text-muted-foreground/30" />
+                        <p className="text-muted-foreground text-sm">No assignments for this lesson yet.</p>
+                        {isStaff && (
+                          <Link href={`/dashboard/assignments/new?lesson_id=${lesson?.id}&course_id=${lesson?.course_id ?? ''}`}
+                            className="text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors">
+                            + Create the first assignment
+                          </Link>
+                        )}
+                      </div>
                     ) : (
                       <div className="grid grid-cols-1 gap-4">
                         {courseAssignments.map((a: any) => (
-                          <Link key={a.id} href={`/dashboard/assignments/${a.id}`} 
-                            className="p-8 sm:p-10 bg-background border border-border rounded-[40px] hover:bg-amber-500/[0.03] hover:border-amber-500/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
+                          <Link key={a.id} href={`/dashboard/assignments/${a.id}`}
+                            className="p-8 sm:p-10 bg-background border border-border rounded-none hover:bg-amber-500/[0.03] hover:border-amber-500/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-600/5 blur-3xl rounded-full" />
                             <div className="flex items-center gap-10 relative z-10">
                               <div className="p-6 bg-amber-500/10 border border-amber-500/20 rounded-none text-amber-500 group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
@@ -1219,7 +1876,7 @@ export default function LessonDetailPage() {
                               </div>
                             </div>
                             <div className="w-12 h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-amber-400 group-hover:border-amber-500/40 group-hover:translate-x-1 transition-all shadow-xl">
-                               <ChevronRightIcon className="w-6 h-6" />
+                              <ChevronRightIcon className="w-6 h-6" />
                             </div>
                           </Link>
                         ))}
@@ -1228,16 +1885,16 @@ export default function LessonDetailPage() {
                   </div>
 
                   <div className="space-y-6 pt-12 border-t border-border">
-                    <h3 className="text-xs font-black text-orange-400 uppercase tracking-[0.3em] flex items-center gap-3 px-6 py-2 bg-orange-500/5 border border-orange-500/10 rounded-full w-fit">
-                      <AcademicCapIcon className="w-4 h-4" /> Curriculum Quizzes
+                    <h3 className="text-xs font-bold text-orange-400 uppercase tracking-widest flex items-center gap-2 px-4 py-1.5 bg-orange-500/5 border border-orange-500/10 w-fit">
+                      <AcademicCapIcon className="w-4 h-4" /> CBT Exams
                     </h3>
                     {programQuizzes.length === 0 ? (
-                      <p className="text-muted-foreground text-xs italic px-6">No quizzes found in this programme curriculum.</p>
+                      <p className="text-muted-foreground text-xs italic px-4">No CBT exams found for this programme.</p>
                     ) : (
                       <div className="grid grid-cols-1 gap-4">
                         {programQuizzes.map((q: any) => (
-                          <Link key={q.id} href={`/dashboard/cbt/${q.id}`} 
-                            className="p-8 sm:p-10 bg-background border border-border rounded-[40px] hover:bg-orange-500/[0.03] hover:border-orange-500/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
+                          <Link key={q.id} href={`/dashboard/cbt/${q.id}`}
+                            className="p-8 sm:p-10 bg-background border border-border rounded-none hover:bg-orange-500/[0.03] hover:border-orange-500/30 transition-all group flex items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-orange-600/5 blur-3xl rounded-full" />
                             <div className="flex items-center gap-10 relative z-10">
                               <div className="p-6 bg-orange-500/10 border border-orange-500/20 rounded-none text-orange-400 group-hover:scale-110 transition-transform shadow-xl hidden sm:flex">
@@ -1246,14 +1903,14 @@ export default function LessonDetailPage() {
                               <div className="space-y-2">
                                 <h4 className="font-black text-2xl text-foreground group-hover:text-orange-400 transition-colors tracking-tight">{q.title}</h4>
                                 <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                                  <span className="px-3 py-1 bg-card shadow-sm rounded-none text-orange-500/60 font-black">{q.duration_minutes} Min Sync</span>
+                                  <span className="px-3 py-1 bg-card shadow-sm rounded-none text-orange-500/60 font-bold">{q.duration_minutes} min</span>
                                   <span className="w-1.5 h-1.5 rounded-full bg-muted"></span>
-                                  <span className="text-muted-foreground">{q.total_questions} Logical Units</span>
+                                  <span className="text-muted-foreground">{q.total_questions} questions</span>
                                 </div>
                               </div>
                             </div>
                             <div className="w-12 h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-orange-400 group-hover:border-orange-500/40 group-hover:translate-x-1 transition-all shadow-xl">
-                               <ChevronRightIcon className="w-6 h-6" />
+                              <ChevronRightIcon className="w-6 h-6" />
                             </div>
                           </Link>
                         ))}
@@ -1268,117 +1925,141 @@ export default function LessonDetailPage() {
                   {/* If it's a full course plan (structured) */}
                   {plans?.plan_data && Object.keys(plans.plan_data).length > 0 ? (
                     <div className="space-y-20">
-                      <div className="bg-background/40 backdrop-blur-xl border border-border rounded-[3rem] p-10 sm:p-20 relative overflow-hidden group shadow-3xl">
+                      <div className="bg-background/40 backdrop-blur-xl border border-border rounded-none p-10 sm:p-20 relative overflow-hidden group shadow-3xl">
                         <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-600/5 blur-[120px] -mr-48 -mt-48 group-hover:bg-cyan-600/10 transition-all duration-1000" />
                         <div className="relative z-10 space-y-8">
-                           <div className="flex items-center gap-4">
-                              <div className="px-5 py-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.4em] rounded-none">Executive Summary</div>
-                              <div className="h-px flex-1 bg-card shadow-sm" />
-                           </div>
-                           <h2 className="text-4xl sm:text-7xl font-black text-foreground leading-tight tracking-tight">{plans.plan_data.course_title}</h2>
-                           <p className="text-xl sm:text-3xl text-muted-foreground font-medium italic leading-relaxed border-l-4 border-cyan-500/30 pl-8">{plans.plan_data.description}</p>
-                           <div className="flex flex-wrap gap-6 pt-6">
-                              <div className="bg-card shadow-sm px-8 py-4 rounded-none border border-border">
-                                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Grade Level</p>
-                                 <p className="text-lg font-black text-foreground">{plans.plan_data.grade_level}</p>
-                              </div>
-                              <div className="bg-card shadow-sm px-8 py-4 rounded-none border border-border">
-                                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Duration</p>
-                                 <p className="text-lg font-black text-foreground">{plans.plan_data.duration}</p>
-                              </div>
-                           </div>
+                          <div className="flex items-center gap-4">
+                            <div className="px-4 py-1.5 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold uppercase tracking-widest">Overview</div>
+                            <div className="h-px flex-1 bg-card shadow-sm" />
+                          </div>
+                          <h2 className="text-3xl sm:text-5xl font-black text-foreground leading-tight tracking-tight">{plans.plan_data.course_title}</h2>
+                          <p className="text-xl sm:text-3xl text-muted-foreground font-medium italic leading-relaxed border-l-4 border-cyan-500/30 pl-8">{plans.plan_data.description}</p>
+                          <div className="flex flex-wrap gap-6 pt-6">
+                            <div className="bg-card shadow-sm px-8 py-4 rounded-none border border-border">
+                              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Grade Level</p>
+                              <p className="text-lg font-black text-foreground">{plans.plan_data.grade_level}</p>
+                            </div>
+                            <div className="bg-card shadow-sm px-8 py-4 rounded-none border border-border">
+                              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Duration</p>
+                              <p className="text-lg font-black text-foreground">{plans.plan_data.duration}</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
                       <div className="space-y-12">
                         <div className="flex items-center gap-6">
-                           <h3 className="text-2xl font-black text-foreground tracking-widest uppercase italic">Curriculum Timeline</h3>
-                           <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
+                          <h3 className="text-xl font-bold text-foreground uppercase tracking-widest">Weekly Breakdown</h3>
+                          <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
                         </div>
 
                         <div className="grid grid-cols-1 gap-8 relative pb-20">
-                           <div className="absolute left-7 sm:left-12 top-0 bottom-0 w-1 bg-card shadow-sm" />
-                           {plans.plan_data.weeks?.map((week: any, wIdx: number) => (
-                             <motion.div 
-                               initial={{ opacity: 0, x: -20 }}
-                               whileInView={{ opacity: 1, x: 0 }}
-                               transition={{ delay: wIdx * 0.1 }}
-                               key={wIdx} 
-                               className="relative pl-20 sm:pl-32 group"
-                             >
-                                <div className="absolute left-0 top-6 sm:top-8 w-14 sm:w-24 h-px bg-muted group-hover:bg-cyan-500/50 transition-colors" />
-                                <div className={`absolute left-4 sm:left-8 top-1 sm:top-2 w-8 h-8 sm:w-12 sm:h-12 rounded-none border-2 flex items-center justify-center text-[10px] sm:text-[12px] font-black z-10 transition-all ${wIdx % 2 === 0 ? 'bg-cyan-600 border-cyan-400 text-foreground shadow-[0_0_20px_rgba(6,182,212,0.3)]' : 'bg-background border-border text-muted-foreground'}`}>
-                                   {week.week}
-                                </div>
-                                <div className="bg-card shadow-sm border border-border rounded-[2.5rem] p-8 sm:p-12 hover:bg-white/[0.08] hover:border-cyan-500/20 transition-all shadow-2xl">
-                                   <div className="space-y-6">
-                                      <div className="space-y-1">
-                                         <p className="text-[10px] font-black text-cyan-400/60 uppercase tracking-[0.3em]">Week Focus</p>
-                                         <h4 className="text-2xl sm:text-4xl font-black text-foreground group-hover:text-cyan-400 transition-colors">{week.theme}</h4>
+                          <div className="absolute left-7 sm:left-12 top-0 bottom-0 w-1 bg-card shadow-sm" />
+                          {plans.plan_data.weeks?.map((week: any, wIdx: number) => (
+                            <motion.div
+                              initial={{ opacity: 0, x: -20 }}
+                              whileInView={{ opacity: 1, x: 0 }}
+                              transition={{ delay: wIdx * 0.1 }}
+                              key={wIdx}
+                              className="relative pl-20 sm:pl-32 group"
+                            >
+                              <div className="absolute left-0 top-6 sm:top-8 w-14 sm:w-24 h-px bg-muted group-hover:bg-cyan-500/50 transition-colors" />
+                              <div className={`absolute left-4 sm:left-8 top-1 sm:top-2 w-8 h-8 sm:w-12 sm:h-12 rounded-none border-2 flex items-center justify-center text-[10px] sm:text-[12px] font-black z-10 transition-all ${wIdx % 2 === 0 ? 'bg-cyan-600 border-cyan-400 text-foreground shadow-[0_0_20px_rgba(6,182,212,0.3)]' : 'bg-background border-border text-muted-foreground'}`}>
+                                {week.week}
+                              </div>
+                              <div className="bg-card shadow-sm border border-border rounded-none p-8 sm:p-12 hover:bg-white/[0.08] hover:border-cyan-500/20 transition-all shadow-2xl">
+                                <div className="space-y-6">
+                                  <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Theme</p>
+                                    <h4 className="text-xl sm:text-2xl font-black text-foreground group-hover:text-cyan-400 transition-colors">{week.theme}</h4>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-4">
+                                    <div className="space-y-4">
+                                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Core Topics</p>
+                                      <div className="space-y-2">
+                                        {week.topics?.map((t: string, ti: number) => (
+                                          <div key={ti} className="flex items-center gap-3 text-sm text-muted-foreground font-medium">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-500/40" /> {t}
+                                          </div>
+                                        ))}
                                       </div>
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-4">
-                                         <div className="space-y-4">
-                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Core Topics</p>
-                                            <div className="space-y-2">
-                                               {week.topics?.map((t: string, ti: number) => (
-                                                 <div key={ti} className="flex items-center gap-3 text-sm text-muted-foreground font-medium">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-500/40" /> {t}
-                                                 </div>
-                                               ))}
-                                            </div>
-                                         </div>
-                                         <div className="space-y-4">
-                                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Active Synthesis</p>
-                                            <div className="space-y-2">
-                                               {week.activities?.map((a: string, ai: number) => (
-                                                 <div key={ai} className="flex items-center gap-3 text-sm text-muted-foreground font-medium italic">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500/40" /> {a}
-                                                 </div>
-                                               ))}
-                                            </div>
-                                         </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Activities</p>
+                                      <div className="space-y-2">
+                                        {week.activities?.map((a: string, ai: number) => (
+                                          <div key={ai} className="flex items-center gap-3 text-sm text-muted-foreground font-medium italic">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-orange-500/40" /> {a}
+                                          </div>
+                                        ))}
                                       </div>
-                                   </div>
+                                    </div>
+                                  </div>
                                 </div>
-                             </motion.div>
-                           ))}
+                              </div>
+                            </motion.div>
+                          ))}
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pb-32">
-                         <div className="bg-card shadow-sm border border-border rounded-[3rem] p-10 sm:p-16 space-y-6">
-                            <h5 className="text-[11px] font-black text-orange-400 uppercase tracking-[0.4em]">Validation Protocol</h5>
-                            <p className="text-lg sm:text-2xl text-muted-foreground font-medium leading-relaxed italic">{plans.plan_data.assessment_strategy}</p>
-                         </div>
-                         <div className="bg-card shadow-sm border border-border rounded-[3rem] p-10 sm:p-16 space-y-6">
-                            <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-[0.4em]">Required Artifacts</h5>
-                            <div className="flex flex-wrap gap-2">
-                               {plans.plan_data.materials?.map((m: string, mi: number) => (
-                                 <span key={mi} className="px-5 py-2.5 bg-card shadow-sm rounded-none text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-widest border border-border">{m}</span>
-                               ))}
-                            </div>
-                         </div>
+                        <div className="bg-card shadow-sm border border-border rounded-none p-10 sm:p-16 space-y-6">
+                          <h5 className="text-[11px] font-bold text-orange-400 uppercase tracking-widest">Assessment Strategy</h5>
+                          <p className="text-lg sm:text-2xl text-muted-foreground font-medium leading-relaxed italic">{plans.plan_data.assessment_strategy}</p>
+                        </div>
+                        <div className="bg-card shadow-sm border border-border rounded-none p-10 sm:p-16 space-y-6">
+                          <h5 className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">Materials</h5>
+                          <div className="flex flex-wrap gap-2">
+                            {plans.plan_data.materials?.map((m: string, mi: number) => (
+                              <span key={mi} className="px-5 py-2.5 bg-card shadow-sm rounded-none text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-widest border border-border">{m}</span>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-12 sm:space-y-16">
-                      {lesson.objectives && lesson.objectives.length > 0 && (
+                      {plans?.objectives && (
                         <div className="relative">
                           <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-600 to-cyan-400 to-transparent rounded-full opacity-40"></div>
-                          <PlanBlock title="Target Learning Outcomes" content={lesson.objectives.join('\n\n')} />
+                          <PlanBlock title="Target Learning Outcomes" content={plans.objectives} />
                         </div>
                       )}
                       <div className="relative">
                         <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-600 to-orange-400 to-transparent rounded-full opacity-20"></div>
-                        <PlanBlock title="Curriculum Goals" content={plans?.objectives || lesson.description} />
+                        <PlanBlock title="Learning Goals" content={
+                          plans?.objectives ||
+                          (lesson.objectives?.length ? lesson.objectives.join('\n\n') : null) ||
+                          lesson.description
+                        } />
                       </div>
                       <div className="relative">
                         <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-500 to-transparent rounded-full opacity-20"></div>
-                        <PlanBlock title="Applied Learning Activities" content={plans?.activities} />
+                        <PlanBlock title="Activities" content={
+                          plans?.activities ||
+                          (lesson.content_layout || [])
+                            .filter((b: any) => b.type === 'activity')
+                            .map((b: any) => [
+                              b.title ? `◆ ${b.title}` : null,
+                              b.instructions || null,
+                              b.steps?.length ? b.steps.map((s: string, si: number) => `  ${si + 1}. ${s}`).join('\n') : null
+                            ].filter(Boolean).join('\n'))
+                            .join('\n\n') ||
+                          lesson.objectives?.join('\n\n')
+                        } />
                       </div>
                       <div className="relative">
                         <div className="absolute -left-4 sm:-left-8 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-600 to-orange-400 to-transparent rounded-full opacity-20"></div>
-                        <PlanBlock title="Assessment Strategy" content={plans?.assessment_methods} />
+                        <PlanBlock title="Assessment Strategy" content={
+                          plans?.assessment_methods ||
+                          (lesson.content_layout || [])
+                            .filter((b: any) => b.type === 'quiz' || b.type === 'assignment-block')
+                            .map((b: any) => b.type === 'quiz'
+                              ? `◈ Quiz: ${b.question}${b.options?.length ? '\n   Options: ' + b.options.join(' | ') : ''}`
+                              : `◆ ${b.title || 'Assignment'}\n   ${b.instructions || ''}\n${b.deliverables?.length ? '   Deliverables: ' + b.deliverables.join(', ') : ''}`
+                            )
+                            .join('\n\n')
+                        } />
                       </div>
                     </div>
                   )}
@@ -1386,6 +2067,12 @@ export default function LessonDetailPage() {
               )}
             </div>
           </div>
+        )}
+        {lesson && lesson.lesson_notes && (
+          <NeuralVoiceReader 
+            content={lesson.lesson_notes} 
+            title={lesson.title} 
+          />
         )}
       </main>
     </div>
@@ -1403,9 +2090,9 @@ const PlanBlock = ({ title, content }: any) => (
       <h4 className="text-[10px] sm:text-[11px] font-black uppercase text-cyan-400/60 tracking-[0.4em] sm:tracking-[0.5em]">{title}</h4>
       <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
     </div>
-    <div className="relative p-10 sm:p-14 bg-card shadow-sm border border-border rounded-[40px] sm:rounded-[60px] shadow-2xl overflow-hidden group-hover:border-cyan-500/20 transition-all">
-       <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-600/5 blur-3xl rounded-full" />
-       <p className="text-xl sm:text-3xl text-muted-foreground leading-relaxed sm:leading-[1.8] font-medium italic whitespace-pre-wrap relative z-10">{content || 'Curriculum details for this module are still being finalized. Check back soon.'}</p>
+    <div className="relative p-10 sm:p-14 bg-card shadow-sm border border-border rounded-none sm:rounded-none shadow-2xl overflow-hidden group-hover:border-cyan-500/20 transition-all">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-600/5 blur-3xl rounded-full" />
+      <p className="text-xl sm:text-3xl text-muted-foreground leading-relaxed sm:leading-[1.8] font-medium italic whitespace-pre-wrap relative z-10">{content || 'Curriculum details for this module are still being finalized. Check back soon.'}</p>
     </div>
   </div>
 );

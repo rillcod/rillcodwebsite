@@ -15,7 +15,8 @@ import {
   ChevronRightIcon, ClockIcon, InformationCircleIcon,
   BookOpenIcon, ClipboardDocumentListIcon,
   EyeIcon, ShareIcon, GlobeAltIcon, PuzzlePieceIcon,
-  DocumentTextIcon, CheckCircleIcon
+  DocumentTextIcon, CheckCircleIcon, ArrowUpTrayIcon,
+  StarIcon, CalendarIcon, ExclamationTriangleIcon
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -235,6 +236,15 @@ export default function CodeStudioPage() {
   const [tab, setTab] = useState<'projects' | 'browse' | 'canvas'>('projects');
   const [showBuilder, setShowBuilder] = useState(false);
 
+  // Assignment mode state
+  const [assignmentData, setAssignmentData] = useState<any>(null);
+  const [mySubmission, setMySubmission] = useState<any>(null);
+  const [submittingAssignment, setSubmittingAssignment] = useState(false);
+  const [assignmentSubmitted, setAssignmentSubmitted] = useState(false);
+
+  // My Tasks (pending assignments)
+  const [pendingTasks, setPendingTasks] = useState<any[]>([]);
+
   const htmlSnippets = [
     { name: 'Navbar', category: 'UI', code: '<nav style="background: #1e293b; padding: 1rem; color: white; display: flex; justify-content: space-between; align-items: center; border-radius: 0.5rem; margin-bottom: 1rem;">\n  <div style="font-weight: bold;">Rillcod Technologies</div>\n  <div style="display: flex; gap: 1rem; font-size: 0.8rem;">\n    <a>Home</a>\n    <a>Lessons</a>\n    <a>Profile</a>\n  </div>\n</nav>' },
     { name: 'Button', category: 'UI', code: '<button style="background: linear-gradient(to right, #8b5cf6, #6366f1); color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.75rem; font-weight: bold; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">Get Started</button>' },
@@ -342,6 +352,83 @@ export default function CodeStudioPage() {
         .then(d => setProjects(d.data ?? []));
     }
   }, [profile]);
+
+  // ── Load Assignment (when assignmentId in URL) ──
+  useEffect(() => {
+    if (!assignmentId || !profile) return;
+    const isStaff = profile.role === 'admin' || profile.role === 'teacher';
+    const url = isStaff ? `/api/assignments/${assignmentId}` : `/api/assignments/${assignmentId}/student`;
+    fetch(url)
+      .then(r => r.json())
+      .then(d => {
+        if (d.data) {
+          setAssignmentData(d.data);
+          // Load starter code if provided in assignment description
+          const starter = d.data.starter_code;
+          if (starter) setCode(starter);
+          // Set language based on assignment
+          if (d.data.assignment_type === 'coding') setLang('python');
+          // Student: get their existing submission
+          const sub = d.data.assignment_submissions?.[0] ?? null;
+          setMySubmission(sub);
+          if (sub?.submission_text) {
+            // Extract code from submission_text if it has code fences
+            const match = sub.submission_text.match(/```[\s\S]*?\n([\s\S]*?)```/);
+            if (match) setCode(match[1]);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [assignmentId, profile]);
+
+  // ── Load Pending Tasks (student's unsubmitted assignments) ──
+  useEffect(() => {
+    if (!profile || profile.role !== 'student') return;
+    const db = createClient();
+    db.from('assignments')
+      .select('id, title, due_date, max_points, assignment_type, assignment_submissions(id, status)')
+      .eq('is_active', true)
+      .order('due_date', { ascending: true })
+      .limit(8)
+      .then(({ data }) => {
+        if (!data) return;
+        const pending = data.filter((a: any) => {
+          const mySub = a.assignment_submissions?.find((s: any) => true); // student-scoped via RLS
+          return !mySub || mySub.status === 'missing';
+        }).slice(0, 5);
+        setPendingTasks(pending);
+      });
+  }, [profile]);
+
+  // ── Submit Code to Assignment ──
+  const submitToAssignment = async () => {
+    if (!assignmentId || !profile || !code.trim()) return;
+    setSubmittingAssignment(true);
+    try {
+      const submissionText = `\`\`\`python\n${code}\n\`\`\`\n\nOutput:\n${consoleLogs.join('\n')}`;
+      const res = await fetch(`/api/assignments/${assignmentId}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          portal_user_id: profile.id,
+          submission_text: submissionText,
+        }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setMySubmission(d.data);
+        setAssignmentSubmitted(true);
+        toast.success('Assignment submitted successfully!');
+      } else {
+        const j = await res.json();
+        toast.error(j.error || 'Submission failed');
+      }
+    } catch {
+      toast.error('Submission failed. Check connection.');
+    } finally {
+      setSubmittingAssignment(false);
+    }
+  };
 
   // ── Run Code ──
   const runCode = async () => {
@@ -576,10 +663,28 @@ robot = Robot()
               <span className="hidden sm:inline">Lesson</span>
             </div>
           )}
-          {assignmentId && (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-rose-500/10 border border-rose-500/10 rounded-none text-rose-500/60">
-              <ClipboardDocumentListIcon className="w-3 h-3" />
-              <span className="hidden sm:inline">Homework</span>
+          {assignmentId && assignmentData && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-none text-amber-400 max-w-[160px]">
+                <ClipboardDocumentListIcon className="w-3 h-3 shrink-0" />
+                <span className="text-[8px] font-black truncate">{assignmentData.title}</span>
+              </div>
+              {profile?.role === 'student' && !assignmentSubmitted && mySubmission?.status !== 'graded' && (
+                <button
+                  onClick={submitToAssignment}
+                  disabled={submittingAssignment || !code.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded-none text-[9px] font-black uppercase tracking-widest transition-all"
+                >
+                  {submittingAssignment ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <ArrowUpTrayIcon className="w-3 h-3" />}
+                  Submit
+                </button>
+              )}
+              {(assignmentSubmitted || mySubmission?.status === 'submitted' || mySubmission?.status === 'graded') && (
+                <div className="flex items-center gap-1 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-none text-emerald-400 text-[8px] font-black uppercase">
+                  <CheckCircleIcon className="w-3 h-3" />
+                  {mySubmission?.status === 'graded' ? 'Graded' : 'Submitted'}
+                </div>
+              )}
             </div>
           )}
           {(lang === 'python' || lang === 'robotics') && !pyodideRef.current && (
@@ -636,7 +741,79 @@ robot = Robot()
                 </button>
               </div>
               <div className="p-4 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
-                
+
+                {/* Assignment Context Panel */}
+                {assignmentId && assignmentData && (
+                  <div className="bg-amber-500/5 border border-amber-500/20 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <ClipboardDocumentListIcon className="w-4 h-4 text-amber-400 shrink-0" />
+                      <p className="text-[9px] font-black text-amber-400 uppercase tracking-[0.3em]">Active Assignment</p>
+                    </div>
+                    <h3 className="text-sm font-black text-white leading-tight">{assignmentData.title}</h3>
+                    {assignmentData.description && (
+                      <p className="text-[10px] text-white/40 font-medium leading-relaxed line-clamp-3">{assignmentData.description}</p>
+                    )}
+                    {assignmentData.instructions && (
+                      <div className="p-3 bg-amber-500/10 border border-amber-500/10">
+                        <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-1">Instructions</p>
+                        <p className="text-[10px] text-white/50 leading-relaxed">{assignmentData.instructions}</p>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-[9px] font-black text-white/30 uppercase tracking-widest">
+                      {assignmentData.due_date && (
+                        <span className="flex items-center gap-1">
+                          <CalendarIcon className="w-3 h-3" />
+                          Due {new Date(assignmentData.due_date).toLocaleDateString()}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <StarIcon className="w-3 h-3 text-amber-400" />
+                        {assignmentData.max_points || 100} pts
+                      </span>
+                    </div>
+                    {mySubmission?.status === 'graded' && mySubmission.grade != null && (
+                      <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 text-center">
+                        <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Score</p>
+                        <p className="text-xl font-black text-emerald-400">{mySubmission.grade}/{assignmentData.max_points || 100}</p>
+                        {mySubmission.feedback && <p className="text-[9px] text-white/40 mt-1 italic">"{mySubmission.feedback}"</p>}
+                      </div>
+                    )}
+                    <a href={`/dashboard/assignments/${assignmentId}`} className="block text-center text-[9px] font-black text-amber-400/50 hover:text-amber-400 uppercase tracking-widest transition-colors">
+                      View Assignment →
+                    </a>
+                  </div>
+                )}
+
+                {/* My Tasks panel (student, no assignmentId) */}
+                {!assignmentId && pendingTasks.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] block px-1">Pending Tasks</label>
+                    {pendingTasks.map((task: any) => {
+                      const overdue = task.due_date && new Date(task.due_date) < new Date();
+                      return (
+                        <a
+                          key={task.id}
+                          href={`/dashboard/playground?assignmentId=${task.id}`}
+                          className="group flex items-start gap-3 p-3 bg-card shadow-sm border border-border hover:border-amber-500/30 hover:bg-amber-500/5 rounded-none transition-all"
+                        >
+                          <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${overdue ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-bold text-white/70 group-hover:text-amber-400 truncate transition-colors">{task.title}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {task.due_date && (
+                                <span className={`text-[8px] font-black uppercase tracking-widest ${overdue ? 'text-rose-400' : 'text-white/30'}`}>
+                                  {overdue ? '⚠ Overdue' : `Due ${new Date(task.due_date).toLocaleDateString()}`}
+                                </span>
+                              )}
+                              <span className="text-[8px] font-black text-white/20 uppercase">{task.max_points}pts</span>
+                            </div>
+                          </div>
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* Mode Selector */}
                 <div>
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] block mb-4 pl-1">Engineering Environments</label>
@@ -938,7 +1115,7 @@ robot = Robot()
                initial={{ y: 20, opacity: 0 }}
                animate={{ y: 0, opacity: 1 }}
                exit={{ y: 20, opacity: 0 }}
-               className="w-full max-w-lg bg-[#0d1526] border border-border rounded-[3rem] p-8 shadow-2xl relative overflow-hidden"
+               className="w-full max-w-lg bg-card border border-border rounded-none p-8 shadow-2xl relative overflow-hidden"
              >
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
                 <button onClick={() => setShowAIModal(false)} className="absolute top-6 right-6 p-2 hover:bg-card shadow-sm rounded-full text-muted-foreground transition-all">

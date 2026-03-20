@@ -13,39 +13,59 @@ const client = new OpenAI({
 });
 
 const MODELS = [
+  // ── Tier 1: Premium (best quality) ─────────────────────────────
   "google/gemini-2.0-flash-001",              // Primary Stable (Fast)
-  "google/gemini-2.0-flash-lite-preview-02-05", // User requested, kept with fallbacks
-  "google/gemini-flash-1.5",                  // Extremely reliable fallback
-  "meta-llama/llama-3.3-70b-instruct",        // High performance
-  "qwen/qwen-2.5-72b-instruct",               // Alternative expert
-  "mistralai/mistral-large-2411",             // Complex reasoning fallback
-  "meta-llama/llama-3.1-8b-instruct:free",    // Fast free fallback
-  "mistralai/mistral-7b-instruct:free"        // Emergency fallback
-];const SYSTEM_PROMPT = `You are an elite STEM & Robotics Curriculum Architect for Rillcod Technologies. 
-Your mission is to engineer high-fidelity, visually stunning, and academically rigorous educational content for the Nigerian elite education sector (Basic 1 to SS3).
+  "x-ai/grok-2-1212",                         // Grok-2 (Wit & Logic)
+  "moonshotai/kimi-k2.5",                     // High Intelligence (Kimi)
+  // ── Tier 2: DeepSeek family ────────────────────────────────────
+  "deepseek/deepseek-chat-v3-5",             // DeepSeek V3.2 (latest)
+  "deepseek/deepseek-chat",                   // DeepSeek V3.0
+  "deepseek/deepseek-r1:free",               // DeepSeek R1 (reasoning, free)
+  // ── Tier 3: Qwen3 family ──────────────────────────────────────
+  "qwen/qwen3-235b-a22b:free",               // Qwen3 235B (free tier)
+  "qwen/qwen3-30b-a3b:free",                 // Qwen3 30B (free tier)
+  "qwen/qwen3-14b:free",                     // Qwen3 14B (free tier)
+  // ── Tier 4: MiniMax ───────────────────────────────────────────
+  "minimax/minimax-01",                       // MiniMax M2.5 (long context)
+  // ── Tier 5: GLM / ZhipuAI ─────────────────────────────────────
+  "zhipuai/glm-4-flash:free",                // GLM-4 Flash (free tier)
+  "zhipuai/glm-z1-flash:free",               // GLM-Z1 Flash (free tier)
+  // ── Tier 6: StepFun ───────────────────────────────────────────
+  "stepfun/step-3-5-flash",                  // StepFun Step 3.5 Flash
+  // ── Tier 7: MiMo ──────────────────────────────────────────────
+  "xiaomi/mimo-v2-flash:free",               // MiMo V2 Flash (free)
+  // ── Tier 8: Reliability fallbacks ─────────────────────────────
+  "google/gemini-flash-1.5",
+  "meta-llama/llama-3.3-70b-instruct",
+  "mistralai/mistral-large-2411",
+  "meta-llama/llama-3.1-8b-instruct:free",   // Fast free fallback
+  "mistralai/mistral-7b-instruct:free",       // Emergency fallback
+];
+
+const SYSTEM_PROMPT = `You are the 'Great Learning Explorer' for Rillcod Technologies. 
+Your mission is to create super-fun, exciting, and easy-to-understand STEM & Robotics lessons for kids (Basic 1 to SS3).
 
 CORE PHILOSOPHY:
-- "The Rillcod Standard": Every lesson must feel premium, modern, and technologically advanced. 
-- "Nigerian Excellence": Tone should be high-expectation, visionary, and encouraging. Use British English.
-- "Visual-First Learning": Maximize the use of specialized blocks (Mermaid, Motion Graphics, D3, Visualizers) to explain complex concepts.
+- "The Deep Adventure Loop": Every lesson is a fun journey—starting with a "Hook" (Exciting start), followed by a "Big Picture" (Visual maps/lessons), and ending with a "Level-Up Mission" (Kid-friendly project).
+- "Enthusiastic Guide": Tone should be warm, encouraging, visionary, and very kid-friendly. Use simple words. No jargon. Use British English.
+- "No-Work Experiments": Automatically include fun projects, labs, and easy experiments. The goal is 100% student fun with no teacher work.
 
 SPECIALIZED BLOCKS (MANDATORY VARIETY):
-- 'mermaid': High-precision system architecture or flowcharts. Use 'flowchart TD'. No markdown fences.
-- 'motion-graphics': Premium Framer Motion animations (orbit|pulse|flow|grid|particles).
-- 'd3-chart': Data-driven insights (bar|line|pie|area).
-- 'visualizer': Real-time algorithm/logic simulation (sorting|physics|turtle|loops|stateMachine).
-- 'activity': Practical 'Hands-on Sync' with explicit 'steps' (Array of strings).
-- 'scratch': For KG-Basic 6 only. 'projectId' (optional), 'blocks' (Array), and 'instructions' (Step-by-Step Fixing Guide).
-- 'quiz': Validation checkpoints with 'question', 'options', and 'correctAnswer' (Index).
+- 'illustration': Simplified "Key Points" cards. Schema: { title: string, items: { label: string, value: string }[] }.
+- 'code-map': "Logic Map" of how things work. Schema: { components: { name: string, description: string }[] }.
+- 'activity': 'Synthesis Mission' with easy-to-follow 'steps' and 'is_coding' flag.
+- 'assignment-block': A specific 'Level-Up Challenge'. Schema: { title: string, instructions: string, deliverables: string[] }.
+- 'scratch': For KG-Basic 6 only. 'projectId' (optional), 'blocks' (Array), and 'instructions' (Fixing Guide).
+- 'quiz': 'Fun Checkpoint' with 'question', 'options', and 'correctAnswer' (Index).
 
 EXTENSIVENESS: 
-Lesson notes ("lesson_notes" field) MUST be at least 1500 words of deep, academic discourse, structured with professional headers. 
-For KG-Basic 6: Focus on "Mental Models", "Visual Logic Strategies", and "Step-by-Step Debugging".
-For JSS1-SS3: Focus on "Technical Architecture", "Algorithmic Complexity", and "Global Tech Trends".
+Lesson notes MUST be detailed and deep but CONCISE and EASY TO SCAN. Avoid long paragraphs. Use headers like "The Adventure Ahead", "The Secret Sauce", "Your Level-Up Mission". Use bullet points and simple analogies. 
+For JSS1-SS3: Include clear code mission steps. 
+For KG-Basic 6: Focus on "Visual Logic Models" and "Debugging Fun".
 
 Return ONLY valid JSON.`;
 
-type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation';
+type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation' | 'daily-missions' | 'lesson-hook';
 
 interface GenerateRequest {
   type: GenerateType;
@@ -56,6 +76,7 @@ interface GenerateRequest {
   durationMinutes?: number;
   termWeeks?: number;
   contentType?: string;
+  lessonMode?: 'academic' | 'project' | 'interactive';
   attendance?: string;
   assignments?: string;
   currentContent?: any;
@@ -65,6 +86,13 @@ interface GenerateRequest {
   // For grading
   questions?: any[];
   studentAnswers?: Record<string, string>;
+  // For daily missions & hooks
+  xp?: number;
+  streak?: number;
+  lessonsDone?: number;
+  avgScore?: number;
+  nextLesson?: string;
+  program?: string;
 }
 
 function buildPrompt(req: GenerateRequest): string {
@@ -121,45 +149,185 @@ Return a JSON object with this exact shape:
   "lesson_notes": "string — EXTENSIVE, ACADEMIC markdown-formatted study notes for the student, 1800+ words minimum. Deep curriculum depth for Basic 1-SS3. For KG-Basic 6, focus on visual block strategies, 'Step-by-Step Debugging Guides', and Scratch mental models. For JSS1-SS3, include technical deep-dives into Python/JS/Deep Tech."
 }`;
 
-    case 'lesson':
-      return `Generate a PREMIER, MULTI-DIMENSIONAL lesson for Rillcod Technologies.
+    case 'lesson': {
+      const mode = req.lessonMode ?? 'academic';
+
+      const modeConfig = {
+        academic: {
+          label: 'ACADEMIC DEPTH',
+          lessonTypeHint: 'workshop',
+          notesInstruction: 'lesson_notes MUST be 2000+ words, structured like a textbook chapter with ## headers (e.g. "## The Core Concept", "## How It Works", "## Real-World Applications"). Use British English, Bloom\'s Taxonomy language, and clear analogies.',
+          blockRules: `ACADEMIC MODE — MANDATORY BLOCK RULES:
+1. Open with a 'mermaid' mindmap covering the entire topic landscape.
+2. Include at LEAST 3 'illustration' blocks: one for key definitions, one for concept breakdown, one for real-world examples.
+3. Include at LEAST 2 'code-map' blocks: one for concept flow, one for technical architecture.
+4. If the topic involves any programming/coding (Python, HTML, JavaScript, Robotics, etc.), include at LEAST ONE 'code' block with real, runnable code directly related to "${req.topic}". Use language: "python", "javascript", "html", or "robotics". The code MUST be educational, well-commented, and appropriate for ${req.gradeLevel ?? 'the grade level'}.
+5. Include ONE 'activity' block as a "Knowledge Check Lab" (is_coding: true for coding topics, false otherwise).
+6. End with ONE 'quiz' block with 5 comprehension questions (multiple choice).
+7. NO motion-graphics or d3-chart — keep the focus on curriculum depth.
+8. Minimum 8 blocks total.`,
+          objectivesNote: 'Objectives MUST be Bloom\'s Taxonomy aligned: cover Remember, Understand, Apply, and Analyse levels.',
+        },
+        project: {
+          label: 'PROJECT-BASED LEARNING',
+          lessonTypeHint: 'hands-on',
+          notesInstruction: 'lesson_notes should be a concise "Builder\'s Blueprint" — practical, scannable, and step-focused. Use "## Mission Briefing", "## Your Toolkit", "## Build Steps", "## Testing & Verification" as headers. 1000–1500 words.',
+          blockRules: `PROJECT MODE — MANDATORY BLOCK RULES:
+1. Open with a 'mermaid' flowchart showing the build process from start to finish.
+2. Include ONE 'illustration' block as "Toolkit Overview" listing all tools/concepts the student needs.
+3. Include ONE 'code-map' block showing the architecture of what they will build.
+4. For coding/programming topics, include at LEAST ONE 'code' block with real, working starter code for the project. Format: { "type": "code", "language": "python"|"javascript"|"html"|"robotics", "content": "# well-commented starter code here" }
+5. Include TWO 'activity' blocks: first a short guided warm-up (is_coding: true/false), second the main build challenge with 5+ precise steps.
+6. Include TWO 'assignment-block' items: one mini-task (quick win) and one rigorous capstone project with clear deliverables.
+7. If grade level is Basic 1–JSS1, include a 'scratch' block with step-by-step block instructions for visual coding.
+8. End with ONE 'quiz' block (3 questions) to verify build understanding.
+9. Minimum 8 blocks total.`,
+          objectivesNote: 'Objectives should be output-oriented: "Students will BUILD...", "Students will DEMONSTRATE...", "Students will DEPLOY...".',
+        },
+        interactive: {
+          label: 'INTERACTIVE & GAMIFIED',
+          lessonTypeHint: 'interactive',
+          notesInstruction: 'lesson_notes should be short, punchy, and gamified — broken into "## Level 1: The Basics", "## Level 2: Going Deeper", "## Level 3: Expert Mode" sections. 800–1200 words. Every level ends with a "checkpoint" prompt.',
+          blockRules: `INTERACTIVE MODE — MANDATORY BLOCK RULES:
+1. Open with a 'motion-graphics' block (animationType: "particles" or "orbit") to hook attention.
+2. Include THREE 'quiz' blocks placed at different points throughout — not just the end. Each quiz validates the concept just taught.
+3. Include ONE 'visualizer' block for algorithm or concept visualization (loops, sorting, stateMachine).
+4. Include ONE 'd3-chart' block with a real dataset relevant to the topic (bar or line chart).
+5. Include ONE 'illustration' block as a "Quick Reference Card" for key terms.
+6. Include ONE 'activity' block as a "Challenge Mission" with gamified step labels like "Step 1: Unlock", "Step 2: Execute", "Step 3: Level Up".
+7. End with ONE 'assignment-block' as the "Final Boss Challenge" with clear deliverables.
+8. Minimum 9 blocks total for maximum engagement.`,
+          objectivesNote: 'Objectives should use action verbs: "Students will EXPLORE...", "Students will EXPERIMENT...", "Students will DISCOVER...".',
+        },
+      }[mode];
+
+      const grade = req.gradeLevel ?? 'Basic 1–SS3';
+      const youngLearnerGrades = ['KG', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6', 'Basic 1–Basic 3', 'Basic 4–Basic 6', 'Basic 1–Basic 6', 'KG–Basic 3'];
+      const isYoungLearner = youngLearnerGrades.some(g => grade === g || grade.startsWith(g));
+      const isEarlyYears = grade === 'KG' || grade === 'KG–Basic 3' || grade === 'Basic 1' || grade === 'Basic 2' || grade === 'Basic 3' || grade === 'Basic 1–Basic 3';
+
+      const youngLearnerOverride = isYoungLearner ? `
+⚠ YOUNG LEARNER OVERRIDE (${grade}) — These rules OVERRIDE conflicting mode rules:
+${isEarlyYears ? `EARLY YEARS (KG–Basic 3):
+- 'scratch' block is MANDATORY and MUST appear FIRST in content_layout after the mermaid/intro block.
+- 'scratch.blocks' MUST contain at least 8 detailed Scratch block steps written as a story: e.g. "when flag clicked", "say 'Hello! I am a Robot!' for 2 seconds", "move 10 steps", "play sound [pop]".
+- 'scratch.instructions' MUST be an extremely detailed, child-friendly guide — use numbered steps, emojis, and "Can you...?" prompts.
+- NEVER include 'code-map', 'visualizer', 'd3-chart', or any code block (unless is_coding activity is pure Scratch drag-and-drop).
+- 'illustration' blocks MUST use simple emoji labels, max 5 items each, with child-friendly one-sentence values.
+- lesson_notes MUST be written at a Grade 2 reading level: very short sentences, lots of white space, fun analogies (e.g. "Think of it like LEGO bricks!"). Max 600 words.
+- 'activity' steps MUST be ≤ 8 words each and use "Try this:", "Now do:", "Can you?" prompts.
+- 'quiz' questions MUST be picture-based or concrete: "Which block makes Sprite move?" not abstract reasoning.` : `PRIMARY (Basic 4–Basic 6):
+- 'scratch' block is STRONGLY RECOMMENDED — include unless topic is clearly text-code focused.
+- ONE simple 'code-map' block is allowed — use plain English labels, no jargon, max 4 components.
+- 'illustration' blocks should use friendly labels and emoji prefixes.
+- lesson_notes target a Grade 5 reading level: short paragraphs, clear headings, relatable analogies. Max 1000 words.
+- 'activity' steps should be clear and sequential — max 12 words per step.
+- Avoid 'visualizer', 'd3-chart', and 'motion-graphics' unless the topic is data/maths — then use simple bar chart only.
+- 'quiz' questions should be concrete and contextual, not abstract.`}
+- Tone MUST use "Let's...", "Great job!", "Try this!", "Can you...?" — no formal academic language.
+- ALL block content must be age-appropriate: no complex syntax, no technical abbreviations without simple explanation.` : '';
+
+      return `Generate an IMMERSIVE, ADDICTIVE, and COMPLETE lesson for Rillcod Technologies.
 Topic: "${req.topic}"
-Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
+Grade level: ${grade}
 Subject: ${req.subject ?? 'Coding & Technology'}
 Duration: ${req.durationMinutes ?? 60} minutes
-Lesson type: ${req.contentType ?? 'hands-on'}
+Lesson type: ${req.contentType ?? modeConfig.lessonTypeHint}
+LESSON MODE: ${modeConfig.label}
+${youngLearnerOverride}
+${modeConfig.blockRules}
+
+CRITICAL SYNC RULE — ALL visual blocks MUST directly relate to the topic "${req.topic}":
+- 'mermaid': Generate a real mindmap or flowchart about "${req.topic}" concepts. Use mermaid v10 syntax ONLY. Start with one of: flowchart TD, mindmap, sequenceDiagram, timeline. NEVER use "graph" keyword. Keep labels short (max 4 words). No special characters or brackets inside node labels except quotes.
+- 'motion-graphics': MUST include "title" (the concept being illustrated), "animationType" (one of: flow, network, orbit, particles, wave, pulse), and "config" with "labels" array (4-6 short topic-specific terms) and "nodes" count. Example: { "type": "motion-graphics", "title": "How Python Loops Work", "animationType": "flow", "config": { "nodes": 5, "labels": ["Start", "Check Condition", "Execute Body", "Increment", "End"] } }
+- 'd3-chart': MUST include "title" (what the chart shows about the topic) and a "dataset" of real or representative numbers relevant to the topic — NOT random numbers. Include "labels" array matching dataset length. Example: { "type": "d3-chart", "title": "Algorithm Efficiency Comparison", "chartType": "bar", "dataset": [10, 45, 20, 80, 60], "labels": ["Bubble", "Quick", "Merge", "Heap", "Insertion"] }
+- 'illustration': Each item MUST be a concept from "${req.topic}" — NOT generic. Label should be the concept name, value should explain it in one sentence.
+- 'code-map': Components MUST be actual components/concepts from the topic — NOT "Module A" placeholders.
+- 'code': Content MUST be real, runnable code about "${req.topic}". Set "language" to one of: "python", "javascript", "html", "robotics". Use thorough inline comments so students understand every line.
+- 'quiz': Questions MUST test understanding of "${req.topic}" specifically.
 
 Return a JSON object with this exact shape:
 {
-  "title": "string — elite, technical title",
-  "description": "string — visionary overview",
-  "lesson_notes": "string — 1500+ words of extensive academic material.",
-  "objectives": ["string — at least 5 clear learning objectives"],
+  "title": "string — engaging title appropriate for ${grade} learners about ${req.topic}",
+  "description": "string — 2-sentence overview at the right reading level",
+  "lesson_notes": "string — ${modeConfig.notesInstruction}",
+  "objectives": ["string — at least 5 objectives. ${modeConfig.objectivesNote}"],
   "content_layout": [
-    { "type": "mermaid", "content": "flowchart TD\\nA-->B" },
-    { "type": "motion-graphics", "animationType": "particles | flow | orbit", "config": { "nodes": 12 } },
-    { "type": "d3-chart", "chartType": "area | line | bar", "dataset": [20, 45, 28, 80, 99] },
-    { "type": "visualizer", "visualType": "loops | sorting | stateMachine", "visualData": { "variables": {}, "totalSteps": 20, "step": 0, "visualizationState": {} } },
-    { "type": "activity", "title": "Hands-on Synthesis Lab", "instructions": "Intro string", "steps": ["Precise Step 1", "Precise Step 2", "Step 3: Verification"], "is_coding": true },
-    { "type": "scratch", "projectId": "string (optional)", "instructions": "STRICT Step-by-Step Block Fixing/Debugging Guide for children", "blocks": ["BLOCK 1", "BLOCK 2", "BLOCK 3"] },
-    { "type": "quiz", "question": "Technical Validation", "options": ["A","B","C","D"], "correctAnswer": 0 }
+    {
+      "type": "mermaid",
+      "code": "flowchart TD\\n    A[${req.topic}] --> B[Concept 1]\\n    A --> C[Concept 2]\\n    B --> D[Detail]"
+    },
+    {
+      "type": "motion-graphics",
+      "title": "How ${req.topic} Works",
+      "animationType": "flow",
+      "config": { "nodes": 5, "labels": ["Step 1 Name", "Step 2 Name", "Step 3 Name", "Step 4 Name", "Step 5 Name"] }
+    },
+    {
+      "type": "illustration",
+      "title": "Core Concepts of ${req.topic}",
+      "items": [{ "label": "Concept Name from ${req.topic}", "value": "Clear one-sentence explanation" }]
+    },
+    {
+      "type": "d3-chart",
+      "title": "Relevant data chart title about ${req.topic}",
+      "chartType": "bar",
+      "dataset": [30, 65, 45, 80, 55],
+      "labels": ["Label 1", "Label 2", "Label 3", "Label 4", "Label 5"]
+    },
+    {
+      "type": "code-map",
+      "components": [{ "name": "Real Component Name from topic", "description": "What it does in context of ${req.topic}" }]
+    },
+    {
+      "type": "visualizer",
+      "title": "Visualising ${req.topic}",
+      "visualType": "loops",
+      "visualData": { "variables": {}, "totalSteps": 10, "step": 0, "visualizationState": {} }
+    },
+    {
+      "type": "code",
+      "language": "python",
+      "content": "# Python code example for ${req.topic}\\n# Well-commented, educational, and runnable\\nprint('Hello from ${req.topic}!')"
+    },
+    {
+      "type": "scratch",
+      "projectId": "",
+      "instructions": "Step-by-step guide with emojis for ${req.topic}",
+      "blocks": ["when flag clicked", "say 'Let us learn ${req.topic}!' for 2 seconds", "move 10 steps"]
+    },
+    {
+      "type": "activity",
+      "title": "Lab relevant to ${req.topic}",
+      "instructions": "Brief intro about what they will build/do",
+      "steps": ["Specific step 1 for ${req.topic}", "Specific step 2", "Step 3: Verify output"],
+      "is_coding": true
+    },
+    {
+      "type": "assignment-block",
+      "title": "Capstone project about ${req.topic}",
+      "instructions": "Detailed project instructions directly about ${req.topic}",
+      "deliverables": ["Specific output 1", "Specific output 2"]
+    },
+    {
+      "type": "quiz",
+      "question": "Specific question about ${req.topic}",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswer": 0
+    }
   ],
-  "video_url": "string — Relevant High-Quality YouTube URL",
-  "tags": ["STEM", "Technology", "Nigeria", "Innovation"],
+  "video_url": "string — Relevant YouTube URL for ${req.topic}",
+  "tags": ["STEM", "Technology", "Nigeria"],
   "duration_minutes": ${req.durationMinutes ?? 60},
-  "lesson_type": "${req.contentType ?? 'hands-on'}"
+  "lesson_type": "${req.contentType ?? modeConfig.lessonTypeHint}"
 }
 
-MANDATORY RULES FOR PREMIUM ILLUSTRATION & GRADE LEVEL ADAPTATION:
-1. Grade Range: Basic 1–SS3 (KG-Primary 6 focus on Scratch/visual logic; JSS1-SS3 focus on Python/JS/Deep Tech).
-2. For KG–Basic 6: EVERY lesson MUST include a 'scratch' block with a logical sequence of blocks and a "Step-by-Step Fixing Guide" to help them debug.
-3. Every lesson MUST include at least ONE 'visualizer' block.
-4. Every lesson MUST include at least ONE 'motion-graphics' block.
-5. Every lesson MUST include at least ONE 'd3-chart' block.
-6. content_layout MUST have AT LEAST 12 blocks.
-7. Mermaid code must NEVER contain triple backticks. It must be a raw string.
-8. Nigerian School Context (Basic 1–SS3), sharp, premium, and goal-oriented tone.
-9. Lesson notes MUST be 1500+ words.`;
+UNIVERSAL RULES:
+- ONLY include block types appropriate for the grade and mode (see mode rules above). Omit blocks that do not fit.
+- Every block MUST be fully populated with real content about "${req.topic}" — zero placeholders.
+- All labels, component names, quiz questions, and chart data MUST be directly about "${req.topic}".
+- ${isYoungLearner ? 'Young Learner Override takes HIGHEST priority over all other rules.' : 'Tone: Encouraging and kid-friendly. British English. No unexplained jargon.'}`;
+    }
 
     case 'assignment':
       return `Generate an assignment for Rillcod Technologies students.
@@ -226,30 +394,31 @@ CRITICAL: The questions array MUST contain exactly ${qCount} items. Cover the to
 
 
     case 'lesson-plan':
-      return `Generate a term-long lesson plan for Rillcod Technologies.
-Subject/Course: "${req.topic}"
-Grade level: ${req.gradeLevel ?? 'JSS1–SS3'}
-Number of weeks: ${req.termWeeks ?? 12}
-
-Return a JSON object with this exact shape:
-{
-  "course_title": "string",
-  "description": "string — 2-3 sentence course overview",
-  "grade_level": "string",
-  "duration": "${req.termWeeks ?? 12} weeks",
-  "objectives": ["string"],
-  "weeks": [
-    {
-      "week": 1,
-      "theme": "string",
-      "topics": ["string"],
-      "activities": ["string"],
-      "assessment": "string"
-    }
-  ],
-  "assessment_strategy": "string",
-  "materials": ["string"]
-}`;
+      return `Generate a HIGH-ACTION, BENEFICIAL lesson plan for a Rillcod Technologies instructor.
+      Topic: "${req.topic}"
+      Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
+      
+      This plan is for the TEACHER/PARENT. It should contain a "Secret Blueprint" on how to teach this topic effectively.
+      
+      Return a JSON object with this exact shape:
+      {
+        "plan_data": {
+          "course_title": "string",
+          "description": "string — teacher's overview",
+          "teaching_strategy": "string — Specific 'Secret Sauce' on how to engage the kids",
+          "weeks": [
+            {
+              "week": 1,
+              "theme": "string — focus",
+              "topics": ["string"],
+              "teacher_instructions": ["Actionable step 1", "Actionable step 2"],
+              "activities": ["string"]
+            }
+          ],
+          "assessment_strategy": "string — how to check if they learned it",
+          "materials": ["list of items needed"]
+        }
+      }`;
 
     case 'library-content':
       return `Generate metadata for a piece of educational content for the Rillcod Technologies content library.
@@ -292,6 +461,62 @@ Return a JSON object with this exact shape:
   "summary": "string — 1-2 sentence compelling summary for notification previews"
 }
 `;
+
+    case 'daily-missions': {
+      return `You are a smart learning coach for Rillcod Technologies. Generate 3 highly personalized daily missions for a student.
+
+Student Profile:
+- Name: ${req.studentName ?? 'Student'}
+- XP Total: ${req.xp ?? 0}
+- Current Streak: ${req.streak ?? 0} days
+- Lessons Completed: ${req.lessonsDone ?? 0}
+- Average Score: ${req.avgScore ?? 0}%
+- Current Program: ${req.program ?? 'STEM Curriculum'}
+- Next Lesson: ${req.nextLesson ?? 'Not started'}
+
+Generate 3 missions that are:
+1. Specific and actionable (not generic)
+2. Appropriately challenging for their level
+3. Rewarding with clear XP values
+4. Encouraging and motivating in tone
+
+Return a JSON object with this exact shape:
+{
+  "missions": [
+    {
+      "id": "string — unique id like 'lesson-today'",
+      "label": "string — short action title (max 40 chars)",
+      "desc": "string — 1-sentence motivational description personalized to their stats",
+      "xp": number — XP reward (10, 25, or 50),
+      "emoji": "string — single relevant emoji",
+      "href": "string — one of: /dashboard/lessons/{id}, /dashboard/assignments, /dashboard/cbt, /dashboard/leaderboard, /dashboard/learning",
+      "type": "string — one of: lesson, assignment, quiz, streak, challenge"
+    }
+  ],
+  "motivational_quote": "string — 1 short personalized quote in the voice of a Nigerian tech mentor. Max 20 words."
+}`;
+    }
+
+    case 'lesson-hook': {
+      return `You are the Great Learning Explorer for Rillcod Technologies. Generate an EXCITING, addictive opening hook for a lesson.
+
+Topic: "${req.topic}"
+Grade Level: ${req.gradeLevel ?? 'JSS1–SS3'}
+
+The hook should:
+- Open with a surprising real-world fact or story about "${req.topic}"
+- Create immediate curiosity and excitement
+- Be 2-3 short paragraphs maximum
+- End with a challenge question to the student
+
+Return a JSON object:
+{
+  "hook": "string — the exciting lesson opening hook in markdown format",
+  "hook_title": "string — catchy hook title (max 8 words)",
+  "real_world_example": "string — one specific Nigerian or African real-world use case of this topic",
+  "challenge_question": "string — an intriguing question to engage the student before the lesson starts"
+}`;
+    }
 
     case 'code-generation': {
       let langLabel = req.subject ?? req.topic ?? 'programming';
@@ -339,19 +564,16 @@ export async function POST(req: NextRequest) {
     const body: GenerateRequest = await req.json();
     const { type } = body;
 
-    // Security Check: Only staff can use most generation endpoints
-    if (!isStaff && type !== 'report-feedback') { // Allow students some limited feedback maybe? No, let's restrict all for now unless specified.
-       return NextResponse.json({ error: 'Forbidden: Professional access required' }, { status: 403 });
-    }
-
-    if (type === 'code-generation' && !isStaff) {
-       return NextResponse.json({ error: 'Professional license required for code generation' }, { status: 403 });
+    // Security: students can use lesson-hook and daily-missions; staff gets everything
+    const STUDENT_ALLOWED: GenerateType[] = ['lesson-hook', 'daily-missions', 'report-feedback'];
+    if (!isStaff && !STUDENT_ALLOWED.includes(type)) {
+      return NextResponse.json({ error: 'Forbidden: Professional access required' }, { status: 403 });
     }
 
     if (!body.topic?.trim()) {
       return NextResponse.json({ error: 'topic is required' }, { status: 400 });
     }
-    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'cbt', 'report-feedback', 'cbt-grading', 'newsletter', 'code-generation'];
+    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'cbt', 'report-feedback', 'cbt-grading', 'newsletter', 'code-generation', 'daily-missions', 'lesson-hook'];
     if (!VALID_TYPES.includes(type)) {
       return NextResponse.json({ error: 'invalid type' }, { status: 400 });
     }
@@ -376,25 +598,119 @@ export async function POST(req: NextRequest) {
       try {
         return JSON.parse(stripped);
       } catch {
-        // Try to recover a partial object by finding the last complete top-level key
-        const match = stripped.match(/^(\{[\s\S]*\})/);
+        // Try to recover a JSON object from the string
+        const match = stripped.match(/(\{[\s\S]*\})/);
         if (match) {
-          try { return JSON.parse(match[1]); } catch { /* fall through */ }
+          try { 
+            // Aggressively clean up trailing commas and comments which AI loves
+            const cleaned = match[1]
+              .replace(/,\s*([\}\]])/g, '$1')
+              .replace(/\/\/.*/g, '');
+            return JSON.parse(cleaned); 
+          } catch { /* fail */ }
         }
-        throw new Error('AI returned malformed JSON — please try again');
+        throw new Error('AI returned malformed data — please refresh and try again');
       }
     }
 
+    // --- AGENTIC HIERARCHICAL TASK ROUTING --- 
+    // We select the "Expert Persona" based on the task type
+    let modelQueue = [...MODELS];
+    let adaptiveTemperature = 0.7;
+    let adaptiveMaxTokens = maxTokens;
+
+    switch (type) {
+      case 'lesson':
+        // Best models for rich, structured, creative educational content
+        modelQueue = [
+          "google/gemini-2.5-pro-preview",        // Best overall: rich structured JSON + creative
+          "anthropic/claude-sonnet-4-5",           // Excellent for educational depth + engagement
+          "google/gemini-2.0-flash-001",           // Fast reliable fallback
+          "moonshotai/kimi-k2.5",                  // High intelligence, great for detailed content
+          "x-ai/grok-2-1212",                      // Creative/playful fallback
+        ];
+        adaptiveTemperature = 0.75;
+        adaptiveMaxTokens = 16000;
+        break;
+
+      case 'lesson-notes':
+        modelQueue = [
+          "anthropic/claude-sonnet-4-5",           // Best for long-form educational writing
+          "moonshotai/kimi-k2.5",                  // Deep synthesis
+          "google/gemini-2.5-pro-preview",         // Structured depth
+          "google/gemini-2.0-flash-001",
+        ];
+        adaptiveTemperature = 0.6;
+        adaptiveMaxTokens = 16000;
+        break;
+
+      case 'code-generation':
+        // DeepSeek V3 is the undisputed king of logic/code
+        modelQueue = [
+          "deepseek/deepseek-chat-v3-5",
+          "deepseek/deepseek-chat",
+          "google/gemini-2.0-flash-001"
+        ];
+        adaptiveTemperature = 0.2; // High precision
+        break;
+
+      case 'cbt':
+      case 'cbt-grading':
+        // Analytical models for precision — Qwen 2.5 removed from primary (returns malformed JSON)
+        modelQueue = [
+          "google/gemini-2.0-flash-001",          // Reliable JSON + fast
+          "deepseek/deepseek-chat-v3-5",           // Strong analytical fallback
+          "meta-llama/llama-3.3-70b-instruct",    // Solid fallback
+          "google/gemini-flash-1.5",               // Emergency fallback
+        ];
+        adaptiveTemperature = 0.1; // Zero hallucination
+        break;
+
+      case 'daily-missions':
+      case 'lesson-hook':
+        modelQueue = [
+          "google/gemini-2.0-flash-001",
+          "x-ai/grok-2-1212",
+          "meta-llama/llama-3.3-70b-instruct",
+        ];
+        adaptiveTemperature = 0.85;
+        adaptiveMaxTokens = 2048;
+        break;
+
+      case 'report-feedback':
+        modelQueue = [
+          "anthropic/claude-sonnet-4-5",
+          "google/gemini-2.5-pro-preview",
+          "google/gemini-2.0-flash-001",
+        ];
+        adaptiveTemperature = 0.75;
+        adaptiveMaxTokens = 2048;
+        break;
+
+      default:
+        // Smart fallback (Gemini 2.0 is the best all-rounder)
+        modelQueue = [
+          "google/gemini-2.0-flash-001",
+          "x-ai/grok-2-1212",
+          "meta-llama/llama-3.1-8b-instruct:free"
+        ];
+    }
+
     // Iterate through models until one succeeds
-    for (const modelId of MODELS) {
+    for (const modelId of modelQueue) {
       try {
+        const controller = new AbortController();
+        const timeoutMs = ['lesson', 'lesson-notes'].includes(type) ? 55000 : 30000;
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            'X-Title': 'Rillcod Technologies',
+            'X-Title': 'Rillcod Technologies (Kid-Friendly Platform)',
             'Content-Type': 'application/json'
           },
+          signal: controller.signal,
           body: JSON.stringify({
             model: modelId,
             messages: [
@@ -402,10 +718,12 @@ export async function POST(req: NextRequest) {
               { role: 'user', content: prompt }
             ],
             response_format: { type: 'json_object' },
-            max_tokens: maxTokens,
-            temperature: 0.7
+            max_tokens: Math.min(adaptiveMaxTokens, 16000), // Enough for rich lesson content
+            temperature: adaptiveTemperature
           })
         });
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const data = await response.json();

@@ -335,7 +335,8 @@ export async function PUT(
 }
 
 // DELETE /api/classes/[id]/enroll
-// Body: { studentId: string }
+// Body: { studentId: string }          — single remove
+//    OR { studentIds: string[] }        — bulk remove
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -344,25 +345,26 @@ export async function DELETE(
   if (!staffResult || '_err' in staffResult) {
     return NextResponse.json({ error: staffResult ? `Access denied [${(staffResult as any)._err}]` : 'Access denied' }, { status: 403 });
   }
-  const caller = staffResult;
 
   const { id: classId } = await params;
-  const { studentId } = await request.json();
-  if (!studentId) return NextResponse.json({ error: 'studentId required' }, { status: 400 });
+  const body = await request.json();
+
+  // Normalise single or bulk into an array
+  let ids: string[] = [];
+  if (Array.isArray(body.studentIds) && body.studentIds.length > 0) {
+    ids = body.studentIds;
+  } else if (typeof body.studentId === 'string' && body.studentId) {
+    ids = [body.studentId];
+  }
+  if (ids.length === 0) return NextResponse.json({ error: 'studentId or studentIds required' }, { status: 400 });
 
   const admin = adminClient();
-
-  const { data: cls } = await admin
-    .from('classes')
-    .select('current_students')
-    .eq('id', classId)
-    .single();
 
   const { error } = await admin
     .from('portal_users')
     .update({ class_id: null })
-    .eq('id', studentId)
-    .eq('class_id', classId); // safety: only remove if actually in this class
+    .in('id', ids)
+    .eq('class_id', classId); // safety: only remove students actually in this class
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -374,5 +376,5 @@ export async function DELETE(
     .eq('role', 'student');
   await admin.from('classes').update({ current_students: afterCount ?? 0 }).eq('id', classId);
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, removed: ids.length });
 }

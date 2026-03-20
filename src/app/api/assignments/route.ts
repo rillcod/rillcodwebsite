@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized to create assignments' }, { status: 403 });
 
     const body = await request.json();
-    const allowed = ['title', 'description', 'instructions', 'course_id', 'due_date',
+    const allowed = ['title', 'description', 'instructions', 'course_id', 'lesson_id', 'due_date',
       'max_points', 'assignment_type', 'is_active', 'questions', 'school_id', 'school_name'];
     const payload: Record<string, unknown> = { created_by: caller.id };
     for (const f of allowed) {

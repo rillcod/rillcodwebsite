@@ -76,6 +76,7 @@ export type Database = {
           created_at: string | null
           id: string
           is_active: boolean | null
+          school_id: string | null
           target_audience: string | null
           title: string
           updated_at: string | null
@@ -86,6 +87,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          school_id?: string | null
           target_audience?: string | null
           title: string
           updated_at?: string | null
@@ -96,6 +98,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          school_id?: string | null
           target_audience?: string | null
           title?: string
           updated_at?: string | null
@@ -114,6 +117,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "announcements_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -240,6 +250,7 @@ export type Database = {
           id: string
           instructions: string | null
           is_active: boolean | null
+          lesson_id: string | null
           max_points: number | null
           metadata: Json | null
           questions: Json | null
@@ -259,6 +270,7 @@ export type Database = {
           id?: string
           instructions?: string | null
           is_active?: boolean | null
+          lesson_id?: string | null
           max_points?: number | null
           metadata?: Json | null
           questions?: Json | null
@@ -278,6 +290,7 @@ export type Database = {
           id?: string
           instructions?: string | null
           is_active?: boolean | null
+          lesson_id?: string | null
           max_points?: number | null
           metadata?: Json | null
           questions?: Json | null
@@ -511,8 +524,10 @@ export type Database = {
           end_date: string | null
           id: string
           is_active: boolean | null
+          metadata: Json | null
           passing_score: number | null
           program_id: string | null
+          school_id: string | null
           start_date: string | null
           title: string
           total_questions: number
@@ -527,8 +542,10 @@ export type Database = {
           end_date?: string | null
           id?: string
           is_active?: boolean | null
+          metadata?: Json | null
           passing_score?: number | null
           program_id?: string | null
+          school_id?: string | null
           start_date?: string | null
           title: string
           total_questions: number
@@ -543,8 +560,10 @@ export type Database = {
           end_date?: string | null
           id?: string
           is_active?: boolean | null
+          metadata?: Json | null
           passing_score?: number | null
           program_id?: string | null
+          school_id?: string | null
           start_date?: string | null
           title?: string
           total_questions?: number
@@ -564,6 +583,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "portal_users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_exams_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
           },
           {
             foreignKeyName: "cbt_exams_program_id_fkey"
@@ -1371,6 +1397,72 @@ export type Database = {
             referencedColumns: ["student_id"]
           },
         ]
+      }
+      engage_posts: {
+        Row: {
+          id: string
+          user_id: string
+          author_name: string
+          content: string
+          code_snippet: string | null
+          language: string | null
+          likes: number
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          author_name: string
+          content: string
+          code_snippet?: string | null
+          language?: string | null
+          likes?: number
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          author_name?: string
+          content?: string
+          code_snippet?: string | null
+          language?: string | null
+          likes?: number
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      vault_items: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          language: string
+          code: string
+          description: string | null
+          tags: string[] | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          language: string
+          code: string
+          description?: string | null
+          tags?: string[] | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          language?: string
+          code?: string
+          description?: string | null
+          tags?: string[] | null
+          created_at?: string | null
+        }
+        Relationships: []
       }
       enrollments: {
         Row: {
@@ -2863,6 +2955,7 @@ export type Database = {
           id: string
           image_url: string | null
           published_at: string | null
+          school_id: string | null
           status: string | null
           title: string
         }
@@ -2873,6 +2966,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           published_at?: string | null
+          school_id?: string | null
           status?: string | null
           title: string
         }
@@ -2883,6 +2977,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           published_at?: string | null
+          school_id?: string | null
           status?: string | null
           title?: string
         }
@@ -2900,6 +2995,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "newsletters_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -5122,6 +5224,7 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: never; Returns: boolean }
+      is_admin_or_teacher: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
     }
     Enums: {

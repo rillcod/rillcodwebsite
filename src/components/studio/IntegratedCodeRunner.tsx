@@ -203,7 +203,7 @@ export default function IntegratedCodeRunner({
   };
 
   return (
-    <div className="flex flex-col border border-border bg-[#0a0a1a] overflow-hidden shadow-xl my-4">
+    <div className="flex flex-col border border-border bg-background overflow-hidden shadow-xl my-4">
 
       {/* ─── Row 1: Title + Editor/Output toggle ─── */}
       {showHeader && (
@@ -332,7 +332,7 @@ export default function IntegratedCodeRunner({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="absolute inset-0 flex flex-col bg-[#050510] overflow-y-auto p-4 font-mono text-xs"
+              className="absolute inset-0 flex flex-col bg-[#11121d] overflow-y-auto p-4 font-mono text-xs"
             >
               <div className="flex items-center gap-2 mb-3 text-emerald-500/50 border-b border-emerald-500/10 pb-2">
                 <CommandLineIcon className="w-3.5 h-3.5" />

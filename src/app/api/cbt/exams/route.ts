@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     };
     const allowedExamFields = ['title', 'description', 'program_id', 'course_id',
       'duration_minutes', 'passing_score', 'total_questions', 'is_active',
-      'start_date', 'end_date', 'school_id'];
+      'start_date', 'end_date', 'school_id', 'metadata'];
     for (const f of allowedExamFields) {
       if (f in examFields) examPayload[f] = examFields[f] ?? null;
     }
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
         correct_answer: q.correct_answer,
         points: q.points ?? 5,
         order_index: i + 1,
-        metadata: q.metadata ?? null,
+        metadata: { ...(q.metadata ?? {}), ...(q.section ? { section: q.section } : {}) },
       }));
       const { error: qErr } = await admin.from('cbt_questions').insert(qPayloads);
       if (qErr) {

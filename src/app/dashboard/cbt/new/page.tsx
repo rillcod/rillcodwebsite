@@ -18,6 +18,7 @@ interface Question {
   options: string[];
   correct_answer: string;
   points: number;
+  section: 'objective' | 'subjective' | 'practical';
 }
 
 const emptyQuestion = (): Question => ({
@@ -26,6 +27,7 @@ const emptyQuestion = (): Question => ({
   options: ['', '', '', ''],
   correct_answer: '',
   points: 5,
+  section: 'objective',
 });
 
 export default function NewExamPage() {
@@ -52,6 +54,8 @@ export default function NewExamPage() {
     is_active: true,
   });
   const [questions, setQuestions] = useState<Question[]>([emptyQuestion()]);
+  const [sectionWeights, setSectionWeights] = useState({ objective: 60, subjective: 30, practical: 10 });
+  const [useWeights, setUseWeights] = useState(false);
 
   // AI Generation State
   const [aiOpen, setAiOpen] = useState(false);
@@ -61,6 +65,7 @@ export default function NewExamPage() {
   const [aiQuestionCount, setAiQuestionCount] = useState('10');
   // Track which questions are selected (all selected by default)
   const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
+  const [printFilter, setPrintFilter] = useState<'all' | 'mcq' | 'theory'>('all');
 
   const handleAiGenerate = async () => {
     if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
@@ -91,6 +96,7 @@ export default function NewExamPage() {
           options: q.options || ['', '', '', ''],
           correct_answer: q.correct_answer || '',
           points: q.points || 5,
+          section: (q.section || (q.question_type === 'essay' ? 'subjective' : 'objective')) as Question['section'],
         }));
         setQuestions(qs);
         // Select all generated questions by default
@@ -145,6 +151,10 @@ export default function NewExamPage() {
       setError('Title and programme are required.');
       return;
     }
+    if (useWeights && sectionWeights.objective + sectionWeights.subjective + sectionWeights.practical !== 100) {
+      setError('Section weights must total exactly 100%.');
+      return;
+    }
     // Use selected questions if any selection was made, otherwise use all filled questions
     const hasSelection = selectedQuestions.size > 0;
     const validQuestions = questions.filter((q, i) =>
@@ -157,6 +167,7 @@ export default function NewExamPage() {
     setSaving(true);
     setError(null);
     try {
+      const weightTotal = sectionWeights.objective + sectionWeights.subjective + sectionWeights.practical;
       const examPayload: any = {
         title: form.title.trim(),
         description: form.description.trim() || null,
@@ -166,12 +177,14 @@ export default function NewExamPage() {
         passing_score: parseInt(form.passing_score) || 70,
         total_questions: validQuestions.length,
         is_active: form.is_active,
+        metadata: useWeights ? { section_weights: sectionWeights, weights_total: weightTotal } : null,
         questions: validQuestions.map((q, i) => ({
           question_text: q.question_text.trim(),
           question_type: q.question_type,
           options: q.question_type === 'multiple_choice' ? q.options.filter((o: string) => o.trim()) : null,
           correct_answer: q.correct_answer.trim(),
           points: q.points,
+          section: q.section,
           order_index: i + 1,
         })),
       };
@@ -196,10 +209,17 @@ export default function NewExamPage() {
   // ── Print exam sheet (A4 — compact, 20-30 questions per page + marking guide) ──
   const handlePrintExam = () => {
     const hasSelection = selectedQuestions.size > 0;
-    const toPrint = questions.filter((q, i) =>
+    const isMcq = (q: Question) => q.question_type === 'multiple_choice' || q.question_type === 'true_false';
+    const isTheory = (q: Question) => !isMcq(q);
+    let toPrint = questions.filter((q, i) =>
       q.question_text.trim() && (!hasSelection || selectedQuestions.has(i))
     );
-    if (toPrint.length === 0) { alert('No questions to print. Add questions first.'); return; }
+    if (printFilter === 'mcq') toPrint = toPrint.filter(isMcq);
+    if (printFilter === 'theory') toPrint = toPrint.filter(isTheory);
+    if (toPrint.length === 0) {
+      alert(printFilter === 'mcq' ? 'No objective (MCQ/True-False) questions found.' : printFilter === 'theory' ? 'No theory questions found.' : 'No questions to print. Add questions first.');
+      return;
+    }
 
     const docRef = `CBT-${Date.now().toString(36).toUpperCase()}`;
     const now = new Date();
@@ -402,13 +422,24 @@ ${questionRows}
           </div>
           <div className="flex items-center gap-2">
             {questions.some(q => q.question_text.trim()) && (
-              <button
-                type="button"
-                onClick={handlePrintExam}
-                className="flex items-center gap-2 px-5 py-3 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 text-orange-400 font-black text-xs uppercase tracking-[0.2em] rounded-none transition-all"
-              >
-                Print Exam
-              </button>
+              <div className="flex items-center gap-1">
+                {/* Question type filter for print */}
+                <div className="flex border border-orange-500/30 rounded-none overflow-hidden">
+                  {(['all', 'mcq', 'theory'] as const).map(f => (
+                    <button key={f} type="button" onClick={() => setPrintFilter(f)}
+                      className={`px-2.5 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${printFilter === f ? 'bg-orange-500/30 text-orange-400' : 'bg-orange-600/10 text-orange-400/50 hover:bg-orange-500/20 hover:text-orange-400'}`}>
+                      {f === 'all' ? 'All' : f === 'mcq' ? 'Obj' : 'Theory'}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePrintExam}
+                  className="flex items-center gap-2 px-5 py-3 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 text-orange-400 font-black text-xs uppercase tracking-[0.2em] rounded-none transition-all"
+                >
+                  Print Exam
+                </button>
+              </div>
             )}
             <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-none shadow-xl shadow-emerald-900/40 transition-all disabled:opacity-50">
               {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
@@ -424,62 +455,70 @@ ${questionRows}
           </div>
         )}
 
-        {/* AI Generate Panel */}
-        <div className="bg-gradient-to-br from-orange-600 to-orange-400/10 to-teal-500/5 border border-emerald-500/20 rounded-none overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setAiOpen(o => !o)}
-            className="w-full flex items-center justify-between px-5 py-4 text-left"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-none bg-emerald-500/20 flex items-center justify-center">
-                <ArrowPathIcon className={`w-4 h-4 text-emerald-400 ${aiGenerating ? 'animate-spin' : ''}`} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-foreground">Generate with AI</p>
-                <p className="text-xs text-muted-foreground">Auto-fill exam details and questions</p>
-              </div>
+        {/* Premium AI Exam Engine Panel */}
+        <div className="p-8 bg-gradient-to-br from-orange-600/20 to-orange-900/10 border border-orange-500/20 rounded-[2rem] space-y-6 relative overflow-hidden group">
+            <div className="absolute -right-20 -top-20 w-64 h-64 bg-orange-500/10 rounded-full blur-[100px] group-hover:bg-orange-500/20 transition-all duration-1000" />
+            
+            <div className="flex items-center justify-between relative">
+                <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-orange-600 flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-orange-400/30">
+                        <SparklesIcon className="w-7 h-7 text-white" />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Premium AI Exam Engine</h3>
+                        <p className="text-[10px] text-orange-400 font-black uppercase tracking-[0.4em]">High-Precision Assessment Synthesis</p>
+                    </div>
+                </div>
+                <button 
+                  onClick={() => setAiOpen(!aiOpen)}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-[10px] font-black text-white uppercase tracking-widest transition-all rounded-xl border border-white/10"
+                >
+                  {aiOpen ? 'Hide Controls' : 'Open Designer'}
+                </button>
             </div>
-            {aiOpen ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground" /> : <ChevronDownIcon className="w-4 h-4 text-muted-foreground rotate-180" />}
-          </button>
 
-          {aiOpen && (
-            <div className="px-5 pb-5 space-y-4 border-t border-emerald-500/20 bg-card shadow-sm">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4">
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Topic / Subject Matter</label>
-                  <input
-                    value={aiTopic}
-                    onChange={e => setAiTopic(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiGenerate(); } }}
-                    placeholder="e.g. Fundamental Concepts of AI & Machine Learning"
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">No. of Questions</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={aiQuestionCount}
-                    onChange={e => setAiQuestionCount(e.target.value)}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground outline-none focus:border-emerald-500"
-                  />
-                </div>
+            {aiOpen && (
+              <div className="space-y-4 pt-4 relative animate-in slide-in-from-top-4 duration-500">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="md:col-span-2 space-y-1">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-orange-400/60">Assessment Domain / Topic</label>
+                          <input
+                              value={aiTopic}
+                              onChange={e => setAiTopic(e.target.value)}
+                              placeholder="e.g. Fundamental Concepts of Quantum Computing"
+                              className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-orange-500/50 transition-all"
+                          />
+                      </div>
+                      <div className="md:col-span-1 space-y-1">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-orange-400/60">Question Count</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="50"
+                            value={aiQuestionCount}
+                            onChange={e => setAiQuestionCount(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 transition-all"
+                          />
+                      </div>
+                      <button
+                          type="button"
+                          onClick={handleAiGenerate}
+                          disabled={aiGenerating}
+                          className="flex flex-col items-center justify-center gap-1.5 p-4 bg-orange-600 hover:bg-orange-500 rounded-[1.5rem] transition-all shadow-xl shadow-orange-900/40 disabled:opacity-50"
+                      >
+                          <div className="text-[10px] font-black text-white uppercase tracking-widest">{aiGenerating ? 'Processing...' : 'Generate Exam'}</div>
+                          <div className="text-[8px] text-white/40 uppercase">Architecture Build</div>
+                      </button>
+                  </div>
+                  {aiError && <p className="text-[10px] text-rose-400 font-bold uppercase tracking-widest pl-2">Error: {aiError}</p>}
+                  {aiGenerating && (
+                      <div className="flex items-center gap-3 text-orange-400 animate-pulse pl-2 border-l-2 border-orange-500">
+                          <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-[10px] font-black uppercase tracking-widest">Accessing OpenRouter Neural Clusters...</span>
+                      </div>
+                  )}
               </div>
-              <button
-                type="button"
-                onClick={handleAiGenerate}
-                disabled={aiGenerating}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all"
-              >
-                {aiGenerating ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <SparklesIcon className="w-4 h-4" />}
-                {aiGenerating ? 'Generating...' : `Generate ${aiQuestionCount} Questions`}
-              </button>
-              {aiError && <p className="text-[10px] text-rose-400 mt-2">{aiError}</p>}
-            </div>
-          )}
+            )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -575,6 +614,44 @@ ${questionRows}
             </div>
           </div>
 
+          {/* Section Weights */}
+          <div className="bg-card shadow-sm border border-border rounded-none p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Section Weighting</h2>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Assign % weight per section. Total must equal 100%.</p>
+              </div>
+              <button type="button" onClick={() => setUseWeights(w => !w)}
+                className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-none border transition-all ${useWeights ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-card shadow-sm border-border text-muted-foreground hover:border-emerald-500/30'}`}>
+                {useWeights ? 'Weighted ON' : 'Flat Points (default)'}
+              </button>
+            </div>
+            {useWeights && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-4">
+                  {(['objective', 'subjective', 'practical'] as const).map(sec => (
+                    <div key={sec}>
+                      <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">{sec} %</label>
+                      <input type="number" min="0" max="100"
+                        value={sectionWeights[sec]}
+                        onChange={e => setSectionWeights(w => ({ ...w, [sec]: parseInt(e.target.value) || 0 }))}
+                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                    </div>
+                  ))}
+                </div>
+                {(() => {
+                  const total = sectionWeights.objective + sectionWeights.subjective + sectionWeights.practical;
+                  return (
+                    <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${total === 100 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      <div className={`w-2 h-2 rounded-full ${total === 100 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                      Total: {total}% {total === 100 ? '— Valid' : '— Must equal 100%'}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+
           {/* Questions */}
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -653,11 +730,11 @@ ${questionRows}
                   placeholder="Enter question text…"
                   className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Type</label>
                     <select value={q.question_type}
-                      onChange={e => updateQuestion(qi, { question_type: e.target.value, options: ['', '', '', ''], correct_answer: '' })}
+                      onChange={e => updateQuestion(qi, { question_type: e.target.value, options: ['', '', '', ''], correct_answer: '', section: e.target.value === 'essay' ? 'subjective' : q.section })}
                       className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                       <option value="multiple_choice">Multiple Choice</option>
                       <option value="true_false">True / False</option>
@@ -665,7 +742,17 @@ ${questionRows}
                       <option value="essay">Essay</option>
                     </select>
                   </div>
-                  <div className="sm:col-span-1">
+                  <div>
+                    <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Section</label>
+                    <select value={q.section}
+                      onChange={e => updateQuestion(qi, { section: e.target.value as Question['section'] })}
+                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
+                      <option value="objective">Objective</option>
+                      <option value="subjective">Subjective</option>
+                      <option value="practical">Practical</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Points</label>
                     <input type="number" min="1" value={q.points}
                       onChange={e => updateQuestion(qi, { points: parseInt(e.target.value) || 1 })}

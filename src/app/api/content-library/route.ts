@@ -41,6 +41,7 @@ async function listHandler(req: Request, ctx: ApiContext) {
         order,
         page,
         pageSize,
+        role: ctx.user?.role,
     });
 
     return NextResponse.json({ success: true, data: items });

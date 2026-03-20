@@ -15,7 +15,8 @@ import {
   ArrowRightOnRectangleIcon, Bars3Icon, XMarkIcon, SignalIcon,
   TrophyIcon, ShieldCheckIcon, CodeBracketIcon, RocketLaunchIcon,
   CalendarDaysIcon, BanknotesIcon, VideoCameraIcon, UserPlusIcon,
-  TrashIcon, SunIcon, MoonIcon
+  TrashIcon, SunIcon, MoonIcon, FireIcon, ArchiveBoxIcon, CommandLineIcon,
+  CreditCardIcon
 } from '@/lib/icons';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -99,6 +100,7 @@ export default function DashboardNavigation() {
           { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
           { name: 'Enrol Students', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon },
           { name: 'Wipe Students', href: '/dashboard/students/bulk-delete', icon: TrashIcon },
+          { name: 'Card Builder', href: '/dashboard/students/card-builder', icon: CreditCardIcon },
           { name: 'Users', href: '/dashboard/users', icon: ShieldCheckIcon },
           { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
           { divider: true, label: 'Academics' },
@@ -112,6 +114,10 @@ export default function DashboardNavigation() {
           { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
           { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
+          { name: 'Engage', href: '/dashboard/engage', icon: FireIcon },
+          { name: 'Vault', href: '/dashboard/vault', icon: ArchiveBoxIcon },
+          { name: 'Missions', href: '/dashboard/missions', icon: RocketLaunchIcon },
+          { name: 'Protocol', href: '/dashboard/protocol', icon: CommandLineIcon },
           { divider: true, label: 'Reports' },
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
           { name: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
@@ -147,6 +153,11 @@ export default function DashboardNavigation() {
           { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
           { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
           { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
+          { divider: true, label: 'Community' },
+          { name: 'Engage', href: '/dashboard/engage', icon: FireIcon },
+          { name: 'Vault', href: '/dashboard/vault', icon: ArchiveBoxIcon },
+          { name: 'Missions', href: '/dashboard/missions', icon: RocketLaunchIcon },
+          { name: 'Protocol', href: '/dashboard/protocol', icon: CommandLineIcon },
           { divider: true, label: 'More' },
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
@@ -163,9 +174,13 @@ export default function DashboardNavigation() {
           { name: 'Library', href: '/dashboard/library', icon: BookOpenIcon },
           { divider: true, label: 'Activities' },
           { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },
+          { name: 'Missions', href: '/dashboard/missions', icon: RocketLaunchIcon },
+          { name: 'Protocol', href: '/dashboard/protocol', icon: CommandLineIcon },
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
           { name: 'My Portfolio', href: '/dashboard/portfolio', icon: RocketLaunchIcon },
           { name: 'Leaderboard', href: '/dashboard/leaderboard', icon: TrophyIcon },
+          { name: 'Engage', href: '/dashboard/engage', icon: FireIcon },
+          { name: 'Vault', href: '/dashboard/vault', icon: ArchiveBoxIcon },
           { divider: true, label: 'Schedule' },
           { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
           { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
@@ -184,6 +199,7 @@ export default function DashboardNavigation() {
           { divider: true, label: 'My School' },
           { name: 'School Overview', href: '/dashboard/school-overview', icon: ChartBarIcon },
           { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Classes', href: '/dashboard/classes', icon: AcademicCapIcon },
           { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
           { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
           { divider: true, label: 'Reports' },
@@ -224,18 +240,20 @@ export default function DashboardNavigation() {
   return (
     <>
       {/* ── Mobile Top Header ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#121212]/80 backdrop-blur-md px-4 py-1.5 text-white border-b border-white/5 shadow-2xl">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-white/5 border border-white/10 flex items-center justify-center rounded-none ring-1 ring-white/20 ring-offset-1 ring-offset-[#121212]">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#0D0D1A]/95 backdrop-blur-xl px-4 py-2 border-b border-white/[0.06] shadow-[0_1px_30px_rgba(0,0,0,0.5)]">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <div className="w-7 h-7 bg-orange-500/10 border border-orange-500/30 flex items-center justify-center ring-1 ring-orange-500/20 ring-offset-1 ring-offset-[#0D0D1A]">
             <Image src="/images/logo.png" alt="Rillcod" width={16} height={16} className="object-contain" priority />
           </div>
-          <span className="font-black uppercase tracking-widest text-[13px] italic">Rillcod <span className="text-orange-500">Tech</span></span>
+          <span className="font-black uppercase tracking-widest text-[13px] text-white italic">
+            Rillcod <span className="text-orange-500">Tech</span>
+          </span>
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {unreadCount > 0 && (
-            <Link href="/dashboard/messages" className="relative p-1.5">
-              <BellIcon className="w-5 h-5 text-gray-300" />
-              <span className="absolute top-0 right-0 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+            <Link href="/dashboard/messages" className="relative p-2">
+              <BellIcon className="w-5 h-5 text-white/40" />
+              <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             </Link>
@@ -244,16 +262,16 @@ export default function DashboardNavigation() {
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-            className="p-1.5 text-white hover:text-[#FF914D] transition-colors rounded-none hover:bg-white/10"
+            className="p-2 text-white/50 hover:text-white hover:bg-white/[0.06] transition-all"
           >
-            {mobileOpen ? <XMarkIcon className="w-7 h-7" /> : <Bars3Icon className="w-7 h-7" />}
+            {mobileOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
           </button>
           <button
             onClick={handleLogout}
-            className="p-1.5 text-rose-500 hover:text-rose-400 transition-colors rounded-none hover:bg-rose-500/10"
+            className="p-2 text-rose-500/70 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
             aria-label="Sign out"
           >
-            <ArrowRightOnRectangleIcon className="w-6 h-6" />
+            <ArrowRightOnRectangleIcon className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -262,7 +280,7 @@ export default function DashboardNavigation() {
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-black/70 z-40 md:hidden backdrop-blur-sm"
           aria-hidden="true"
         />
       )}
@@ -272,55 +290,56 @@ export default function DashboardNavigation() {
         className={`
           fixed top-[53px] left-0 bottom-16 z-40 md:bottom-0
           md:static md:top-auto md:bottom-auto md:z-auto
-          flex flex-col w-[240px] md:w-56
-          bg-[#121212] text-gray-200
-          border-r border-white/5 shadow-2xl
+          flex flex-col w-[240px] md:w-64
+          bg-[#0D0D1A]
+          border-r border-white/[0.06]
+          shadow-[4px_0_40px_rgba(0,0,0,0.4)]
           transform transition-transform duration-300 ease-in-out
           md:translate-x-0 md:h-screen md:flex-shrink-0
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
         aria-label="Dashboard navigation"
       >
-        {/* Logo (desktop only) */}
-        <div className="hidden md:flex flex-col items-center justify-center py-6 border-b border-white/5">
-          <div className="w-12 h-12 bg-white/5 border border-white/10 flex items-center justify-center rounded-none ring-1 ring-white/20 ring-offset-2 ring-offset-[#121212] mb-3">
-            <Image src="/images/logo.png" alt="Rillcod Technologies" width={32} height={32} className="object-contain" priority />
+        {/* Logo */}
+        <div className="hidden md:flex flex-col items-center justify-center py-7 border-b border-white/[0.06] relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-orange-500/[0.04] to-transparent pointer-events-none" />
+          <div className="w-11 h-11 bg-orange-500/10 border border-orange-500/25 flex items-center justify-center shadow-[0_0_24px_rgba(249,115,22,0.15)] mb-3 relative z-10">
+            <Image src="/images/logo.png" alt="Rillcod Technologies" width={28} height={28} className="object-contain" priority />
           </div>
-          <div className="text-center leading-none">
-            <h1 className="text-lg font-black uppercase tracking-widest text-white italic leading-tight">RILLCOD<span className="text-orange-500">.</span></h1>
-            <p className="text-lg font-black uppercase tracking-widest text-orange-500 italic leading-tight">TECHNOLOGIES</p>
+          <div className="text-center leading-none relative z-10">
+            <h1 className="text-[15px] font-black uppercase tracking-[0.25em] text-white italic">RILLCOD<span className="text-orange-500">.</span></h1>
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-orange-500/80 italic mt-0.5">TECHNOLOGIES</p>
           </div>
         </div>
 
         {/* User badge */}
-        <div className="px-4 md:px-5 py-4 flex items-center gap-3 border-b border-white/5 bg-[#0a0a0a]">
-          <div className="w-10 h-10 bg-orange-500/10 border border-orange-500/20 rounded-none flex items-center justify-center flex-shrink-0 shadow-inner">
-            <span className="text-orange-500 text-base font-black uppercase">
+        <div className="px-4 py-4 flex items-center gap-3 border-b border-white/[0.06] bg-white/[0.015]">
+          <div className="w-9 h-9 bg-orange-500/10 border border-orange-500/25 flex items-center justify-center flex-shrink-0 shadow-[0_0_14px_rgba(249,115,22,0.12)]">
+            <span className="text-orange-400 text-sm font-black uppercase">
               {profile.full_name?.charAt(0) ?? 'U'}
             </span>
           </div>
-          <div className="flex flex-col overflow-hidden">
-            <span className="text-sm font-bold truncate text-white">{profile.full_name}</span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#FF914D]">
-              {profile.role === 'school' && profile.school_name
-                ? profile.school_name
-                : profile.role}
+          <div className="flex flex-col min-w-0">
+            <span className="text-[12px] font-black truncate text-white/90 tracking-wide">{profile.full_name}</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-400/70 mt-0.5">
+              {profile.role === 'school' && profile.school_name ? profile.school_name : profile.role}
             </span>
           </div>
+          {unreadCount > 0 && (
+            <span className="ml-auto flex-shrink-0 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-none flex items-center justify-center">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </div>
 
         {/* Links */}
-        <div className="flex-1 overflow-y-auto px-3 md:px-4 py-4 space-y-0.5">
+        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-px">
           {navEntries.map((entry, idx) => {
             if (isDivider(entry)) {
               return (
-                <div key={`divider-${idx}`} className="pt-3 pb-1 px-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 whitespace-nowrap">
-                      {entry.label}
-                    </span>
-                    <div className="h-px flex-1 bg-white/10" />
-                  </div>
+                <div key={`divider-${idx}`} className="pt-5 pb-2 px-3">
+                  <p className="text-[9px] font-black uppercase tracking-[0.35em] text-white/20 mb-2">{entry.label}</p>
+                  <div className="h-px bg-gradient-to-r from-white/[0.07] to-transparent" />
                 </div>
               );
             }
@@ -332,82 +351,99 @@ export default function DashboardNavigation() {
                 key={name}
                 href={href}
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-4 px-4 py-4 rounded-none text-[12px] font-black tracking-[0.15em] uppercase transition-all duration-300 relative group ${active
-                    ? 'bg-orange-500/10 text-orange-500 shadow-[inset_0_0_20px_rgba(255,145,77,0.05)]'
-                    : 'text-zinc-100 hover:bg-white/5 hover:text-white'
-                  }`}
+                className={`relative flex items-center gap-3 px-3 py-2.5 text-[11px] font-black tracking-[0.12em] uppercase transition-all duration-200 group ${
+                  active
+                    ? 'bg-orange-500/[0.08] text-white'
+                    : 'text-white/35 hover:text-white/75 hover:bg-white/[0.04]'
+                }`}
               >
-                {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500 shadow-[0_0_15px_rgba(255,145,77,0.5)]" />}
-                <Icon className={`w-5 h-5 flex-shrink-0 transition-colors ${active ? 'text-orange-500 drop-shadow-[0_0_8px_rgba(255,145,77,0.8)]' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                <span className={`truncate ${active ? 'drop-shadow-[0_0_10px_rgba(255,145,77,0.4)]' : ''}`}>{name}</span>
+                {active && (
+                  <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.6)]" />
+                )}
+                <Icon className={`w-4 h-4 flex-shrink-0 transition-all ${
+                  active
+                    ? 'text-orange-400 drop-shadow-[0_0_6px_rgba(249,115,22,0.7)]'
+                    : 'text-white/25 group-hover:text-white/55'
+                }`} />
+                <span className="truncate">{name}</span>
                 {name === 'Messages' && unreadCount > 0 && (
-                  <span className="ml-auto text-[10px] bg-rose-500 text-white px-1.5 py-0.5 rounded-none font-black min-w-[1.25rem] text-center">
+                  <span className="ml-auto flex-shrink-0 px-1.5 py-0.5 bg-rose-500 text-white text-[8px] font-black min-w-[1.1rem] text-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
+                )}
+                {active && (
+                  <div className="ml-auto w-1 h-1 rounded-full bg-orange-500/60 flex-shrink-0" />
                 )}
               </Link>
             );
           })}
         </div>
 
-        {/* Bottom actions — Sign Out only */}
-        <div className="p-4 border-t border-white/5 bg-[#0a0a0a] flex flex-col gap-2">
-          <div className="flex items-center justify-between px-4 pb-2">
-            <span className="text-[9px] font-black uppercase text-white/25">Interface</span>
+        {/* Bottom */}
+        <div className="border-t border-white/[0.06] bg-white/[0.015]">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.04]">
+            <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20">Display</span>
             <ThemeToggle />
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-4 w-full px-4 py-4 rounded-none text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/5 transition-all"
+            className="flex items-center gap-3 w-full px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-rose-500/60 hover:text-rose-400 hover:bg-rose-500/[0.05] transition-all group"
           >
-            <ArrowRightOnRectangleIcon className="w-5 h-5 flex-shrink-0" /> Sign Out
+            <ArrowRightOnRectangleIcon className="w-4 h-4 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+            Sign Out
           </button>
         </div>
       </nav>
 
       {/* ── Mobile Bottom Navigation ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#121212] border-t border-white/5 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-2xl">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0D0D1A]/95 backdrop-blur-xl border-t border-white/[0.06] pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-[0_-4px_30px_rgba(0,0,0,0.5)]">
         {bottomNavItems.map(({ name, href, icon: Icon }) => {
           const active = pathname === href || pathname?.startsWith(href + '/');
+          const shortName =
+            name === 'My Courses' ? 'Courses' :
+            name === 'My Classes' ? 'Classes' :
+            name === 'My Report Card' ? 'Report' :
+            name === 'Code Playground' ? 'Play' :
+            name === 'Progress Reports' ? 'Reports' :
+            name === 'Student Reports' ? 'Reports' :
+            name === 'My Students' ? 'Students' :
+            name === 'School Overview' ? 'Overview' :
+            name === 'Learning Center' ? 'Learn' :
+            name;
           return (
             <Link
               key={`mobile-${name}`}
               href={href}
               onClick={() => setMobileOpen(false)}
-              className={`flex flex-col items-center gap-2 px-1 py-2 min-w-[3.5rem] transition-all duration-300 relative ${active ? 'text-orange-500' : 'text-slate-600 hover:text-slate-400'
-                }`}
+              className={`flex flex-col items-center gap-1 px-2 py-1.5 min-w-[3.5rem] transition-all duration-200 relative ${
+                active ? 'text-orange-400' : 'text-white/25 hover:text-white/50'
+              }`}
             >
-              <div className={`relative p-2 rounded-none transition-all duration-300 ${active ? 'bg-orange-500/10 shadow-lg shadow-orange-500/5' : ''}`}>
-                <Icon className={`w-6 h-6 ${active ? 'text-orange-500' : 'text-slate-700'}`} />
+              {active && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-[2px] bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
+              )}
+              <div className={`relative p-1.5 transition-all ${active ? 'bg-orange-500/10' : ''}`}>
+                <Icon className={`w-5 h-5 ${active ? 'text-orange-400' : 'text-white/25'}`} />
                 {name === 'Messages' && unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-orange-500 text-white text-[8px] font-black rounded-none flex items-center justify-center ring-2 ring-[#121212]">
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 text-white text-[7px] font-black flex items-center justify-center ring-2 ring-[#0D0D1A]">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </div>
-              <span className={`text-[12px] font-black uppercase tracking-widest leading-none ${active ? 'text-orange-500' : 'text-zinc-400'}`}>
-                {name === 'My Courses' ? 'Courses' :
-                  name === 'My Classes' ? 'Classes' :
-                    name === 'My Report Card' ? 'Report' :
-                      name === 'Code Playground' ? 'Play' :
-                        name === 'Progress Reports' ? 'Reports' :
-                          name === 'Student Reports' ? 'Reports' :
-                            name === 'My Students' ? 'Students' :
-                              name === 'School Overview' ? 'Overview' :
-                                name}
+              <span className={`text-[9px] font-black uppercase tracking-[0.15em] leading-none ${active ? 'text-orange-400' : 'text-white/20'}`}>
+                {shortName}
               </span>
             </Link>
           );
         })}
-
         <button
           onClick={handleLogout}
-          className="flex flex-col items-center gap-1 px-2 py-1 rounded-none min-w-[3.5rem] transition-all duration-200 text-red-500 hover:text-red-400 group"
+          className="flex flex-col items-center gap-1 px-2 py-1.5 min-w-[3.5rem] text-rose-500/40 hover:text-rose-400 transition-all group"
         >
-          <div className="relative p-2 rounded-none transition-all duration-200 group-active:bg-red-500/20">
-            <ArrowRightOnRectangleIcon className="w-6 h-6" />
+          <div className="p-1.5 group-active:bg-rose-500/10 transition-all">
+            <ArrowRightOnRectangleIcon className="w-5 h-5" />
           </div>
-          <span className="text-[11px] font-bold uppercase tracking-wide leading-none">Sign Out</span>
+          <span className="text-[9px] font-black uppercase tracking-[0.15em] leading-none">Exit</span>
         </button>
       </div>
     </>

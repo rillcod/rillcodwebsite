@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -12,6 +12,7 @@ import {
   ChevronUpIcon, ChevronDownIcon, AcademicCapIcon,
   CodeBracketIcon, CommandLineIcon, SparklesIcon as SparklesIconOutline
 } from '@/lib/icons';
+import { isPuterAvailable, puterChat } from '@/lib/puter-ai';
 
 interface Question {
   question_text: string;
@@ -40,7 +41,9 @@ export default function NewAssignmentPage() {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const preProgramId = searchParams?.get('program_id');
   const preCourseId = searchParams?.get('course_id');
+  const preLessonId = searchParams?.get('lesson_id');
   const [courses, setCourses] = useState<any[]>([]);
+  const [linkedLesson, setLinkedLesson] = useState<{ id: string; title: string } | null>(null);
   const isMinimal = searchParams?.get('minimal') === 'true';
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,21 +64,50 @@ export default function NewAssignmentPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiTopic, setAiTopic] = useState('');
+  const [aiLastModel, setAiLastModel] = useState<string | null>(null);
+  const [aiJustGenerated, setAiJustGenerated] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const handleAiGenerate = async () => {
     if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
     setAiGenerating(true);
     setAiError(null);
+    setAiLastModel(null);
     try {
-      const res = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'assignment', topic: aiTopic })
-      });
-      const result = await res.json();
-      if (result.error) throw new Error(result.error);
+      let data: any = null;
 
-      const data = result.data;
+      if (isPuterAvailable()) {
+        // Free path — Puter.js
+        const prompt = `Generate a structured assignment for Nigerian secondary school students on this topic: "${aiTopic}".
+Return ONLY valid JSON (no markdown, no code fence) with this shape:
+{
+  "title": "...",
+  "description": "...",
+  "instructions": "Step-by-step instructions...",
+  "assignment_type": "homework|project|coding|quiz",
+  "questions": [
+    { "question_text": "...", "question_type": "multiple_choice", "options": ["A","B","C","D"], "correct_answer": "A", "points": 5 }
+  ]
+}
+Include 3-5 questions. Match difficulty to JSS/SS level.`;
+        const raw = await puterChat(prompt);
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('AI returned unexpected format');
+        data = JSON.parse(jsonMatch[0]);
+        setAiLastModel('Puter.js (Free)');
+      } else {
+        // Fallback — server route
+        const res = await fetch('/api/ai/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'assignment', topic: aiTopic }),
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Generation failed');
+        data = result.data;
+        setAiLastModel(result.model?.split('/')?.pop() ?? 'OpenRouter');
+      }
+
       setForm(prev => ({
         ...prev,
         title: data.title || prev.title,
@@ -83,16 +115,21 @@ export default function NewAssignmentPage() {
         instructions: data.instructions || prev.instructions,
         assignment_type: data.assignment_type || prev.assignment_type,
       }));
-      if (data.questions?.length > 0) {
+      if (Array.isArray(data.questions) && data.questions.length > 0) {
         setQuestions(data.questions.map((q: any) => ({
           question_text: q.question_text || '',
           question_type: q.question_type || 'multiple_choice',
-          options: q.options || ['', '', '', ''],
+          options: Array.isArray(q.options) ? q.options : ['', '', '', ''],
           correct_answer: q.correct_answer || '',
-          points: q.points || 10,
+          points: q.points || 5,
+          metadata: { logic_sentence: '', logic_blocks: ['', '', ''] },
         })));
       }
+      setAiJustGenerated(true);
+      setTimeout(() => setAiJustGenerated(false), 3000);
       setAiOpen(false);
+      // Scroll form into view
+      setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (e: any) {
       setAiError(e.message || 'AI generation failed');
     } finally {
@@ -119,7 +156,7 @@ export default function NewAssignmentPage() {
       const { data } = await query.order('title');
       const courseList = data ?? [];
       setCourses(courseList);
-      
+
       // Auto-select if IDs provided in URL
       if (preCourseId) {
         setForm(prev => ({ ...prev, course_id: preCourseId }));
@@ -127,10 +164,21 @@ export default function NewAssignmentPage() {
         const matching = courseList.find((c: any) => c.program_id === preProgramId);
         if (matching) setForm(prev => ({ ...prev, course_id: matching.id }));
       }
+
+      // Fetch linked lesson title if lesson_id provided
+      if (preLessonId) {
+        const db = createClient();
+        const { data: lessonRow } = await db.from('lessons').select('id, title, course_id').eq('id', preLessonId).single();
+        if (lessonRow) {
+          setLinkedLesson({ id: lessonRow.id, title: lessonRow.title });
+          // Also auto-select the lesson's course
+          setForm(prev => ({ ...prev, course_id: lessonRow.course_id ?? prev.course_id }));
+        }
+      }
     };
 
     fetchData();
-  }, [profile?.id, authLoading, preProgramId, preCourseId, profile?.school_id]);
+  }, [profile?.id, authLoading, preProgramId, preCourseId, preLessonId, profile?.school_id]);
 
   const addQuestion = () => setQuestions(q => [...q, emptyQuestion()]);
   const removeQuestion = (i: number) => setQuestions(q => q.filter((_, idx) => idx !== i));
@@ -148,7 +196,7 @@ export default function NewAssignmentPage() {
     });
   };
 
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,6 +212,7 @@ export default function NewAssignmentPage() {
         description: form.description.trim() || null,
         instructions: form.instructions.trim() || null,
         course_id: form.course_id,
+        lesson_id: linkedLesson?.id ?? null,
         max_points: parseInt(form.max_points) || 100,
         assignment_type: form.assignment_type,
         is_active: true,
@@ -178,7 +227,12 @@ export default function NewAssignmentPage() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to create assignment'); }
-      router.push('/dashboard/assignments');
+      // Return to the lesson if this assignment was created from a lesson
+      if (linkedLesson?.id) {
+        router.push(`/dashboard/lessons/${linkedLesson.id}`);
+      } else {
+        router.push('/dashboard/assignments');
+      }
     } catch (e: any) {
       setError(e.message ?? 'Failed to create assignment');
     } finally {
@@ -224,6 +278,19 @@ export default function NewAssignmentPage() {
           </button>
         </div>
 
+        {linkedLesson && (
+          <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 p-4">
+            <AcademicCapIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-400">Linked to Lesson</p>
+              <p className="text-sm font-bold text-foreground truncate">{linkedLesson.title}</p>
+            </div>
+            <Link href={`/dashboard/lessons/${linkedLesson.id}`} className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest">
+              ← Back to Lesson
+            </Link>
+          </div>
+        )}
+
         {error && (
           <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
             <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
@@ -231,34 +298,49 @@ export default function NewAssignmentPage() {
           </div>
         )}
 
-        {/* AI Generate Panel */}
-        <div className="bg-gradient-to-br from-orange-600 to-orange-400/10 to-orange-500/5 border border-amber-500/20 rounded-none overflow-hidden">
+        {/* AI Assignment Generator */}
+        <div className="bg-gradient-to-br from-amber-500/10 to-amber-400/5 border border-amber-500/20 rounded-none overflow-hidden">
           <button
             type="button"
             onClick={() => setAiOpen(o => !o)}
             className="w-full flex items-center justify-between px-5 py-4 text-left"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-none bg-amber-500/20 flex items-center justify-center">
-                <ArrowPathIcon className={`w-4 h-4 text-amber-400 ${aiGenerating ? 'animate-spin' : ''}`} />
+              <div className="w-10 h-10 rounded-none bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
+                <SparklesIconOutline className="w-5 h-5 text-amber-400" />
               </div>
               <div>
-                <p className="text-sm font-bold text-foreground">Generate with AI</p>
-                <p className="text-xs text-muted-foreground">Auto-fill assignment details and questions</p>
+                <p className="text-sm font-black text-foreground uppercase tracking-widest">AI Assignment Generator</p>
+                <p className="text-[10px] text-muted-foreground font-medium">
+                  {aiLastModel
+                    ? <span>Generated with <span className="text-amber-400">{aiLastModel}</span></span>
+                    : 'Auto-fills title, description, instructions & questions'}
+                </p>
               </div>
             </div>
-            {aiOpen ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground" /> : <ChevronDownIcon className="w-4 h-4 text-muted-foreground rotate-180" />}
+            <div className="flex items-center gap-2">
+              {isPuterAvailable() && (
+                <span className="px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[9px] font-black uppercase tracking-widest">FREE</span>
+              )}
+              <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${aiOpen ? 'rotate-180' : ''}`} />
+            </div>
           </button>
 
           {aiOpen && (
-            <div className="px-5 pb-5 space-y-4 border-t border-amber-500/20 bg-card shadow-sm">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4">
-                <div className="space-y-1 md:col-span-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Topic / Subject Matter</label>
+            <div className="px-5 pb-5 space-y-4 border-t border-amber-500/20">
+              {aiError && (
+                <div className="flex items-start gap-2 mt-4 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">
+                  <span className="flex-shrink-0">⚠</span> {aiError}
+                </div>
+              )}
+              <div className="pt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="md:col-span-3 space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Topic / Subject *</label>
                   <input
                     value={aiTopic}
                     onChange={e => setAiTopic(e.target.value)}
-                    placeholder="e.g. Introduction to Variables in JavaScript"
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiGenerate(); } }}
+                    placeholder="e.g. Introduction to Python functions"
                     className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-amber-500"
                   />
                 </div>
@@ -266,18 +348,24 @@ export default function NewAssignmentPage() {
                   type="button"
                   onClick={handleAiGenerate}
                   disabled={aiGenerating}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all self-end"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-widest transition-all disabled:opacity-60 self-end"
                 >
-                  {aiGenerating ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-                  {aiGenerating ? 'Generating...' : 'Generate'}
+                  {aiGenerating
+                    ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Generating...</>
+                    : <><SparklesIconOutline className="w-4 h-4" /> Generate</>}
                 </button>
               </div>
-              {aiError && <p className="text-[10px] text-rose-400">{aiError}</p>}
             </div>
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-card shadow-sm border border-border rounded-none p-6 space-y-5">
+        <form ref={formRef} onSubmit={handleSubmit} className={`bg-card shadow-sm border rounded-none p-6 space-y-5 transition-all duration-700 ${aiJustGenerated ? 'border-amber-500/60 shadow-amber-500/10 shadow-lg' : 'border-border'}`}>
+
+          {aiJustGenerated && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold animate-in fade-in duration-300">
+              <CheckIcon className="w-4 h-4" /> AI filled the form below — review and adjust as needed
+            </div>
+          )}
 
           {/* Title */}
           <div>
@@ -312,12 +400,16 @@ export default function NewAssignmentPage() {
               <select value={form.assignment_type}
                 onChange={e => setForm(f => ({ ...f, assignment_type: e.target.value }))}
                 className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
-                <option value="homework">Homework</option>
-                <option value="project">Project / Lab</option>
-                <option value="coding">Coding Challenge</option>
-                <option value="quiz">Interactive Quiz</option>
-                <option value="exam">Main Exam</option>
-                <option value="presentation">Presentation</option>
+                <option value="homework">📚 Homework</option>
+                <option value="project">🛠 Project / Lab</option>
+                <option value="coding">💻 Coding Challenge</option>
+                <option value="quiz">📝 Interactive Quiz</option>
+                <option value="exam">🎯 Main Exam</option>
+                <option value="presentation">🎤 Presentation</option>
+                <option value="essay">📄 Essay</option>
+                <option value="research">🔬 Research Assignment</option>
+                <option value="lab">🧪 Science Lab</option>
+                <option value="discussion">💬 Discussion / Reflection</option>
               </select>
             </div>
 

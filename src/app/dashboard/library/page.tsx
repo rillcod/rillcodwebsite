@@ -230,24 +230,17 @@ export default function ContentLibraryPage() {
   };
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-[#0A0A12] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#0A0A12] text-foreground selection:bg-orange-500/30">
-      
-      {/* Background Orbs */}
-      <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-orange-600/10 rounded-full blur-[120px]" />
-         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[120px]" />
-      </div>
-
-      <div className="relative z-10 max-w-[1600px] mx-auto min-h-screen flex flex-col">
+    <div className="bg-background text-foreground selection:bg-orange-500/30">
+      <div className="max-w-[1600px] mx-auto min-h-screen flex flex-col">
         
         {/* Top Header */}
-        <header className="px-6 py-8 border-b border-border flex flex-col lg:flex-row lg:items-center justify-between gap-6 backdrop-blur-md sticky top-0 bg-[#0A0A12]/60 z-30">
+        <header className="px-6 py-8 border-b border-border flex flex-col lg:flex-row lg:items-center justify-between gap-6 backdrop-blur-md sticky top-0 bg-background/80 z-30">
            <div>
               <div className="flex items-center gap-2 mb-2">
                  <SparklesIcon className="w-4 h-4 text-orange-400" />
@@ -342,7 +335,7 @@ export default function ContentLibraryPage() {
                  <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-8">
                     {filtered.map(item => (
                        <div key={item.id} onClick={() => setSelectedItem(item)}
-                          className="group relative bg-white/[0.03] border border-border rounded-[2.5rem] p-6 hover:bg-white/[0.06] hover:border-orange-500/30 transition-all cursor-pointer flex flex-col shadow-2xl overflow-hidden active:scale-95">
+                          className="group relative bg-white/[0.03] border border-border rounded-none p-6 hover:bg-white/[0.06] hover:border-orange-500/30 transition-all cursor-pointer flex flex-col shadow-2xl overflow-hidden active:scale-95">
                           
                           {/* Visual Background Pattern/Thumbnail */}
                           <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-600/10 to-transparent rounded-full -translate-y-12 translate-x-12 blur-2xl group-hover:bg-orange-600/20 transition-all" />
@@ -401,7 +394,7 @@ export default function ContentLibraryPage() {
       {/* Upload/Create Modal */}
       {showUpload && (
          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/90 backdrop-blur-xl">
-            <div className="w-full max-w-2xl bg-[#0F0F1A] border border-border rounded-[3rem] p-10 space-y-8 shadow-2xl relative overflow-y-auto max-h-[90vh]">
+            <div className="w-full max-w-2xl bg-card border border-border rounded-none p-10 space-y-8 shadow-2xl relative overflow-y-auto max-h-[90vh]">
                <button onClick={() => setShowUpload(false)} className="absolute top-8 right-8 p-3 hover:bg-card shadow-sm rounded-none text-muted-foreground hover:text-foreground transition-all">
                   <XMarkIcon className="w-6 h-6" />
                </button>
@@ -512,7 +505,7 @@ export default function ContentLibraryPage() {
       {/* Detailed "Canvas" Sidebar/Modal */}
       {selectedItem && (
          <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm" onClick={() => setSelectedItem(null)}>
-            <div className="w-full max-w-2xl bg-[#0F0F1A] border-l border-border h-full shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-500" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-2xl bg-card border-l border-border h-full shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-500" onClick={e => e.stopPropagation()}>
                
                <div className="relative h-64 bg-gradient-to-br from-orange-600 to-indigo-800 flex items-center justify-center overflow-hidden">
                   <div className="absolute inset-0 opacity-20 pointer-events-none">

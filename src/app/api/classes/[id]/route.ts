@@ -9,25 +9,42 @@ function adminClient() {
   );
 }
 
-async function requireStaff() {
+async function getCaller() {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
   const { data: caller } = await adminClient()
     .from('portal_users')
-    .select('role, id')
+    .select('role, id, school_id')
     .eq('id', user.id)
     .single();
+  if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
+  return caller;
+}
+
+async function requireWriteStaff() {
+  const caller = await getCaller();
   if (!caller || !['admin', 'teacher'].includes(caller.role)) return null;
   return caller;
 }
 
+async function requireOwnerOrAdmin(classId: string, caller: { role: string; id: string }) {
+  if (caller.role === 'admin') return true;
+  const { data } = await adminClient()
+    .from('classes')
+    .select('teacher_id')
+    .eq('id', classId)
+    .maybeSingle();
+  return data?.teacher_id === caller.id;
+}
+
 // GET /api/classes/[id] — fetch single class with related data (bypasses RLS)
+// admin/teacher: any class; school: only classes belonging to their school
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireStaff();
+  const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
   const { id } = await params;
@@ -39,6 +56,12 @@ export async function GET(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+
+  // School role: can only view classes that belong to their school
+  if (caller.role === 'school' && (data as any).school_id !== caller.school_id) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+  }
+
   return NextResponse.json({ data });
 }
 
@@ -47,10 +70,14 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireStaff();
+  const caller = await requireWriteStaff();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
   const { id } = await params;
+  if (!await requireOwnerOrAdmin(id, caller)) {
+    return NextResponse.json({ error: 'You can only edit classes you teach' }, { status: 403 });
+  }
+
   const body = await request.json();
 
   // Whitelist allowed update fields
@@ -76,14 +103,20 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireStaff();
+  const caller = await requireWriteStaff();
   if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
   const { id } = await params;
-  const { error } = await adminClient()
-    .from('classes')
-    .delete()
-    .eq('id', id);
+  if (!await requireOwnerOrAdmin(id, caller)) {
+    return NextResponse.json({ error: 'You can only delete classes you teach' }, { status: 403 });
+  }
+
+  const admin = adminClient();
+
+  // Nullify class_id on students assigned to this class before deleting
+  await admin.from('portal_users').update({ class_id: null } as any).eq('class_id', id);
+
+  const { error } = await admin.from('classes').delete().eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });

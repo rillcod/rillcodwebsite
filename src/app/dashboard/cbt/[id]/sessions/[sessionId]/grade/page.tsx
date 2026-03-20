@@ -6,9 +6,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
-    ArrowLeftIcon, UserIcon, ClockIcon,
-    CheckCircleIcon, XCircleIcon, SaveIcon, SparklesIcon, BookOpenIcon
-} from 'lucide-react';
+    ArrowLeftIcon, UserCircleIcon, ClockIcon,
+    CheckCircleIcon, XCircleIcon, CloudArrowUpIcon, SparklesIcon, BookOpenIcon,
+    AcademicCapIcon, ChartBarIcon
+} from '@/lib/icons';
 
 export default function GradeSessionPage() {
     const params = useParams() as { id: string, sessionId: string };
@@ -106,25 +107,52 @@ export default function GradeSessionPage() {
             const db = createClient();
 
             // Calculate final score
-            let autoPoints = 0;
-            let manualPoints = 0;
-            let totalMaxPoints = 0;
+            const sectionWeights: Record<string, number> = exam?.metadata?.section_weights ?? {};
+            const hasWeights = Object.values(sectionWeights).some((w: any) => w > 0);
+            const isManualType = (q: any) => ['essay', 'fill_blank', 'coding_blocks'].includes(q.question_type);
 
-            questions.forEach(q => {
+            let finalScore: number;
+            if (hasWeights) {
+              const sections = ['objective', 'subjective', 'practical'] as const;
+              const activeTotal = sections.reduce((s, sec) => {
+                const qs = questions.filter(q => (q.metadata?.section ?? 'objective') === sec);
+                return qs.length > 0 ? s + (sectionWeights[sec] ?? 0) : s;
+              }, 0);
+              let weightedScore = 0;
+              for (const sec of sections) {
+                const secQs = questions.filter(q => (q.metadata?.section ?? 'objective') === sec);
+                const secWeight = sectionWeights[sec] ?? 0;
+                if (secQs.length === 0 || secWeight === 0) continue;
+                const secTotal = secQs.reduce((s, q) => s + (q.points ?? 0), 0);
+                let secEarned = 0;
+                secQs.forEach(q => {
+                  const studentAnswer = (session.answers[q.id] ?? '').trim().toLowerCase();
+                  const correctAnswer = (q.correct_answer ?? '').trim().toLowerCase();
+                  if (isManualType(q) && manualScores[q.id] !== undefined) {
+                    secEarned += manualScores[q.id] ?? 0;
+                  } else if (!isManualType(q) && studentAnswer === correctAnswer) {
+                    secEarned += q.points ?? 0;
+                  }
+                });
+                const normalizedWeight = activeTotal > 0 ? (secWeight / activeTotal) * 100 : secWeight;
+                weightedScore += secTotal > 0 ? (secEarned / secTotal) * normalizedWeight : 0;
+              }
+              finalScore = Math.round(weightedScore);
+            } else {
+              let autoPoints = 0, manualPoints = 0, totalMaxPoints = 0;
+              questions.forEach(q => {
                 totalMaxPoints += (q.points ?? 0);
                 const studentAnswer = (session.answers[q.id] ?? '').trim().toLowerCase();
                 const correctAnswer = (q.correct_answer ?? '').trim().toLowerCase();
-
-                // If a manual score is provided in the state, use it for subjective/reviewable types
-                if (manualScores[q.id] !== undefined && (q.question_type === 'essay' || q.question_type === 'fill_blank' || q.question_type === 'coding_blocks')) {
-                    manualPoints += (manualScores[q.id] ?? 0);
-                } else if (studentAnswer === correctAnswer) {
-                    autoPoints += (q.points ?? 0);
+                if (isManualType(q) && manualScores[q.id] !== undefined) {
+                  manualPoints += manualScores[q.id] ?? 0;
+                } else if (!isManualType(q) && studentAnswer === correctAnswer) {
+                  autoPoints += q.points ?? 0;
                 }
-            });
-
-            const totalEarned = autoPoints + manualPoints;
-            const finalScore = totalMaxPoints > 0 ? Math.round((totalEarned / totalMaxPoints) * 100) : 0;
+              });
+              const totalEarned = autoPoints + manualPoints;
+              finalScore = totalMaxPoints > 0 ? Math.round((totalEarned / totalMaxPoints) * 100) : 0;
+            }
             const passed = finalScore >= (exam.passing_score ?? 70);
 
             const gradeRes = await fetch(`/api/cbt/sessions/${params.sessionId}`, {
@@ -214,7 +242,7 @@ export default function GradeSessionPage() {
                         <h1 className="text-4xl font-black italic tracking-tighter">Evaluation Canvas</h1>
                         <div className="flex items-center gap-4 text-xs font-bold text-muted-foreground">
                             <span className="flex items-center gap-2 px-3 py-1 bg-card shadow-sm rounded-full border border-border italic">
-                                <UserIcon className="w-3.5 h-3.5 text-cyan-400" /> {session.portal_users?.full_name}
+                                <UserCircleIcon className="w-3.5 h-3.5 text-cyan-400" /> {session.portal_users?.full_name}
                             </span>
                             <span className="flex items-center gap-2 px-3 py-1 bg-card shadow-sm rounded-full border border-border italic">
                                 <ClockIcon className="w-3.5 h-3.5 text-amber-400" /> {new Date(session.end_time).toLocaleDateString()} · {new Date(session.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -236,11 +264,105 @@ export default function GradeSessionPage() {
                             disabled={saving || aiGrading}
                             className="flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-foreground font-black uppercase text-[10px] tracking-[0.2em] rounded-none transition-all shadow-2xl shadow-emerald-900/40 border border-emerald-400/20 group"
                         >
-                            {saving ? <div className="w-5 h-5 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <SaveIcon className="w-4 h-4 group-hover:scale-125 transition-transform" />}
+                            {saving ? <div className="w-5 h-5 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4 group-hover:scale-125 transition-transform" />}
                             {saving ? 'Saving...' : 'Finalize Grade'}
                         </button>
                     </div>
                 </div>
+
+                {/* Live Score Preview */}
+                {(() => {
+                  const sw: Record<string, number> = exam?.metadata?.section_weights ?? {};
+                  const hw = Object.values(sw).some((w: any) => w > 0);
+                  const isManT = (q: any) => ['essay', 'fill_blank', 'coding_blocks'].includes(q.question_type);
+                  let pct = 0;
+                  if (hw) {
+                    const secs = ['objective', 'subjective', 'practical'];
+                    const aT = secs.reduce((s, sec) => {
+                      const qs = questions.filter(q => (q.metadata?.section ?? 'objective') === sec);
+                      return qs.length > 0 ? s + (sw[sec] ?? 0) : s;
+                    }, 0);
+                    let ws = 0;
+                    for (const sec of secs) {
+                      const sQs = questions.filter(q => (q.metadata?.section ?? 'objective') === sec);
+                      const sW = sw[sec] ?? 0; if (sQs.length === 0 || sW === 0) continue;
+                      const sT = sQs.reduce((s, q) => s + (q.points ?? 0), 0); let sE = 0;
+                      sQs.forEach(q => {
+                        if (isManT(q) && manualScores[q.id] !== undefined) sE += manualScores[q.id] ?? 0;
+                        else if (!isManT(q) && (session.answers?.[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) sE += q.points ?? 0;
+                      });
+                      ws += sT > 0 ? (sE / sT) * (aT > 0 ? (sW / aT) * 100 : sW) : 0;
+                    }
+                    pct = Math.round(ws);
+                  } else {
+                    let autoP = 0, manualP = 0, totalP = 0;
+                    questions.forEach(q => {
+                      totalP += (q.points ?? 0);
+                      if (isManT(q) && manualScores[q.id] !== undefined) manualP += manualScores[q.id] ?? 0;
+                      else if (!isManT(q) && (session.answers?.[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) autoP += q.points ?? 0;
+                    });
+                    pct = totalP > 0 ? Math.round(((autoP + manualP) / totalP) * 100) : 0;
+                  }
+                  const totalP = questions.reduce((s, q) => s + (q.points ?? 0), 0);
+                  const total = questions.reduce((s, q) => {
+                    if (isManT(q) && manualScores[q.id] !== undefined) return s + (manualScores[q.id] ?? 0);
+                    if (!isManT(q) && (session.answers?.[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) return s + (q.points ?? 0);
+                    return s;
+                  }, 0);
+                  const passes = pct >= (exam?.passing_score ?? 70);
+                  return (
+                    <div className="bg-white/[0.02] border border-white/10 p-6 flex flex-col sm:flex-row items-center gap-6">
+                      <ChartBarIcon className="w-8 h-8 text-emerald-400 shrink-0" />
+                      <div className="flex-1 w-full">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em]">Live Score Preview</p>
+                          <span className={`text-2xl font-black ${passes ? 'text-emerald-400' : 'text-rose-400'}`}>{pct}%</span>
+                        </div>
+                        <div className="h-2 w-full bg-white/5 overflow-hidden">
+                          <div className={`h-full transition-all duration-500 ${passes ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(pct,100)}%` }} />
+                        </div>
+                        <div className="flex items-center justify-between mt-2 text-[9px] font-black uppercase tracking-widest">
+                          <span className="text-white/20">{total}/{totalP} pts · Pass: {exam?.passing_score ?? 70}%</span>
+                          <span className={passes ? 'text-emerald-400' : 'text-rose-400'}>{passes ? 'WILL PASS' : 'WILL FAIL'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Auto-graded questions summary */}
+                {questions.filter(q => q.question_type !== 'essay' && q.question_type !== 'fill_blank' && q.question_type !== 'coding_blocks').length > 0 && (
+                  <div className="bg-white/[0.02] border border-white/5 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3">
+                      <AcademicCapIcon className="w-4 h-4 text-blue-400" />
+                      <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">Auto-Graded Questions</p>
+                    </div>
+                    <div className="divide-y divide-white/5">
+                      {questions.filter(q => q.question_type !== 'essay' && q.question_type !== 'fill_blank' && q.question_type !== 'coding_blocks').map((q, i) => {
+                        const studentAns = (session.answers?.[q.id] ?? '').trim();
+                        const correctAns = (q.correct_answer ?? '').trim();
+                        const isRight = studentAns.toLowerCase() === correctAns.toLowerCase();
+                        return (
+                          <div key={q.id} className="px-6 py-4 flex items-start gap-4">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isRight ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
+                              {isRight ? <CheckCircleIcon className="w-4 h-4 text-emerald-400" /> : <XCircleIcon className="w-4 h-4 text-rose-400" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-white/70 leading-snug">{q.question_text}</p>
+                              <div className="flex flex-wrap gap-4 mt-1.5 text-[10px] font-black uppercase tracking-widest">
+                                <span className="text-white/30">Student: <span className={isRight ? 'text-emerald-400' : 'text-rose-400'}>{studentAns || '(no answer)'}</span></span>
+                                {!isRight && <span className="text-white/30">Correct: <span className="text-emerald-400">{correctAns}</span></span>}
+                              </div>
+                            </div>
+                            <span className={`text-sm font-black shrink-0 ${isRight ? 'text-emerald-400' : 'text-white/20'}`}>
+                              {isRight ? `+${q.points}` : '0'}/{q.points}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 gap-10">
                     {subjectiveQuestions.map((q, i) => {

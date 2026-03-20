@@ -1,3 +1,4 @@
+// @refresh reset
 'use client';
 
 import React from 'react';
@@ -10,7 +11,8 @@ import {
     UserGroupIcon, 
     TrophyIcon, 
     SparklesIcon, 
-    CheckBadgeIcon 
+    CheckBadgeIcon,
+    ShieldCheckIcon
 } from '@/lib/icons';
 
 interface PrintableReportProps {
@@ -19,337 +21,265 @@ interface PrintableReportProps {
 }
 
 /**
- * A dedicated component for high-fidelity printing and PDF generation.
- * This component (and its children) use fixed pixel values (794px x 1123px)
- * and @media print rules to ensure absolute parity between screen and paper.
+ * A dedicated component for high-fidelity A4 printing.
+ * Uses 210mm x 297mm dimensions to ensure absolute alignment.
  */
 export default function PrintableReport({ report, orgSettings }: PrintableReportProps) {
     if (!report) return null;
 
-    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-    const overall = report.overall_score || 0;
-    const theory = report.theory_score || 0;
-    const practical = report.practical_score || 0;
-    const attendance = report.attendance_score || 0;
+    const today = report.report_date 
+        ? new Date(report.report_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+        : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    
+    const overall = Number(report.overall_score) || 0;
+    const theory = Number(report.theory_score) || 0;
+    const practical = Number(report.practical_score) || 0;
+    const attendance = Number(report.attendance_score) || 0;
+    const engagement = Number(report.participation_score) || 0;
 
     const getGrade = (score: number) => {
-        if (score >= 90) return { g: 'A+', label: 'Distinction', color: '#10b981' };
-        if (score >= 80) return { g: 'A', label: 'Excellent', color: '#10b981' };
-        if (score >= 70) return { g: 'B', label: 'Great', color: '#3b82f6' };
-        if (score >= 60) return { g: 'C', label: 'Good', color: '#f59e0b' };
-        return { g: 'D', label: 'Needs Improvement', color: '#ef4444' };
+        if (score >= 85) return { g: 'A', label: 'EXCELLENT', color: '#FF914D' };
+        if (score >= 70) return { g: 'B', label: 'VERY GOOD', color: '#FF914D' };
+        if (score >= 55) return { g: 'C', label: 'GOOD', color: '#FF914D' };
+        if (score >= 45) return { g: 'D', label: 'PASS', color: '#FF914D' };
+        return { g: 'E', label: 'FAIL', color: '#ef4444' };
     };
     const grade = getGrade(overall);
 
     const hasPayment = report.fee_status && report.fee_status !== 'none';
     const getFeeStyle = (status: string) => {
-        if (status === 'full') return { label: 'Paid in Full', text: '#059669', bg: '#ecfdf5' };
-        if (status === 'partial') return { label: 'Partial Payment', text: '#d97706', bg: '#fffbeb' };
-        return null;
+        const styles: Record<string, { label: string; text: string; bg: string }> = {
+            paid: { label: 'PAID', text: '#065f46', bg: '#d1fae5' },
+            outstanding: { label: 'OUTSTANDING', text: '#991b1b', bg: '#fee2e2' },
+            partial: { label: 'PARTIAL', text: '#92400e', bg: '#fef3c7' },
+            sponsored: { label: 'SPONSORED', text: '#1e40af', bg: '#dbeafe' },
+            waived: { label: 'WAIVED', text: '#5b21b6', bg: '#ede9fe' },
+        };
+        return styles[status] || null;
     };
     const feeStyle = hasPayment ? getFeeStyle(report.fee_status) : null;
 
     return (
-        <>
+        <div 
+          id="printable-report"
+          className="bg-white text-slate-900 font-sans relative flex flex-col p-[20mm] mx-auto overflow-hidden shadow-2xl printable-modern"
+          style={{ 
+            width: '210mm', 
+            height: '297mm', 
+            minHeight: '297mm',
+            boxSizing: 'border-box', 
+            WebkitPrintColorAdjust: 'exact', 
+            printColorAdjust: 'exact'
+          }}
+        >
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
-                    @page {
-                        size: A4;
-                        margin: 0;
-                    }
-                    body {
-                        margin: 0;
+                    @page { size: A4; margin: 0; }
+                    body { margin: 0; padding: 0; }
+                    .printable-modern { 
+                        box-shadow: none !important; 
+                        margin: 0 !important;
+                        width: 210mm !important; 
+                        height: 297mm !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
-                    }
-                    .printable-card {
-                        box-shadow: none !important;
-                        border: none !important;
-                        width: 794px !important;
-                        height: 1123px !important;
                     }
                 }
             ` }} />
 
-            <div
-                className="printable-card bg-white text-gray-900 font-sans relative overflow-hidden flex flex-col p-10 mx-auto shadow-2xl"
-                style={{ 
-                    width: '794px', 
-                    height: '1123px', 
-                    maxHeight: '1123px',
-                    fontSize: '12.5px', 
-                    WebkitPrintColorAdjust: 'exact', 
-                    printColorAdjust: 'exact',
-                    boxSizing: 'border-box'
-                }}
-            >
-                {/* Ambient Background Elements */}
-                <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-500/5 blur-[100px] rounded-full -mr-20 -mt-20 pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-cyan-500/5 blur-[100px] rounded-full -ml-20 -mb-20 pointer-events-none" />
-                <div className="absolute inset-0 border-2 border-indigo-500/5 m-6 pointer-events-none rounded-[3.5rem]" />
-
-                {/* HEADER SECTION */}
-                <div className="relative z-10 flex justify-between items-center mb-8 pb-4 border-b border-gray-100">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50">
-                            <img 
-                              src={orgSettings?.logo_url || '/logo.png'} 
-                              alt="Logo" 
-                              crossOrigin="anonymous"
-                              className="w-12 h-12 object-contain"
-                            />
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                                <h2 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.4em] opacity-70">Official Academic Registry</h2>
-                            </div>
-                            <h1 className="text-2xl font-black uppercase tracking-tighter leading-none italic bg-gradient-to-r from-gray-900 to-gray-500 bg-clip-text text-transparent">
-                                {orgSettings?.org_name || 'Rillcod Technologies'}
-                            </h1>
-                            <p className="text-[7.5px] text-indigo-400 font-black uppercase tracking-[0.3em] mt-1">{orgSettings?.org_tagline || 'Excellence in Technology'}</p>
-                        </div>
+            {/* Premium Borders */}
+            <div className="absolute inset-0 border-[12px] border-[#121212] pointer-events-none" />
+            <div className="absolute inset-0 border border-slate-200 m-8 pointer-events-none" />
+            
+            {/* Header Section */}
+            <div className="relative z-10 flex justify-between items-start border-b-[6px] border-[#121212] pb-8 mb-12">
+                <div className="flex gap-8">
+                    <div className="p-5 bg-[#121212] shadow-2xl">
+                        <img 
+                          src={orgSettings?.logo_url || '/logo.png'} 
+                          alt="Logo" 
+                          crossOrigin="anonymous"
+                          className="w-16 h-16 object-contain brightness-0 invert"
+                          onError={e => { (e.target as HTMLImageElement).src = '/logo.png'; }}
+                        />
                     </div>
-                    <div className="flex items-center gap-8">
-                        {hasPayment && feeStyle && (
-                            <div className="text-right">
-                                <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest leading-none mb-1.5">Fee Status</p>
-                                <span className="px-3 py-1 rounded-full text-[9px] font-black border tracking-wider bg-white shadow-sm"
-                                    style={{ color: feeStyle.text, borderColor: `${feeStyle.text}30` }}>
-                                    {feeStyle.label}
-                                </span>
-                            </div>
-                        )}
-                        <div className="text-right">
-                            <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-1">Transcript ID</p>
-                            <p className="text-xl font-black text-gray-900 tabular-nums leading-none tracking-tighter italic">{report.id?.slice(0, 8) || 'PREVIEW'}</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* IDENTITY GRID */}
-                <div className="grid grid-cols-2 gap-3 mb-4 relative z-10">
-                    <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-[2rem] p-5 shadow-sm relative overflow-hidden group">
-                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] mb-3 opacity-60 flex items-center gap-2">
-                            <UserCircleIcon className="w-3.5 h-3.5" /> Candidate Profile
+                    <div className="flex flex-col justify-center">
+                        <h1 className="text-3xl font-black uppercase tracking-tighter italic leading-none mb-2">
+                            {orgSettings?.org_name || 'Rillcod Technologies'}
+                        </h1>
+                        <p className="text-[10px] text-[#FF914D] font-black uppercase tracking-[0.4em] mb-4">
+                            {orgSettings?.org_tagline || 'Technical Excellence Consortium'}
                         </p>
-                        <div className="space-y-4">
-                            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-tight">{report.student_name || '—'}</h3>
-                            <div className="grid grid-cols-2 gap-6">
-                                <div>
-                                    <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Academic Level</p>
-                                    <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">{report.section_class || '—'}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Institution</p>
-                                    <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">{report.school_name || 'Rillcod'}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-100 rounded-[2rem] p-5 shadow-sm relative overflow-hidden group">
-                        <p className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.3em] mb-3 opacity-60 flex items-center gap-2">
-                            <AcademicCapIcon className="w-3.5 h-3.5" /> Operational Details
-                        </p>
-                        <div className="space-y-4">
-                            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-tight">{report.course_name || '—'}</h3>
-                            <div className="grid grid-cols-2 gap-6">
-                                <div>
-                                    <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Term/Duration</p>
-                                    <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">{report.report_term || report.course_duration || '—'}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-1">Session Closing</p>
-                                    <p className="text-[11px] font-bold text-gray-600 uppercase italic truncate">{today}</p>
-                                </div>
-                            </div>
+                        <div className="flex gap-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                            <span>ID: {report.id?.slice(0, 8) || 'PREVIEW'}</span>
+                            <div className="w-1.5 h-1.5 bg-slate-200 rounded-full mt-1.5" />
+                            <span>DATE: {today}</span>
                         </div>
                     </div>
                 </div>
-
-                {/* MAIN METRIC HUB */}
-                <div className="relative z-10 flex flex-col gap-3 mb-4">
-                    <div className="flex items-center gap-4">
-                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
-                        <p className="text-[10px] font-black text-indigo-500/60 uppercase tracking-[0.6em] leading-none italic">Intelligence Matrix</p>
-                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
+                <div className="text-right flex flex-col items-end gap-4">
+                    <div className="px-8 py-2.5 bg-[#121212] text-white text-[12px] font-black uppercase tracking-[0.4em] italic leading-none">
+                        Registry Copy
                     </div>
-
-                    <div className="grid grid-cols-12 gap-6 items-stretch">
-                        <div className="col-span-8 bg-white border border-gray-100 rounded-[2rem] p-6 flex flex-col justify-between">
-                            <div className="space-y-4">
-                                {[
-                                    { label: 'Theory Protocols', value: theory, color: '#4f46e5', icon: AcademicCapIcon },
-                                    { label: 'Practical Synthesis', value: practical, color: '#0891b2', icon: BoltIcon },
-                                    { label: 'Presence Metric', value: attendance, color: '#059669', icon: ClockIcon },
-                                    { label: 'Engagement Data', value: report.participation_score || 0, color: '#7c3aed', icon: UserGroupIcon }
-                                ].map(m => (
-                                    <div key={m.label} className="space-y-2">
-                                        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                                            <span className="text-gray-400 flex items-center gap-2">
-                                                <div className="w-5 h-5 rounded-lg bg-gray-50 flex items-center justify-center border border-gray-100/50">
-                                                    <m.icon className="w-3 h-3 text-gray-400" />
-                                                </div>
-                                                {m.label}
-                                            </span>
-                                            <span style={{ color: m.color }} className="italic text-base font-bold">{m.value}%</span>
-                                        </div>
-                                        <div className="h-1.5 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100/30">
-                                            <div className="h-full rounded-full" style={{ width: `${m.value}%`, backgroundColor: m.color }} />
-                                        </div>
-                                    </div>
-                                ))}
-                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 mt-2">
-                                    {[
-                                        { l: 'Project Grade', v: report.projects_grade },
-                                        { l: 'Homework Hub', v: report.homework_grade }
-                                    ].map(g => (
-                                        <div key={g.l} className="bg-gray-50/20 border border-gray-100 px-4 py-3 rounded-2xl">
-                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">{g.l}</p>
-                                            <p className="text-lg font-black text-gray-900 leading-none italic">{g.v || '—'}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                    {hasPayment && feeStyle && (
+                        <div className="flex items-center gap-4 px-5 py-2.5 bg-slate-50 border border-slate-200 shadow-sm">
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">STATUS: {feeStyle.label}</span>
+                           {report.fee_amount && <span className="text-sm font-black italic text-[#121212]">₦{report.fee_amount}</span>}
                         </div>
-
-                        <div className="col-span-4 bg-white border-2 border-indigo-50 rounded-[2rem] p-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
-                            <div className="relative z-10 w-full flex flex-col items-center">
-                                <div className="p-2 rounded-2xl bg-indigo-50/30 mb-3 border border-indigo-100">
-                                    <TrophyIcon className="w-5 h-5 text-indigo-500" />
-                                </div>
-                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-1 italic">Composite Standing</p>
-                                <h3 className="text-6xl font-black leading-none italic mb-4" style={{ color: grade.color }}>{grade.g}</h3>
-                                <div className="px-5 py-1.5 bg-indigo-50 rounded-xl inline-block border border-indigo-100">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-800 italic">{grade.label}</span>
-                                </div>
-                                <p className="text-sm font-black text-gray-400 mt-3 tabular-nums tracking-tighter italic uppercase">{overall}% Performance</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* MODULES & EVALUATION */}
-                <div className="grid grid-cols-12 gap-4 mb-4 relative z-10">
-                    <div className="col-span-4 space-y-4">
-                        <div className="bg-gradient-to-br from-indigo-50 to-white border-l-4 border-indigo-500 p-5 rounded-2xl shadow-sm">
-                            <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                                <CheckBadgeIcon className="w-3 h-3" /> Active Operative
-                            </p>
-                            <p className="text-[14px] font-black text-gray-900/80 leading-tight uppercase tracking-tight italic truncate">{report.current_module || 'Synthetic Core'}</p>
-                        </div>
-                        <div className="bg-gradient-to-br from-cyan-50 to-white border-l-4 border-cyan-500 p-5 rounded-2xl shadow-sm">
-                            <p className="text-[9px] font-black text-cyan-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                                <BoltIcon className="w-3 h-3" /> Sequence Target
-                            </p>
-                            <p className="text-[14px] font-black text-gray-900/80 leading-tight uppercase tracking-tight italic truncate">{report.next_module || 'Advanced Node'}</p>
-                        </div>
-                    </div>
-
-                    <div className="col-span-8 grid grid-cols-2 gap-6">
-                        <div className="bg-white border border-emerald-500/10 p-6 rounded-[2rem] relative shadow-sm">
-                            <div className="flex items-center justify-between mb-3">
-                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2 italic">
-                                    <SparklesIcon className="w-4 h-4" /> Precision Strengths
-                                </p>
-                                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                            </div>
-                            <p className="text-[13px] leading-relaxed text-gray-700 font-medium italic">
-                                {report.key_strengths || 'Cognitive patterns indicate high analytical precision and rapid assimilation of core technical logic.'}
-                            </p>
-                        </div>
-                        <div className="bg-white border border-rose-500/10 p-6 rounded-[2rem] relative shadow-sm">
-                            <div className="flex items-center justify-between mb-3">
-                                <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-2 italic">
-                                    <BoltIcon className="w-4 h-4" /> Growth Vectors
-                                </p>
-                                <div className="w-2 h-2 rounded-full bg-rose-500" />
-                            </div>
-                            <p className="text-[13px] leading-relaxed text-gray-700 font-medium italic">
-                                {report.areas_for_growth || 'Transition to complex architectural modeling is required to optimize large-scale deployment competence.'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* VALIDATION DECREE */}
-                {(overall >= 0 || report.has_certificate) && (
-                    <div className="relative z-10 mb-3 bg-indigo-50/50 border-2 border-indigo-100 rounded-3xl px-8 py-3 flex items-center gap-6 overflow-hidden">
-                        <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center border border-indigo-100 shadow-sm shrink-0">
-                            <TrophyIcon className="w-5 h-5 text-indigo-500" />
-                        </div>
-                        <div className="relative z-10 flex-1 min-w-0">
-                            <h4 className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.6em] mb-1 italic">Official Certification Decree</h4>
-                            <p className="text-[12px] font-extrabold text-indigo-900 leading-tight italic">
-                                {report.certificate_text || `This document officially recognizes that ${report.student_name} has successfully completed the intensive study programme in ${report.course_name}.`}
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                {/* SIGNATURE & AUTHENTICATION */}
-                <div className="mt-auto relative z-10 bg-gray-50/50 border border-gray-100 rounded-[1.5rem] p-6">
-                    <div className="flex items-end justify-between">
-                        <div className="flex flex-col gap-6">
-                            <div className="space-y-4">
-                                <p className="text-[11px] font-black text-indigo-500/40 uppercase tracking-[0.4em] italic mb-6">Board Verification Matrix</p>
-                                <div className="flex items-center gap-10">
-                                    <div className="text-left">
-                                        <img
-                                            src="/images/signature.png"
-                                            alt="Sign"
-                                            className="h-12 w-auto object-contain brightness-0 opacity-80 mb-3 filter drop-shadow-xl"
-                                        />
-                                        <div className="w-40 h-px bg-gradient-to-r from-gray-300 via-gray-300 to-transparent mb-2" />
-                                        <p className="text-sm font-black text-gray-900 uppercase tracking-widest italic leading-none">{report.instructor_name || 'Rillcod Executive'}</p>
-                                        <p className="text-[9px] font-black text-indigo-500/30 uppercase tracking-[0.3em] mt-1.5">Lead Operative Directive</p>
-                                    </div>
-                                    <div className="w-px h-20 bg-gray-200" />
-                                    {report.show_payment_notice && (
-                                        <div className="flex flex-col gap-2 items-start justify-center pr-10">
-                                            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.4em] leading-none mb-2">Cycle Ledger</p>
-                                            <p className="text-3xl font-black text-gray-900 tabular-nums italic leading-none">₦{report.fee_amount || '20,000'}</p>
-                                            <p className="text-[12px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mt-1">RILLCOD LTD · TRUSTED</p>
-                                            <p className="text-[10px] font-black text-indigo-500/40 tracking-widest leading-none mt-1 uppercase italic">Providus Bank · 7901178957</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col items-center gap-6">
-                            <div className="p-6 bg-white rounded-[2.5rem] shadow-[0_25px_50px_rgba(0,0,0,0.1)] border border-gray-50 scale-110">
-                                <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) || 'preview'}`} size={100} fgColor="#1e1b4b" />
-                            </div>
-                            <div className="flex flex-col items-center">
-                                <p className="text-[11px] font-black text-indigo-500/60 uppercase tracking-[0.5em] italic leading-none">Secure Link</p>
-                                <div className="w-10 h-px bg-indigo-500/20 mt-3" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="mt-10 flex items-center justify-between text-[10px] font-black text-gray-300 uppercase tracking-[0.5em] pb-2 border-t border-gray-100 pt-6">
-                        <span className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-indigo-500/30" />
-                            Nucleus Engine v2.5 Deployment
-                        </span>
-                        <div className="flex gap-8">
-                            <span className="truncate max-w-[200px]">Hash: {report.id?.slice(-12).toUpperCase() || 'DATA_NULL'}</span>
-                            <span className="text-indigo-400/40">verify.rillcod.com</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Footer Stripes */}
-                <div className="absolute bottom-0 inset-x-0 h-2 flex">
-                    <div className="flex-1 bg-indigo-500" />
-                    <div className="flex-1 bg-cyan-500" />
-                    <div className="flex-1 bg-emerald-500" />
-                    <div className="flex-1 bg-violet-500" />
-                    <div className="flex-1 bg-rose-500" />
+                    )}
                 </div>
             </div>
-        </>
+
+            {/* Identity Grid */}
+            <div className="relative z-10 space-y-4 mb-12">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-[3px] bg-[#FF914D]" />
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.5em] italic">Official Recipient</p>
+                </div>
+                <h2 className="text-6xl font-black uppercase tracking-tighter italic border-b-[10px] border-[#FF914D] pb-4 leading-none">
+                    {report.student_name || 'Valued Learner'}
+                </h2>
+
+                <div className="grid grid-cols-4 gap-12 pt-6">
+                    <div>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1.5">Programme</p>
+                        <p className="text-[15px] font-black text-[#121212] uppercase italic leading-tight">{report.course_name || 'STEM Synthesis'}</p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1.5">Timeline</p>
+                        <p className="text-[15px] font-black text-[#121212] uppercase italic leading-tight">{report.report_term || 'S1-2024'}</p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1.5">Academic Level</p>
+                        <p className="text-[15px] font-black text-[#121212] uppercase italic leading-tight">{report.section_class || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1.5">Institution</p>
+                        <p className="text-[15px] font-black text-[#121212] uppercase italic leading-tight">{report.school_name || 'Rillcod'}</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Performance Hub */}
+            <div className="relative z-10 grid grid-cols-12 gap-12 mb-12">
+                <div className="col-span-8 flex flex-col gap-8">
+                    <div className="flex items-center gap-4">
+                        <h3 className="text-[13px] font-black uppercase tracking-[0.6em] text-[#121212] italic shrink-0">Mastery Matrix</h3>
+                        <div className="h-[2px] w-full bg-slate-100" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-12 gap-y-8">
+                        {[
+                            { label: 'Theory Protocols (40%)', value: theory, color: 'bg-[#121212]' },
+                            { label: 'Practical Synthesis (40%)', value: practical, color: 'bg-[#FF914D]' },
+                            { label: 'Presence Metric (20%)', value: attendance, color: 'bg-[#121212]' },
+                            { label: 'Engagement (Bonus)', value: engagement, color: 'bg-[#FF914D]' }
+                        ].map(m => (
+                            <div key={m.label} className="space-y-3">
+                                <div className="flex justify-between items-end">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{m.label}</span>
+                                    <span className="text-[17px] font-black italic tabular-nums text-[#121212]">{m.value}%</span>
+                                </div>
+                                <div className="h-2 w-full bg-slate-50 border border-slate-100">
+                                    <div className={`h-full ${m.color}`} style={{ width: `${m.value}%` }} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-6 pt-8 border-t-[3px] border-slate-100 mt-2">
+                        <div className="p-5 bg-slate-50 border-l-[6px] border-[#121212]">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Laboratory Performance</p>
+                            <p className="text-[20px] font-black text-[#121212] uppercase italic leading-none">{report.projects_grade || 'OPTIMAL'}</p>
+                        </div>
+                        <div className="p-5 bg-slate-50 border-l-[6px] border-[#FF914D]">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Assignment Analytics</p>
+                            <p className="text-[20px] font-black text-[#121212] uppercase italic leading-none">{report.homework_grade || 'SUBMITTED'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="col-span-4 flex flex-col items-center justify-center text-center bg-[#121212] p-10 shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-[5px] bg-[#FF914D]" />
+                    <p className="text-[11px] font-black text-[#FF914D] uppercase tracking-[0.5em] mb-6 italic leading-none">Final Grade</p>
+                    <h3 className="text-[140px] font-black italic leading-none text-white tracking-tighter mb-6">{grade.g}</h3>
+                    <div className="px-8 py-2.5 bg-[#FF914D] text-black text-[14px] font-black uppercase tracking-[0.3em]">
+                        {grade.label}
+                    </div>
+                    <p className="text-3xl font-black text-white/20 mt-6 tabular-nums">SCORE: {overall}%</p>
+                </div>
+            </div>
+
+            {/* Qualitative Insights */}
+            <div className="relative z-10 grid grid-cols-2 gap-10 mb-12">
+                <div className="p-10 bg-slate-50 border border-slate-200 relative">
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="p-2 bg-[#FF914D]/10 border border-[#FF914D]/20">
+                            <SparklesIcon className="w-5 h-5 text-[#FF914D]" />
+                        </div>
+                        <h4 className="text-[12px] font-black uppercase tracking-[0.3em] text-[#121212] italic">Identified Strengths</h4>
+                    </div>
+                    <p className="text-[15px] leading-relaxed text-slate-600 font-bold italic">
+                        {report.key_strengths || 'The student demonstrates exceptional aptitude in logical deduction and technical synthesis.'}
+                    </p>
+                </div>
+                <div className="p-10 bg-slate-50 border border-slate-200 relative">
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="p-2 bg-[#121212]/5 border border-[#121212]/10">
+                            <BoltIcon className="w-5 h-5 text-[#121212]" />
+                        </div>
+                        <h4 className="text-[12px] font-black uppercase tracking-[0.3em] text-[#121212] italic">Growth Calibration</h4>
+                    </div>
+                    <p className="text-[15px] leading-relaxed text-slate-600 font-bold italic">
+                        {report.areas_for_growth || 'Focus on architectural modularity and technical documentation will optimize deployment competence.'}
+                    </p>
+                </div>
+            </div>
+
+            {/* Certification Decree */}
+            {(overall >= 45 || report.has_certificate) && (
+                <div className="relative z-10 mb-12 p-8 bg-white border-y-4 border-[#121212] flex items-center gap-10">
+                    <TrophyIcon className="w-12 h-12 text-[#FF914D] shrink-0" />
+                    <div>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[1.2em] mb-2 italic leading-none">Official Decree</p>
+                        <p className="text-[16px] font-black text-[#121212] leading-tight italic">
+                            {report.certificate_text || `This document officially recognizes the mastery demonstrated by ${report.student_name} in ${report.course_name}.`}
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Board Verification & Signatures */}
+            <div className="relative z-10 mt-auto flex justify-between items-end pt-10 border-t-[3px] border-slate-100 flex-1">
+                <div className="flex gap-20">
+                    <div className="text-center">
+                        <img src="/images/signature.png" alt="Director" className="h-16 mx-auto mb-3 opacity-90 contrast-125" crossOrigin="anonymous" />
+                        <div className="w-48 h-[2.5px] bg-[#121212] mx-auto mb-1.5" />
+                        <p className="text-[13px] font-black text-[#121212] uppercase italic">Executive Director</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Rillcod Technologies</p>
+                    </div>
+                    <div className="text-center">
+                        <img src="/images/signature.png" alt="Head" className="h-16 mx-auto mb-3 opacity-80 contrast-125" crossOrigin="anonymous" />
+                        <div className="w-48 h-[2.5px] bg-[#121212] mx-auto mb-1.5" />
+                        <p className="text-[13px] font-black text-[#121212] uppercase italic">Lead Registrar</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Board of Governors</p>
+                    </div>
+                </div>
+
+                <div className="flex flex-col items-center gap-4">
+                    <div className="p-4 bg-white border border-slate-200">
+                        <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) || 'preview'}`} size={70} fgColor="#121212" />
+                    </div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] leading-none">ID SECURITY HASH</p>
+                </div>
+            </div>
+
+            {/* Footer Branding */}
+            <div className="absolute bottom-0 inset-x-0 h-5 flex">
+                <div className="flex-[4] bg-[#121212]" />
+                <div className="flex-[1] bg-[#FF914D]" />
+                <div className="flex-[0.5] bg-slate-300" />
+            </div>
+        </div>
     );
 }

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// AI video generation APIs do not offer a free/reliable public endpoint.
+// Instead, we use OpenRouter to find the best YouTube educational video for the topic,
+// which the lesson page embeds via ReactPlayer.
 export async function POST(req: NextRequest) {
   try {
     const { prompt } = await req.json();
@@ -8,56 +11,81 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    const apiKey = process.env.HUGGINGFACE_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'Hugging Face API key not configured' }, { status: 503 });
+      return NextResponse.json({ error: 'AI service not configured.' }, { status: 503 });
     }
 
-    // Using ModelScope Text-to-Video (standard on HF)
-    const MODEL = 'damo-vilab/modelscope-damo-text-to-video';
-    
-    console.log('Generating AI Video for prompt:', prompt);
+    // Ask AI to suggest the best YouTube educational video URL for the topic
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://rillcod.com',
+        'X-Title': 'Rillcod Technologies',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.0-flash-001',
+        messages: [
+          {
+            role: 'user',
+            content: `You are a STEM education video curator for Nigerian students.
+Find the single best YouTube educational video URL for this topic: "${prompt}".
+The video must be:
+- Educational and kid-friendly (suitable for Basic 1 to SS3)
+- From a reputable channel (Khan Academy, CrashCourse, Code.org, TED-Ed, FreeCodeCamp, etc.)
+- Available on YouTube (real, non-fictional URL)
 
-    const response = await fetch(
-      `https://api-inference.huggingface.co/models/${MODEL}`,
-      {
-        headers: { 
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        method: 'POST',
-        body: JSON.stringify({ inputs: prompt }),
-      }
-    );
+Return ONLY a JSON object with this exact shape:
+{
+  "url": "https://www.youtube.com/watch?v=REAL_VIDEO_ID",
+  "title": "Video title",
+  "channel": "Channel name"
+}
+
+Return nothing else. Only real, known YouTube video URLs.`,
+          },
+        ],
+        response_format: { type: 'json_object' },
+        max_tokens: 200,
+        temperature: 0.3,
+      }),
+    });
 
     if (!response.ok) {
-      const errText = await response.text();
-      console.error('HF Video Error:', response.status, errText);
-      let userMsg = 'AI video generation failed';
-      try {
-        const errJson = JSON.parse(errText);
-        if (errJson.error?.includes('loading')) {
-          userMsg = 'Video model is warming up — please try again in 1-2 minutes. (AI Video takes significant compute)';
-        } else if (errJson.error) {
-          userMsg = errJson.error;
-        }
-      } catch {}
-      return NextResponse.json({ error: userMsg }, { status: response.status });
+      const err = await response.json().catch(() => ({}));
+      return NextResponse.json(
+        { error: `Video suggestion failed: ${err.error?.message || response.statusText}` },
+        { status: 500 },
+      );
     }
 
-    // HF Inference API usually returns the video as a binary stream
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64 = buffer.toString('base64');
-    const dataUrl = `data:video/mp4;base64,${base64}`;
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content || '{}';
+
+    let parsed: { url?: string; title?: string; channel?: string } = {};
+    try {
+      const stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      parsed = JSON.parse(stripped);
+    } catch {
+      return NextResponse.json({ error: 'Could not parse video suggestion.' }, { status: 500 });
+    }
+
+    if (!parsed.url || !parsed.url.includes('youtube.com')) {
+      return NextResponse.json({ error: 'No suitable educational video found. Try a more specific topic.' }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        url: dataUrl,
-        prompt: prompt
-      }
+        url: parsed.url,
+        title: parsed.title || prompt,
+        channel: parsed.channel || 'YouTube',
+        prompt,
+      },
     });
+
   } catch (error: any) {
     console.error('AI Video Route Error:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });

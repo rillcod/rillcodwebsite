@@ -258,19 +258,15 @@ export function ScaledReportCard({ children, report, responsive = false }: { chi
     const [cardHeight, setCardHeight] = useState(1123); // A4 default
 
     useEffect(() => {
-        if (responsive) {
-            setScale(1);
-            return;
-        }
         const outer = containerRef.current;
         const inner = innerRef.current;
         if (!outer || !inner) return;
 
         const update = () => {
             const w = outer.clientWidth;
+            // Always scale down when container is narrower than the card
             const s = w < CARD_W ? w / CARD_W : 1;
             setScale(s);
-            // Use the actual rendered height of the inner card for accurate clipping
             const h = inner.scrollHeight || 1123;
             setCardHeight(h);
         };
@@ -280,10 +276,7 @@ export function ScaledReportCard({ children, report, responsive = false }: { chi
         ro.observe(outer);
         ro.observe(inner);
         return () => ro.disconnect();
-    }, [report, children, responsive]); // re-run when report, children or responsive changes
-
-    // Smart scaling: even if responsive=true, we scale if screen is narrower than the card
-    // but we use actual width tracking.
+    }, [report, children]);
 
     return (
         <div

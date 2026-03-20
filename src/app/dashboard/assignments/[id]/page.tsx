@@ -10,8 +10,9 @@ import {
     ArrowLeftIcon, CalendarIcon, ClockIcon, DocumentTextIcon,
     CheckCircleIcon, ExclamationTriangleIcon, ArrowUpTrayIcon,
     PaperClipIcon, AcademicCapIcon, StarIcon, XMarkIcon, ArrowPathIcon, CheckIcon, PencilIcon,
-    CodeBracketIcon, CommandLineIcon, TrashIcon
+    CodeBracketIcon, CommandLineIcon, TrashIcon, RocketLaunchIcon
 } from '@/lib/icons';
+import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 
 function pctInfo(grade: number, max: number) {
     const pct = Math.round((grade / max) * 100);
@@ -346,6 +347,8 @@ export default function AssignmentDetailPage() {
     const [submitting, setSubmitting] = useState(false);
     const [submitDone, setSubmitDone] = useState(false);
     const [grading, setGrading] = useState<any | null>(null);
+    const [codeAnswer, setCodeAnswer] = useState('');
+    const [codeOutput, setCodeOutput] = useState('');
     const [attachedFile, setAttachedFile] = useState<File | null>(null);
     const [uploadingFile, setUploadingFile] = useState(false);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
@@ -423,15 +426,20 @@ export default function AssignmentDetailPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!profile || !assignment) return;
-        if (uploadingFile) return; // wait for upload to finish
+        if (uploadingFile) return;
         setSubmitting(true);
+        // For coding assignments, combine code + notes as submission_text
+        const _isCoding = assignment?.assignment_type === 'coding';
+        const submissionText = _isCoding
+            ? `\`\`\`\n${codeAnswer}\n\`\`\`\n\n${codeOutput ? `Output:\n${codeOutput}\n\n` : ''}${text || ''}`
+            : text;
         try {
             const res = await fetch(`/api/assignments/${assignment.id}/submit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     portal_user_id: profile.id,
-                    submission_text: text,
+                    submission_text: submissionText,
                     answers: Object.keys(answers).length > 0 ? answers : null,
                     file_url: fileUrl ?? undefined,
                 }),
@@ -482,6 +490,8 @@ export default function AssignmentDetailPage() {
 
     if (!assignment) return null;
 
+    const isCodingAssignment = assignment.assignment_type === 'coding';
+
     return (
         <div className="min-h-screen bg-background text-foreground">
             {grading && (
@@ -524,13 +534,20 @@ export default function AssignmentDetailPage() {
                             </p>
                         </div>
 
-                        {/* Staff edit button */}
-                        {isStaff && (
-                            <Link href={`/dashboard/assignments/${id}/edit`}
-                                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-none transition-colors">
-                                <PencilIcon className="w-3.5 h-3.5" /> Edit
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            {/* Open in Playground */}
+                            <Link href={`/dashboard/playground?assignmentId=${id}`}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-none transition-colors border border-emerald-500/20">
+                                <RocketLaunchIcon className="w-3.5 h-3.5" /> Playground
                             </Link>
-                        )}
+                            {/* Staff edit button */}
+                            {isStaff && (
+                                <Link href={`/dashboard/assignments/${id}/edit`}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-none transition-colors">
+                                    <PencilIcon className="w-3.5 h-3.5" /> Edit
+                                </Link>
+                            )}
+                        </div>
                         {!isStaff && submission?.status && (
                             <div className="flex-shrink-0 text-right">
                                 <Badge status={submission.status} />
@@ -681,15 +698,43 @@ export default function AssignmentDetailPage() {
                                     </div>
                                 )}
 
+                                {/* Coding Assignment: inline code editor */}
+                                {isCodingAssignment && (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                                                <CodeBracketIcon className="w-4 h-4" /> Code Your Solution
+                                            </label>
+                                            <Link href={`/dashboard/playground?assignmentId=${id}`}
+                                                className="text-[9px] font-black uppercase tracking-widest text-emerald-400/50 hover:text-emerald-400 transition-colors flex items-center gap-1">
+                                                <RocketLaunchIcon className="w-3 h-3" /> Open Full Playground →
+                                            </Link>
+                                        </div>
+                                        <div className="border border-emerald-500/20 overflow-hidden">
+                                            <IntegratedCodeRunner
+                                                language="python"
+                                                value={codeAnswer}
+                                                onChange={(v) => setCodeAnswer(v || '')}
+                                                title={assignment.title}
+                                                height={320}
+                                                onRun={() => {}}
+                                            />
+                                        </div>
+                                        <p className="text-[9px] text-white/30 font-medium">
+                                            Write and test your code above. It will be submitted with your solution.
+                                        </p>
+                                    </div>
+                                )}
+
                                 <div>
                                     <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                                        {assignment.questions?.length > 0 ? 'Additional Comments / Notes' : 'Your Answer / Work'}
+                                        {isCodingAssignment ? 'Notes / Explanation (optional)' : assignment.questions?.length > 0 ? 'Additional Comments / Notes' : 'Your Answer / Work'}
                                     </label>
                                     <textarea
-                                        rows={assignment.questions?.length > 0 ? 3 : 6}
+                                        rows={isCodingAssignment ? 2 : assignment.questions?.length > 0 ? 3 : 6}
                                         value={text}
                                         onChange={e => setText(e.target.value)}
-                                        placeholder={assignment.questions?.length > 0 ? "Any additional notes about your submission…" : "Write your answer, explanation, or paste your link here…"}
+                                        placeholder={isCodingAssignment ? "Explain your approach or any notes for the teacher…" : assignment.questions?.length > 0 ? "Any additional notes about your submission…" : "Write your answer, explanation, or paste your link here…"}
                                         className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none"
                                     />
                                 </div>
@@ -726,7 +771,7 @@ export default function AssignmentDetailPage() {
                                         <ExclamationTriangleIcon className="w-4 h-4" /> {error}
                                     </div>
                                 )}
-                                <button type="submit" disabled={submitting || uploadingFile || (assignment.questions?.length > 0 ? Object.keys(answers).length === 0 : !text.trim() && !fileUrl)}
+                                <button type="submit" disabled={submitting || uploadingFile || (isCodingAssignment ? !codeAnswer.trim() : assignment.questions?.length > 0 ? Object.keys(answers).length === 0 : !text.trim() && !fileUrl)}
                                     className="flex items-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-foreground font-bold rounded-none transition-all">
                                     {submitting
                                         ? <><ClockIcon className="w-4 h-4 animate-spin" /> Submitting…</>

@@ -46,6 +46,10 @@ export default function ClassDetailPage() {
   const [studentSearch, setStudentSearch] = useState(''); // Search/filter in enrollment modal
   const [showMoreStudents, setShowMoreStudents] = useState(false); // Pagination control
 
+  // Bulk-remove checkboxes for enrolled students list
+  const [checkedEnrollIds, setCheckedEnrollIds] = useState<Set<string>>(new Set());
+  const [bulkRemoving, setBulkRemoving] = useState(false);
+
   // Create-new-class inside enrol modal
   const [programsList, setProgramsList] = useState<any[]>([]);
   const [schoolsList, setSchoolsList] = useState<any[]>([]);
@@ -57,6 +61,7 @@ export default function ClassDetailPage() {
   const [savingSession, setSavingSession] = useState(false);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+  const canView = isStaff || profile?.role === 'school';
 
   const fetchData = async () => {
     if (!id || !profile) return;
@@ -513,273 +518,260 @@ export default function ClassDetailPage() {
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-muted-foreground font-medium animate-pulse uppercase tracking-[0.2em] text-[10px]">Decoding Registry State...</p>
+        <p className="text-muted-foreground text-sm">Loading class...</p>
       </div>
     </div>
   );
 
-  if (!isStaff) return (
+  if (!canView) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="bg-card shadow-sm border border-border rounded-[2rem] p-8 text-center max-w-sm">
-        <ExclamationTriangleIcon className="w-12 h-12 text-rose-500/20 mx-auto mb-4" />
-        <p className="text-muted-foreground font-black uppercase tracking-widest text-xs leading-relaxed">Insufficient clearance to access specialized cluster telemetry.</p>
+      <div className="bg-card shadow-sm border border-border rounded-none p-8 text-center max-w-sm">
+        <ExclamationTriangleIcon className="w-12 h-12 text-rose-500/40 mx-auto mb-4" />
+        <p className="text-muted-foreground text-sm">You need staff access to view this page.</p>
       </div>
     </div>
   );
 
   if (error || !cls) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
-      <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center border border-rose-500/20">
-        <ExclamationTriangleIcon className="w-10 h-10 text-rose-500/40" />
+      <div className="w-16 h-16 bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
+        <ExclamationTriangleIcon className="w-8 h-8 text-rose-400" />
       </div>
       <div className="text-center space-y-2">
-        <p className="text-rose-400 font-black uppercase tracking-widest">{error ?? 'Cluster mismatch'}</p>
-        <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em]">The requested resource is missing or inaccessible</p>
+        <p className="text-rose-400 font-bold text-sm">{error ?? 'Class not found'}</p>
+        <p className="text-muted-foreground text-xs">The class could not be loaded.</p>
       </div>
-      <Link href="/dashboard/classes" className="px-8 py-3 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black uppercase tracking-widest transition-all">
-        Return to Registry
+      <Link href="/dashboard/classes" className="px-6 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-sm font-bold transition-all">
+        Back to Classes
       </Link>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8 pb-32">
+    <div className="text-foreground">
+      <div className="space-y-6 pb-20">
 
-        {/* ── Header Area ────────────────────────────────────────── */}
-        <div className="relative">
-          <div className="absolute -top-24 -left-20 w-64 h-64 bg-orange-600 opacity-10 blur-[100px] pointer-events-none" />
-          <div className="flex flex-col md:flex-row md:items-center gap-8 relative z-10">
-            <button onClick={() => router.back()}
-              className="w-14 h-14 flex items-center justify-center rounded-none bg-card shadow-sm hover:bg-muted border border-border transition-all hover:scale-105 group flex-shrink-0">
-              <ArrowLeftIcon className="w-6 h-6 text-muted-foreground group-hover:text-foreground transition-colors" />
-            </button>
-            <div className="flex-1 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] border shadow-lg ${
-                  cls.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                  cls.status === 'scheduled' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                  'bg-card shadow-sm text-muted-foreground border-border'
-                }`}>
-                  {cls.status}
-                </div>
-                <div className="h-4 w-px bg-muted" />
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{cls.programs?.name}</span>
-              </div>
-              <h1 className="text-4xl sm:text-6xl font-black tracking-tighter leading-none">{cls.name}</h1>
+        {/* ── Header ────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <button onClick={() => router.back()} className="p-1.5 hover:bg-muted rounded-none transition-colors">
+                <ArrowLeftIcon className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <AcademicCapIcon className="w-4 h-4 text-orange-400" />
+              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Class Detail</span>
             </div>
-            {isStaff && (
-              <div className="flex gap-3">
-                <Link href={`/dashboard/classes/${id}/edit`}
-                  className="flex items-center gap-3 px-6 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black uppercase tracking-widest transition-all hover:border-orange-500/50">
-                  <PencilIcon className="w-4 h-4 text-orange-400" /> Edit Settings
-                </Link>
-                <Link href={`/dashboard/attendance?class_id=${id}`}
-                  className="flex items-center gap-3 px-8 py-4 bg-orange-600 hover:bg-orange-500 rounded-none text-[10px] font-black uppercase tracking-widest shadow-xl shadow-orange-900/40 transition-all active:scale-95">
-                  <ClipboardDocumentCheckIcon className="w-5 h-5" /> Attendance
-                </Link>
-              </div>
-            )}
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-3xl font-extrabold text-foreground">{cls.name}</h1>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${
+                cls.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                cls.status === 'scheduled' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                'bg-card text-muted-foreground border-border'
+              }`}>{cls.status}</span>
+            </div>
+            {cls.programs?.name && <p className="text-sm text-muted-foreground">{cls.programs.name}</p>}
           </div>
+          {isStaff && (
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <Link href={`/dashboard/classes/${id}/edit`}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-sm font-bold transition-colors hover:border-orange-500/50">
+                <PencilIcon className="w-4 h-4 text-orange-400" /> Edit Class
+              </Link>
+              <Link href={`/dashboard/attendance?class_id=${id}`}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30">
+                <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
+              </Link>
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center overflow-x-auto scrollbar-hide gap-2 p-2 bg-card shadow-sm border border-border rounded-none w-full sm:w-fit no-scrollbar backdrop-blur-md">
+        {/* Stats — always visible */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { id: 'overview', label: 'Overview', icon: UserGroupIcon },
-            { id: 'lessons', label: 'Curriculum', icon: BookOpenIcon },
-            { id: 'assignments', label: 'Tasks', icon: ClipboardDocumentListIcon },
-            { id: 'cbt', label: 'CBT / Quizzes', icon: AcademicCapIcon },
-            { id: 'gradebook', label: 'Gradebook', icon: ChartBarIcon, staffOnly: true },
-          ].filter(tab => !tab.staffOnly || isStaff).map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-3 px-6 py-3 rounded-none text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap flex-shrink-0 ${
-                activeTab === tab.id 
-                  ? 'bg-orange-600 text-foreground shadow-lg shadow-orange-900/40' 
-                  : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'
-              }`}
-            >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-            </button>
+            { label: 'Enrolled', value: enrollments.length, icon: UserGroupIcon, color: 'text-orange-400', bg: 'bg-orange-500/10' },
+            { label: 'Capacity', value: cls.max_students ?? '∞', icon: ChartBarIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            { label: 'Sessions', value: sessions.length, icon: CalendarIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+            { label: 'Level', value: cls.programs?.difficulty_level ?? 'N/A', icon: BoltIcon, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+          ].map(s => (
+            <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5">
+              <div className={`w-10 h-10 ${s.bg} flex items-center justify-center mb-3`}>
+                <s.icon className={`w-5 h-5 ${s.color}`} />
+              </div>
+              <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+            </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Tabs + Content | Sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          {/* Main Content Area */}
-          <div className="lg:col-span-2 space-y-8">
+          {/* Main — tabs + content */}
+          <div className="lg:col-span-2 space-y-4">
+
+            {/* Tab Bar */}
+            <div className="flex items-center overflow-x-auto gap-1 p-1 bg-card shadow-sm border border-border rounded-none no-scrollbar">
+              {[
+                { id: 'overview', label: 'Overview', icon: UserGroupIcon },
+                { id: 'lessons', label: 'Lessons', icon: BookOpenIcon },
+                { id: 'assignments', label: 'Assignments', icon: ClipboardDocumentListIcon },
+                { id: 'cbt', label: 'CBT Exams', icon: AcademicCapIcon },
+                { id: 'gradebook', label: 'Gradebook', icon: ChartBarIcon, staffOnly: true },
+              ].filter(tab => !tab.staffOnly || isStaff).map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-none text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${
+                    activeTab === tab.id
+                      ? 'bg-orange-600 text-white'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
             {activeTab === 'overview' && (
-              <>
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {[
-                    { label: 'Enrolled', value: enrollments.length, icon: UserGroupIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
-                    { label: 'Capacity', value: cls.max_students, icon: ChartBarIcon, gradient: 'from-orange-600 to-orange-400' },
-                    { label: 'Sessions', value: sessions.length, icon: CalendarIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
-                    { label: 'Difficulty', value: cls.programs?.difficulty_level, icon: BoltIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
-                  ].map(s => (
-                    <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-6 group hover:bg-muted transition-all relative overflow-hidden">
-                      <div className={`absolute top-0 right-0 w-16 h-16 bg-gradient-to-br ${s.gradient} opacity-[0.03] blur-xl -mr-8 -mt-8 group-hover:scale-150 transition-transform`} />
-                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-2">{s.label}</p>
-                      <p className="text-2xl font-black text-foreground">{s.value}</p>
-                    </div>
-                  ))}
-                </div>
-
+              <div className="space-y-4">
                 {/* Class Info */}
-                <div className="bg-card shadow-sm border border-border rounded-[2.5rem] p-8 sm:p-10 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600 opacity-[0.02] rounded-full blur-3xl" />
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-8">Metadata & Identity</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center">
-                          <UserIcon className="w-6 h-6 text-orange-400" />
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1.5">Assigned Teacher</p>
-                          <p className="text-sm font-bold text-muted-foreground">{cls.portal_users?.full_name ?? 'NOT ASSIGNED'}</p>
-                        </div>
+                <div className="bg-card shadow-sm border border-border rounded-none p-5">
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Class Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                        <UserIcon className="w-4 h-4 text-orange-400" />
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center">
-                          <ClockIcon className="w-6 h-6 text-blue-400" />
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1.5">Schedule Rhythm</p>
-                          <p className="text-sm font-bold text-muted-foreground">{cls.schedule ?? 'FLEXIBLE'}</p>
-                        </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Teacher</p>
+                        <p className="text-sm font-semibold text-foreground">{cls.portal_users?.full_name ?? 'Not assigned'}</p>
                       </div>
                     </div>
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center">
-                          <CalendarIcon className="w-6 h-6 text-emerald-400" />
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1.5">Active Cycle</p>
-                          <p className="text-sm font-bold text-muted-foreground">
-                            {cls.start_date ? new Date(cls.start_date).toLocaleDateString() : 'TBD'}
-                            {cls.end_date && ` — ${new Date(cls.end_date).toLocaleDateString()}`}
-                          </p>
-                        </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                        <ClockIcon className="w-4 h-4 text-blue-400" />
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center">
-                          <AcademicCapIcon className="w-6 h-6 text-amber-400" />
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1.5">Domain Pathway</p>
-                          <p className="text-sm font-bold text-muted-foreground uppercase">{cls.programs?.name}</p>
-                        </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Schedule</p>
+                        <p className="text-sm font-semibold text-foreground">{cls.schedule ?? 'Flexible'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                        <CalendarIcon className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Class Dates</p>
+                        <p className="text-sm font-semibold text-foreground">
+                          {cls.start_date ? new Date(cls.start_date).toLocaleDateString() : 'TBD'}
+                          {cls.end_date && ` — ${new Date(cls.end_date).toLocaleDateString()}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                        <AcademicCapIcon className="w-4 h-4 text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Programme</p>
+                        <p className="text-sm font-semibold text-foreground">{cls.programs?.name ?? 'N/A'}</p>
                       </div>
                     </div>
                   </div>
                   {cls.description && (
-                    <div className="mt-10 pt-10 border-t border-border">
-                      <p className="text-sm text-muted-foreground leading-relaxed font-medium italic">"{cls.description}"</p>
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <p className="text-sm text-muted-foreground leading-relaxed">{cls.description}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Recent Sessions */}
-                <div className="bg-card shadow-sm border border-border rounded-[2.5rem] overflow-hidden shadow-2xl">
-                  <div className="px-8 py-6 border-b border-border flex items-center justify-between bg-white/[0.02]">
+                <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Operational History</h3>
-                      <button 
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Recent Sessions</h3>
+                      <button
                         onClick={() => {
                           setEditingSession({ id: 'new', class_id: id });
                           setSessionForm({ topic: '', session_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '11:00', notes: '' });
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-full text-orange-400 text-[10px] font-black uppercase tracking-tighter transition-all"
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-full text-orange-400 text-[10px] font-bold transition-all"
                       >
                         <PlusIcon className="w-3 h-3" /> New Session
                       </button>
                     </div>
-                    <Link href={`/dashboard/attendance?class_id=${id}`} className="text-[9px] font-black text-orange-400 hover:text-orange-500 uppercase tracking-widest transition-colors tracking-[0.2em]">View Full Registry →</Link>
+                    <Link href={`/dashboard/attendance?class_id=${id}`} className="text-xs font-bold text-orange-400 hover:text-orange-500 transition-colors">View Attendance →</Link>
                   </div>
                   {sessions.length === 0 ? (
-                    <div className="p-20 text-center flex flex-col items-center justify-center">
-                      <div className="w-16 h-16 bg-card shadow-sm rounded-full flex items-center justify-center mb-6 border border-border">
-                        <CalendarIcon className="w-8 h-8 text-muted-foreground" />
-                      </div>
-                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">No verified session activity detected</p>
+                    <div className="p-12 text-center flex flex-col items-center justify-center">
+                      <CalendarIcon className="w-8 h-8 text-muted-foreground mb-3" />
+                      <p className="text-sm text-muted-foreground">No sessions recorded yet.</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-white/5">
+                    <div className="divide-y divide-border">
                       {sessions.map(s => (
-                        <div key={s.id} className="px-8 py-6 flex items-center gap-6 hover:bg-white/[0.03] transition-all group">
-                          <div className="w-12 h-12 rounded-none bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-orange-400 group-hover:border-orange-500/30 transition-all">
-                            <CalendarIcon className="w-6 h-6" />
+                        <div key={s.id} className="px-5 py-4 flex items-center gap-4 hover:bg-muted/50 transition-colors group">
+                          <div className="w-9 h-9 bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                            <CalendarIcon className="w-4 h-4 text-orange-400" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 mb-1">
-                              <p className="font-black text-sm text-foreground group-hover:text-orange-400 transition-colors uppercase tracking-tight">{s.topic ?? 'Standard Session'}</p>
-                              <div className="h-3 w-px bg-muted" />
-                              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{new Date(s.session_date).toLocaleDateString()}</p>
+                            <p className="text-sm font-semibold text-foreground truncate">{s.topic ?? 'Untitled Session'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(s.session_date).toLocaleDateString()} · {s.start_time || '—'} – {s.end_time || '—'}
+                            </p>
+                          </div>
+                          {s.notes && <p className="text-xs text-muted-foreground italic max-w-[160px] truncate hidden sm:block">{s.notes}</p>}
+                          {isStaff && (
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => handleEditSession(s)} className="p-1.5 hover:bg-muted rounded-none text-muted-foreground hover:text-foreground transition-colors" title="Edit">
+                                <PencilIcon className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => deleteSession(s.id)} className="p-1.5 hover:bg-muted rounded-none text-muted-foreground hover:text-rose-400 transition-colors" title="Delete">
+                                <TrashIcon className="w-3.5 h-3.5" />
+                              </button>
                             </div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{s.start_time || '00:00'} — {s.end_time || '00:00'}</p>
-                          </div>
-                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button 
-                              onClick={() => handleEditSession(s)}
-                              className="p-2 hover:bg-muted rounded-none text-muted-foreground hover:text-foreground transition-all"
-                              title="Edit Session"
-                            >
-                              <PencilIcon className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => deleteSession(s.id)}
-                              className="p-2 hover:bg-muted rounded-none text-muted-foreground hover:text-rose-400 transition-all"
-                              title="Delete Session"
-                            >
-                              <TrashIcon className="w-4 h-4" />
-                            </button>
-                          </div>
-                          {s.notes && <p className="text-[10px] text-muted-foreground font-medium italic max-w-[200px] truncate hidden sm:block">"{s.notes}"</p>}
+                          )}
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-              </>
+              </div>
             )}
 
             {activeTab === 'lessons' && (
-              <div className="space-y-6">
-                <div className="bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 rounded-[2rem] p-8 text-foreground relative overflow-hidden shadow-2xl">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-muted blur-3xl -mr-16 -mt-16" />
-                  <div className="relative z-10">
-                    <h2 className="text-2xl font-black tracking-tighter uppercase">Curriculum Master</h2>
-                    <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] mt-1">Modular learning components</p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BookOpenIcon className="w-4 h-4 text-orange-400" />
+                    <h2 className="text-sm font-bold text-foreground">Lessons</h2>
+                    <span className="text-xs text-muted-foreground">({items.lessons.length})</span>
                   </div>
+                  {isStaff && (
+                    <Link href="/dashboard/lessons/add" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold transition-colors">
+                      <PlusIcon className="w-3.5 h-3.5 text-orange-400" /> Add Lesson
+                    </Link>
+                  )}
                 </div>
                 {items.lessons.length === 0 ? (
-                  <div className="bg-card shadow-sm border border-border rounded-[2.5rem] p-20 text-center flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 bg-card shadow-sm rounded-full flex items-center justify-center mb-6 border border-border">
-                      <BookOpenIcon className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">No modular content detected in repository</p>
+                  <div className="bg-card shadow-sm border border-border rounded-none p-12 text-center flex flex-col items-center justify-center">
+                    <BookOpenIcon className="w-8 h-8 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">No lessons found for this programme.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {items.lessons.map(lesson => (
-                      <Link key={lesson.id} href={`/dashboard/lessons/${lesson.id}`} 
-                        className="bg-card shadow-sm border border-border rounded-none p-6 group hover:bg-muted hover:border-orange-500/50 transition-all">
-                        <div className="flex items-center gap-4 mb-4">
-                          <div className="w-12 h-12 bg-card shadow-sm border border-border rounded-none flex items-center justify-center text-muted-foreground group-hover:text-orange-400 group-hover:bg-orange-600/10 transition-all">
-                            <BookOpenIcon className="w-6 h-6" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Module {lesson.order_index}</p>
-                            <h4 className="font-black text-foreground group-hover:text-orange-400 transition-colors uppercase tracking-tight truncate">{lesson.title}</h4>
-                          </div>
+                      <Link key={lesson.id} href={`/dashboard/lessons/${lesson.id}`}
+                        className="bg-card shadow-sm border border-border rounded-none p-4 group hover:bg-muted hover:border-orange-500/50 transition-all flex items-center gap-3">
+                        <div className="w-10 h-10 bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                          <BookOpenIcon className="w-5 h-5 text-orange-400" />
                         </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed font-medium">{lesson.content?.substring(0, 100)}...</p>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-sm font-semibold text-foreground group-hover:text-orange-400 transition-colors truncate">{lesson.title}</h4>
+                          <p className="text-xs text-muted-foreground capitalize">{lesson.lesson_type ?? lesson.status ?? ''}</p>
+                        </div>
+                        <ChevronRightIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                       </Link>
                     ))}
                   </div>
@@ -788,45 +780,40 @@ export default function ClassDetailPage() {
             )}
 
             {activeTab === 'assignments' && (
-              <div className="space-y-6">
-                <div className="bg-gradient-to-br from-orange-600 to-orange-400 from-orange-600 to-orange-400 rounded-[2rem] p-8 text-foreground relative overflow-hidden shadow-2xl">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-muted blur-3xl -mr-16 -mt-16" />
-                  <div className="relative z-10">
-                    <h2 className="text-2xl font-black tracking-tighter uppercase">Operational Tasks</h2>
-                    <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] mt-1">Assignments and performance metrics</p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ClipboardDocumentListIcon className="w-4 h-4 text-blue-400" />
+                    <h2 className="text-sm font-bold text-foreground">Assignments</h2>
+                    <span className="text-xs text-muted-foreground">({items.assignments.length})</span>
                   </div>
+                  {isStaff && (
+                    <Link href="/dashboard/assignments/new" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold transition-colors">
+                      <PlusIcon className="w-3.5 h-3.5 text-blue-400" /> New Assignment
+                    </Link>
+                  )}
                 </div>
                 {items.assignments.length === 0 ? (
-                  <div className="bg-card shadow-sm border border-border rounded-[2.5rem] p-20 text-center flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 bg-card shadow-sm rounded-full flex items-center justify-center mb-6 border border-border">
-                      <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Zero tasks initialized for this cluster</p>
+                  <div className="bg-card shadow-sm border border-border rounded-none p-12 text-center flex flex-col items-center justify-center">
+                    <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">No assignments found for this programme.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-4">
+                  <div className="grid grid-cols-1 gap-3">
                     {items.assignments.map(a => (
-                      <Link key={a.id} href={`/dashboard/assignments/${a.id}`} 
-                        className="bg-card shadow-sm border border-border rounded-none p-6 group hover:bg-muted hover:border-blue-500/50 transition-all flex flex-col sm:flex-row sm:items-center gap-6">
-                        <div className="w-14 h-14 bg-card shadow-sm border border-border rounded-none flex items-center justify-center text-muted-foreground group-hover:text-blue-400 group-hover:bg-blue-600/10 transition-all shrink-0">
-                          <ClipboardDocumentListIcon className="w-7 h-7" />
+                      <Link key={a.id} href={`/dashboard/assignments/${a.id}`}
+                        className="bg-card shadow-sm border border-border rounded-none p-4 group hover:bg-muted hover:border-blue-500/50 transition-all flex items-center gap-4">
+                        <div className="w-10 h-10 bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                          <ClipboardDocumentListIcon className="w-5 h-5 text-blue-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-1">
-                            <h4 className="font-black text-lg text-foreground group-hover:text-blue-400 transition-colors uppercase tracking-tight">{a.title}</h4>
-                            <span className="text-[9px] font-black px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded uppercase tracking-widest">{a.weight} Pts</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Deadline: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'NO LIMIT'}</p>
+                          <h4 className="text-sm font-semibold text-foreground group-hover:text-blue-400 transition-colors truncate">{a.title}</h4>
+                          <p className="text-xs text-muted-foreground">
+                            Due: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'No deadline'}
+                            {a.weight ? ` · ${a.weight} pts` : ''}
+                          </p>
                         </div>
-                        <div className="shrink-0 flex items-center gap-3">
-                          <div className="text-right">
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Status</p>
-                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Active</p>
-                          </div>
-                          <div className="w-10 h-10 rounded-none bg-card shadow-sm border border-border flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-all">
-                            <ChevronRightIcon className="w-5 h-5" />
-                          </div>
-                        </div>
+                        <ChevronRightIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                       </Link>
                     ))}
                   </div>
@@ -835,40 +822,40 @@ export default function ClassDetailPage() {
             )}
 
             {activeTab === 'cbt' && (
-              <div className="space-y-6">
-                <div className="bg-gradient-to-br from-orange-600 to-orange-400 to-orange-600 rounded-[2rem] p-8 text-foreground relative overflow-hidden shadow-2xl">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-muted blur-3xl -mr-16 -mt-16" />
-                  <div className="relative z-10">
-                    <h2 className="text-2xl font-black tracking-tighter uppercase">Knowledge Synthesis</h2>
-                    <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] mt-1">Computer-based testing arrays</p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AcademicCapIcon className="w-4 h-4 text-amber-400" />
+                    <h2 className="text-sm font-bold text-foreground">CBT Exams</h2>
+                    <span className="text-xs text-muted-foreground">({items.cbt.length})</span>
                   </div>
+                  {isStaff && (
+                    <Link href="/dashboard/cbt/new" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold transition-colors">
+                      <PlusIcon className="w-3.5 h-3.5 text-amber-400" /> New Exam
+                    </Link>
+                  )}
                 </div>
                 {items.cbt.length === 0 ? (
-                  <div className="bg-card shadow-sm border border-border rounded-[2.5rem] p-20 text-center flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 bg-card shadow-sm rounded-full flex items-center justify-center mb-6 border border-border">
-                      <AcademicCapIcon className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">No assessment protocols found</p>
+                  <div className="bg-card shadow-sm border border-border rounded-none p-12 text-center flex flex-col items-center justify-center">
+                    <AcademicCapIcon className="w-8 h-8 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">No CBT exams found for this programme.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {items.cbt.map(ex => (
-                      <Link key={ex.id} href={`/dashboard/cbt/${ex.id}`} 
-                        className="bg-card shadow-sm border border-border rounded-none p-6 group hover:bg-muted hover:border-amber-500/50 transition-all">
-                        <div className="w-12 h-12 bg-card shadow-sm border border-border rounded-none flex items-center justify-center text-muted-foreground group-hover:text-amber-400 group-hover:bg-amber-600/10 transition-all mb-4">
-                          <AcademicCapIcon className="w-6 h-6" />
+                      <Link key={ex.id} href={`/dashboard/cbt/${ex.id}`}
+                        className="bg-card shadow-sm border border-border rounded-none p-4 group hover:bg-muted hover:border-amber-500/50 transition-all">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-9 h-9 bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                            <AcademicCapIcon className="w-4 h-4 text-amber-400" />
+                          </div>
+                          <h4 className="text-sm font-semibold text-foreground group-hover:text-amber-400 transition-colors truncate">{ex.title}</h4>
                         </div>
-                        <h4 className="font-black text-foreground group-hover:text-amber-400 transition-colors uppercase tracking-tight mb-2 line-clamp-1">{ex.title}</h4>
-                        <div className="flex items-center gap-4">
-                          <div>
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Time Limit</p>
-                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{ex.duration_minutes} MINS</p>
-                          </div>
-                          <div className="w-px h-6 bg-muted" />
-                          <div>
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Payload</p>
-                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{ex.total_questions} QUERIES</p>
-                          </div>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span>{ex.duration_minutes} mins</span>
+                          <span>·</span>
+                          <span>{ex.total_questions} questions</span>
+                          {ex.is_active && <span className="ml-auto text-emerald-400 font-bold">Active</span>}
                         </div>
                       </Link>
                     ))}
@@ -880,60 +867,59 @@ export default function ClassDetailPage() {
             {activeTab === 'gradebook' && (
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
-                  <div className="flex items-center gap-4">
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Class Gradebook</h3>
+                  <div className="flex items-center gap-3">
+                    <ChartBarIcon className="w-4 h-4 text-orange-400" />
+                    <h3 className="text-sm font-bold text-foreground">Gradebook</h3>
                     {isStaff && (
                       <button
                         onClick={() => setManualEntry(!manualEntry)}
-                        className={`flex items-center gap-3 px-4 py-2 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${manualEntry ? 'bg-emerald-600 text-foreground shadow-lg shadow-emerald-900/40' : 'bg-card shadow-sm text-muted-foreground border border-border hover:bg-muted'}`}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-none text-xs font-bold transition-all ${manualEntry ? 'bg-emerald-600 text-white' : 'bg-card shadow-sm text-muted-foreground border border-border hover:bg-muted'}`}
                       >
-                        {manualEntry ? <CheckIconOutline className="w-4 h-4" /> : <PencilSquareIconOutline className="w-4 h-4" />}
-                        {manualEntry ? 'Syncing...' : 'Manual Entry'}
+                        {manualEntry ? <CheckIconOutline className="w-3.5 h-3.5" /> : <PencilSquareIconOutline className="w-3.5 h-3.5" />}
+                        {manualEntry ? 'Done Editing' : 'Edit Grades'}
                       </button>
                     )}
                   </div>
-                  <button onClick={() => router.push('/dashboard/grades')} className="text-[9px] font-black text-orange-400 hover:text-orange-500 uppercase tracking-[0.2em] transition-colors">
-                    Full Analytics Node →
+                  <button onClick={() => router.push('/dashboard/grades')} className="text-xs font-bold text-orange-400 hover:text-orange-500 transition-colors">
+                    View Full Gradebook →
                   </button>
                 </div>
                 {items.assignments.length === 0 ? (
-                  <div className="bg-card shadow-sm border border-border rounded-[2.5rem] p-20 text-center flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 bg-card shadow-sm rounded-full flex items-center justify-center mb-6 border border-border">
-                      <ChartBarIcon className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">No grading metrics available for this cluster</p>
+                  <div className="bg-card shadow-sm border border-border rounded-none p-12 text-center flex flex-col items-center justify-center">
+                    <ChartBarIcon className="w-8 h-8 text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">No assignments to grade yet.</p>
                   </div>
                 ) : (
-                  <div className="bg-background/50 border border-border rounded-[2.5rem] overflow-hidden overflow-x-auto shadow-inner custom-scrollbar">
+                  <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden overflow-x-auto">
                     <table className="w-full text-left border-collapse min-w-[600px]">
                       <thead>
-                        <tr className="border-b border-border bg-white/[0.02]">
-                          <th className="px-8 py-6 text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] sticky left-0 bg-background z-20">Student Pioneers</th>
+                        <tr className="border-b border-border bg-muted/30">
+                          <th className="px-5 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wider sticky left-0 bg-card z-20">Student</th>
                           {items.assignments.map(a => (
-                            <th key={a.id} className="px-6 py-6 text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] text-center min-w-[140px] bg-amber-500/[0.03]">
-                              <div className="line-clamp-1 mb-1" title={a.title}>{a.title}</div>
-                              <div className="text-[8px] text-amber-400/70 lowercase font-medium">{a.max_points}pts</div>
+                            <th key={a.id} className="px-4 py-3 text-xs font-bold text-muted-foreground text-center min-w-[120px]">
+                              <div className="line-clamp-1 mb-0.5" title={a.title}>{a.title}</div>
+                              <div className="text-[10px] text-amber-400/70">{a.max_points ?? '?'} pts</div>
                             </th>
                           ))}
                           {items.cbt.map(c => (
-                            <th key={c.id} className="px-6 py-6 text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] text-center min-w-[140px] bg-orange-600/[0.03]">
-                              <div className="line-clamp-1 mb-1" title={c.title}>{c.title}</div>
-                              <div className="text-[8px] text-orange-400/70 lowercase font-medium">{c.total_questions} Qs</div>
+                            <th key={c.id} className="px-4 py-3 text-xs font-bold text-muted-foreground text-center min-w-[120px]">
+                              <div className="line-clamp-1 mb-0.5" title={c.title}>{c.title}</div>
+                              <div className="text-[10px] text-orange-400/70">{c.total_questions} Qs</div>
                             </th>
                           ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
                         {enrollments.map(enr => (
-                          <tr key={enr.id} className="hover:bg-white/[0.01] transition-colors group">
-                            <td className="px-8 py-6 sticky left-0 bg-[#0D1630] z-10 border-r border-border group-hover:bg-[#121D3D] transition-colors shadow-2xl">
-                              <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-none bg-gradient-to-br from-orange-600/20 from-orange-600 to-orange-400/20 border border-border flex items-center justify-center text-[10px] font-black text-orange-400 group-hover:scale-110 transition-transform">
-                                  {(enr.full_name ?? '?')[0]}
+                          <tr key={enr.id} className="hover:bg-muted/30 transition-colors group border-b border-border">
+                            <td className="px-5 py-3 sticky left-0 bg-card z-10 border-r border-border group-hover:bg-muted/30 transition-colors">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-orange-500/10 flex items-center justify-center text-xs font-bold text-orange-400 flex-shrink-0">
+                                  {(enr.full_name ?? '?')[0].toUpperCase()}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-foreground font-black text-[11px] uppercase tracking-tighter truncate group-hover:text-orange-400 transition-colors">{enr.full_name}</p>
-                                  <p className="text-[9px] text-muted-foreground truncate font-medium">{enr.email}</p>
+                                  <p className="text-sm font-semibold text-foreground truncate">{enr.full_name}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{enr.email}</p>
                                 </div>
                               </div>
                             </td>
@@ -1040,103 +1026,164 @@ export default function ClassDetailPage() {
 
           </div>
 
-          {/* Right: Sidebar */}
-          <div className="space-y-8">
+          {/* Sidebar */}
+          <div className="space-y-4">
 
-            {/* Quick Actions (Operations Deck) */}
+            {/* Quick Actions */}
             {isStaff && (
-              <div className="bg-[#0a0a0a] border border-white/5 p-10 space-y-8 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-48 h-48 bg-orange-600 opacity-[0.03] blur-[80px] pointer-events-none group-hover:opacity-[0.06] transition-all duration-700" />
-                <div className="flex items-center justify-between">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-white/30">Operations Deck</h3>
-                  <BoltIcon className="w-4 h-4 text-orange-500/50" />
+              <div className="bg-card shadow-sm border border-border p-5 space-y-3">
+                <div className="flex items-center gap-2 mb-4">
+                  <BoltIcon className="w-4 h-4 text-orange-400" />
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Quick Actions</h3>
                 </div>
-                <div className="grid grid-cols-1 gap-4">
-                  {([
-                    { label: 'Roll Call', sub: 'SYNC REGISTRY', icon: CheckCircleIcon, btnCls: 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-orange-500/30', iconCls: 'bg-blue-600/10 text-blue-400', subCls: 'text-blue-400/60', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
-                    { label: 'Quick Task', sub: 'INITIATE ASSIGNMENT', icon: ClipboardDocumentListIcon, btnCls: 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-orange-500/30', iconCls: 'bg-amber-600/10 text-amber-400', subCls: 'text-amber-400/60', action: () => router.push('/dashboard/assignments/new') },
-                    { label: 'Add Lesson', sub: 'AUGMENT CURRICULUM', icon: BookOpenIcon, btnCls: 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-orange-500/30', iconCls: 'bg-cyan-600/10 text-cyan-400', subCls: 'text-cyan-400/60', action: () => router.push('/dashboard/lessons/add') },
-                    { label: 'Apply CBT', sub: 'SYSTEM TESTING', icon: AcademicCapIcon, btnCls: 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-orange-500/30', iconCls: 'bg-orange-600/10 text-orange-400', subCls: 'text-orange-400/60', action: () => router.push('/dashboard/cbt/new') },
-                  ] as const).map(btn => (
-                    <button key={btn.label} onClick={btn.action} className={`group flex items-center gap-5 w-full p-5 border text-left transition-all active:scale-[0.98] ${btn.btnCls}`}>
-                      <div className={`w-12 h-12 flex items-center justify-center group-hover:scale-110 transition-transform ${btn.iconCls} border border-white/5`}>
-                        <btn.icon className="w-6 h-6" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-[11px] font-black text-white uppercase tracking-widest">{btn.label}</p>
-                        <p className={`text-[8px] font-black uppercase tracking-[0.2em] mt-1 ${btn.subCls}`}>{btn.sub}</p>
-                      </div>
-                      <ArrowRightIcon className="w-4 h-4 text-white/10 group-hover:text-white/40 transition-colors" />
-                    </button>
-                  ))}
-                </div>
+                {([
+                  { label: 'Take Attendance', desc: 'Mark roll call', icon: CheckCircleIcon, color: 'text-blue-400', bg: 'bg-blue-500/10', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
+                  { label: 'New Assignment', desc: 'Create a task', icon: ClipboardDocumentListIcon, color: 'text-amber-400', bg: 'bg-amber-500/10', action: () => router.push('/dashboard/assignments/new') },
+                  { label: 'Add Lesson', desc: 'Add curriculum content', icon: BookOpenIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10', action: () => router.push('/dashboard/lessons/add') },
+                  { label: 'New CBT Exam', desc: 'Create online test', icon: AcademicCapIcon, color: 'text-orange-400', bg: 'bg-orange-500/10', action: () => router.push('/dashboard/cbt/new') },
+                ] as const).map(btn => (
+                  <button key={btn.label} onClick={btn.action}
+                    className="flex items-center gap-3 w-full p-3 bg-card shadow-sm hover:bg-muted border border-border hover:border-orange-500/30 text-left transition-colors">
+                    <div className={`w-9 h-9 flex items-center justify-center flex-shrink-0 ${btn.bg}`}>
+                      <btn.icon className={`w-4 h-4 ${btn.color}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">{btn.label}</p>
+                      <p className="text-xs text-muted-foreground">{btn.desc}</p>
+                    </div>
+                    <ArrowRightIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  </button>
+                ))}
               </div>
             )}
 
-            {/* Students List (Enrolled Pioneers) */}
-            <div className="bg-[#0a0a0a] border border-white/5 overflow-hidden shadow-2xl relative">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-600/5 blur-[60px] pointer-events-none" />
-              <div className="px-8 py-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                <div className="space-y-1">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Enrolled Pioneers</h3>
-                  <p className="text-[9px] font-bold text-orange-500 uppercase tracking-widest">{enrollments.length} <span className="text-white/10 mx-1">/</span> {cls.max_students} Saturation</p>
-                </div>
-                {isStaff && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }}
-                      title="Enroll Existing Student"
-                      className="w-10 h-10 bg-white/5 hover:bg-orange-600 border border-white/10 hover:border-orange-500 text-white transition-all active:scale-95 flex items-center justify-center"
-                    >
-                      <PlusIcon className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => setShowRegisterModal(true)}
-                      title="Register New Student"
-                      className="w-10 h-10 bg-white/5 hover:bg-blue-600 border border-white/10 hover:border-blue-500 text-white transition-all active:scale-95 flex items-center justify-center"
-                    >
-                      <UserPlusIcon className="w-5 h-5" />
-                    </button>
+            {/* Students List */}
+            <div className="bg-card shadow-sm border border-border overflow-hidden">
+              <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  {isStaff && enrollments.length > 0 && (
+                    <input
+                      type="checkbox"
+                      title="Select all"
+                      checked={checkedEnrollIds.size === enrollments.length}
+                      ref={el => { if (el) el.indeterminate = checkedEnrollIds.size > 0 && checkedEnrollIds.size < enrollments.length; }}
+                      onChange={e => setCheckedEnrollIds(e.target.checked ? new Set(enrollments.map((enr: any) => enr.id)) : new Set())}
+                      className="w-4 h-4 accent-orange-500 cursor-pointer flex-shrink-0"
+                    />
+                  )}
+                  <div>
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Enrolled Students</h3>
+                    <p className="text-xs text-orange-400 mt-0.5">{enrollments.length} / {cls.max_students ?? '∞'} enrolled</p>
                   </div>
-                )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {isStaff && checkedEnrollIds.size > 0 && (
+                    <button
+                      disabled={bulkRemoving}
+                      onClick={async () => {
+                        const names = enrollments
+                          .filter((e: any) => checkedEnrollIds.has(e.id))
+                          .map((e: any) => e.full_name)
+                          .join(', ');
+                        if (!confirm(`Remove ${checkedEnrollIds.size} student${checkedEnrollIds.size > 1 ? 's' : ''} from this class?\n\n${names}\n\nThis cannot be undone.`)) return;
+                        setBulkRemoving(true);
+                        try {
+                          const res = await fetch(`/api/classes/${id}/enroll`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ studentIds: [...checkedEnrollIds] }),
+                          });
+                          if (!res.ok) { const j = await res.json(); alert(j.error || 'Remove failed'); return; }
+                          setEnrollments(prev => prev.filter((e: any) => !checkedEnrollIds.has(e.id)));
+                          setCheckedEnrollIds(new Set());
+                        } finally {
+                          setBulkRemoving(false);
+                        }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-400 text-xs font-bold transition-colors disabled:opacity-50"
+                    >
+                      {bulkRemoving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon className="w-3.5 h-3.5" />}
+                      Remove {checkedEnrollIds.size}
+                    </button>
+                  )}
+                  {isStaff && (
+                    <>
+                      <button
+                        onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }}
+                        title="Enrol existing student"
+                        className="w-8 h-8 bg-card shadow-sm hover:bg-orange-600 hover:text-white border border-border text-muted-foreground transition-colors flex items-center justify-center"
+                      >
+                        <PlusIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setShowRegisterModal(true)}
+                        title="Register new student"
+                        className="w-8 h-8 bg-card shadow-sm hover:bg-blue-600 hover:text-white border border-border text-muted-foreground transition-colors flex items-center justify-center"
+                      >
+                        <UserPlusIcon className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               {enrollments.length === 0 ? (
-                <div className="p-24 text-center flex flex-col items-center justify-center bg-white/[0.01]">
-                  <UserGroupIcon className="w-12 h-12 text-white/5 mb-8" />
-                  <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] leading-relaxed max-w-[200px] mx-auto">No student signals detected in this cluster sector</p>
-                  <Link href={`/dashboard/classes/${id}/edit`} className="mt-8 px-6 py-3 border border-white/5 hover:border-white/10 text-[9px] font-black text-orange-500 uppercase tracking-widest transition-all">Manage Registry →</Link>
+                <div className="p-10 text-center flex flex-col items-center justify-center">
+                  <UserGroupIcon className="w-8 h-8 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground mb-3">No students enrolled yet.</p>
+                  {isStaff && <Link href={`/dashboard/classes/${id}/edit`} className="text-xs font-bold text-orange-400 hover:text-orange-500 transition-colors">Edit class to add students →</Link>}
                 </div>
               ) : (
-                <div className="divide-y divide-white/5 max-h-[500px] overflow-y-auto custom-scrollbar bg-white/[0.01]">
-                  {enrollments.map((enr: any) => (
-                    <div key={enr.id} className="px-8 py-6 flex items-center gap-5 hover:bg-white/[0.03] transition-all group border-l-2 border-l-transparent hover:border-l-orange-500">
-                      <div className="w-12 h-12 bg-[#1a1a1a] border border-white/5 flex items-center justify-center text-[11px] font-black text-white group-hover:text-orange-400 transition-all shadow-xl">
-                        {(enr.full_name ?? '?')[0]}
+                <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
+                  {enrollments.map((enr: any) => {
+                    const isChecked = checkedEnrollIds.has(enr.id);
+                    return (
+                      <div
+                        key={enr.id}
+                        className={`px-4 py-3 flex items-center gap-3 transition-colors group ${isChecked ? 'bg-rose-500/5' : 'hover:bg-muted/50'}`}
+                      >
+                        {isStaff && (
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={e => {
+                              setCheckedEnrollIds(prev => {
+                                const next = new Set(prev);
+                                e.target.checked ? next.add(enr.id) : next.delete(enr.id);
+                                return next;
+                              });
+                            }}
+                            className="w-4 h-4 accent-orange-500 cursor-pointer flex-shrink-0"
+                          />
+                        )}
+                        <div className={`w-8 h-8 flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${isChecked ? 'bg-rose-500/20 text-rose-400' : 'bg-orange-500/10 text-orange-400'}`}>
+                          {(enr.full_name ?? '?')[0].toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-foreground truncate">{enr.full_name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{enr.email}</p>
+                        </div>
+                        {isStaff && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Remove ${enr.full_name} from this class?`)) return;
+                              const res = await fetch(`/api/classes/${id}/enroll`, {
+                                method: 'DELETE',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ studentId: enr.id }),
+                              });
+                              if (!res.ok) { const j = await res.json(); alert(j.error); return; }
+                              setEnrollments(prev => prev.filter((e: any) => e.id !== enr.id));
+                              setCheckedEnrollIds(prev => { const next = new Set(prev); next.delete(enr.id); return next; });
+                            }}
+                            title="Remove from class"
+                            className="w-7 h-7 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/20 text-rose-400 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-black text-white group-hover:text-orange-400 transition-colors truncate uppercase tracking-tighter">{enr.full_name}</p>
-                        <p className="text-[9px] text-white/30 truncate font-black uppercase tracking-widest mt-1">{enr.email}</p>
-                      </div>
-                      {isStaff && (
-                        <button
-                          onClick={async () => {
-                            if (!confirm(`Remove ${enr.full_name} from this class?`)) return;
-                            const res = await fetch(`/api/classes/${id}/enroll`, {
-                              method: 'DELETE',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ studentId: enr.id }),
-                            });
-                            if (!res.ok) { const j = await res.json(); alert(j.error); return; }
-                            setEnrollments(prev => prev.filter(e => e.id !== enr.id));
-                          }}
-                          title="Unenroll student"
-                          className="w-8 h-8 bg-rose-600/10 hover:bg-rose-600 border border-rose-600/20 hover:border-rose-500 text-rose-500 hover:text-white flex items-center justify-center transition-all active:scale-90 opacity-0 group-hover:opacity-100 shadow-lg"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1144,10 +1191,10 @@ export default function ClassDetailPage() {
             {isStaff && (
               <button
                 onClick={handleExportLogins}
-                className="w-full py-6 bg-emerald-600/10 hover:bg-emerald-600 hover:text-white border border-emerald-600/30 transition-all group flex items-center justify-center gap-4 active:scale-[0.98] shadow-lg"
+                className="w-full py-3 bg-emerald-600/10 hover:bg-emerald-600 hover:text-white border border-emerald-600/30 transition-colors flex items-center justify-center gap-2 font-bold text-sm text-emerald-400"
               >
-                <CloudArrowDownIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-black uppercase tracking-[0.3em]">Export Login Credentials</span>
+                <CloudArrowDownIcon className="w-4 h-4" />
+                Export Login Credentials
               </button>
             )}
 
@@ -1163,7 +1210,7 @@ export default function ClassDetailPage() {
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowStudentModal(false)} />
-            <div className="bg-[#0D1630] border border-border rounded-none w-full max-w-lg shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[90vh]">
+            <div className="bg-card border border-border rounded-none w-full max-w-lg shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[90vh]">
 
               {/* Header */}
               <div className="px-6 py-5 border-b border-border flex items-center justify-between flex-shrink-0">
@@ -1442,72 +1489,62 @@ export default function ClassDetailPage() {
       {/* Session Edit/Create Modal */}
       {editingSession && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => !savingSession && setEditingSession(null)} />
-          <div className="relative w-full max-w-lg bg-[#0d1526] border border-border rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-            <div className="p-8 border-b border-border">
-              <h3 className="text-xl font-black text-foreground uppercase tracking-tight">
-                {editingSession.id === 'new' ? 'Initialize New Session' : 'Modify Session Parameters'}
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !savingSession && setEditingSession(null)} />
+          <div className="relative w-full max-w-lg bg-card shadow-sm border border-border rounded-none shadow-2xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-border">
+              <h3 className="text-base font-bold text-foreground">
+                {editingSession.id === 'new' ? 'New Session' : 'Edit Session'}
               </h3>
-              <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1">Registry Synchronization Protocol</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Record a class session for this class.</p>
             </div>
-            <div className="p-8 space-y-5">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Session Topic / Curriculum Focus</label>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Topic</label>
                 <input
                   type="text"
                   value={sessionForm.topic}
                   onChange={(e) => setSessionForm({ ...sessionForm, topic: e.target.value })}
                   placeholder="e.g. Introduction to Variables"
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-5 py-4 text-foreground focus:outline-none focus:border-orange-500/50 transition-all font-medium"
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Archive Date</label>
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Session Date</label>
                   <input
                     type="date"
                     value={sessionForm.session_date}
                     onChange={(e) => setSessionForm({ ...sessionForm, session_date: e.target.value })}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-5 py-4 text-foreground focus:outline-none focus:border-orange-500/50 transition-all [color-scheme:dark]"
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors [color-scheme:dark]"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Start — End Time</label>
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Start – End Time</label>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="time"
-                      value={sessionForm.start_time}
+                    <input type="time" value={sessionForm.start_time}
                       onChange={(e) => setSessionForm({ ...sessionForm, start_time: e.target.value })}
-                      className="flex-1 bg-card shadow-sm border border-border rounded-none px-3 py-4 text-foreground focus:outline-none focus:border-orange-500/50 transition-all [color-scheme:dark] text-sm"
-                    />
-                    <span className="text-muted-foreground">—</span>
-                    <input
-                      type="time"
-                      value={sessionForm.end_time}
+                      className="flex-1 bg-card shadow-sm border border-border rounded-none px-2 py-2.5 text-sm text-foreground focus:outline-none focus:border-orange-500 [color-scheme:dark]" />
+                    <span className="text-muted-foreground text-xs">–</span>
+                    <input type="time" value={sessionForm.end_time}
                       onChange={(e) => setSessionForm({ ...sessionForm, end_time: e.target.value })}
-                      className="flex-1 bg-card shadow-sm border border-border rounded-none px-3 py-4 text-foreground focus:outline-none focus:border-orange-500/50 transition-all [color-scheme:dark] text-sm"
-                    />
+                      className="flex-1 bg-card shadow-sm border border-border rounded-none px-2 py-2.5 text-sm text-foreground focus:outline-none focus:border-orange-500 [color-scheme:dark]" />
                   </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Facilitator Notes (Internal)</label>
-                <textarea
-                  value={sessionForm.notes}
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Notes (optional)</label>
+                <textarea value={sessionForm.notes}
                   onChange={(e) => setSessionForm({ ...sessionForm, notes: e.target.value })}
                   rows={3}
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-5 py-4 text-foreground focus:outline-none focus:border-orange-500/50 transition-all font-medium resize-none text-sm"
-                  placeholder="Record student participation or blockers..."
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors resize-none"
+                  placeholder="Record notes, participation, or homework..."
                 />
               </div>
             </div>
-            <div className="p-8 bg-black/40 border-t border-border flex gap-4">
-              <button
-                onClick={() => setEditingSession(null)}
-                disabled={savingSession}
-                className="flex-1 py-4 bg-card shadow-sm hover:bg-muted text-muted-foreground font-black rounded-none transition-all uppercase tracking-widest text-[10px] border border-border"
-              >
-                Abort
+            <div className="px-6 py-4 border-t border-border flex gap-3">
+              <button onClick={() => setEditingSession(null)} disabled={savingSession}
+                className="flex-1 py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground font-bold text-sm rounded-none transition-colors border border-border">
+                Cancel
               </button>
               <button
                 onClick={async () => {
@@ -1520,7 +1557,7 @@ export default function ClassDetailPage() {
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(isNew ? { ...sessionForm, class_id: id } : sessionForm),
                     });
-                    if (!res.ok) throw new Error('Operation failed');
+                    if (!res.ok) throw new Error('Failed to save session');
                     setEditingSession(null);
                     await fetchData();
                   } catch (e: any) {
@@ -1530,10 +1567,10 @@ export default function ClassDetailPage() {
                   }
                 }}
                 disabled={savingSession}
-                className="flex-[2] py-4 bg-orange-600 hover:bg-orange-500 text-foreground font-black rounded-none transition-all uppercase tracking-widest text-[10px] shadow-xl shadow-orange-900/40 flex items-center justify-center gap-2"
+                className="flex-[2] py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm rounded-none transition-colors shadow-lg shadow-orange-900/30 flex items-center justify-center gap-2"
               >
                 {savingSession ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4" />}
-                {editingSession.id === 'new' ? 'Commit to Registry' : 'Save Modifications'}
+                {editingSession.id === 'new' ? 'Save Session' : 'Save Changes'}
               </button>
             </div>
           </div>

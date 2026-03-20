@@ -32,6 +32,7 @@ export interface ListFilters {
     order?: 'asc' | 'desc';
     page?: number;
     pageSize?: number;
+    role?: string | null;
 }
 
 export class LibraryService {
@@ -71,7 +72,7 @@ export class LibraryService {
 
         let query = supabase
             .from('content_library')
-            .select('id, title, description, content_type, category, tags, subject, grade_level, rating_average, rating_count, usage_count, is_active, is_approved, created_at, created_by, file_id, files(public_url, file_type, thumbnail_url, file_size)');
+            .select('id, title, description, content_type, category, tags, subject, grade_level, rating_average, rating_count, usage_count, is_active, is_approved, school_id, created_at, created_by, file_id, files(public_url, file_type, thumbnail_url, file_size)');
 
         // If tenantId is provided, scope to that school + global content; otherwise return all
         if (tenantId) {
@@ -86,8 +87,11 @@ export class LibraryService {
             query = query.ilike('title', `%${filters.query}%`);
         }
 
-        // Only return active, approved content
-        query = query.eq('is_active', true).eq('is_approved', true);
+        // Admins see all content (including unapproved); others only see active + approved
+        query = query.eq('is_active', true);
+        if (filters.role !== 'admin') {
+            query = query.eq('is_approved', true);
+        }
 
         const sortColumn = filters.sort ?? 'created_at';
         const ascending = (filters.order ?? 'desc') === 'asc';

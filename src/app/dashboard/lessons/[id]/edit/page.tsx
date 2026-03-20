@@ -13,6 +13,7 @@ import {
     Layout, FileText, Settings2, ChevronDown
 } from 'lucide-react';
 import CanvaEditor from '@/features/lessons/components/CanvaEditor';
+import { SparklesIcon } from '@/lib/icons';
 
 export default function EditLessonPage() {
     const params = useParams();
@@ -116,11 +117,16 @@ export default function EditLessonPage() {
         if (!authLoading && profile) fetchData();
     }, [authLoading, profile, fetchData]);
 
-    const [aiGeneratingPlan, setAiGeneratingPlan] = useState(false);
+    const [aiGenerating, setAiGenerating] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
+    const [aiMode, setAiMode] = useState<'academic' | 'project' | 'interactive'>('academic');
+    const [aiGrade, setAiGrade] = useState('JSS1–SS3');
+    const [saveSuccess, setSaveSuccess] = useState(false);
 
-    const generateAiNotes = async () => {
-        if (!form.title) { alert('Lesson must have a title'); return; }
-        setSaving(true);
+    const handleAiGenerate = async () => {
+        if (!form.title.trim()) { setAiError('Enter a lesson title first.'); return; }
+        setAiGenerating(true);
+        setAiError(null);
         try {
             const res = await fetch('/api/ai/generate', {
                 method: 'POST',
@@ -128,6 +134,9 @@ export default function EditLessonPage() {
                 body: JSON.stringify({
                     type: 'lesson',
                     topic: form.title,
+                    gradeLevel: aiGrade,
+                    durationMinutes: parseInt(form.duration_minutes) || 60,
+                    lessonMode: aiMode,
                 }),
             });
             const payload = await res.json();
@@ -135,45 +144,44 @@ export default function EditLessonPage() {
             const d = payload.data;
             setForm(prev => ({
                 ...prev,
+                description: d.description || prev.description,
                 lesson_notes: d.lesson_notes || prev.lesson_notes,
-                description: d.description || prev.description
+                duration_minutes: String(d.duration_minutes || prev.duration_minutes),
+                content_layout: d.content_layout || prev.content_layout,
+                lesson_type: d.lesson_type || prev.lesson_type,
             }));
-            alert('Study notes generated!');
-        } catch (e: any) {
-            alert(e.message);
-        } finally {
-            setSaving(false);
-        }
+            const activityText = (d.content_layout || []).filter((b: any) => b.type === 'activity')
+                .map((b: any) => `${b.title || 'Activity'}: ${b.instructions || ''}`.trim()).join('\n\n');
+            const assessText = (d.content_layout || []).filter((b: any) => b.type === 'quiz')
+                .map((b: any) => b.question || '').filter(Boolean).join('\n');
+            setPlan((prev: any) => ({
+                ...prev,
+                objectives: Array.isArray(d.objectives) ? d.objectives.join('\n') : (d.objectives || prev.objectives),
+                activities: activityText || prev.activities,
+                assessment_methods: assessText || prev.assessment_methods,
+            }));
+        } catch (e: any) { setAiError(e.message ?? 'Generation failed'); }
+        finally { setAiGenerating(false); }
     };
 
-    const generateAiPlan = async () => {
-        if (!form.title) { alert('Lesson must have a title'); return; }
-        setAiGeneratingPlan(true);
+    const handleGenerateNotesOnly = async () => {
+        if (!form.title.trim()) { setAiError('Enter a lesson title first.'); return; }
+        setAiGenerating(true);
+        setAiError(null);
         try {
             const res = await fetch('/api/ai/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'lesson',
-                    topic: form.title,
-                }),
+                body: JSON.stringify({ type: 'lesson-notes', topic: form.title, gradeLevel: aiGrade, durationMinutes: parseInt(form.duration_minutes) || 60 }),
             });
             const payload = await res.json();
             if (!res.ok) throw new Error(payload.error);
-            const d = payload.data;
-            setPlan({
-                objectives: Array.isArray(d.objectives) ? d.objectives.join('\n') : (d.objectives || ''),
-                activities: Array.isArray(d.content_layout) ? d.content_layout.filter((b: any) => b.type === 'activity').map((b: any) => `${b.title || 'Activity'}: ${b.instructions || b.content || ''}`).join('\n\n') : '',
-                assessment_methods: Array.isArray(d.content_layout) ? d.content_layout.filter((b: any) => b.type === 'quiz').map((b: any) => b.question || b.content || '').join('\n') : '',
-                staff_notes: d.description || ''
-            });
-            alert('AI Plan generated! Review and save.');
-        } catch (e: any) {
-            alert(e.message);
-        } finally {
-            setAiGeneratingPlan(false);
-        }
+            if (payload.data?.lesson_notes) setForm(prev => ({ ...prev, lesson_notes: payload.data.lesson_notes }));
+        } catch (e: any) { setAiError(e.message ?? 'Notes generation failed'); }
+        finally { setAiGenerating(false); }
     };
+
+
 
     const handleSave = async () => {
         if (!id || !profile?.id) return;
@@ -200,7 +208,33 @@ export default function EditLessonPage() {
             });
             if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Update failed'); }
 
-            alert('Lesson updated successfully!');
+            // Sync assignment-block content blocks → real assignments (create if not already existing)
+            const assignmentBlocks = form.content_layout.filter((b: any) => b.type === 'assignment-block' && b.title?.trim());
+            if (assignmentBlocks.length > 0 && form.course_id) {
+                // Fetch existing assignments for this lesson to avoid duplicates
+                const db = createClient();
+                const { data: existing } = await db.from('assignments').select('title').eq('lesson_id', id);
+                const existingTitles = new Set((existing ?? []).map((a: any) => a.title?.trim().toLowerCase()));
+                for (const block of assignmentBlocks) {
+                    if (existingTitles.has(block.title.trim().toLowerCase())) continue;
+                    await fetch('/api/assignments', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            title: block.title,
+                            instructions: [block.instructions, block.deliverables?.length ? `\n\nDeliverables:\n${block.deliverables.map((d: string, i: number) => `${i + 1}. ${d}`).join('\n')}` : ''].filter(Boolean).join(''),
+                            course_id: form.course_id,
+                            lesson_id: id,
+                            assignment_type: 'project',
+                            max_points: 100,
+                            is_active: true,
+                        }),
+                    });
+                }
+            }
+
+            setSaveSuccess(true);
+            setTimeout(() => setSaveSuccess(false), 3000);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -255,7 +289,12 @@ export default function EditLessonPage() {
                             <h1 className="text-2xl font-black">{form.title || 'Lesson Title'}</h1>
                         </div>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex items-center gap-3">
+                        {saveSuccess && (
+                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+                                <Check className="w-3.5 h-3.5" /> Saved
+                            </span>
+                        )}
                         {!isMinimal && (
                             <Link href={`/dashboard/lessons/${id}`} className="px-5 py-2.5 bg-card shadow-sm border border-border rounded-none font-bold text-sm hover:bg-muted transition-all">
                                 View Live
@@ -263,7 +302,7 @@ export default function EditLessonPage() {
                         )}
                         <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-foreground font-black text-sm rounded-none shadow-xl shadow-cyan-900/40 transition-all disabled:opacity-50">
                             {saving ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
-                            {saving ? (isMinimal ? 'SAVING...' : 'SAVING...') : (isMinimal ? 'SAVE' : 'SAVE CHANGES')}
+                            {saving ? 'SAVING...' : (isMinimal ? 'SAVE' : 'SAVE CHANGES')}
                         </button>
                     </div>
                 </div>
@@ -281,6 +320,7 @@ export default function EditLessonPage() {
                     <TabBtn active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={GraduationCap} label="Lesson Plan" />
                     <TabBtn active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} icon={Paperclip} label="Materials" />
                 </div>
+
 
                 <div className="grid grid-cols-1 gap-8">
                     {activeTab === 'settings' && (
@@ -310,23 +350,58 @@ export default function EditLessonPage() {
                             </div>
 
                             <Field label="Brief Description" value={form.description} textarea onChange={v => setForm({ ...form, description: v })} />
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Comprehensive Study Notes (Mandatory for Students)</label>
-                                    <button
-                                        type="button"
-                                        onClick={generateAiNotes}
-                                        disabled={saving}
-                                        className="text-[9px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1 hover:text-cyan-300 transition-colors disabled:opacity-50"
-                                    >
-                                        <Sparkles className="w-3 h-3" /> {saving ? 'Generating...' : 'Enhance with AI'}
-                                    </button>
+                            
+                            {/* AI Lesson Engine Panel */}
+                            <div className="border border-orange-500/20 bg-orange-500/5 rounded-none overflow-hidden">
+                                <div className="px-5 py-4 flex items-center gap-3 border-b border-orange-500/10">
+                                    <SparklesIcon className="w-5 h-5 text-orange-400" />
+                                    <span className="text-xs font-black text-foreground uppercase tracking-widest">AI Lesson Engine</span>
+                                    <span className="text-[10px] text-muted-foreground ml-1">— regenerate content from current title</span>
                                 </div>
+                                <div className="p-5 space-y-4">
+                                    {aiError && (
+                                        <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium rounded-none">
+                                            {aiError}
+                                        </div>
+                                    )}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Grade Level</label>
+                                            <select value={aiGrade} onChange={e => setAiGrade(e.target.value)}
+                                                className="w-full bg-card border border-border rounded-none px-3 py-2 text-sm text-foreground outline-none focus:border-orange-500">
+                                                {['KG','Basic 1–Basic 3','Basic 4–Basic 6','JSS1','JSS2','JSS3','JSS1–JSS3','SS1','SS2','SS3','SS1–SS3','JSS1–SS3'].map(g => <option key={g} value={g}>{g}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Mode</label>
+                                            <select value={aiMode} onChange={e => setAiMode(e.target.value as any)}
+                                                className="w-full bg-card border border-border rounded-none px-3 py-2 text-sm text-foreground outline-none focus:border-orange-500">
+                                                <option value="academic">Academic</option>
+                                                <option value="project">Project</option>
+                                                <option value="interactive">Interactive</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button onClick={handleAiGenerate} disabled={aiGenerating}
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest transition-all">
+                                            {aiGenerating ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Building...</> : <><SparklesIcon className="w-3.5 h-3.5" /> Full Rebuild</>}
+                                        </button>
+                                        <button onClick={handleGenerateNotesOnly} disabled={aiGenerating}
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-card border border-border hover:border-orange-500/40 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
+                                            {aiGenerating ? 'Writing...' : '✦ Notes Only'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Comprehensive Study Notes (Mandatory for Students)</label>
                                 <textarea
                                     value={form.lesson_notes}
-                                    rows={8}
+                                    rows={12}
                                     onChange={e => setForm({ ...form, lesson_notes: e.target.value })}
-                                    placeholder="These notes will be shown to students as a prerequisite to watching the video..."
+                                    placeholder="Notes generated by AI or manual input..."
                                     className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-cyan-500 outline-none resize-none"
                                 />
                             </div>
@@ -348,16 +423,16 @@ export default function EditLessonPage() {
                                     <h2 className="text-xl font-black uppercase tracking-tight">Structured Lesson Plan</h2>
                                 </div>
                                 <button
-                                    onClick={generateAiPlan}
-                                    disabled={aiGeneratingPlan}
+                                    onClick={handleAiGenerate}
+                                    disabled={aiGenerating}
                                     className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 rounded-none text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
                                 >
-                                    {aiGeneratingPlan ? (
+                                    {aiGenerating ? (
                                         <div className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
                                     ) : (
-                                        <Sparkles className="w-3 h-3" />
+                                        <SparklesIcon className="w-3 h-3" />
                                     )}
-                                    {aiGeneratingPlan ? 'GENERATING...' : 'SYNC WITH AI'}
+                                    {aiGenerating ? 'GENERATING...' : 'SYNC WITH AI'}
                                 </button>
                             </div>
 

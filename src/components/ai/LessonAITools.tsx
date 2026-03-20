@@ -1,46 +1,30 @@
-// @refresh reset
 'use client';
 
 import { useState, useRef } from 'react';
 import {
-  PhotoIcon,
-  MicrophoneIcon,
-  ArrowDownTrayIcon,
   XMarkIcon,
-  ExclamationCircleIcon,
   SparklesIcon,
   Maximize2Icon,
   ChevronDownIcon,
   ChevronUpIcon,
-  FilmIcon,
   ChartBarIcon,
-  PlayIcon,
+  PhotoIcon,
+  VideoCameraIcon,
+  ChatBubbleLeftRightIcon,
 } from '@/lib/icons';
+import { isPuterAvailable, puterChat } from '@/lib/puter-ai';
 
-/* ── types ──────────────────────────────────────────────── */
 interface LessonAIToolsProps {
-  /** Current lesson title — used as default prompt for image gen */
   lessonTitle: string;
   lessonSubject?: string;
   lessonGrade?: string;
-  /** Plain-text summary of the lesson for TTS */
-  lessonText: string;
-  /** Called when STT transcript is ready — teacher can insert it */
+  lessonText?: string;
   onTranscript: (text: string) => void;
   onImageGenerated: (url: string) => void;
   onVideoGenerated: (url: string) => void;
   onGraphicGenerated: (type: string, data: any) => void;
 }
 
-/* ── helpers ─────────────────────────────────────────────── */
-function downloadDataUrl(dataUrl: string, filename: string) {
-  const a = document.createElement('a');
-  a.href = dataUrl;
-  a.download = filename;
-  a.click();
-}
-
-/* ── sub-components ──────────────────────────────────────── */
 function ToolCard({ icon: Icon, title, color, children, onMaximize }: {
   icon: React.ElementType;
   title: string;
@@ -61,7 +45,6 @@ function ToolCard({ icon: Icon, title, color, children, onMaximize }: {
           <button 
             onClick={onMaximize}
             className="p-2 text-white/20 hover:text-white hover:bg-white/5 rounded-lg transition-all"
-            title="Maximize Interface"
           >
             <Maximize2Icon className="w-4 h-4" />
           </button>
@@ -76,494 +59,407 @@ function Spinner() {
   return <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin flex-shrink-0" />;
 }
 
-function ErrorMsg({ msg }: { msg: string }) {
-  return (
-    <div className="flex items-start gap-2 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">
-      <ExclamationCircleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
-      {msg}
-    </div>
-  );
-}
-
-/* ── Image Generator ─────────────────────────────────────── */
-function ImageGenerator({ lessonTitle, lessonSubject, lessonGrade, onMaximize, onInsert }: Pick<LessonAIToolsProps, 'lessonTitle' | 'lessonSubject' | 'lessonGrade'> & { onMaximize?: () => void; onInsert?: (url: string) => void }) {
+/* ── OpenRouter Image Synthesis ─────────────────────── */
+function ImageGenerator({ lessonTitle, lessonSubject, lessonGrade, onInsert }: any) {
+  const [prompt, setPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ dataUrl: string; prompt: string } | null>(null);
-  const [customPrompt, setCustomPrompt] = useState('');
 
   const handleGenerate = async () => {
     setGenerating(true);
     setError(null);
-    setResult(null);
     try {
       const res = await fetch('/api/ai/image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: lessonTitle || 'STEM lesson',
-          subject: lessonSubject,
-          gradeLevel: lessonGrade,
-          prompt: customPrompt.trim() || undefined,
-        }),
+        body: JSON.stringify({ prompt: prompt || lessonTitle, title: lessonTitle, subject: lessonSubject, gradeLevel: lessonGrade }),
       });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? 'Generation failed');
-      setResult({ dataUrl: payload.data.dataUrl, prompt: payload.data.prompt });
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to generate image');
-    } finally {
-      setGenerating(false);
-    }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setResult(data.url);
+    } catch (e: any) { setError(e.message); }
+    finally { setGenerating(false); }
   };
 
   return (
-    <ToolCard icon={PhotoIcon} title="Generate Cover Image" color="bg-pink-600" onMaximize={onMaximize}>
-      <div className="space-y-2">
-        <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Custom Prompt (optional)</p>
-        <input
-          value={customPrompt}
-          onChange={e => setCustomPrompt(e.target.value)}
-          placeholder={`Auto: illustration for "${lessonTitle || 'lesson'}"`}
-          className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-pink-500"
-        />
-      </div>
-
-      {error && <ErrorMsg msg={error} />}
-
+    <ToolCard icon={PhotoIcon} title="Image Synthesis" color="bg-orange-600">
+      <input 
+        value={prompt} 
+        onChange={e => setPrompt(e.target.value)}
+        placeholder="Neural prompt or title..."
+        className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-orange-500"
+      />
+      {error && <p className="text-[10px] text-rose-400 font-bold">{error}</p>}
       {result && (
         <div className="space-y-3">
-          <img src={result.dataUrl} alt="Generated thumbnail" className="w-full rounded-xl object-cover max-h-48" />
-          <p className="text-[10px] text-white/30 line-clamp-2">Prompt: {result.prompt}</p>
-          <div className="flex gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => onInsert?.(result.dataUrl)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30 hover:bg-pink-500/30 rounded-lg transition-colors"
-            >
-              <SparklesIcon className="w-3.5 h-3.5" /> Use as Cover
-            </button>
-            <button
-              type="button"
-              onClick={() => downloadDataUrl(result.dataUrl, `lesson-thumbnail-${Date.now()}.jpg`)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white/10 hover:bg-white/15 rounded-lg text-white transition-colors"
-            >
-              <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Download
-            </button>
-            <button
-              type="button"
-              onClick={() => setResult(null)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white/5 hover:bg-white/10 rounded-lg text-white/40 transition-colors"
-            >
-              <XMarkIcon className="w-3.5 h-3.5" /> Clear
-            </button>
-          </div>
+          <img src={result} className="w-full rounded-xl border border-border shadow-xl" alt="AI Generated" />
+          <button onClick={() => onInsert(result)} className="w-full py-2 bg-orange-600 text-white font-bold text-xs rounded-lg uppercase tracking-widest">Inject Asset</button>
         </div>
       )}
-
-      <button
-        type="button"
-        onClick={handleGenerate}
-        disabled={generating}
-        className="flex items-center gap-2 px-4 py-2 bg-pink-600 hover:bg-pink-500 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all"
-      >
-        {generating ? <Spinner /> : <PhotoIcon className="w-4 h-4" />}
-        {generating ? 'Generating image...' : 'Generate'}
-      </button>
-    </ToolCard>
-  );
-}
-
-
-
-/* ── Speech-to-Text ──────────────────────────────────────── */
-function SpeechToText({ onTranscript, onMaximize }: Pick<LessonAIToolsProps, 'onTranscript'> & { onMaximize?: () => void }) {
-  const [transcribing, setTranscribing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [transcript, setTranscript] = useState<string | null>(null);
-  const [filename, setFilename] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleFile = async (file: File) => {
-    setFilename(file.name);
-    setTranscribing(true);
-    setError(null);
-    setTranscript(null);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch('/api/ai/stt', { method: 'POST', body: fd });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? 'Transcription failed');
-      setTranscript(payload.data.transcript);
-    } catch (e: any) {
-      setError(e.message ?? 'Transcription failed');
-    } finally {
-      setTranscribing(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  };
-
-  return (
-    <ToolCard icon={MicrophoneIcon} title="Transcribe Recording" color="bg-emerald-600" onMaximize={onMaximize}>
-      {/* Drop zone */}
-      <div
-        onDrop={handleDrop}
-        onDragOver={e => e.preventDefault()}
-        onClick={() => inputRef.current?.click()}
-        className="border-2 border-dashed border-border hover:border-amber-500/40 rounded-xl p-5 text-center cursor-pointer transition-colors"
-      >
-        <MicrophoneIcon className="w-6 h-6 text-white/20 mx-auto mb-2" />
-        <p className="text-xs text-white/40">
-          {transcribing ? 'Transcribing...' : filename || 'Drop an audio file or click to upload'}
-        </p>
-        <p className="text-[10px] text-white/20 mt-1">MP3, WAV, M4A, OGG · Max 25 MB</p>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="audio/*"
-          className="hidden"
-          onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
-        />
-      </div>
-
-      {transcribing && (
-        <div className="flex items-center gap-2 text-xs text-amber-400">
-          <Spinner />
-          Whisper is transcribing — this may take up to 30 seconds…
-        </div>
-      )}
-
-      {error && <ErrorMsg msg={error} />}
-
-      {transcript && (
-        <div className="space-y-3">
-          <div className="bg-white/5 border border-border rounded-xl p-4 max-h-40 overflow-y-auto">
-            <p className="text-xs text-white/70 leading-relaxed whitespace-pre-wrap">{transcript}</p>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => { onTranscript(transcript); setTranscript(null); setFilename(''); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 rounded-lg transition-colors"
-            >
-              Insert into lesson
-            </button>
-            <button
-              type="button"
-              onClick={() => navigator.clipboard.writeText(transcript)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white/10 hover:bg-white/15 rounded-lg text-white transition-colors"
-            >
-              Copy text
-            </button>
-            <button
-              type="button"
-              onClick={() => { setTranscript(null); setFilename(''); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white/5 hover:bg-white/10 rounded-lg text-white/40 transition-colors"
-            >
-              <XMarkIcon className="w-3.5 h-3.5" /> Clear
-            </button>
-          </div>
-        </div>
+      {!result && (
+        <button onClick={handleGenerate} disabled={generating} className="w-full flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 text-white font-bold text-xs rounded-lg transition-all border border-border">
+          {generating ? <Spinner /> : <SparklesIcon className="w-3 h-3 text-orange-400" />}
+          {generating ? 'Synthesizing...' : 'DALL-E 3 Synthesis'}
+        </button>
       )}
     </ToolCard>
   );
 }
 
-/* ── Video Generator ─────────────────────────────────────── */
-function VideoGenerator({ onMaximize, onInsert }: { onMaximize?: () => void; onInsert?: (url: string) => void }) {
-  const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<string | null>(null);
+/* ── AI Video Finder (YouTube embed) ─────────────────── */
+function VideoGenerator({ lessonTitle, onInsert }: any) {
   const [prompt, setPrompt] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [result, setResult] = useState<{ url: string; title: string; channel: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) { setError('Enter a visual prompt'); return; }
     setGenerating(true);
     setError(null);
-    setResult(null);
     try {
       const res = await fetch('/api/ai/video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt: prompt || lessonTitle }),
       });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? 'Video generation failed');
-      setResult(payload.data.url);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setGenerating(false);
-    }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setResult(data.data);
+    } catch (e: any) { setError(e.message); }
+    finally { setGenerating(false); }
   };
 
+  // Convert YouTube watch URL to embed URL
+  const embedUrl = result?.url?.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/');
+
   return (
-    <ToolCard icon={FilmIcon} title="AI Video Lab" color="bg-rose-600" onMaximize={onMaximize}>
-      <div className="space-y-2">
-        <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Scene Description</p>
-        <textarea
-          value={prompt}
-          onChange={e => setPrompt(e.target.value)}
-          placeholder="e.g. A 3D orbital path of planets around the sun, cinematic lighting..."
-          rows={2}
-          className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-rose-500 resize-none"
-        />
-      </div>
-
-      {error && <ErrorMsg msg={error} />}
-
-      {result && (
+    <ToolCard icon={VideoCameraIcon} title="Educational Video" color="bg-cyan-600">
+      <input
+        value={prompt}
+        onChange={e => setPrompt(e.target.value)}
+        placeholder="Topic or lesson title..."
+        className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-cyan-500"
+      />
+      {error && <p className="text-[10px] text-rose-400 font-bold">{error}</p>}
+      {result && embedUrl && (
         <div className="space-y-3">
-          <video src={result} controls className="w-full rounded-xl aspect-video bg-black shadow-2xl" />
-          <div className="flex gap-2">
-             <button
-              type="button"
-              onClick={() => onInsert?.(result)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 rounded-lg transition-colors"
-            >
-              <SparklesIcon className="w-3.5 h-3.5" /> Use in Lesson
-            </button>
-            <button
-               type="button"
-               onClick={() => downloadDataUrl(result, `ai-video-${Date.now()}.mp4`)}
-               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white/10 hover:bg-white/15 rounded-lg text-white transition-colors"
-             >
-               <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Download
-             </button>
+          <div className="text-[10px] text-cyan-400 font-bold truncate">{result.title} — {result.channel}</div>
+          <div className="aspect-video rounded-xl overflow-hidden border border-border">
+            <iframe src={embedUrl} className="w-full h-full" allowFullScreen title={result.title} />
           </div>
+          <button onClick={() => onInsert(result.url)} className="w-full py-2 bg-cyan-600 text-white font-bold text-xs rounded-lg uppercase tracking-widest">Inject Video</button>
         </div>
       )}
-
       {!result && (
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={generating}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-rose-600 hover:bg-rose-500 disabled:opacity-60 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-rose-900/40"
-        >
-          {generating ? <Spinner /> : <PlayIcon className="w-4 h-4" />}
-          {generating ? 'Processing Neural Video...' : 'Generate AI Video'}
+        <button onClick={handleGenerate} disabled={generating} className="w-full flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 text-white font-bold text-xs rounded-lg transition-all border border-border">
+          {generating ? <Spinner /> : <SparklesIcon className="w-3 h-3 text-cyan-400" />}
+          {generating ? 'Finding video...' : 'Find Educational Video'}
         </button>
       )}
     </ToolCard>
   );
 }
 
-/* ── Graphic Synthesizer ─────────────────────────────────── */
-function GraphicSynthesizer({ onMaximize, onInsert }: { onMaximize?: () => void; onInsert?: (type: string, data: any) => void }) {
-  const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<any | null>(null);
+/* ── OpenRouter AI Designer (Graphics) ──────────────── */
+function GraphicSynthesizer({ lessonTitle, onInsert }: any) {
   const [prompt, setPrompt] = useState('');
-  const [targetType, setTargetType] = useState('d3-chart');
+  const [generating, setGenerating] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleGenerate = async () => {
-    if (!prompt.trim()) { setError('Enter data requirements'); return; }
-    setGenerating(true);
+  const handleGraphicGen = async (type: string) => {
+    setGenerating(type);
     setError(null);
-    setResult(null);
     try {
       const res = await fetch('/api/ai/graphics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, type: targetType }),
+        body: JSON.stringify({ type, prompt: prompt || lessonTitle }),
       });
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? 'Synthesis failed');
-      setResult(payload.data);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setGenerating(false);
-    }
+      if (!res.ok) throw new Error(payload.error || 'Failed');
+      
+      // Normalize types for the CanvaRenderer / MermaidRenderer
+      if (type === 'infographic' || type === 'flowchart') {
+        onInsert('mermaid', { code: payload.data.code });
+      } else if (type === 'scratch-blocks') {
+        onInsert('scratch', payload.data);
+      } else {
+        onInsert(type, payload.data);
+      }
+    } catch (e: any) { setError(e.message); }
+    finally { setGenerating(null); }
   };
 
   return (
-    <ToolCard icon={ChartBarIcon} title="Graphic Synth" color="bg-indigo-600" onMaximize={onMaximize}>
-      <div className="flex gap-2 p-1 bg-white/5 rounded-lg border border-white/10">
-        <button 
-           onClick={() => setTargetType('d3-chart')}
-           className={`flex-1 py-1 text-[9px] font-black uppercase transition-all ${targetType === 'd3-chart' ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
-        >Data Chart</button>
-        <button 
-           onClick={() => setTargetType('motion-graphics')}
-           className={`flex-1 py-1 text-[9px] font-black uppercase transition-all ${targetType === 'motion-graphics' ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
-        >Motion</button>
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-[10px] font-black uppercase tracking-widest text-white/30">Graphic Requirements</p>
-        <input
-          value={prompt}
-          onChange={e => setPrompt(e.target.value)}
-          placeholder={targetType === 'd3-chart' ? "Growth of AI from 2020 to 2025..." : "A rotating molecule with 8 atoms..."}
-          className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-indigo-500"
-        />
-      </div>
-
-      {error && <ErrorMsg msg={error} />}
-
-      {result && (
-        <div className="space-y-3">
-          <div className="p-3 bg-black/40 border border-indigo-500/20 rounded-xl">
-             <p className="text-[10px] font-mono text-indigo-400">Structure Synthesized:</p>
-             <pre className="text-[8px] text-white/60 overflow-hidden mt-1">{JSON.stringify(result, null, 2)}</pre>
-          </div>
-          <button
-            type="button"
-            onClick={() => onInsert?.(targetType, result)}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-bold bg-indigo-500 text-white rounded-lg hover:bg-indigo-400 transition-colors"
-          >
-            <SparklesIcon className="w-3.5 h-3.5" /> Inject into Builder
-          </button>
-        </div>
-      )}
-
-      {!result && (
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={generating}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all"
-        >
-          {generating ? <Spinner /> : <SparklesIcon className="w-3.5 h-3.5" />}
-          {generating ? 'Synthesizing...' : 'Build Neural Graphic'}
+    <ToolCard icon={ChartBarIcon} title="Architectural Designer" color="bg-purple-600">
+      <input 
+        value={prompt} 
+        onChange={e => setPrompt(e.target.value)}
+        placeholder="Concept to architect (e.g. OSI Model)"
+        className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-purple-500"
+      />
+      {error && <p className="text-[10px] text-rose-400 font-bold">{error}</p>}
+      <div className="grid grid-cols-2 gap-2 mt-2">
+        <button onClick={() => handleGraphicGen('flowchart')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 text-white font-bold text-[9px] uppercase tracking-wider rounded-lg border border-border transition-all">
+          {generating === 'flowchart' ? <Spinner /> : 'Flowchart'}
         </button>
-      )}
+        <button onClick={() => handleGraphicGen('illustration')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 text-white font-bold text-[9px] uppercase tracking-wider rounded-lg border border-border transition-all">
+          {generating === 'illustration' ? <Spinner /> : 'Visual'}
+        </button>
+        <button onClick={() => handleGraphicGen('code-map')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-white/5 hover:bg-white/10 text-white font-bold text-[9px] uppercase tracking-wider rounded-lg border border-border transition-all">
+          {generating === 'code-map' ? <Spinner /> : 'Code Map'}
+        </button>
+        <button onClick={() => handleGraphicGen('scratch-blocks')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 font-bold text-[9px] uppercase tracking-wider rounded-lg border border-purple-500/30 transition-all">
+          {generating === 'scratch-blocks' ? <Spinner /> : 'Scratch LAB'}
+        </button>
+        <button onClick={() => handleGraphicGen('infographic')} disabled={!!generating} className="flex items-center justify-center gap-2 py-2 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 font-bold text-[9px] uppercase tracking-wider rounded-lg border border-orange-500/30 transition-all">
+          {generating === 'infographic' ? <Spinner /> : 'Infographic Hub'}
+        </button>
+      </div>
     </ToolCard>
   );
 }
 
-/* ── Main export ─────────────────────────────────────────── */
-export default function LessonAITools({
-  lessonTitle,
-  lessonSubject,
-  lessonGrade,
-  lessonText,
-  onTranscript,
-  onImageGenerated,
-  onVideoGenerated,
-  onGraphicGenerated,
-}: LessonAIToolsProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [maximizedTool, setMaximizedTool] = useState<'image' | 'stt' | 'video' | 'graphic' | null>(null);
+/* ── Puter.js Free AI Assistant ─────────────────────── */
+type ChatMessage = { role: 'user' | 'assistant'; text: string };
+
+function PuterAIAssistant({ lessonTitle, lessonSubject, lessonGrade, onInsert }: {
+  lessonTitle: string;
+  lessonSubject?: string;
+  lessonGrade?: string;
+  onInsert: (text: string) => void;
+}) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const quickPrompts = [
+    { label: 'Explain topic', prompt: `Explain "${lessonTitle}" simply for ${lessonGrade || 'secondary'} students.` },
+    { label: 'Quiz questions', prompt: `Write 5 quiz questions about "${lessonTitle}" for ${lessonGrade || 'secondary'} students.` },
+    { label: 'Key facts', prompt: `List 5 key facts about "${lessonTitle}" that ${lessonGrade || 'secondary'} students should know.` },
+    { label: 'Lesson summary', prompt: `Write a concise lesson summary for "${lessonTitle}"${lessonSubject ? ` (${lessonSubject})` : ''}.` },
+  ];
+
+  const send = async (text: string) => {
+    if (!text.trim()) return;
+    setError(null);
+    const userMsg: ChatMessage = { role: 'user', text: text.trim() };
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setLoading(true);
+
+    try {
+      let reply: string;
+      if (isPuterAvailable()) {
+        reply = await puterChat(text.trim());
+      } else {
+        // Fallback to server-side OpenRouter
+        const res = await fetch('/api/ai/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: text.trim(),
+            lessonTitle,
+            subject: lessonSubject,
+            gradeLevel: lessonGrade,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        const text2 = data.content ?? data.result;
+        if (!text2 || typeof text2 !== 'string') throw new Error(data.error ?? 'Unexpected response from AI');
+        reply = text2;
+      }
+      setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Expandable Panel Header */}
-      <div className="bg-gradient-to-br from-indigo-950/20 to-indigo-900/10 border border-indigo-500/20 rounded-none overflow-hidden transition-all shadow-2xl">
+    <div className="space-y-3">
+      {/* Quick prompts */}
+      <div className="grid grid-cols-2 gap-1.5">
+        {quickPrompts.map(q => (
+          <button
+            key={q.label}
+            onClick={() => send(q.prompt)}
+            disabled={loading}
+            className="py-1.5 px-2 text-[9px] font-bold uppercase tracking-wider bg-white/5 hover:bg-emerald-500/10 border border-border hover:border-emerald-500/40 text-white/50 hover:text-emerald-300 rounded-lg transition-all text-left truncate"
+          >
+            {q.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Chat history */}
+      {messages.length > 0 && (
+        <div className="max-h-56 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+          {messages.map((m, i) => (
+            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] px-3 py-2 rounded-xl text-[11px] leading-relaxed whitespace-pre-wrap ${
+                m.role === 'user'
+                  ? 'bg-emerald-600/20 border border-emerald-500/30 text-white'
+                  : 'bg-white/5 border border-border text-white/80'
+              }`}>
+                {m.text}
+                {m.role === 'assistant' && (
+                  <button
+                    onClick={() => onInsert(m.text)}
+                    className="block mt-1.5 text-[9px] font-bold text-emerald-400 hover:text-emerald-300 uppercase tracking-widest transition-colors"
+                  >
+                    + Insert into lesson
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="flex justify-start">
+              <div className="px-3 py-2 bg-white/5 border border-border rounded-xl flex items-center gap-2">
+                <Spinner />
+                <span className="text-[10px] text-white/30">Thinking...</span>
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+      )}
+
+      {error && <p className="text-[10px] text-rose-400 font-bold">{error}</p>}
+
+      {/* Input */}
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send(input)}
+          placeholder="Ask anything about this lesson..."
+          disabled={loading}
+          className="flex-1 bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-emerald-500 transition-colors disabled:opacity-50"
+        />
+        <button
+          onClick={() => send(input)}
+          disabled={loading || !input.trim()}
+          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white rounded-xl transition-colors"
+        >
+          <SparklesIcon className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <p className="text-[9px] text-white/20 text-center">
+        {isPuterAvailable() ? 'Powered by Puter.js (free · no API key)' : 'Powered by OpenRouter (server-side)'}
+      </p>
+    </div>
+  );
+}
+
+/* ── Main Export ────────────────────────────────────── */
+export default function LessonAITools({
+  lessonTitle, lessonSubject, lessonGrade,
+  onTranscript, onImageGenerated, onVideoGenerated, onGraphicGenerated
+}: LessonAIToolsProps) {
+  const [isOpenRouter, setIsOpenRouter] = useState(false);
+  const [isPuter, setIsPuter] = useState(false);
+
+  return (
+    <div className="space-y-4 pt-8">
+
+      {/* ── Puter.js Free AI Assistant ── */}
+      <div className="bg-gradient-to-br from-[#0B1A12] to-[#141F18] border border-emerald-500/10 rounded-[2rem] overflow-hidden transition-all shadow-2xl">
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-full flex items-center justify-between px-6 py-5 text-left group"
+          onClick={() => setIsPuter(!isPuter)}
+          className="w-full flex items-center justify-between px-8 py-6 text-left group"
         >
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-none bg-indigo-500/10 flex items-center justify-center border border-indigo-500/30 transition-all ${isOpen ? 'scale-110 border-indigo-500' : 'group-hover:border-indigo-400'}`}>
-              <SparklesIcon className="w-6 h-6 text-indigo-400" />
+            <div className={`w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/30 transition-all ${isPuter ? 'scale-110 border-emerald-500' : 'group-hover:border-emerald-400'}`}>
+              <ChatBubbleLeftRightIcon className="w-6 h-6 text-emerald-400" />
             </div>
             <div>
-              <h3 className="text-base font-black text-white uppercase tracking-[0.1em] italic">Hugging Face Neural Suite</h3>
-              <p className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mt-0.5">
-                {isOpen ? 'INTERFACE MAXIMISED' : 'Deep-Tech Synthesis: FLUX.1 & Whisper V3'}
+              <h3 className="text-lg font-black text-white uppercase tracking-tighter italic">Puter.js AI Assistant</h3>
+              <p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.4em] mt-0.5">
+                Free · No API Key · Chat + Lesson Help
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-             {!isOpen && <span className="text-[9px] font-black text-white/20 uppercase tracking-widest hidden sm:block">Ready for Deployment</span>}
-             {isOpen ? <ChevronUpIcon className="w-5 h-5 text-indigo-400" /> : <ChevronDownIcon className="w-5 h-5 text-white/20" />}
+            <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-[9px] font-black text-emerald-400 uppercase tracking-widest">FREE</span>
+            {isPuter ? <ChevronUpIcon className="w-5 h-5 text-emerald-400" /> : <ChevronDownIcon className="w-5 h-5 text-white/20" />}
           </div>
         </button>
 
-        {isOpen && (
-          <div className="px-6 pb-6 pt-2 space-y-6 animate-in slide-in-from-top-4 duration-500">
-            <div className="h-px bg-indigo-500/20 w-full" />
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <ImageGenerator 
-                lessonTitle={lessonTitle} 
-                lessonSubject={lessonSubject} 
-                lessonGrade={lessonGrade} 
-                onMaximize={() => setMaximizedTool('image')}
+        {isPuter && (
+          <div className="px-8 pb-8 pt-2 animate-in slide-in-from-top-4 duration-500">
+            <div className="h-px bg-emerald-500/10 w-full mb-6" />
+            <PuterAIAssistant
+              lessonTitle={lessonTitle}
+              lessonSubject={lessonSubject}
+              lessonGrade={lessonGrade}
+              onInsert={onTranscript}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* ── OpenRouter Premium Suite ── */}
+      <div className="bg-gradient-to-br from-[#0B0B1B] to-[#161625] border border-white/5 rounded-[2rem] overflow-hidden transition-all shadow-2xl">
+        <button
+          type="button"
+          onClick={() => setIsOpenRouter(!isOpenRouter)}
+          className="w-full flex items-center justify-between px-8 py-6 text-left group"
+        >
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/30 transition-all ${isOpenRouter ? 'scale-110 border-orange-500' : 'group-hover:border-orange-400'}`}>
+              <SparklesIcon className="w-6 h-6 text-orange-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white uppercase tracking-tighter italic">OpenRouter Premium Suite</h3>
+              <p className="text-[10px] text-orange-400 font-black uppercase tracking-[0.4em] mt-0.5">
+                Multi-Model Neural Synthesis (Gemini / Llama / DALL-E)
+              </p>
+            </div>
+          </div>
+          {isOpenRouter ? <ChevronUpIcon className="w-5 h-5 text-orange-400" /> : <ChevronDownIcon className="w-5 h-5 text-white/20" />}
+        </button>
+
+        {isOpenRouter && (
+          <div className="px-8 pb-8 pt-4 space-y-8 animate-in slide-in-from-top-4 duration-500">
+            <div className="h-px bg-white/5 w-full" />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <ImageGenerator
+                lessonTitle={lessonTitle}
+                lessonSubject={lessonSubject}
+                lessonGrade={lessonGrade}
                 onInsert={onImageGenerated}
               />
               <VideoGenerator
-                onMaximize={() => setMaximizedTool('video')}
+                lessonTitle={lessonTitle}
                 onInsert={onVideoGenerated}
               />
               <GraphicSynthesizer
-                onMaximize={() => setMaximizedTool('graphic')}
+                lessonTitle={lessonTitle}
                 onInsert={onGraphicGenerated}
               />
-              <SpeechToText 
-                onTranscript={onTranscript} 
-                onMaximize={() => setMaximizedTool('stt')}
-              />
             </div>
-            <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-none flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
-                <SparklesIcon className="w-4 h-4" />
-              </div>
-              <p className="text-[11px] text-white/30 leading-relaxed font-medium uppercase tracking-tight">
-                Utilising the <span className="text-white">Hugging Face Inference API</span> for low-latency neural processing. FLUX.1 (schnell) provides high-fidelity educational illustrations, while Whisper V3 handles global-standard speech transcription.
+
+            <div className="p-4 bg-orange-500/5 border border-orange-500/10 rounded-2xl flex items-center gap-4">
+              <div className="px-2 py-1 bg-orange-500/10 rounded text-[9px] font-black text-orange-400 uppercase tracking-widest">Priority Engine: Active</div>
+              <p className="text-[10px] text-white/20 uppercase tracking-widest font-medium">
+                Unified OpenRouter Infrastructure • Gemini-Flash & DALL-E 3 Integrated
               </p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Maximized Modal Overlay */}
-      {maximizedTool && (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-6 sm:p-12 animate-in fade-in duration-300">
-          <div className="w-full max-w-5xl relative">
-            <button 
-              onClick={() => setMaximizedTool(null)}
-              className="absolute -top-12 right-0 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-all"
-            >
-              <XMarkIcon className="w-5 h-5" /> Close Terminal
-            </button>
-            <div className="bg-[#0a0a0f] border border-indigo-500/30 p-8 sm:p-12 shadow-[0_0_100px_rgba(99,102,241,0.2)] max-h-[85vh] overflow-y-auto">
-               <div className="mb-8">
-                  <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">
-                    {maximizedTool === 'image' && 'Neural Image Generator'}
-                    {maximizedTool === 'video' && 'AI Video Laboratory'}
-                    {maximizedTool === 'graphic' && 'Graphic Synthesis Core'}
-                    {maximizedTool === 'stt' && 'Voice Synthesis Terminal'}
-                  </h2>
-                  <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">Full-Scale Interface Maximised</p>
-               </div>
-               
-               {maximizedTool === 'image' && (
-                 <ImageGenerator 
-                   lessonTitle={lessonTitle} 
-                   lessonSubject={lessonSubject} 
-                   lessonGrade={lessonGrade} 
-                   onInsert={onImageGenerated}
-                 />
-               )}
-               {maximizedTool === 'video' && (
-                 <VideoGenerator 
-                   onInsert={onVideoGenerated}
-                 />
-               )}
-               {maximizedTool === 'graphic' && (
-                 <GraphicSynthesizer 
-                   onInsert={onGraphicGenerated}
-                 />
-               )}
-               {maximizedTool === 'stt' && (
-                 <SpeechToText 
-                   onTranscript={onTranscript} 
-                 />
-               )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

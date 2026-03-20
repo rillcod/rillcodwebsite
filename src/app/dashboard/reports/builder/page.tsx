@@ -17,6 +17,7 @@ import {
     PhotoIcon, RocketLaunchIcon, CloudArrowUpIcon, ChevronRightIcon,
     CheckCircleIcon, PrinterIcon, SparklesIcon,
 } from '@/lib/icons';
+import { cn } from '@/lib/utils';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -131,7 +132,7 @@ function ReportBuilderInner() {
         next_module: '',
         course_duration: 'Termly',
         learning_milestones: [],
-        school_section: 'school',
+        school_section: '',
         fee_label: '',
         fee_amount: '',
         show_payment_notice: false,
@@ -175,7 +176,8 @@ function ReportBuilderInner() {
     const [showSettings, setShowSettings] = useState(false);
     const [milestoneInput, setMilestoneInput] = useState('');
     const [isBulkBuilding, setIsBulkBuilding] = useState(false);
-    const [reportStyle, setReportStyle] = useState<'standard'|'modern'>('standard');
+    const [reportStyle, setReportStyle] = useState<'standard'|'modern'>('modern');
+    const [modernTemplateId, setModernTemplateId] = useState<'industrial'|'executive'|'futuristic'>('industrial');
     const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
     const pdfRef = useRef<HTMLDivElement>(null);
 
@@ -245,7 +247,7 @@ function ReportBuilderInner() {
 
             // 2. Fetch the "Pool" from portal_users — always scoped to assigned schools for non-admins
             let studentQuery = db.from('portal_users')
-                .select('*')
+                .select('*, students!user_id(section_class, current_class, grade_level, class_id)')
                 .neq('is_deleted', true);
 
             if (!isAdmin) {
@@ -272,7 +274,15 @@ function ReportBuilderInner() {
                 db.from('report_settings').select('*').limit(1).maybeSingle(),
             ]);
 
-            setStudents(sRes.data ?? []);
+            const processed = (sRes.data ?? []).map((u: any) => {
+                const std = u.students?.[0];
+                return {
+                    ...u,
+                    section_class: std?.section_class || std?.current_class || std?.grade_level || u.section_class || '',
+                    class_id: std?.class_id || u.class_id || null,
+                };
+            });
+            setStudents(processed);
             setCourses(cRes.data ?? []);
             setSchools(schoolsList);
             // Note: school auto-fill is handled below in the instructor_name setSessionConfig call
@@ -694,9 +704,9 @@ function ReportBuilderInner() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         type: 'report-feedback',
-                        topic: sessionConfig.current_module,
-                        studentName: form.student_name,
-                        gradeLevel: form.section_class,
+                        topic: sessionConfig.current_module || 'STEM Methodology & Synthesis',
+                        studentName: form.student_name || 'The Student',
+                        gradeLevel: form.section_class || 'General Academic',
                         attendance: `${attendance}/${totalSessions} sessions`,
                         assignments: `${assignments}/${totalAssignments} labs`,
                         theoryScore: form.theory_score,
@@ -771,6 +781,7 @@ function ReportBuilderInner() {
         ...sessionConfig,
         ...form,
         id: existingReport?.id || 'Preview',
+        template_id: modernTemplateId,
         theory_score: parseFloat(form.theory_score),
         practical_score: parseFloat(form.practical_score),
         attendance_score: parseFloat(form.attendance_score),
@@ -1386,6 +1397,51 @@ function ReportBuilderInner() {
                             {/* Left column */}
                             <div className="space-y-4">
 
+                                <Section title="Report Design" icon="🎨">
+                                    <div className="flex flex-col gap-4">
+                                        <div className="flex bg-white/5 border border-white/10 p-1 rounded-none overflow-hidden">
+                                            <button onClick={() => setReportStyle('standard')}
+                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'standard' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
+                                                Standard
+                                            </button>
+                                            <button onClick={() => setReportStyle('modern')}
+                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'modern' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
+                                                Modern Styles
+                                            </button>
+                                        </div>
+
+                                        {reportStyle === 'modern' && (
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {[
+                                                    { id: 'industrial', name: 'Industrial', color: 'bg-slate-900', border: 'border-orange-500' },
+                                                    { id: 'executive', name: 'Executive', color: 'bg-[#FDFBF2]', border: 'border-slate-800' },
+                                                    { id: 'futuristic', name: 'Futuristic', color: 'bg-[#050510]', border: 'border-cyan-500' }
+                                                ].map((t) => (
+                                                    <button 
+                                                        key={t.id}
+                                                        type="button"
+                                                        onClick={() => setModernTemplateId(t.id as any)}
+                                                        className={cn(
+                                                            "group relative flex flex-col items-center justify-center py-3 border transition-all overflow-hidden",
+                                                            modernTemplateId === t.id ? "border-orange-500 bg-orange-600/10 shadow-[0_0_15px_rgba(255,102,0,0.1)]" : "border-white/5 bg-white/5 hover:bg-white/10"
+                                                        )}
+                                                    >
+                                                        <div className={cn("w-8 h-8 mb-1 relative overflow-hidden", t.color)}>
+                                                            <div className={cn("absolute inset-0.5 border-[0.5px]", t.border, "opacity-40")} />
+                                                        </div>
+                                                        <span className="text-[8px] font-black uppercase tracking-tighter text-foreground">{t.name}</span>
+                                                        {modernTemplateId === t.id && (
+                                                            <div className="absolute top-1 right-1">
+                                                                <CheckCircleIcon className="w-3 h-3 text-orange-500" />
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </Section>
+
                                 {/* Identity & Photo */}
                                 <Section title="Student Identity" icon="👤">
                                     <div className="flex flex-col sm:flex-row items-start gap-6">
@@ -1516,29 +1572,55 @@ function ReportBuilderInner() {
 
                                 {/* Grades */}
                                 <Section title="Grade Qualifiers" icon="🏅">
-                                    <div className="space-y-5">
-                                        {[
-                                            { key: 'projects_grade', label: 'Project Work' },
-                                            { key: 'homework_grade', label: 'Homework' },
-                                        ].map(({ key, label }) => (
-                                            <div key={key}>
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</label>
-                                                    <button onClick={() => handleAIGenerate(key as any)} disabled={!!generating}
-                                                        className="flex items-center gap-1.5 text-[10px] font-bold text-orange-400 hover:text-orange-500 disabled:opacity-50 transition-all hover:translate-x-1">
-                                                        {generating === key ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
-                                                        Generate Realistic Status
-                                                    </button>
-                                                </div>
-                                                <input
-                                                    value={(form as any)[key]}
-                                                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                    className={INPUT}
-                                                    placeholder={`e.g. 12/15 Meetings Attended`}
-                                                />
+                                    {(() => {
+                                        const COMPLETION_LEVELS = [
+                                            'In Progress',
+                                            'Partially Completed',
+                                            'Mostly Completed',
+                                            'Constructive Progression',
+                                            'Completed',
+                                            'Outstanding',
+                                        ];
+                                        const isPreset = (v: string) => COMPLETION_LEVELS.includes(v);
+                                        return (
+                                            <div className="space-y-5">
+                                                {[
+                                                    { key: 'projects_grade', label: 'Project Work' },
+                                                    { key: 'homework_grade', label: 'Homework' },
+                                                ].map(({ key, label }) => {
+                                                    const val = (form as any)[key] as string;
+                                                    return (
+                                                        <div key={key}>
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</label>
+                                                                <button onClick={() => handleAIGenerate(key as any)} disabled={!!generating}
+                                                                    className="flex items-center gap-1.5 text-[10px] font-bold text-orange-400 hover:text-orange-500 disabled:opacity-50 transition-all hover:translate-x-1">
+                                                                    {generating === key ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
+                                                                    AI Generate
+                                                                </button>
+                                                            </div>
+                                                            {/* Quick-select preset level */}
+                                                            <select
+                                                                value={isPreset(val) ? val : ''}
+                                                                onChange={e => { if (e.target.value) setForm(f => ({ ...f, [key]: e.target.value })); }}
+                                                                className={`${INPUT} mb-2`}
+                                                            >
+                                                                <option value="">Select completion level...</option>
+                                                                {COMPLETION_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                                                            </select>
+                                                            {/* Text input for custom or AI-generated values */}
+                                                            <input
+                                                                value={val}
+                                                                onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                                                                className={INPUT}
+                                                                placeholder="Or type a custom description..."
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        ))}
-                                    </div>
+                                        );
+                                    })()}
                                 </Section>
                             </div>
 
@@ -1741,7 +1823,7 @@ function ReportBuilderInner() {
                             <h3 className="text-foreground font-black">{form.student_name}</h3>
                             <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold">Report Card Preview</p>
                         </div>
-                        <div className="flex bg-white/5 border border-white/10 mr-4">
+                        <div className="flex bg-white/5 border border-white/10 mr-4 p-1">
                             <button onClick={() => setReportStyle('standard')}
                                 className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'standard' ? 'bg-orange-600 text-white' : 'text-muted-foreground hover:text-white'}`}>
                                 Standard
@@ -1751,6 +1833,37 @@ function ReportBuilderInner() {
                                 Modern
                             </button>
                         </div>
+
+                        {reportStyle === 'modern' && (
+                            <div className="flex bg-white/5 border border-white/10 p-1 mr-4 gap-1">
+                                {[
+                                    { id: 'industrial', name: 'Industrial', color: 'bg-slate-900', border: 'border-orange-500' },
+                                    { id: 'executive', name: 'Executive', color: 'bg-[#FDFBF2]', border: 'border-slate-800' },
+                                    { id: 'futuristic', name: 'Futuristic', color: 'bg-[#050510]', border: 'border-cyan-500' }
+                                ].map((t) => (
+                                    <button 
+                                        key={t.id}
+                                        onClick={() => setModernTemplateId(t.id as any)}
+                                        className={cn(
+                                            "group relative w-20 h-10 flex flex-col items-center justify-center transition-all overflow-hidden",
+                                            modernTemplateId === t.id ? "ring-2 ring-orange-500 ring-offset-2 ring-offset-[#0a0a14]" : "opacity-40 hover:opacity-100"
+                                        )}
+                                    >
+                                        <div className={cn("absolute inset-0", t.color)} />
+                                        <div className={cn("absolute inset-1 border-[0.5px]", t.border, "opacity-40")} />
+                                        <span className={cn(
+                                            "relative z-10 text-[8px] font-black uppercase tracking-tighter",
+                                            t.id === 'executive' ? "text-slate-900" : "text-white"
+                                        )}>{t.name}</span>
+                                        {modernTemplateId === t.id && (
+                                            <div className="absolute top-0 right-0 bg-orange-500 text-white p-0.5">
+                                                <CheckIcon className="w-2 h-2" />
+                                            </div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         <button onClick={downloadPDF} disabled={isGeneratingPdf}
                             className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-foreground text-sm font-black rounded-none shadow-xl shadow-orange-900/30 transition-all disabled:opacity-50">
                             {isGeneratingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}

@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   PlusIcon, TrashIcon, LinkIcon, CodeBracketIcon, RocketLaunchIcon,
-  SparklesIcon, XMarkIcon, PaintBrushIcon, ArrowDownTrayIcon,
+  XMarkIcon, PaintBrushIcon, ArrowDownTrayIcon,
   CloudArrowUpIcon, PencilIcon, MagnifyingGlassIcon,
   PhotoIcon, UserGroupIcon, StarIcon, CalendarIcon,
   ExclamationTriangleIcon, StarIconSolid as StarSolid

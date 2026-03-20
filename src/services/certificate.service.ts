@@ -1,24 +1,35 @@
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { AppError, NotFoundError } from '@/lib/errors';
 import { filesService } from './files.service';
 import PdfPrinter from 'pdfmake';
 import { TDocumentDefinitions } from 'pdfmake/interfaces';
-import fs from 'fs';
-import path from 'path';
+
+function adminClient() {
+    return createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+}
 
 export class CertificateService {
     async issueCertificate(studentId: string, courseId: string, issuerId?: string, schoolId?: string) {
-        const supabase = await createClient();
-
-        // 1. Verify eligibility (Simplified: check course progress/completion)
-        // ... progress check ...
+        // 1. Verify eligibility (check if student already has it to avoid duplicates)
+        const { data: existing } = await adminClient()
+            .from('certificates')
+            .select('id')
+            .eq('portal_user_id', studentId)
+            .eq('course_id', courseId)
+            .maybeSingle();
+        
+        if (existing) return existing; // Skip if already issued
 
         // 2. Generate unique numbers
         const certNumber = `RC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const verifyCode = Math.random().toString(36).substring(2, 12).toUpperCase();
 
         // 3. Create record
-        const { data: cert, error } = await supabase
+        const { data: cert, error } = await adminClient()
             .from('certificates')
             .insert([{
                 portal_user_id: studentId,
@@ -44,12 +55,36 @@ export class CertificateService {
         return cert;
     }
 
+    async bulkIssue(classId: string, courseId: string, issuerId?: string, schoolId?: string) {
+        const admin = adminClient();
+        
+        // 1. Get all students in the class
+        const { data: students } = await admin
+            .from('portal_users')
+            .select('id')
+            .eq('class_id', classId)
+            .eq('role', 'student');
+        
+        if (!students || students.length === 0) throw new AppError('No students found in this class', 404);
+
+        // 2. Issue certificates in parallel
+        const settled = await Promise.allSettled(
+            students.map(student => this.issueCertificate(student.id, courseId, issuerId, schoolId))
+        );
+        const count = settled.filter(r => r.status === 'fulfilled').length;
+        settled.filter(r => r.status === 'rejected').forEach((r, i) => {
+            console.error(`Failed to issue cert for student ${students[i].id}:`, (r as PromiseRejectedResult).reason);
+        });
+
+        return { count, total: students.length };
+    }
+
     async publishCertificate(id: string) {
-        const supabase = await createClient();
-        const { data: cert } = await supabase.from('certificates').select('metadata').eq('id', id).single();
+        const admin = adminClient();
+        const { data: cert } = await admin.from('certificates').select('metadata').eq('id', id).single();
         const newMetadata = { ...(cert?.metadata as any ?? {}), is_published: true };
         
-        const { error } = await supabase
+        const { error } = await admin
             .from('certificates')
             .update({ metadata: newMetadata })
             .eq('id', id);
@@ -60,10 +95,10 @@ export class CertificateService {
 
     private async generateAndStorePDF(certId: string, studentId: string, courseId: string) {
         try {
-            const supabase = await createClient();
-            const { data: user } = await supabase.from('portal_users').select('full_name').eq('id', studentId).single();
-            const { data: course } = await supabase.from('courses').select('title').eq('id', courseId).single();
-            const { data: cert } = await supabase.from('certificates').select('*').eq('id', certId).single();
+            const admin = adminClient();
+            const { data: user } = await admin.from('portal_users').select('full_name').eq('id', studentId).single();
+            const { data: course } = await admin.from('courses').select('title').eq('id', courseId).single();
+            const { data: cert } = await admin.from('certificates').select('*').eq('id', certId).single();
 
             const pdfBuffer = await this.generatePDFBuffer(user?.full_name || 'Learner', course?.title || 'Course', cert);
 
@@ -72,7 +107,7 @@ export class CertificateService {
             const uploadedFile = await filesService.uploadFile(file, studentId);
 
             // Update certificate with PDF URL
-            await supabase.from('certificates').update({ pdf_url: uploadedFile.storage_path }).eq('id', certId);
+            await adminClient().from('certificates').update({ pdf_url: uploadedFile.storage_path }).eq('id', certId);
 
         } catch (error) {
             console.error('Failed to generate/store certificate PDF:', error);

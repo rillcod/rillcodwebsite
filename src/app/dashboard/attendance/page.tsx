@@ -174,6 +174,14 @@ function AttendanceContent() {
     loadAttendance();
   }, [selectedSession]); // eslint-disable-line
 
+  // Load students for log view (independent of session selection)
+  useEffect(() => {
+    if (activeTab !== 'log' || !selectedClass) return;
+    fetch(`/api/classes/${selectedClass}/students`, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(json => setStudents(json.students ?? []));
+  }, [activeTab, selectedClass]);
+
   // Load ALL records for the Log view
   useEffect(() => {
     if (activeTab !== 'log' || !selectedClass) return;

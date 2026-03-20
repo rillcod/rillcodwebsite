@@ -8,7 +8,7 @@ import { fetchStudentAssignments } from '@/services/dashboard.service';
 import {
   ClipboardDocumentListIcon, PlusIcon, MagnifyingGlassIcon, ClockIcon,
   CheckCircleIcon, EyeIcon, PencilIcon, TrashIcon, CalendarIcon,
-  ArrowUpTrayIcon, ExclamationTriangleIcon, AcademicCapIcon, DocumentTextIcon
+  ArrowUpTrayIcon, ExclamationTriangleIcon, AcademicCapIcon, DocumentTextIcon, CodeBracketIcon
 } from '@/lib/icons';
 
 const TYPE_BADGE: Record<string, string> = {
@@ -17,6 +17,11 @@ const TYPE_BADGE: Record<string, string> = {
   homework: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
   exam: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
   presentation: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  coding: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  essay: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  research: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+  lab: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
+  discussion: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
 };
 
 const SUB_BADGE: Record<string, string> = {
@@ -203,6 +208,22 @@ export default function AssignmentsPage() {
           ))}
         </div>
 
+        {/* Student: Quick Tasks strip */}
+        {!isStaff && overdueCount > 0 && (
+          <div className="flex items-center gap-4 p-4 bg-rose-500/5 border border-rose-500/20">
+            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-black text-rose-400 uppercase tracking-tight">
+                {overdueCount} overdue assignment{overdueCount > 1 ? 's' : ''}
+              </p>
+              <p className="text-xs text-white/30 font-medium">Submit now to avoid missing marks.</p>
+            </div>
+            <button onClick={() => setFilter('missing')} className="px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/20 text-rose-400 text-xs font-black uppercase tracking-widest transition-all">
+              Show Overdue
+            </button>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
@@ -240,6 +261,11 @@ export default function AssignmentsPage() {
             <option value="quiz">📝 Quiz</option>
             <option value="exam">🎯 Exam</option>
             <option value="presentation">🎤 Presentation</option>
+            <option value="coding">💻 Coding</option>
+            <option value="essay">📄 Essay</option>
+            <option value="research">🔬 Research</option>
+            <option value="lab">🧪 Lab</option>
+            <option value="discussion">💬 Discussion</option>
           </select>
         </div>
 
@@ -390,7 +416,13 @@ export default function AssignmentsPage() {
                       )}
                     </div>
                     <div className="flex flex-col gap-2 flex-shrink-0">
-                      {sub.status !== 'graded' && (
+                      {sub.status !== 'graded' && a.assignment_type === 'coding' && (
+                        <Link href={`/dashboard/playground?assignmentId=${sub.assignment_id ?? a.id}`}
+                          className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-none transition-colors border border-emerald-500/20">
+                          <CodeBracketIcon className="w-4 h-4" /> Code It
+                        </Link>
+                      )}
+                      {sub.status !== 'graded' && a.assignment_type !== 'coding' && (
                         <Link href={`/dashboard/assignments/${sub.assignment_id ?? a.id}`}
                           className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-none transition-colors">
                           <ArrowUpTrayIcon className="w-4 h-4" /> Submit

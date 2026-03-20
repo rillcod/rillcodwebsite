@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const roleFilter = searchParams.get('role');      // e.g. 'student'
+    const classFilter = searchParams.get('class_id'); // e.g. UUID
     const scoped     = searchParams.get('scoped') === 'true'; // apply school scoping
 
     let query = admin
@@ -40,6 +41,7 @@ export async function GET(request: NextRequest) {
       .order('full_name');
 
     if (roleFilter) query = query.eq('role', roleFilter) as any;
+    if (classFilter) query = query.eq('class_id', classFilter) as any;
 
     // For teachers/school: scope to their school(s) when scoped=true
     if (scoped && caller.role !== 'admin') {
@@ -67,11 +69,6 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      if (caller.role === 'school' && caller.school_id) {
-        // school role: add their own id as school_id fallback too
-        if (!schoolIds.includes(caller.id)) schoolIds.push(caller.id);
-      }
-
       if (schoolIds.length > 0) {
         // Also allow school_name match for legacy records that have name but null school_id
         const { data: schoolNames } = await admin
@@ -82,7 +79,7 @@ export async function GET(request: NextRequest) {
 
         if (names.length > 0) {
           // Match by school_id OR school_name (covers legacy registrations)
-          const nameFilters = names.map((n: string) => `school_name.eq."${n}"`).join(',');
+          const nameFilters = names.map((n: string) => `school_name.eq.${n}`).join(',');
           const idFilter = `school_id.in.(${schoolIds.join(',')})`;
           query = query.or(`${idFilter},${nameFilters}`) as any;
         } else {

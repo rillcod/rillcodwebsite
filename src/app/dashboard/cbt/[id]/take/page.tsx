@@ -87,7 +87,7 @@ export default function TakeExamPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [result, setResult] = useState<{ score: number; passed: boolean; correct: number } | null>(null);
+  const [result, setResult] = useState<{ score: number; passed: boolean; correct: number; status: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const startTimeRef = useRef<Date>(new Date());
   const submitRef = useRef<any>(null);
@@ -102,7 +102,7 @@ export default function TakeExamPage() {
       .then(r => r.json())
       .then(({ data: existing }) => {
         if (existing) { router.push(`/dashboard/cbt/${id}`); return; }
-        fetch(`/api/cbt/exams/${id}`, { cache: 'no-store' })
+        return fetch(`/api/cbt/exams/${id}`, { cache: 'no-store' })
           .then(r => r.json())
           .then(({ data: examData }) => {
             if (!examData) { router.push('/dashboard/cbt'); return; }
@@ -111,7 +111,8 @@ export default function TakeExamPage() {
             setTimeLeft((examData.duration_minutes ?? 60) * 60);
             setLoading(false);
           });
-      });
+      })
+      .catch(() => setLoading(false));
   }, [profile?.id, authLoading]); // eslint-disable-line
 
   const handleSubmit = useCallback(async (auto = false) => {
@@ -127,19 +128,23 @@ export default function TakeExamPage() {
         if (q.question_type === 'essay') {
           manualGradingRequired = true;
         }
-
-        const isCorrect = (answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase();
-
-        if (isCorrect) {
-          if (q.question_type !== 'essay') {
-            correct++;
-          }
+        // Only count correct for auto-gradable types
+        if (q.question_type !== 'essay') {
+          const isCorrect = (answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase();
+          if (isCorrect) correct++;
         }
       });
 
       const totalPoints = questions.reduce((s, q) => s + (q.points ?? 0), 0);
+      const sectionWeights: Record<string, number> = exam?.metadata?.section_weights ?? {};
+      const hasWeights = Object.values(sectionWeights).some((w: any) => w > 0);
+
+      // Helper: is a question auto-gradable?
+      const isAutoGradable = (q: any) => q.question_type !== 'essay';
+
+      // Auto-points: everything except essay
       let autoPoints = questions.reduce((s, q) => {
-        if (q.question_type === 'essay') return s;
+        if (!isAutoGradable(q)) return s;
         if ((answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) {
           return s + (q.points ?? 0);
         }
@@ -157,7 +162,7 @@ export default function TakeExamPage() {
             body: JSON.stringify({
               type: 'cbt-grading',
               topic: exam?.title || 'CBT Grading',
-              questions: questions.filter(q => q.question_type === 'essay' || q.question_type === 'fill_blank').map(q => ({
+              questions: questions.filter(q => q.question_type === 'essay').map(q => ({
                 id: q.id,
                 text: q.question_text,
                 type: q.question_type,
@@ -179,7 +184,36 @@ export default function TakeExamPage() {
         }
       }
 
-      const score = totalPoints > 0 ? Math.round((autoPoints / totalPoints) * 100) : 0;
+      // Compute score — weighted by section if configured, otherwise flat points
+      let score: number;
+      if (hasWeights) {
+        const sections = ['objective', 'subjective', 'practical'] as const;
+        let weightedScore = 0;
+        const activeTotal = sections.reduce((s, sec) => {
+          const qs = questions.filter(q => (q.metadata?.section ?? 'objective') === sec);
+          return qs.length > 0 ? s + (sectionWeights[sec] ?? 0) : s;
+        }, 0);
+
+        for (const sec of sections) {
+          const secQs = questions.filter(q => (q.metadata?.section ?? 'objective') === sec);
+          const secWeight = sectionWeights[sec] ?? 0;
+          if (secQs.length === 0 || secWeight === 0) continue;
+          const secTotal = secQs.reduce((s, q) => s + (q.points ?? 0), 0);
+          let secEarned = 0;
+          secQs.forEach(q => {
+            if (!isAutoGradable(q)) {
+              secEarned += aiScores[q.id] ?? 0;
+            } else if ((answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) {
+              secEarned += q.points ?? 0;
+            }
+          });
+          const normalizedWeight = activeTotal > 0 ? (secWeight / activeTotal) * 100 : secWeight;
+          weightedScore += secTotal > 0 ? (secEarned / secTotal) * normalizedWeight : 0;
+        }
+        score = Math.round(weightedScore);
+      } else {
+        score = totalPoints > 0 ? Math.round((autoPoints / totalPoints) * 100) : 0;
+      }
       const passed = score >= (exam?.passing_score ?? 70);
       const finalStatus = manualGradingRequired ? 'pending_grading' : (passed ? 'passed' : 'failed');
 
@@ -203,7 +237,7 @@ export default function TakeExamPage() {
         throw new Error(j.error || 'Failed to submit exam');
       }
 
-      setResult({ score, passed, correct: manualGradingRequired ? -2 : correct }); // -2 means AI graded
+      setResult({ score, passed, correct, status: finalStatus });
       setSubmitted(true);
 
       // AUTO-ASSIGN CERTIFICATE IF PASSED
@@ -268,8 +302,8 @@ export default function TakeExamPage() {
   );
 
   if (submitted && result) {
-    const isPending = result.correct === -1;
-    const isAiGraded = result.correct === -2;
+    const isPending = result.status === 'pending_grading' && result.score === 0;
+    const isAiGraded = result.status === 'pending_grading' && result.score > 0;
 
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center text-foreground p-6 relative overflow-hidden">
@@ -288,7 +322,7 @@ export default function TakeExamPage() {
                 {isPending ? 'SUBMITTED' : (result.passed ? 'EXCELLENT' : 'COMPLETE')}
               </h1>
               <p className="text-muted-foreground font-medium tracking-widest uppercase text-xs">
-                {isAiGraded ? 'AI Assisted Grading' : exam?.title}
+                {exam?.title}
               </p>
             </div>
 

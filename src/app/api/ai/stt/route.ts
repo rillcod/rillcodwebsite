@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const HF_API = 'https://api-inference.huggingface.co/models';
-const MODEL = 'openai/whisper-large-v3';
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,28 +22,40 @@ export async function POST(req: NextRequest) {
 
     const audioBuffer = await file.arrayBuffer();
 
-    const hfRes = await fetch(`${HF_API}/${MODEL}`, {
+    const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-        'Content-Type': file.type || 'audio/mpeg',
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://rillcod.com'
       },
-      body: audioBuffer,
-      signal: AbortSignal.timeout(120_000), // Whisper can take longer on large files
+      body: JSON.stringify({
+        model: 'google/gemini-2.0-flash-001',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Please transcribe this audio recording accurately.' },
+              { type: 'image_url', url: `data:${file.type || 'audio/mpeg'};base64,${audioBase64}` }
+            ]
+          }
+        ]
+      })
     });
 
-    if (!hfRes.ok) {
-      const errText = await hfRes.text();
-      if (hfRes.status === 503) {
-        return NextResponse.json({ error: 'Whisper model is loading, please try again in 30 seconds.' }, { status: 503 });
-      }
-      return NextResponse.json({ error: `HF error: ${errText}` }, { status: hfRes.status });
+    if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        console.error('OpenRouter STT Error:', response.status, errData);
+        return NextResponse.json({ error: `Transcription failed: ${errData.error?.message || response.statusText}` }, { status: response.status });
     }
 
-    const result = await hfRes.json();
-    const transcript: string = result.text ?? result.transcription ?? '';
+    const result = await response.json();
+    const transcript = result.choices[0]?.message?.content || '';
 
     return NextResponse.json({
+      text: transcript,
       data: {
         transcript,
         filename: file.name,

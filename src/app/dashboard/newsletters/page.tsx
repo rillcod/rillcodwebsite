@@ -58,7 +58,7 @@ export default function NewslettersPage() {
   const pdfRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (profile?.role === 'admin') {
+    if (profile?.role === 'admin' || profile?.role === 'teacher') {
       loadNewsletters();
     }
   }, [profile]);
@@ -166,6 +166,13 @@ export default function NewslettersPage() {
     }
   }
 
+  async function handleDelete(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm('Delete this newsletter? This cannot be undone.')) return;
+    await supabase.from('newsletters').delete().eq('id', id);
+    setNewsletters(prev => prev.filter(n => n.id !== id));
+  }
+
   async function handleDownloadPDF() {
     if (!pdfRef.current) return;
     await generateReportPDF(pdfRef.current, `${activeNewsletter?.title || 'Newsletter'}.pdf`);
@@ -182,10 +189,10 @@ export default function NewslettersPage() {
           </div>
           <h1 className="text-3xl font-black tracking-tighter text-foreground uppercase italic">Access Denied</h1>
           <p className="text-muted-foreground font-medium leading-relaxed">
-            Visit the <strong>Command Center</strong> for authorized activities.
+            You do not have access to this page.
           </p>
           <a href="/dashboard" className="inline-block px-8 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground transition-all">
-            Return to Command Center
+            Return to Dashboard
           </a>
         </div>
       </div>
@@ -203,7 +210,7 @@ export default function NewslettersPage() {
               <SpeakerWaveIcon className="w-5 h-5 text-orange-400" />
               <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Official Channel</span>
             </div>
-            <h1 className="text-3xl font-extrabold">{isManager ? 'Newsletter Console' : 'Official Newsletters'}</h1>
+            <h1 className="text-3xl font-extrabold">{isManager ? 'Newsletters' : 'Official Newsletters'}</h1>
             <p className="text-muted-foreground text-sm mt-1">
               {isManager 
                 ? 'Design, AI-Draft, and push professional newsletters to all stakeholders.' 
@@ -224,7 +231,7 @@ export default function NewslettersPage() {
               onClick={() => setView('list')}
               className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm hover:bg-muted rounded-none text-sm font-bold transition-all border border-border"
             >
-              <ArrowLeftIcon className="w-4 h-4" /> {isManager ? 'Back to Console' : 'Back to News'}
+              <ArrowLeftIcon className="w-4 h-4" /> Back to Newsletters
             </button>
           )}
         </div>
@@ -241,7 +248,7 @@ export default function NewslettersPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {loading ? (
               Array(3).fill(0).map((_, i) => (
-                <div key={i} className="bg-card shadow-sm border border-border rounded-[32px] h-48 animate-pulse" />
+                <div key={i} className="bg-card shadow-sm border border-border rounded-2xl h-48 animate-pulse" />
               ))
             ) : newsletters.length === 0 ? (
               <div className="col-span-full py-20 text-center">
@@ -250,19 +257,28 @@ export default function NewslettersPage() {
               </div>
             ) : (
               newsletters.map(nl => (
-                <div 
-                  key={nl.id} 
+                <div
+                  key={nl.id}
                   onClick={() => { setActiveNewsletter(nl); setView('editor'); }}
-                  className="group bg-card shadow-sm border border-border rounded-[32px] p-6 hover:bg-white/8 transition-all cursor-pointer relative overflow-hidden"
+                  className="group bg-card shadow-sm border border-border rounded-2xl p-6 hover:bg-white/8 transition-all cursor-pointer relative overflow-hidden"
                 >
-                  <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ChevronRightIcon className="w-5 h-5 text-orange-400" />
+                  <div className="absolute top-0 right-0 p-4 flex items-center gap-2">
+                    {isManager && (
+                      <button
+                        onClick={e => handleDelete(nl.id, e)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-rose-500/20 text-rose-400"
+                        title="Delete newsletter"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    )}
+                    <ChevronRightIcon className="w-5 h-5 text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <div className="flex items-center gap-2 mb-4">
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
                       nl.status === 'published' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
                     }`}>
-                      {nl.status}
+                      {nl.status || 'draft'}
                     </span>
                     <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">
                       {nl.created_at ? new Date(nl.created_at).toLocaleDateString() : 'N/A'}
@@ -278,30 +294,28 @@ export default function NewslettersPage() {
           </div>
         ) : (
           /* ── Editor View ── */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pb-20">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pb-20 relative">
             
-            {/* Editor Sidebar (Generation) */}
-            <div className="lg:col-span-4 space-y-6 sticky top-24">
-              <div className="bg-background/80 backdrop-blur-xl border border-border ring-1 ring-white/10 rounded-[2.5rem] p-8 space-y-8 shadow-2xl">
-                <div>
-                  <div className="flex items-center gap-3 mb-6">
+            {/* AI Assistant - Collapsible on Mobile */}
+            <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24 order-2 lg:order-1">
+              <div className="bg-background/80 backdrop-blur-xl border border-border ring-1 ring-white/10 rounded-2xl lg:rounded-[2.5rem] p-6 lg:p-8 space-y-6 lg:space-y-8 shadow-2xl">
+                <div className="flex items-center justify-between lg:block">
+                  <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-orange-600/20 rounded-none flex items-center justify-center border border-orange-500/30">
                       <SparklesIcon className="w-6 h-6 text-orange-400" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-black tracking-tight uppercase">AI Assistant</h3>
-                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Premium Content Engine</p>
+                      <h3 className="text-sm lg:text-lg font-black tracking-tight uppercase">AI Assistant</h3>
+                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest hidden sm:block">AI Newsletter Builder</p>
                     </div>
                   </div>
-                  
-                  <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
-                    Enter a topic to generate a premium newsletter draft. Our AI will handle the tone, structure, and professional formatting automatically.
-                  </p>
-                  
-                  <div className="space-y-6">
+                </div>
+
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
                     <div className="space-y-3">
                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">Perspective</p>
-                       <div className="grid grid-cols-2 gap-2">
+                       <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
                           {['professional', 'energetic', 'visionary'].map(t => (
                             <button
                               key={t}
@@ -315,8 +329,8 @@ export default function NewslettersPage() {
                     </div>
 
                     <div className="space-y-3">
-                       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">Target Demographic</p>
-                       <div className="grid grid-cols-2 gap-2">
+                       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">Audience</p>
+                       <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
                           {['everyone', 'parents', 'students'].map(a => (
                             <button
                               key={a}
@@ -328,45 +342,43 @@ export default function NewslettersPage() {
                           ))}
                        </div>
                     </div>
-
-                    <div className="space-y-2">
-                       <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Primary Objective / Context</label>
-                       <textarea 
-                         value={topic}
-                         onChange={e => setTopic(e.target.value)}
-                         placeholder="e.g. Announcing the new Robotics Lab session starting June 12th for JSS students..."
-                         className="w-full bg-card shadow-sm border border-border rounded-none px-6 py-6 text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-all resize-none h-64 placeholder-muted-foreground font-medium leading-relaxed shadow-inner"
-                       />
-                       <p className="text-[9px] text-muted-foreground italic pl-1">The more detail you provide, the more tailored the narrative becomes.</p>
-                    </div>
-                    
-                    <button 
-                      onClick={handleAIGenerate}
-                      disabled={generating || !topic}
-                      className="w-full py-5 bg-gradient-to-br from-orange-600 to-indigo-700 hover:from-orange-500 hover:to-indigo-600 active:scale-[0.98] rounded-[2rem] text-xs font-black transition-all shadow-2xl shadow-orange-900/40 disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-[0.2em]"
-                    >
-                      {generating ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SparklesIcon className="w-5 h-5" />}
-                      {generating ? 'Cultivating Narrative...' : 'Generate Premium Edition'}
-                    </button>
                   </div>
+
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Topic or Announcement</label>
+                     <textarea 
+                       value={topic}
+                       onChange={e => setTopic(e.target.value)}
+                       placeholder="Announce your news..."
+                       className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-4 text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-all resize-none h-32 lg:h-64 placeholder-muted-foreground font-medium shadow-inner"
+                     />
+                  </div>
+                  
+                  <button 
+                    onClick={handleAIGenerate}
+                    disabled={generating || !topic}
+                    className="w-full py-4 lg:py-5 bg-gradient-to-br from-orange-600 to-indigo-700 hover:from-orange-500 hover:to-indigo-600 active:scale-[0.98] rounded-xl lg:rounded-[2rem] text-[10px] lg:text-xs font-black transition-all shadow-2xl shadow-orange-900/40 disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-[0.2em]"
+                  >
+                    {generating ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SparklesIcon className="w-5 h-5" />}
+                    {generating ? 'Generating...' : 'Generate'}
+                  </button>
                 </div>
 
-                <div className="pt-8 border-t border-border space-y-4">
-                  <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Official Actions</h3>
+                <div className="pt-6 lg:pt-8 border-t border-border flex flex-col gap-3">
                   <button 
                     onClick={handleDownloadPDF}
-                    className="w-full flex items-center gap-4 px-5 py-4 bg-card shadow-sm hover:bg-muted rounded-none text-sm font-black transition-all border border-border group"
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-card shadow-sm hover:bg-muted rounded-none text-[10px] font-black transition-all border border-border group"
                   >
-                    <PrinterIcon className="w-5 h-5 text-orange-400 group-hover:scale-110 transition-transform" /> 
-                    <span className="uppercase tracking-widest">Export PDF Archive</span>
+                    <PrinterIcon className="w-4 h-4 text-orange-400" /> 
+                    <span className="uppercase tracking-widest">Export PDF</span>
                   </button>
                   {activeNewsletter?.id && (
                     <button 
                       onClick={() => setShowPushModal(true)}
-                      className="w-full flex items-center gap-4 px-5 py-4 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 rounded-none text-sm font-black transition-all border border-emerald-500/20 group"
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 rounded-none text-[10px] font-black transition-all border border-emerald-500/20 group"
                     >
-                      <SpeakerWaveIcon className="w-5 h-5 group-hover:animate-pulse" /> 
-                      <span className="uppercase tracking-widest">Deploy to Portal</span>
+                      <SpeakerWaveIcon className="w-4 h-4" /> 
+                      <span className="uppercase tracking-widest">Send to Users</span>
                     </button>
                   )}
                 </div>
@@ -374,50 +386,49 @@ export default function NewslettersPage() {
             </div>
 
             {/* Main Content Area */}
-            <div className="lg:col-span-8 space-y-10">
-              <div className="bg-background/80 backdrop-blur-xl border border-border ring-1 ring-white/10 rounded-[3rem] p-10 space-y-8 shadow-2xl relative overflow-hidden">
+            <div className="lg:col-span-8 space-y-8 order-1 lg:order-2">
+              <div className="bg-background/80 backdrop-blur-xl border border-border ring-1 ring-white/10 rounded-2xl lg:rounded-[3rem] p-6 lg:p-10 space-y-6 lg:space-y-8 shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-orange-500/30 to-transparent" />
                 
                 <div className="flex flex-col gap-6">
                   <div className="flex items-center gap-4 border-b border-border pb-6">
-                    <div className="w-12 h-12 bg-card shadow-sm rounded-none flex items-center justify-center border border-border shrink-0">
+                    <div className="hidden sm:flex w-12 h-12 bg-card shadow-sm rounded-none items-center justify-center border border-border shrink-0">
                       <DocumentTextIcon className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <input 
                       type="text"
                       value={activeNewsletter?.title || ''}
                       onChange={e => setActiveNewsletter(p => ({ ...p, title: e.target.value }))}
-                      placeholder="Edition Headline..."
-                      className="w-full bg-transparent text-4xl font-black focus:outline-none placeholder-muted-foreground tracking-tighter uppercase italic"
+                      placeholder="Headline..."
+                      className="w-full bg-transparent text-2xl lg:text-4xl font-black focus:outline-none placeholder-muted-foreground tracking-tighter uppercase italic"
                     />
                   </div>
                   
-                  <div className="relative group/editor px-4 sm:px-10">
-                    <div className="absolute -left-2 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-orange-500/20 to-transparent" />
+                  <div className="relative group/editor">
+                    <div className="absolute -left-2 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-orange-500/20 to-transparent hidden sm:block" />
                     <textarea 
                       value={activeNewsletter?.content || ''}
                       onChange={e => setActiveNewsletter(p => ({ ...p, content: e.target.value }))}
-                      placeholder="Strategic communication content goes here... Use Markdown for emphasis."
-                      className="w-full bg-transparent text-lg sm:text-2xl leading-[1.8] min-h-[900px] focus:outline-none placeholder-muted-foreground resize-none font-serif tracking-wide scrollbar-hide selection:bg-orange-500/40 text-muted-foreground"
+                      placeholder="Content..."
+                      className="w-full bg-transparent text-base lg:text-2xl leading-[1.6] lg:leading-[1.8] min-h-[400px] lg:min-h-[900px] focus:outline-none placeholder-muted-foreground resize-none font-serif tracking-wide scrollbar-hide text-muted-foreground"
                     />
                   </div>
                 </div>
                 
-                <div className="pt-8 border-t border-border flex flex-wrap justify-end gap-4">
+                <div className="pt-6 lg:pt-8 border-t border-border flex flex-wrap justify-end gap-3">
                    <button 
                     onClick={() => setShowPreview(true)}
-                    className="flex items-center gap-3 px-6 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[10px] font-black transition-all uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-5 py-3 bg-card shadow-sm border border-border rounded-none text-[9px] font-black transition-all uppercase tracking-widest text-muted-foreground"
                   >
-                    <EyeIcon className="w-4 h-4" />
-                    Live Preview
+                    <EyeIcon className="w-4 h-4" /> Preview
                   </button>
                    <button 
                     onClick={handleSave}
                     disabled={loading || !activeNewsletter?.title}
-                    className="flex items-center gap-3 px-8 py-4 bg-orange-600 hover:bg-orange-500 rounded-none text-[10px] font-black transition-all shadow-2xl shadow-orange-900/40 hover:-translate-y-1 uppercase tracking-widest"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-orange-600 hover:bg-orange-500 rounded-none text-[9px] font-black transition-all shadow-xl shadow-orange-900/40 uppercase tracking-widest"
                   >
-                    {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CheckCircleIcon className="w-5 h-5" />}
-                    Lock & Save
+                    {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
+                    Save
                   </button>
                 </div>
               </div>
@@ -434,10 +445,10 @@ export default function NewslettersPage() {
                     <EyeIcon className="w-5 h-5 text-orange-400" />
                   </div>
                   <div>
-                     <h3 className="text-sm font-black uppercase tracking-widest">Branded A4 Preview</h3>
+                     <h3 className="text-sm font-black uppercase tracking-widest">Print Preview</h3>
                      <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Active Draft Render</span>
+                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">A4 Layout</span>
                      </div>
                   </div>
                </div>
@@ -457,8 +468,8 @@ export default function NewslettersPage() {
                </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-4 sm:p-12 custom-scrollbar bg-black/40 flex items-start justify-center">
-               <div className="relative shadow-[0_0_100px_rgba(0,0,0,0.5)] origin-top transform scale-[0.45] sm:scale-[0.7] lg:scale-100 my-10 lg:my-0 flex-shrink-0">
+            <div className="flex-1 overflow-auto p-4 lg:p-12 custom-scrollbar bg-black/40 flex items-start justify-center">
+               <div className="relative shadow-[0_0_100px_rgba(0,0,0,0.5)] origin-top transform scale-[0.55] sm:scale-[0.75] lg:scale-100 my-16 sm:my-10 lg:my-0 flex-shrink-0">
                   <div 
                      ref={pdfRef} 
                      className="bg-white text-[#111827] overflow-hidden shadow-2xl ring-1 ring-black/10 flex flex-col" 
@@ -484,11 +495,11 @@ export default function NewslettersPage() {
                        <div className="max-w-none">
                          <div className="text-[9px] sm:text-[11px] font-black text-[#1a1a1a] uppercase tracking-[3px] mb-[15px]">Topic / Subject</div>
                          <h1 className="text-2xl sm:text-[38px] font-black text-[#1a1a1a] mb-6 sm:mb-[40px] leading-[1.1] uppercase tracking-[-1.5px]">
-                           {activeNewsletter?.title || 'Untitled Archive'}
+                           {activeNewsletter?.title || 'Untitled Newsletter'}
                          </h1>
                          
                          <div className="text-base sm:text-[15px] leading-[1.8] text-[#374151] whitespace-pre-wrap font-serif text-justify">
-                           {activeNewsletter?.content || 'Awaiting content generation...'}
+                           {activeNewsletter?.content || 'Start writing or use the AI assistant to generate content...'}
                          </div>
                        </div>
    
@@ -527,7 +538,7 @@ export default function NewslettersPage() {
                 </div>
                 
                 <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">Select who should receive this premium newsletter. It will appear as a "View-Once" popup upon their next login.</p>
+                  <p className="text-sm text-muted-foreground">Select who should receive this newsletter. It will appear as a notification upon their next login.</p>
                   <div className="grid grid-cols-1 gap-2">
                     {[
                       { id: 'all', label: 'All Users', icon: UserGroupIcon },
@@ -551,7 +562,7 @@ export default function NewslettersPage() {
 
                 <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-none">
                   <InformationCircleIcon className="w-5 h-5 text-blue-400 shrink-0" />
-                  <p className="text-[11px] text-blue-400 font-medium">This document will be embedded with the official signature for premium presentation.</p>
+                  <p className="text-[11px] text-blue-400 font-medium">Recipients will see this newsletter the next time they log in.</p>
                 </div>
 
                 <button 
