@@ -90,6 +90,7 @@
     "lightningcss-linux-x64-musl": "^1.29.1"
   },
   "devDependencies": {
+    "@netlify/plugin-nextjs": "^5.15.9",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/d3": "^7.4.3",
     "@types/node": "^25.3.3",

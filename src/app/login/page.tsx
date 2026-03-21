@@ -86,8 +86,9 @@ function LoginContent() {
       }
 
       const redirectTo = searchParams?.get('redirectedFrom') || '/dashboard';
-      router.push(redirectTo);
-      router.refresh();
+      // Full page reload — clears all React state and router cache from the
+      // previous session so a switched account always loads completely fresh
+      window.location.href = redirectTo;
 
     } catch (err: any) {
       clearTimeout(timeout);

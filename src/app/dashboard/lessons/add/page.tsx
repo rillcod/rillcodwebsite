@@ -23,7 +23,9 @@ export default function AddLessonPage() {
   const preCourseId = searchParams?.get('course_id');
   const isMinimal = searchParams?.get('minimal') === 'true';
 
+  const [programs, setPrograms] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
+  const [selectedProgramId, setSelectedProgramId] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +63,11 @@ export default function AddLessonPage() {
 
     const fetchData = async () => {
       const db = createClient();
+
+      // Fetch programs
+      const { data: progData } = await db.from('programs').select('id, name').eq('is_active', true).order('name');
+      setPrograms(progData ?? []);
+
       let query = db
         .from('courses')
         .select('id, title, program_id, school_id, programs(name)')
@@ -76,8 +83,11 @@ export default function AddLessonPage() {
 
       // Auto-select if IDs provided in URL
       if (preCourseId) {
+        const c = courseList.find((x: any) => x.id === preCourseId);
+        if (c?.program_id) setSelectedProgramId(c.program_id);
         setForm(prev => ({ ...prev, course_id: preCourseId }));
       } else if (preProgramId && courseList.length > 0) {
+        setSelectedProgramId(preProgramId);
         const matching = courseList.find((c: any) => c.program_id === preProgramId);
         if (matching) setForm(prev => ({ ...prev, course_id: matching.id }));
       }
@@ -585,12 +595,40 @@ export default function AddLessonPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Linked Course</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Programme *</label>
+              <div className="relative">
+                <select value={selectedProgramId}
+                  onChange={e => {
+                    const pid = e.target.value;
+                    setSelectedProgramId(pid);
+                    // Reset course if it doesn't belong to the new programme
+                    const currentCourse = courses.find((c: any) => c.id === form.course_id);
+                    if (currentCourse?.program_id !== pid) {
+                      setForm(prev => ({ ...prev, course_id: '' }));
+                    }
+                  }}
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-orange-500 outline-none appearance-none cursor-pointer">
+                  <option value="">Select Programme</option>
+                  {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Linked Course {selectedProgramId ? '*' : ''}
+              </label>
               <div className="relative">
                 <select value={form.course_id} onChange={e => handleCourseChange(e.target.value)}
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-orange-500 outline-none appearance-none cursor-pointer">
-                  <option value="">Select Course</option>
-                  {courses.map((c: any) => <option key={c.id} value={c.id}>{c.title}{c.programs?.name ? ` — ${c.programs.name}` : ''}</option>)}
+                  disabled={!selectedProgramId}
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-3 text-sm focus:border-orange-500 outline-none appearance-none cursor-pointer disabled:opacity-40">
+                  <option value="">{selectedProgramId ? 'Select Course' : '— pick a programme first —'}</option>
+                  {(selectedProgramId ? courses.filter((c: any) => c.program_id === selectedProgramId) : courses)
+                    .map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                   <ChevronDown className="w-4 h-4 text-muted-foreground" />

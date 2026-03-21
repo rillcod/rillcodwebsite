@@ -27,15 +27,15 @@ const CATALOG = [
   // ═══════════════════════════════════════════════════════════════════════════
   {
     program: {
-      name: 'Young Innovators Club',
+      name: 'Young Innovators',
       description:
         'A playful, project-based introduction to technology for children aged 6–10. ' +
         'Students explore Scratch programming, digital art, basic robotics, and internet safety. ' +
         'No prior experience required. ' +
-        '→ Graduates are ready for Junior Tech Academy.',
+        '→ Graduates are ready for Teen Developers.',
       duration_weeks: 12,
       difficulty_level: 'beginner',
-      price: 25000,
+      price: 45000,
       max_students: 20,
       is_active: true,
     },
@@ -188,14 +188,14 @@ Certificate of Innovation awarded to every participant`,
   // ═══════════════════════════════════════════════════════════════════════════
   {
     program: {
-      name: 'Junior Tech Academy',
+      name: 'Teen Developers',
       description:
         'The bridge from play to real technology. Students aged 10–14 write their first Python, build web pages, understand electronics, and complete a hands-on robotics project. ' +
-        'Prerequisite: Young Innovators Club OR basic computer literacy. ' +
+        'Prerequisite: Young Innovators OR basic computer literacy. ' +
         '→ Graduates are ready for Web Development Bootcamp, Robotics & IoT Engineering, or AI & ML Fundamentals.',
       duration_weeks: 16,
       difficulty_level: 'beginner',
-      price: 35000,
+      price: 65000,
       max_students: 20,
       is_active: true,
     },
@@ -351,13 +351,13 @@ The best engineers start with problems, not code. Students learn to identify rea
       name: 'Web Development Bootcamp',
       description:
         'A focused, project-driven bootcamp that takes students from HTML basics to building and deploying full React web apps. ' +
-        'Ideal for ages 13+ and adults looking for a career switch. ' +
+        'Ideal for ages 15+ and adults looking for a career switch. ' +
         'Prerequisite: Junior Tech Academy HTML/CSS/JS OR equivalent self-taught experience. ' +
         '→ Graduates are ready for Full-Stack Development.',
       duration_weeks: 20,
       difficulty_level: 'intermediate',
-      price: 55000,
-      max_students: 25,
+      price: 95000,
+      max_students: 15,
       is_active: true,
     },
     courses: [
@@ -507,13 +507,13 @@ The capstone course. Students build a complete, deployed web application and pre
       name: 'Data Analysis with Python',
       description:
         'A complete data analyst curriculum: from Python foundations through SQL, statistical analysis, data visualisation, and interactive dashboards. ' +
-        'Ideal for ages 14+ and working professionals. ' +
+        'Ideal for ages 16+ and working professionals. ' +
         'Prerequisite: Junior Tech Academy Python OR basic programming knowledge. ' +
         '→ Graduates are ready for AI & Machine Learning Fundamentals or direct entry into the workforce as data analysts.',
       duration_weeks: 20,
       difficulty_level: 'intermediate',
-      price: 60000,
-      max_students: 20,
+      price: 110000,
+      max_students: 15,
       is_active: true,
     },
     courses: [
@@ -687,12 +687,12 @@ Students independently conduct a complete data analysis project over 3 weeks, si
       name: 'UI/UX Design Mastery',
       description:
         'A professional UI/UX design curriculum: design thinking, Figma, user research, prototyping, and building a client-ready portfolio. ' +
-        'Suitable for ages 13+ and adults with no prior design experience. ' +
+        'Suitable for ages 15+ and adults with no prior design experience. ' +
         '→ Graduates can work directly with development teams or enrol in Web Development Bootcamp for a full-stack design+code skill set.',
       duration_weeks: 18,
-      difficulty_level: 'beginner',
-      price: 50000,
-      max_students: 20,
+      difficulty_level: 'intermediate',
+      price: 90000,
+      max_students: 15,
       is_active: true,
     },
     courses: [
@@ -882,13 +882,13 @@ Students independently conduct a complete data analysis project over 3 weeks, si
       name: 'Robotics & IoT Engineering',
       description:
         'From breadboard circuits to autonomous robots and cloud-connected IoT systems. ' +
-        'Combines electronics, Arduino, Python/MicroPython, and real engineering challenges. ' +
+        'Combines electronics, Arduino, Python/MicroPython, and real engineering challenges. Equipment kit provided. ' +
         'Prerequisite: Junior Tech Academy OR basic electronics and programming knowledge. ' +
         '→ Graduates are ready for AI & Machine Learning Fundamentals or direct industry placement.',
       duration_weeks: 18,
       difficulty_level: 'intermediate',
-      price: 60000,
-      max_students: 18,
+      price: 120000,
+      max_students: 12,
       is_active: true,
     },
     courses: [
@@ -1007,8 +1007,8 @@ Rillcod Robotics Engineer Certificate awarded to all finalists`,
         '→ Graduates are ready for AI Engineering & Automation.',
       duration_weeks: 22,
       difficulty_level: 'intermediate',
-      price: 70000,
-      max_students: 20,
+      price: 140000,
+      max_students: 12,
       is_active: true,
     },
     courses: [
@@ -1145,8 +1145,8 @@ Rillcod Robotics Engineer Certificate awarded to all finalists`,
         '→ Graduates are employment-ready for junior-to-mid software engineer roles.',
       duration_weeks: 24,
       difficulty_level: 'advanced',
-      price: 85000,
-      max_students: 20,
+      price: 165000,
+      max_students: 12,
       is_active: true,
     },
     courses: [
@@ -1300,8 +1300,8 @@ Teams of 2–3 build and deploy a real SaaS product. The goal is not a demo — 
         '→ Graduates are ready for AI engineer or ML engineer roles in industry.',
       duration_weeks: 20,
       difficulty_level: 'advanced',
-      price: 90000,
-      max_students: 15,
+      price: 180000,
+      max_students: 10,
       is_active: true,
     },
     courses: [
@@ -1429,8 +1429,8 @@ Teams of 2–3 build and deploy a real SaaS product. The goal is not a demo — 
         '→ Best combined with any Tier 3–4 program to create a complete professional profile.',
       duration_weeks: 12,
       difficulty_level: 'beginner',
-      price: 30000,
-      max_students: 30,
+      price: 60000,
+      max_students: 20,
       is_active: true,
     },
     courses: [
@@ -1533,13 +1533,28 @@ Teams of 2–3 build and deploy a real SaaS product. The goal is not a demo — 
 async function seed() {
   console.log('\n🚀 Rillcod Academy — Program & Course Catalog Seed\n');
 
-  // ── WIPE EXISTING DATA ────────────────────────────────────────────────────
-  console.log('🗑️  Removing existing courses and programs...');
+  // ── WIPE EXISTING DATA (respect FK order) ────────────────────────────────
+  console.log('🗑️  Removing existing data (clearing FK dependencies first)...');
 
+  // 1. Nullify course_id on certificates so the FK won't block course deletion
+  const { error: nullCerts } = await supabase
+    .from('certificates')
+    .update({ course_id: null })
+    .neq('id', '00000000-0000-0000-0000-000000000000');
+  if (nullCerts) { console.error('  ⚠️  Could not nullify certificate course_id:', nullCerts.message); }
+  else { console.log('  ✅ Certificate course references cleared'); }
+
+  // 2. Delete lessons (they reference courses)
+  const { error: delLessons } = await supabase.from('lessons').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  if (delLessons) { console.error('  ⚠️  Could not delete lessons:', delLessons.message); }
+  else { console.log('  ✅ Lessons cleared'); }
+
+  // 3. Delete courses
   const { error: delCourses } = await supabase.from('courses').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   if (delCourses) { console.error('  ❌ Failed to delete courses:', delCourses.message); }
   else { console.log('  ✅ Existing courses removed'); }
 
+  // 4. Delete programs
   const { error: delPrograms } = await supabase.from('programs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   if (delPrograms) { console.error('  ❌ Failed to delete programs:', delPrograms.message); }
   else { console.log('  ✅ Existing programs removed'); }

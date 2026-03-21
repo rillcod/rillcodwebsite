@@ -214,7 +214,7 @@ export const OKLCH_HEX_OVERRIDES = `
 // ─── Shared PDF generation ─────────────────────────────────────────────────────
 // Uses html-to-image which renders via the browser's native foreignObject SVG
 // renderer — no custom CSS parser, so oklch/lab/lch/display-p3 all work natively.
-export async function generateReportPDF(element: HTMLElement, filename: string): Promise<void> {
+export async function generateReportPDF(element: HTMLElement, filename: string, isLandscape = false): Promise<void> {
     // Lazy-load browser-only libs to prevent SSR crash
     const [{ toPng }, { default: jsPDF }] = await Promise.all([
         import('html-to-image'),
@@ -231,17 +231,20 @@ export async function generateReportPDF(element: HTMLElement, filename: string):
         )
     );
 
+    // A4 landscape: 1122 × 794 px at 96 dpi; portrait: 794 × dynamic height
+    const W = isLandscape ? 1122 : 794;
+    const H = isLandscape ? 794 : element.scrollHeight;
+
     const dataUrl = await toPng(element, {
         pixelRatio: 2,
         cacheBust: true,
         skipAutoScale: false,
-        width: 794,
-        height: element.scrollHeight,
+        width: W,
+        height: H,
     });
 
-    const pdfH = element.scrollHeight;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [794, pdfH] });
-    pdf.addImage(dataUrl, 'PNG', 0, 0, 794, pdfH);
+    const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'px', format: [W, H] });
+    pdf.addImage(dataUrl, 'PNG', 0, 0, W, H);
     pdf.save(filename);
 }
 

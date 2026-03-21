@@ -82,7 +82,8 @@ export async function POST(req: Request) {
             to: student.email,
             subject,
             html,
-            fromName: invoice.schools?.name || 'Rillcod Technologies Finance'
+            fromName: 'Rillcod Technologies',
+            fromEmail: 'rillcod@gmail.com',
         });
 
         // Update status to 'sent' if it was 'draft'

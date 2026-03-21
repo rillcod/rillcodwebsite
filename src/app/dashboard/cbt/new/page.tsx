@@ -571,7 +571,15 @@ ${questionRows}
                   Programme <span className="text-rose-400">*</span>
                 </label>
                 <select required value={form.program_id}
-                  onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}
+                  onChange={e => {
+                    const pid = e.target.value;
+                    const currentCourse = courses.find(x => x.id === form.course_id);
+                    setForm(f => ({
+                      ...f,
+                      program_id: pid,
+                      course_id: currentCourse?.program_id === pid ? f.course_id : '',
+                    }));
+                  }}
                   className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                   <option value="">Select programme…</option>
                   {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -580,17 +588,14 @@ ${questionRows}
 
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                  Linked Course (Optional)
+                  Course {form.program_id ? <span className="text-rose-400">*</span> : <span className="text-white/30">(select programme first)</span>}
                 </label>
                 <select value={form.course_id}
-                  onChange={e => {
-                    const cId = e.target.value;
-                    const c = courses.find(x => x.id === cId);
-                    setForm(f => ({ ...f, course_id: cId, program_id: c?.program_id || f.program_id }));
-                  }}
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
-                  <option value="">Not linked to a course</option>
-                  {courses.map(c => <option key={c.id} value={c.id}>{c.title} {c.programs?.name ? `(${c.programs.name})` : ''}</option>)}
+                  onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
+                  disabled={!form.program_id}
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-40">
+                  <option value="">{form.program_id ? 'Select a course…' : '— pick a programme first —'}</option>
+                  {courses.filter(c => c.program_id === form.program_id).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
               </div>
             </div>

@@ -189,10 +189,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (s?.user) {
           if (event === 'SIGNED_IN') {
-            // Fresh sign-in — clear stale profile immediately so the old
-            // school/user's data is never shown while the new profile loads
+            // If a DIFFERENT user signed in while we're NOT on the login page
+            // (e.g. session replaced in background), reload so all stale
+            // component state is cleared. The login page handles its own
+            // navigation after sign-in so skip the reload there.
+            const prevId = storedUser.current?.id;
+            const onLoginPage = typeof window !== 'undefined' &&
+              window.location.pathname.startsWith('/login');
+            if (prevId && prevId !== s.user.id && !onLoginPage) {
+              window.location.reload();
+              return;
+            }
+
+            // Fresh sign-in — clear ALL cached profiles so no stale data
+            // from the previous user is ever served during the transition
             setProfile(null);
-            invalidateCache(s.user.id);
+            invalidateCache();
             profileFetchStartedRef.current = true;
             setProfileLoading(true);
             const p = await fetchProfile(s.user.id);
@@ -222,7 +234,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    const handleStorage = () => { refreshProfile(); };
+    const handleStorage = () => {
+      // If a different user's session appeared in localStorage (e.g. another
+      // tab logged in as someone else), reload the page completely so all
+      // component state is cleared and the new user's data loads fresh.
+      const stored = getStoredUser();
+      if (stored?.id && stored.id !== storedUser.current?.id) {
+        window.location.reload();
+      } else {
+        refreshProfile();
+      }
+    };
     window.addEventListener('storage', handleStorage);
 
     return () => {

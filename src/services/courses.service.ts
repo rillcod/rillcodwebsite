@@ -137,8 +137,9 @@ export class CoursesService {
 
         if (input.program_id) {
             // Check if new program belongs to tenant
+            // Programs with school_id = null are global and accessible to all tenants
             const { data: program } = await supabase.from('programs').select('school_id').eq('id', input.program_id).single();
-            if (!program || (tenantId && program.school_id !== tenantId)) {
+            if (!program || (tenantId && program.school_id !== null && program.school_id !== tenantId)) {
                 throw new AppError('Program not valid or access denied', 403);
             }
         }

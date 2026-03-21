@@ -570,10 +570,18 @@ EVALUATIVE DIRECTIVES:
 3. Spelling: Use British English only (e.g. 'programme', 'centre', 'favour').
 4. Specificity: Weave in the importance of digital skills for the future Nigerian economy.
 
+FORMATTING RULES (CRITICAL):
+- Do NOT use markdown symbols: no #, ##, ###, **, *, -, or bullet point symbols.
+- Do NOT use code blocks or backticks.
+- Use ONLY plain text. Use blank lines to separate sections.
+- Use ALL CAPS for section headings (e.g. "INTRODUCTION", "CORE HIGHLIGHTS").
+- Use a line of dashes (———) as a visual section divider if needed.
+- Write in flowing paragraphs. Numbered points should use "1." "2." format with no asterisks.
+
 Return a JSON object with this exact shape:
 {
-  "title": "string — a catchy, professional newsletter title",
-  "content": "string — markdown-formatted content. Structure with ## headings and clear sections. Use a sophisticated font-style tone in writing.",
+  "title": "string — a catchy, professional newsletter title (plain text, no symbols)",
+  "content": "string — clean plain text content with blank lines between sections. No markdown symbols whatsoever.",
   "summary": "string — 1-2 sentence compelling summary for notification previews"
 }
 `;

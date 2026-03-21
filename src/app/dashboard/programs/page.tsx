@@ -40,22 +40,17 @@ export default function ProgramsPage() {
   async function load() {
     setLoading(true); setError(null);
     try {
-      const [progRes, courseRes] = await Promise.all([
-        fetch('/api/programs', { cache: 'no-store' }),
-        fetch('/api/courses', { cache: 'no-store' }),
-      ]);
+      const progRes = await fetch('/api/programs', { cache: 'no-store' });
       const progJson = await progRes.json();
       if (!progRes.ok) throw new Error(progJson.error || 'Failed to load');
-      setPrograms(progJson.data ?? []);
-      // Count courses per program
-      if (courseRes.ok) {
-        const courseJson = await courseRes.json();
-        const counts: Record<string, number> = {};
-        (courseJson.data ?? []).forEach((c: any) => {
-          if (c.program_id) counts[c.program_id] = (counts[c.program_id] || 0) + 1;
-        });
-        setCourseCounts(counts);
-      }
+      const programList = progJson.data ?? [];
+      setPrograms(programList);
+      // /api/programs already returns nested courses[] — use those for counts
+      const counts: Record<string, number> = {};
+      programList.forEach((p: any) => {
+        counts[p.id] = Array.isArray(p.courses) ? p.courses.length : 0;
+      });
+      setCourseCounts(counts);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load programs');
     } finally {

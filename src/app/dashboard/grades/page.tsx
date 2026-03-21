@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
+import { createClient } from '@/lib/supabase/client';
 import { fetchSubmissionsForGrading, fetchStudentGrades } from '@/services/dashboard.service';
 import {
     ClipboardDocumentCheckIcon, CheckCircleIcon, ClockIcon, ChartBarIcon,
@@ -670,6 +671,10 @@ export default function GradesPage() {
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState('all');
+    const [filterProgram, setFilterProgram] = useState('');
+    const [filterCourse, setFilterCourse] = useState('');
+    const [programs, setPrograms] = useState<any[]>([]);
+    const [allCourses, setAllCourses] = useState<any[]>([]);
     const [sortBy, setSortBy] = useState<'date' | 'name' | 'grade'>('date');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
     const [grading, setGrading] = useState<any | null>(null);
@@ -687,14 +692,23 @@ export default function GradesPage() {
         async function load() {
             setLoading(true); setError(null);
             try {
-                const data = isStaff
-                    ? await fetchSubmissionsForGrading({
-                        teacherId: role === 'teacher' ? profile?.id : undefined,
-                        schoolId: role === 'school' ? profile?.school_id ?? undefined : undefined,
-                        schoolName: role === 'school' ? profile?.school_name ?? undefined : undefined,
-                    })
-                    : await fetchStudentGrades(profile?.id || '');
-                if (!cancelled) setItems(data);
+                const db = createClient();
+                const [subData, progData, courseData] = await Promise.all([
+                    isStaff
+                        ? fetchSubmissionsForGrading({
+                            teacherId: role === 'teacher' ? profile?.id : undefined,
+                            schoolId: role === 'school' ? profile?.school_id ?? undefined : undefined,
+                            schoolName: role === 'school' ? profile?.school_name ?? undefined : undefined,
+                        })
+                        : fetchStudentGrades(profile?.id || ''),
+                    db.from('programs').select('id, name').eq('is_active', true).order('name'),
+                    db.from('courses').select('id, title, program_id').eq('is_active', true).order('title'),
+                ]);
+                if (!cancelled) {
+                    setItems(subData);
+                    setPrograms(progData.data ?? []);
+                    setAllCourses(courseData.data ?? []);
+                }
             } catch (e: any) {
                 if (!cancelled) setError(e.message ?? 'Failed to load');
             } finally {
@@ -719,13 +733,28 @@ export default function GradesPage() {
         });
     };
 
+    // Courses for the selected program filter
+    const filteredCourseOptions = filterProgram
+        ? allCourses.filter(c => c.program_id === filterProgram)
+        : allCourses;
+
     // ── Sort + Filter ──────────────────────────────────────────
     const filtered = useMemo(() => {
         let list = items.filter((s: any) => {
             const title = s.assignments?.title ?? '';
             const student = s.portal_users?.full_name ?? '';
             const matches = (title + student).toLowerCase().includes(search.toLowerCase());
-            return matches && (filter === 'all' || s.status === filter);
+            if (!matches) return false;
+            if (filter !== 'all' && s.status !== filter) return false;
+            // Programme filter: match via course's program_id
+            if (filterProgram) {
+                const courseId = s.assignments?.course_id;
+                const course = allCourses.find(c => c.id === courseId);
+                if (course?.program_id !== filterProgram) return false;
+            }
+            // Course filter
+            if (filterCourse && s.assignments?.course_id !== filterCourse) return false;
+            return true;
         });
 
         list = [...list].sort((a, b) => {
@@ -747,7 +776,7 @@ export default function GradesPage() {
         });
 
         return list;
-    }, [items, search, filter, sortBy, sortDir, isStaff]);
+    }, [items, search, filter, filterProgram, filterCourse, sortBy, sortDir, isStaff, allCourses]);
 
     // ── Stats ──────────────────────────────────────────────────
     const totalItems = items.length;
@@ -942,14 +971,31 @@ export default function GradesPage() {
                 {!isStaff && items.length > 0 && <AchievementBadges items={items} />}
 
                 {/* ── Filters + Sort ────────────────────────────── */}
-                <div className="flex flex-col sm:flex-row gap-2">
-                    <div className="relative flex-1">
-                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input type="text"
-                            placeholder={isStaff ? 'Search by assignment or student…' : 'Search assignments…'}
-                            value={search} onChange={e => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"
-                        />
+                <div className="flex flex-col gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="relative flex-1">
+                            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <input type="text"
+                                placeholder={isStaff ? 'Search by assignment or student…' : 'Search assignments…'}
+                                value={search} onChange={e => setSearch(e.target.value)}
+                                className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors"
+                            />
+                        </div>
+                        {programs.length > 0 && (
+                            <select value={filterProgram}
+                                onChange={e => { setFilterProgram(e.target.value); setFilterCourse(''); }}
+                                className="sm:w-48 px-3 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
+                                <option value="">All Programmes</option>
+                                {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                        )}
+                        {filterProgram && filteredCourseOptions.length > 0 && (
+                            <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)}
+                                className="sm:w-48 px-3 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
+                                <option value="">All Courses</option>
+                                {filteredCourseOptions.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                            </select>
+                        )}
                     </div>
                     <div className="flex gap-2">
                         <select value={filter} onChange={e => setFilter(e.target.value)}
@@ -987,10 +1033,10 @@ export default function GradesPage() {
                         <ClipboardDocumentCheckIcon className="w-14 h-14 mx-auto text-muted-foreground mb-4" />
                         <p className="text-lg font-semibold text-muted-foreground">No submissions found</p>
                         <p className="text-sm text-muted-foreground mt-1">
-                            {search || filter !== 'all' ? 'Try clearing your filters.' : isStaff ? 'No students have submitted yet.' : 'No assignments yet.'}
+                            {search || filter !== 'all' || filterProgram || filterCourse ? 'Try clearing your filters.' : isStaff ? 'No students have submitted yet.' : 'No assignments yet.'}
                         </p>
-                        {(search || filter !== 'all') && (
-                            <button onClick={() => { setSearch(''); setFilter('all'); }}
+                        {(search || filter !== 'all' || filterProgram || filterCourse) && (
+                            <button onClick={() => { setSearch(''); setFilter('all'); setFilterProgram(''); setFilterCourse(''); }}
                                 className="mt-4 px-4 py-2 bg-muted hover:bg-muted rounded-none text-sm font-bold text-muted-foreground transition-colors">
                                 Clear Filters
                             </button>

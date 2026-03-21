@@ -254,14 +254,9 @@ export async function POST(request: Request) {
         await supabaseAdmin.from('registration_results').insert(historyEntries);
         
         // 4. Update student count on batch
-        const { data: countData } = await supabaseAdmin
-          .from('registration_results')
-          .select('id', { count: 'exact', head: true })
-          .eq('batch_id', batchId);
-        
         await supabaseAdmin
           .from('registration_batches')
-          .update({ student_count: countData?.length || 0 })
+          .update({ student_count: historyEntries.length })
           .eq('id', batchId);
           
       } catch (histErr) {

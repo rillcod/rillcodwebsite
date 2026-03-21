@@ -315,35 +315,50 @@ export default function CourseDetailPage() {
           {/* Left: details */}
           <div className="lg:col-span-2 space-y-6">
 
-            {/* Programme card */}
-            <div className="bg-card shadow-sm border border-border rounded-none p-6">
-              <h2 className="font-bold text-foreground mb-4">Programme</h2>
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-none bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                  <AcademicCapIcon className="w-6 h-6 text-orange-400" />
+            {/* Course overview */}
+            <div className="bg-card shadow-sm border border-border rounded-none p-6 space-y-4">
+              <h2 className="font-bold text-foreground">About This Course</h2>
+              {course.description && (
+                <p className="text-sm text-muted-foreground leading-relaxed">{course.description}</p>
+              )}
+              {course.content && (
+                <div className="border-t border-border pt-4">
+                  <p className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-2">Course Content</p>
+                  <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{course.content}</div>
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <p className="font-bold text-foreground">{prog?.name ?? '—'}</p>
-                    {prog?.difficulty_level && (
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${LEVEL_COLOR[prog.difficulty_level] ?? 'bg-muted text-muted-foreground border-border'}`}>
-                        {prog.difficulty_level}
-                      </span>
-                    )}
+              )}
+              <div className="flex items-center gap-4 pt-2 border-t border-border text-xs text-muted-foreground flex-wrap">
+                {course.duration_hours && (
+                  <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{course.duration_hours}h total</span>
+                )}
+                {prog?.duration_weeks && (
+                  <span className="flex items-center gap-1"><CalendarIcon className="w-3.5 h-3.5" />{prog.duration_weeks} weeks</span>
+                )}
+              </div>
+            </div>
+
+            {/* Programme */}
+            {prog && (
+              <div className="bg-card shadow-sm border border-border rounded-none p-6">
+                <h2 className="font-bold text-foreground mb-3">Programme</h2>
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-none bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                    <AcademicCapIcon className="w-5 h-5 text-orange-400" />
                   </div>
-                  {prog?.description && <p className="text-sm text-muted-foreground">{prog.description}</p>}
-                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                    {prog?.duration_weeks && <span>{prog.duration_weeks} weeks</span>}
-                    {course.duration_hours && (
-                      <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{course.duration_hours}h</span>
-                    )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <p className="font-bold text-foreground">{prog.name}</p>
+                      {prog.difficulty_level && (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${LEVEL_COLOR[prog.difficulty_level] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                          {prog.difficulty_level}
+                        </span>
+                      )}
+                    </div>
+                    {prog.description && <p className="text-sm text-muted-foreground">{prog.description}</p>}
                   </div>
                 </div>
               </div>
-              {course.description && (
-                <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-4">{course.description}</p>
-              )}
-            </div>
+            )}
 
             {/* Lessons */}
             <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
