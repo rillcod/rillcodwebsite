@@ -30,6 +30,12 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // ── Webpack externals (for OpenNext / Cloudflare bundler) ──────
+  webpack: (config: any) => {
+    config.externals = [...(config.externals ?? []), 'sharp'];
+    return config;
+  },
+
   // ── Image optimisation ─────────────────────────────────────────
   images: {
     unoptimized: true,
