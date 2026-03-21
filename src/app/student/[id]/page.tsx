@@ -9,7 +9,7 @@ import {
   CheckBadgeIcon,
   XCircleIcon,
   UserCircleIcon,
-} from '@heroicons/react/24/outline';
+} from '@/lib/icons';
 
 interface StudentProfile {
   id: string;

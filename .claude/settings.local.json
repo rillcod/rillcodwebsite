@@ -30,7 +30,8 @@
       "Bash(find:*)",
       "Bash(cd:*)",
       "Bash(head:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "WebFetch(domain:rillcod.com)"
     ]
   }
 }
