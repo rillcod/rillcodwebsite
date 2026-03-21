@@ -20,13 +20,14 @@ const nextConfig: NextConfig = {
   turbopack: {},
 
   // ── Bundle optimisations ───────────────────────────────────────
+  // Exclude native binaries that don't run on Cloudflare Workers edge runtime
+  serverExternalPackages: ['sharp'],
+
   experimental: {
     // Reduce duplicate module instances
     optimizePackageImports: [
       '@supabase/supabase-js',
     ],
-    // Exclude native binaries that don't run on Cloudflare Workers edge runtime
-    serverExternalPackages: ['sharp'],
   },
 
   // ── Image optimisation ─────────────────────────────────────────
