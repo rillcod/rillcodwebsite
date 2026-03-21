@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       activity_logs: {
@@ -329,6 +354,13 @@ export type Database = {
             referencedColumns: ["student_id"]
           },
           {
+            foreignKeyName: "assignments_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "assignments_school_id_fkey"
             columns: ["school_id"]
             isOneToOne: false
@@ -596,6 +628,13 @@ export type Database = {
             columns: ["program_id"]
             isOneToOne: false
             referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_exams_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -1400,69 +1439,51 @@ export type Database = {
       }
       engage_posts: {
         Row: {
-          id: string
-          user_id: string
           author_name: string
-          content: string
           code_snippet: string | null
+          content: string
+          created_at: string | null
+          id: string
           language: string | null
           likes: number
-          created_at: string | null
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
           author_name: string
+          code_snippet?: string | null
           content: string
-          code_snippet?: string | null
+          created_at?: string | null
+          id?: string
           language?: string | null
           likes?: number
-          created_at?: string | null
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
           author_name?: string
-          content?: string
           code_snippet?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
           language?: string | null
           likes?: number
-          created_at?: string | null
-        }
-        Relationships: []
-      }
-      vault_items: {
-        Row: {
-          id: string
-          user_id: string
-          title: string
-          language: string
-          code: string
-          description: string | null
-          tags: string[] | null
-          created_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          title: string
-          language: string
-          code: string
-          description?: string | null
-          tags?: string[] | null
-          created_at?: string | null
-        }
-        Update: {
-          id?: string
           user_id?: string
-          title?: string
-          language?: string
-          code?: string
-          description?: string | null
-          tags?: string[] | null
-          created_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "engage_posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engage_posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
       }
       enrollments: {
         Row: {
@@ -5170,6 +5191,54 @@ export type Database = {
           },
         ]
       }
+      vault_items: {
+        Row: {
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          language: string
+          tags: string[] | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          language?: string
+          tags?: string[] | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          language?: string
+          tags?: string[] | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vault_items_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vault_items_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
     }
     Views: {
       student_performance_summary: {
@@ -5354,6 +5423,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

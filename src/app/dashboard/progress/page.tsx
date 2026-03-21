@@ -12,7 +12,8 @@ import {
 } from '@/lib/icons';
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  ResponsiveContainer, Tooltip as ReTooltip
+  ResponsiveContainer, Tooltip as ReTooltip,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Legend
 } from 'recharts';
 
 // ── Radial progress ring ──────────────────────────────────────
@@ -47,6 +48,7 @@ export default function ProgressPage() {
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [scoreReports, setScoreReports] = useState<any[]>([]);
 
   const role = profile?.role ?? '';
   const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
@@ -158,6 +160,40 @@ export default function ProgressPage() {
             setEnrollments(enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : []);
           }
         }
+
+        // Fetch score trend data from student_progress_reports
+        try {
+          if (profile?.role === 'student') {
+            // Find the student record linked to this portal user
+            const { data: studentRow } = await supabase
+              .from('students')
+              .select('id')
+              .eq('user_id', profile.id)
+              .maybeSingle();
+            if (studentRow?.id) {
+              const { data: reports } = await supabase
+                .from('student_progress_reports')
+                .select('report_term, report_date, overall_score, theory_score, practical_score, course_name')
+                .eq('student_id', studentRow.id)
+                .eq('is_published', true)
+                .order('report_date', { ascending: true });
+              if (!cancelled) setScoreReports(reports ?? []);
+            }
+          } else if (isStaff) {
+            // For staff, fetch recent published reports for their school
+            let rQuery = supabase
+              .from('student_progress_reports')
+              .select('report_term, report_date, overall_score, theory_score, practical_score, course_name, student_name, school_name')
+              .eq('is_published', true)
+              .order('report_date', { ascending: true })
+              .limit(200);
+            if (profile?.school_id) {
+              rQuery = rQuery.eq('school_id', profile.school_id);
+            }
+            const { data: reports } = await rQuery;
+            if (!cancelled) setScoreReports(reports ?? []);
+          }
+        } catch { /* non-critical — ignore */ }
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load progress');
       } finally {
@@ -554,6 +590,41 @@ export default function ProgressPage() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Score Trends from Progress Reports */}
+        {scoreReports.length > 0 && (
+          <div className="bg-card border border-border rounded-none overflow-hidden">
+            <div className="p-5 border-b border-border flex items-center gap-2">
+              <ArrowTrendingUpIcon className="w-5 h-5 text-orange-400" />
+              <h3 className="font-bold text-foreground">
+                {isStaff ? 'Score Trends (Published Reports)' : 'My Score Trends'}
+              </h3>
+              <span className="ml-auto text-xs text-muted-foreground">{scoreReports.length} report{scoreReports.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="p-5">
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={scoreReports.map(r => ({
+                  term: r.report_term || r.course_name?.slice(0, 12) || r.report_date?.slice(0, 7) || '—',
+                  Overall: r.overall_score ?? null,
+                  Theory: r.theory_score ?? null,
+                  Practical: r.practical_score ?? null,
+                }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="term" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
+                  <ReTooltip
+                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 0, fontSize: 12 }}
+                    labelStyle={{ color: 'var(--foreground)', fontWeight: 700 }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Line type="monotone" dataKey="Overall" stroke="#f97316" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
+                  <Line type="monotone" dataKey="Theory" stroke="#60a5fa" strokeWidth={1.5} dot={{ r: 2 }} connectNulls strokeDasharray="4 2" />
+                  <Line type="monotone" dataKey="Practical" stroke="#34d399" strokeWidth={1.5} dot={{ r: 2 }} connectNulls strokeDasharray="4 2" />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
         )}

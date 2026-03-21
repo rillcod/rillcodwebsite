@@ -81,11 +81,15 @@ interface GenerateRequest {
   assignments?: string;
   currentContent?: any;
   questionCount?: number;
+  mcqCount?: number;
+  theoryCount?: number;
   tone?: string;
   audience?: string;
   // For grading
   questions?: any[];
   studentAnswers?: Record<string, string>;
+  // For assignment generation
+  assignmentType?: string;
   // For daily missions & hooks
   xp?: number;
   streak?: number;
@@ -334,6 +338,7 @@ UNIVERSAL RULES:
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
 Subject: ${req.subject ?? 'Coding & Technology'}
+Assignment type hint: ${req.assignmentType ?? 'auto-detect'}
 Max Points: 100
 
 Return a JSON object with this exact shape:
@@ -341,45 +346,72 @@ Return a JSON object with this exact shape:
   "title": "string — clear assignment title",
   "description": "string — brief overview",
   "instructions": "string — detailed step-by-step instructions for the student",
-  "assignment_type": "string — one of: homework, project, quiz, exam, presentation",
+  "assignment_type": "string — one of: homework, project, quiz, coding, exam, presentation",
+  "metadata": {
+    "deliverables": ["string — only for project type, e.g. 'A working Python script', 'Screenshot of output', 'Written explanation'"],
+    "rubric": [
+      { "criterion": "string — e.g. 'Code Functionality'", "description": "string — what earns full marks", "maxPoints": 25 }
+    ]
+  },
   "questions": [
     {
       "question_text": "string",
-      "question_type": "string — one of: multiple_choice, true_false, fill_blank, essay, coding_blocks",
-      "options": ["string"],
+      "question_type": "string — one of: multiple_choice, true_false, fill_blank, essay, coding_blocks, block_sequence",
+      "options": ["string — only for multiple_choice/true_false"],
       "correct_answer": "string",
       "points": 10,
       "metadata": {
         "logic_sentence": "string — only for coding_blocks, e.g. 'When [BLANK] clicked, move [BLANK] steps'",
-        "logic_blocks": ["string"] 
+        "logic_blocks": ["string — only for coding_blocks, all available block options"],
+        "blocks": ["string — only for block_sequence: ALL available blocks including distractors"],
+        "correct_sequence": ["string — only for block_sequence: correct order of blocks"]
       }
     }
   ]
 }
 
-For 'coding_blocks', 'correct_answer' should be the sequence of blocks for [BLANK] placeholders, comma-separated.
-Include at least one coding challenge if the topic is technical.
-Include at least 5 relevant questions total.`;
+RULES:
+- For 'coding_blocks': correct_answer = comma-separated blocks for [BLANK] slots in order. logic_sentence uses [BLANK] for each gap.
+- For 'block_sequence': correct_answer = comma-separated correct sequence. blocks[] includes the correct ones PLUS 1-2 distractor blocks mixed in.
+- For 'project': include deliverables[] with 3-5 concrete items, and rubric[] with 3-4 criteria summing to ~100 pts.
+- For visual/Scratch/block coding topics (grade Basic 1-JSS1): include at least 1 block_sequence question.
+- For programming topics (JSS2-SS3): include at least 1 coding_blocks and 1 coding challenge question.
+- Include at least 5 questions total.
+- metadata.deliverables and metadata.rubric should be null/omitted for non-project assignments.`;
 
     case 'cbt': {
-      const qCount = req.questionCount ?? 10;
+      const qCount    = req.questionCount ?? 10;
+      const mcqCount  = req.mcqCount  ?? qCount;   // default: all MCQ if not split
+      const openCount = req.theoryCount ?? 0;
+      const totalQ    = mcqCount + openCount;
+
+      const mcqInstruction = mcqCount > 0
+        ? `SECTION A — Objective/MCQ: Generate EXACTLY ${mcqCount} multiple-choice or true/false questions. Each MUST have an "options" array of 4 choices and a "correct_answer". Set "question_type" to "multiple_choice" or "true_false".`
+        : '';
+      const theoryInstruction = openCount > 0
+        ? `SECTION B — Theory/Open: Generate EXACTLY ${openCount} open-ended questions (essay, fill_blank, or coding_blocks). These MUST have NO "options" array (or empty []). Set "question_type" to "essay", "fill_blank", or "coding_blocks" as appropriate.`
+        : '';
+
       return `Generate a Computer Based Test (CBT) for Rillcod Technologies.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
 Subject: ${req.subject ?? 'Coding & Technology'}
-Number of questions required: EXACTLY ${qCount} questions. You MUST generate all ${qCount} questions — do not stop early.
+Total questions required: EXACTLY ${totalQ}. You MUST generate all ${totalQ} — do not stop early.
+
+${mcqInstruction}
+${theoryInstruction}
 
 Return a JSON object with this exact shape:
 {
   "title": "string — exam title",
   "description": "string — brief exam description",
-  "duration_minutes": ${Math.max(30, qCount * 2)},
+  "duration_minutes": ${Math.max(30, totalQ * 2)},
   "passing_score": 70,
   "questions": [
     {
       "question_text": "string — for code-based questions wrap the code snippet in triple backtick fences with the language, e.g. \`\`\`python\\nprint('hello')\\n\`\`\`",
       "question_type": "string — one of: multiple_choice, true_false, fill_blank, essay, coding_blocks",
-      "options": ["string"],
+      "options": ["string — ONLY for MCQ/true_false; omit or use [] for open-ended"],
       "correct_answer": "string",
       "points": 5,
       "metadata": {
@@ -390,7 +422,12 @@ Return a JSON object with this exact shape:
   ]
 }
 
-CRITICAL: The questions array MUST contain exactly ${qCount} items. Cover the topic comprehensively across different difficulty levels. For technical/coding topics, include at least ${Math.ceil(qCount * 0.3)} questions that show code snippets in triple-backtick fences.`;}
+CRITICAL:
+- questions array MUST contain exactly ${totalQ} items total.
+${mcqCount > 0 ? `- First ${mcqCount} questions MUST be objective (MCQ/true_false) with options arrays.` : ''}
+${openCount > 0 ? `- Last ${openCount} questions MUST be open-ended (essay/fill_blank/coding_blocks) with no options.` : ''}
+- Cover the topic comprehensively across different difficulty levels.
+- For technical/coding topics, include code snippets in triple-backtick fences where relevant.`;}
 
 
     case 'lesson-plan':
@@ -583,7 +620,8 @@ export async function POST(req: NextRequest) {
 
     // Rich lesson types need more tokens to avoid truncated JSON
     // For CBT scale tokens with question count: ~150 tokens per question minimum
-    const cbtTokens = type === 'cbt' ? Math.max(3000, (body.questionCount ?? 10) * 200) : 0;
+    const cbtTotal  = (body.mcqCount ?? 0) + (body.theoryCount ?? 0) || (body.questionCount ?? 10);
+    const cbtTokens = type === 'cbt' ? Math.max(3000, cbtTotal * 200) : 0;
     const maxTokens =
       type === 'lesson' ? 4000 :
       type === 'lesson-plan' ? 3500 :

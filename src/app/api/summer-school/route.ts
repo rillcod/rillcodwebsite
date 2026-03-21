@@ -1,4 +1,3 @@
-import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
@@ -24,6 +23,7 @@ export async function POST(req: Request) {
       age,
       gender,
       preferred_mode,
+      hear_about_us,
       additional_info,
     } = body;
 
@@ -36,12 +36,7 @@ export async function POST(req: Request) {
 
     const supabase = getAdminClient();
 
-    // Get first school as default for direct registrations
-    const { data: schoolRows } = await supabase
-      .from('schools')
-      .select('id')
-      .limit(1);
-    const schoolId = Array.isArray(schoolRows) && schoolRows[0]?.id ? schoolRows[0].id : null;
+    const courseInterest = `${current_class ? current_class + ' ' : ''}Summer School 2026`;
 
     const { data, error } = await supabase
       .from('prospective_students')
@@ -52,13 +47,14 @@ export async function POST(req: Request) {
         parent_phone,
         parent_email: parent_email || null,
         grade: current_class || null,
-        school_id: schoolId,
+        school_id: null,
         school_name: school || 'Direct / Summer School',
         age: age || null,
         gender: gender || null,
-        course_interest: 'JSS3 Summer School 2026',
+        course_interest: courseInterest,
         preferred_schedule: preferred_mode || null,
-        hear_about_us: additional_info || 'Summer School Registration Form',
+        hear_about_us: hear_about_us || null,
+        notes: additional_info || null,
         is_active: false,
         is_deleted: false,
         created_at: new Date().toISOString(),

@@ -24,6 +24,7 @@ async function requireStaff() {
 
 // PATCH /api/assignment-submissions/[id]
 // Update grade, feedback, status, submission_text on a submission
+// When status becomes 'graded', deletes the submitted file from storage to save space
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -48,11 +49,32 @@ export async function PATCH(
     }
     if ('graded_at' in body) allowed.graded_at = body.graded_at;
 
+    // When marking as graded, delete the uploaded file from storage to free space
+    if (body.status === 'graded') {
+      const { data: existing } = await adminClient()
+        .from('assignment_submissions')
+        .select('file_url')
+        .eq('id', id)
+        .single();
+
+      if (existing?.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(existing.file_url)) {
+        // Only delete image/media files — keep PDFs and docs
+        const marker = '/object/public/assignments/';
+        const markerIdx = existing.file_url.indexOf(marker);
+        if (markerIdx !== -1) {
+          const storagePath = decodeURIComponent(existing.file_url.slice(markerIdx + marker.length).split('?')[0]);
+          await adminClient().storage.from('assignments').remove([storagePath]);
+        }
+        // Null out the file_url in the DB
+        allowed.file_url = null;
+      }
+    }
+
     const { data, error } = await adminClient()
       .from('assignment_submissions')
       .update(allowed)
       .eq('id', id)
-      .select('id, grade, status')
+      .select('id, grade, status, file_url')
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

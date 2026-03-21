@@ -22,6 +22,7 @@ import Editor from '@monaco-editor/react';
 import * as d3 from 'd3';
 import dynamic from 'next/dynamic';
 import NeuralVoiceReader from '@/components/ai/NeuralVoiceReader';
+import StudyAssistant from '@/components/ai/StudyAssistant';
 
 const CodeVisualizer = dynamic(() => import('@/components/visualizer/CodeVisualizer'), { ssr: false }) as any;
 
@@ -2069,10 +2070,13 @@ export default function LessonDetailPage() {
           </div>
         )}
         {lesson && lesson.lesson_notes && (
-          <NeuralVoiceReader 
-            content={lesson.lesson_notes} 
-            title={lesson.title} 
+          <NeuralVoiceReader
+            content={lesson.lesson_notes}
+            title={lesson.title}
           />
+        )}
+        {profile?.role === 'student' && lesson && (
+          <StudyAssistant lessonTitle={lesson.title} lessonType={lesson.lesson_type ?? undefined} />
         )}
       </main>
     </div>

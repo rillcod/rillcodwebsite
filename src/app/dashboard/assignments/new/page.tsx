@@ -23,6 +23,7 @@ interface Question {
   metadata?: {
     logic_sentence?: string; // e.g. "When [BLANK] click, move [BLANK] steps"
     logic_blocks?: string[];  // e.g. ["Green Flag", "10", "Space Key"]
+    blocks?: string[];        // e.g. block_sequence available blocks (one per line)
   };
 }
 
@@ -58,6 +59,13 @@ export default function NewAssignmentPage() {
     assignment_type: 'homework',
   });
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [projectMeta, setProjectMeta] = useState<{
+    deliverables: string[];
+    rubric: { criterion: string; description: string; maxPoints: number }[];
+  }>({
+    deliverables: [''],
+    rubric: [],
+  });
 
   // AI Generation State
   const [aiOpen, setAiOpen] = useState(false);
@@ -218,6 +226,10 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         is_active: true,
         created_by: profile?.id || '',
         questions: questions.length > 0 ? questions.filter(q => q.question_text.trim()) : null,
+        metadata: form.assignment_type === 'project' ? {
+          deliverables: projectMeta.deliverables.filter(d => d.trim()),
+          rubric: projectMeta.rubric.filter(r => r.criterion.trim()),
+        } : null,
       };
       if (form.due_date) payload.due_date = new Date(form.due_date).toISOString();
 
@@ -298,62 +310,78 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
           </div>
         )}
 
-        {/* AI Assignment Generator */}
-        <div className="bg-gradient-to-br from-amber-500/10 to-amber-400/5 border border-amber-500/20 rounded-none overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setAiOpen(o => !o)}
-            className="w-full flex items-center justify-between px-5 py-4 text-left"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-none bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
-                <SparklesIconOutline className="w-5 h-5 text-amber-400" />
+        {/* ── Premium AI Assignment Engine ── */}
+        <div className="relative bg-[#0d0d1a] border border-white/10 overflow-hidden group">
+          {/* Ambient glow */}
+          <div className="absolute -right-20 -top-20 w-64 h-64 bg-orange-500/10 rounded-full blur-[100px] group-hover:bg-orange-500/20 transition-all duration-1000 pointer-events-none" />
+
+          <div className="flex items-center justify-between relative px-6 py-5">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-none bg-orange-600 flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-orange-400/30 flex-shrink-0">
+                <SparklesIconOutline className="w-7 h-7 text-white" />
               </div>
               <div>
-                <p className="text-sm font-black text-foreground uppercase tracking-widest">AI Assignment Generator</p>
-                <p className="text-[10px] text-muted-foreground font-medium">
+                <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Premium AI Assignment Engine</h3>
+                <p className="text-[10px] text-orange-400 font-black uppercase tracking-[0.4em]">
                   {aiLastModel
-                    ? <span>Generated with <span className="text-amber-400">{aiLastModel}</span></span>
-                    : 'Auto-fills title, description, instructions & questions'}
+                    ? <span>Generated with <span className="text-white">{aiLastModel}</span></span>
+                    : 'Intelligent Homework Architecture'}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 flex-shrink-0">
               {isPuterAvailable() && (
-                <span className="px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[9px] font-black uppercase tracking-widest">FREE</span>
+                <span className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[8px] font-black uppercase tracking-widest">FREE</span>
               )}
-              <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${aiOpen ? 'rotate-180' : ''}`} />
+              <button
+                type="button"
+                onClick={() => setAiOpen(o => !o)}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-[10px] font-black text-white uppercase tracking-widest transition-all border border-white/10"
+              >
+                {aiOpen ? 'Hide Controls' : 'Open Designer'}
+              </button>
             </div>
-          </button>
+          </div>
 
           {aiOpen && (
-            <div className="px-5 pb-5 space-y-4 border-t border-amber-500/20">
-              {aiError && (
-                <div className="flex items-start gap-2 mt-4 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">
-                  <span className="flex-shrink-0">⚠</span> {aiError}
-                </div>
-              )}
-              <div className="pt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="md:col-span-3 space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Topic / Subject *</label>
+            <div className="space-y-4 px-6 pb-6 pt-2 relative animate-in slide-in-from-top-4 duration-500">
+              <div className="border-t border-white/10 pt-4">
+                {/* Topic field */}
+                <div className="space-y-1 mb-4">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-orange-400/60">Assignment Topic / Domain</label>
                   <input
                     value={aiTopic}
                     onChange={e => setAiTopic(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAiGenerate(); } }}
-                    placeholder="e.g. Introduction to Python functions"
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-amber-500"
+                    placeholder="e.g. Introduction to Python Functions & Loops"
+                    className="w-full bg-white/5 border border-white/10 px-5 py-3.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-orange-500/50 transition-all"
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={handleAiGenerate}
-                  disabled={aiGenerating}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-widest transition-all disabled:opacity-60 self-end"
-                >
-                  {aiGenerating
-                    ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Generating...</>
-                    : <><SparklesIconOutline className="w-4 h-4" /> Generate</>}
-                </button>
+
+                {/* Generate button row */}
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={handleAiGenerate}
+                    disabled={aiGenerating}
+                    className="flex flex-col items-center justify-center gap-1 px-8 py-4 bg-orange-600 hover:bg-orange-500 transition-all shadow-xl shadow-orange-900/40 disabled:opacity-50"
+                  >
+                    <div className="text-[10px] font-black text-white uppercase tracking-widest">
+                      {aiGenerating ? 'Processing...' : 'Generate Assignment'}
+                    </div>
+                    <div className="text-[8px] text-white/40 uppercase">Architecture Build</div>
+                  </button>
+                  {aiGenerating && (
+                    <div className="flex items-center gap-3 text-orange-400 animate-pulse border-l-2 border-orange-500 pl-4">
+                      <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Synthesising Assignment...</span>
+                    </div>
+                  )}
+                </div>
+
+                {aiError && (
+                  <p className="text-[10px] text-rose-400 font-bold uppercase tracking-widest mt-3 pl-1">Error: {aiError}</p>
+                )}
               </div>
             </div>
           )}
@@ -450,6 +478,83 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
               className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors resize-none" />
           </div>
 
+          {/* ── Project Metadata (shown when assignment type = project) ── */}
+          {form.assignment_type === 'project' && (
+            <div className="border border-amber-500/20 bg-amber-500/5 p-6 space-y-6">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-amber-400 uppercase tracking-widest">🛠 Project Configuration</span>
+              </div>
+
+              {/* Deliverables */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Deliverables (what students must submit)</label>
+                  <button type="button"
+                    onClick={() => setProjectMeta(p => ({ ...p, deliverables: [...p.deliverables, ''] }))}
+                    className="text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors">
+                    + Add
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {projectMeta.deliverables.map((d, di) => (
+                    <div key={di} className="flex gap-2">
+                      <span className="mt-2.5 text-xs text-muted-foreground font-bold w-5 text-right flex-shrink-0">{di + 1}.</span>
+                      <input type="text" value={d}
+                        onChange={e => setProjectMeta(p => ({ ...p, deliverables: p.deliverables.map((x, i) => i === di ? e.target.value : x) }))}
+                        placeholder={`e.g. Working Python script with comments`}
+                        className="flex-1 px-3 py-2 bg-card border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                      {projectMeta.deliverables.length > 1 && (
+                        <button type="button"
+                          onClick={() => setProjectMeta(p => ({ ...p, deliverables: p.deliverables.filter((_, i) => i !== di) }))}
+                          className="px-2 py-2 text-rose-400/60 hover:text-rose-400 transition-colors text-xs font-bold">✕</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Rubric */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Grading Rubric (optional)</label>
+                  <button type="button"
+                    onClick={() => setProjectMeta(p => ({ ...p, rubric: [...p.rubric, { criterion: '', description: '', maxPoints: 10 }] }))}
+                    className="text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors">
+                    + Add Criterion
+                  </button>
+                </div>
+                {projectMeta.rubric.length === 0 && (
+                  <p className="text-xs text-muted-foreground italic">No rubric added. Students will be graded by total score only.</p>
+                )}
+                <div className="space-y-2">
+                  {projectMeta.rubric.map((r, ri) => (
+                    <div key={ri} className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_80px_32px] gap-2 items-start">
+                      <input type="text" value={r.criterion}
+                        onChange={e => setProjectMeta(p => ({ ...p, rubric: p.rubric.map((x, i) => i === ri ? { ...x, criterion: e.target.value } : x) }))}
+                        placeholder="Criterion (e.g. Code Quality)"
+                        className="px-3 py-2 bg-card border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                      <input type="text" value={r.description}
+                        onChange={e => setProjectMeta(p => ({ ...p, rubric: p.rubric.map((x, i) => i === ri ? { ...x, description: e.target.value } : x) }))}
+                        placeholder="Description (e.g. Code is clean, commented, and follows best practices)"
+                        className="px-3 py-2 bg-card border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
+                      <input type="number" min="1" max="100" value={r.maxPoints}
+                        onChange={e => setProjectMeta(p => ({ ...p, rubric: p.rubric.map((x, i) => i === ri ? { ...x, maxPoints: parseInt(e.target.value) || 10 } : x) }))}
+                        className="px-3 py-2 bg-card border border-border rounded-none text-xs text-foreground focus:outline-none focus:border-amber-500 transition-colors text-center" />
+                      <button type="button"
+                        onClick={() => setProjectMeta(p => ({ ...p, rubric: p.rubric.filter((_, i) => i !== ri) }))}
+                        className="px-2 py-2 text-rose-400/60 hover:text-rose-400 transition-colors text-xs font-bold">✕</button>
+                    </div>
+                  ))}
+                </div>
+                {projectMeta.rubric.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Total rubric points: <span className="text-amber-400 font-bold">{projectMeta.rubric.reduce((a, r) => a + r.maxPoints, 0)}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* ── Question Canvas ── */}
           <div className="space-y-4 pt-4 border-t border-border">
             <div className="flex items-center justify-between">
@@ -502,6 +607,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                         <option value="fill_blank">Fill in Blank</option>
                         <option value="essay">Essay / Free Text</option>
                         <option value="coding_blocks">Visual Logic Block</option>
+                        <option value="block_sequence">🧩 Block Sequence</option>
                       </select>
                     </div>
                     <div>
@@ -547,6 +653,29 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                             placeholder="e.g. Green Flag, 10, Space Key"
                             className="w-full px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
                         </div>
+                    </div>
+                  )}
+
+                  {q.question_type === 'block_sequence' && (
+                    <div className="space-y-3 sm:col-span-3">
+                      <div>
+                        <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Available Blocks (one per line — first group are correct answer in order)</label>
+                        <textarea rows={4}
+                          value={(q.metadata?.blocks ?? []).join('\n')}
+                          onChange={e => {
+                            const blocks = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
+                            updateQuestion(qi, { metadata: { ...q.metadata, blocks } });
+                          }}
+                          placeholder={"When green flag clicked\nmove 10 steps\nturn 90 degrees\nplay sound Pop (distractor)"}
+                          className="w-full px-3 py-2 bg-card border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 resize-none" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Correct Sequence (comma-separated, in order)</label>
+                        <input type="text" value={q.correct_answer}
+                          onChange={e => updateQuestion(qi, { correct_answer: e.target.value })}
+                          placeholder="When green flag clicked, move 10 steps, turn 90 degrees"
+                          className="w-full px-3 py-2 bg-card border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none" />
+                      </div>
                     </div>
                   )}
 

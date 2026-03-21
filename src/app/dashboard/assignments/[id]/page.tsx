@@ -10,9 +10,11 @@ import {
     ArrowLeftIcon, CalendarIcon, ClockIcon, DocumentTextIcon,
     CheckCircleIcon, ExclamationTriangleIcon, ArrowUpTrayIcon,
     PaperClipIcon, AcademicCapIcon, StarIcon, XMarkIcon, ArrowPathIcon, CheckIcon, PencilIcon,
-    CodeBracketIcon, CommandLineIcon, TrashIcon, RocketLaunchIcon
+    CodeBracketIcon, CommandLineIcon, TrashIcon, RocketLaunchIcon, PrinterIcon,
+    ClipboardDocumentListIcon
 } from '@/lib/icons';
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
+import BlockSequencer from '@/components/assignments/BlockSequencer';
 
 function pctInfo(grade: number, max: number) {
     const pct = Math.round((grade / max) * 100);
@@ -88,11 +90,12 @@ function CodingBlocksChallenge({
     );
 }
 
-function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSaved }: {
+function GradeModal({ sub, maxPoints, assignmentTitle, questions, rubric, onClose, onSaved }: {
     sub: any;
     maxPoints: number;
     assignmentTitle: string;
     questions?: any[];
+    rubric?: { criterion: string; description: string; maxPoints: number }[];
     onClose: () => void;
     onSaved: () => void;
 }) {
@@ -105,6 +108,17 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [err, setErr] = useState('');
+    // Rubric-based scoring
+    const [rubricScores, setRubricScores] = useState<Record<number, number>>({});
+
+    const rubricTotal = Object.values(rubricScores).reduce((a, b) => a + b, 0);
+    // Auto-fill grade from rubric when rubric scores change
+    const handleRubricScore = (idx: number, val: number) => {
+        const updated = { ...rubricScores, [idx]: val };
+        setRubricScores(updated);
+        const total = Object.values(updated).reduce((a, b) => a + b, 0);
+        setGrade(String(Math.min(total, max)));
+    };
 
     const info = grade ? pctInfo(Number(grade), max) : null;
 
@@ -150,12 +164,12 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
     };
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-[#161628] border border-border rounded-none w-full max-lg shadow-2xl" id="grade-modal"
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4" onClick={onClose}>
+            <div className="bg-[#161628] border border-border border-b-0 sm:border-b rounded-t-2xl sm:rounded-none w-full sm:max-w-2xl shadow-2xl max-h-[92dvh] flex flex-col" id="grade-modal"
                 onClick={(e) => e.stopPropagation()}>
 
                 {/* Modal header */}
-                <div className="p-6 border-b border-border flex items-start justify-between">
+                <div className="p-4 sm:p-6 border-b border-border flex items-start justify-between flex-shrink-0">
                     <div className="flex-1">
                         <h3 className="font-bold text-foreground text-lg">Grade Submission</h3>
                         <p className="text-sm text-muted-foreground mt-0.5">{assignmentTitle}</p>
@@ -185,7 +199,7 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
                     </button>
                 </div>
 
-                <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+                <div className="p-4 sm:p-6 space-y-5 flex-1 overflow-y-auto">
                     {/* Submission content (editable for staff) */}
                     <div className="bg-card shadow-sm border border-border rounded-none p-4 space-y-3">
                         <div>
@@ -197,10 +211,26 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
                             />
                         </div>
                         {sub.file_url && (
-                             <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-400 hover:text-orange-500">
-                                <PaperClipIcon className="w-3.5 h-3.5" /> View attached file
-                             </a>
+                            (() => {
+                                const isImage = /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(sub.file_url);
+                                return isImage ? (
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Submitted Photo</p>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={sub.file_url} alt="Student submission" className="w-full max-h-72 object-contain bg-black/30 border border-border rounded-none cursor-pointer"
+                                            onClick={() => window.open(sub.file_url, '_blank')} />
+                                        <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1.5 text-[10px] font-bold text-blue-400 hover:text-blue-300 uppercase tracking-widest">
+                                            <ArrowUpTrayIcon className="w-3 h-3" /> Open full size
+                                        </a>
+                                    </div>
+                                ) : (
+                                    <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-400 hover:text-orange-500">
+                                        <PaperClipIcon className="w-3.5 h-3.5" /> View attached file
+                                    </a>
+                                );
+                            })()
                         )}
                         <button onClick={handleDelete} disabled={deleting}
                             className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-rose-400/40 hover:text-rose-400 hover:bg-rose-400/10 rounded-none transition-all flex items-center justify-center gap-2 border border-transparent hover:border-rose-400/20">
@@ -252,6 +282,30 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
                         </div>
                     )}
 
+                    {/* Rubric-based scoring (project assignments) */}
+                    {rubric && rubric.length > 0 && (
+                        <div className="border border-amber-500/20 bg-amber-500/5 rounded-none p-4 space-y-3">
+                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Rubric Scoring</p>
+                            {rubric.map((r, ri) => (
+                                <div key={ri} className="flex items-center gap-3">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-bold text-foreground">{r.criterion}</p>
+                                        {r.description && <p className="text-[10px] text-muted-foreground truncate">{r.description}</p>}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                        <input type="number" min={0} max={r.maxPoints}
+                                            value={rubricScores[ri] ?? ''}
+                                            onChange={e => handleRubricScore(ri, Math.min(parseInt(e.target.value) || 0, r.maxPoints))}
+                                            className="w-14 px-2 py-1 bg-card border border-border rounded-none text-xs text-center text-foreground font-bold focus:outline-none focus:border-amber-500"
+                                        />
+                                        <span className="text-[10px] text-muted-foreground">/ {r.maxPoints}</span>
+                                    </div>
+                                </div>
+                            ))}
+                            <p className="text-xs text-muted-foreground">Rubric total: <span className="text-amber-400 font-bold">{rubricTotal}</span> → auto-filled in score below</p>
+                        </div>
+                    )}
+
                     {/* Score input */}
                     <div>
                         <label className="block text-sm font-semibold text-muted-foreground mb-2">
@@ -300,7 +354,7 @@ function GradeModal({ sub, maxPoints, assignmentTitle, questions, onClose, onSav
                     )}
                 </div>
 
-                <div className="p-6 border-t border-border flex gap-3">
+                <div className="p-4 sm:p-6 border-t border-border flex gap-3 flex-shrink-0">
                     <button onClick={onClose}
                         className="flex-1 py-2.5 text-sm font-semibold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
                         Cancel
@@ -456,6 +510,180 @@ export default function AssignmentDetailPage() {
         }
     };
 
+    const handlePrintAssignment = () => {
+        if (!assignment) return;
+        const today = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
+        const schoolName = profile?.school_name || 'RILLCOD TECHNOLOGIES';
+        const logoUrl = window.location.origin + '/logo.png';
+        const qs: any[] = Array.isArray(assignment.questions) ? assignment.questions : [];
+        const mcqQs  = qs.filter((q: any) => q.options && Array.isArray(q.options) && q.options.length > 0);
+        const openQs = qs.filter((q: any) => !q.options || !Array.isArray(q.options) || q.options.length === 0);
+        const mcqPts  = mcqQs.reduce((s: number, q: any) => s + (q.points ?? 0), 0);
+        const openPts = openQs.reduce((s: number, q: any) => s + (q.points ?? 0), 0);
+        const totalPts = mcqPts + openPts || assignment.max_points || 100;
+        const lineCount = (q: any) => q.question_type === 'essay' ? 12 : q.question_type === 'fill_blank' ? 4 : 8;
+
+        const renderQ = (q: any, n: number) => {
+            const isMCQ = q.options && Array.isArray(q.options) && q.options.length > 0;
+            return `<div class="q-block">
+              <div class="q-header">
+                <span class="q-num">${n}.</span>
+                <div class="q-text">${q.question_text ?? ''}</div>
+                <span class="q-pts">${q.points ?? 1} mark${(q.points ?? 1) !== 1 ? 's' : ''}</span>
+              </div>
+              ${isMCQ ? `<div class="options">${(q.options as string[]).map((opt: string, oi: number) =>
+                `<div class="opt"><span class="bubble">${String.fromCharCode(65 + oi)}</span><span class="opt-text">${opt}</span></div>`
+              ).join('')}</div>`
+              : `<div class="ans-block">${Array.from({ length: lineCount(q) }).map(() => '<div class="ans-line"></div>').join('')}</div>`}
+            </div>`;
+        };
+
+        const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
+<title>${assignment.title}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Times New Roman', Georgia, serif; background: #fff; color: #000; font-size: 11.5pt; }
+  @page { size: A4 portrait; margin: 15mm 18mm 14mm; }
+
+  .official-hdr { display:flex; align-items:center; gap:14pt; padding-bottom:10pt; border-bottom:3pt double #000; margin-bottom:5pt; }
+  .hdr-logo { width:52pt; height:52pt; object-fit:contain; flex-shrink:0; }
+  .hdr-org { flex:1; text-align:center; }
+  .hdr-school { font-size:13pt; font-weight:900; text-transform:uppercase; letter-spacing:1.5px; }
+  .hdr-brand  { font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:#444; margin-top:2pt; }
+  .hdr-web    { font-size:7.5pt; color:#888; margin-top:1pt; }
+  .hdr-type   { background:#000; color:#fff; padding:5pt 10pt; font-size:7.5pt; font-weight:900; text-transform:uppercase; letter-spacing:2px; align-self:flex-start; margin-top:4pt; }
+
+  .title-band { text-align:center; margin:8pt 0; }
+  .asgn-title { font-size:15pt; font-weight:900; text-transform:uppercase; letter-spacing:1px; }
+  .asgn-sub   { font-size:9pt; color:#555; margin-top:3pt; }
+
+  .meta-grid  { display:grid; grid-template-columns:repeat(4,1fr); border:1pt solid #000; margin:8pt 0; }
+  .meta-cell  { padding:5pt 6pt; border-right:1pt solid #aaa; text-align:center; }
+  .meta-cell:last-child { border-right:none; }
+  .meta-label { font-size:6.5pt; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:#666; display:block; margin-bottom:2pt; }
+  .meta-val   { font-size:10pt; font-weight:700; display:block; }
+
+  .stu-box { display:grid; grid-template-columns:2.5fr 1fr 1fr; border:1.5pt solid #000; margin:8pt 0; }
+  .stu-field { padding:6pt 8pt 4pt; border-right:1pt solid #888; }
+  .stu-field:last-child { border-right:none; }
+  .stu-label { font-size:7pt; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:#555; display:block; margin-bottom:5pt; }
+  .stu-line  { border-bottom:1pt solid #333; height:13pt; }
+
+  .instructions { background:#f5f5f5; border:1pt solid #ccc; border-left:4pt solid #000; padding:7pt 10pt; margin:8pt 0 12pt; font-size:9.5pt; line-height:1.6; }
+  .instructions b { font-size:8pt; text-transform:uppercase; letter-spacing:1px; }
+
+  .section-hdr { display:flex; align-items:center; gap:8pt; margin:14pt 0 10pt; }
+  .s-rule  { flex:1; border-top:1.5pt solid #000; }
+  .s-title { font-size:9.5pt; font-weight:900; text-transform:uppercase; letter-spacing:2px; white-space:nowrap; padding:0 8pt; border:1pt solid #000; }
+  .s-pts   { font-size:8.5pt; color:#444; font-weight:700; white-space:nowrap; }
+
+  .q-block  { margin-bottom:18pt; page-break-inside:avoid; }
+  .q-header { display:flex; gap:8pt; align-items:flex-start; margin-bottom:6pt; }
+  .q-num    { font-size:11pt; font-weight:900; min-width:22pt; flex-shrink:0; padding-top:1pt; }
+  .q-text   { flex:1; font-size:11.5pt; line-height:1.6; }
+  .q-pts    { font-size:8pt; font-weight:700; color:#555; white-space:nowrap; flex-shrink:0; font-style:italic; padding-top:3pt; }
+
+  .options { display:grid; grid-template-columns:1fr 1fr; gap:5pt 20pt; margin:4pt 0 0 30pt; }
+  .opt     { display:flex; align-items:flex-start; gap:6pt; font-size:10.5pt; line-height:1.45; padding:2pt 0; }
+  .bubble  { display:inline-flex; align-items:center; justify-content:center; width:15pt; height:15pt; border:1.2pt solid #000; border-radius:50%; font-size:8.5pt; font-weight:900; flex-shrink:0; margin-top:0.5pt; }
+  .opt-text { flex:1; }
+
+  .ans-block { margin:4pt 0 0 30pt; }
+  .ans-line  { border-bottom:0.8pt solid #bbb; height:24pt; margin-bottom:1pt; }
+
+  .score-box { border:1.5pt solid #000; display:flex; margin-top:20pt; page-break-inside:avoid; }
+  .score-cell { flex:1; padding:6pt 10pt; border-right:1pt solid #aaa; text-align:center; }
+  .score-cell:last-child { border-right:none; }
+  .score-label { font-size:7pt; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:#666; display:block; margin-bottom:8pt; }
+  .score-space { height:16pt; border-bottom:1pt solid #333; }
+
+  .page-footer { margin-top:14pt; border-top:0.75pt solid #ccc; padding-top:5pt; display:flex; justify-content:space-between; font-size:7.5pt; color:#777; font-style:italic; }
+
+  @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } .q-block { page-break-inside:avoid; } }
+</style>
+</head><body><div class="page">
+
+  <div class="official-hdr">
+    <img src="${logoUrl}" class="hdr-logo" onerror="this.style.display='none'" />
+    <div class="hdr-org">
+      <div class="hdr-school">${schoolName}</div>
+      <div class="hdr-brand">Rillcod Technologies · Coding &amp; STEM Academy</div>
+      <div class="hdr-web">www.rillcod.com</div>
+    </div>
+    <div class="hdr-type">${(assignment.assignment_type || 'ASSIGNMENT').toUpperCase()}</div>
+  </div>
+
+  <div class="title-band">
+    <div class="asgn-title">${assignment.title}</div>
+    ${assignment.courses?.title ? `<div class="asgn-sub">${assignment.courses.title}${assignment.courses?.programs?.name ? ' · ' + assignment.courses.programs.name : ''}</div>` : ''}
+  </div>
+
+  <div class="meta-grid">
+    <div class="meta-cell"><span class="meta-label">Max Points</span><span class="meta-val">${totalPts}</span></div>
+    <div class="meta-cell"><span class="meta-label">Questions</span><span class="meta-val">${qs.length || '—'}</span></div>
+    <div class="meta-cell"><span class="meta-label">Due Date</span><span class="meta-val" style="font-size:8.5pt">${assignment.due_date ? new Date(assignment.due_date).toLocaleDateString('en-GB') : '—'}</span></div>
+    <div class="meta-cell"><span class="meta-label">Date</span><span class="meta-val" style="font-size:8.5pt">${today}</span></div>
+  </div>
+
+  <div class="stu-box">
+    <div class="stu-field"><span class="stu-label">Student Full Name</span><div class="stu-line"></div></div>
+    <div class="stu-field"><span class="stu-label">Class / Grade</span><div class="stu-line"></div></div>
+    <div class="stu-field"><span class="stu-label">Score / Marks</span><div class="stu-line"></div></div>
+  </div>
+
+  <div class="instructions">
+    <b>Instructions:</b>&nbsp;
+    ${assignment.instructions || 'Answer all questions carefully.'}
+    ${mcqQs.length > 0 ? ' For objective questions, <strong>circle</strong> the letter of the correct answer.' : ''}
+    ${openQs.length > 0 ? ' Write your answers legibly in the spaces provided.' : ''}
+  </div>
+
+  ${mcqQs.length > 0 ? `
+  <div class="section-hdr">
+    <div class="s-rule"></div>
+    <span class="s-title">Section A — Objective Questions</span>
+    <span class="s-pts">[${mcqPts} marks]</span>
+    <div class="s-rule"></div>
+  </div>
+  ${mcqQs.map((q: any, i: number) => renderQ(q, i + 1)).join('')}` : ''}
+
+  ${openQs.length > 0 ? `
+  <div class="section-hdr">
+    <div class="s-rule"></div>
+    <span class="s-title">Section B — Theory / Written</span>
+    <span class="s-pts">[${openPts} marks]</span>
+    <div class="s-rule"></div>
+  </div>
+  ${openQs.map((q: any, i: number) => renderQ(q, mcqQs.length + i + 1)).join('')}` : ''}
+
+  ${qs.length === 0 && assignment.description ? `
+  <div style="margin-top:16pt">
+    <p style="font-size:11.5pt; line-height:1.8;">${assignment.description}</p>
+  </div>
+  <div class="ans-block" style="margin-top:16pt">
+    ${Array.from({ length: 20 }).map(() => '<div class="ans-line"></div>').join('')}
+  </div>` : ''}
+
+  <div class="score-box">
+    ${mcqQs.length > 0 ? `<div class="score-cell"><span class="score-label">Section A Score</span><div class="score-space"></div></div>` : ''}
+    ${openQs.length > 0 ? `<div class="score-cell"><span class="score-label">Section B Score</span><div class="score-space"></div></div>` : ''}
+    <div class="score-cell"><span class="score-label">Total Score</span><div class="score-space"></div></div>
+    <div class="score-cell"><span class="score-label">Teacher's Signature</span><div class="score-space"></div></div>
+  </div>
+
+  <div class="page-footer">
+    <span>${schoolName} · ${(assignment.assignment_type || 'Assignment').toUpperCase()} · ${today}</span>
+    <span>www.rillcod.com</span>
+  </div>
+</div>
+<script>window.onload = () => { window.print(); }</script>
+</body></html>`;
+
+        const win = window.open('', '_blank');
+        win?.document.write(html);
+        win?.document.close();
+    };
+
     const isOverdue = assignment?.due_date && new Date(assignment.due_date) < new Date();
     const allSubs = Array.isArray(assignment?.assignment_submissions)
         ? assignment.assignment_submissions
@@ -500,6 +728,7 @@ export default function AssignmentDetailPage() {
                     maxPoints={assignment.max_points}
                     assignmentTitle={assignment.title}
                     questions={assignment.questions}
+                    rubric={assignment.metadata?.rubric}
                     onClose={() => setGrading(null)}
                     onSaved={handleGraded}
                 />
@@ -540,12 +769,19 @@ export default function AssignmentDetailPage() {
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-none transition-colors border border-emerald-500/20">
                                 <RocketLaunchIcon className="w-3.5 h-3.5" /> Playground
                             </Link>
-                            {/* Staff edit button */}
+                            {/* Staff edit + print buttons */}
                             {isStaff && (
-                                <Link href={`/dashboard/assignments/${id}/edit`}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-none transition-colors">
-                                    <PencilIcon className="w-3.5 h-3.5" /> Edit
-                                </Link>
+                                <>
+                                    <button
+                                        onClick={handlePrintAssignment}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-xs font-bold rounded-none transition-colors border border-orange-500/20">
+                                        <PrinterIcon className="w-3.5 h-3.5" /> Print
+                                    </button>
+                                    <Link href={`/dashboard/assignments/${id}/edit`}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-none transition-colors">
+                                        <PencilIcon className="w-3.5 h-3.5" /> Edit
+                                    </Link>
+                                </>
                             )}
                         </div>
                         {!isStaff && submission?.status && (
@@ -616,6 +852,47 @@ export default function AssignmentDetailPage() {
                     </div>
                 )}
 
+                {/* Project Deliverables & Rubric */}
+                {assignment.assignment_type === 'project' && assignment.metadata && (
+                    <div className="space-y-4">
+                        {Array.isArray(assignment.metadata.deliverables) && assignment.metadata.deliverables.length > 0 && (
+                            <div className="bg-blue-500/5 border border-blue-500/20 rounded-none p-6">
+                                <h2 className="font-bold text-blue-400 mb-3 flex items-center gap-2 text-sm uppercase tracking-widest">
+                                    <ClipboardDocumentListIcon className="w-4 h-4" /> Project Deliverables
+                                </h2>
+                                <ul className="space-y-2">
+                                    {assignment.metadata.deliverables.map((d: string, i: number) => (
+                                        <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                                            <span className="text-blue-400 font-bold flex-shrink-0 mt-0.5">{i + 1}.</span>
+                                            <span>{d}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {Array.isArray(assignment.metadata.rubric) && assignment.metadata.rubric.length > 0 && (
+                            <div className="border border-border rounded-none overflow-hidden">
+                                <div className="px-5 py-3 border-b border-border bg-muted/20">
+                                    <h2 className="font-bold text-foreground text-sm uppercase tracking-widest flex items-center gap-2">
+                                        <StarIcon className="w-4 h-4 text-amber-400" /> Grading Rubric
+                                    </h2>
+                                </div>
+                                <div className="divide-y divide-border">
+                                    {assignment.metadata.rubric.map((r: any, i: number) => (
+                                        <div key={i} className="px-5 py-3 flex items-start justify-between gap-4">
+                                            <div className="flex-1">
+                                                <p className="text-sm font-bold text-foreground">{r.criterion}</p>
+                                                {r.description && <p className="text-xs text-muted-foreground mt-0.5">{r.description}</p>}
+                                            </div>
+                                            <span className="text-sm font-black text-amber-400 flex-shrink-0">{r.maxPoints} pts</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Teacher Feedback (student view) */}
                 {!isStaff && submission?.feedback && (
                     <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-none p-6">
@@ -642,10 +919,34 @@ export default function AssignmentDetailPage() {
                         )}
 
                         {submission?.status === 'graded' || submission?.status === 'submitted' ? (
-                            <div className="text-center py-6 text-muted-foreground text-sm">
-                                {submission.status === 'graded'
-                                    ? 'This assignment has been graded. No further submissions accepted.'
-                                    : 'Your assignment has been submitted and is pending review. You cannot resubmit.'}
+                            <div className="space-y-4">
+                                {/* Show submitted photo if still available (deleted after grading) */}
+                                {submission.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(submission.file_url) && (
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Your Submitted Photo</p>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={submission.file_url}
+                                            alt="Your submission"
+                                            className="w-full max-h-72 object-contain bg-black/20 border border-border rounded-none cursor-pointer"
+                                            onClick={() => window.open(submission.file_url, '_blank')}
+                                        />
+                                        {submission.status === 'submitted' && (
+                                            <p className="text-[10px] text-muted-foreground italic">Photo will be removed after grading.</p>
+                                        )}
+                                    </div>
+                                )}
+                                {submission.file_url && !/\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(submission.file_url) && (
+                                    <a href={submission.file_url} target="_blank" rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 font-semibold">
+                                        <PaperClipIcon className="w-4 h-4" /> View submitted file
+                                    </a>
+                                )}
+                                <div className="text-center py-4 text-muted-foreground text-sm border border-border rounded-none bg-muted/10">
+                                    {submission.status === 'graded'
+                                        ? 'This assignment has been graded. No further submissions accepted.'
+                                        : 'Your assignment has been submitted and is pending review. You cannot resubmit.'}
+                                </div>
                             </div>
                         ) : (
                             <form onSubmit={handleSubmit} className="space-y-6">
@@ -687,10 +988,19 @@ export default function AssignmentDetailPage() {
                                                 )}
 
                                                 {q.question_type === 'coding_blocks' && (
-                                                    <CodingBlocksChallenge 
-                                                        question={q} 
-                                                        value={answers[i] || ''} 
-                                                        onChange={(val) => setAnswers({ ...answers, [i]: val })} 
+                                                    <CodingBlocksChallenge
+                                                        question={q}
+                                                        value={answers[i] || ''}
+                                                        onChange={(val) => setAnswers({ ...answers, [i]: val })}
+                                                    />
+                                                )}
+
+                                                {q.question_type === 'block_sequence' && (
+                                                    <BlockSequencer
+                                                        blocks={q.metadata?.blocks ?? []}
+                                                        value={answers[i] || ''}
+                                                        onChange={(val) => setAnswers({ ...answers, [i]: val })}
+                                                        readOnly={!!submission}
                                                     />
                                                 )}
                                             </div>
@@ -745,23 +1055,56 @@ export default function AssignmentDetailPage() {
                                         Attach a File <span className="normal-case font-normal text-muted-foreground">(optional — PDF, image, doc · max 10 MB)</span>
                                     </label>
                                     {fileUrl ? (
-                                        <div className="flex items-center gap-3 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-none">
-                                            <PaperClipIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                                            <a href={fileUrl} target="_blank" rel="noopener noreferrer"
-                                                className="text-sm text-emerald-400 hover:text-emerald-300 truncate flex-1">{attachedFile?.name}</a>
-                                            <button type="button" onClick={() => { setAttachedFile(null); setFileUrl(null); }}
-                                                className="text-muted-foreground hover:text-foreground text-xs font-bold ml-auto flex-shrink-0">Remove</button>
+                                        <div className="space-y-2">
+                                            {/* Inline image preview */}
+                                            {attachedFile && attachedFile.type.startsWith('image/') ? (
+                                                <div className="relative">
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={fileUrl} alt="Uploaded photo" className="w-full max-h-64 object-contain bg-black/20 border border-border rounded-none" />
+                                                    <button type="button" onClick={() => { setAttachedFile(null); setFileUrl(null); }}
+                                                        className="absolute top-2 right-2 px-2 py-1 bg-rose-500/80 hover:bg-rose-500 text-white text-[10px] font-black uppercase rounded-none transition-colors">
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-3 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-none">
+                                                    <PaperClipIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                                                    <a href={fileUrl} target="_blank" rel="noopener noreferrer"
+                                                        className="text-sm text-emerald-400 hover:text-emerald-300 truncate flex-1">{attachedFile?.name}</a>
+                                                    <button type="button" onClick={() => { setAttachedFile(null); setFileUrl(null); }}
+                                                        className="text-muted-foreground hover:text-foreground text-xs font-bold ml-auto flex-shrink-0">Remove</button>
+                                                </div>
+                                            )}
                                         </div>
                                     ) : (
-                                        <label className={`flex items-center gap-3 px-4 py-3 border-2 border-dashed rounded-none cursor-pointer transition-all ${uploadingFile ? 'border-amber-500/30 bg-amber-500/5' : 'border-border hover:border-amber-500/40 hover:bg-amber-500/5'}`}>
-                                            {uploadingFile
-                                                ? <><div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" /><span className="text-sm text-amber-400">Uploading…</span></>
-                                                : <><PaperClipIcon className="w-4 h-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">Click to attach a file…</span></>
-                                            }
-                                            <input type="file" className="hidden"
-                                                accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif,.zip"
-                                                onChange={e => handleFileChange(e.target.files?.[0] ?? null)} />
-                                        </label>
+                                        <div className="space-y-2">
+                                            {/* Camera capture (mobile) + file picker */}
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <label className={`flex flex-col items-center justify-center gap-2 px-4 py-4 border-2 border-dashed rounded-none cursor-pointer transition-all text-center ${uploadingFile ? 'border-amber-500/30 bg-amber-500/5' : 'border-border hover:border-amber-500/40 hover:bg-amber-500/5'}`}>
+                                                    <span className="text-2xl">📷</span>
+                                                    <span className="text-xs font-bold text-muted-foreground">Take Photo</span>
+                                                    <span className="text-[10px] text-muted-foreground">Camera</span>
+                                                    <input type="file" className="hidden"
+                                                        accept="image/*"
+                                                        capture="environment"
+                                                        onChange={e => handleFileChange(e.target.files?.[0] ?? null)} />
+                                                </label>
+                                                <label className={`flex flex-col items-center justify-center gap-2 px-4 py-4 border-2 border-dashed rounded-none cursor-pointer transition-all text-center ${uploadingFile ? 'border-amber-500/30 bg-amber-500/5' : 'border-border hover:border-amber-500/40 hover:bg-amber-500/5'}`}>
+                                                    <span className="text-2xl">📎</span>
+                                                    <span className="text-xs font-bold text-muted-foreground">Upload File</span>
+                                                    <span className="text-[10px] text-muted-foreground">PDF, image, doc</span>
+                                                    <input type="file" className="hidden"
+                                                        accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif,.zip"
+                                                        onChange={e => handleFileChange(e.target.files?.[0] ?? null)} />
+                                                </label>
+                                            </div>
+                                            {uploadingFile && (
+                                                <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-none">
+                                                    <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                                                    <span className="text-sm text-amber-400">Uploading…</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                     {fileError && <p className="text-xs text-rose-400 mt-1.5">{fileError}</p>}
                                 </div>
@@ -791,27 +1134,36 @@ export default function AssignmentDetailPage() {
                         </div>
                         <div className="divide-y divide-white/5">
                             {allSubs.map((s: any) => (
-                                <div key={s.id} className="flex items-center gap-4 p-4 hover:bg-card shadow-sm transition-colors">
+                                <div key={s.id} className="flex items-center gap-3 p-3 sm:p-4 hover:bg-card transition-colors flex-wrap sm:flex-nowrap">
                                     {/* Avatar + name */}
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
                                         {(s.portal_users?.full_name ?? '?')[0]}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-semibold text-foreground truncate">{s.portal_users?.full_name ?? 'Student'}</p>
-                                        <div className="flex items-center gap-2 mt-0.5">
+                                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                             <Badge status={s.status} />
                                             {s.submitted_at && (
-                                                <p className="text-xs text-muted-foreground">
-                                                    Submitted {new Date(s.submitted_at).toLocaleString()}
+                                                <p className="text-xs text-muted-foreground hidden sm:block">
+                                                    {new Date(s.submitted_at).toLocaleString()}
                                                 </p>
                                             )}
                                         </div>
                                     </div>
+                                    {/* Photo thumbnail */}
+                                    {s.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(s.file_url) && (
+                                        <button type="button" onClick={() => setGrading(s)}
+                                            className="flex-shrink-0 w-10 h-10 overflow-hidden border border-border rounded-none hover:border-amber-500/40 transition-colors"
+                                            title="View photo submission">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={s.file_url} alt="" className="w-full h-full object-cover" />
+                                        </button>
+                                    )}
                                     {s.grade != null && (
-                                        <span className="text-emerald-400 font-bold text-sm flex-shrink-0">{s.grade}/{assignment.max_points} pts</span>
+                                        <span className="text-emerald-400 font-bold text-sm flex-shrink-0">{s.grade}/{assignment.max_points}</span>
                                     )}
                                     <button onClick={() => setGrading(s)}
-                                        className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 text-xs font-bold rounded-none transition-colors flex-shrink-0">
+                                        className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 text-xs font-bold rounded-none transition-colors flex-shrink-0 ml-auto sm:ml-0">
                                         {s.status === 'graded' ? 'Re-grade' : 'Grade'}
                                     </button>
                                 </div>
