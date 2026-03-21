@@ -1,4 +1,7 @@
-import sharp from 'sharp';
+// sharp is a native binary — not available on Cloudflare Workers edge runtime.
+// Dynamic import with fallback so the module loads safely in all environments.
+let sharp: any = null;
+try { sharp = require('sharp'); } catch { /* not available on edge */ }
 import { createClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
 import { AppError } from '@/lib/errors';
@@ -14,6 +17,7 @@ export class MediaService {
             return null;
         }
 
+        if (!sharp) return null;
         try {
             const thumbnailBuffer = await sharp(buffer)
                 .resize({ width: 400, height: 400, fit: 'inside' })

@@ -25,6 +25,8 @@ const nextConfig: NextConfig = {
     optimizePackageImports: [
       '@supabase/supabase-js',
     ],
+    // Exclude native binaries that don't run on Cloudflare Workers edge runtime
+    serverExternalPackages: ['sharp'],
   },
 
   // ── Image optimisation ─────────────────────────────────────────
