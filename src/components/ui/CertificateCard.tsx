@@ -160,8 +160,9 @@ export function CertificateCard({ cert }: CertificateProps) {
 
                         {/* Center badge */}
                         <div className="flex flex-col items-center gap-1">
-                            <CheckBadgeIcon className={`${template === 'academic' ? 'text-[#1e293b]' : 'text-primary'}`}
-                                style={{ width: 'clamp(28px, 8%, 48px)', height: 'clamp(28px, 8%, 48px)' }} />
+                            <div style={{ width: 'clamp(28px, 8%, 48px)', height: 'clamp(28px, 8%, 48px)' }}>
+                                <CheckBadgeIcon className={`w-full h-full ${template === 'academic' ? 'text-[#1e293b]' : 'text-primary'}`} />
+                            </div>
                             <div className={`font-black uppercase text-center ${template === 'academic' ? 'text-slate-700' : 'text-slate-400'}`}
                                 style={{ fontSize: 'clamp(5px, 0.85%, 7px)', letterSpacing: '0.15em' }}>
                                 VERIFIED CREDENTIAL
@@ -171,8 +172,9 @@ export function CertificateCard({ cert }: CertificateProps) {
                         {/* QR + cert number */}
                         <div className="flex flex-col items-center gap-1">
                             <div className={`p-1 border ${template === 'academic' ? 'border-slate-900 bg-white' : 'border-primary/30 bg-primary/5'}`}>
-                                <QrCodeIcon className={`${template === 'academic' ? 'text-black' : 'text-primary'}`}
-                                    style={{ width: 'clamp(28px, 7%, 44px)', height: 'clamp(28px, 7%, 44px)' }} />
+                                <div style={{ width: 'clamp(28px, 7%, 44px)', height: 'clamp(28px, 7%, 44px)' }}>
+                                    <QrCodeIcon className={`w-full h-full ${template === 'academic' ? 'text-black' : 'text-primary'}`} />
+                                </div>
                             </div>
                             <div className={`font-mono font-black text-center break-all ${template === 'academic' ? 'text-black' : 'text-white'}`}
                                 style={{ fontSize: 'clamp(5px, 0.75%, 7px)' }}>
