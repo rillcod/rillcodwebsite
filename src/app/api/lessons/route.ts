@@ -40,8 +40,11 @@ export async function GET(request: NextRequest) {
 
     if (caller.role === 'teacher') {
       query = query.eq('created_by', caller.id) as any;
+    } else if (caller.role === 'school' && caller.school_id) {
+      // School role: scope to their school's lessons only
+      query = query.eq('school_id', caller.school_id) as any;
     }
-    // admin/school: no filter — all lessons visible
+    // admin: no filter — all lessons visible
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

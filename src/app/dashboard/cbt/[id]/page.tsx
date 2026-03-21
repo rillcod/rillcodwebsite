@@ -37,27 +37,43 @@ export default function ExamDetailPage() {
     const id = params?.id as string;
     if (!id) return;
 
-    let sessionsPromise;
     if (isStaff) {
-      let q = db.from('cbt_sessions').select('*, portal_users!cbt_sessions_user_id_fkey(full_name, email, school_id)').eq('exam_id', id).order('created_at', { ascending: false });
-      if (role === 'school' && profile.school_id) {
-        q = q.eq('portal_users.school_id', profile.school_id);
-      }
-      sessionsPromise = q;
+      // Fetch sessions without the portal_users join (RLS blocks it from the browser client)
+      // Then enrich with student names from the API
+      Promise.all([
+        db.from('cbt_exams').select('*, programs(name)').eq('id', id).single(),
+        db.from('cbt_questions').select('*').eq('exam_id', id).order('order_index'),
+        db.from('cbt_sessions').select('*').eq('exam_id', id).order('created_at', { ascending: false }),
+        fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
+      ]).then(([examRes, qRes, sesRes, usersJson]) => {
+        const umap: Record<string, any> = {};
+        (usersJson.data ?? []).forEach((u: any) => { umap[u.id] = u; });
+        let rawSessions: any[] = sesRes.data ?? [];
+        // Filter by school if school role
+        if (role === 'school' && profile.school_id) {
+          rawSessions = rawSessions.filter((s: any) => umap[s.user_id]?.school_id === profile.school_id);
+        }
+        const enriched = rawSessions.map((s: any) => ({
+          ...s,
+          portal_users: umap[s.user_id] ?? null,
+        }));
+        setExam(examRes.data);
+        setQuestions(qRes.data ?? []);
+        setSessions(enriched);
+        setLoading(false);
+      });
     } else {
-      sessionsPromise = db.from('cbt_sessions').select('*').eq('exam_id', id).eq('user_id', profile.id);
+      Promise.all([
+        db.from('cbt_exams').select('*, programs(name)').eq('id', id).single(),
+        db.from('cbt_questions').select('*').eq('exam_id', id).order('order_index'),
+        db.from('cbt_sessions').select('*').eq('exam_id', id).eq('user_id', profile.id),
+      ]).then(([examRes, qRes, sesRes]) => {
+        setExam(examRes.data);
+        setQuestions(qRes.data ?? []);
+        setSessions(sesRes.data ?? []);
+        setLoading(false);
+      });
     }
-
-    Promise.all([
-      db.from('cbt_exams').select('*, programs(name)').eq('id', id).single(),
-      db.from('cbt_questions').select('*').eq('exam_id', id).order('order_index'),
-      sessionsPromise,
-    ]).then(([examRes, qRes, sesRes]) => {
-      setExam(examRes.data);
-      setQuestions(qRes.data ?? []);
-      setSessions(sesRes.data ?? []);
-      setLoading(false);
-    });
   }, [profile?.id, params?.id, authLoading]); // eslint-disable-line
 
   if (authLoading || loading) return (

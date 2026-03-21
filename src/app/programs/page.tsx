@@ -1,365 +1,123 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Monitor, Cat, Globe, Palette, Bot, ArrowRight, Clock, Users, Star, Search, Filter, BookOpen, Code, Zap, Target, CheckCircle, TrendingUp, Award, MapPin, Heart, Sparkles, GraduationCap, Lightbulb, Building2, Rocket, Crown, Shield, Brain, Eye, HandHeart, Globe2, Smartphone, Laptop, Gamepad2, Camera, Music, Video, FileText, BarChart3, Cpu, Database, Cloud, Wifi, Tablet, Watch, Headphones, Speaker, Printer, Keyboard, Mouse, HardDrive, Usb, Battery, Power, Settings, Lock, Unlock, Key, User, Users2, UserCheck, UserX, UserPlus, UserMinus, UserCog, UserSearch, UserCheck2, Calendar, Sun, ChevronDown } from "lucide-react";
+import {
+  ArrowRight, Clock, Users, Search, Filter, BookOpen,
+  GraduationCap, MapPin, Sun, Calendar, ChevronDown, TrendingUp,
+} from "lucide-react";
 import SummerSchoolPopup from "@/components/SummerSchoolPopup";
 
-const programs = [
-  {
-    id: 'ict-fundamentals',
-    icon: <Monitor className="w-12 h-12 text-blue-600" />,
-    title: "ICT Fundamentals",
-    description: "Master the digital world! Learn computer basics, internet safety, and digital citizenship for the modern age.",
-    color: "from-blue-400 to-blue-600",
-    duration: "8 weeks",
-    level: "Beginner",
-    students: "10-15 students",
-    features: ["Computer basics", "File management", "Internet safety", "Digital citizenship"],
-    price: "₦35,000",
-    category: "Foundation",
-    ageRange: "Basic 1 – Basic 3",
-    skills: ["Digital Literacy", "Computer Basics", "Internet Safety", "File Management"],
-    projects: ["Digital Story", "Safe Internet Poster", "File Organization", "Basic Presentations"],
-    nigerianContext: "Essential for Nigeria's digital transformation",
-    successStory: "Amina from Lagos now helps her family with online banking",
-    careerPath: "Digital Assistant, IT Support, Data Entry Specialist"
-  },
-  {
-    id: 'scratch-programming',
-    icon: <Cat className="w-12 h-12 text-orange-600" />,
-    title: "Scratch Programming",
-    description: "Create amazing animations and games! Build interactive stories and games that showcase Nigerian culture.",
-    color: "from-orange-400 to-orange-600",
-    duration: "10 weeks",
-    level: "Beginner",
-    students: "8-12 students",
-    features: ["Block-based coding", "Game development", "Animation creation", "Storytelling"],
-    price: "₦45,000",
-    category: "Programming",
-    ageRange: "Basic 2 – Basic 5",
-    skills: ["Visual Programming", "Game Design", "Animation", "Creative Thinking"],
-    projects: ["Animated Story", "Simple Game", "Interactive Art", "Music Player"],
-    nigerianContext: "Perfect for telling Nigerian stories through code",
-    successStory: "Chinedu created a game about Nigerian festivals",
-    careerPath: "Game Developer, Animator, Creative Technologist"
-  },
-  {
-    id: 'web-development',
-    icon: <Globe className="w-12 h-12 text-purple-600" />,
-    title: "HTML/CSS Programming",
-    description: "Build beautiful websites! Create responsive web pages that work on all devices and showcase Nigerian businesses.",
-    color: "from-purple-400 to-purple-600",
-    duration: "12 weeks",
-    level: "Intermediate",
-    students: "8-12 students",
-    features: ["HTML structure", "CSS styling", "Responsive design", "Web publishing"],
-    price: "₦55,000",
-    category: "Web Development",
-    ageRange: "Basic 5 – JSS2",
-    skills: ["HTML", "CSS", "Web Design", "Responsive Layout"],
-    projects: ["Personal Website", "School Blog", "Portfolio Page", "Interactive Form"],
-    nigerianContext: "Help Nigerian businesses go digital",
-    successStory: "Fatima built websites for local market vendors",
-    careerPath: "Web Developer, Frontend Developer, UI Designer"
-  },
-  {
-    id: 'python-programming',
-    icon: <span className="text-3xl">🐍</span>,
-    title: "Python Programming",
-    description: "Code like a pro! Learn Python programming to solve real-world problems and create innovative solutions.",
-    color: "from-green-400 to-green-600",
-    duration: "16 weeks",
-    level: "Intermediate",
-    students: "6-10 students",
-    features: ["Python syntax", "Data types", "Functions", "Simple projects"],
-    price: "₦65,000",
-    category: "Programming",
-    ageRange: "JSS1 – SS1",
-    skills: ["Python", "Problem Solving", "Data Types", "Functions"],
-    projects: ["Calculator App", "Number Guessing Game", "Simple Chatbot", "Data Analysis"],
-    nigerianContext: "Solve local problems with global technology",
-    successStory: "Oluwaseun developed a farm management app",
-    careerPath: "Software Developer, Data Analyst, AI Engineer"
-  },
-  {
-    id: 'web-design',
-    icon: <Palette className="w-12 h-12 text-pink-600" />,
-    title: "Web Design",
-    description: "Design stunning websites! Create beautiful, user-friendly interfaces that represent Nigerian excellence.",
-    color: "from-pink-400 to-pink-600",
-    duration: "14 weeks",
-    level: "Intermediate",
-    students: "8-12 students",
-    features: ["UI/UX principles", "Color theory", "Typography", "Design tools"],
-    price: "₦55,000",
-    category: "Design",
-    ageRange: "JSS2 – SS2",
-    skills: ["UI/UX Design", "Color Theory", "Typography", "Design Tools"],
-    projects: ["Website Mockup", "Mobile App Design", "Brand Identity", "User Interface"],
-    nigerianContext: "Showcase Nigerian creativity and innovation",
-    successStory: "Chioma designed apps for Nigerian startups",
-    careerPath: "UI/UX Designer, Graphic Designer, Product Designer"
-  },
-  {
-    id: 'robotics',
-    icon: <Bot className="w-12 h-12 text-cyan-600" />,
-    title: "Robotics Programming",
-    description: "Build the future! Create robots that solve real problems and contribute to Nigeria's technological advancement.",
-    color: "from-cyan-400 to-cyan-600",
-    duration: "20 weeks",
-    level: "Advanced",
-    students: "6-8 students",
-    features: ["Hardware basics", "Circuit design", "Programming robots", "Problem solving"],
-    price: "₦80,000",
-    category: "Robotics",
-    ageRange: "JSS2 – SS3",
-    skills: ["Robotics", "Circuit Design", "Hardware Programming", "Problem Solving"],
-    projects: ["Line Following Robot", "Smart Home Device", "Automated System", "Sensor Integration"],
-    nigerianContext: "Drive innovation in Nigerian industries",
-    successStory: "Emeka built a smart irrigation system for his village",
-    careerPath: "Robotics Engineer, IoT Developer, Systems Engineer"
-  },
-  {
-    id: 'digital-entrepreneurship',
-    icon: <TrendingUp className="w-12 h-12 text-emerald-600" />,
-    title: "Digital Entrepreneurship",
-    description: "Think like a founder! Learn to identify business opportunities, build digital products, and pitch your ideas to the world.",
-    color: "from-emerald-400 to-emerald-600",
-    duration: "12 weeks",
-    level: "Intermediate",
-    students: "6-10 students",
-    features: ["Business planning", "Digital marketing", "Product development", "Pitching skills"],
-    price: "₦60,000",
-    category: "Entrepreneurship",
-    ageRange: "JSS1 – SS3",
-    skills: ["Business Thinking", "Digital Marketing", "Product Design", "Financial Literacy"],
-    projects: ["Business Plan", "Digital Product Prototype", "Marketing Campaign", "Investor Pitch Deck"],
-    nigerianContext: "Empowering the next generation of Nigerian tech founders and innovators",
-    successStory: "Students have launched digital businesses serving their local communities",
-    careerPath: "Tech Entrepreneur, Product Manager, Digital Marketer, Business Founder"
-  },
-  {
-    id: 'learn-from-home',
-    icon: <span className="text-3xl">🏠</span>,
-    title: "Learn from Home",
-    description: "Virtual learning excellence! Join interactive online sessions from anywhere in Nigeria with personalized attention.",
-    color: "from-indigo-400 to-indigo-600",
-    duration: "Flexible",
-    level: "All Levels",
-    students: "4-8 students",
-    features: ["Live online sessions", "Interactive learning", "Real-time feedback", "Flexible scheduling"],
-    price: "₦40,000",
-    category: "Virtual Learning",
-    ageRange: "Basic 1 – SS3",
-    skills: ["Online Learning", "Virtual Collaboration", "Digital Communication", "Self-Discipline"],
-    projects: ["Virtual Portfolio", "Online Presentation", "Digital Collaboration", "Remote Project"],
-    nigerianContext: "Access quality education from anywhere in Nigeria",
-    successStory: "Students from rural areas now access world-class tech education",
-    careerPath: "Remote Developer, Digital Nomad, Online Educator"
-  },
-  {
-    id: 'birthday-parties',
-    icon: <span className="text-3xl">🎉</span>,
-    title: "Birthday Parties",
-    description: "Celebrate with code! Make birthdays memorable with fun coding activities and creative tech projects.",
-    color: "from-yellow-400 to-yellow-600",
-    duration: "2-3 hours",
-    level: "Beginner",
-    students: "8-15 students",
-    features: ["Fun coding activities", "Birthday-themed projects", "Take-home creations", "Party decorations"],
-    price: "₦45,000",
-    category: "Special Events",
-    ageRange: "Basic 1 – JSS3",
-    skills: ["Creative Coding", "Party Planning", "Collaboration", "Celebration"],
-    projects: ["Birthday Game", "Animated Card", "Party Invitation", "Digital Gift"],
-    nigerianContext: "Combine Nigerian celebration culture with technology",
-    successStory: "Families create lasting memories while learning tech",
-    careerPath: "Event Planner, Creative Director, Entertainment Tech"
-  },
-  {
-    id: 'after-school',
-    icon: <span className="text-3xl">🌅</span>,
-    title: "After School Programs",
-    description: "Extended learning excellence! Deep dive into advanced projects and prepare for future tech careers.",
-    color: "from-red-400 to-red-600",
-    duration: "12 weeks",
-    level: "All Levels",
-    students: "6-12 students",
-    features: ["Extended learning time", "Advanced projects", "Homework support", "Skill development"],
-    price: "₦55,000",
-    category: "Extended Learning",
-    ageRange: "Basic 4 – SS3",
-    skills: ["Advanced Programming", "Project Management", "Time Management", "Independent Learning"],
-    projects: ["Complex Applications", "Portfolio Development", "Team Projects", "Innovation Challenge"],
-    nigerianContext: "Prepare Nigerian youth for global tech opportunities",
-    successStory: "Students have won international coding competitions",
-    careerPath: "Tech Entrepreneur, Software Architect, Innovation Leader"
-  },
-  {
-    id: 'summer-school',
-    icon: <Sun className="w-12 h-12 text-yellow-600" />,
-    title: "Summer School 2026",
-    description: "Intensive summer program for students to accelerate their tech skills",
-    color: "from-yellow-400 to-orange-500",
-    duration: "4-6 weeks",
-    level: "All Levels",
-    students: "8-15 students",
-    features: [
-      "Intensive coding bootcamp",
-      "Project-based learning",
-      "Portfolio development",
-      "Career guidance",
-      "Certificate of completion"
-    ],
-    price: "₦65,000 - ₦85,000",
-    category: "Summer Programs",
-    ageRange: "JSS1 – SS3",
-    skills: ["Advanced Programming", "Project Development", "Career Preparation", "Intensive Learning"],
-    projects: ["Portfolio Development", "Real-world Applications", "Team Projects", "Innovation Challenge"],
-    nigerianContext: "Prepare Nigerian students for academic excellence and future tech careers",
-    successStory: "Students gain competitive advantage for JSS3 and beyond",
-    careerPath: "Tech Leader, Academic Excellence, Future Innovator",
-    schedule: "June - August 2026",
-    mode: "Online & Onsite",
-    badge: "New",
-    badgeColor: "bg-gradient-to-r from-yellow-400 to-orange-500",
-    image: "https://res.cloudinary.com/dpigtwit0/image/upload/v1747032682/PhotoRoom-20250512_074926_zgudyt.png"
-  }
-];
-
-const categories = [
-  { name: "All", icon: <BookOpen className="w-4 h-4" /> },
-  { name: "Foundation", icon: <Target className="w-4 h-4" /> },
-  { name: "Programming", icon: <Code className="w-4 h-4" /> },
-  { name: "Web Development", icon: <Globe className="w-4 h-4" /> },
-  { name: "Design", icon: <Palette className="w-4 h-4" /> },
-  { name: "Robotics", icon: <Bot className="w-4 h-4" /> },
-  { name: "Entrepreneurship", icon: <TrendingUp className="w-4 h-4" /> },
-  { name: "Virtual Learning", icon: <span className="text-lg">🏠</span> },
-  { name: "Special Events", icon: <span className="text-lg">🎉</span> },
-  { name: "Extended Learning", icon: <span className="text-lg">🌅</span> },
-  { name: "Summer Programs", icon: <Sun className="w-4 h-4" /> }
-];
-
-const levels = [
-  { name: "All Levels", value: "all" },
-  { name: "Beginner", value: "Beginner" },
-  { name: "Intermediate", value: "Intermediate" },
-  { name: "Advanced", value: "Advanced" }
-];
+const LEVEL_MAP: Record<string, { label: string; color: string; bar: string }> = {
+  beginner:     { label: "Beginner",     color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", bar: "from-emerald-400 to-emerald-600" },
+  intermediate: { label: "Intermediate", color: "bg-amber-500/20 text-amber-400 border-amber-500/30",   bar: "from-amber-400 to-amber-600" },
+  advanced:     { label: "Advanced",     color: "bg-rose-500/20 text-rose-400 border-rose-500/30",       bar: "from-rose-400 to-rose-600" },
+};
 
 const nigerianStats = [
-  { number: "500+", label: "Students Trained", icon: <GraduationCap className="w-6 h-6" /> },
-  { number: "50+", label: "Schools Partnered", icon: <Building2 className="w-6 h-6" /> },
-  { number: "15+", label: "States Covered", icon: <MapPin className="w-6 h-6" /> },
-  { number: "95%", label: "Success Rate", icon: <TrendingUp className="w-6 h-6" /> }
+  { number: "500+", label: "Students Trained",  icon: <GraduationCap className="w-6 h-6" /> },
+  { number: "50+",  label: "Schools Partnered", icon: <MapPin className="w-6 h-6" /> },
+  { number: "15+",  label: "States Covered",    icon: <MapPin className="w-6 h-6" /> },
+  { number: "95%",  label: "Success Rate",      icon: <TrendingUp className="w-6 h-6" /> },
 ];
 
 const successStories = [
-  {
-    name: "Amina Hassan",
-    location: "Lagos",
-    story: "From computer basics to building websites for local businesses",
-    achievement: "Now runs her own web design business",
-    image: "👩‍💻"
-  },
-  {
-    name: "Chinedu Okonkwo",
-    location: "Enugu",
-    story: "Created educational games about Nigerian culture",
-    achievement: "Won national coding competition",
-    image: "👨‍💻"
-  },
-  {
-    name: "Fatima Yusuf",
-    location: "Kano",
-    story: "Developed apps to help market vendors go digital",
-    achievement: "Featured in local tech magazines",
-    image: "👩‍🎨"
-  }
+  { name: "Amina Hassan",     location: "Lagos",  story: "From computer basics to building websites for local businesses", achievement: "Now runs her own web design business", image: "👩‍💻" },
+  { name: "Chinedu Okonkwo",  location: "Enugu",  story: "Created educational games about Nigerian culture",               achievement: "Won national coding competition",         image: "👨‍💻" },
+  { name: "Fatima Yusuf",     location: "Kano",   story: "Developed apps to help market vendors go digital",               achievement: "Featured in local tech magazines",        image: "👩‍🎨" },
+];
+
+const levels = [
+  { name: "All Levels",   value: "all" },
+  { name: "Beginner",     value: "beginner" },
+  { name: "Intermediate", value: "intermediate" },
+  { name: "Advanced",     value: "advanced" },
 ];
 
 export default function Programs() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedLevel, setSelectedLevel] = useState("all");
-  const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
+  const [programs, setPrograms]               = useState<any[]>([]);
+  const [loading, setLoading]                 = useState(true);
+  const [searchTerm, setSearchTerm]           = useState("");
+  const [selectedLevel, setSelectedLevel]     = useState("all");
+  const [expandedId, setExpandedId]           = useState<string | null>(null);
   const [showSummerSchoolPopup, setShowSummerSchoolPopup] = useState(false);
 
-  const filteredPrograms = programs.filter(program => {
-    const matchesSearch = program.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      program.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      program.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCategory = selectedCategory === "All" || program.category === selectedCategory;
-    const matchesLevel = selectedLevel === "all" || program.level === selectedLevel;
-    return matchesSearch && matchesCategory && matchesLevel;
+  useEffect(() => {
+    fetch("/api/programs?is_active=true", { cache: "no-store" })
+      .then(r => r.json())
+      .then(json => setPrograms(json.data ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = programs.filter(p => {
+    const matchSearch =
+      (p.name ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.description ?? "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchLevel = selectedLevel === "all" || p.difficulty_level === selectedLevel;
+    return matchSearch && matchLevel;
   });
 
-  const toggleProgramDetails = (programId: string) => {
-    setSelectedProgram(selectedProgram === programId ? null : programId);
-  };
+  const toggle = (id: string) => setExpandedId(expandedId === id ? null : id);
 
   return (
     <div className="min-h-screen bg-background font-sans">
-      {/* Animated Background Elements */}
+      {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-orange-500/10 to-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-orange-500/5 to-blue-500/5 rounded-full blur-3xl animate-pulse delay-500"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-orange-500/10 to-purple-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {/* Hero Section */}
+
+        {/* Hero */}
         <div className="text-center py-16 bg-card border border-border rounded-none shadow-lg mb-16 px-4">
           <div className="flex justify-center mb-6">
             <div className="w-16 h-16 sm:w-20 sm:h-20 bg-background border border-border rounded-none flex items-center justify-center shadow-sm">
               <BookOpen className="w-8 h-8 sm:w-10 sm:h-10 text-orange-500" />
             </div>
           </div>
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-foreground mb-6 uppercase tracking-tight">Our Learning Programs</h1>
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-foreground mb-6 uppercase tracking-tight">
+            Our Learning Programs
+          </h1>
           <p className="text-sm sm:text-lg text-muted-foreground max-w-3xl mx-auto mb-8 font-medium italic">
-            Discover our comprehensive range of technology education programs for students from <strong>Basic 1 to SS3</strong> — covering coding, robotics, digital entrepreneurship, and more, designed to inspire and empower every young Nigerian mind.
+            Discover our comprehensive range of technology education programs for students from{" "}
+            <strong>kids to professionals</strong> — covering coding, robotics, AI, data science,
+            UI/UX, and more.
           </p>
-          <div className="w-20 h-1 bg-orange-500 mx-auto rounded-none"></div>
+          <div className="w-20 h-1 bg-orange-500 mx-auto rounded-none" />
         </div>
 
         {/* Summer School Banner */}
         <div className="bg-card border border-border rounded-none shadow-2xl border-t-4 border-t-yellow-500 p-8 mb-16 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-none -translate-y-32 translate-x-32 blur-3xl"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-none -translate-y-32 translate-x-32 blur-3xl" />
           <div className="relative z-10">
             <div className="flex flex-col lg:flex-row items-center justify-between">
               <div className="flex-1 text-foreground mb-6 lg:mb-0">
                 <div className="flex items-center space-x-2 mb-4">
                   <Sun className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
-                  <span className="text-xl sm:text-2xl font-black uppercase tracking-tight text-foreground">Summer School 2026</span>
+                  <span className="text-xl sm:text-2xl font-black uppercase tracking-tight">Summer School 2026</span>
                   <div className="bg-yellow-500/20 border border-yellow-500/20 px-3 py-1 rounded-none text-[10px] font-black uppercase tracking-widest text-yellow-500">
                     Limited Time
                   </div>
                 </div>
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-black mb-4 uppercase leading-tight text-foreground">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-black mb-4 uppercase leading-tight">
                   Accelerate Your Tech Journey This Summer!
                 </h2>
                 <p className="text-sm sm:text-base mb-6 text-muted-foreground font-medium italic">
-                  Intensive programs for JSS3 students starting <strong>June 15th, 2026</strong> and other classes from <strong>July 25th, 2026</strong>.
-                  Both online and onsite options available.
+                  Intensive programs for JSS3 students starting <strong>June 15th, 2026</strong> and other
+                  classes from <strong>July 25th, 2026</strong>. Both online and onsite options available.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
-                    <Calendar className="w-4 h-4 text-yellow-500" />
-                    <span>JSS3: June 15th 2026 - 6 weeks</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
-                    <Calendar className="w-4 h-4 text-yellow-500" />
-                    <span>Others: July 25th 2026 - 4 weeks</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
-                    <MapPin className="w-4 h-4 text-yellow-500" />
-                    <span>Online & Onsite available</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
-                    <Users className="w-4 h-4 text-yellow-500" />
-                    <span>Small class sizes (8-15 students)</span>
-                  </div>
+                  {[
+                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: "JSS3: June 15th 2026 - 6 weeks" },
+                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: "Others: July 25th 2026 - 4 weeks" },
+                    { icon: <MapPin className="w-4 h-4 text-yellow-500" />,   text: "Online & Onsite available" },
+                    { icon: <Users className="w-4 h-4 text-yellow-500" />,    text: "Small class sizes (8–15 students)" },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center space-x-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-muted-foreground">
+                      {item.icon}<span>{item.text}</span>
+                    </div>
+                  ))}
                 </div>
                 <button
                   onClick={() => setShowSummerSchoolPopup(true)}
@@ -379,14 +137,14 @@ export default function Programs() {
 
         {/* Nigerian Impact Stats */}
         <div className="bg-card border border-border rounded-none shadow-lg p-8 mb-16">
-          <h2 className="text-xl sm:text-2xl font-black text-center text-foreground mb-12 uppercase tracking-tight italic">Our Impact Across Nigeria</h2>
+          <h2 className="text-xl sm:text-2xl font-black text-center text-foreground mb-12 uppercase tracking-tight italic">
+            Our Impact Across Nigeria
+          </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
-            {nigerianStats.map((stat, index) => (
-              <div key={index} className="text-center group">
+            {nigerianStats.map((stat, i) => (
+              <div key={i} className="text-center group">
                 <div className="w-12 h-12 bg-background border border-border rounded-none flex items-center justify-center mx-auto mb-6 transition-all group-hover:border-orange-500 shadow-sm">
-                  <div className="text-muted-foreground group-hover:text-orange-500 transition-colors">
-                    {stat.icon}
-                  </div>
+                  <div className="text-muted-foreground group-hover:text-orange-500 transition-colors">{stat.icon}</div>
                 </div>
                 <div className="text-2xl sm:text-3xl font-black text-foreground mb-1 tracking-tighter italic">{stat.number}</div>
                 <div className="text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</div>
@@ -397,10 +155,12 @@ export default function Programs() {
 
         {/* Success Stories */}
         <div className="bg-card border border-border rounded-none shadow-lg p-8 mb-16">
-          <h2 className="text-xl sm:text-2xl font-black text-center text-foreground mb-12 uppercase tracking-tight italic">Success Stories</h2>
+          <h2 className="text-xl sm:text-2xl font-black text-center text-foreground mb-12 uppercase tracking-tight italic">
+            Success Stories
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {successStories.map((story, index) => (
-              <div key={index} className="bg-background rounded-none p-8 border border-border hover:border-orange-500 transition-all group shadow-sm">
+            {successStories.map((story, i) => (
+              <div key={i} className="bg-background rounded-none p-8 border border-border hover:border-orange-500 transition-all group shadow-sm">
                 <div className="text-4xl mb-6 grayscale group-hover:grayscale-0 transition-all">{story.image}</div>
                 <h3 className="text-lg font-black text-foreground mb-1 uppercase tracking-tight">{story.name}</h3>
                 <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-4">{story.location}</p>
@@ -413,169 +173,194 @@ export default function Programs() {
           </div>
         </div>
 
-        {/* Search and Filter */}
+        {/* Search & Filter */}
         <div className="bg-card border border-border rounded-none p-10 mb-16 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none" />
           <div className="flex flex-col lg:flex-row gap-8 items-center justify-between relative z-10">
             {/* Search */}
             <div className="flex-1 max-w-md w-full">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 italic">Filter Data Streams:</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 italic">Search Programs:</p>
               <div className="relative group">
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted-foreground/40 group-focus-within:text-orange-500 transition-colors w-4 h-4 z-10" />
                 <input
                   type="text"
-                  placeholder="SEARCH PROTOCOLS..."
+                  placeholder="SEARCH PROGRAMS..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-14 pr-6 py-5 bg-background border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-orange-500 transition-all font-bold shadow-inner"
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full pl-14 pr-6 py-5 bg-background border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground placeholder:text-muted-foreground/20 focus:outline-none focus:border-orange-500 transition-all shadow-inner"
                 />
               </div>
             </div>
-
-            {/* Category Filter */}
-            <div className="w-full lg:w-auto">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 italic">Categorical Sort:</p>
-              <div className="flex flex-wrap gap-3">
-                {categories.map((category) => (
-                  <button
-                    key={category.name}
-                    onClick={() => setSelectedCategory(category.name)}
-                    className={`flex items-center gap-3 px-6 py-4 rounded-none transition-all duration-200 text-[10px] font-black uppercase tracking-widest border ${selectedCategory === category.name
-                        ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-500/20'
-                        : 'bg-background border-border text-muted-foreground hover:border-orange-500/40 hover:text-foreground shadow-sm'
-                      }`}
-                  >
-                    {category.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {/* Sort */}
+            {/* Level Filter */}
             <div className="flex items-center gap-3 w-full lg:w-auto">
               <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
               <div className="relative w-full lg:w-48 group">
                 <select
                   value={selectedLevel}
-                  onChange={(e) => setSelectedLevel(e.target.value)}
+                  onChange={e => setSelectedLevel(e.target.value)}
                   className="w-full pl-6 pr-10 py-5 bg-background border border-border rounded-none text-[10px] font-black uppercase tracking-widest text-foreground focus:outline-none focus:border-orange-500 transition-all cursor-pointer appearance-none shadow-sm"
                 >
-                  {levels.map((level) => (
-                    <option key={level.value} value={level.value}>
-                      {level.name.toUpperCase()}
-                    </option>
+                  {levels.map(l => (
+                    <option key={l.value} value={l.value}>{l.name.toUpperCase()}</option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none group-focus-within:text-orange-500 transition-colors" />
+                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Programs Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 mb-16">
-          {filteredPrograms.map((program) => (
-            <div key={program.id} className="bg-card rounded-none shadow-lg border border-border overflow-hidden hover:shadow-xl transition-all group flex flex-col">
-              {/* Program Header */}
-              <div className={`p-8 bg-background border-b border-border relative overflow-hidden flex-shrink-0`}>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-none -translate-y-16 translate-x-16 rotate-45"></div>
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-8">
-                    <div className="w-12 h-12 bg-card border border-border rounded-none flex items-center justify-center p-2 shadow-sm group-hover:border-orange-500 transition-all">
-                      {program.icon}
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xl font-black text-foreground tracking-tighter italic">{program.price}</div>
-                      <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Base Rate</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xl font-black text-foreground uppercase tracking-tight">{program.title}</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground font-medium italic mb-6 line-clamp-2">{program.description}</p>
-                  <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5 text-orange-500" />
-                      <span>{program.duration}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="w-3.5 h-3.5 text-blue-500" />
-                      <span>{program.students}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 mb-16">
+            {[1,2,3,4,5,6].map(i => (
+              <div key={i} className="bg-card border border-border rounded-none h-80 animate-pulse" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-24 bg-card border border-border mb-16">
+            <BookOpen className="w-12 h-12 mx-auto text-muted-foreground/20 mb-4" />
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+              No programs match your search
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 mb-16">
+            {filtered.map(program => {
+              const lvl = LEVEL_MAP[program.difficulty_level] ?? LEVEL_MAP.beginner;
+              const courseCount = program.courses?.length ?? 0;
+              const activeCourses = (program.courses ?? []).filter((c: any) => c.is_active !== false);
+              const isExpanded = expandedId === program.id;
 
-              {/* Program Content */}
-              <div className="p-8 flex-1 flex flex-col">
-                {/* Nigerian Context */}
-                <div className="mb-8 border-l-2 border-orange-500 pl-6">
-                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1 italic">Context Optimization</p>
-                  <p className="text-xs text-muted-foreground font-bold leading-relaxed">{program.nigerianContext}</p>
-                </div>
+              return (
+                <div key={program.id} className="bg-card rounded-none shadow-lg border border-border overflow-hidden hover:shadow-xl transition-all group flex flex-col">
+                  {/* Color bar */}
+                  <div className={`h-1.5 bg-gradient-to-r ${lvl.bar}`} />
 
-                {/* Skills */}
-                <div className="mb-8">
-                  <div className="flex flex-wrap gap-2">
-                    {program.skills.slice(0, 3).map((skill, index) => (
-                      <span key={index} className="bg-background text-[9px] font-black text-muted-foreground px-3 py-1.5 rounded-none uppercase tracking-widest border border-border shadow-sm">
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                  {/* Header */}
+                  <div className="p-8 bg-background border-b border-border relative overflow-hidden flex-shrink-0">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-none -translate-y-16 translate-x-16 rotate-45" />
+                    <div className="relative z-10">
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="w-12 h-12 bg-card border border-border rounded-none flex items-center justify-center shadow-sm group-hover:border-orange-500 transition-all">
+                          <BookOpen className="w-6 h-6 text-orange-500" />
+                        </div>
+                        <div className="text-right">
+                          {program.price > 0 ? (
+                            <>
+                              <div className="text-xl font-black text-foreground tracking-tighter italic">
+                                ₦{Number(program.price).toLocaleString()}
+                              </div>
+                              <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Base Rate</div>
+                            </>
+                          ) : (
+                            <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest px-2 py-1 bg-emerald-500/10 border border-emerald-500/20">
+                              Enquire
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-                {/* Footer Action */}
-                <div className="mt-auto space-y-3">
-                  <button
-                    onClick={() => toggleProgramDetails(program.id)}
-                    className="w-full bg-transparent border border-border text-muted-foreground py-4 rounded-none text-[10px] font-black uppercase tracking-widest hover:border-orange-500 hover:text-orange-500 transition-all shadow-sm"
-                  >
-                    {selectedProgram === program.id ? 'CLOSE SYSTEM LOGS' : 'VIEW SPECIFICATIONS'}
-                  </button>
-                  {program.id === 'summer-school' ? (
-                    <button
-                      onClick={() => setShowSummerSchoolPopup(true)}
-                      className="w-full bg-orange-500 text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.4em] hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20"
-                    >
-                      INITIALIZE UPLINK
-                    </button>
-                  ) : (
-                    <Link
-                      href="/student-registration"
-                      className="flex items-center justify-center w-full bg-background border border-border text-foreground hover:text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.4em] hover:bg-orange-500 transition-all shadow-sm"
-                    >
-                      JOIN NETWORK
-                    </Link>
-                  )}
-                </div>
+                      <h3 className="text-xl font-black text-foreground uppercase tracking-tight mb-1">
+                        {program.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground font-medium italic mb-4 line-clamp-2">
+                        {program.description}
+                      </p>
 
-                {/* Expanded Details */}
-                {selectedProgram === program.id && (
-                  <div className="mt-8 space-y-6 pt-8 border-t border-border animate-in fade-in slide-in-from-top-4 duration-300">
-                    <div>
-                      <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Output Deliverables</h4>
-                      <div className="space-y-2">
-                        {program.projects.map((project, index) => (
-                          <div key={index} className="flex items-center gap-3 text-xs font-bold text-muted-foreground capitalize italic">
-                            <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-                            <span>{project}</span>
-                          </div>
-                        ))}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 border rounded-none ${lvl.color}`}>
+                          {lvl.label}
+                        </span>
+                        {courseCount > 0 && (
+                          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 border border-blue-500/20 bg-blue-500/10 text-blue-400 rounded-none">
+                            {courseCount} Course{courseCount !== 1 ? "s" : ""}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
 
-        {/* Call to Action */}
-        <div className="bg-card border border-border border-t-4 border-t-orange-500 rounded-none p-12 text-center text-foreground shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none"></div>
-          <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight">Ready to Start Your <span className="text-orange-500 italic">Tech Journey?</span></h2>
+                  {/* Body */}
+                  <div className="p-8 flex-1 flex flex-col">
+                    <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-6">
+                      {program.duration_weeks && (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-orange-500" />
+                          <span>{program.duration_weeks} weeks</span>
+                        </div>
+                      )}
+                      {program.max_students && (
+                        <div className="flex items-center gap-2">
+                          <Users className="w-3.5 h-3.5 text-blue-500" />
+                          <span>Max {program.max_students}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="mt-auto space-y-3">
+                      <button
+                        onClick={() => toggle(program.id)}
+                        className="w-full bg-transparent border border-border text-muted-foreground py-4 rounded-none text-[10px] font-black uppercase tracking-widest hover:border-orange-500 hover:text-orange-500 transition-all shadow-sm"
+                      >
+                        {isExpanded ? "CLOSE COURSE LIST" : "VIEW COURSES"}
+                      </button>
+                      <Link
+                        href="/student-registration"
+                        className="flex items-center justify-center w-full bg-background border border-border text-foreground hover:text-white py-5 rounded-none text-[10px] font-black uppercase tracking-[0.4em] hover:bg-orange-500 hover:border-orange-500 transition-all shadow-sm"
+                      >
+                        JOIN PROGRAM
+                      </Link>
+                    </div>
+
+                    {/* Expanded Courses */}
+                    {isExpanded && (
+                      <div className="mt-8 space-y-3 pt-8 border-t border-border animate-in fade-in slide-in-from-top-4 duration-300">
+                        <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <BookOpen className="w-3.5 h-3.5 text-orange-500" />
+                          Courses in This Program
+                        </h4>
+                        {activeCourses.length === 0 ? (
+                          <p className="text-[10px] text-muted-foreground/40 font-black uppercase tracking-widest italic">
+                            Courses coming soon
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {activeCourses.map((course: any, idx: number) => (
+                              <div key={course.id} className="flex items-center gap-3 text-xs font-bold text-muted-foreground">
+                                <span className="w-5 h-5 flex-shrink-0 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[9px] font-black flex items-center justify-center rounded-none">
+                                  {idx + 1}
+                                </span>
+                                <span className="capitalize italic">{course.title}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <Link
+                          href={`/programs/${program.id}`}
+                          className="flex items-center gap-1.5 text-[9px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest mt-4 transition-colors"
+                        >
+                          Full Program Details <ArrowRight className="w-3 h-3" />
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* CTA */}
+        <div className="bg-card border border-border border-t-4 border-t-orange-500 rounded-none p-12 text-center shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 blur-[100px] pointer-events-none" />
+          <h2 className="text-2xl sm:text-4xl font-black mb-6 uppercase tracking-tight">
+            Ready to Start Your <span className="text-orange-500 italic">Tech Journey?</span>
+          </h2>
           <p className="text-sm sm:text-lg mb-10 opacity-60 max-w-2xl mx-auto font-medium italic text-muted-foreground">
-            Join thousands of Nigerian students already building their future with technology. Secure your spot in our upcoming cohort today.
+            Join thousands of Nigerian students already building their future with technology.
+            Secure your spot in our upcoming cohort today.
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <Link
@@ -594,11 +379,10 @@ export default function Programs() {
         </div>
       </div>
 
-      {/* Summer School Popup */}
       <SummerSchoolPopup
         isOpen={showSummerSchoolPopup}
         onClose={() => setShowSummerSchoolPopup(false)}
       />
     </div>
   );
-} 
+}

@@ -130,7 +130,12 @@ function TeacherPersonalDashboard() {
           supabase.from('students').select('*').eq('created_by', profile?.id || '').order('created_at', { ascending: false }).limit(5),
         ]);
 
-        // Recent activity: fetch submissions + enrich with user names
+        // Fetch student names via API (bypasses RLS) then enrich recent submissions
+        const portalUsersRes = await fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' })
+          .then(r => r.json()).catch(() => ({ data: [] }));
+        const umap: Record<string, string> = {};
+        (portalUsersRes.data ?? []).forEach((u: any) => { umap[u.id] = u.full_name; });
+
         let recentSubs: any[] = [];
         if (aIds.length > 0) {
           const { data: rawSubs } = await supabase.from('assignment_submissions')
@@ -138,17 +143,11 @@ function TeacherPersonalDashboard() {
             .in('assignment_id', aIds)
             .order('submitted_at', { ascending: false })
             .limit(5);
-          if (rawSubs && rawSubs.length > 0) {
-            const uids = [...new Set(rawSubs.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
-            const { data: uData } = await supabase.from('portal_users').select('id, full_name').in('id', uids);
-            const umap: Record<string, string> = {};
-            (uData ?? []).forEach((u: any) => { umap[u.id] = u.full_name; });
-            recentSubs = rawSubs.map((s: any) => ({
-              ...s,
-              portal_users: { full_name: umap[s.portal_user_id ?? s.user_id] ?? 'Student' },
-              assignments: { title: aTitleMap[s.assignment_id] ?? '—' },
-            }));
-          }
+          recentSubs = (rawSubs ?? []).map((s: any) => ({
+            ...s,
+            portal_users: { full_name: umap[s.portal_user_id ?? s.user_id] ?? 'Student' },
+            assignments: { title: aTitleMap[s.assignment_id] ?? '—' },
+          }));
         }
 
         const classRows = classesRes.status === 'fulfilled' ? (classesRes.value.data ?? []) : [];

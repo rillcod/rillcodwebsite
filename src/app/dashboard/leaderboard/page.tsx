@@ -68,19 +68,15 @@ export default function LeaderboardPage() {
     setLoading(true);
     const supabase = createClient();
 
-    // Build student query
-    let studQuery = supabase
-      .from('portal_users')
-      .select('id, full_name, school_name, school_id, section_class')
-      .eq('role', 'student')
-      .eq('is_active', true);
+    // Fetch students via API (service_role — bypasses RLS)
+    const studentRes = await fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' });
+    const studentJson = studentRes.ok ? await studentRes.json() : { data: [] };
+    let students: any[] = studentJson.data ?? [];
 
-    // If school partner, restrict to their school immediately
+    // If school partner, restrict to their school
     if (profile?.role === 'school' && profile.school_id) {
-      studQuery = studQuery.eq('school_id', profile.school_id);
+      students = students.filter((s: any) => s.school_id === profile.school_id);
     }
-
-    const { data: students } = await studQuery;
 
     if (!students?.length) { setLoading(false); return; }
 

@@ -60,6 +60,14 @@ export async function PATCH(
   if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
 
   const { id } = await params;
+
+  // Teachers can only edit their own assignments
+  if (caller.role === 'teacher') {
+    const { data: existing } = await adminClient().from('assignments').select('created_by').eq('id', id).single();
+    if (!existing) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
+    if (existing.created_by !== caller.id) return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+  }
+
   const body = await request.json();
 
   const allowed: Record<string, unknown> = {};
@@ -94,6 +102,14 @@ export async function DELETE(
   if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
 
   const { id } = await params;
+
+  // Teachers can only delete their own assignments
+  if (caller.role === 'teacher') {
+    const { data: existing } = await adminClient().from('assignments').select('created_by').eq('id', id).single();
+    if (!existing) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
+    if (existing.created_by !== caller.id) return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+  }
+
   const { error } = await adminClient()
     .from('assignments')
     .delete()

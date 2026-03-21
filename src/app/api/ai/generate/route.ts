@@ -97,6 +97,15 @@ interface GenerateRequest {
   avgScore?: number;
   nextLesson?: string;
   program?: string;
+  // For report feedback
+  theoryScore?: number | string;
+  practicalScore?: number | string;
+  participationScore?: number | string;
+  overallScore?: number | string;
+  overallGrade?: string;
+  proficiencyLevel?: string;
+  courseName?: string;
+  programName?: string;
 }
 
 function buildPrompt(req: GenerateRequest): string {
@@ -119,39 +128,109 @@ Return a JSON object with this exact shape:
 
 Important: Be fair but encouraging. For 'essay' questions, look for key concepts. For 'fill_blank', allow minor spelling variations unless it's a technical term.`;
 
-    case 'report-feedback':
-      return `Generate high-precision, result-specific student progress report feedback for a Rillcod Technologies student.
-Context: Rillcod Technologies is a premium STEM/Coding academy in Nigeria (Basic 1 to SS3).
+    case 'report-feedback': {
+      const overallScore = Number(req.overallScore ?? 0);
+      const grade = req.overallGrade ?? '';
+      const theory = Number(req.theoryScore ?? 0);
+      const practical = Number(req.practicalScore ?? 0);
+      const participation = Number(req.participationScore ?? 0);
+      const proficiency = req.proficiencyLevel ?? 'intermediate';
+      // Attendance/lab stats may be absent if scores were entered manually — only show if present
+      const attText = req.attendance && !req.attendance.startsWith('0/') ? `Attendance: ${req.attendance}` : '';
+      const labText = req.assignments && !req.assignments.startsWith('0/') ? `Lab Completion: ${req.assignments}` : '';
+      const engagementLine = [attText, labText].filter(Boolean).join(' | ') || 'Scores entered manually by teacher';
+
+      const performanceSummary = overallScore >= 80
+        ? 'excellent — well above standard'
+        : overallScore >= 65
+        ? 'good — meeting expectations'
+        : overallScore >= 50
+        ? 'developing — making progress'
+        : 'needs improvement — below standard';
+
+      // Identify the weakest area to guide growth comment
+      const scores = { Theory: theory, Practical: practical, Participation: participation };
+      const weakest = Object.entries(scores).sort(([, a], [, b]) => a - b)[0][0];
+      const strongest = Object.entries(scores).sort(([, a], [, b]) => b - a)[0][0];
+
+      const courseLine = req.courseName ? `Course: "${req.courseName}"` : '';
+      const programLine = req.programName ? `Programme: "${req.programName}"` : '';
+      const contextBlock = [courseLine, programLine].filter(Boolean).join('\n');
+
+      return `You are an experienced Nigerian school administrator writing brief, professional student report comments.
+
 Student: "${req.studentName ?? 'The student'}"
-Current Module: "${req.topic}"
-Attendance: ${req.attendance ?? 'N/A'}
-Assignment/Lab Completion: ${req.assignments ?? 'N/A'}
+${contextBlock}
+Current Topic/Module: "${req.topic}"
+Overall Score: ${overallScore}% (Grade ${grade}) — ${performanceSummary}
+Theory: ${theory}% | Practical: ${practical}% | Participation: ${participation}%
+Best area: ${strongest} | Needs most work: ${weakest}
+${engagementLine}
+Proficiency Level: ${proficiency}
 
-EVALUATIVE DIRECTIVES:
-1. "Nigerian Intelligence": Adopt a tone that is high-expectation, profoundly encouraging, and visionary—reflecting the aspirations of top-tier Nigerian families for their children to become global technological architects. Use sophisticated British English (e.g., 'programme', 'meticulous', 'endeavour').
-2. Metric-Driven specificity: Synthesize the provided statistics (attendance, labs). If labs are 100%, celebrate their 'technical fluidly' and 'practical synthesis'. If attendance is perfect, highlight their 'discipline and professional presence'. If metrics are average, provide a 'strategic roadmap for technical acceleration'.
-3. Result-Specific Commentary: Avoid all generic academic fluff. Mention specific technical components of "${req.topic}". For example, if the topic is 'Web Development', discuss 'DOM manipulation' or 'Responsive Grid layouts' specifically.
-4. Unique Narrative: Each persona is unique. The feedback MUST reflect a deep understanding of their individual engagement, operations, and practical output in the vault. Broadly scope the child's potential against global standards.
+RULES — follow strictly:
+1. Write EXACTLY 2-3 short, clear sentences per section. No more, no less.
+2. Use simple, everyday English that parents and students can easily understand. Avoid jargon.
+3. Be SPECIFIC — reference the course or programme name to make comments feel personal and relevant.
+4. Ground every sentence in the actual scores above. Mention numbers where they add value.
+5. Sound like a caring but professional head teacher — warm, honest, and encouraging.
+6. Key Strengths: celebrate what the student genuinely did well (focus on the strongest area and overall score).
+7. Areas for Growth: give one clear, achievable action the student can take in this specific course (focus on the weakest area).
 
-Return a JSON object with this exact shape:
+Return ONLY this JSON (no extra text):
 {
-  "key_strengths": "string — 2-3 sentences of elevated, highly specific technical appraisal. Discuss their mastery of specific concepts in ${req.topic} and their intellectual engagement.",
-  "areas_for_growth": "string — 2-3 sharp, precise sentences on how to sharpen their technical edge. Provide a visionary directive for the transition into the next phase."
-}
+  "key_strengths": "2-3 sentences praising real achievements, referencing the course/programme and scores.",
+  "areas_for_growth": "2-3 sentences with a simple, kind, actionable direction for improvement in this course."
+}`; }
 
-Maintain a balance between prestigious academic standards and the vibrant, goal-oriented culture of Rillcod Technologies.`;
 
-    case 'lesson-notes':
-      return `Generate ONLY the lesson notes for a Rillcod Technologies class session.
+    case 'lesson-notes': {
+      const grade = req.gradeLevel ?? 'Basic 1–SS3';
+      const youngGrades = ['KG', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6'];
+      const isYoung = youngGrades.some(g => grade === g || grade.startsWith(g) || grade.includes('KG'));
+
+      if (isYoung) {
+        return `Write simple, fun study notes for a Nigerian primary school student.
 Topic: "${req.topic}"
-Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
+Grade: ${grade}
+Subject: ${req.subject ?? 'Coding & Technology'}
+
+STRICT RULES for young learners:
+- Write like you are talking to a 7-10 year old friend
+- Use VERY SHORT sentences (max 12 words each)
+- Use emojis to make it fun 🎉
+- Give real-life Nigerian examples (mention things like phones, generators, traffic lights, Afrobeats, suya, football)
+- NO technical jargon. If you must use a tech word, explain it with "That means..."
+- Use headers like "## What is it? 🤔", "## How does it work? ⚙️", "## Try it yourself! 🚀", "## Fun Facts! 🌟"
+- Keep it SHORT — around 400 words total
+- End with 3 simple fun questions like "Can you name 3 things that use ${req.topic}?"
+
+Return ONLY this JSON (nothing else):
+{
+  "lesson_notes": "your markdown notes here — use ## headers, bullet points, and emojis"
+}`;
+      }
+
+      return `Write clear, engaging study notes for a Rillcod Technologies student.
+Topic: "${req.topic}"
+Grade: ${grade}
 Subject: ${req.subject ?? 'Coding & Technology'}
 Duration: ${req.durationMinutes ?? 60} minutes
 
-Return a JSON object with this exact shape:
+RULES:
+- Use ## and ### markdown headers to structure the notes clearly
+- Keep paragraphs short (3-4 sentences max)
+- Include real-world examples relevant to African/Nigerian students
+- For coding topics: include ONE short code example with comments
+- Use bullet points for lists and key concepts
+- Tone: encouraging, clear, British English
+- Length: 800-1200 words (not more — quality over quantity)
+- End with a "## Quick Recap 📌" section with 5 bullet points
+
+Return ONLY this JSON (nothing else):
 {
-  "lesson_notes": "string — EXTENSIVE, ACADEMIC markdown-formatted study notes for the student, 1800+ words minimum. Deep curriculum depth for Basic 1-SS3. For KG-Basic 6, focus on visual block strategies, 'Step-by-Step Debugging Guides', and Scratch mental models. For JSS1-SS3, include technical deep-dives into Python/JS/Deep Tech."
-}`;
+  "lesson_notes": "your complete markdown study notes here"
+}`; }
 
     case 'lesson': {
       const mode = req.lessonMode ?? 'academic';
@@ -673,13 +752,16 @@ export async function POST(req: NextRequest) {
 
       case 'lesson-notes':
         modelQueue = [
+          "google/gemini-2.0-flash-001",           // Fast, reliable, handles text well
           "anthropic/claude-sonnet-4-5",           // Best for long-form educational writing
           "moonshotai/kimi-k2.5",                  // Deep synthesis
-          "google/gemini-2.5-pro-preview",         // Structured depth
-          "google/gemini-2.0-flash-001",
+          "deepseek/deepseek-chat-v3-5",           // Strong writer
+          "meta-llama/llama-3.3-70b-instruct",     // Solid free fallback
+          "google/gemini-flash-1.5",               // Reliable emergency fallback
+          "meta-llama/llama-3.1-8b-instruct:free", // Last resort
         ];
         adaptiveTemperature = 0.6;
-        adaptiveMaxTokens = 16000;
+        adaptiveMaxTokens = 4000; // Reduced from 16000 — prevents timeouts while keeping good quality
         break;
 
       case 'code-generation':
@@ -734,12 +816,29 @@ export async function POST(req: NextRequest) {
         ];
     }
 
+    // lesson-notes uses plain-text response (no response_format) to avoid malformed JSON errors
+    const useJsonFormat = type !== 'lesson-notes';
+
     // Iterate through models until one succeeds
     for (const modelId of modelQueue) {
       try {
         const controller = new AbortController();
         const timeoutMs = ['lesson', 'lesson-notes'].includes(type) ? 55000 : 30000;
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        const requestBody: any = {
+          model: modelId,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: prompt }
+          ],
+          max_tokens: Math.min(adaptiveMaxTokens, 16000),
+          temperature: adaptiveTemperature,
+        };
+        // Only add response_format for types that need strict JSON — skip for lesson-notes
+        if (useJsonFormat) {
+          requestBody.response_format = { type: 'json_object' };
+        }
 
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -749,16 +848,7 @@ export async function POST(req: NextRequest) {
             'Content-Type': 'application/json'
           },
           signal: controller.signal,
-          body: JSON.stringify({
-            model: modelId,
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: prompt }
-            ],
-            response_format: { type: 'json_object' },
-            max_tokens: Math.min(adaptiveMaxTokens, 16000), // Enough for rich lesson content
-            temperature: adaptiveTemperature
-          })
+          body: JSON.stringify(requestBody),
         });
 
         clearTimeout(timeoutId);
@@ -767,8 +857,26 @@ export async function POST(req: NextRequest) {
           const data = await response.json();
           const content = data.choices[0]?.message?.content;
           if (content) {
-            const parsed = safeParseJSON(content);
-            return NextResponse.json({ success: true, model: modelId, data: parsed });
+            // For lesson-notes: try JSON parse first, then fall back to wrapping raw text
+            if (type === 'lesson-notes') {
+              try {
+                const parsed = safeParseJSON(content);
+                // If parsed but lesson_notes is missing, wrap the whole content
+                if (!parsed.lesson_notes && typeof content === 'string') {
+                  return NextResponse.json({ success: true, model: modelId, data: { lesson_notes: content.replace(/^```(?:json|markdown)?\s*/i, '').replace(/\s*```$/i, '').trim() } });
+                }
+                return NextResponse.json({ success: true, model: modelId, data: parsed });
+              } catch {
+                // JSON parse failed — use raw text as lesson_notes directly
+                const cleanContent = content.replace(/^```(?:json|markdown)?\s*/i, '').replace(/\s*```$/i, '').trim();
+                if (cleanContent.length > 100) {
+                  return NextResponse.json({ success: true, model: modelId, data: { lesson_notes: cleanContent } });
+                }
+              }
+            } else {
+              const parsed = safeParseJSON(content);
+              return NextResponse.json({ success: true, model: modelId, data: parsed });
+            }
           }
         } else {
           const errData = await response.json().catch(() => ({}));

@@ -90,7 +90,13 @@ export default function ProgressPage() {
             }
           }
 
-          // 3. Fetch submissions (2-step to avoid FK ambiguity)
+          // 3. Fetch portal users via API (bypasses RLS) for name/school enrichment
+          const portalUsersJson = await fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' })
+            .then(r => r.json()).catch(() => ({ data: [] }));
+          const umap: Record<string, any> = {};
+          (portalUsersJson.data ?? []).forEach((u: any) => { umap[u.id] = u; });
+
+          // 4. Fetch submissions and enrollments (without portal_users join — use umap instead)
           const rawSubsQ = supabase.from('assignment_submissions')
             .select(`id, grade, status, portal_user_id, user_id,
                 assignments ( id, title, max_points, course_id,
@@ -98,26 +104,22 @@ export default function ProgressPage() {
             .order('graded_at', { ascending: false });
 
           const enrQuery = supabase.from('enrollments')
-            .select(`id, status, grade, progress_pct, enrollment_date,
-                programs ( id, name, difficulty_level, duration_weeks ),
-                portal_users!enrollments_user_id_fkey ( id, full_name, email, school_id, school_name, section_class )`)
+            .select(`id, status, grade, progress_pct, enrollment_date, user_id,
+                programs ( id, name, difficulty_level, duration_weeks )`)
             .order('enrollment_date', { ascending: false });
 
           const [rawSubsRes, enrRes] = await Promise.allSettled([rawSubsQ, enrQuery]);
 
-          // 4. Enrich submissions with portal_users via separate lookup
-          let subsData = rawSubsRes.status === 'fulfilled' ? (rawSubsRes.value.data ?? []) : [];
-          if (subsData.length > 0) {
-            const uids = [...new Set(subsData.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
-            const { data: users } = await supabase.from('portal_users').select('id, full_name, email, school_id, school_name, section_class').in('id', uids);
-            const umap: Record<string, any> = {};
-            (users ?? []).forEach((u: any) => { umap[u.id] = u; });
-            subsData = subsData.map((s: any) => ({ ...s, portal_users: umap[s.portal_user_id ?? s.user_id] ?? null }));
-          }
+          // Enrich with user data from API map
+          let subsData = (rawSubsRes.status === 'fulfilled' ? (rawSubsRes.value.data ?? []) : [])
+            .map((s: any) => ({ ...s, portal_users: umap[s.portal_user_id ?? s.user_id] ?? null }));
+
+          let enrData = (enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : [])
+            .map((e: any) => ({ ...e, portal_users: umap[e.user_id] ?? null }));
 
           // 5. Initial Filter by school for non-admins
           let filteredSubs = subsData;
-          let filteredEnr = enrRes.status === 'fulfilled' ? (enrRes.value.data ?? []) : [];
+          let filteredEnr = enrData;
 
           if (role !== 'admin') {
             if (assignedSchoolIds.length > 0 || assignedSchoolNames.length > 0) {

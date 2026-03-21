@@ -52,9 +52,10 @@ export default function OverviewPage() {
           }
         } else if (role === 'teacher') {
           // Fetch classes via API (same scoping as classes page: teacher_id OR teacher_schools)
-          const [myAsgnsRes, classesRes] = await Promise.all([
+          const [myAsgnsRes, classesRes, portalUsersRes] = await Promise.all([
             supabase.from('assignments').select('id, title').eq('created_by', profile!.id),
             fetch('/api/classes', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
+            fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
           ]);
 
           const myAsgns = myAsgnsRes.data ?? [];
@@ -62,6 +63,9 @@ export default function OverviewPage() {
           const aIds = myAsgns.map((a: any) => a.id);
           const aTitleMap: Record<string, string> = {};
           myAsgns.forEach((a: any) => { aTitleMap[a.id] = a.title; });
+          // Build user name map from API result (bypasses RLS)
+          const umap: Record<string, string> = {};
+          (portalUsersRes.data ?? []).forEach((u: any) => { umap[u.id] = u.full_name; });
 
           // Total students across all teacher's classes
           const totalStudents = myClasses.reduce((sum: number, c: any) => sum + (c.current_students ?? 0), 0);
@@ -81,18 +85,11 @@ export default function OverviewPage() {
               .select('id, status, submitted_at, assignment_id, portal_user_id, user_id')
               .in('assignment_id', aIds)
               .order('submitted_at', { ascending: false }).limit(5);
-            recSubsData = rawSubs ?? [];
-            if (recSubsData.length > 0) {
-              const uids = [...new Set(recSubsData.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
-              const { data: users } = await supabase.from('portal_users').select('id, full_name').in('id', uids);
-              const umap: Record<string, string> = {};
-              (users ?? []).forEach((u: any) => { umap[u.id] = u.full_name; });
-              recSubsData = recSubsData.map((s: any) => ({
-                ...s,
-                portal_users: { full_name: umap[s.portal_user_id ?? s.user_id] ?? 'Student' },
-                assignments: { title: aTitleMap[s.assignment_id] ?? '—' },
-              }));
-            }
+            recSubsData = (rawSubs ?? []).map((s: any) => ({
+              ...s,
+              portal_users: { full_name: umap[s.portal_user_id ?? s.user_id] ?? 'Student' },
+              assignments: { title: aTitleMap[s.assignment_id] ?? '—' },
+            }));
           }
 
           if (!cancelled) {
@@ -110,20 +107,21 @@ export default function OverviewPage() {
             supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', profile!.school_id || ''),
             supabase.from('teacher_schools').select('id', { count: 'exact', head: true }).eq('school_id', profile!.school_id || ''),
           ]);
-          // 2-step: avoid portal_users!inner FK ambiguity on assignment_submissions
+          // Fetch school students via API (bypasses RLS) to enrich submission records
+          const schoolUsersRes = await fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' })
+            .then(r => r.json()).catch(() => ({ data: [] }));
+          const schoolUmap: Record<string, any> = {};
+          (schoolUsersRes.data ?? []).forEach((u: any) => { schoolUmap[u.id] = u; });
+
           const { data: rawSubs } = await supabase.from('assignment_submissions')
             .select('id, status, submitted_at, portal_user_id, user_id, assignments(title, max_points)')
             .not('grade', 'is', null)
             .order('submitted_at', { ascending: false }).limit(50);
-          
+
           let schoolSubs: any[] = [];
           if (rawSubs && rawSubs.length > 0) {
-            const uids = [...new Set(rawSubs.map((s: any) => s.portal_user_id ?? s.user_id).filter(Boolean))];
-            const { data: uData } = await supabase.from('portal_users').select('id, full_name, school_id').in('id', uids);
-            const umap: Record<string, any> = {};
-            (uData ?? []).forEach((u: any) => { umap[u.id] = u; });
             schoolSubs = rawSubs
-              .map((s: any) => ({ ...s, portal_users: umap[s.portal_user_id ?? s.user_id] ?? null }))
+              .map((s: any) => ({ ...s, portal_users: schoolUmap[s.portal_user_id ?? s.user_id] ?? null }))
               .filter((s: any) => s.portal_users?.school_id === profile!.school_id);
           }
 

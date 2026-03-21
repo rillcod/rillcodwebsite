@@ -105,7 +105,8 @@ export class CoursesService {
             throw new NotFoundError('Program not found');
         }
 
-        if (program.school_id !== tenantId) {
+        // Global programs (school_id = null) can be used by any admin/teacher
+        if (program.school_id && program.school_id !== tenantId) {
             throw new AppError('Program does not belong to your school', 403);
         }
 

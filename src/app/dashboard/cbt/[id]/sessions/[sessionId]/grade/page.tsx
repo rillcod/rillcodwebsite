@@ -37,18 +37,20 @@ export default function GradeSessionPage() {
         const db = createClient();
         async function fetchData() {
             try {
-                const [sessionRes, examRes, questionsRes] = await Promise.all([
-                    db.from('cbt_sessions').select('*, portal_users(full_name, email)').eq('id', params.sessionId).single(),
+                const [sessionRes, examRes, questionsRes, usersJson] = await Promise.all([
+                    db.from('cbt_sessions').select('*').eq('id', params.sessionId).single(),
                     db.from('cbt_exams').select('*').eq('id', params.id).single(),
-                    db.from('cbt_questions').select('*').eq('exam_id', params.id).order('order_index')
+                    db.from('cbt_questions').select('*').eq('exam_id', params.id).order('order_index'),
+                    fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
                 ]);
 
                 if (sessionRes.error) throw sessionRes.error;
                 if (examRes.error) throw examRes.error;
 
-                // the row may include manual_scores & grading_notes; TS doesn't
-                // know about them so treat as any.
-                const sess = sessionRes.data as any;
+                // Enrich session with student info from API (bypasses RLS on portal_users)
+                const umap: Record<string, any> = {};
+                (usersJson.data ?? []).forEach((u: any) => { umap[u.id] = u; });
+                const sess = { ...(sessionRes.data as any), portal_users: umap[(sessionRes.data as any)?.user_id] ?? null };
                 setSession(sess);
                 setExam(examRes.data);
                 setQuestions(questionsRes.data ?? []);

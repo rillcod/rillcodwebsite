@@ -111,8 +111,11 @@ function ReportBuilderInner() {
     const [students, setStudents] = useState<PortalUser[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
     const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+    const [teacherClasses, setTeacherClasses] = useState<{ id: string; name: string; school_id: string | null }[]>([]);
     const [search, setSearch] = useState('');
     const [classFilter, setClassFilter] = useState('');
+    const [overrideFilters, setOverrideFilters] = useState(false);
+    const [manualName, setManualName] = useState('');
 
     // ── Step: 'session' | 'pick' | 'edit' ────────────────────────────────────
     const [step, setStep] = useState<'session' | 'pick' | 'edit'>('session');
@@ -245,46 +248,87 @@ function ReportBuilderInner() {
                 schoolsList = (schJson.data ?? []).map((s: any) => ({ id: s.id, name: s.name }));
             }
 
-            // 2. Fetch the "Pool" from portal_users — always scoped to assigned schools for non-admins
-            let studentQuery = db.from('portal_users')
-                .select('*, students!user_id(section_class, current_class, grade_level, class_id)')
-                .neq('is_deleted', true);
+            // 2. Fetch portal students via API (service_role — bypasses RLS so teachers see their school's students)
+            const portalRes = await fetch(`/api/portal-users?role=student&scoped=true`, { cache: 'no-store' });
+            const portalJson = portalRes.ok ? await portalRes.json() : { data: [] };
+
+            // Build shared school filter parts for the pre-portal students query
+            const schoolIds = schoolsList.map(s => s.id).filter(Boolean);
+            const schoolNames = schoolsList.map(s => s.name).filter(Boolean);
+            const idPart = schoolIds.length > 0 ? `school_id.in.(${schoolIds.join(',')})` : '';
+            const namePart = schoolNames.length > 0
+                ? schoolNames.map(n => `school_name.eq."${n}"`).join(',')
+                : '';
+            const orParts = [idPart, namePart].filter(Boolean);
+
+            // Pre-portal students query (students table, user_id is null or not yet linked)
+            let prePortalQuery = db.from('students')
+                .select('id, full_name, email, school_name, school_id, current_class, grade_level, section, status, user_id')
+                .neq('is_deleted', true)
+                .neq('status', 'rejected') as any;
 
             if (!isAdmin) {
-                studentQuery = studentQuery.eq('role', 'student');
-                if (schoolsList.length > 0) {
-                    // Build or-filter: match by school_id (primary) OR by school_name for legacy records
-                    const schoolIds = schoolsList.map(s => s.id).filter(Boolean);
-                    const schoolNames = schoolsList.map(s => s.name).filter(Boolean);
-                    const idPart = `school_id.in.(${schoolIds.join(',')})`;
-                    const namePart = schoolNames.length > 0
-                        ? schoolNames.map(n => `school_name.eq.${n}`).join(',')
-                        : '';
-                    const orClause = namePart ? `${idPart},${namePart}` : idPart;
-                    studentQuery = (studentQuery as any).or(orClause);
-                } else {
-                    // No schools assigned — show nothing
-                    studentQuery = studentQuery.eq('id', '00000000-0000-0000-0000-000000000000');
+                if (orParts.length > 0) {
+                    prePortalQuery = prePortalQuery.or(orParts.join(','));
+                } else if (profile?.school_id) {
+                    prePortalQuery = prePortalQuery.or(`school_id.eq.${profile.school_id}`);
                 }
             }
 
-            const [sRes, cRes, bRes] = await Promise.all([
-                studentQuery.order('full_name').limit(isAdmin ? 5000 : 1000),
-                db.from('courses').select('*').eq('is_active', true).order('title'),
+            // Build classes query — teachers see their own, admins see all
+            let classQuery = db.from('classes').select('id, name, school_id').eq('status', 'active') as any;
+            if (!isAdmin) classQuery = classQuery.eq('teacher_id', profile?.id);
+
+            const [cRes, bRes, clsRes, ppRes] = await Promise.all([
+                db.from('courses').select('*, programs(name)').eq('is_active', true).order('title'),
                 db.from('report_settings').select('*').limit(1).maybeSingle(),
+                classQuery.order('name'),
+                prePortalQuery.order('full_name').limit(isAdmin ? 5000 : 1000),
             ]);
 
-            const processed = (sRes.data ?? []).map((u: any) => {
-                const std = u.students?.[0];
-                return {
-                    ...u,
-                    section_class: std?.section_class || std?.current_class || std?.grade_level || u.section_class || '',
-                    class_id: std?.class_id || u.class_id || null,
-                };
-            });
-            setStudents(processed);
+            // Normalize portal_users results
+            const portalStudents = (portalJson.data ?? []).map((u: any) => ({
+                ...u,
+                section_class: u.section_class || '',
+                class_id: u.class_id || null,
+                _source: 'portal',
+            }));
+
+            // Collect portal user_ids to avoid duplicates from students table
+            const portalUserIds = new Set(portalStudents.map((u: any) => u.id));
+            // Also collect portal users that came from linked pre-portal students
+            const linkedUserIds = new Set(portalStudents.map((u: any) => u.students?.[0]?.user_id).filter(Boolean));
+
+            // Normalize pre-portal students — skip any already present as portal users
+            const prePortalStudents = (ppRes.data ?? [])
+                .filter((s: any) => {
+                    // Skip if they have a portal account that's already in portalStudents
+                    if (s.user_id && portalUserIds.has(s.user_id)) return false;
+                    // Skip if already linked to a portal user we fetched
+                    if (s.user_id && linkedUserIds.has(s.user_id)) return false;
+                    return true;
+                })
+                .map((s: any) => ({
+                    // Shape to match PortalUser enough for the builder to work
+                    id: `students-${s.id}`,  // prefixed ID — signals pre-portal in save handler
+                    full_name: s.full_name ?? s.name ?? '',
+                    email: s.email ?? '',
+                    role: 'student',
+                    school_id: s.school_id ?? null,
+                    school_name: s.school_name ?? null,
+                    section_class: s.section ?? s.current_class ?? s.grade_level ?? '',
+                    class_id: null,
+                    avatar_url: null,
+                    is_deleted: false,
+                    _source: 'students_table',
+                    _original_id: s.id,
+                }));
+
+            const processed = [...portalStudents, ...prePortalStudents];
+            setStudents(processed as any);
             setCourses(cRes.data ?? []);
             setSchools(schoolsList);
+            setTeacherClasses((clsRes.data ?? []) as { id: string; name: string; school_id: string | null }[]);
             // Note: school auto-fill is handled below in the instructor_name setSessionConfig call
             if (bRes.data) {
                 setBranding({
@@ -306,7 +350,7 @@ function ReportBuilderInner() {
             }));
 
             if (prefStudentId) {
-                const s = (sRes.data ?? []).find(x => x.id === prefStudentId);
+                const s = processed.find((x: any) => x.id === prefStudentId || x._original_id === prefStudentId);
                 if (s) selectStudent(s as PortalUser, 0);
             }
         }
@@ -317,26 +361,34 @@ function ReportBuilderInner() {
     const filteredStudents = students.filter(s => {
         const matchesSearch = !search || s.full_name?.toLowerCase().includes(search.toLowerCase()) || s.email?.toLowerCase().includes(search.toLowerCase());
 
-        // School filter: for non-admins the DB query already scopes to their schools,
-        // but if they've also picked a specific school in Step 1 narrow it further.
-        // Admins can bypass the school filter when searching.
-        const matchesSchool = isAdmin
-            ? (!sessionConfig.school_name || s.school_name === sessionConfig.school_name || !!search)
-            : (!sessionConfig.school_name || s.school_name === sessionConfig.school_name);
+        // Override mode or active search: show all loaded students, just filter by name/email
+        if (overrideFilters || search.length >= 2) return matchesSearch;
 
-        // Class filter: classFilter (step-2 dropdown) takes precedence over session class
-        const effectiveClass = classFilter || sessionConfig.section_class;
-        const matchesClass = !effectiveClass || (s as any).section_class === effectiveClass;
+        // School filter: use school_id match OR school_name match (handles legacy records)
+        const matchesSchool = !sessionConfig.school_name
+            || s.school_name === sessionConfig.school_name
+            || (!!sessionConfig.school_id && s.school_id === sessionConfig.school_id);
+
+        // Class filter: match by section_class string OR by class_id for teacher-created classes
+        const activeClass = teacherClasses.find(c => c.name === classFilter);
+        const matchesClass = !classFilter
+            || (s as any).section_class === classFilter
+            || (activeClass && (s as any).class_id === activeClass.id);
 
         return matchesSearch && matchesSchool && matchesClass;
     });
 
-    const distinctClasses = [...new Set(
-        students
-            .filter(s => !sessionConfig.school_name || s.school_name === sessionConfig.school_name)
+    const distinctClasses = [...new Set([
+        // Classes from student records (section_class field)
+        ...students
+            .filter(s => !sessionConfig.school_name
+                || s.school_name === sessionConfig.school_name
+                || (!!sessionConfig.school_id && s.school_id === sessionConfig.school_id))
             .map(s => (s as any).section_class)
-            .filter(Boolean)
-    )].sort() as string[];
+            .filter(Boolean),
+        // Teacher-created classes (from classes table)
+        ...teacherClasses.map(c => c.name),
+    ])].sort() as string[];
 
     // ── Select student: load existing report, fill form ───────────────────────
     async function selectStudent(s: PortalUser, idx: number) {
@@ -344,14 +396,35 @@ function ReportBuilderInner() {
         setCurrentStudentIdx(idx);
         setError(''); setSuccess('');
 
+        // Manual entry: skip DB lookup, go straight to empty form
+        const isManual = s.id?.startsWith('manual-');
+        if (isManual) {
+            setExistingReport(null);
+            setForm(f => ({ ...f, student_name: s.full_name ?? '', section_class: sessionConfig.section_class }));
+            setStep('edit');
+            setSessionExpanded(false);
+            return;
+        }
+
         const db = createClient();
-        const { data: report } = await db
-            .from('student_progress_reports')
-            .select('*')
-            .eq('student_id', s.id)
-            .order('updated_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+
+        // Pre-portal student (from students table, no portal_users record) — look up by name
+        const isPrePortal = s.id?.startsWith('students-');
+        const { data: report } = isPrePortal
+            ? await db
+                .from('student_progress_reports')
+                .select('*')
+                .eq('student_name', s.full_name ?? '')
+                .order('updated_at', { ascending: false })
+                .limit(1)
+                .maybeSingle()
+            : await db
+                .from('student_progress_reports')
+                .select('*')
+                .eq('student_id', s.id)
+                .order('updated_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
         setExistingReport(report ?? null);
 
@@ -514,13 +587,14 @@ function ReportBuilderInner() {
                 const participation = Math.min(100, Math.round(attPct * 0.7 + assigPct * 0.3));
 
                 // 4. Check for existing report
-                const { data: existing } = await db.from('student_progress_reports').select('id').eq('student_id', s.id).eq('report_term', sessionConfig.report_term).order('updated_at', { ascending: false }).maybeSingle();
+                const isPrePortal = s.id?.startsWith('manual-') || s.id?.startsWith('students-');
+                const { data: existing } = isPrePortal ? { data: null } : await db.from('student_progress_reports').select('id').eq('student_id', s.id).eq('report_term', sessionConfig.report_term).order('updated_at', { ascending: false }).maybeSingle();
 
                 const overall = Math.round(theory * 0.35 + practical * 0.35 + attPct * 0.15 + participation * 0.15);
                 const gradeLetter = reportGrade(overall).g;
 
                 const payload: any = {
-                    student_id: s.id,
+                    student_id: isPrePortal ? null : s.id,
                     teacher_id: profile!.id,
                     school_id: sessionConfig.school_id || s.school_id || null,
                     course_id: sessionConfig.course_id || null,
@@ -569,9 +643,13 @@ function ReportBuilderInner() {
         if (publish) setPublishing(true); else setSaving(true);
         setError(''); setSuccess('');
 
+        // For manual entries ('manual-') or pre-portal students ('students-'), id is not a real portal_users UUID.
+        // Save the report without a student_id foreign key in those cases.
+        const isManual = selectedStudent.id?.startsWith('manual-') || selectedStudent.id?.startsWith('students-');
+
         try {
             const payload = {
-                student_id: selectedStudent.id,
+                student_id: isManual ? null : selectedStudent.id,
                 school_id: sessionConfig.school_id || (selectedStudent as any).school_id || profile?.school_id || null,
                 course_id: sessionConfig.course_id || null,
                 student_name: form.student_name,
@@ -679,17 +757,19 @@ function ReportBuilderInner() {
                 return;
             }
 
-            // Qualitative evaluation uses actual AI with a robust fallback system
+            // Qualitative evaluation uses actual AI with a concise fallback system
+            const topic = sessionConfig.current_module || sessionConfig.course_name || 'the course';
+            const scoreContext = overallScore >= 80 ? 'high scores' : overallScore >= 60 ? 'good effort' : 'dedication to learning';
             const fallbackThemes = {
                 key_strengths: [
-                    `${form.student_name} demonstrates a strong intuitive grasp of ${sessionConfig.current_module || 'the course material'}. They excel at practical implementation and show consistent curiosity.`,
-                    `Consistently active in class, ${form.student_name} has shown remarkable progress in building complex logic and debugging code independently.`,
-                    `The student exhibits excellent teamwork and logical thinking skills, particularly during the ${sessionConfig.current_module || 'latest'} project phase.`
+                    `${form.student_name} has shown ${scoreContext} this term and participates well in ${topic} activities. Their attitude towards learning is positive and consistent.`,
+                    `${form.student_name} demonstrates good understanding of ${topic} and completes tasks with care. We are pleased with the progress made this term.`,
+                    `This term, ${form.student_name} has worked hard in ${topic} and shown real improvement. Their practical skills and class engagement stand out.`,
                 ],
                 areas_for_growth: [
-                    `To reach the next level, ${form.student_name} should focus on documenting their code and exploring more advanced architectural patterns.`,
-                    `We recommend additional practice with ${sessionConfig.current_module || 'core concepts'} to increase speed and confidence during time-constrained tasks.`,
-                    `Improving attention to detail in syntax will help ${form.student_name} minimize minor errors and build more robust applications.`
+                    `${form.student_name} should spend more time practising ${topic} at home to build stronger confidence. Regular review of class notes will make a big difference.`,
+                    `We encourage ${form.student_name} to ask more questions when topics are unclear. Consistent effort in assignments will help raise their overall performance.`,
+                    `${form.student_name} will benefit from focusing on accuracy and attention to detail. With extra practice, we expect to see even better results next term.`,
                 ]
             };
 
@@ -699,19 +779,28 @@ function ReportBuilderInner() {
             };
 
             try {
+                // Resolve program name from loaded courses
+                const currentCourse = courses.find((c: any) => c.id === sessionConfig.course_id);
+                const programName = (currentCourse as any)?.programs?.name ?? '';
+
                 const res = await fetch('/api/ai/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         type: 'report-feedback',
-                        topic: sessionConfig.current_module || 'STEM Methodology & Synthesis',
+                        topic: sessionConfig.current_module || sessionConfig.course_name || 'STEM & Coding',
+                        courseName: sessionConfig.course_name || '',
+                        programName: programName,
                         studentName: form.student_name || 'The Student',
                         gradeLevel: form.section_class || 'General Academic',
-                        attendance: `${attendance}/${totalSessions} sessions`,
-                        assignments: `${assignments}/${totalAssignments} labs`,
+                        attendance: `${attendance}/${totalSessions} sessions (${Math.round(attPct)}%)`,
+                        assignments: `${assignments}/${totalAssignments} labs (${Math.round(assigPct)}%)`,
                         theoryScore: form.theory_score,
                         practicalScore: form.practical_score,
                         participationScore: form.participation_score,
+                        overallScore: overallScore,
+                        overallGrade: overallGradeLetter,
+                        proficiencyLevel: form.proficiency_level,
                     }),
                 });
 
@@ -1220,7 +1309,7 @@ function ReportBuilderInner() {
                                 <h2 className="font-bold text-foreground flex items-center gap-2">
                                     <UserGroupIcon className="w-5 h-5 text-orange-400" /> Students
                                 </h2>
-                                <span className="text-xs text-muted-foreground bg-card shadow-sm px-2 py-0.5 rounded-full">{filteredStudents.length} total</span>
+                                <span className="text-xs text-muted-foreground bg-card shadow-sm px-2 py-0.5 rounded-full">{filteredStudents.length} shown / {students.length} loaded</span>
                                 {filteredStudents.length > 0 && (
                                     <button
                                         onClick={handleBulkBuild}
@@ -1240,33 +1329,78 @@ function ReportBuilderInner() {
                                         )}
                                     </button>
                                 )}
-                                {/* Quick-filter chips per class */}
-                                <div className="flex flex-wrap gap-1.5 mb-3">
-                                    <button
-                                        onClick={() => setClassFilter('')}
-                                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!classFilter ? 'bg-orange-600 text-foreground border-orange-500' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
-                                    >
-                                        All ({students.filter(s => !sessionConfig.school_name || s.school_name === sessionConfig.school_name).length})
-                                    </button>
-                                    {distinctClasses.map(c => (
-                                        <button key={c}
-                                            onClick={() => setClassFilter(classFilter === c ? '' : c)}
-                                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${classFilter === c ? 'bg-orange-600 text-foreground border-orange-500' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
-                                        >
-                                            {c} ({students.filter(s => (s as any).section_class === c && (!sessionConfig.school_name || s.school_name === sessionConfig.school_name)).length})
-                                        </button>
-                                    ))}
-                                </div>
+                            </div>
+
+                            {/* Search + Override controls */}
+                            <div className="space-y-3 mb-4">
                                 <input
-                                    type="search" placeholder="Search student…"
+                                    type="search" placeholder="Search student by name or email… (2+ chars shows all matching)"
                                     value={search} onChange={e => setSearch(e.target.value)}
-                                    className="w-full mb-4 bg-card shadow-sm border border-border text-foreground text-sm px-4 py-2 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500" />
+                                    className="w-full bg-card shadow-sm border border-border text-foreground text-sm px-4 py-2.5 rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500" />
+
+                                {/* Override toggle + Manual entry */}
+                                <div className="flex items-center gap-3 flex-wrap">
+                                    <button
+                                        onClick={() => { setOverrideFilters(v => !v); setClassFilter(''); setSearch(''); }}
+                                        className={`flex items-center gap-2 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border rounded-none transition-all ${overrideFilters ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
+                                        {overrideFilters ? '✓ Showing All Students' : '⚡ Override — Show All Students'}
+                                    </button>
+                                    {overrideFilters && (
+                                        <span className="text-[10px] text-amber-400/60">School & class filters are OFF. Search by name to find anyone.</span>
+                                    )}
+                                </div>
+
+                                {/* Quick-filter chips per class — hidden in override mode */}
+                                {!overrideFilters && (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        <button
+                                            onClick={() => setClassFilter('')}
+                                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!classFilter ? 'bg-orange-600 text-foreground border-orange-500' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
+                                        >
+                                            All ({filteredStudents.length})
+                                        </button>
+                                        {distinctClasses.map(c => {
+                                            const isTeacherClass = teacherClasses.some(tc => tc.name === c);
+                                            return (
+                                                <button key={c}
+                                                    onClick={() => setClassFilter(classFilter === c ? '' : c)}
+                                                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${classFilter === c ? 'bg-orange-600 text-foreground border-orange-500' : isTeacherClass ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
+                                                    title={isTeacherClass ? 'Teacher-created class' : undefined}
+                                                >
+                                                    {isTeacherClass && <span className="mr-1">🏫</span>}{c}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                             {/* Grouped student grid */}
                             {(() => {
                                 const schoolScopedFiltered = filteredStudents;
                                 if (schoolScopedFiltered.length === 0) {
-                                    return <p className="text-muted-foreground text-sm py-8 text-center">No students found.</p>;
+                                    return (
+                                        <div className="py-8 text-center space-y-4">
+                                            <p className="text-muted-foreground text-sm">No students found with current filters.</p>
+                                            <p className="text-muted-foreground text-xs">Try the <strong className="text-amber-400">Override — Show All Students</strong> toggle above, or enter a student manually below.</p>
+                                            {/* Manual entry */}
+                                            <div className="max-w-sm mx-auto space-y-2">
+                                                <input
+                                                    value={manualName}
+                                                    onChange={e => setManualName(e.target.value)}
+                                                    placeholder="Enter student full name manually…"
+                                                    className="w-full px-4 py-2.5 bg-card border border-border text-foreground text-sm rounded-none placeholder:text-muted-foreground focus:outline-none focus:border-orange-500" />
+                                                <button
+                                                    disabled={!manualName.trim()}
+                                                    onClick={() => {
+                                                        const fake = { id: `manual-${Date.now()}`, full_name: manualName.trim(), email: '', school_name: sessionConfig.school_name, school_id: sessionConfig.school_id, role: 'student' } as any;
+                                                        selectStudent(fake as PortalUser, -1);
+                                                    }}
+                                                    className="w-full py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-foreground text-xs font-bold rounded-none transition-all">
+                                                    Continue with Manual Entry →
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
                                 }
                                 // Group by section_class; ungrouped falls under '— Unassigned —'
                                 const groups: Record<string, typeof filteredStudents> = {};
@@ -1299,9 +1433,12 @@ function ReportBuilderInner() {
                                                                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
                                                                     {s.full_name ? s.full_name[0] : '?'}
                                                                 </div>
-                                                                <div className="min-w-0">
+                                                                <div className="min-w-0 flex-1">
                                                                     <p className="font-semibold text-foreground text-sm truncate">{s.full_name ?? 'Unnamed'}</p>
                                                                     <p className="text-xs text-muted-foreground truncate">{s.school_name ?? s.email}</p>
+                                                                    {(s as any)._source === 'students_table' && (
+                                                                        <span className="text-[9px] text-amber-400 font-semibold">Pre-portal</span>
+                                                                    )}
                                                                 </div>
                                                                 <span className="ml-auto text-[10px] text-muted-foreground font-mono flex-shrink-0">#{idx + 1}</span>
                                                             </div>

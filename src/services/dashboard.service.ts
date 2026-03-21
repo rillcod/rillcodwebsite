@@ -176,7 +176,7 @@ export async function fetchCourses(teacherId?: string, opts: { schoolId?: string
         .from('courses')
         .select(`
       id, title, description, duration_hours, is_active, teacher_id,
-      school_id, school_name,
+      program_id, school_id, school_name,
       created_at,
       programs ( id, name, difficulty_level ),
       assignment_submissions ( id )
@@ -187,9 +187,10 @@ export async function fetchCourses(teacherId?: string, opts: { schoolId?: string
     else q = (q as any).eq('is_active', true);
 
     if (opts.schoolId || opts.schoolName) {
-        let filter = '';
-        if (opts.schoolId) filter += `school_id.eq.${opts.schoolId}`;
-        if (opts.schoolName) filter += `${filter ? ',' : ''}school_name.eq."${opts.schoolName}"`;
+        // Always include global platform courses (school_id IS NULL) alongside school-specific ones
+        let filter = 'school_id.is.null';
+        if (opts.schoolId) filter += `,school_id.eq.${opts.schoolId}`;
+        if (opts.schoolName) filter += `,school_name.eq."${opts.schoolName}"`;
         q = (q as any).or(filter);
     }
 

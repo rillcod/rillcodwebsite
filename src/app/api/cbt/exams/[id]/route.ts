@@ -32,9 +32,20 @@ export async function GET(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
+
+  // Determine caller role to decide whether to expose correct_answer
+  const { data: caller } = await adminClient()
+    .from('portal_users').select('role').eq('id', user.id).single();
+  const isStaff = caller && ['admin', 'teacher', 'school'].includes(caller.role);
+
+  // Students must not receive correct_answer — they get questions without it
+  const questionsSelect = isStaff
+    ? 'cbt_questions(*)'
+    : 'cbt_questions(id, question_text, question_type, options, points, order_index)';
+
   const { data, error } = await adminClient()
     .from('cbt_exams')
-    .select('*, programs(name), courses(title), cbt_questions(*)')
+    .select(`*, programs(name), courses(title), ${questionsSelect}`)
     .eq('id', id)
     .maybeSingle();
 

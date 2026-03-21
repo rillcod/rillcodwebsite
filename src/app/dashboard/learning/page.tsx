@@ -86,7 +86,7 @@ export default function StudentLearningPage() {
         
         if (cIds.length) {
           const { data } = await db.from('lessons')
-            .select('*, courses(title)')
+            .select('*, courses(title, programs(name))')
             .in('course_id', cIds)
             .eq('status', 'active')
             .order('created_at', { ascending: false })
@@ -115,8 +115,8 @@ export default function StudentLearningPage() {
         // Find first incomplete lesson for current program
         const { data: firstProgramLessons } = await db
           .from('lessons')
-          .select('id, title, course_id')
-          .in('course_id', 
+          .select('id, title, course_id, courses(title, programs(name))')
+          .in('course_id',
             (await db.from('courses').select('id').eq('program_id', pIds[0])).data?.map(c => c.id) || []
           )
           .order('id', { ascending: true });
@@ -544,7 +544,12 @@ export default function StudentLearningPage() {
                               </div>
                             )}
                           </div>
-                          <div className="text-center max-w-[80px] sm:max-w-[100px]">
+                          <div className="text-center max-w-[90px] sm:max-w-[110px]">
+                            {(lesson as any).courses?.title && (
+                              <p className="text-[7px] font-black uppercase tracking-widest leading-none mb-0.5 text-blue-400/70 truncate w-full text-center">
+                                {(lesson as any).courses.title}
+                              </p>
+                            )}
                             <p className={`text-[8px] font-black uppercase tracking-widest leading-none mb-1 ${isActive ? 'text-orange-500' : isCompleted ? 'text-white/50' : 'text-white/15'}`}>
                               {lesson.lesson_type || 'Lesson'}
                             </p>
@@ -682,11 +687,16 @@ export default function StudentLearningPage() {
                          </div>
                          <h3 className="text-base font-black text-white mb-2 leading-tight group-hover:text-orange-500 transition-colors uppercase tracking-tight">{lesson.title}</h3>
                          <div className="flex items-center gap-4 mt-6 pt-4 border-t border-white/5">
-                            <div className="flex items-center gap-2">
-                               <AcademicCapIcon className="w-3.5 h-3.5 text-blue-400" />
-                               <span className="text-[9px] font-black text-white/20 uppercase tracking-widest truncate max-w-[120px]">{lesson.courses?.title}</span>
+                            <div className="flex flex-col gap-0.5 min-w-0">
+                               {(lesson as any).courses?.programs?.name && (
+                                 <span className="text-[8px] font-black text-orange-500/60 uppercase tracking-widest truncate max-w-[140px]">{(lesson as any).courses.programs.name}</span>
+                               )}
+                               <div className="flex items-center gap-1.5">
+                                 <AcademicCapIcon className="w-3 h-3 text-blue-400 shrink-0" />
+                                 <span className="text-[9px] font-black text-white/30 uppercase tracking-widest truncate max-w-[130px]">{lesson.courses?.title}</span>
+                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 text-[9px] font-black text-white/20 ml-auto uppercase">
+                            <div className="flex items-center gap-1.5 text-[9px] font-black text-white/20 ml-auto uppercase shrink-0">
                                <ClockIcon className="w-3.5 h-3.5" /> {lesson.duration_minutes || '45'}M
                             </div>
                          </div>
