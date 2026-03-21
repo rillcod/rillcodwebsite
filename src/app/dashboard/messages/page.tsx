@@ -215,6 +215,18 @@ export default function MessagesPage() {
   const unread = inbox.filter(m => !m.is_read).length;
   const unreadNewsletters = newsletters.filter(nl => !nl.is_viewed).length;
 
+  // Role-filtered recipients for compose
+  const composeRecipients = (() => {
+    const base = users.filter(u => {
+      const matchSearch = !userSearch || u.full_name?.toLowerCase().includes(userSearch.toLowerCase()) || u.email?.toLowerCase().includes(userSearch.toLowerCase());
+      const matchClass = classFilter === 'all' || u.current_class === classFilter;
+      return matchSearch && matchClass;
+    });
+    // Students can only message teachers and school staff, not other students
+    if (profile?.role === 'student') return base.filter((u: any) => u.role !== 'student');
+    return base;
+  })();
+
   const tabs: { key: Tab; label: string; icon: any; count?: number }[] = [
     { key: 'inbox', label: 'Inbox', icon: EnvelopeIcon, count: unread || undefined },
     { key: 'sent', label: 'Sent', icon: PaperAirplaneIcon },
@@ -284,11 +296,11 @@ export default function MessagesPage() {
             {tab === 'inbox' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
                 <div className="lg:col-span-5 flex flex-col gap-4">
-                  <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em] px-2">Recent Correspondence</h3>
+                  <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em] px-2">Inbox</h3>
                   {inbox.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-border rounded-none opacity-30">
                       <EnvelopeIcon className="w-12 h-12 mb-2" />
-                      <p className="text-sm font-bold">No incoming signals</p>
+                      <p className="text-sm font-bold">No messages yet</p>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2">
@@ -368,8 +380,8 @@ export default function MessagesPage() {
                         <div className="w-24 h-24 rounded-full border-2 border-dashed border-border mb-4 flex items-center justify-center">
                           <EnvelopeIcon className="w-10 h-10" />
                         </div>
-                        <p className="text-sm font-black uppercase tracking-[0.3em]">Encrypted Viewer Offline</p>
-                        <p className="text-xs font-bold mt-1">Select a transmission to decrypt</p>
+                        <p className="text-sm font-black uppercase tracking-[0.3em]">No message selected</p>
+                        <p className="text-xs font-bold mt-1">Click a message to read it</p>
                      </div>
                    )}
                 </div>
@@ -379,11 +391,11 @@ export default function MessagesPage() {
             {/* ── SENT ─── */}
             {tab === 'sent' && (
               <div className="max-w-3xl mx-auto space-y-6">
-                <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em] px-2">Outbound Transmissions</h3>
+                <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em] px-2">Sent Messages</h3>
                 {sent.length === 0 ? (
                   <div className="py-20 text-center bg-white/[0.01] border border-dashed border-border rounded-none opacity-30 mt-4">
                      <PaperAirplaneIcon className="w-12 h-12 mx-auto mb-4" />
-                     <p className="text-sm font-bold uppercase tracking-widest">Hangar Empty</p>
+                     <p className="text-sm font-bold uppercase tracking-widest">No sent messages</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
@@ -402,7 +414,7 @@ export default function MessagesPage() {
                               <p className="text-xs text-muted-foreground truncate leading-relaxed">{msg.message}</p>
                               <div className="flex items-center gap-2 mt-3">
                                  <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${msg.is_read ? 'bg-emerald-500/10 text-emerald-400' : 'bg-card shadow-sm text-muted-foreground'}`}>
-                                    {msg.is_read ? 'Signal Confirmed' : 'Transmitted'}
+                                    {msg.is_read ? 'Read' : 'Delivered'}
                                  </div>
                               </div>
                            </div>
@@ -416,102 +428,101 @@ export default function MessagesPage() {
 
             {/* ── COMPOSE ─── */}
             {tab === 'compose' && (
-              <div className="max-w-3xl mx-auto space-y-8 py-4 animate-in fade-in zoom-in-95 duration-500">
-                <div className="space-y-2">
-                   <h3 className="text-3xl font-black tracking-tighter text-foreground">New Transmission</h3>
-                   <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest">Drafting secure message</p>
+              <div className="max-w-2xl mx-auto space-y-5 py-2">
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">New Message</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {profile?.role === 'student'
+                      ? 'Send a message to your teacher or school coordinator'
+                      : 'Send a direct message to a member of your school community'}
+                  </p>
                 </div>
-                
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="relative group">
-                      <label className="absolute -top-2.5 left-4 px-2 bg-[#050510] text-[10px] font-black text-[#7a0606] uppercase tracking-[0.2em] group-focus-within:text-foreground transition-colors">Recipient</label>
-                      <select 
-                        value={compose.recipient_id}
-                        onChange={e => setCompose(c => ({ ...c, recipient_id: e.target.value }))}
-                        className="w-full px-6 py-4 bg-white/[0.03] border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-[#7a0606] transition-all cursor-pointer appearance-none shadow-xl">
-                        <option value="">Select individual...</option>
-                        {(() => {
-                           const filtered = users.filter(u => {
-                             const matchesSearch = !userSearch || u.full_name?.toLowerCase().includes(userSearch.toLowerCase()) || u.email?.toLowerCase().includes(userSearch.toLowerCase());
-                             const matchesClass = classFilter === 'all' || u.current_class === classFilter;
-                             return matchesSearch && matchesClass;
-                           });
-                           
-                           const grouped: Record<string, any[]> = {};
-                           filtered.forEach(u => {
-                             const key = u.role === 'student' ? (u.current_class || 'Other Students') : (u.role.toUpperCase() + 'S');
-                             if (!grouped[key]) grouped[key] = [];
-                             grouped[key].push(u);
-                           });
 
-                           return Object.entries(grouped).map(([group, members]) => (
-                             <optgroup key={group} label={group}>
-                               {members.map(u => (
-                                 <option key={u.id} value={u.id}>{u.full_name} {u.current_class ? `(${u.current_class})` : `(${u.role})`}</option>
-                               ))}
-                             </optgroup>
-                           ));
-                        })()}
+                {/* Recipient row */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">To</label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <select
+                      value={compose.recipient_id}
+                      onChange={e => setCompose(c => ({ ...c, recipient_id: e.target.value }))}
+                      className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-none text-sm text-foreground focus:outline-none focus:border-[#7a0606] transition-all">
+                      <option value="">Select recipient…</option>
+                      {(() => {
+                        const grouped: Record<string, any[]> = {};
+                        composeRecipients.forEach((u: any) => {
+                          const key = u.role === 'student'
+                            ? (u.current_class ? `Students — ${u.current_class}` : 'Students')
+                            : u.role === 'teacher' ? 'Teachers'
+                            : u.role === 'school' ? 'School Coordinators'
+                            : 'Administrators';
+                          if (!grouped[key]) grouped[key] = [];
+                          grouped[key].push(u);
+                        });
+                        return Object.entries(grouped).map(([grp, members]) => (
+                          <optgroup key={grp} label={grp}>
+                            {members.map((u: any) => (
+                              <option key={u.id} value={u.id}>
+                                {u.full_name}{u.current_class ? ` (${u.current_class})` : ''}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ));
+                      })()}
+                    </select>
+                    <input
+                      type="text"
+                      value={userSearch}
+                      onChange={e => setUserSearch(e.target.value)}
+                      placeholder="Search name…"
+                      className="w-full sm:w-40 px-3 py-2.5 bg-white/5 border border-white/10 rounded-none text-xs text-foreground focus:outline-none focus:border-[#7a0606]"
+                    />
+                    {isStaff && (
+                      <select
+                        value={classFilter}
+                        onChange={e => setClassFilter(e.target.value)}
+                        className="w-full sm:w-36 px-3 py-2.5 bg-white/5 border border-white/10 rounded-none text-xs text-muted-foreground focus:outline-none">
+                        <option value="all">All Classes</option>
+                        {Array.from(new Set(users.filter((u: any) => u.current_class).map((u: any) => u.current_class))).sort().map(c => (
+                          <option key={c as string} value={c as string}>{c as string}</option>
+                        ))}
                       </select>
-                    </div>
-
-                    <div className="flex gap-2">
-                       <input 
-                         type="text"
-                         value={userSearch}
-                         onChange={e => setUserSearch(e.target.value)}
-                         placeholder="Search name..."
-                         className="flex-1 px-5 py-4 bg-white/[0.03] border border-border rounded-none text-xs text-foreground focus:outline-none focus:border-[#7a0606]"
-                       />
-                       {(profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school') && (
-                         <select 
-                           value={classFilter}
-                           onChange={e => setClassFilter(e.target.value)}
-                           className="w-32 px-4 py-4 bg-white/[0.03] border border-border rounded-none text-[10px] font-bold text-muted-foreground focus:outline-none">
-                           <option value="all">All Grades</option>
-                           {Array.from(new Set(users.filter(u => u.current_class).map(u => u.current_class))).sort().map(c => (
-                             <option key={c} value={c}>{c}</option>
-                           ))}
-                         </select>
-                       )}
-                    </div>
-                  </div>
-
-                  <div className="relative group">
-                    <label className="absolute -top-2.5 left-4 px-2 bg-[#050510] text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] group-focus-within:text-[#7a0606] transition-colors">Heading / Subject</label>
-                    <input 
-                      type="text" 
-                      value={compose.subject}
-                      onChange={e => setCompose(c => ({ ...c, subject: e.target.value }))}
-                      placeholder="Transmission summary..."
-                      className="w-full px-6 py-5 bg-white/[0.03] border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-[#7a0606] transition-all shadow-xl" />
-                  </div>
-
-                  <div className="relative group">
-                    <label className="absolute -top-2.5 left-4 px-2 bg-[#050510] text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] group-focus-within:text-[#7a0606] transition-colors">Signal Content</label>
-                    <textarea 
-                      rows={8} 
-                      value={compose.message}
-                      onChange={e => setCompose(c => ({ ...c, message: e.target.value }))}
-                      placeholder="Type secure transmission..."
-                      className="w-full px-6 py-5 bg-white/[0.03] border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-[#7a0606] transition-all resize-none shadow-xl" />
-                  </div>
-
-                  <button 
-                    onClick={handleSend} 
-                    disabled={sending || !compose.recipient_id || !compose.message.trim()}
-                    className="w-full py-5 bg-[#7a0606] hover:bg-[#9a0808] text-foreground text-base font-black uppercase tracking-[0.3em] rounded-none transition-all shadow-2xl disabled:opacity-50 active:scale-[0.98] group flex items-center justify-center gap-4">
-                    {sending ? (
-                      <ArrowPathIcon className="w-6 h-6 animate-spin" />
-                    ) : sent2 ? (
-                      <CheckIcon className="w-6 h-6" />
-                    ) : (
-                      <PaperAirplaneIcon className="w-6 h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                     )}
-                    {sending ? 'Processing...' : sent2 ? 'Successfully Transmitted' : 'Initiate Send'}
-                  </button>
+                  </div>
                 </div>
+
+                {/* Subject */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Subject <span className="normal-case font-normal">(optional)</span></label>
+                  <input
+                    type="text"
+                    value={compose.subject}
+                    onChange={e => setCompose(c => ({ ...c, subject: e.target.value }))}
+                    placeholder="e.g. Question about homework"
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-[#7a0606] transition-all"
+                  />
+                </div>
+
+                {/* Message */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Message</label>
+                  <textarea
+                    rows={7}
+                    value={compose.message}
+                    onChange={e => setCompose(c => ({ ...c, message: e.target.value }))}
+                    placeholder="Write your message here…"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-[#7a0606] transition-all resize-none"
+                  />
+                </div>
+
+                <button
+                  onClick={handleSend}
+                  disabled={sending || !compose.recipient_id || !compose.message.trim()}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-[#7a0606] hover:bg-[#9a0808] text-white text-sm font-bold rounded-none transition-all disabled:opacity-50">
+                  {sending ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> :
+                   sent2 ? <CheckIcon className="w-4 h-4" /> :
+                   <PaperAirplaneIcon className="w-4 h-4" />}
+                  {sending ? 'Sending…' : sent2 ? 'Sent!' : 'Send Message'}
+                </button>
               </div>
             )}
 
@@ -519,14 +530,14 @@ export default function MessagesPage() {
             {tab === 'announcements' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div className="lg:col-span-12 flex items-center justify-between mb-2">
-                   <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em] px-2">Official Academy Bulletins</h3>
+                   <h3 className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em] px-2">Announcements</h3>
                 </div>
 
-                {tab === 'announcements' && (profile?.role === 'admin' || profile?.role === 'teacher') && (
-                  <div className="lg:col-span-12 bg-white/[0.03] border border-border rounded-[2.5rem] p-8 space-y-6 shadow-2xl mb-8">
-                    <div className="space-y-1">
-                      <h4 className="text-xl font-black text-foreground tracking-tight">Post Broadcast</h4>
-                      <p className="text-[10px] text-[#7a0606] font-black uppercase tracking-widest">Internal Distribution System</p>
+                {(profile?.role === 'admin' || profile?.role === 'teacher') && (
+                  <div className="lg:col-span-12 bg-white/[0.03] border border-border rounded-none p-6 space-y-5 shadow-2xl mb-6">
+                    <div className="space-y-0.5">
+                      <h4 className="text-base font-bold text-foreground">Post Announcement</h4>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Broadcast to your school</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -570,7 +581,7 @@ export default function MessagesPage() {
                       onClick={handleAnnouncement}
                       disabled={posting || !announcement.title.trim() || !announcement.content.trim()}
                       className="px-8 py-4 bg-[#7a0606] hover:bg-[#9a0808] text-foreground text-xs font-black uppercase tracking-[0.2em] rounded-none transition-all shadow-xl disabled:opacity-50">
-                       {posting ? 'Transmitting...' : posted ? 'Broadcast Live' : 'Publish Bulletin'}
+                       {posting ? 'Posting…' : posted ? 'Posted!' : 'Post Announcement'}
                     </button>
                   </div>
                 )}
@@ -611,7 +622,7 @@ export default function MessagesPage() {
                     {announcements.length === 0 && (
                       <div className="text-center py-24 border border-dashed border-border rounded-[2.5rem] opacity-30">
                         <MegaphoneIcon className="w-16 h-16 mx-auto mb-4" />
-                        <p className="font-bold uppercase tracking-[0.4em] text-sm">Silence in Channel</p>
+                        <p className="font-bold uppercase tracking-[0.4em] text-sm">No announcements yet</p>
                       </div>
                     )}
                 </div>

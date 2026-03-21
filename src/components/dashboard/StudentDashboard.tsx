@@ -27,10 +27,11 @@ export default function StudentDashboard() {
   const [data, setData] = useState<{
     xp: number; streak: number; level: string; lessonsDone: number; avgScore: number;
     nextLesson: any; pendingAssignments: number; badges: any[]; leaderboardRank: number | null;
-    recentActivity: any[];
+    recentActivity: any[]; isEnrolled: boolean;
   }>({
     xp: 0, streak: 0, level: 'Bronze', lessonsDone: 0, avgScore: 0,
-    nextLesson: null, pendingAssignments: 0, badges: [], leaderboardRank: null, recentActivity: []
+    nextLesson: null, pendingAssignments: 0, badges: [], leaderboardRank: null, recentActivity: [],
+    isEnrolled: false,
   });
   const [loading, setLoading] = useState(true);
   const [aiHook, setAiHook] = useState<{ hook_title: string; real_world_example: string; challenge_question: string } | null>(null);
@@ -104,6 +105,8 @@ export default function StudentDashboard() {
           }
         }
 
+        const isEnrolled = enrollRes.status === 'fulfilled' && (enrollRes.value.data?.length ?? 0) > 0;
+
         setData({
           xp: pts?.total_points ?? 0,
           streak: pts?.current_streak ?? 0,
@@ -115,6 +118,7 @@ export default function StudentDashboard() {
           badges,
           leaderboardRank,
           recentActivity,
+          isEnrolled,
         });
       } finally {
         setLoading(false);
@@ -151,6 +155,47 @@ export default function StudentDashboard() {
     </div>
   );
 
+  // Not enrolled — focused "get started" view
+  if (!data.isEnrolled) return (
+    <div className="space-y-6 p-4 sm:p-6">
+      {/* Greeting */}
+      <div className="bg-gradient-to-br from-card to-background border border-border p-6 sm:p-8">
+        <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight leading-tight">
+          Welcome, <span className="text-orange-500">{profile?.full_name?.split(' ')[0]}!</span>
+        </h1>
+        <p className="text-sm text-muted-foreground font-medium mt-2">You're not enrolled in any course yet. Get started by exploring available programmes below.</p>
+      </div>
+
+      {/* CTA */}
+      <Link href="/dashboard/learning"
+        className="flex flex-col gap-4 p-6 bg-orange-600/10 border border-orange-600/20 hover:border-orange-500/40 hover:bg-orange-600/15 transition-all group">
+        <div className="px-2.5 py-1 bg-orange-600 text-white text-[8px] font-black uppercase tracking-widest w-fit">Get Started</div>
+        <h3 className="text-base font-black text-foreground uppercase tracking-tight group-hover:text-orange-400 transition-colors">Browse Programmes</h3>
+        <p className="text-[10px] text-muted-foreground font-medium">Find a programme to enrol in and start your learning journey.</p>
+        <div className="flex items-center gap-2 text-orange-400 text-[9px] font-black uppercase tracking-widest mt-auto">
+          <RocketLaunchIcon className="w-4 h-4" /> Explore Now →
+        </div>
+      </Link>
+
+      {/* Quick Nav */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-blue-600/10 border-blue-600/20 text-blue-400 hover:border-blue-500/40' },
+          { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-violet-600/10 border-violet-600/20 text-violet-400 hover:border-violet-500/40' },
+          { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
+          { href: '/dashboard/playground', icon: BoltIcon, label: 'Playground', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },
+        ].map(({ href, icon: Icon, label, color }) => (
+          <Link key={href} href={href}
+            className={`group flex flex-col items-center gap-3 p-4 sm:p-5 border transition-all hover:scale-[1.02] ${color}`}>
+            <Icon className="w-6 h-6" />
+            <span className="text-[9px] font-black uppercase tracking-wider text-center leading-tight">{label}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Enrolled — full performance dashboard
   return (
     <div className="space-y-6 p-4 sm:p-6">
 

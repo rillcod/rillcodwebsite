@@ -22,6 +22,8 @@
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -43,6 +45,8 @@
 
 :root {
   --radius: 0px;
+  --sidebar: #1E2B4A;
+  --sidebar-foreground: #E2E8F0;
   --background: #F8F9FA;
   --foreground: #0A0A0C;
   --card: #FFFFFF;
@@ -72,6 +76,8 @@
 }
 
 .dark {
+  --sidebar: #0D0D1A;
+  --sidebar-foreground: #DDE1EE;
   --background: #0D0E1B;
   --foreground: #DDE1EE;
   --card: #121320;

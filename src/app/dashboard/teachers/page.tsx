@@ -810,25 +810,32 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                       </div>
                     </div>
 
-                    {/* Middle: Deployment Status - Visible on md+ */}
-                    <div className="hidden md:flex flex-wrap items-center gap-2 md:w-[200px] lg:w-[240px] shrink-0">
+                    {/* Middle: Deployment Status — always visible */}
+                    <div className="flex flex-wrap items-center gap-2 lg:w-[240px] shrink-0">
+                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mr-1 lg:hidden">Schools:</span>
                       {staffDeployment[t.id]?.length > 0 ? (
                         staffDeployment[t.id].map(a => (
-                          <div key={a.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-none bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400 uppercase tracking-widest max-w-full">
+                          <div key={a.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-none bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-400 uppercase tracking-widest max-w-[180px]">
                             <BuildingOfficeIcon className="w-3 h-3 shrink-0" />
                             <span className="truncate">{a.schools?.name ?? 'Assigned'}</span>
                           </div>
                         ))
                       ) : (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-none bg-amber-500/10 border border-amber-500/10 text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-none bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 uppercase tracking-widest">
                           <ExclamationTriangleIcon className="w-3.5 h-3.5 shrink-0" />
                           Unassigned
                         </div>
                       )}
                     </div>
 
-                    {/* Right: Action icons only */}
-                    <div className="flex items-center justify-end gap-1 shrink-0 pt-4 lg:pt-0 border-t lg:border-0 border-border w-full lg:w-auto">
+                    {/* Right: Actions */}
+                    <div className="flex items-center gap-2 shrink-0 pt-3 lg:pt-0 border-t lg:border-0 border-border w-full lg:w-auto justify-between lg:justify-end">
+                      {/* Manage Deployment — prominent on mobile */}
+                      <button onClick={() => startEdit(t)}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 rounded-none text-xs font-bold transition-all lg:hidden">
+                        <PencilSquareIcon className="w-3.5 h-3.5" /> Manage
+                      </button>
+
                       <div className="flex items-center gap-1 bg-card shadow-sm p-1 rounded-none border border-border">
                         <button onClick={() => toggleActive(t.id, t.is_active)}
                           disabled={toggling === t.id}
@@ -837,7 +844,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                           {toggling === t.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : (t.is_active ? <CheckCircleIcon className="w-4 h-4 text-emerald-400" /> : <XMarkIcon className="w-4 h-4 text-rose-400" />)}
                         </button>
                         <button onClick={() => startEdit(t)}
-                          className="p-2.5 rounded-none hover:bg-blue-500/10 text-blue-400/60 hover:text-blue-400 transition-all"
+                          className="hidden lg:block p-2.5 rounded-none hover:bg-blue-500/10 text-blue-400/60 hover:text-blue-400 transition-all"
                           title="Edit / Manage Deployment">
                           <PencilSquareIcon className="w-4 h-4" />
                         </button>

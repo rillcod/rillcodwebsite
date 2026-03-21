@@ -8,9 +8,9 @@ const STATES = ['Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 
 function Field({ label, icon: Icon, error, children }: { label: string; icon?: any; error?: string; children: React.ReactNode }) {
     return (
         <div className="space-y-2">
-            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{label}</label>
+            <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">{label}</label>
             <div className="relative group">
-                {Icon && <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-orange-500 transition-colors pointer-events-none z-10" />}
+                {Icon && <Icon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-orange-500 transition-colors pointer-events-none z-10" />}
                 {children}
             </div>
             {error && <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest mt-2 ml-1">{error}</p>}
@@ -19,81 +19,81 @@ function Field({ label, icon: Icon, error, children }: { label: string; icon?: a
 }
 
 const inputCls = (hasIcon = true) =>
-    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-[#1a1a1a] border border-border rounded-none text-sm font-bold text-white placeholder:text-slate-700 focus:outline-none focus:border-orange-500 transition-all shadow-inner shadow-black/20`;
+    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-orange-500 transition-all shadow-inner`;
 
 const selectCls = (hasIcon = false) =>
-    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-[#1a1a1a] border border-border rounded-none text-sm font-bold text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer shadow-inner shadow-black/20`;
+    `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer shadow-inner`;
 
 function PartnershipTermsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-2xl bg-[#1a1a1a] border border-border rounded-none shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border-t-8 border-t-orange-500">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative w-full max-w-2xl bg-card border border-border shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border-t-8 border-t-orange-500">
                 <div className="p-8 sm:p-12 max-h-[85vh] overflow-y-auto custom-scrollbar">
                     <div className="flex items-center gap-4 mb-10 pb-6 border-b border-border">
-                        <div className="w-12 h-12 bg-orange-500/10 border border-orange-500/20 flex items-center justify-center rounded-none">
+                        <div className="w-12 h-12 bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
                             <Scale className="w-6 h-6 text-orange-500" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-white uppercase tracking-tight">Partnership Protocols</h2>
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Legal Framework v2.0</p>
+                            <h2 className="text-2xl font-black text-foreground uppercase tracking-tight">Partnership Terms</h2>
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Legal Framework v2.0</p>
                         </div>
                     </div>
 
-                    <div className="space-y-10 text-slate-400 text-sm leading-relaxed">
+                    <div className="space-y-10 text-muted-foreground text-sm leading-relaxed">
                         <section className="space-y-4">
-                            <h3 className="text-white font-black uppercase tracking-widest flex items-center gap-3">
-                                <span className="text-orange-500">01.</span> REVENUE SHARE ARCHITECTURE
+                            <h3 className="text-foreground font-black uppercase tracking-widest flex items-center gap-3">
+                                <span className="text-orange-500">01.</span> Revenue Share
                             </h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                                <div className="p-6 bg-[#121212] border border-border rounded-none">
-                                    <p className="text-[10px] uppercase font-black tracking-widest text-[#FF914D] mb-1">Academy Nodes</p>
-                                    <p className="text-3xl font-black text-white">70%</p>
-                                    <p className="text-[10px] font-bold text-slate-600 mt-2 uppercase">Infrastructure & IP</p>
+                                <div className="p-6 bg-background border border-border">
+                                    <p className="text-[10px] uppercase font-black tracking-widest text-orange-400 mb-1">Rillcod Technologies</p>
+                                    <p className="text-3xl font-black text-foreground">70%</p>
+                                    <p className="text-[10px] font-bold text-muted-foreground mt-2 uppercase">Curriculum & Infrastructure</p>
                                 </div>
-                                <div className="p-6 bg-[#121212] border border-border rounded-none">
-                                    <p className="text-[10px] uppercase font-black tracking-widest text-blue-500 mb-1">Partner School</p>
-                                    <p className="text-3xl font-black text-white">30%</p>
-                                    <p className="text-[10px] font-bold text-slate-600 mt-2 uppercase">Facility Management</p>
+                                <div className="p-6 bg-background border border-border">
+                                    <p className="text-[10px] uppercase font-black tracking-widest text-blue-400 mb-1">Partner School</p>
+                                    <p className="text-3xl font-black text-foreground">30%</p>
+                                    <p className="text-[10px] font-bold text-muted-foreground mt-2 uppercase">Facility Management</p>
                                 </div>
                             </div>
                         </section>
 
                         <section className="space-y-4">
-                            <h3 className="text-white font-black uppercase tracking-widest flex items-center gap-3">
-                                <span className="text-orange-500">02.</span> CORE OBLIGATIONS
+                            <h3 className="text-foreground font-black uppercase tracking-widest flex items-center gap-3">
+                                <span className="text-orange-500">02.</span> Core Obligations
                             </h3>
                             <div className="space-y-4">
-                                <div className="p-6 bg-[#121212] border border-border rounded-none border-l-4 border-l-orange-500">
-                                    <p className="font-black text-white text-[10px] uppercase tracking-widest mb-4">Uplink Deliverables:</p>
-                                    <ul className="space-y-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                                       <li className="flex items-center gap-2">✓ PROPRIETARY STEM CURRICULUM</li>
-                                       <li className="flex items-center gap-2">✓ CENTRAL LMS HUB ACCESS</li>
-                                       <li className="flex items-center gap-2">✓ CADRE CERTIFICATION TRAINING</li>
+                                <div className="p-6 bg-background border border-border border-l-4 border-l-orange-500">
+                                    <p className="font-black text-foreground text-[10px] uppercase tracking-widest mb-4">Rillcod Provides:</p>
+                                    <ul className="space-y-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        <li className="flex items-center gap-2">✓ Proprietary STEM Curriculum</li>
+                                        <li className="flex items-center gap-2">✓ Portal & LMS Access</li>
+                                        <li className="flex items-center gap-2">✓ Teacher Training & Certification</li>
                                     </ul>
                                 </div>
-                                <div className="p-6 bg-[#121212] border border-border rounded-none border-l-4 border-l-blue-500">
-                                    <p className="font-black text-white text-[10px] uppercase tracking-widest mb-4">Facility Requirements:</p>
-                                    <ul className="space-y-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                                       <li className="flex items-center gap-2">✓ SECURE HARDWARE LABS</li>
-                                       <li className="flex items-center gap-2">✓ STUDENT CLEARANCE DATA</li>
-                                       <li className="flex items-center gap-2">✓ LOCAL PROGRAMME PROMOTION</li>
+                                <div className="p-6 bg-background border border-border border-l-4 border-l-blue-500">
+                                    <p className="font-black text-foreground text-[10px] uppercase tracking-widest mb-4">School Provides:</p>
+                                    <ul className="space-y-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        <li className="flex items-center gap-2">✓ Computer Labs or Devices</li>
+                                        <li className="flex items-center gap-2">✓ Student Enrolment Records</li>
+                                        <li className="flex items-center gap-2">✓ Programme Promotion</li>
                                     </ul>
                                 </div>
                             </div>
                         </section>
 
                         <section className="space-y-4 pt-6 border-t border-border">
-                            <p className="italic text-xs">All intellectual assets and data streams remain the exclusive output of Rillcod Technologies. Deployment is limited to authorized nodes only.</p>
+                            <p className="italic text-xs">All intellectual property and curriculum materials remain the exclusive property of Rillcod Technologies and may only be used by authorised partner institutions.</p>
                         </section>
                     </div>
 
                     <button
                         onClick={onClose}
-                        className="w-full mt-10 py-6 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-none transition-all uppercase tracking-[0.4em] text-xs shadow-xl shadow-orange-500/20"
+                        className="w-full mt-10 py-5 bg-orange-500 hover:bg-orange-600 text-white font-black transition-all uppercase tracking-[0.4em] text-xs shadow-xl shadow-orange-500/20"
                     >
-                        ACKNOWLEDGE PROTOCOLS
+                        I Understand — Close
                     </button>
                 </div>
             </div>
@@ -125,7 +125,7 @@ export function SchoolRegistration() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!form.termsAgreement) { setErr('Protocol acceptance required'); return; }
+        if (!form.termsAgreement) { setErr('Please accept the terms to continue.'); return; }
         setLoading(true); setErr('');
         try {
             const res = await fetch('/api/schools', {
@@ -146,27 +146,27 @@ export function SchoolRegistration() {
                 })
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Transmission failure.');
+            if (!res.ok) throw new Error(data.error || 'Submission failed. Please try again.');
             setSubmitted(true);
         } catch (e: any) {
-            setErr(e.message ?? 'Uplink failed.');
+            setErr(e.message ?? 'Submission failed. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
     if (submitted) return (
-        <div className="bg-[#1a1a1a] border border-border p-12 text-center shadow-2xl rounded-none border-t-4 border-t-emerald-500">
-            <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-8 rounded-none">
+        <div className="bg-card border border-border p-12 text-center shadow-2xl border-t-4 border-t-emerald-500">
+            <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-8">
                 <Check className="w-10 h-10 text-emerald-500" />
             </div>
-            <h2 className="text-3xl font-black text-white uppercase tracking-tight mb-4">Submission Logged</h2>
-            <p className="text-slate-400 font-bold italic mb-8">
-                Request for <strong className="text-white uppercase">{form.schoolName}</strong> is now in verify state. Our audit team will contact you within 48 standard business hours.
+            <h2 className="text-3xl font-black text-foreground uppercase tracking-tight mb-4">Application Submitted</h2>
+            <p className="text-muted-foreground font-medium mb-8">
+                Your application for <strong className="text-foreground">{form.schoolName}</strong> has been received. Our team will review and contact you within 48 hours.
             </p>
             <button onClick={() => setSubmitted(false)}
-                className="px-10 py-5 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-orange-600 transition-all">
-                Submit Another Entity
+                className="px-10 py-5 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.4em] hover:bg-orange-600 transition-all">
+                Submit Another Application
             </button>
         </div>
     );
@@ -177,182 +177,188 @@ export function SchoolRegistration() {
 
             {/* Header */}
             <div className="text-center mb-16">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-none text-orange-500 text-[10px] font-black uppercase tracking-widest mb-6">
-                    <Building2 className="w-4 h-4" /> Institutional Network
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 text-orange-500 text-[10px] font-black uppercase tracking-widest mb-6">
+                    <Building2 className="w-4 h-4" /> School Partnership
                 </div>
-                <h1 className="text-4xl sm:text-6xl font-black text-white leading-none tracking-tight uppercase mb-4">
-                   REGISTER <br />
-                   <span className="text-white/40 italic">SCHOOL.</span>
+                <h1 className="text-4xl sm:text-6xl font-black text-foreground leading-none tracking-tight uppercase mb-4">
+                    REGISTER <br />
+                    <span className="text-foreground/40 italic">SCHOOL.</span>
                 </h1>
-                <p className="text-lg text-slate-400 font-medium italic max-w-lg mx-auto border-l-2 border-orange-500 pl-6 mt-8 hidden sm:block">
-                   Integrate elite STEM curriculum within your campus. Join the network of 50+ high-performance nodes across West Africa.
+                <p className="text-lg text-muted-foreground font-medium italic max-w-lg mx-auto border-l-2 border-orange-500 pl-6 mt-8 hidden sm:block">
+                    Join our network of partner schools delivering world-class STEM education to students across West Africa.
                 </p>
             </div>
 
-            {/* Status Check Matrix */}
-            <div className="bg-[#1a1a1a] border border-border rounded-none p-8 mb-8 border-l-4 border-l-blue-500">
-                <div className="flex flex-col sm:flex-row items-center gap-8">
-                   <div className="flex-1 text-center sm:text-left">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[#4d91ff] mb-1">Audit Check</p>
-                      <h4 className="text-lg font-black text-white uppercase tracking-tight">Status Inquiry</h4>
-                      <p className="text-xs text-slate-500 font-bold mt-1 uppercase italic">Check approval state for existing uplink.</p>
-                   </div>
-                   <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-3">
-                      <div className="relative">
-                         <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
-                         <input
-                             type="email" value={statusEmail} onChange={(e) => setStatusEmail(e.target.value)}
-                             placeholder="admin@school.com"
-                             className="bg-[#121212] border border-border pl-14 pr-6 py-4 rounded-none text-sm font-bold text-white placeholder:text-slate-800 focus:outline-none focus:border-blue-500 transition-all w-full sm:w-64"
-                         />
-                      </div>
-                      <button
-                          type="button" disabled={statusLoading || !statusEmail}
-                          onClick={async () => {
-                              if (!statusEmail) return; setStatusLoading(true); setStatusError(''); setStatusResult(null);
-                              try {
-                                  const res = await fetch(`/api/schools?email=${encodeURIComponent(statusEmail)}`);
-                                  const json = await res.json();
-                                  if (!res.ok) throw new Error(json.error || 'Record Not Found');
-                                  setStatusResult(json.school);
-                              } catch (e: any) { setStatusError(e.message ?? 'Record Not Found'); }
-                              finally { setStatusLoading(false); }
-                          }}
-                          className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest rounded-none transition-all disabled:opacity-50"
-                      >
-                          {statusLoading ? 'AUDITING...' : 'CHECK STATUS'}
-                      </button>
-                   </div>
-                </div>
-                {statusError && <p className="mt-4 text-rose-500 text-[10px] font-black uppercase tracking-widest bg-rose-500/5 p-4 border border-rose-500/10 italic text-center">{statusError}</p>}
-                {statusResult && (
-                    <div className="mt-6 p-6 bg-white/5 border border-border rounded-none flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in duration-500">
-                        <div className="flex items-center gap-4">
-                           <div className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest border ${statusResult.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
-                              {statusResult.status || 'PENDING VETTING'}
-                           </div>
-                           <p className="text-xs font-bold text-white uppercase italic">{statusResult.name}</p>
+            {/* Application Status Check */}
+            <div className="bg-card border border-border border-l-4 border-l-blue-500 p-6 mb-8">
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                    <div className="flex-1 text-center sm:text-left">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-1">Already Applied?</p>
+                        <h4 className="text-base font-black text-foreground uppercase tracking-tight">Check Application Status</h4>
+                        <p className="text-xs text-muted-foreground font-medium mt-1">Enter your school email to check your application.</p>
+                    </div>
+                    <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-3">
+                        <div className="relative">
+                            <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                            <input
+                                type="email" value={statusEmail} onChange={(e) => setStatusEmail(e.target.value)}
+                                placeholder="admin@yourschool.edu.ng"
+                                className="bg-background border border-border pl-12 pr-5 py-3 text-sm font-medium text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-blue-500 transition-all w-full sm:w-64"
+                            />
                         </div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 italic">LOGGED: {statusResult.created_at ? new Date(statusResult.created_at).toLocaleDateString() : 'N/A'}</p>
+                        <button
+                            type="button" disabled={statusLoading || !statusEmail}
+                            onClick={async () => {
+                                if (!statusEmail) return;
+                                setStatusLoading(true); setStatusError(''); setStatusResult(null);
+                                try {
+                                    const res = await fetch(`/api/schools?email=${encodeURIComponent(statusEmail)}`);
+                                    const json = await res.json();
+                                    if (!res.ok) throw new Error(json.error || 'No application found for this email.');
+                                    setStatusResult(json.school);
+                                } catch (e: any) { setStatusError(e.message ?? 'No application found.'); }
+                                finally { setStatusLoading(false); }
+                            }}
+                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                        >
+                            {statusLoading ? 'Checking...' : 'Check Status'}
+                        </button>
+                    </div>
+                </div>
+                {statusError && (
+                    <p className="mt-4 text-rose-400 text-xs font-bold bg-rose-500/5 border border-rose-500/10 p-3 text-center">{statusError}</p>
+                )}
+                {statusResult && (
+                    <div className="mt-5 p-4 bg-muted/30 border border-border flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in duration-300">
+                        <div className="flex items-center gap-3">
+                            <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest border ${statusResult.status === 'approved' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : statusResult.status === 'rejected' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+                                {statusResult.status === 'approved' ? 'Approved' : statusResult.status === 'rejected' ? 'Rejected' : 'Pending Review'}
+                            </span>
+                            <p className="text-sm font-bold text-foreground">{statusResult.name}</p>
+                        </div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                            Applied: {statusResult.created_at ? new Date(statusResult.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
+                        </p>
                     </div>
                 )}
             </div>
 
-            {/* Registration Matrix */}
-            <div className="bg-[#1a1a1a] border border-border rounded-none p-8 md:p-12 shadow-2xl border-t-4 border-t-orange-500">
+            {/* Registration Form */}
+            <div className="bg-card border border-border p-8 md:p-12 shadow-2xl border-t-4 border-t-orange-500">
                 <form onSubmit={handleSubmit} className="space-y-12">
 
                     <section className="space-y-8">
-                        <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] pb-4 border-b border-border italic">DATA SEGMENT 01 // ENTITY PROFILE</h3>
+                        <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] pb-4 border-b border-border">01 — School Information</h3>
                         <Field label="Legal School Name *" icon={Building2}>
-                            <input type="text" name="schoolName" value={form.schoolName} onChange={set} required placeholder="AS REGISTERED WITH CAC" className={inputCls()} />
+                            <input type="text" name="schoolName" value={form.schoolName} onChange={set} required placeholder="As registered with CAC" className={inputCls()} />
                         </Field>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                            <Field label="Institutional Type *">
+                            <Field label="School Type *">
                                 <select name="schoolType" value={form.schoolType} onChange={set} required className={selectCls()}>
-                                    <option value="">SELECT CLASSIFICATION</option>
-                                    <option value="Primary">PRIMARY</option>
-                                    <option value="Secondary">SECONDARY</option>
-                                    <option value="Both">INTEGRATED (K-12)</option>
+                                    <option value="">Select Type</option>
+                                    <option value="Primary">Primary School</option>
+                                    <option value="Secondary">Secondary School</option>
+                                    <option value="Both">Primary & Secondary (K-12)</option>
                                 </select>
-                                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                             </Field>
-                            <Field label="Principal / Executive Head *" icon={User}>
-                                <input type="text" name="principalName" value={form.principalName} onChange={set} required placeholder="FULL NAME" className={inputCls()} />
+                            <Field label="Principal / Head Teacher *" icon={User}>
+                                <input type="text" name="principalName" value={form.principalName} onChange={set} required placeholder="Full name" className={inputCls()} />
                             </Field>
                         </div>
 
-                        <Field label="Base Address *" icon={MapPin}>
-                            <input type="text" name="schoolAddress" value={form.schoolAddress} onChange={set} required placeholder="STREET ADDRESS" className={inputCls()} />
+                        <Field label="School Address *" icon={MapPin}>
+                            <input type="text" name="schoolAddress" value={form.schoolAddress} onChange={set} required placeholder="Street address" className={inputCls()} />
                         </Field>
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-                            <Field label="LGA Sector *">
-                                <input type="text" name="lga" value={form.lga} onChange={set} required placeholder="LOCAL GOVT" className={inputCls(false)} />
+                            <Field label="LGA *">
+                                <input type="text" name="lga" value={form.lga} onChange={set} required placeholder="Local Government Area" className={inputCls(false)} />
                             </Field>
-                            <Field label="City Node">
-                                <input type="text" name="city" value={form.city} onChange={set} placeholder="CITY" className={inputCls(false)} />
+                            <Field label="City">
+                                <input type="text" name="city" value={form.city} onChange={set} placeholder="City" className={inputCls(false)} />
                             </Field>
-                            <Field label="State Node *">
+                            <Field label="State *">
                                 <select name="state" value={form.state} onChange={set} required className={selectCls()}>
-                                    <option value="">SELECT SECTOR</option>
+                                    <option value="">Select State</option>
                                     {STATES.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
-                                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                             </Field>
                         </div>
                     </section>
 
                     <section className="space-y-8 pt-8 border-t border-border">
-                        <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] pb-4 border-b border-border italic">DATA SEGMENT 02 // COMMUNICATIONS</h3>
+                        <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] pb-4 border-b border-border">02 — Contact Details</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                            <Field label="Direct Phone Line *" icon={Phone}>
+                            <Field label="Phone Number *" icon={Phone}>
                                 <input type="tel" name="schoolPhone" value={form.schoolPhone} onChange={set} required placeholder="+234..." className={inputCls()} />
                             </Field>
-                            <Field label="Official Secure Email *" icon={Mail}>
-                                <input type="email" name="schoolEmail" value={form.schoolEmail} onChange={set} required placeholder="ADMIN@SCHOOL.EDU.NG" className={inputCls()} />
+                            <Field label="Official Email Address *" icon={Mail}>
+                                <input type="email" name="schoolEmail" value={form.schoolEmail} onChange={set} required placeholder="admin@yourschool.edu.ng" className={inputCls()} />
                             </Field>
                         </div>
                     </section>
 
                     <section className="space-y-8 pt-8 border-t border-border">
-                        <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] pb-4 border-b border-border italic">DATA SEGMENT 03 // CAPACITY</h3>
+                        <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] pb-4 border-b border-border">03 — Capacity & Programme</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                             <Field label="Total Student Population *" icon={Users}>
-                                <input type="number" name="studentCount" value={form.studentCount} onChange={set} required placeholder="ESTIMATED HEADCOUNT" className={inputCls()} />
+                                <input type="number" name="studentCount" value={form.studentCount} onChange={set} required placeholder="Estimated number of students" className={inputCls()} />
                             </Field>
-                            <Field label="Primary Programme Interest *" icon={Layers}>
+                            <Field label="Programme Interest *" icon={Layers}>
                                 <select name="programInterest" value={form.programInterest} onChange={set} required className={selectCls(true)}>
-                                    <option value="">SELECT CORE MODULE</option>
-                                    <option value="Coding Fundamentals">CODING FUNDAMENTALS</option>
-                                    <option value="Web Development">WEB ARCHITECTURE</option>
-                                    <option value="Robotics Programming">ROBOTICS / IOT</option>
-                                    <option value="All Programmes">FULL STACK NETWORK</option>
+                                    <option value="">Select Programme</option>
+                                    <option value="Coding Fundamentals">Coding Fundamentals</option>
+                                    <option value="Web Development">Web Development</option>
+                                    <option value="Robotics Programming">Robotics & IoT</option>
+                                    <option value="All Programmes">All Programmes</option>
                                 </select>
-                                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                             </Field>
                         </div>
                     </section>
 
-                    <div className="space-y-6 pt-12">
-                        <div className="flex items-start gap-4 p-6 bg-white/[0.02] border border-border rounded-none">
+                    <div className="space-y-5 pt-4">
+                        <div className="flex items-start gap-4 p-5 bg-muted/20 border border-border">
                             <input type="checkbox" id="terms" name="termsAgreement" checked={form.termsAgreement} onChange={set} className="mt-1 w-5 h-5 accent-orange-500 cursor-pointer flex-shrink-0" />
-                            <label htmlFor="terms" className="text-[11px] font-bold text-slate-500 leading-relaxed cursor-pointer italic">
-                                I confirm all institutional records for <span className="text-white uppercase">{form.schoolName || 'This Entity'}</span> are accurate. I agree to the <span onClick={(e) => { e.preventDefault(); setShowTerms(true); }} className="text-orange-500 underline cursor-pointer font-black">Partnership Protocols</span> and operational framework.
+                            <label htmlFor="terms" className="text-[11px] font-bold text-muted-foreground leading-relaxed cursor-pointer">
+                                I confirm all information for <span className="text-foreground font-black">{form.schoolName || 'this school'}</span> is accurate. I agree to the{' '}
+                                <span onClick={(e) => { e.preventDefault(); setShowTerms(true); }} className="text-orange-500 underline cursor-pointer font-black">Partnership Terms</span>.
                             </label>
                         </div>
 
                         {err && (
-                            <div className="bg-rose-500/5 border border-rose-500/10 p-6 text-rose-500 text-[10px] font-black uppercase tracking-widest italic text-center">{err}</div>
+                            <div className="bg-rose-500/10 border border-rose-500/20 p-4 text-rose-400 text-sm font-medium text-center">{err}</div>
                         )}
 
                         <div className="flex gap-4">
                             <button type="button" onClick={() => window.location.href = '/'}
-                                className="flex-1 py-8 bg-white/5 border border-border text-slate-500 hover:text-white font-black text-xs uppercase tracking-[0.5em] rounded-none transition-all">
-                                CANCEL
+                                className="flex-1 py-6 bg-muted border border-border text-muted-foreground hover:text-foreground font-black text-xs uppercase tracking-widest transition-all">
+                                Cancel
                             </button>
                             <button type="submit" disabled={loading}
-                                className="flex-[2] flex items-center justify-center gap-6 py-8 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.5em] rounded-none hover:bg-orange-600 transition-all shadow-2xl shadow-orange-500/20 disabled:opacity-50 hover:scale-[1.01] active:scale-95">
+                                className="flex-[2] flex items-center justify-center gap-4 py-6 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.4em] hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 disabled:opacity-50">
                                 {loading
-                                    ? <><Loader2 className="w-5 h-5 animate-spin" /> EXECUTING UPLINK...</>
-                                    : <><ArrowRight className="w-5 h-5" /> INITIALIZE PARTNERSHIP APPLICATION</>}
+                                    ? <><Loader2 className="w-5 h-5 animate-spin" /> Submitting...</>
+                                    : <><ArrowRight className="w-5 h-5" /> Submit Partnership Application</>}
                             </button>
                         </div>
                     </div>
                 </form>
             </div>
 
-            {/* Verification Nodes */}
-            <div className="flex flex-wrap items-center justify-center gap-8 mt-16 opacity-30">
-                <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-white">
-                   <ShieldCheck className="w-3 h-3 text-orange-500" /> SECURE UPLINK VERIFIED
+            {/* Trust badges */}
+            <div className="flex flex-wrap items-center justify-center gap-8 mt-12 opacity-40">
+                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-foreground">
+                    <ShieldCheck className="w-3 h-3 text-orange-500" /> SSL Secured
                 </div>
-                <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-white">
-                   <Globe className="w-3 h-3 text-blue-500" /> REGIONAL NODE ACTIVE
+                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-foreground">
+                    <Globe className="w-3 h-3 text-blue-500" /> West Africa Network
                 </div>
-                <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-white">
-                   <Users className="w-3 h-3 text-emerald-500" /> 50+ PARTNER ENTITIES
+                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-foreground">
+                    <Users className="w-3 h-3 text-emerald-500" /> 50+ Partner Schools
                 </div>
             </div>
         </div>

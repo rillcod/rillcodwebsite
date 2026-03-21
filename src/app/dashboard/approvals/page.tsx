@@ -50,6 +50,7 @@ export default function ApprovalsPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [acting, setActing] = useState<string | null>(null);
+    const [actingError, setActingError] = useState<string | null>(null);
     const [credentials, setCredentials] = useState<{ email: string; password: string; name: string } | null>(null);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
@@ -84,7 +85,7 @@ export default function ApprovalsPage() {
     }, [profile?.id, isStaff, authLoading]); // eslint-disable-line
 
     const handleStudent = async (id: string, action: 'approved' | 'rejected') => {
-        setActing(id);
+        setActing(id); setActingError(null);
         try {
             const student = students.find(s => s.id === id);
             const res = await fetch('/api/approvals/students', {
@@ -99,13 +100,14 @@ export default function ApprovalsPage() {
                 setCredentials({ ...json.credentials, name: student?.full_name ?? 'Student' });
             }
         } catch (e: any) {
-            alert(e.message);
+            setActingError(e.message ?? 'Action failed. Please try again.');
+        } finally {
+            setActing(null);
         }
-        setActing(null);
     };
 
     const handleSchool = async (id: string, action: 'approved' | 'rejected') => {
-        setActing(id);
+        setActing(id); setActingError(null);
         try {
             const school = schools.find(s => s.id === id);
             const res = await fetch('/api/approvals/schools', {
@@ -120,22 +122,28 @@ export default function ApprovalsPage() {
                 setCredentials({ ...json.credentials, name: school?.name ?? 'School' });
             }
         } catch (e: any) {
-            alert(e.message);
+            setActingError(e.message ?? 'Action failed. Please try again.');
+        } finally {
+            setActing(null);
         }
-        setActing(null);
     };
 
     const handleProspective = async (id: string, action: 'approved' | 'rejected') => {
-        setActing(id);
+        setActing(id); setActingError(null);
         try {
-            await fetch('/api/approvals/prospective', {
+            const res = await fetch('/api/approvals/prospective', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, action }),
             });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Action failed');
             setProspective(prev => prev.filter(s => s.id !== id));
-        } catch { /* ignore */ }
-        setActing(null);
+        } catch (e: any) {
+            setActingError(e.message ?? 'Action failed. Please try again.');
+        } finally {
+            setActing(null);
+        }
     };
 
     // Loading
@@ -177,6 +185,15 @@ export default function ApprovalsPage() {
                     <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
                         <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
                         <p className="text-rose-400 text-sm">{error}</p>
+                    </div>
+                )}
+                {actingError && (
+                    <div className="flex items-center justify-between gap-3 bg-rose-500/10 border border-rose-500/20 p-4">
+                        <div className="flex items-center gap-3">
+                            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
+                            <p className="text-rose-400 text-sm">{actingError}</p>
+                        </div>
+                        <button onClick={() => setActingError(null)} className="text-rose-400 hover:text-rose-300 text-xs font-bold flex-shrink-0">Dismiss</button>
                     </div>
                 )}
 
@@ -247,11 +264,11 @@ export default function ApprovalsPage() {
                         <div className="p-5 border-b border-border">
                             <h3 className="font-bold text-foreground">Pending Student Applications</h3>
                         </div>
-                        <div className="divide-y divide-white/5">
+                        <div className="divide-y divide-border">
                             {students.map(s => (
                                 <div key={s.id} className="p-5 hover:bg-card shadow-sm transition-colors">
                                     <div className="flex items-start gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-600 from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
                                             {(s.full_name ?? '?')[0]}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -291,7 +308,7 @@ export default function ApprovalsPage() {
                         <div className="p-5 border-b border-border">
                             <h3 className="font-bold text-foreground">Pending School Applications</h3>
                         </div>
-                        <div className="divide-y divide-white/5">
+                        <div className="divide-y divide-border">
                             {schools.map(s => (
                                 <div key={s.id} className="p-5 hover:bg-card shadow-sm transition-colors">
                                     <div className="flex items-start gap-4">
@@ -299,11 +316,19 @@ export default function ApprovalsPage() {
                                             <BuildingOfficeIcon className="w-5 h-5 text-blue-400" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-foreground">{s.name}</p>
+                                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                                <p className="font-bold text-foreground">{s.name}</p>
+                                                {s.school_type && (
+                                                    <span className="px-2 py-0.5 text-[9px] font-bold border bg-blue-500/10 text-blue-400 border-blue-500/20">{s.school_type}</span>
+                                                )}
+                                            </div>
                                             <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
                                                 {s.email && <span className="flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" />{s.email}</span>}
                                                 {s.phone && <span className="flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{s.phone}</span>}
                                                 {s.city && <span>{s.city}{s.state ? `, ${s.state}` : ''}</span>}
+                                                {s.principal_name && <span className="flex items-center gap-1"><UserGroupIcon className="w-3.5 h-3.5" />Principal: {s.principal_name}</span>}
+                                                {s.student_count && <span className="flex items-center gap-1"><AcademicCapIcon className="w-3.5 h-3.5" />{Number(s.student_count).toLocaleString()} students</span>}
+                                                {s.program_interest && <span className="text-orange-400 font-medium">{s.program_interest}</span>}
                                             </div>
                                             <p className="text-xs text-muted-foreground mt-1">Applied {new Date(s.created_at).toLocaleDateString()}</p>
                                         </div>
@@ -366,11 +391,11 @@ export default function ApprovalsPage() {
                                 <span className="text-[10px] uppercase font-black text-[#FF914D] tracking-widest">Summer School 2026</span>
                             </div>
                         </div>
-                        <div className="divide-y divide-white/5">
+                        <div className="divide-y divide-border">
                             {prospective.map(s => (
                                 <div key={s.id} className="p-5 hover:bg-card shadow-sm transition-colors">
                                     <div className="flex items-start gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF914D] from-orange-600 to-orange-400 flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-400 flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
                                             {(s.full_name ?? '?')[0]}
                                         </div>
                                         <div className="flex-1 min-w-0">

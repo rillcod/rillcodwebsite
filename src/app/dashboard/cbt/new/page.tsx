@@ -62,21 +62,25 @@ export default function NewExamPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiTopic, setAiTopic] = useState('');
-  const [aiQuestionCount, setAiQuestionCount] = useState('10');
+  const [aiMcqCount, setAiMcqCount] = useState('10');
+  const [aiTheoryCount, setAiTheoryCount] = useState('0');
   // Track which questions are selected (all selected by default)
   const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
   const [printFilter, setPrintFilter] = useState<'all' | 'mcq' | 'theory'>('all');
 
   const handleAiGenerate = async () => {
     if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
+    const mcq    = Math.max(0, Math.min(50, parseInt(aiMcqCount)    || 0));
+    const theory = Math.max(0, Math.min(50, parseInt(aiTheoryCount) || 0));
+    const total  = mcq + theory;
+    if (total < 1) { setAiError('Set at least 1 question (MCQ or Theory).'); return; }
     setAiGenerating(true);
     setAiError(null);
     try {
-      const count = Math.max(1, Math.min(50, parseInt(aiQuestionCount) || 10));
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'cbt', topic: aiTopic, questionCount: count })
+        body: JSON.stringify({ type: 'cbt', topic: aiTopic, questionCount: total, mcqCount: mcq, theoryCount: theory })
       });
       const result = await res.json();
       if (result.error) throw new Error(result.error);
@@ -479,26 +483,50 @@ ${questionRows}
 
             {aiOpen && (
               <div className="space-y-4 pt-4 relative animate-in slide-in-from-top-4 duration-500">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div className="md:col-span-2 space-y-1">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-orange-400/60">Assessment Domain / Topic</label>
+                  {/* Row 1: Topic */}
+                  <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-orange-400/60">Assessment Domain / Topic</label>
+                      <input
+                          value={aiTopic}
+                          onChange={e => setAiTopic(e.target.value)}
+                          placeholder="e.g. Fundamental Concepts of Quantum Computing"
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-orange-500/50 transition-all"
+                      />
+                  </div>
+
+                  {/* Row 2: MCQ Count | Theory Count | Total badge | Generate button */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                      <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-orange-400/60">
+                            Obj / MCQ Count
+                          </label>
                           <input
-                              value={aiTopic}
-                              onChange={e => setAiTopic(e.target.value)}
-                              placeholder="e.g. Fundamental Concepts of Quantum Computing"
-                              className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-orange-500/50 transition-all"
-                          />
-                      </div>
-                      <div className="md:col-span-1 space-y-1">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-orange-400/60">Question Count</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="50"
-                            value={aiQuestionCount}
-                            onChange={e => setAiQuestionCount(e.target.value)}
+                            type="number" min="0" max="50"
+                            value={aiMcqCount}
+                            onChange={e => setAiMcqCount(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 transition-all"
                           />
+                      </div>
+                      <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-orange-400/60">
+                            Theory Count
+                          </label>
+                          <input
+                            type="number" min="0" max="50"
+                            value={aiTheoryCount}
+                            onChange={e => setAiTheoryCount(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 transition-all"
+                          />
+                      </div>
+                      {/* Total display */}
+                      <div className="flex flex-col items-center justify-center h-full py-2 gap-0.5 border border-white/10 rounded-2xl bg-white/5">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Total Questions</span>
+                          <span className="text-3xl font-black text-orange-400 leading-none">
+                            {(parseInt(aiMcqCount) || 0) + (parseInt(aiTheoryCount) || 0)}
+                          </span>
+                          <span className="text-[8px] text-white/20 uppercase">
+                            {parseInt(aiMcqCount) || 0} obj · {parseInt(aiTheoryCount) || 0} theory
+                          </span>
                       </div>
                       <button
                           type="button"
@@ -510,6 +538,7 @@ ${questionRows}
                           <div className="text-[8px] text-white/40 uppercase">Architecture Build</div>
                       </button>
                   </div>
+
                   {aiError && <p className="text-[10px] text-rose-400 font-bold uppercase tracking-widest pl-2">Error: {aiError}</p>}
                   {aiGenerating && (
                       <div className="flex items-center gap-3 text-orange-400 animate-pulse pl-2 border-l-2 border-orange-500">

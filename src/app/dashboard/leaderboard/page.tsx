@@ -13,6 +13,7 @@ interface LeaderEntry {
   id: string;
   full_name: string;
   school_name: string | null;
+  school_id: string | null;
   section_class: string | null;
   xp: number;
   level: number;
@@ -32,7 +33,9 @@ const LEVELS = [
 ];
 
 function getLevel(xp: number) {
-  return LEVELS.findLast(l => xp >= l.min) ?? LEVELS[0];
+  let result = LEVELS[0];
+  for (const l of LEVELS) { if (xp >= l.min) result = l; }
+  return result;
 }
 
 function XPBar({ xp, level }: { xp: number; level: typeof LEVELS[0] }) {
@@ -53,6 +56,7 @@ export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'school'>(profile?.role === 'school' ? 'school' : 'all');
+  const [classFilter, setClassFilter] = useState('all');
   const [myRank, setMyRank] = useState<number | null>(null);
 
   useEffect(() => {
@@ -67,7 +71,7 @@ export default function LeaderboardPage() {
     // Build student query
     let studQuery = supabase
       .from('portal_users')
-      .select('id, full_name, school_name, section_class, school_id')
+      .select('id, full_name, school_name, school_id, section_class')
       .eq('role', 'student')
       .eq('is_active', true);
 
@@ -117,6 +121,7 @@ export default function LeaderboardPage() {
         id: s.id,
         full_name: s.full_name,
         school_name: s.school_name,
+        school_id: s.school_id,
         section_class: s.section_class,
         xp,
         level: LEVELS.indexOf(lvl),
@@ -133,9 +138,9 @@ export default function LeaderboardPage() {
     setLoading(false);
   }
 
-  const filtered = filter === 'school' && profile?.school_id
-    ? entries.filter(e => e.school_name === profile?.school_name)
-    : entries;
+  const filtered = entries
+    .filter(e => filter === 'school' && profile?.school_id ? e.school_id === profile.school_id : true)
+    .filter(e => classFilter !== 'all' ? e.section_class === classFilter : true);
 
   const myEntry = entries.find(e => e.id === profile?.id);
 
@@ -164,8 +169,8 @@ export default function LeaderboardPage() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <p className="text-foreground font-black">You</p>
-              {myRank && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Rank #{myRank}</span>}
-              <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${getLevel(myEntry.xp).color}`}>
+              {myRank && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5">Rank #{myRank}</span>}
+              <span className={`text-xs px-2 py-0.5 font-bold ${getLevel(myEntry.xp).color}`}>
                 {getLevel(myEntry.xp).label}
               </span>
             </div>
@@ -178,20 +183,35 @@ export default function LeaderboardPage() {
         </div>
       )}
 
-      {/* Filter */}
-      {(profile?.role === 'school' || profile?.school_id) && (
-        <div className="flex gap-2 mb-6">
-          {(['all', 'school'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 rounded-none text-xs font-bold uppercase transition-all ${filter === f ? 'bg-[#7a0606] text-foreground' : 'bg-card shadow-sm text-muted-foreground hover:text-foreground'}`}
-            >
-              {f === 'all' ? '🌍 All Schools' : '🏫 My School'}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {/* School scope — only if user has a school_id */}
+        {profile?.school_id && (
+          <>
+            {(['all', 'school'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-4 py-1.5 rounded-none text-xs font-bold uppercase transition-all ${filter === f ? 'bg-[#7a0606] text-white' : 'bg-card shadow-sm border border-border text-muted-foreground hover:text-foreground'}`}
+              >
+                {f === 'all' ? '🌍 All Schools' : '🏫 My School'}
+              </button>
+            ))}
+          </>
+        )}
+        {/* Class filter */}
+        {entries.some(e => e.section_class) && (
+          <select
+            value={classFilter}
+            onChange={e => setClassFilter(e.target.value)}
+            className="px-3 py-1.5 bg-card shadow-sm border border-border rounded-none text-xs font-bold text-muted-foreground focus:outline-none focus:border-[#7a0606]">
+            <option value="all">All Classes</option>
+            {Array.from(new Set(entries.map(e => e.section_class).filter(Boolean))).sort().map(c => (
+              <option key={c!} value={c!}>{c}</option>
+            ))}
+          </select>
+        )}
+      </div>
 
       {/* Top 3 Podium */}
       {filtered.length >= 3 && (
@@ -204,12 +224,12 @@ export default function LeaderboardPage() {
             return (
               <div key={e.id} className="flex flex-col items-center gap-2">
                 <div className="text-2xl">{MEDAL[idx]}</div>
-                <div className="w-12 h-12 rounded-full bg-[#7a0606] flex items-center justify-center border-2 border-border">
+                <div className="w-12 h-12 bg-[#7a0606] flex items-center justify-center border-2 border-border">
                   <span className="text-foreground font-black text-lg">{e.full_name.charAt(0)}</span>
                 </div>
                 <p className="text-foreground text-xs font-bold truncate max-w-[80px] text-center">{e.full_name.split(' ')[0]}</p>
                 <p className="text-yellow-400 text-xs font-black">{e.xp} XP</p>
-                <div className={`w-20 ${heightMap[idx]} rounded-t-xl flex items-center justify-center ${idx === 0 ? 'bg-yellow-500/20' : idx === 1 ? 'bg-gray-400/10' : 'bg-orange-500/10'}`}>
+                <div className={`w-20 ${heightMap[idx]} flex items-center justify-center ${idx === 0 ? 'bg-yellow-500/20 border-t-2 border-yellow-500/40' : idx === 1 ? 'bg-slate-400/10 border-t-2 border-slate-400/30' : 'bg-orange-500/10 border-t-2 border-orange-500/30'}`}>
                   <span className="text-2xl font-black text-muted-foreground">{idx + 1}</span>
                 </div>
               </div>
@@ -237,7 +257,7 @@ export default function LeaderboardPage() {
                 </div>
 
                 {/* Avatar */}
-                <div className="w-9 h-9 rounded-full bg-[#1a2b54] border border-border flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 bg-[#1a2b54] border border-border flex items-center justify-center flex-shrink-0">
                   <span className="text-foreground text-sm font-black">{e.full_name.charAt(0)}</span>
                 </div>
 
@@ -245,9 +265,15 @@ export default function LeaderboardPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-foreground text-sm font-bold truncate">{e.full_name} {isMe && '(You)'}</p>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ${lvl.color}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 font-bold flex-shrink-0 ${lvl.color}`}>
                       {lvl.emoji} {lvl.label}
                     </span>
+                    {(profile?.role === 'admin' || profile?.role === 'teacher') && e.school_name && (
+                      <span className="text-[10px] text-muted-foreground font-medium truncate hidden sm:block">{e.school_name}</span>
+                    )}
+                    {e.section_class && (
+                      <span className="text-[10px] text-muted-foreground font-medium">{e.section_class}</span>
+                    )}
                   </div>
                   <XPBar xp={e.xp} level={lvl} />
                 </div>

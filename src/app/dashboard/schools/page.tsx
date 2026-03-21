@@ -605,14 +605,14 @@ export default function SchoolsPage() {
             </div>
             <div className="divide-y divide-white/5">
               {filtered.map(s => (
-                <div key={s.id} className="p-5 hover:bg-card shadow-sm transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-none bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <div key={s.id} className="p-4 sm:p-5 hover:bg-white/[0.02] transition-colors">
+                  <div className="flex gap-3 sm:gap-4">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-none bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                       <BuildingOfficeIcon className="w-5 h-5 text-blue-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="font-bold text-foreground">{s.name}</span>
+                      <div className="flex items-start gap-2 flex-wrap mb-1">
+                        <span className="font-bold text-foreground leading-snug">{s.name}</span>
                         <StatusBadge status={s.status ?? 'pending'} />
                         {s.portal_users?.length > 0 && (
                           <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/10 text-orange-400 text-[10px] font-black uppercase tracking-tighter rounded-full border border-orange-500/20">
@@ -620,34 +620,53 @@ export default function SchoolsPage() {
                           </span>
                         )}
                         {s.school_type && (
-                          <span className="text-xs text-muted-foreground bg-card shadow-sm px-2 py-0.5 rounded-full">{s.school_type}</span>
+                          <span className="text-xs text-muted-foreground bg-card px-2 py-0.5 rounded-full">{s.school_type}</span>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         {s.contact_person && <span>{s.contact_person}</span>}
-                        {s.email && <span className="flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" />{s.email}</span>}
+                        {s.email && <span className="flex items-center gap-1 min-w-0"><EnvelopeIcon className="w-3.5 h-3.5 flex-shrink-0" /><span className="truncate max-w-[160px] sm:max-w-none">{s.email}</span></span>}
                         {s.phone && <span className="flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{s.phone}</span>}
                         {(s.lga || s.state) && <span className="flex items-center gap-1"><MapPinIcon className="w-3.5 h-3.5" />{[s.lga, s.state].filter(Boolean).join(', ')}</span>}
                         {s.student_count > 0 && <span className="flex items-center gap-1"><UsersIcon className="w-3.5 h-3.5" />{s.student_count} students</span>}
                       </div>
-                      {s.enrollment_types?.length > 0 && (
+                      {(s.enrollment_types?.length > 0 || s.program_interest?.length > 0) && (
                         <div className="flex gap-1.5 mt-2 flex-wrap">
-                          {s.enrollment_types.map((t: string) => (
+                          {s.enrollment_types?.map((t: string) => (
                             <span key={t} className="text-[10px] font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full capitalize">{t}</span>
                           ))}
-                        </div>
-                      )}
-                      {s.program_interest?.length > 0 && (
-                        <div className="flex gap-1.5 mt-2 flex-wrap">
-                          {s.program_interest.map((p: string) => (
+                          {s.program_interest?.map((p: string) => (
                             <span key={p} className="text-[10px] font-bold px-2 py-0.5 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-full">{p}</span>
                           ))}
                         </div>
                       )}
-                      <p className="text-xs text-muted-foreground mt-1.5">Registered {new Date(s.created_at).toLocaleDateString()}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1.5">Registered {new Date(s.created_at).toLocaleDateString()}</p>
+
+                      {/* Action buttons — always below info on mobile, inline on lg */}
+                      <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-border/50 lg:hidden">
+                        <button onClick={() => setDetail(s)}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-none transition-all border border-border">
+                          <EyeIcon className="w-3.5 h-3.5" /> View
+                        </button>
+                        <button onClick={() => startEdit(s)}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-none transition-all border border-border">
+                          <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+                        </button>
+                        <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[10px] font-black uppercase rounded-none transition-all disabled:opacity-50 border border-rose-500/15">
+                          <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Del'}
+                        </button>
+                        {(s.status === 'pending' || !s.status) && (
+                          <button onClick={() => updateStatus(s.id, 'approved')} disabled={acting === s.id}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase rounded-none transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+                            <CheckCircleIcon className="w-3.5 h-3.5" /> Approve
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 flex-shrink-0 mt-3 lg:mt-0">
+                    {/* Desktop-only action buttons */}
+                    <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0">
                       <button onClick={() => setDetail(s)}
                         className="flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-none transition-all border border-border whitespace-nowrap">
                         <EyeIcon className="w-3.5 h-3.5" /> View

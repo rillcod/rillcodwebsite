@@ -57,9 +57,42 @@ export default function CBTPage() {
 
   const getStudentSession = (examId: string) => sessions.find(s => s.exam_id === examId);
 
+  // ── LOADING ──────────────────────────────────────────────────
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Hero skeleton */}
+        <div className="relative overflow-hidden bg-card border border-border p-6 sm:p-8 animate-pulse">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex items-start gap-5">
+              <div className="w-14 h-14 bg-orange-600/30" />
+              <div className="space-y-2 pt-1">
+                <div className="h-9 bg-muted w-64" />
+                <div className="h-3 bg-muted w-40" />
+                <div className="h-4 bg-muted w-52 mt-2" />
+              </div>
+            </div>
+            <div className="hidden sm:flex gap-3">
+              {[1, 2, 3, 4].map(i => <div key={i} className="w-24 h-16 bg-muted" />)}
+            </div>
+          </div>
+        </div>
+        {/* Search skeleton */}
+        <div className="h-12 bg-card border border-border animate-pulse max-w-md" />
+        {/* Cards skeleton */}
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="relative bg-card border border-border overflow-hidden animate-pulse">
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-600/30" />
+              <div className="pl-7 pr-6 py-5 space-y-3">
+                <div className="h-5 bg-muted w-1/2" />
+                <div className="h-4 bg-muted w-1/3" />
+                <div className="h-3 bg-muted w-2/3" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 
@@ -67,71 +100,91 @@ export default function CBTPage() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <AcademicCapIcon className="w-5 h-5 text-emerald-400" />
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">CBT Centre</span>
-            </div>
-            <h1 className="text-3xl font-extrabold">Computer-Based Tests</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              {isStaff ? 'Create and manage exams and quizzes' : 'View and take your scheduled exams'}
-            </p>
-          </div>
-          {isStaff && (
-            <Link href="/dashboard/cbt/new"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground font-bold text-sm rounded-none transition-all hover:scale-105 shadow-lg shadow-emerald-900/30">
-              <PlusIcon className="w-4 h-4" /> Create Exam
-            </Link>
-          )}
-        </div>
+        {/* ── HERO HEADER ── */}
+        <div className="relative overflow-hidden bg-card border border-border p-6 sm:p-8">
+          {/* Ambient glow */}
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-orange-500/5 rounded-full blur-[120px] pointer-events-none" />
 
-        {/* Stats */}
-        {isStaff && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { label: 'Total Exams', value: exams.length, icon: DocumentCheckIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-              { label: 'Active', value: exams.filter(e => e.is_active).length, icon: PlayIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-              { label: 'Total Sessions', value: exams.reduce((s, e) => s + (e.cbt_sessions?.length ?? 0), 0), icon: ChartBarIcon, color: 'text-orange-400', bg: 'bg-orange-500/10' },
-              { label: 'Programmes', value: new Set(exams.map(e => e.program_id)).size, icon: AcademicCapIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-            ].map(s => (
-              <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5">
-                <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
-                  <s.icon className={`w-5 h-5 ${s.color}`} />
-                </div>
-                <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-                <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+          <div className="relative flex flex-col sm:flex-row items-start justify-between gap-6">
+            {/* Left: icon + title */}
+            <div className="flex items-start gap-5">
+              <div className="w-14 h-14 bg-orange-600 flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-orange-400/30 flex-shrink-0">
+                <AcademicCapIcon className="w-7 h-7 text-white" />
               </div>
-            ))}
-          </div>
-        )}
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter text-foreground leading-none">
+                  CBT Centre
+                </h1>
+                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-orange-400 mt-1">
+                  Assessments &amp; Examinations
+                </p>
+                <p className="text-sm text-muted-foreground mt-1.5">
+                  {isStaff ? 'Create and manage exams and quizzes' : 'View and take your scheduled exams'}
+                </p>
+              </div>
+            </div>
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input type="text" placeholder="Search exams…" value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+            {/* Right: stats + create button (staff only) */}
+            {isStaff && (
+              <div className="flex flex-col items-end gap-3 flex-shrink-0">
+                <div className="flex gap-px border border-border">
+                  {[
+                    { label: 'Total Exams', value: exams.length, color: 'text-orange-400' },
+                    { label: 'Active', value: exams.filter(e => e.is_active).length, color: 'text-emerald-400' },
+                    { label: 'Sessions', value: exams.reduce((s, e) => s + (e.cbt_sessions?.length ?? 0), 0), color: 'text-blue-400' },
+                    { label: 'Programmes', value: new Set(exams.map(e => e.program_id)).size, color: 'text-amber-400' },
+                  ].map((stat, idx) => (
+                    <div key={stat.label} className={`bg-background px-5 py-3 text-center min-w-[72px] ${idx > 0 ? 'border-l border-border' : ''}`}>
+                      <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{stat.label}</p>
+                      <p className={`text-2xl font-black ${stat.color}`}>{stat.value}</p>
+                    </div>
+                  ))}
+                </div>
+                <Link
+                  href="/dashboard/cbt/new"
+                  className="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
+                >
+                  <PlusIcon className="w-4 h-4" /> Create Exam
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Exam list */}
+        {/* ── SEARCH BAR ── */}
+        <div className="relative max-w-md">
+          <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search exams or programmes…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 bg-card border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+          />
+        </div>
+
+        {/* ── EXAM LIST ── */}
         {filtered.length === 0 ? (
-          <div className="text-center py-24 bg-card shadow-sm border border-border rounded-none">
+          <div className="text-center py-24 bg-card border border-border">
             <AcademicCapIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <p className="text-lg font-semibold text-muted-foreground">No exams found</p>
+            <p className="text-lg font-black italic uppercase tracking-tighter text-muted-foreground">No Exams Found</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isStaff ? 'Get started by creating your first exam.' : 'No exams have been scheduled yet.'}
+            </p>
             {isStaff && (
-              <Link href="/dashboard/cbt/new"
-                className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground font-bold text-sm rounded-none transition-all">
+              <Link
+                href="/dashboard/cbt/new"
+                className="inline-flex items-center gap-2 mt-6 bg-orange-600 hover:bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
+              >
                 <PlusIcon className="w-4 h-4" /> Create First Exam
               </Link>
             )}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {filtered.map((exam: any) => {
-              const sessions = exam.cbt_sessions ?? [];
-              const passed = sessions.filter((s: any) => s.status === 'passed').length;
+              const examSessions = exam.cbt_sessions ?? [];
+              const passed = examSessions.filter((s: any) => s.status === 'passed').length;
               const studentSession = !isStaff ? getStudentSession(exam.id) : null;
               const now = new Date();
               const started = exam.start_date ? new Date(exam.start_date) <= now : true;
@@ -139,100 +192,152 @@ export default function CBTPage() {
               const available = started && !ended && exam.is_active;
 
               return (
-                <div key={exam.id} className="bg-card shadow-sm border border-border rounded-none p-6 hover:border-border transition-all">
-                  <div className="flex flex-col sm:flex-row items-start gap-4">
-                    <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 rounded-none flex items-center justify-center flex-shrink-0">
-                      <AcademicCapIcon className="w-6 h-6 text-emerald-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <h3 className="font-bold text-foreground">{exam.title}</h3>
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
-                          {exam.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                        {!isStaff && studentSession && (
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
-                            studentSession.status === 'passed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                            studentSession.status === 'failed' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
-                            studentSession.status === 'pending_grading' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                            'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                          }`}>
-                            {studentSession.status === 'passed' ? `Passed · ${studentSession.score}%` :
-                             studentSession.status === 'failed' ? `Failed · ${studentSession.score}%` :
-                             studentSession.status === 'pending_grading' ? 'Pending Review' :
-                             'Submitted'}
+                <div
+                  key={exam.id}
+                  className="group relative bg-card border border-border hover:border-orange-500/20 transition-all overflow-hidden"
+                >
+                  {/* Left accent bar */}
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${exam.is_active ? 'bg-orange-600' : 'bg-muted'}`} />
+
+                  <div className="pl-7 pr-6 py-5">
+                    <div className="flex items-start justify-between gap-4">
+                      {/* Left content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <h3 className="font-black text-foreground text-base">{exam.title}</h3>
+                          <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
+                            {exam.is_active ? 'Active' : 'Inactive'}
                           </span>
+                          {!isStaff && studentSession && (
+                            <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${
+                              studentSession.status === 'passed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                              studentSession.status === 'failed' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
+                              studentSession.status === 'pending_grading' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                              'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                            }`}>
+                              {studentSession.status === 'passed' ? `Passed · ${studentSession.score}%` :
+                               studentSession.status === 'failed' ? `Failed · ${studentSession.score}%` :
+                               studentSession.status === 'pending_grading' ? 'Pending Review' :
+                               'Submitted'}
+                            </span>
+                          )}
+                        </div>
+
+                        {exam.description && (
+                          <p className="text-sm text-muted-foreground mt-0.5 mb-2">{exam.description}</p>
                         )}
+
+                        {/* Meta chips */}
+                        <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2">
+                          {(exam.courses?.title || exam.programs?.name) && (
+                            <span className="flex items-center gap-1 text-[11px] text-blue-400 font-bold">
+                              <BookOpenIcon className="w-3.5 h-3.5" />
+                              {exam.courses?.title ?? exam.programs?.name}
+                            </span>
+                          )}
+                          {exam.duration_minutes && (
+                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <ClockIcon className="w-3.5 h-3.5" />
+                              {exam.duration_minutes} min
+                            </span>
+                          )}
+                          {exam.total_questions && (
+                            <span className="text-[11px] text-muted-foreground">{exam.total_questions} questions</span>
+                          )}
+                          {exam.passing_score && (
+                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <CheckCircleIcon className="w-3.5 h-3.5" />
+                              Pass: {exam.passing_score}%
+                            </span>
+                          )}
+                          {exam.start_date && (
+                            <span className="text-[11px] text-muted-foreground">
+                              Starts {new Date(exam.start_date).toLocaleDateString()}
+                            </span>
+                          )}
+                          {exam.end_date && (
+                            <span className="text-[11px] text-muted-foreground">
+                              Ends {new Date(exam.end_date).toLocaleDateString()}
+                            </span>
+                          )}
+                          {isStaff && (
+                            <span className="text-[11px] text-blue-400">
+                              {examSessions.length} attempts · {passed} passed
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      {exam.description && <p className="text-sm text-muted-foreground mb-2">{exam.description}</p>}
-                      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                        {exam.courses?.title && (
-                          <span className="flex items-center gap-1 text-blue-400 font-bold">
-                            <BookOpenIcon className="w-3.5 h-3.5" />
-                            {exam.courses.title}
-                          </span>
-                        )}
-                        {exam.programs?.name && !exam.courses?.title && <span>{exam.programs.name}</span>}
-                        {exam.duration_minutes && (
-                          <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{exam.duration_minutes} min</span>
-                        )}
-                        {exam.total_questions && <span>{exam.total_questions} questions</span>}
-                        {exam.passing_score && (
-                          <span className="flex items-center gap-1"><CheckCircleIcon className="w-3.5 h-3.5" />Pass: {exam.passing_score}%</span>
-                        )}
-                        {exam.start_date && <span>Starts {new Date(exam.start_date).toLocaleDateString()}</span>}
-                        {exam.end_date && <span>Ends {new Date(exam.end_date).toLocaleDateString()}</span>}
-                        {isStaff && <span className="text-blue-400">{sessions.length} attempts · {passed} passed</span>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {isStaff ? (
-                        <>
-                          <Link href={`/dashboard/cbt/${exam.id}`}
-                            className="p-2 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-none transition-colors">
-                            <EyeIcon className="w-4 h-4" />
-                          </Link>
-                          <Link href={`/dashboard/cbt/${exam.id}/edit`}
-                            className="p-2 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-none transition-colors">
-                            <PencilIcon className="w-4 h-4" />
-                          </Link>
-                          <button
-                            onClick={() => handleDelete(exam.id, exam.title)}
-                            disabled={deleting === exam.id}
-                            className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-none transition-colors disabled:opacity-40">
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                        </>
-                      ) : (
-                        studentSession ? (
-                          <Link href={`/dashboard/cbt/${exam.id}`}
-                            className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
-                            <EyeIcon className="w-4 h-4" /> View Results
-                          </Link>
-                        ) : available ? (
-                          <Link href={`/dashboard/cbt/${exam.id}/take`}
-                            className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-foreground bg-emerald-600 hover:bg-emerald-500 rounded-none transition-colors">
-                            <PlayIcon className="w-4 h-4" /> Start Exam
-                          </Link>
+
+                      {/* Right: actions */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {isStaff ? (
+                          <>
+                            <Link
+                              href={`/dashboard/cbt/${exam.id}`}
+                              className="p-2.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+                              title="View"
+                            >
+                              <EyeIcon className="w-4 h-4" />
+                            </Link>
+                            <Link
+                              href={`/dashboard/cbt/${exam.id}/edit`}
+                              className="p-2.5 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                              title="Edit"
+                            >
+                              <PencilIcon className="w-4 h-4" />
+                            </Link>
+                            <button
+                              onClick={() => handleDelete(exam.id, exam.title)}
+                              disabled={deleting === exam.id}
+                              className="p-2.5 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-colors disabled:opacity-40"
+                              title="Delete"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </>
                         ) : (
-                          <span className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-muted-foreground bg-card shadow-sm rounded-none">
-                            {ended ? 'Expired' : 'Not yet available'}
+                          studentSession ? (
+                            <Link
+                              href={`/dashboard/cbt/${exam.id}`}
+                              className="flex items-center gap-2 bg-card hover:bg-muted text-muted-foreground font-black text-[10px] uppercase tracking-widest px-5 py-2.5 border border-border transition-colors"
+                            >
+                              <EyeIcon className="w-4 h-4" /> View Results
+                            </Link>
+                          ) : available ? (
+                            <Link
+                              href={`/dashboard/cbt/${exam.id}/take`}
+                              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
+                            >
+                              <PlayIcon className="w-4 h-4" /> Start Exam
+                            </Link>
+                          ) : (
+                            <span className="flex items-center gap-2 text-muted-foreground font-black text-[10px] uppercase tracking-widest px-5 py-2.5 border border-border bg-card">
+                              <ExclamationTriangleIcon className="w-4 h-4" />
+                              {ended ? 'Expired' : 'Not Available'}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Student score bar */}
+                    {!isStaff && studentSession?.score != null && (
+                      <div className="border-t border-border mt-4 pt-4">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground">Your Score</span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {studentSession.score}% / {exam.passing_score}% to pass
                           </span>
-                        )
-                      )}
-                    </div>
+                        </div>
+                        <div className="w-full h-1.5 bg-muted">
+                          <div
+                            className={`h-1.5 transition-all ${studentSession.score >= (exam.passing_score ?? 70) ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                            style={{ width: `${Math.min(studentSession.score, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {!isStaff && studentSession?.score != null && (
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                        <span>Your score</span><span>{studentSession.score}% / {exam.passing_score}% to pass</span>
-                      </div>
-                      <div className="w-full h-2 bg-muted rounded-full">
-                        <div className={`h-2 rounded-full transition-all ${studentSession.score >= (exam.passing_score ?? 70) ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                          style={{ width: `${Math.min(studentSession.score, 100)}%` }} />
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}

@@ -27,6 +27,7 @@ const CodeEditor = dynamic(() => import('@/components/studio/IntegratedCodeRunne
 type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 type MissionLanguage = 'javascript' | 'python' | 'html' | 'robotics';
 type FilterType = 'All' | Difficulty | 'Completed';
+type LangFilter = 'all' | 'javascript' | 'python' | 'html';
 
 interface Mission {
   id: string;
@@ -221,6 +222,165 @@ const MISSIONS: Mission[] = [
     starterCode: `class DivisionError extends Error {\n  constructor(message) {\n    super(message);\n    this.name = 'DivisionError';\n  }\n}\n\nfunction safeDivide(a, b) {\n  if (typeof a !== 'number' || typeof b !== 'number') {\n    throw new TypeError('Both arguments must be numbers');\n  }\n  if (b === 0) {\n    throw new DivisionError('Cannot divide by zero');\n  }\n  return a / b;\n}\n\nconst tests = [\n  [10, 2],\n  [5, 0],\n  ['5', 2],\n  [100, 4],\n];\n\ntests.forEach(([a, b]) => {\n  try {\n    console.log(\`\${a} / \${b} = \${safeDivide(a, b)}\`);\n  } catch (err) {\n    console.error(\`\${err.name}: \${err.message}\`);\n  }\n});`,
     tags: ['error handling', 'try/catch', 'custom errors'],
   },
+
+  // ── Python Missions ──────────────────────────────────────────────────────
+
+  {
+    id: 'p01',
+    title: 'Hello Python',
+    description: 'Learn Python variables, data types, and f-string print statements.',
+    instructions:
+      'Create three variables: name (string), age (integer), and gpa (float). Print them using an f-string in the format: "My name is Adaeze, I am 14 years old and my GPA is 3.8". Then print each variable\'s type using type().',
+    difficulty: 'Beginner',
+    language: 'python',
+    xp: 50,
+    starterCode: `# Declare your variables\nname = ""\nage = 0\ngpa = 0.0\n\n# Print using an f-string\nprint(f"My name is {name}, I am {age} years old and my GPA is {gpa}")\n\n# Print variable types\nprint(type(name))\nprint(type(age))\nprint(type(gpa))`,
+    tags: ['variables', 'print', 'f-strings', 'types'],
+  },
+  {
+    id: 'p02',
+    title: 'Loop the Loop',
+    description: 'Use for loops with range() to print numbers and compute a sum.',
+    instructions:
+      'Write a for loop that prints numbers 1 to 10. Then print only odd numbers from 1 to 20 using a condition inside the loop. Finally, use sum() and range() to calculate the total of all numbers from 1 to 100.',
+    difficulty: 'Beginner',
+    language: 'python',
+    xp: 60,
+    starterCode: `# Print numbers 1 to 10\nfor i in range(1, 11):\n    print(i)\n\nprint("---")\n\n# Print odd numbers 1 to 20\nfor i in range(1, 21):\n    if i % 2 != 0:\n        print(i)\n\n# Sum of 1 to 100\ntotal = sum(range(1, 101))\nprint(f"Sum 1-100: {total}")`,
+    tags: ['loops', 'range', 'for loop', 'sum'],
+  },
+  {
+    id: 'p03',
+    title: 'Function Factory',
+    description: 'Write Python functions with parameters, default arguments, and return values.',
+    instructions:
+      'Create a function calculate_grade(score, total=100) that returns the letter grade: A (>=80%), B (>=65%), C (>=50%), D (>=40%), F (<40%). Test it with at least 5 different score/total pairs.',
+    difficulty: 'Beginner',
+    language: 'python',
+    xp: 70,
+    starterCode: `def calculate_grade(score, total=100):\n    percentage = (score / total) * 100\n    # Return 'A', 'B', 'C', 'D', or 'F' based on percentage\n    pass\n\ntest_cases = [(85, 100), (60, 100), (45, 100), (72, 80), (30, 100)]\nfor score, total in test_cases:\n    grade = calculate_grade(score, total)\n    print(f"Score {score}/{total} → Grade: {grade}")`,
+    tags: ['functions', 'conditionals', 'parameters', 'return'],
+  },
+  {
+    id: 'p04',
+    title: 'List Adventures',
+    description: 'Work with Python lists — slicing, sorting, and built-in methods.',
+    instructions:
+      'Given a list of student scores, find the highest, lowest, and average. Sort the list, remove all scores below 50 using a list comprehension, and use slicing [-3:] to get the top 3 scores.',
+    difficulty: 'Beginner',
+    language: 'python',
+    xp: 80,
+    starterCode: `scores = [72, 45, 88, 60, 35, 91, 55, 78, 42, 83]\n\n# Highest, lowest, average\nprint(f"Highest: {max(scores)}")\nprint(f"Lowest:  {min(scores)}")\nprint(f"Average: {sum(scores) / len(scores):.1f}")\n\n# Sort ascending\nscores_sorted = sorted(scores)\nprint(f"Sorted:  {scores_sorted}")\n\n# Remove scores below 50 using list comprehension\npassing = [s for s in scores_sorted if s >= 50]\nprint(f"Passing: {passing}")\n\n# Top 3 (last 3 from sorted list)\ntop3 = passing[-3:]\nprint(f"Top 3:   {top3}")`,
+    tags: ['lists', 'sorting', 'slicing', 'built-ins'],
+  },
+  {
+    id: 'p05',
+    title: 'Dictionary Data',
+    description: 'Store and look up student records using Python dictionaries.',
+    instructions:
+      'Create a dictionary of 4 students where each key is a name and each value is a dict with age, grade, and score. Write a get_report(name) function that prints a formatted report card. Handle the case when the name is not found using .get() or an if check.',
+    difficulty: 'Beginner',
+    language: 'python',
+    xp: 90,
+    starterCode: `students = {\n    "Amara":  {"age": 14, "grade": "JSS3", "score": 85},\n    "Chidi":  {"age": 15, "grade": "SS1",  "score": 72},\n    "Fatima": {"age": 13, "grade": "JSS2", "score": 90},\n    "Emeka":  {"age": 16, "grade": "SS2",  "score": 67},\n}\n\ndef get_report(name):\n    if name not in students:\n        print(f"Student '{name}' not found.")\n        return\n    s = students[name]\n    print(f"--- {name}'s Report ---")\n    print(f"  Age:   {s['age']}")\n    print(f"  Grade: {s['grade']}")\n    print(f"  Score: {s['score']}")\n\nget_report("Amara")\nget_report("Bola")\nget_report("Fatima")`,
+    tags: ['dictionaries', 'functions', 'key-value'],
+  },
+  {
+    id: 'p06',
+    title: 'List Comprehensions',
+    description: 'Master Python list and dictionary comprehensions for concise data processing.',
+    instructions:
+      'Use comprehensions to: (1) generate squares of 1–10, (2) filter even numbers from a list, (3) create (number, square) tuples for 1–5, (4) build a dict mapping each name to its character count.',
+    difficulty: 'Intermediate',
+    language: 'python',
+    xp: 100,
+    starterCode: `# 1. Squares of 1 to 10\nsquares = [x**2 for x in range(1, 11)]\nprint("Squares:", squares)\n\n# 2. Even numbers from this list\nnums = [3, 8, 15, 22, 7, 44, 11, 36, 9, 50]\nevens = [n for n in nums if n % 2 == 0]\nprint("Evens:", evens)\n\n# 3. (number, square) tuple pairs for 1-5\npairs = [(x, x**2) for x in range(1, 6)]\nprint("Pairs:", pairs)\n\n# 4. Dict of name -> length\nnames = ["Ngozi", "Tunde", "Amaka", "Ibrahim", "Joy"]\nname_lengths = {name: len(name) for name in names}\nprint("Lengths:", name_lengths)`,
+    tags: ['list comprehension', 'dict comprehension', 'filtering'],
+  },
+  {
+    id: 'p07',
+    title: 'Exception Handling',
+    description: 'Handle errors gracefully with try, except, else, and finally.',
+    instructions:
+      'Write safe_divide(a, b) that raises ValueError for non-numbers and ZeroDivisionError for b=0. Then write process_list(divisors) that calls safe_divide(100, d) for each item, catching every error individually and printing a clear message.',
+    difficulty: 'Intermediate',
+    language: 'python',
+    xp: 120,
+    starterCode: `def safe_divide(a, b):\n    if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):\n        raise ValueError(f"Expected numbers, got {type(a).__name__} and {type(b).__name__}")\n    if b == 0:\n        raise ZeroDivisionError("Cannot divide by zero")\n    return a / b\n\n\ndef process_list(divisors):\n    for d in divisors:\n        try:\n            result = safe_divide(100, d)\n            print(f"100 / {d} = {result:.2f}")\n        except ValueError as e:\n            print(f"ValueError: {e}")\n        except ZeroDivisionError as e:\n            print(f"ZeroDivisionError: {e}")\n        finally:\n            pass  # always runs\n\n\nprocess_list([5, 0, 4, "two", 10, 0, 25])`,
+    tags: ['exceptions', 'try/except', 'error handling'],
+  },
+  {
+    id: 'p08',
+    title: 'OOP — Classes & Objects',
+    description: 'Build a class hierarchy for a school system using Python OOP.',
+    instructions:
+      'Create a Person base class with name and age. Add Student(Person) with a scores list and methods get_average() and is_passing() (average >= 60). Add Teacher(Person) with subject and assign_grade(student, score) that appends to the student\'s scores.',
+    difficulty: 'Intermediate',
+    language: 'python',
+    xp: 140,
+    starterCode: `class Person:\n    def __init__(self, name, age):\n        self.name = name\n        self.age = age\n\n    def __str__(self):\n        return f"{self.name} (age {self.age})"\n\n\nclass Student(Person):\n    def __init__(self, name, age, grade):\n        super().__init__(name, age)\n        self.grade = grade\n        self.scores = []\n\n    def get_average(self):\n        if not self.scores:\n            return 0\n        return sum(self.scores) / len(self.scores)\n\n    def is_passing(self):\n        return self.get_average() >= 60\n\n\nclass Teacher(Person):\n    def __init__(self, name, age, subject):\n        super().__init__(name, age)\n        self.subject = subject\n\n    def assign_grade(self, student, score):\n        student.scores.append(score)\n        print(f"{self.name} gave {student.name} a score of {score}")\n\n\n# Test\nteacher = Teacher("Mr Obi", 35, "Python")\nstudent = Student("Adaeze", 14, "JSS3")\n\nteacher.assign_grade(student, 78)\nteacher.assign_grade(student, 85)\nteacher.assign_grade(student, 62)\n\nprint(f"Average: {student.get_average():.1f}")\nprint(f"Passing: {student.is_passing()}")`,
+    tags: ['OOP', 'classes', 'inheritance', '__init__'],
+  },
+  {
+    id: 'p09',
+    title: 'Sorting Algorithms',
+    description: 'Implement bubble sort and selection sort in Python.',
+    instructions:
+      'Implement bubble_sort(arr) and selection_sort(arr), each returning a sorted copy of the input. Track and print the number of comparisons each makes. Compare with Python\'s built-in sorted().',
+    difficulty: 'Intermediate',
+    language: 'python',
+    xp: 130,
+    starterCode: `def bubble_sort(arr):\n    copy = arr[:]\n    comparisons = 0\n    n = len(copy)\n    for i in range(n):\n        for j in range(n - i - 1):\n            comparisons += 1\n            if copy[j] > copy[j + 1]:\n                copy[j], copy[j + 1] = copy[j + 1], copy[j]\n    print(f"Bubble sort:    {comparisons} comparisons")\n    return copy\n\n\ndef selection_sort(arr):\n    copy = arr[:]\n    comparisons = 0\n    n = len(copy)\n    for i in range(n):\n        min_idx = i\n        for j in range(i + 1, n):\n            comparisons += 1\n            if copy[j] < copy[min_idx]:\n                min_idx = j\n        copy[i], copy[min_idx] = copy[min_idx], copy[i]\n    print(f"Selection sort: {comparisons} comparisons")\n    return copy\n\n\nnums = [64, 34, 25, 12, 22, 11, 90]\nprint("Original: ", nums)\nprint("Bubble:   ", bubble_sort(nums))\nprint("Selection:", selection_sort(nums))\nprint("Built-in: ", sorted(nums))`,
+    tags: ['algorithms', 'sorting', 'bubble sort'],
+  },
+  {
+    id: 'p10',
+    title: 'Recursion & Memoization',
+    description: 'Solve classic recursion problems in Python with caching.',
+    instructions:
+      'Implement: (1) factorial(n) recursively, (2) fibonacci(n) with a dict cache for memoization, (3) flatten(nested) that recursively unpacks a deeply nested list into a flat one.',
+    difficulty: 'Intermediate',
+    language: 'python',
+    xp: 150,
+    starterCode: `# 1. Factorial\ndef factorial(n):\n    # base: factorial(0) = 1\n    # recursive: n * factorial(n-1)\n    pass\n\nprint(factorial(6))    # 720\nprint(factorial(10))   # 3628800\n\n\n# 2. Fibonacci with memoization\ncache = {}\ndef fibonacci(n):\n    if n in cache:\n        return cache[n]\n    if n <= 1:\n        return n\n    # recursive: fib(n-1) + fib(n-2), store result in cache\n    pass\n\nprint(fibonacci(10))   # 55\nprint(fibonacci(30))   # 832040\n\n\n# 3. Flatten nested list\ndef flatten(lst):\n    result = []\n    for item in lst:\n        if isinstance(item, list):\n            result.extend(flatten(item))\n        else:\n            result.append(item)\n    return result\n\nprint(flatten([1, [2, [3, 4]], 5, [6, [7, [8]]]]))`,
+    tags: ['recursion', 'memoization', 'fibonacci'],
+  },
+  {
+    id: 'p11',
+    title: 'Generators & Iterators',
+    description: 'Create memory-efficient data pipelines using Python generators.',
+    instructions:
+      'Write: (1) fibonacci_gen() — a generator that yields Fibonacci numbers indefinitely, (2) count_up(start, step) — yields numbers from start incrementing by step. Use next() in a loop to collect the first 10 values from each.',
+    difficulty: 'Advanced',
+    language: 'python',
+    xp: 160,
+    starterCode: `# 1. Infinite Fibonacci generator\ndef fibonacci_gen():\n    a, b = 0, 1\n    while True:\n        yield a\n        a, b = b, a + b\n\ngen = fibonacci_gen()\nfib10 = [next(gen) for _ in range(10)]\nprint("Fibonacci:", fib10)  # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]\n\n\n# 2. Count-up generator\ndef count_up(start=0, step=1):\n    current = start\n    while True:\n        yield current\n        current += step\n\nevens_gen = count_up(0, 2)\nevens = [next(evens_gen) for _ in range(8)]\nprint("Evens:", evens)  # [0, 2, 4, 6, 8, 10, 12, 14]\n\n\n# 3. Generator expression (lazy list comprehension)\nsquares_gen = (x**2 for x in range(1, 6))\nprint("Squares:", list(squares_gen))  # [1, 4, 9, 16, 25]`,
+    tags: ['generators', 'yield', 'iterators', 'lazy evaluation'],
+  },
+  {
+    id: 'p12',
+    title: 'Decorators',
+    description: 'Write Python decorators to add timing and logging to any function.',
+    instructions:
+      'Create: (1) a @timer decorator that prints how long the function took in ms, (2) a @logger decorator that prints the function name and arguments before calling it. Stack both decorators on a slow_sort(lst) function using bubble sort.',
+    difficulty: 'Advanced',
+    language: 'python',
+    xp: 170,
+    starterCode: `import time\nimport functools\n\n\n# 1. Timer decorator\ndef timer(func):\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        start = time.time()\n        result = func(*args, **kwargs)\n        elapsed = (time.time() - start) * 1000\n        print(f"[timer] {func.__name__} took {elapsed:.2f}ms")\n        return result\n    return wrapper\n\n\n# 2. Logger decorator\ndef logger(func):\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        print(f"[logger] Calling {func.__name__} with {args}")\n        return func(*args, **kwargs)\n    return wrapper\n\n\n# 3. Apply both decorators (timer runs outermost)\n@timer\n@logger\ndef slow_sort(lst):\n    copy = lst[:]\n    n = len(copy)\n    for i in range(n):\n        for j in range(n - i - 1):\n            if copy[j] > copy[j + 1]:\n                copy[j], copy[j + 1] = copy[j + 1], copy[j]\n    return copy\n\n\nresult = slow_sort([5, 2, 8, 1, 9, 3])\nprint("Sorted:", result)`,
+    tags: ['decorators', 'higher-order functions', 'functools'],
+  },
+  {
+    id: 'p13',
+    title: 'Data Processing Pipeline',
+    description: 'Process a dataset of student records using core Python.',
+    instructions:
+      'Given a list of student dicts, write: (1) class_stats() returning avg/highest/lowest/pass_rate, (2) group_by_grade() returning a dict of grade → [names], (3) rank_students() that prints a numbered leaderboard sorted by score.',
+    difficulty: 'Advanced',
+    language: 'python',
+    xp: 180,
+    starterCode: `students = [\n    {"name": "Amara",   "grade": "SS1",  "score": 85},\n    {"name": "Chidi",   "grade": "JSS3", "score": 72},\n    {"name": "Fatima",  "grade": "SS1",  "score": 91},\n    {"name": "Emeka",   "grade": "SS2",  "score": 67},\n    {"name": "Ngozi",   "grade": "JSS3", "score": 55},\n    {"name": "Tunde",   "grade": "SS2",  "score": 78},\n    {"name": "Adaeze",  "grade": "SS1",  "score": 88},\n    {"name": "Ibrahim", "grade": "JSS3", "score": 43},\n]\n\n\ndef class_stats(data):\n    scores = [s["score"] for s in data]\n    passing = sum(1 for s in scores if s >= 60)\n    return {\n        "average":   f"{sum(scores) / len(scores):.1f}",\n        "highest":   max(scores),\n        "lowest":    min(scores),\n        "pass_rate": f"{(passing / len(scores)) * 100:.1f}%",\n    }\n\n\ndef group_by_grade(data):\n    groups = {}\n    for s in data:\n        groups.setdefault(s["grade"], []).append(s["name"])\n    return groups\n\n\ndef rank_students(data):\n    ranked = sorted(data, key=lambda s: s["score"], reverse=True)\n    for i, s in enumerate(ranked, 1):\n        bar = "█" * (s["score"] // 10)\n        print(f"#{i:2d} {s['name']:<10} {s['score']:3d}  {bar}")\n\n\nprint("=== Class Statistics ===")\nfor k, v in class_stats(students).items():\n    print(f"  {k}: {v}")\n\nprint("\\n=== Groups by Grade ===")\nfor grade, names in sorted(group_by_grade(students).items()):\n    print(f"  {grade}: {', '.join(names)}")\n\nprint("\\n=== Rankings ===")\nrank_students(students)`,
+    tags: ['data processing', 'sorting', 'grouping', 'dict'],
+  },
 ];
 
 const XP_PER_LEVEL = 500;
@@ -238,6 +398,7 @@ export default function MissionsPage() {
   const [activeMission, setActiveMission] = useState<string | null>(null);
   const [missionCode, setMissionCode] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<FilterType>('All');
+  const [langFilter, setLangFilter] = useState<LangFilter>('all');
   const [search, setSearch] = useState('');
 
   // AI hints
@@ -316,7 +477,8 @@ export default function MissionsPage() {
       filter === 'All' ||
       (filter === 'Completed' && completedIds.has(m.id)) ||
       m.difficulty === filter;
-    return matchesSearch && matchesFilter;
+    const matchesLang = langFilter === 'all' || m.language === langFilter;
+    return matchesSearch && matchesFilter && matchesLang;
   });
 
   if (authLoading || !profile) {
@@ -387,34 +549,58 @@ export default function MissionsPage() {
           </div>
         </div>
 
-        {/* Search + Filter */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <div className="relative flex-1">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search missions..."
-              className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-border rounded-none text-sm focus:outline-none focus:border-violet-500 text-foreground placeholder:text-muted-foreground"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+        {/* Language + Search + Filter */}
+        <div className="flex flex-col gap-3 mb-6">
+          {/* Language selector */}
           <div className="flex gap-1 flex-wrap">
-            {(['All', 'Beginner', 'Intermediate', 'Advanced', 'Completed'] as FilterType[]).map(
-              (f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-3 py-2 text-xs font-bold transition-colors rounded-none border ${
-                    filter === f
-                      ? 'bg-violet-600 border-violet-600 text-white'
-                      : 'border-border text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {f}
-                </button>
-              )
-            )}
+            {([
+              { value: 'all', label: 'All Languages' },
+              { value: 'javascript', label: 'JavaScript' },
+              { value: 'python', label: 'Python' },
+              { value: 'html', label: 'HTML' },
+            ] as { value: LangFilter; label: string }[]).map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setLangFilter(value)}
+                className={`px-3 py-2 text-xs font-bold transition-colors rounded-none border ${
+                  langFilter === value
+                    ? 'bg-orange-500 border-orange-500 text-white'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* Search + difficulty filter */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search missions..."
+                className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-border rounded-none text-sm focus:outline-none focus:border-violet-500 text-foreground placeholder:text-muted-foreground"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-1 flex-wrap">
+              {(['All', 'Beginner', 'Intermediate', 'Advanced', 'Completed'] as FilterType[]).map(
+                (f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`px-3 py-2 text-xs font-bold transition-colors rounded-none border ${
+                      filter === f
+                        ? 'bg-violet-600 border-violet-600 text-white'
+                        : 'border-border text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {f}
+                  </button>
+                )
+              )}
+            </div>
           </div>
         </div>
 

@@ -992,26 +992,28 @@ export default function BulkRegisterPage() {
         </div>
 
         {/* Unified Tab Bar */}
-        <div className="max-w-7xl mx-auto mb-10">
-          <div className="flex bg-card p-1.5 border border-border w-fit">
-            <button
-              onClick={() => { setActiveTab('register'); setStep('input'); setIsSingleModalOpen(false); }}
-              className={`px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'register' && step !== 'single' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              Bulk Import
-            </button>
-            <button
-              onClick={() => { setActiveTab('register'); setStep('single'); setIsSingleModalOpen(false); }}
-              className={`px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'register' && step === 'single' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              Single Student
-            </button>
-            <button
-              onClick={() => { setActiveTab('vault'); fetchHistory(); }}
-              className={`px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'vault' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              Registration History
-            </button>
+        <div className="max-w-7xl mx-auto mb-8">
+          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            <div className="flex bg-card p-1.5 border border-border w-full sm:w-fit min-w-max">
+              <button
+                onClick={() => { setActiveTab('register'); setStep('input'); setIsSingleModalOpen(false); }}
+                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'register' && step !== 'single' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Bulk Import
+              </button>
+              <button
+                onClick={() => { setActiveTab('register'); setStep('single'); setIsSingleModalOpen(false); }}
+                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'register' && step === 'single' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Single Student
+              </button>
+              <button
+                onClick={() => { setActiveTab('vault'); fetchHistory(); }}
+                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'vault' ? 'bg-orange-600 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                History
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1806,11 +1808,13 @@ Yusuf Ibrahim SS1A`}
 
                            {selectedBatchId === batch.id && (
                               <div className="mt-12 pt-12 border-t border-border space-y-4 animate-in fade-in slide-in-from-top-6 duration-700">
-                                  <div className="flex items-center justify-between mb-6 px-4">
-                                     <div className="flex items-center gap-6">
-                                        <p className="text-[11px] text-muted-foreground font-black uppercase tracking-[0.4em] italic">Student Records</p>
-                                        <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 border border-border">
-                                           <input 
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 px-2 sm:px-4 gap-3">
+                                     <div className="flex items-center gap-3 flex-wrap">
+                                        <p className="text-[11px] text-muted-foreground font-black uppercase tracking-[0.3em]">
+                                          {batchResults.length} Students
+                                        </p>
+                                        <label className="flex items-center gap-2 bg-black/40 px-3 py-1.5 border border-border cursor-pointer">
+                                           <input
                                              type="checkbox"
                                              className="w-4 h-4 bg-transparent border-orange-500/50 rounded-none text-orange-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
                                              checked={batchResults.length > 0 && selectedResultIds.length === batchResults.length}
@@ -1820,53 +1824,44 @@ Yusuf Ibrahim SS1A`}
                                              }}
                                            />
                                            <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Select All</span>
-                                        </div>
+                                        </label>
                                      </div>
-                                     <div className="flex items-center gap-3">
-                                        {selectedResultIds.length > 0 && (
-                                           <div className="flex bg-card border border-orange-500/30 p-1 animate-in fade-in zoom-in-95 duration-200">
-                                              <button
-                                                onClick={() => handleExportCardsPDF(batchResults.filter(r => selectedResultIds.includes(r.id)))}
-                                                className="px-3 py-1.5 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all"
-                                              >
-                                                 Export List (PDF)
-                                               </button>
-                                               <button
-                                                 onClick={() => handleExportRosterPDF(batchResults.filter(r => selectedResultIds.includes(r.id)))}
-                                                 className="px-3 py-1.5 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border-l border-orange-500/30"
-                                               >
-                                                  Export Cards (PDF)
-                                               </button>
-                                               <button 
-                                                 onClick={() => handleMassPrintReport(batchResults.filter(r => selectedResultIds.includes(r.id)))}
-                                                 className="px-3 py-1.5 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border-l border-orange-500/30"
-                                               >
-                                                  Print List
-                                               </button>
-                                               <button 
-                                                 onClick={() => handleMassPrint(batchResults.filter(r => selectedResultIds.includes(r.id)))}
-                                                 className="px-3 py-1.5 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border-l border-orange-500/30"
-                                               >
-                                                  Print Cards
-                                              </button>
-                                              <button 
-                                                onClick={() => handleMassPrint(batchResults.filter(r => selectedResultIds.includes(r.id)))}
-                                                className="px-3 py-1.5 bg-card hover:bg-muted text-foreground text-[9px] font-black uppercase tracking-widest transition-all border-l border-orange-500/30"
-                                              >
-                                                 HIDDEN
-                                              </button>
-                                              {['admin', 'teacher'].includes(profile?.role || '') && (
-                                                <button 
-                                                  onClick={handleBulkDelete}
-                                                  className="px-3 py-1.5 bg-[#7a0606] hover:bg-[#9a0808] text-white text-[9px] font-black uppercase tracking-widest transition-all border-l border-orange-500/30"
-                                                >
-                                                   Bulk Purge
-                                                </button>
-                                              )}
-                                           </div>
-                                        )}
-                                        <p className="text-[9px] text-muted-foreground font-black tracking-[0.3em] uppercase">Sector: Distribution</p>
-                                     </div>
+                                     {selectedResultIds.length > 0 && (
+                                       <div className="flex flex-wrap gap-1 animate-in fade-in zoom-in-95 duration-200">
+                                         <button
+                                           onClick={() => handleExportRosterPDF(batchResults.filter(r => selectedResultIds.includes(r.id)))}
+                                           className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
+                                         >
+                                           Export List
+                                         </button>
+                                         <button
+                                           onClick={() => handleExportCardsPDF(batchResults.filter(r => selectedResultIds.includes(r.id)))}
+                                           className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
+                                         >
+                                           Export Cards
+                                         </button>
+                                         <button
+                                           onClick={() => handleMassPrintReport(batchResults.filter(r => selectedResultIds.includes(r.id)))}
+                                           className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
+                                         >
+                                           Print List
+                                         </button>
+                                         <button
+                                           onClick={() => handleMassPrint(batchResults.filter(r => selectedResultIds.includes(r.id)))}
+                                           className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
+                                         >
+                                           Print Cards
+                                         </button>
+                                         {['admin', 'teacher'].includes(profile?.role || '') && (
+                                           <button
+                                             onClick={handleBulkDelete}
+                                             className="px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[9px] font-black uppercase tracking-widest transition-all border border-rose-500/30"
+                                           >
+                                             Delete Selected
+                                           </button>
+                                         )}
+                                       </div>
+                                     )}
                                   </div>
                                   <div className="max-h-[500px] overflow-y-auto custom-scrollbar space-y-1.5 pr-2">
                                      {batchResults.map((r, ri) => (
@@ -1927,30 +1922,31 @@ Yusuf Ibrahim SS1A`}
                                              )}
                                            </div>
                                          </div>
-                                          <div className="flex items-center gap-4 shrink-0">
+                                          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                                             {editingResultId !== r.id && (
                                               <>
-                                                <span className="text-[9px] font-black text-orange-400/80 bg-orange-400/10 px-3 py-1.5 border border-orange-400/20 uppercase tracking-widest hidden sm:block italic">
+                                                <span className="text-[9px] font-black text-orange-400/80 bg-orange-400/10 px-2 py-1 sm:px-3 sm:py-1.5 border border-orange-400/20 uppercase tracking-widest hidden sm:block italic">
                                                   {r.class_name || '...'}
                                                 </span>
-                                                <div className="flex opacity-0 group-hover/it:opacity-100 transition-opacity gap-1">
+                                                {/* Always visible on mobile, hover-reveal on desktop */}
+                                                <div className="flex gap-1 sm:opacity-0 sm:group-hover/it:opacity-100 transition-opacity">
                                                   <button
                                                     onClick={() => setEditingResultId(r.id)}
-                                                    className="p-2 sm:p-2.5 bg-muted shadow-sm hover:bg-orange-600/20 text-orange-400/60 hover:text-orange-400 transition-all border border-border"
-                                                    title="Edit Record"
+                                                    className="p-2 sm:p-2.5 bg-muted hover:bg-orange-600/20 text-orange-400 sm:text-orange-400/60 hover:text-orange-400 transition-all border border-border"
+                                                    title="Edit"
                                                   >
                                                     <PencilIcon className="w-3.5 h-3.5" />
                                                   </button>
                                                   <button
                                                     onClick={() => handleMassPrint([r])}
-                                                    className="p-2 sm:p-2.5 bg-muted shadow-sm hover:bg-orange-600/20 text-orange-400/60 hover:text-orange-400 transition-all border border-border"
+                                                    className="p-2 sm:p-2.5 bg-muted hover:bg-orange-600/20 text-orange-400 sm:text-orange-400/60 hover:text-orange-400 transition-all border border-border"
                                                     title="Print Card"
                                                   >
                                                     <PrinterIcon className="w-3.5 h-3.5" />
                                                   </button>
                                                   <button
                                                     onClick={() => handleExportCardsPDF([r])}
-                                                    className="p-2 sm:p-2.5 bg-muted shadow-sm hover:bg-blue-600/20 text-blue-400/60 hover:text-blue-400 transition-all border border-border"
+                                                    className="p-2 sm:p-2.5 bg-muted hover:bg-blue-600/20 text-blue-400 sm:text-blue-400/60 hover:text-blue-400 transition-all border border-border hidden sm:block"
                                                     title="Export PDF"
                                                   >
                                                     <DocumentArrowDownIcon className="w-3.5 h-3.5" />
@@ -1958,14 +1954,14 @@ Yusuf Ibrahim SS1A`}
                                                   {['admin', 'teacher'].includes(profile?.role || '') && (
                                                     <button
                                                       onClick={async () => {
-                                                        if (!confirm('Purge this record from the vault?')) return;
+                                                        if (!confirm('Delete this record?')) return;
                                                         await fetch(`/api/students/bulk-register?resultId=${r.id}`, { method: 'DELETE' });
                                                         setBatchResults(prev => prev.filter(x => x.id !== r.id));
                                                         fetchHistory();
-                                                        toast.success('Record purged successfully.');
+                                                        toast.success('Record deleted.');
                                                       }}
-                                                      className="p-2 sm:p-2.5 bg-muted shadow-sm hover:bg-rose-600/20 text-rose-400/60 hover:text-rose-400 transition-all border border-border"
-                                                      title="Purge Record"
+                                                      className="p-2 sm:p-2.5 bg-muted hover:bg-rose-600/20 text-rose-400 sm:text-rose-400/60 hover:text-rose-400 transition-all border border-border"
+                                                      title="Delete"
                                                     >
                                                       <TrashIcon className="w-3.5 h-3.5" />
                                                     </button>

@@ -240,19 +240,19 @@ export default function DashboardNavigation() {
   return (
     <>
       {/* ── Mobile Top Header ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-[#0D0D1A]/95 backdrop-blur-xl px-4 py-2 border-b border-white/[0.06] shadow-[0_1px_30px_rgba(0,0,0,0.5)]">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-sidebar/95 backdrop-blur-xl px-4 py-2 border-b border-sidebar-foreground/[0.08] shadow-[0_1px_30px_rgba(0,0,0,0.3)]">
         <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 bg-orange-500/10 border border-orange-500/30 flex items-center justify-center ring-1 ring-orange-500/20 ring-offset-1 ring-offset-[#0D0D1A]">
+          <div className="w-7 h-7 bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
             <Image src="/images/logo.png" alt="Rillcod" width={16} height={16} className="object-contain" priority />
           </div>
-          <span className="font-black uppercase tracking-widest text-[13px] text-white italic">
+          <span className="font-black uppercase tracking-widest text-[13px] text-sidebar-foreground italic">
             Rillcod <span className="text-orange-500">Tech</span>
           </span>
         </Link>
         <div className="flex items-center gap-1.5">
           {unreadCount > 0 && (
             <Link href="/dashboard/messages" className="relative p-2">
-              <BellIcon className="w-5 h-5 text-white/40" />
+              <BellIcon className="w-5 h-5 text-sidebar-foreground/40" />
               <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
@@ -262,16 +262,9 @@ export default function DashboardNavigation() {
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-            className="p-2 text-white/50 hover:text-white hover:bg-white/[0.06] transition-all"
+            className="p-2 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-foreground/[0.06] transition-all"
           >
             {mobileOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
-          </button>
-          <button
-            onClick={handleLogout}
-            className="p-2 text-rose-500/70 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
-            aria-label="Sign out"
-          >
-            <ArrowRightOnRectangleIcon className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -291,9 +284,9 @@ export default function DashboardNavigation() {
           fixed top-[53px] left-0 bottom-16 z-40 md:bottom-0
           md:static md:top-auto md:bottom-auto md:z-auto
           flex flex-col w-[240px] md:w-64
-          bg-[#0D0D1A]
-          border-r border-white/[0.06]
-          shadow-[4px_0_40px_rgba(0,0,0,0.4)]
+          bg-sidebar
+          border-r border-sidebar-foreground/[0.08]
+          shadow-[4px_0_40px_rgba(0,0,0,0.3)]
           transform transition-transform duration-300 ease-in-out
           md:translate-x-0 md:h-screen md:flex-shrink-0
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
@@ -301,26 +294,26 @@ export default function DashboardNavigation() {
         aria-label="Dashboard navigation"
       >
         {/* Logo */}
-        <div className="hidden md:flex flex-col items-center justify-center py-7 border-b border-white/[0.06] relative overflow-hidden">
+        <div className="hidden md:flex flex-col items-center justify-center py-7 border-b border-sidebar-foreground/[0.08] relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-orange-500/[0.04] to-transparent pointer-events-none" />
           <div className="w-11 h-11 bg-orange-500/10 border border-orange-500/25 flex items-center justify-center shadow-[0_0_24px_rgba(249,115,22,0.15)] mb-3 relative z-10">
             <Image src="/images/logo.png" alt="Rillcod Technologies" width={28} height={28} className="object-contain" priority />
           </div>
           <div className="text-center leading-none relative z-10">
-            <h1 className="text-[15px] font-black uppercase tracking-[0.25em] text-white italic">RILLCOD<span className="text-orange-500">.</span></h1>
+            <h1 className="text-[15px] font-black uppercase tracking-[0.25em] text-sidebar-foreground italic">RILLCOD<span className="text-orange-500">.</span></h1>
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-orange-500/80 italic mt-0.5">TECHNOLOGIES</p>
           </div>
         </div>
 
         {/* User badge */}
-        <div className="px-4 py-4 flex items-center gap-3 border-b border-white/[0.06] bg-white/[0.015]">
+        <div className="px-4 py-4 flex items-center gap-3 border-b border-sidebar-foreground/[0.08] bg-sidebar-foreground/[0.03]">
           <div className="w-9 h-9 bg-orange-500/10 border border-orange-500/25 flex items-center justify-center flex-shrink-0 shadow-[0_0_14px_rgba(249,115,22,0.12)]">
             <span className="text-orange-400 text-sm font-black uppercase">
               {profile.full_name?.charAt(0) ?? 'U'}
             </span>
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[12px] font-black truncate text-white/90 tracking-wide">{profile.full_name}</span>
+            <span className="text-[12px] font-black truncate text-sidebar-foreground/90 tracking-wide">{profile.full_name}</span>
             <span className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-400/70 mt-0.5">
               {profile.role === 'school' && profile.school_name ? profile.school_name : profile.role}
             </span>
@@ -338,8 +331,8 @@ export default function DashboardNavigation() {
             if (isDivider(entry)) {
               return (
                 <div key={`divider-${idx}`} className="pt-5 pb-2 px-3">
-                  <p className="text-[9px] font-black uppercase tracking-[0.35em] text-white/20 mb-2">{entry.label}</p>
-                  <div className="h-px bg-gradient-to-r from-white/[0.07] to-transparent" />
+                  <p className="text-[9px] font-black uppercase tracking-[0.35em] text-sidebar-foreground/35 mb-2">{entry.label}</p>
+                  <div className="h-px bg-gradient-to-r from-sidebar-foreground/[0.1] to-transparent" />
                 </div>
               );
             }
@@ -353,8 +346,8 @@ export default function DashboardNavigation() {
                 onClick={() => setMobileOpen(false)}
                 className={`relative flex items-center gap-3 px-3 py-2.5 text-[11px] font-black tracking-[0.12em] uppercase transition-all duration-200 group ${
                   active
-                    ? 'bg-orange-500/[0.08] text-white'
-                    : 'text-white/35 hover:text-white/75 hover:bg-white/[0.04]'
+                    ? 'bg-orange-500/[0.08] text-sidebar-foreground'
+                    : 'text-sidebar-foreground/40 hover:text-sidebar-foreground/80 hover:bg-sidebar-foreground/[0.05]'
                 }`}
               >
                 {active && (
@@ -363,7 +356,7 @@ export default function DashboardNavigation() {
                 <Icon className={`w-4 h-4 flex-shrink-0 transition-all ${
                   active
                     ? 'text-orange-400 drop-shadow-[0_0_6px_rgba(249,115,22,0.7)]'
-                    : 'text-white/25 group-hover:text-white/55'
+                    : 'text-sidebar-foreground/30 group-hover:text-sidebar-foreground/60'
                 }`} />
                 <span className="truncate">{name}</span>
                 {name === 'Messages' && unreadCount > 0 && (
@@ -380,14 +373,14 @@ export default function DashboardNavigation() {
         </div>
 
         {/* Bottom */}
-        <div className="border-t border-white/[0.06] bg-white/[0.015]">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.04]">
-            <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/20">Display</span>
+        <div className="border-t border-sidebar-foreground/[0.08] bg-sidebar-foreground/[0.02]">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-sidebar-foreground/[0.06]">
+            <span className="text-[8px] font-black uppercase tracking-[0.3em] text-sidebar-foreground/30">Display</span>
             <ThemeToggle />
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-rose-500/60 hover:text-rose-400 hover:bg-rose-500/[0.05] transition-all group"
+            className="flex items-center gap-3 w-full px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/[0.05] transition-all group"
           >
             <ArrowRightOnRectangleIcon className="w-4 h-4 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
             Sign Out
@@ -396,7 +389,7 @@ export default function DashboardNavigation() {
       </nav>
 
       {/* ── Mobile Bottom Navigation ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0D0D1A]/95 backdrop-blur-xl border-t border-white/[0.06] pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-[0_-4px_30px_rgba(0,0,0,0.5)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/95 backdrop-blur-xl border-t border-sidebar-foreground/[0.08] pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-[0_-4px_30px_rgba(0,0,0,0.3)]">
         {bottomNavItems.map(({ name, href, icon: Icon }) => {
           const active = pathname === href || pathname?.startsWith(href + '/');
           const shortName =
@@ -416,21 +409,21 @@ export default function DashboardNavigation() {
               href={href}
               onClick={() => setMobileOpen(false)}
               className={`flex flex-col items-center gap-1 px-2 py-1.5 min-w-[3.5rem] transition-all duration-200 relative ${
-                active ? 'text-orange-400' : 'text-white/25 hover:text-white/50'
+                active ? 'text-orange-400' : 'text-sidebar-foreground/30 hover:text-sidebar-foreground/60'
               }`}
             >
               {active && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-[2px] bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
               )}
               <div className={`relative p-1.5 transition-all ${active ? 'bg-orange-500/10' : ''}`}>
-                <Icon className={`w-5 h-5 ${active ? 'text-orange-400' : 'text-white/25'}`} />
+                <Icon className={`w-5 h-5 ${active ? 'text-orange-400' : 'text-sidebar-foreground/30'}`} />
                 {name === 'Messages' && unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 text-white text-[7px] font-black flex items-center justify-center ring-2 ring-[#0D0D1A]">
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 text-white text-[7px] font-black flex items-center justify-center ring-2 ring-sidebar">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </div>
-              <span className={`text-[9px] font-black uppercase tracking-[0.15em] leading-none ${active ? 'text-orange-400' : 'text-white/20'}`}>
+              <span className={`text-[9px] font-black uppercase tracking-[0.15em] leading-none ${active ? 'text-orange-400' : 'text-sidebar-foreground/25'}`}>
                 {shortName}
               </span>
             </Link>

@@ -24,12 +24,34 @@ const TYPE_BADGE: Record<string, string> = {
   discussion: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
 };
 
+// Left accent bar colors per type
+const TYPE_ACCENT: Record<string, string> = {
+  quiz: 'bg-blue-500',
+  project: 'bg-orange-500',
+  homework: 'bg-cyan-500',
+  exam: 'bg-rose-500',
+  presentation: 'bg-amber-500',
+  coding: 'bg-emerald-500',
+  essay: 'bg-violet-500',
+  research: 'bg-indigo-500',
+  lab: 'bg-teal-500',
+  discussion: 'bg-pink-500',
+};
+
 const SUB_BADGE: Record<string, string> = {
   graded: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   submitted: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   late: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   missing: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
   pending: 'bg-muted text-muted-foreground border-border',
+};
+
+const SUB_ACCENT: Record<string, string> = {
+  graded: 'bg-emerald-500',
+  submitted: 'bg-blue-500',
+  late: 'bg-amber-500',
+  missing: 'bg-rose-500',
+  pending: 'bg-muted',
 };
 
 function isOverdue(due?: string | null) {
@@ -39,17 +61,29 @@ function isOverdue(due?: string | null) {
 // ─── Skeleton loader ─────────────────────────────────────────
 function Skeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {[1, 2, 3].map(i => (
-        <div key={i} className="bg-card shadow-sm border border-border rounded-none p-6 animate-pulse">
-          <div className="h-5 bg-muted rounded w-2/3 mb-3" />
-          <div className="h-4 bg-card shadow-sm rounded w-1/3 mb-2" />
-          <div className="h-3 bg-card shadow-sm rounded w-1/2" />
+        <div key={i} className="relative bg-card border border-border overflow-hidden animate-pulse">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-600/30" />
+          <div className="pl-7 pr-6 py-5 space-y-3">
+            <div className="h-5 bg-muted w-1/2" />
+            <div className="h-4 bg-muted w-1/3" />
+            <div className="h-3 bg-muted w-2/3" />
+          </div>
         </div>
       ))}
     </div>
   );
 }
+
+const STATUS_PILLS = [
+  { value: 'all', label: 'All' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'graded', label: 'Graded' },
+  { value: 'late', label: 'Late' },
+  { value: 'missing', label: 'Missing' },
+];
 
 // ─── Main page ───────────────────────────────────────────────
 export default function AssignmentsPage() {
@@ -132,12 +166,26 @@ export default function AssignmentsPage() {
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        <div>
-          <div className="h-4 bg-muted rounded w-48 mb-2 animate-pulse" />
-          <div className="h-8 bg-muted rounded w-72 animate-pulse" />
+        {/* Hero skeleton */}
+        <div className="relative overflow-hidden bg-card border border-border p-6 sm:p-8 animate-pulse">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex items-start gap-5">
+              <div className="w-14 h-14 bg-orange-600/30" />
+              <div className="space-y-2 pt-1">
+                <div className="h-9 bg-muted w-64" />
+                <div className="h-3 bg-muted w-40" />
+                <div className="h-4 bg-muted w-52 mt-2" />
+              </div>
+            </div>
+            <div className="hidden sm:flex gap-3">
+              {[1, 2, 3, 4].map(i => <div key={i} className="w-24 h-16 bg-muted" />)}
+            </div>
+          </div>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => <div key={i} className="bg-card shadow-sm border border-border rounded-none p-5 h-24 animate-pulse" />)}
+        {/* Filters skeleton */}
+        <div className="flex gap-3">
+          <div className="h-12 bg-card border border-border animate-pulse flex-1" />
+          <div className="h-12 w-40 bg-card border border-border animate-pulse" />
         </div>
         <Skeleton />
       </div>
@@ -150,7 +198,7 @@ export default function AssignmentsPage() {
       <div className="text-center">
         <ClipboardDocumentListIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
         <p className="text-muted-foreground">Please sign in to view assignments.</p>
-        <Link href="/login" className="mt-4 inline-block px-6 py-2 bg-orange-600 text-foreground rounded-none text-sm font-bold">Sign In</Link>
+        <Link href="/login" className="mt-4 inline-block px-6 py-2 bg-orange-600 text-foreground text-sm font-bold">Sign In</Link>
       </div>
     </div>
   );
@@ -160,278 +208,351 @@ export default function AssignmentsPage() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <ClipboardDocumentListIcon className="w-5 h-5 text-amber-400" />
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">
-                {isStaff ? 'Assignment Manager' : 'My Work'} · {role}
-              </span>
+        {/* ── HERO HEADER ── */}
+        <div className="relative overflow-hidden bg-card border border-border p-6 sm:p-8">
+          {/* Ambient glow */}
+          <div className="absolute -right-32 -top-32 w-96 h-96 bg-orange-500/5 rounded-full blur-[120px] pointer-events-none" />
+
+          <div className="relative flex flex-col sm:flex-row items-start justify-between gap-6">
+            {/* Left: icon + title */}
+            <div className="flex items-start gap-5">
+              <div className="w-14 h-14 bg-orange-600 flex items-center justify-center shadow-2xl shadow-orange-900/40 border border-orange-400/30 flex-shrink-0">
+                <ClipboardDocumentListIcon className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter text-foreground leading-none">
+                  Assignments
+                </h1>
+                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-orange-400 mt-1">
+                  {isStaff ? 'Assignment Manager' : 'My Work'}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1.5">
+                  {isStaff ? 'Manage, grade, and track all assignments' : 'View and submit your coursework'}
+                </p>
+              </div>
             </div>
-            <h1 className="text-3xl font-extrabold">Assignments</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              {isStaff ? 'Manage, grade, and track all assignments' : 'View and submit your coursework'}
-            </p>
+
+            {/* Right: stats + create */}
+            <div className="flex flex-col items-end gap-3 flex-shrink-0">
+              <div className="flex gap-px border border-border">
+                {[
+                  { label: 'Total', value: totalItems, color: 'text-orange-400' },
+                  { label: isStaff ? 'Pending Review' : 'Submitted', value: pendingCount, color: 'text-blue-400' },
+                  { label: 'Graded', value: gradedCount, color: 'text-emerald-400' },
+                  {
+                    label: 'Overdue',
+                    value: overdueCount,
+                    color: overdueCount > 0 ? 'text-rose-400' : 'text-muted-foreground',
+                    pulse: overdueCount > 0,
+                  },
+                ].map((stat, idx) => (
+                  <div key={stat.label} className={`bg-background px-5 py-3 text-center min-w-[72px] ${idx > 0 ? 'border-l border-border' : ''}`}>
+                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{stat.label}</p>
+                    <div className="flex items-center justify-center gap-1.5">
+                      {(stat as any).pulse && (
+                        <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
+                      )}
+                      <p className={`text-2xl font-black ${stat.color}`}>{stat.value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {isStaff && (
+                <Link
+                  href="/dashboard/assignments/new"
+                  className="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
+                >
+                  <PlusIcon className="w-4 h-4" /> Create Assignment
+                </Link>
+              )}
+            </div>
           </div>
-          {isStaff && (
-            <Link href="/dashboard/assignments/new"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-foreground font-bold text-sm rounded-none transition-all hover:scale-105 shadow-lg shadow-amber-900/30">
-              <PlusIcon className="w-4 h-4" /> Create Assignment
-            </Link>
-          )}
         </div>
 
-        {/* Error banner */}
+        {/* ── ERROR BANNER ── */}
         {error && (
-          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
+          <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 p-4">
             <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
             <p className="text-rose-400 text-sm">{error}</p>
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'Total', value: totalItems, icon: DocumentTextIcon, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-            { label: isStaff ? 'Pending Review' : 'Submitted', value: pendingCount, icon: ClockIcon, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-            { label: 'Graded', value: gradedCount, icon: CheckCircleIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Overdue', value: overdueCount, icon: ExclamationTriangleIcon, color: overdueCount > 0 ? 'text-rose-400' : 'text-muted-foreground', bg: 'bg-rose-500/10' },
-          ].map((s) => (
-            <div key={s.label} className="bg-card shadow-sm border border-border rounded-none p-5">
-              <div className={`w-10 h-10 ${s.bg} rounded-none flex items-center justify-center mb-3`}>
-                <s.icon className={`w-5 h-5 ${s.color}`} />
-              </div>
-              <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Student: Quick Tasks strip */}
+        {/* ── OVERDUE ALERT STRIP ── */}
         {!isStaff && overdueCount > 0 && (
-          <div className="flex items-center gap-4 p-4 bg-rose-500/5 border border-rose-500/20">
-            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 shrink-0" />
+          <div className="bg-rose-500/5 border border-rose-500/20 p-4 flex items-center gap-4">
+            <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
             <div className="flex-1">
               <p className="text-sm font-black text-rose-400 uppercase tracking-tight">
                 {overdueCount} overdue assignment{overdueCount > 1 ? 's' : ''}
               </p>
-              <p className="text-xs text-white/30 font-medium">Submit now to avoid missing marks.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Submit now to avoid missing marks.</p>
             </div>
-            <button onClick={() => setFilter('missing')} className="px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/20 text-rose-400 text-xs font-black uppercase tracking-widest transition-all">
+            <button
+              onClick={() => setFilter('missing')}
+              className="px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/20 text-rose-400 text-[9px] font-black uppercase tracking-widest transition-all"
+            >
               Show Overdue
             </button>
           </div>
         )}
 
-        {/* Filters */}
+        {/* ── FILTERS ── */}
         <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search */}
           <div className="relative flex-1">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search assignments…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors"
+              className="w-full pl-10 pr-4 py-3 bg-card border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
             />
           </div>
+
+          {/* Status pills (student only) */}
           {!isStaff && (
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer"
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="submitted">Submitted</option>
-              <option value="graded">Graded</option>
-              <option value="late">Late</option>
-              <option value="missing">Missing</option>
-            </select>
+            <div className="flex gap-1 w-fit flex-wrap">
+              {STATUS_PILLS.map(pill => (
+                <button
+                  key={pill.value}
+                  onClick={() => setFilter(pill.value)}
+                  className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] border transition-colors ${
+                    filter === pill.value
+                      ? 'bg-orange-500/20 border-orange-500/30 text-orange-400'
+                      : 'bg-card border-border text-muted-foreground hover:border-orange-500/20 hover:text-foreground'
+                  }`}
+                >
+                  {pill.label}
+                </button>
+              ))}
+            </div>
           )}
+
+          {/* Type filter */}
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer"
+            className="px-4 py-3 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500/50 cursor-pointer transition-colors"
           >
             <option value="all">All Types</option>
-            <option value="homework">📚 Homework</option>
-            <option value="project">🛠 Project</option>
-            <option value="quiz">📝 Quiz</option>
-            <option value="exam">🎯 Exam</option>
-            <option value="presentation">🎤 Presentation</option>
-            <option value="coding">💻 Coding</option>
-            <option value="essay">📄 Essay</option>
-            <option value="research">🔬 Research</option>
-            <option value="lab">🧪 Lab</option>
-            <option value="discussion">💬 Discussion</option>
+            <option value="homework">Homework</option>
+            <option value="project">Project</option>
+            <option value="quiz">Quiz</option>
+            <option value="exam">Exam</option>
+            <option value="presentation">Presentation</option>
+            <option value="coding">Coding</option>
+            <option value="essay">Essay</option>
+            <option value="research">Research</option>
+            <option value="lab">Lab</option>
+            <option value="discussion">Discussion</option>
           </select>
         </div>
 
-        {/* Empty state */}
+        {/* ── EMPTY STATE ── */}
         {!error && filtered.length === 0 && (
-          <div className="text-center py-24 bg-card shadow-sm border border-border rounded-none">
+          <div className="text-center py-24 bg-card border border-border">
             <ClipboardDocumentListIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <p className="text-lg font-semibold text-muted-foreground">No assignments found</p>
+            <p className="text-lg font-black italic uppercase tracking-tighter text-muted-foreground">No Assignments Found</p>
             <p className="text-sm text-muted-foreground mt-1">
               {isStaff ? 'Create your first assignment to get started.' : 'No assignments have been assigned yet.'}
             </p>
             {isStaff && (
-              <Link href="/dashboard/assignments/new"
-                className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-foreground font-bold text-sm rounded-none transition-all">
+              <Link
+                href="/dashboard/assignments/new"
+                className="inline-flex items-center gap-2 mt-6 bg-orange-600 hover:bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
+              >
                 <PlusIcon className="w-4 h-4" /> Create Assignment
               </Link>
             )}
           </div>
         )}
 
-        {/* ── STAFF VIEW: table ─────────────────────────────── */}
+        {/* ── STAFF VIEW: cards ── */}
         {isStaff && filtered.length > 0 && (
-          <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden">
-            <div className="p-5 border-b border-border flex items-center justify-between">
-              <h3 className="font-bold text-foreground flex items-center gap-2">
-                <AcademicCapIcon className="w-5 h-5 text-amber-400" /> All Assignments
-              </h3>
-              <span className="text-xs text-muted-foreground">{filtered.length} total</span>
-            </div>
-            <div className="divide-y divide-white/5">
-              {filtered.map((a: any) => {
-                const subs = a.assignment_submissions ?? [];
-                const submittedCnt = subs.filter((s: any) => s.status === 'submitted').length;
-                const gradedCnt = subs.filter((s: any) => s.status === 'graded').length;
-                const overdue = isOverdue(a.due_date);
-                return (
-                  <div key={a.id} className="p-5 hover:bg-card shadow-sm transition-colors">
+          <div className="space-y-2">
+            {filtered.map((a: any) => {
+              const subs = a.assignment_submissions ?? [];
+              const submittedCnt = subs.filter((s: any) => s.status === 'submitted').length;
+              const gradedCnt = subs.filter((s: any) => s.status === 'graded').length;
+              const overdue = isOverdue(a.due_date);
+              const accentColor = TYPE_ACCENT[a.assignment_type ?? ''] ?? 'bg-orange-600';
+
+              return (
+                <div
+                  key={a.id}
+                  className="group relative bg-card border border-border hover:border-orange-500/20 transition-all overflow-hidden"
+                >
+                  {/* Left accent bar */}
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${accentColor}`} />
+
+                  <div className="pl-7 pr-6 py-5">
                     <div className="flex items-start justify-between gap-4">
+                      {/* Left content */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h4 className="font-semibold text-foreground">{a.title}</h4>
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <h4 className="font-black text-foreground text-base">{a.title}</h4>
                           {a.assignment_type && (
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${TYPE_BADGE[a.assignment_type] ?? 'bg-muted text-muted-foreground'}`}>
+                            <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${TYPE_BADGE[a.assignment_type] ?? 'bg-muted text-muted-foreground border-border'}`}>
                               {a.assignment_type}
                             </span>
                           )}
                           {overdue && (
-                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                            <span className="flex items-center gap-1 px-2.5 py-0.5 text-[9px] font-black uppercase bg-rose-500/20 text-rose-400 border border-rose-500/30">
                               <ExclamationTriangleIcon className="w-3 h-3" /> Overdue
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {a.courses?.title}
-                          {a.courses?.programs?.name ? ` · ${a.courses.programs.name}` : ''}
+
+                        <p className="text-xs text-muted-foreground">
+                          {a.courses?.title}{a.courses?.programs?.name ? ` · ${a.courses.programs.name}` : ''}
                         </p>
-                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
+
+                        <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2">
                           {a.due_date && (
-                            <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                               <CalendarIcon className="w-3.5 h-3.5" />
                               Due {new Date(a.due_date).toLocaleDateString()}
                             </span>
                           )}
-                          <span>{a.max_points ?? 100} pts</span>
+                          <span className="text-[11px] text-muted-foreground">{a.max_points ?? 100} pts</span>
                           {subs.length > 0 && (
                             <>
-                              <span className="text-blue-400">{submittedCnt} submitted</span>
-                              <span className="text-emerald-400">{gradedCnt} graded</span>
+                              <span className="text-[11px] text-blue-400">{submittedCnt} submitted</span>
+                              <span className="text-[11px] text-emerald-400">{gradedCnt} graded</span>
                             </>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Link href={`/dashboard/assignments/${a.id}`}
-                          className="p-2 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 rounded-none transition-colors">
+
+                      {/* Right: actions */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <Link
+                          href={`/dashboard/assignments/${a.id}`}
+                          className="p-2.5 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+                          title="View"
+                        >
                           <EyeIcon className="w-4 h-4" />
                         </Link>
-                        <Link href={`/dashboard/assignments/${a.id}/edit`}
-                          className="p-2 text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
+                        <Link
+                          href={`/dashboard/assignments/${a.id}/edit`}
+                          className="p-2.5 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                          title="Edit"
+                        >
                           <PencilIcon className="w-4 h-4" />
                         </Link>
                         <button
                           onClick={() => handleDelete(a.id, a.title)}
                           disabled={deleting === a.id}
-                          className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-none transition-colors disabled:opacity-40">
+                          className="p-2.5 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-colors disabled:opacity-40"
+                          title="Delete"
+                        >
                           <TrashIcon className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {/* ── STUDENT VIEW: card list ────────────────────────── */}
+        {/* ── STUDENT VIEW: cards ── */}
         {!isStaff && filtered.length > 0 && (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {filtered.map((sub: any) => {
               const a = sub.assignments ?? {};
               const overdue = isOverdue(a.due_date) && sub.status !== 'graded' && sub.status !== 'submitted';
+              const accentColor = SUB_ACCENT[sub.status ?? 'pending'] ?? 'bg-muted';
+
               return (
                 <div
                   key={sub.id}
-                  className={`bg-card shadow-sm rounded-none p-6 hover:bg-white/8 transition-all border ${overdue ? 'border-rose-500/30' : 'border-border'}`}
+                  className="group relative bg-card border border-border hover:border-orange-500/20 transition-all overflow-hidden"
                 >
-                  <div className="flex flex-col sm:flex-row items-start gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <h4 className="font-bold text-foreground">{a.title ?? 'Assignment'}</h4>
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${SUB_BADGE[sub.status ?? 'pending'] ?? 'bg-muted text-muted-foreground'}`}>
-                          {sub.status ?? 'Pending'}
-                        </span>
-                        {a.assignment_type && (
-                          <span className={`px-2 py-0.5 rounded-full text-xs border ${TYPE_BADGE[a.assignment_type] ?? 'bg-muted text-muted-foreground'}`}>
-                            {a.assignment_type}
+                  {/* Left accent bar */}
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${accentColor}`} />
+
+                  <div className="pl-7 pr-6 py-5">
+                    <div className="flex flex-col sm:flex-row items-start gap-4">
+                      {/* Left content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <h4 className="font-black text-foreground text-base">{a.title ?? 'Assignment'}</h4>
+                          <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${SUB_BADGE[sub.status ?? 'pending'] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                            {sub.status ?? 'Pending'}
                           </span>
-                        )}
-                        {overdue && (
-                          <span className="flex items-center gap-1 text-xs text-rose-400 font-bold">
-                            <ExclamationTriangleIcon className="w-3.5 h-3.5" /> Overdue
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {a.courses?.title}{a.courses?.programs?.name ? ` · ${a.courses.programs.name}` : ''}
-                      </p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
-                        {a.due_date && (
-                          <span className="flex items-center gap-1">
-                            <CalendarIcon className="w-3.5 h-3.5" />
-                            Due {new Date(a.due_date).toLocaleDateString()}
-                          </span>
-                        )}
-                        {sub.submitted_at && (
-                          <span>Submitted {new Date(sub.submitted_at).toLocaleDateString()}</span>
-                        )}
-                        {sub.grade != null && (
-                          <span className="text-amber-400 font-bold">{sub.grade}/{a.max_points ?? 100} pts</span>
-                        )}
-                      </div>
-                      {sub.feedback && (
-                        <div className="mt-3 p-3 bg-card shadow-sm rounded-none border border-border">
-                          <p className="text-xs text-muted-foreground mb-1">Teacher Feedback</p>
-                          <p className="text-sm text-muted-foreground">{sub.feedback}</p>
+                          {a.assignment_type && (
+                            <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${TYPE_BADGE[a.assignment_type] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                              {a.assignment_type}
+                            </span>
+                          )}
+                          {overdue && (
+                            <span className="flex items-center gap-1 text-[9px] font-black uppercase text-rose-400">
+                              <ExclamationTriangleIcon className="w-3.5 h-3.5" /> Overdue
+                            </span>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2 flex-shrink-0">
-                      {sub.status !== 'graded' && a.assignment_type === 'coding' && (
-                        <Link href={`/dashboard/playground?assignmentId=${sub.assignment_id ?? a.id}`}
-                          className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-none transition-colors border border-emerald-500/20">
-                          <CodeBracketIcon className="w-4 h-4" /> Code It
+
+                        <p className="text-xs text-muted-foreground">
+                          {a.courses?.title}{a.courses?.programs?.name ? ` · ${a.courses.programs.name}` : ''}
+                        </p>
+
+                        <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2">
+                          {a.due_date && (
+                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <CalendarIcon className="w-3.5 h-3.5" />
+                              Due {new Date(a.due_date).toLocaleDateString()}
+                            </span>
+                          )}
+                          {sub.submitted_at && (
+                            <span className="text-[11px] text-muted-foreground">
+                              Submitted {new Date(sub.submitted_at).toLocaleDateString()}
+                            </span>
+                          )}
+                          {sub.grade != null && (
+                            <span className="text-[11px] text-amber-400 font-bold">
+                              {sub.grade}/{a.max_points ?? 100} pts
+                            </span>
+                          )}
+                        </div>
+
+                        {sub.feedback && (
+                          <div className="mt-3 bg-background border border-border p-3">
+                            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-1.5">
+                              Teacher Feedback
+                            </p>
+                            <p className="text-sm text-muted-foreground">{sub.feedback}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: action buttons */}
+                      <div className="flex flex-col gap-1.5 flex-shrink-0">
+                        {sub.status !== 'graded' && a.assignment_type === 'coding' && (
+                          <Link
+                            href={`/dashboard/playground?assignmentId=${sub.assignment_id ?? a.id}`}
+                            className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
+                          >
+                            <CodeBracketIcon className="w-3.5 h-3.5" /> Code It
+                          </Link>
+                        )}
+                        {sub.status !== 'graded' && a.assignment_type !== 'coding' && (
+                          <Link
+                            href={`/dashboard/assignments/${sub.assignment_id ?? a.id}`}
+                            className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
+                          >
+                            <ArrowUpTrayIcon className="w-3.5 h-3.5" /> Submit
+                          </Link>
+                        )}
+                        <Link
+                          href={`/dashboard/assignments/${sub.assignment_id ?? a.id}`}
+                          className="flex items-center gap-2 bg-card hover:bg-muted border border-border text-muted-foreground font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
+                        >
+                          <EyeIcon className="w-3.5 h-3.5" /> View
                         </Link>
-                      )}
-                      {sub.status !== 'graded' && a.assignment_type !== 'coding' && (
-                        <Link href={`/dashboard/assignments/${sub.assignment_id ?? a.id}`}
-                          className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-none transition-colors">
-                          <ArrowUpTrayIcon className="w-4 h-4" /> Submit
-                        </Link>
-                      )}
-                      <Link href={`/dashboard/assignments/${sub.assignment_id ?? a.id}`}
-                        className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
-                        <EyeIcon className="w-4 h-4" /> View
-                      </Link>
+                      </div>
                     </div>
                   </div>
                 </div>

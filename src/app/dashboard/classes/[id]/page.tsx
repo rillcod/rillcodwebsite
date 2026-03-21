@@ -61,7 +61,8 @@ export default function ClassDetailPage() {
   const [savingSession, setSavingSession] = useState(false);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
-  const canView = isStaff || profile?.role === 'school';
+  const isSchool = profile?.role === 'school';
+  const canView = isStaff || isSchool;
 
   const fetchData = async () => {
     if (!id || !profile) return;
@@ -691,15 +692,17 @@ export default function ClassDetailPage() {
                   <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Recent Sessions</h3>
-                      <button
-                        onClick={() => {
-                          setEditingSession({ id: 'new', class_id: id });
-                          setSessionForm({ topic: '', session_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '11:00', notes: '' });
-                        }}
-                        className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-full text-orange-400 text-[10px] font-bold transition-all"
-                      >
-                        <PlusIcon className="w-3 h-3" /> New Session
-                      </button>
+                      {isStaff && (
+                        <button
+                          onClick={() => {
+                            setEditingSession({ id: 'new', class_id: id });
+                            setSessionForm({ topic: '', session_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '11:00', notes: '' });
+                          }}
+                          className="flex items-center gap-1.5 px-2.5 py-1 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-full text-orange-400 text-[10px] font-bold transition-all"
+                        >
+                          <PlusIcon className="w-3 h-3" /> New Session
+                        </button>
+                      )}
                     </div>
                     <Link href={`/dashboard/attendance?class_id=${id}`} className="text-xs font-bold text-orange-400 hover:text-orange-500 transition-colors">View Attendance →</Link>
                   </div>
@@ -761,7 +764,18 @@ export default function ClassDetailPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {items.lessons.map(lesson => (
+                    {items.lessons.map(lesson => isSchool ? (
+                      <div key={lesson.id}
+                        className="bg-card shadow-sm border border-border rounded-none p-4 flex items-center gap-3 cursor-default">
+                        <div className="w-10 h-10 bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                          <BookOpenIcon className="w-5 h-5 text-orange-400" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-sm font-semibold text-foreground truncate">{lesson.title}</h4>
+                          <p className="text-xs text-muted-foreground capitalize">{lesson.lesson_type ?? lesson.status ?? ''}</p>
+                        </div>
+                      </div>
+                    ) : (
                       <Link key={lesson.id} href={`/dashboard/lessons/${lesson.id}`}
                         className="bg-card shadow-sm border border-border rounded-none p-4 group hover:bg-muted hover:border-orange-500/50 transition-all flex items-center gap-3">
                         <div className="w-10 h-10 bg-orange-500/10 flex items-center justify-center flex-shrink-0">
@@ -800,7 +814,21 @@ export default function ClassDetailPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-3">
-                    {items.assignments.map(a => (
+                    {items.assignments.map(a => isSchool ? (
+                      <div key={a.id}
+                        className="bg-card shadow-sm border border-border rounded-none p-4 flex items-center gap-4 cursor-default">
+                        <div className="w-10 h-10 bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                          <ClipboardDocumentListIcon className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-semibold text-foreground truncate">{a.title}</h4>
+                          <p className="text-xs text-muted-foreground">
+                            Due: {a.due_date ? new Date(a.due_date).toLocaleDateString() : 'No deadline'}
+                            {a.weight ? ` · ${a.weight} pts` : ''}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
                       <Link key={a.id} href={`/dashboard/assignments/${a.id}`}
                         className="bg-card shadow-sm border border-border rounded-none p-4 group hover:bg-muted hover:border-blue-500/50 transition-all flex items-center gap-4">
                         <div className="w-10 h-10 bg-blue-500/10 flex items-center justify-center flex-shrink-0">
@@ -842,7 +870,23 @@ export default function ClassDetailPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {items.cbt.map(ex => (
+                    {items.cbt.map(ex => isSchool ? (
+                      <div key={ex.id}
+                        className="bg-card shadow-sm border border-border rounded-none p-4 cursor-default">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-9 h-9 bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                            <AcademicCapIcon className="w-4 h-4 text-amber-400" />
+                          </div>
+                          <h4 className="text-sm font-semibold text-foreground truncate">{ex.title}</h4>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span>{ex.duration_minutes} mins</span>
+                          <span>·</span>
+                          <span>{ex.total_questions} questions</span>
+                          {ex.is_active && <span className="ml-auto text-emerald-400 font-bold">Active</span>}
+                        </div>
+                      </div>
+                    ) : (
                       <Link key={ex.id} href={`/dashboard/cbt/${ex.id}`}
                         className="bg-card shadow-sm border border-border rounded-none p-4 group hover:bg-muted hover:border-amber-500/50 transition-all">
                         <div className="flex items-center gap-3 mb-3">

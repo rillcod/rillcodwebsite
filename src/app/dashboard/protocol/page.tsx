@@ -29,6 +29,7 @@ const CodeEditor = dynamic(() => import('@/components/studio/IntegratedCodeRunne
 
 type ModuleStatus = 'locked' | 'available' | 'completed';
 type RunnerLanguage = 'javascript' | 'python' | 'html' | 'robotics';
+type LangFilter = 'all' | 'javascript' | 'python' | 'html' | 'robotics';
 
 interface ProtocolModule {
   id: string;
@@ -260,6 +261,7 @@ export default function ProtocolPage() {
   const { profile, loading: authLoading } = useAuth();
 
   const [completedModules, setCompletedModules] = useState<Set<string>>(new Set());
+  const [langFilter, setLangFilter] = useState<LangFilter>('all');
   const [activeModule, setActiveModule] = useState<{ phaseId: number; moduleId: string } | null>(null);
   const [studyTip, setStudyTip] = useState<string>('');
   const [tipLoading, setTipLoading] = useState(true);
@@ -428,10 +430,36 @@ export default function ProtocolPage() {
           </div>
         </div>
 
+        {/* Language filter */}
+        <div className="flex gap-1 flex-wrap mb-6">
+          {([
+            { value: 'all', label: 'All Languages' },
+            { value: 'javascript', label: 'JavaScript' },
+            { value: 'python', label: 'Python' },
+            { value: 'html', label: 'HTML' },
+            { value: 'robotics', label: 'Robotics' },
+          ] as { value: LangFilter; label: string }[]).map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => setLangFilter(value)}
+              className={`px-3 py-2 text-xs font-bold transition-colors rounded-none border ${
+                langFilter === value
+                  ? 'bg-orange-500 border-orange-500 text-white'
+                  : 'border-border text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Phases */}
         <div className="space-y-4">
           {PROTOCOL_PHASES.map((phase) => {
-            const phaseModules = phase.modules;
+            const phaseModules = phase.modules.filter(
+              (m) => langFilter === 'all' || m.language === langFilter,
+            );
+            if (phaseModules.length === 0) return null;
             const phaseCompleted = phaseModules.filter((m) => completedModules.has(m.id)).length;
             const phaseProgress = (phaseCompleted / phaseModules.length) * 100;
             const isExpanded = expandedPhases.has(phase.id);
@@ -495,6 +523,7 @@ export default function ProtocolPage() {
                 {isExpanded && (
                   <div className="border-t border-border">
                     {phaseModules.map((module, moduleIndex) => {
+
                       const status = getModuleStatus(module.id, completedModules);
                       const isActive =
                         activeModule?.phaseId === phase.id &&
