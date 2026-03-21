@@ -1,5 +1,5 @@
-name = "rillcodwebsite"
+name = "begnagan"
+main = ".open-next/worker.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
-
-# WORKER_SELF_REFERENCE binding removed — ISR/on-demand revalidation not used in this app
+assets = { directory = ".open-next/assets", binding = "ASSETS" }
