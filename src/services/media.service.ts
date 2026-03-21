@@ -1,8 +1,7 @@
 // sharp is a native binary — not available on Cloudflare Workers edge runtime.
-// Using a variable name prevents static bundlers from tracing the require.
+// eval('require') prevents esbuild/OpenNext from statically tracing and bundling sharp.
 let sharp: any = null;
-const _sharpPkg = 'sharp';
-try { sharp = require(_sharpPkg); } catch { /* not available on edge */ }
+try { sharp = eval('require')('sharp'); } catch { /* not available on edge */ }
 import { createClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
 import { AppError } from '@/lib/errors';
