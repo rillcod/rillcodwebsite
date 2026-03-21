@@ -110,7 +110,9 @@ function ReportBuilderInner() {
     // ── Data ──────────────────────────────────────────────────────────────────
     const [students, setStudents] = useState<PortalUser[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
+    const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
     const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+    const [sessionProgramId, setSessionProgramId] = useState('');
     const [teacherClasses, setTeacherClasses] = useState<{ id: string; name: string; school_id: string | null }[]>([]);
     const [search, setSearch] = useState('');
     const [classFilter, setClassFilter] = useState('');
@@ -279,11 +281,12 @@ function ReportBuilderInner() {
             let classQuery = db.from('classes').select('id, name, school_id').eq('status', 'active') as any;
             if (!isAdmin) classQuery = classQuery.eq('teacher_id', profile?.id);
 
-            const [cRes, bRes, clsRes, ppRes] = await Promise.all([
+            const [cRes, bRes, clsRes, ppRes, progRes] = await Promise.all([
                 db.from('courses').select('*, programs(name)').eq('is_active', true).order('title'),
                 db.from('report_settings').select('*').limit(1).maybeSingle(),
                 classQuery.order('name'),
                 prePortalQuery.order('full_name').limit(isAdmin ? 5000 : 1000),
+                db.from('programs').select('id, name').eq('is_active', true).order('name'),
             ]);
 
             // Normalize portal_users results
@@ -327,6 +330,7 @@ function ReportBuilderInner() {
             const processed = [...portalStudents, ...prePortalStudents];
             setStudents(processed as any);
             setCourses(cRes.data ?? []);
+            setPrograms(progRes.data ?? []);
             setSchools(schoolsList);
             setTeacherClasses((clsRes.data ?? []) as { id: string; name: string; school_id: string | null }[]);
             // Note: school auto-fill is handled below in the instructor_name setSessionConfig call
@@ -431,6 +435,11 @@ function ReportBuilderInner() {
         // If an existing report has session-level fields, hydrate sessionConfig so
         // editing via direct URL (?student=id) doesn't overwrite them with blanks on save.
         if (report) {
+            // Hydrate sessionProgramId from the report's course
+            if (report.course_id) {
+                const reportCourse = courses.find(c => c.id === report.course_id);
+                if (reportCourse?.program_id) setSessionProgramId(reportCourse.program_id);
+            }
             setSessionConfig(prev => ({
                 instructor_name: report.instructor_name ?? prev.instructor_name,
                 report_date: report.report_date ?? prev.report_date,
@@ -963,19 +972,36 @@ function ReportBuilderInner() {
                                 </select>
                             </Field>
                         )}
-                        <Field label="Programme / Course">
-                            <input
-                                list="course-list-bar"
-                                value={sessionConfig.course_name}
+                        <Field label="Programme">
+                            <select
+                                value={sessionProgramId}
                                 onChange={e => {
-                                    const match = courses.find(c => c.title === e.target.value);
-                                    setSessionConfig(s => ({ ...s, course_name: e.target.value, course_id: match?.id ?? s.course_id }));
+                                    const pid = e.target.value;
+                                    setSessionProgramId(pid);
+                                    const currentCourse = courses.find(c => c.id === sessionConfig.course_id);
+                                    if (currentCourse?.program_id !== pid) {
+                                        setSessionConfig(s => ({ ...s, course_id: '', course_name: '' }));
+                                    }
                                 }}
-                                className={INPUT}
-                                placeholder="e.g. Python Programming" />
-                            <datalist id="course-list-bar">
-                                {courses.map(c => <option key={c.id} value={c.title} />)}
-                            </datalist>
+                                className={INPUT}>
+                                <option value="">Select a programme…</option>
+                                {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                        </Field>
+                        <Field label="Course">
+                            <select
+                                value={sessionConfig.course_id}
+                                disabled={!sessionProgramId}
+                                onChange={e => {
+                                    const cId = e.target.value;
+                                    const c = courses.find(x => x.id === cId);
+                                    setSessionConfig(s => ({ ...s, course_id: cId, course_name: c?.title ?? '' }));
+                                }}
+                                className={INPUT + (sessionProgramId ? '' : ' opacity-40')}>
+                                <option value="">{sessionProgramId ? 'Select a course…' : '— pick a programme first —'}</option>
+                                {courses.filter(c => c.program_id === sessionProgramId)
+                                    .map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                            </select>
                         </Field>
                         <Field label="School">
                             <select
@@ -1241,19 +1267,37 @@ function ReportBuilderInner() {
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Course Details</h3>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <Field label="Programme / Course *">
-                                    <input
-                                        list="course-list-step1"
-                                        value={sessionConfig.course_name}
+                                <Field label="Programme *">
+                                    <select
+                                        value={sessionProgramId}
                                         onChange={e => {
-                                            const match = courses.find(c => c.title === e.target.value);
-                                            setSessionConfig(s => ({ ...s, course_name: e.target.value, course_id: match?.id ?? s.course_id }));
+                                            const pid = e.target.value;
+                                            setSessionProgramId(pid);
+                                            // Reset course if it no longer belongs to the new programme
+                                            const currentCourse = courses.find(c => c.id === sessionConfig.course_id);
+                                            if (currentCourse?.program_id !== pid) {
+                                                setSessionConfig(s => ({ ...s, course_id: '', course_name: '' }));
+                                            }
                                         }}
-                                        className={INPUT}
-                                        placeholder="e.g. Python Programming" />
-                                    <datalist id="course-list-step1">
-                                        {courses.map(c => <option key={c.id} value={c.title} />)}
-                                    </datalist>
+                                        className={INPUT}>
+                                        <option value="">Select a programme…</option>
+                                        {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                    </select>
+                                </Field>
+                                <Field label="Course *">
+                                    <select
+                                        value={sessionConfig.course_id}
+                                        disabled={!sessionProgramId}
+                                        onChange={e => {
+                                            const cId = e.target.value;
+                                            const c = courses.find(x => x.id === cId);
+                                            setSessionConfig(s => ({ ...s, course_id: cId, course_name: c?.title ?? '' }));
+                                        }}
+                                        className={INPUT + (sessionProgramId ? '' : ' opacity-40')}>
+                                        <option value="">{sessionProgramId ? 'Select a course…' : '— pick a programme first —'}</option>
+                                        {courses.filter(c => c.program_id === sessionProgramId)
+                                            .map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                                    </select>
                                 </Field>
                                 {sessionConfig.school_section === 'school' && (
                                     <Field label="Duration">

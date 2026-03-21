@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { generateReportPDF } from '@/lib/pdf-utils';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { 
-    TrophyIcon, 
-    AcademicCapIcon, 
-    SparklesIcon, 
-    TagIcon, 
+    TrophyIcon,
+    AcademicCapIcon,
     MagnifyingGlassIcon,
     PlusIcon,
     ArrowPathIcon,
@@ -56,10 +56,13 @@ type Certificate = Omit<Database['public']['Tables']['certificates']['Row'], 'me
 };
 
 export default function CertificateManagement() {
-    const { profile } = useAuth();
+    const { profile, loading: authLoading } = useAuth();
+    const router = useRouter();
     const [certificates, setCertificates] = useState<Certificate[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
+    const certPdfRef = useRef<HTMLDivElement>(null);
     
     // Cascading Dropdown Data
     const [schools, setSchools] = useState<any[]>([]);
@@ -99,10 +102,22 @@ export default function CertificateManagement() {
     const activeProgram = useMemo(() => programs.find(p => p.id === issueForm.programId), [programs, issueForm.programId]);
     const activeSchool = useMemo(() => schools.find(s => s.id === issueForm.schoolId), [schools, issueForm.schoolId]);
 
+    const canManage = profile?.role === 'admin' || profile?.role === 'teacher';
+    const canView = canManage || profile?.role === 'school';
+
+    // Redirect students and other non-authorised roles
     useEffect(() => {
+        if (authLoading) return;
+        if (profile && !canView) {
+            router.replace('/dashboard/certificates');
+        }
+    }, [authLoading, profile]);
+
+    useEffect(() => {
+        if (authLoading || !profile || !canView) return;
         fetchInitialData();
         fetchCertificates();
-    }, [profile]);
+    }, [profile?.id, authLoading]);
 
     const fetchCertificates = async () => {
         try {
@@ -304,20 +319,37 @@ export default function CertificateManagement() {
 
     const [viewMode, setViewMode] = useState<'library' | 'builder'>('library');
 
+    if (authLoading) return (
+        <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
+
+    if (!profile || !canView) return null;
+
     return (
-        <div className="min-h-screen bg-[#0A0A0B] text-slate-400 font-sans selection:bg-primary/30">
-            {/* Header Section */}
-            <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-white/[0.05] bg-[#0D0D0F]/80 backdrop-blur-xl sticky top-0 z-[100] flex flex-wrap justify-between items-center gap-3">
+        <div className="bg-[#0A0A0B] text-slate-400 font-sans selection:bg-primary/30">
+            {/* Header */}
+            <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-white/[0.05] bg-[#0D0D0F] flex flex-wrap justify-between items-center gap-3">
                 <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+                    <button
+                        onClick={() => router.push('/dashboard')}
+                        className="p-2 bg-white/[0.04] border border-white/[0.08] text-slate-400 hover:text-white hover:border-white/20 transition-all flex-shrink-0"
+                        title="Back to Dashboard"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                        </svg>
+                    </button>
                     <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 border border-primary/20 flex items-center justify-center relative overflow-hidden group flex-shrink-0">
                         <TrophyIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary group-hover:scale-110 transition-transform" />
                         <div className="absolute inset-0 bg-primary/5 animate-pulse" />
                     </div>
                     <div className="min-w-0">
                         <h1 className="text-lg sm:text-2xl font-black text-white uppercase italic tracking-tighter leading-none">
-                            Certificate <span className="text-primary">Management</span>
+                            Certificates
                         </h1>
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mt-1">Issue and manage student certificates</p>
+                        <p className="text-xs text-slate-500 mt-1">Issue and manage student certificates</p>
                     </div>
                 </div>
 
@@ -330,13 +362,15 @@ export default function CertificateManagement() {
                                 viewMode === 'library' ? "bg-white text-black" : "text-slate-500 hover:text-white"
                             )}
                         >Library</button>
-                        <button
-                            onClick={() => setViewMode('builder')}
-                            className={cn(
-                                "px-3 sm:px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all",
-                                viewMode === 'builder' ? "bg-white text-black" : "text-slate-500 hover:text-white"
-                            )}
-                        >Issue</button>
+                        {canManage && (
+                            <button
+                                onClick={() => setViewMode('builder')}
+                                className={cn(
+                                    "px-3 sm:px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all",
+                                    viewMode === 'builder' ? "bg-white text-black" : "text-slate-500 hover:text-white"
+                                )}
+                            >Issue</button>
+                        )}
                     </div>
 
                     <button
@@ -410,16 +444,18 @@ export default function CertificateManagement() {
                                                 className="flex items-center gap-1.5 px-3 py-2 bg-white/[0.05] border border-white/[0.1] text-slate-400 hover:text-white transition-all text-[10px] font-bold flex-1 justify-center">
                                                 <EyeIcon className="w-3.5 h-3.5" /> View
                                             </button>
-                                            {!(cert.is_published || cert.metadata?.is_published) && (
+                                            {canManage && !(cert.is_published || cert.metadata?.is_published) && (
                                                 <button onClick={() => handleAction(cert.id, 'publish')}
                                                     className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 border border-primary/20 text-primary hover:bg-primary hover:text-black transition-all text-[10px] font-bold flex-1 justify-center">
                                                     <CheckCircleIcon className="w-3.5 h-3.5" /> Publish
                                                 </button>
                                             )}
-                                            <button onClick={() => handleAction(cert.id, 'delete')}
-                                                className="flex items-center gap-1.5 px-3 py-2 bg-red-950/10 border border-red-900/20 text-red-500 hover:bg-red-600 hover:text-white transition-all text-[10px] font-bold flex-1 justify-center">
-                                                <TrashIcon className="w-3.5 h-3.5" /> Delete
-                                            </button>
+                                            {canManage && (
+                                                <button onClick={() => handleAction(cert.id, 'delete')}
+                                                    className="flex items-center gap-1.5 px-3 py-2 bg-red-950/10 border border-red-900/20 text-red-500 hover:bg-red-600 hover:text-white transition-all text-[10px] font-bold flex-1 justify-center">
+                                                    <TrashIcon className="w-3.5 h-3.5" /> Delete
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 )) : (
@@ -479,7 +515,7 @@ export default function CertificateManagement() {
                                                             >
                                                                 <EyeIcon className="w-4 h-4" />
                                                             </button>
-                                                            {!(cert.is_published || cert.metadata?.is_published) && (
+                                                            {canManage && !(cert.is_published || cert.metadata?.is_published) && (
                                                                 <button
                                                                     onClick={() => handleAction(cert.id, 'publish')}
                                                                     className="p-2.5 bg-primary/10 border border-primary/20 text-primary hover:bg-primary hover:text-black transition-all active:scale-95"
@@ -488,13 +524,15 @@ export default function CertificateManagement() {
                                                                     <CheckCircleIcon className="w-4 h-4" />
                                                                 </button>
                                                             )}
-                                                            <button
-                                                                onClick={() => handleAction(cert.id, 'delete')}
-                                                                className="p-2.5 bg-red-950/10 border border-red-900/20 text-red-500 hover:bg-red-600 hover:text-white transition-all active:scale-95"
-                                                                title="Delete"
-                                                            >
-                                                                <TrashIcon className="w-4 h-4" />
-                                                            </button>
+                                                            {canManage && (
+                                                                <button
+                                                                    onClick={() => handleAction(cert.id, 'delete')}
+                                                                    className="p-2.5 bg-red-950/10 border border-red-900/20 text-red-500 hover:bg-red-600 hover:text-white transition-all active:scale-95"
+                                                                    title="Delete"
+                                                                >
+                                                                    <TrashIcon className="w-4 h-4" />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -510,8 +548,8 @@ export default function CertificateManagement() {
                             </div>
                         </div>
                     </div>
-                ) : (
-                    /* INTEGRATED BUILDER */
+                ) : canManage ? (
+                    /* INTEGRATED BUILDER — admin/teacher only */
                     <div className="animate-in fade-in slide-in-from-right-10 duration-500">
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12">
                             {/* Certificate Details */}
@@ -630,6 +668,7 @@ export default function CertificateManagement() {
                                                 certificateNumber="SYS-202X-PRV"
                                                 verificationCode="7X2A9B"
                                                 templateId={issueForm.templateId}
+                                                isLandscape={true}
                                             />
                                         </div>
                                     </div>
@@ -657,7 +696,7 @@ export default function CertificateManagement() {
                             </div>
                         </div>
                     </div>
-                )}
+                ) : null}
             </div>
 
             {/* VIEW DETAIL MODAL */}
@@ -689,14 +728,62 @@ export default function CertificateManagement() {
                                             <QRCode value={`https://rillcod.com/verify/${viewingCert.id}`} size={100} fgColor="#121212" />
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => window.print()}
-                                        className="w-full bg-white text-black py-3 sm:py-4 text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-slate-200 transition-all"
-                                    >
-                                        <PrinterIcon className="w-4 h-4" /> Print Certificate
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => {
+                                                const style = document.createElement('style');
+                                                style.id = '__cert-landscape-print';
+                                                style.textContent = '@page { size: A4 landscape; margin: 0; }';
+                                                document.head.appendChild(style);
+                                                document.body.setAttribute('data-printing', 'certificate');
+                                                window.print();
+                                                setTimeout(() => {
+                                                    document.getElementById('__cert-landscape-print')?.remove();
+                                                    document.body.removeAttribute('data-printing');
+                                                }, 1000);
+                                            }}
+                                            className="flex-1 bg-white text-black py-3 sm:py-4 text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-2 hover:bg-slate-200 transition-all"
+                                        >
+                                            <PrinterIcon className="w-4 h-4" /> Print
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (!certPdfRef.current || !viewingCert) return;
+                                                setIsDownloadingPDF(true);
+                                                try {
+                                                    const name = viewingCert.portal_users?.full_name?.replace(/\s+/g, '_') || 'Certificate';
+                                                    await generateReportPDF(certPdfRef.current, `Certificate_${name}_${viewingCert.verification_code}.pdf`, true);
+                                                } catch (e) {
+                                                    console.error(e);
+                                                } finally {
+                                                    setIsDownloadingPDF(false);
+                                                }
+                                            }}
+                                            disabled={isDownloadingPDF}
+                                            className="flex-1 bg-primary text-black py-3 sm:py-4 text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-2 hover:bg-primary/90 disabled:opacity-50 transition-all"
+                                        >
+                                            <ArrowDownTrayIcon className="w-4 h-4" />
+                                            {isDownloadingPDF ? 'Saving...' : 'Download PDF'}
+                                        </button>
+                                    </div>
+                                    {/* Hidden full-size cert for PDF capture */}
+                                    <div ref={certPdfRef} style={{ position: 'fixed', left: '-9999px', top: 0, zIndex: -1 }}>
+                                        {viewingCert && (
+                                            <CertificatePreview
+                                                studentName={viewingCert.portal_users?.full_name}
+                                                schoolName={viewingCert.portal_users?.school_name}
+                                                courseTitle={viewingCert.courses?.title}
+                                                programName={viewingCert.courses?.program?.name}
+                                                issuedDate={viewingCert.issued_date}
+                                                certificateNumber={viewingCert.certificate_number}
+                                                verificationCode={viewingCert.verification_code}
+                                                templateId={viewingCert.template_id}
+                                                isLandscape={true}
+                                            />
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="lg:col-span-7 bg-black/40 border border-white/5 flex items-center justify-center overflow-hidden relative" style={{aspectRatio: '4/3'}}>
+                                <div id="cert-print-root" className="lg:col-span-7 bg-black/40 border border-white/5 flex items-center justify-center overflow-hidden relative" style={{aspectRatio: '4/3'}}>
                                     <div className="absolute inset-0 flex items-center justify-center overflow-hidden p-3">
                                         <div className="w-full h-full flex items-center justify-center" style={{transform: 'scale(0.38)', transformOrigin: 'center center'}}>
                                             <CertificatePreview
@@ -708,6 +795,7 @@ export default function CertificateManagement() {
                                                 certificateNumber={viewingCert.certificate_number}
                                                 verificationCode={viewingCert.verification_code}
                                                 templateId={viewingCert.template_id}
+                                                isLandscape={true}
                                             />
                                         </div>
                                     </div>

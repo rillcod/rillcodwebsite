@@ -603,9 +603,16 @@ export default function BulkRegisterPage() {
     setLoadingHistory(true);
     const { data, error } = await (supabase as any)
       .from('registration_batches')
-      .select('*')
+      .select('*, registration_results(count)')
       .order('created_at', { ascending: false });
-    if (!error && data) setHistory(data);
+    if (!error && data) {
+      // Use live count from registration_results join; fall back to stored student_count
+      const hydrated = data.map((b: any) => ({
+        ...b,
+        student_count: b.registration_results?.[0]?.count ?? b.student_count ?? 0,
+      }));
+      setHistory(hydrated);
+    }
     setLoadingHistory(false);
   }, [supabase]);
 

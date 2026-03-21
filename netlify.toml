@@ -4,4 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "22"
-  NPM_FLAGS = "--include=dev"
+  NPM_FLAGS = "--legacy-peer-deps"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

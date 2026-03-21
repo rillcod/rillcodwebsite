@@ -29,7 +29,7 @@ const nextConfig: NextConfig = {
 
   // ── Image optimisation ─────────────────────────────────────────
   images: {
-    // unoptimized: true, // Uncomment this for Capacitor/PWA standalone builds
+    unoptimized: true,
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 3600,
     remotePatterns: [

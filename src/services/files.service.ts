@@ -1,7 +1,25 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError, NotFoundError, ValidationError } from '@/lib/errors';
 import { mediaService } from './media.service';
 import crypto from 'crypto';
+
+const BUCKET_NAME = 'lms-files';
+
+/** Ensures the storage bucket exists, creating it if not. Uses admin client. */
+async function ensureBucket() {
+    const admin = createAdminClient();
+    const { data: buckets } = await admin.storage.listBuckets();
+    const exists = (buckets ?? []).some(b => b.name === BUCKET_NAME);
+    if (!exists) {
+        const { error } = await admin.storage.createBucket(BUCKET_NAME, {
+            public: false,
+        });
+        if (error && !error.message.includes('already exists')) {
+            throw new AppError(`Failed to create storage bucket: ${error.message}`, 500);
+        }
+    }
+}
 
 export interface FileMetadata {
     filename: string;
@@ -13,7 +31,7 @@ export interface FileMetadata {
 }
 
 const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'mp4', 'mp3', 'jpg', 'jpeg', 'png', 'zip'];
-const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB — Supabase free-tier limit
 
 export class FilesService {
     private getStorageProvider() {
@@ -94,9 +112,12 @@ export class FilesService {
         const uniqueFilename = `${crypto.randomUUID()}.${ext}`;
         const storagePath = tenantId ? `${tenantId}/${uniqueFilename}` : `global/${uniqueFilename}`;
 
+        // Ensure bucket exists before uploading
+        await ensureBucket();
+
         // Upload to Supabase Storage (which acts as our S3 bucket)
         const { error: storageError } = await supabase.storage
-            .from('lms-files')
+            .from(BUCKET_NAME)
             .upload(storagePath, file, {
                 cacheControl: '3600',
                 upsert: false
@@ -134,7 +155,7 @@ export class FilesService {
 
         if (dbError) {
             // Cleanup storage if db insert fails
-            await supabase.storage.from('lms-files').remove([storagePath]);
+            await supabase.storage.from(BUCKET_NAME).remove([storagePath]);
             throw new AppError(`Failed to save file metadata: ${dbError.message}`, 500);
         }
 
@@ -163,7 +184,7 @@ export class FilesService {
         const storagePath = tenantId ? `${tenantId}/${uniqueFilename}` : `global/${uniqueFilename}`;
 
         const { data, error } = await supabase.storage
-            .from('lms-files')
+            .from(BUCKET_NAME)
             .createSignedUploadUrl(storagePath);
 
         if (error || !data) {
@@ -237,7 +258,7 @@ export class FilesService {
         const fileData = await this.getFileMetadata(id, tenantId);
 
         const { data, error } = await supabase.storage
-            .from('lms-files')
+            .from(BUCKET_NAME)
             .createSignedUrl(fileData.storage_path, expiresInSeconds);
 
         if (error || !data) {
@@ -260,7 +281,7 @@ export class FilesService {
         const fileData = await this.getFileMetadata(id, tenantId);
 
         const { error: storageError } = await supabase.storage
-            .from('lms-files')
+            .from(BUCKET_NAME)
             .remove([fileData.storage_path]);
 
         if (storageError) {

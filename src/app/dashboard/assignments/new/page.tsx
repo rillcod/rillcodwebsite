@@ -43,7 +43,9 @@ export default function NewAssignmentPage() {
   const preProgramId = searchParams?.get('program_id');
   const preCourseId = searchParams?.get('course_id');
   const preLessonId = searchParams?.get('lesson_id');
+  const [programs, setPrograms] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
+  const [selectedProgramId, setSelectedProgramId] = useState('');
   const [linkedLesson, setLinkedLesson] = useState<{ id: string; title: string } | null>(null);
   const isMinimal = searchParams?.get('minimal') === 'true';
   const [saving, setSaving] = useState(false);
@@ -150,14 +152,18 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
     
     // Fetch courses with a more robust query for teachers/admins
     const fetchData = async () => {
-      let query = createClient()
+      const db = createClient();
+
+      // Fetch programmes
+      const { data: progData } = await db.from('programs').select('id, name').eq('is_active', true).order('name');
+      setPrograms(progData ?? []);
+
+      let query = db
         .from('courses')
         .select('id, title, program_id, school_id, programs(name)')
         .eq('is_active', true);
 
-      // If teacher has a school, prioritize that school's courses + global ones
       if (profile?.school_id) {
-        // use filter to handle the OR condition effectively
         query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
       }
 
@@ -167,19 +173,22 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
 
       // Auto-select if IDs provided in URL
       if (preCourseId) {
+        const c = courseList.find((x: any) => x.id === preCourseId);
+        if (c?.program_id) setSelectedProgramId(c.program_id);
         setForm(prev => ({ ...prev, course_id: preCourseId }));
       } else if (preProgramId && courseList.length > 0) {
+        setSelectedProgramId(preProgramId);
         const matching = courseList.find((c: any) => c.program_id === preProgramId);
         if (matching) setForm(prev => ({ ...prev, course_id: matching.id }));
       }
 
       // Fetch linked lesson title if lesson_id provided
       if (preLessonId) {
-        const db = createClient();
         const { data: lessonRow } = await db.from('lessons').select('id, title, course_id').eq('id', preLessonId).single();
         if (lessonRow) {
           setLinkedLesson({ id: lessonRow.id, title: lessonRow.title });
-          // Also auto-select the lesson's course
+          const lc = courseList.find((x: any) => x.id === lessonRow.course_id);
+          if (lc?.program_id) setSelectedProgramId(lc.program_id);
           setForm(prev => ({ ...prev, course_id: lessonRow.course_id ?? prev.course_id }));
         }
       }
@@ -406,19 +415,39 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
               className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
           </div>
 
-          {/* Course */}
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-              Course <span className="text-rose-400">*</span>
-            </label>
-            <select required value={form.course_id}
-              onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
-              className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
-              <option value="">Select a course…</option>
-              {courses.map(c => (
-                <option key={c.id} value={c.id}>{c.title}{c.programs?.name ? ` — ${c.programs.name}` : ''}</option>
-              ))}
-            </select>
+          {/* Programme + Course */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+                Programme <span className="text-rose-400">*</span>
+              </label>
+              <select value={selectedProgramId}
+                onChange={e => {
+                  const pid = e.target.value;
+                  setSelectedProgramId(pid);
+                  const currentCourse = courses.find((c: any) => c.id === form.course_id);
+                  if (currentCourse?.program_id !== pid) {
+                    setForm(f => ({ ...f, course_id: '' }));
+                  }
+                }}
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
+                <option value="">Select a programme…</option>
+                {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+                Course <span className="text-rose-400">*</span>
+              </label>
+              <select required value={form.course_id}
+                onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
+                disabled={!selectedProgramId}
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer disabled:opacity-40">
+                <option value="">{selectedProgramId ? 'Select a course…' : '— pick a programme first —'}</option>
+                {courses.filter((c: any) => c.program_id === selectedProgramId)
+                  .map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

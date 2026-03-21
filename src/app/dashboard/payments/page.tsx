@@ -9,9 +9,10 @@ import {
   XMarkIcon, CheckIcon, BuildingOfficeIcon, ShieldCheckIcon,
   InformationCircleIcon, ClockIcon, CreditCardIcon, ArrowTrendingUpIcon,
   MagnifyingGlassIcon, DocumentTextIcon, ReceiptPercentIcon,
-  ArrowPathIcon, EnvelopeIcon, ArrowDownTrayIcon, CheckBadgeIcon,
+  ArrowPathIcon, EnvelopeIcon, ArrowDownTrayIcon, CheckBadgeIcon, UserGroupIcon,
 } from '@/lib/icons';
 import SmartDocument from '@/components/finance/SmartDocument';
+import Link from 'next/link';
 
 type PaymentAccount = {
   id: string;
@@ -88,12 +89,12 @@ function AccountCard({ account, onEdit, onDelete, canManage }: {
 }) {
   const isRillcod = account.owner_type === 'rillcod';
   return (
-    <div className={`bg-card shadow-sm border rounded-none p-5 space-y-3 ${isRillcod ? 'border-orange-500/30' : 'border-border'}`}>
+    <div className={`bg-card shadow-sm border rounded-none p-5 space-y-3 ${isRillcod ? 'border-primary/30' : 'border-border'}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className={`w-10 h-10 rounded-none flex items-center justify-center flex-shrink-0 ${isRillcod ? 'bg-orange-600/20' : 'bg-muted'}`}>
+          <div className={`w-10 h-10 rounded-none flex items-center justify-center flex-shrink-0 ${isRillcod ? 'bg-primary/20' : 'bg-muted'}`}>
             {isRillcod
-              ? <ShieldCheckIcon className="w-5 h-5 text-orange-400" />
+              ? <ShieldCheckIcon className="w-5 h-5 text-primary" />
               : <BuildingOfficeIcon className="w-5 h-5 text-muted-foreground" />}
           </div>
           <div className="min-w-0">
@@ -135,14 +136,14 @@ function AccountCard({ account, onEdit, onDelete, canManage }: {
           <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Account Name</p>
           <p className="font-bold text-foreground text-[13px]">{account.account_name}</p>
         </div>
-        <div className="col-span-2 bg-emerald-500/10 border border-emerald-500/20 rounded-none px-4 py-3 flex items-center justify-between">
+        <div className="col-span-2 bg-primary/10 border border-primary/20 rounded-none px-4 py-3 flex items-center justify-between">
           <div>
-            <p className="text-[9px] font-black text-emerald-400/70 uppercase tracking-widest mb-1">Account Number</p>
-            <p className="font-black text-emerald-300 text-lg tracking-[0.15em]">{account.account_number}</p>
+            <p className="text-[9px] font-black text-primary/70 uppercase tracking-widest mb-1">Account Number</p>
+            <p className="font-black text-white text-lg tracking-[0.15em]">{account.account_number}</p>
           </div>
           <button
             onClick={() => navigator.clipboard?.writeText(account.account_number)}
-            className="text-[10px] font-bold text-emerald-400/60 hover:text-emerald-300 transition-colors px-2 py-1 bg-emerald-500/10 rounded-none"
+            className="text-[10px] font-bold text-primary/70 hover:text-primary transition-colors px-2 py-1 bg-primary/10 rounded-none"
           >
             Copy
           </button>
@@ -150,9 +151,9 @@ function AccountCard({ account, onEdit, onDelete, canManage }: {
       </div>
 
       {account.payment_note && (
-        <div className="flex gap-2 bg-amber-500/10 border border-amber-500/20 rounded-none px-3 py-2">
-          <InformationCircleIcon className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-          <p className="text-[11px] text-amber-300/80">{account.payment_note}</p>
+        <div className="flex gap-2 bg-white/[0.04] border border-white/[0.08] rounded-none px-3 py-2">
+          <InformationCircleIcon className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+          <p className="text-[11px] text-slate-400">{account.payment_note}</p>
         </div>
       )}
     </div>
@@ -168,6 +169,7 @@ export default function PaymentsPage() {
   const [accounts, setAccounts] = useState<PaymentAccount[]>([]);
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [savedReceipts, setSavedReceipts] = useState<any[]>([]);
   const [schools, setSchools] = useState<{ id: string; name: string; rillcod_quota_percent: number | null }[]>([]);
   const [allStudents, setAllStudents] = useState<{ id: string; full_name: string; email: string; school_id: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,6 +191,9 @@ export default function PaymentsPage() {
     due_date: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]
   });
   const [saving, setSaving] = useState(false);
+  const [filterInvStatus, setFilterInvStatus] = useState<'all' | 'sent' | 'paid' | 'overdue' | 'draft'>('all');
+  const [editingInv, setEditingInv] = useState<Invoice | null>(null);
+  const [editInvForm, setEditInvForm] = useState({ due_date: '', notes: '', status: 'sent' as Invoice['status'] });
 
   // School Invoice Builder state
   const [showSchoolInvoice, setShowSchoolInvoice] = useState(false);
@@ -288,6 +293,108 @@ export default function PaymentsPage() {
     }
   }
 
+  async function loadReceipts() {
+    const res = await fetch('/api/receipts?limit=50');
+    if (res.ok) {
+      const json = await res.json();
+      setSavedReceipts(json.data ?? []);
+    }
+  }
+
+  async function handleSaveReceipt(schoolId?: string) {
+    const items = receiptForm.items.filter(i => i.description && i.unit_price > 0);
+    const totalAmount = items.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
+    if (totalAmount === 0) { alert('Add at least one line item with an amount.'); return; }
+    const sch = receiptForm.school_id ? schools.find(s => s.id === receiptForm.school_id) : null;
+    const docRef = receiptForm.reference || `RCPT-${Date.now().toString(36).toUpperCase()}`;
+    const payToAcc = receiptForm.pay_to_account_id ? accounts.find(a => a.id === receiptForm.pay_to_account_id) : null;
+    setLoadingTx(true);
+    try {
+      const res = await fetch('/api/receipts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          school_id: receiptForm.school_id || null,
+          amount: totalAmount,
+          currency: 'NGN',
+          metadata: {
+            payer_name: receiptForm.payer_name || sch?.name,
+            payer_type: receiptForm.payer_type,
+            payment_method: receiptForm.payment_method,
+            payment_date: receiptForm.payment_date,
+            reference: docRef,
+            received_by: receiptForm.received_by,
+            notes: receiptForm.notes,
+            items,
+            deposit_account: payToAcc ? {
+              bank_name: payToAcc.bank_name,
+              account_number: payToAcc.account_number,
+              account_name: payToAcc.account_name,
+            } : null,
+          },
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        setError(j.error || 'Failed to save receipt');
+      } else {
+        await loadReceipts();
+        alert(`Receipt ${docRef} saved to portal successfully.`);
+      }
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoadingTx(false);
+    }
+  }
+
+  async function handleMarkInvoicePaid(invoiceId: string) {
+    if (!confirm('Mark this invoice as paid?')) return;
+    setLoadingTx(true);
+    const { error: err } = await (db as any).from('invoices').update({ status: 'paid' }).eq('id', invoiceId);
+    if (err) setError(err.message);
+    else {
+      setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status: 'paid' } : inv));
+      if (viewDoc?.type === 'invoice') {
+        setViewDoc(prev => prev ? { ...prev, data: { ...prev.data, status: 'paid' } } : null);
+      }
+    }
+    setLoadingTx(false);
+  }
+
+  function openEditInvoice(inv: Invoice, e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditingInv(inv);
+    setEditInvForm({ due_date: inv.due_date?.split('T')[0] ?? '', notes: inv.notes ?? '', status: inv.status });
+  }
+
+  async function handleUpdateInvoice(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingInv) return;
+    setLoadingTx(true);
+    const { error: err } = await (db as any).from('invoices')
+      .update({ due_date: editInvForm.due_date, notes: editInvForm.notes, status: editInvForm.status })
+      .eq('id', editingInv.id);
+    if (err) { setError(err.message); }
+    else {
+      setInvoices(prev => prev.map(inv => inv.id === editingInv.id
+        ? { ...inv, due_date: editInvForm.due_date, notes: editInvForm.notes, status: editInvForm.status }
+        : inv));
+      setEditingInv(null);
+    }
+    setLoadingTx(false);
+  }
+
+  async function handleDeleteInvoice(invoiceId: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm('Delete this invoice? This cannot be undone.')) return;
+    setLoadingTx(true);
+    const { error: err } = await (db as any).from('invoices').delete().eq('id', invoiceId);
+    if (err) setError(err.message);
+    else setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
+    setLoadingTx(false);
+  }
+
   async function handleCreateInvoice(e: React.FormEvent) {
     e.preventDefault();
     if (!invForm.student_id) return;
@@ -299,10 +406,10 @@ export default function PaymentsPage() {
       body: JSON.stringify({
         school_id: isSchool ? profile?.school_id : (selectedStudent?.school_id || null),
         portal_user_id: invForm.student_id,
-        amount: parseFloat(invForm.amount) || 0,
+        amount: invForm.items.reduce((s, i) => s + i.quantity * i.unit_price, 0),
         notes: invForm.notes,
         due_date: invForm.due_date,
-        items: invForm.items,
+        items: invForm.items.filter(i => i.description && i.unit_price > 0),
         status: 'sent',
       }),
     });
@@ -310,6 +417,11 @@ export default function PaymentsPage() {
     if (!res.ok) setError(j.error || 'Failed to create invoice');
     else {
       setShowInvoiceForm(false);
+      setInvForm({
+        student_id: '', amount: '', notes: '',
+        items: [{ description: 'Coding Club Fee', quantity: 1, unit_price: 0, total: 0 }],
+        due_date: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+      });
       loadTransactions();
     }
     setLoadingTx(false);
@@ -775,6 +887,32 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
     w.document.close();
     w.focus();
     setTimeout(() => w.print(), 700);
+
+    // Auto-save receipt to portal (fire-and-forget — school can view it on their dashboard)
+    fetch('/api/receipts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        school_id: receiptForm.school_id || null,
+        amount: totalAmount,
+        currency: 'NGN',
+        metadata: {
+          payer_name: payerLabel,
+          payer_type: receiptForm.payer_type,
+          payment_method: receiptForm.payment_method,
+          payment_date: receiptForm.payment_date,
+          reference: docRef,
+          received_by: receiptForm.received_by,
+          notes: receiptForm.notes,
+          items,
+          deposit_account: payToAcc ? {
+            bank_name: payToAcc.bank_name,
+            account_number: payToAcc.account_number,
+            account_name: payToAcc.account_name,
+          } : null,
+        },
+      }),
+    }).then(() => loadReceipts()).catch(() => {/* silent */});
   }
 
   function calculateTotalWithFees(target: number) {
@@ -797,6 +935,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
     load();
     loadTransactions();
     loadStudents();
+    loadReceipts();
     if (isAdmin) {
       db.from('schools').select('id, name, rillcod_quota_percent').order('name')
         .then(({ data }) => setSchools((data ?? []) as any));
@@ -863,7 +1002,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -875,8 +1014,8 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <BanknotesIcon className="w-5 h-5 text-orange-400" />
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Finance</span>
+              <BanknotesIcon className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-primary uppercase tracking-widest">Finance</span>
             </div>
             <h1 className="text-3xl font-extrabold">Payments & Finance</h1>
             <p className="text-muted-foreground text-sm mt-1">
@@ -891,14 +1030,14 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                 <button
                   key={v}
                   onClick={() => setView(v as any)}
-                  className={`px-4 py-2 rounded-none font-bold text-[10px] uppercase tracking-widest transition-all ${view === v ? 'bg-indigo-600 text-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}>
+                  className={`px-4 py-2 rounded-none font-bold text-[10px] uppercase tracking-widest transition-all ${view === v ? 'bg-primary text-black shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}>
                   {v}
                 </button>
               ))}
             </div>
             {canManage && view === 'accounts' && (
               <button onClick={openNew}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground font-bold text-sm rounded-none transition-all hover:scale-105 shadow-lg shadow-orange-900/30">
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-black font-bold text-sm rounded-none transition-all hover:scale-105 shadow-lg shadow-primary/20">
                 <PlusIcon className="w-4 h-4" /> Add Account
               </button>
             )}
@@ -918,19 +1057,19 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
             {(isAdmin || rillcodAccounts.length > 0) && (
               <section className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <ShieldCheckIcon className="w-4 h-4 text-orange-400" />
-                  <h2 className="text-sm font-black uppercase tracking-widest text-orange-400">Rillcod Technologies Accounts</h2>
-                  <div className="h-px flex-1 bg-orange-500/20" />
+                  <ShieldCheckIcon className="w-4 h-4 text-primary" />
+                  <h2 className="text-sm font-black uppercase tracking-widest text-primary">Rillcod Technologies Accounts</h2>
+                  <div className="h-px flex-1 bg-primary/20" />
                   {isAdmin && (
                     <button
                       onClick={() => { setForm({ ...BLANK, owner_type: 'rillcod', school_id: null }); setEditing(null); setShowForm(true); }}
-                      className="text-[10px] font-black text-orange-400/60 hover:text-orange-500 flex items-center gap-1">
+                      className="text-[10px] font-black text-primary/70 hover:text-primary flex items-center gap-1">
                       <PlusIcon className="w-3 h-3" /> Add
                     </button>
                   )}
                 </div>
                 {rillcodAccounts.length === 0 ? (
-                  <div className="text-center py-10 bg-card shadow-sm border border-dashed border-orange-500/20 rounded-none">
+                  <div className="text-center py-10 bg-card shadow-sm border border-dashed border-primary/20 rounded-none">
                     <p className="text-muted-foreground text-sm">No Rillcod payment accounts set up yet.</p>
                   </div>
                 ) : (
@@ -975,6 +1114,163 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                 </div>
               )}
             </section>
+
+            {/* ── School: My Invoices & Receipts ── */}
+            {isSchool && (
+              <div className="space-y-8">
+                {/* Invoices for this school */}
+                {invoices.length > 0 && (
+                  <section className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <DocumentTextIcon className="w-4 h-4 text-primary" />
+                      <h2 className="text-sm font-black uppercase tracking-widest text-primary">Invoices</h2>
+                      <div className="h-px flex-1 bg-primary/20" />
+                      <span className="text-[10px] font-black text-muted-foreground uppercase">{invoices.length} total</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {invoices.map(inv => (
+                        <div key={inv.id}
+                          className="bg-card border border-border rounded-none p-5 flex flex-col gap-3 hover:border-primary/30 transition-all cursor-pointer group"
+                          onClick={() => {
+                            setViewDoc({
+                              type: 'invoice',
+                              data: {
+                                number: inv.invoice_number,
+                                date: new Date(inv.created_at).toLocaleDateString(),
+                                dueDate: new Date(inv.due_date).toLocaleDateString(),
+                                status: inv.status,
+                                amount: inv.amount,
+                                currency: inv.currency,
+                                items: inv.items,
+                                studentName: inv.portal_users?.full_name || inv.schools?.name || 'School',
+                                studentEmail: inv.portal_users?.email,
+                                notes: inv.notes,
+                                schoolName: inv.schools?.name || 'Rillcod Technologies',
+                              }
+                            });
+                          }}>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-[10px] font-black text-primary uppercase tracking-widest">{inv.invoice_number}</p>
+                              <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors">
+                                {new Date(inv.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                              inv.status === 'paid' ? 'bg-green-500/10 text-green-400' :
+                              inv.status === 'overdue' ? 'bg-rose-500/10 text-rose-400' :
+                              'bg-primary/10 text-primary'
+                            }`}>{inv.status}</span>
+                          </div>
+                          <div className="flex justify-between items-end">
+                            <div>
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Amount</p>
+                              <p className="text-xl font-black text-foreground">₦{inv.amount.toLocaleString()}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Due</p>
+                              <p className="text-xs font-bold text-muted-foreground">{new Date(inv.due_date).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                          {canManage && (
+                            <div className="flex gap-2 pt-1 border-t border-white/[0.05]" onClick={e => e.stopPropagation()}>
+                              {inv.status !== 'paid' && (
+                                <button
+                                  onClick={() => handleMarkInvoicePaid(inv.id)}
+                                  className="flex-1 py-1.5 bg-green-500/10 border border-green-500/20 text-green-400 text-[9px] font-black uppercase tracking-widest hover:bg-green-500/20 transition-all"
+                                >
+                                  Mark Paid
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => openEditInvoice(inv, e)}
+                                className="flex-1 py-1.5 bg-white/[0.04] border border-white/[0.08] text-slate-400 text-[9px] font-black uppercase tracking-widest hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-1"
+                              >
+                                <PencilIcon className="w-3 h-3" /> Edit
+                              </button>
+                              <button
+                                onClick={(e) => handleDeleteInvoice(inv.id, e)}
+                                className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[9px] font-black uppercase hover:bg-rose-500/20 transition-all flex items-center justify-center"
+                              >
+                                <TrashIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Receipts for this school */}
+                {savedReceipts.length > 0 && (
+                  <section className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <ReceiptPercentIcon className="w-4 h-4 text-primary" />
+                      <h2 className="text-sm font-black uppercase tracking-widest text-primary">Receipts</h2>
+                      <div className="h-px flex-1 bg-primary/20" />
+                      <span className="text-[10px] font-black text-muted-foreground uppercase">{savedReceipts.length} records</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {savedReceipts.map(rcpt => {
+                        const meta = rcpt.metadata || {};
+                        return (
+                          <div key={rcpt.id}
+                            className="bg-card border border-border rounded-none p-5 flex flex-col gap-3 hover:border-primary/30 transition-all cursor-pointer group"
+                            onClick={() => setViewDoc({
+                              type: 'receipt',
+                              data: {
+                                number: rcpt.receipt_number,
+                                date: new Date(rcpt.issued_at).toLocaleDateString(),
+                                status: 'paid',
+                                items: meta.items || [{ description: 'Payment', quantity: 1, unit_price: rcpt.amount, total: rcpt.amount }],
+                                amount: rcpt.amount,
+                                currency: rcpt.currency || 'NGN',
+                                studentName: meta.payer_name || rcpt.portal_users?.full_name || rcpt.schools?.name || 'Client',
+                                studentEmail: rcpt.portal_users?.email,
+                                schoolName: 'RILLCOD TECHNOLOGIES',
+                                notes: meta.notes,
+                                transactionRef: meta.reference || rcpt.receipt_number,
+                                instructorName: meta.received_by || 'Accounts Department',
+                                paymentMethod: meta.payment_method,
+                                receivedBy: meta.received_by,
+                                depositAccount: meta.deposit_account,
+                              }
+                            })}>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="text-[10px] font-black text-primary uppercase tracking-widest">{rcpt.receipt_number}</p>
+                                <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors">
+                                  {meta.payer_name || rcpt.schools?.name || 'Payment'}
+                                </p>
+                              </div>
+                              <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-black rounded-full uppercase">PAID</span>
+                            </div>
+                            <div className="flex justify-between items-end">
+                              <div>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Amount</p>
+                                <p className="text-xl font-black text-foreground">₦{rcpt.amount.toLocaleString()}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Issued</p>
+                                <p className="text-xs font-bold text-muted-foreground">{new Date(rcpt.issued_at).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+
+                {invoices.length === 0 && savedReceipts.length === 0 && (
+                  <div className="text-center py-16 bg-card border border-dashed border-border">
+                    <DocumentTextIcon className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground text-sm">No invoices or receipts issued to your school yet.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         ) : view === 'monitoring' ? (
           /* ── Financial Monitoring View ── */
@@ -1000,13 +1296,13 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       <p className="text-[10px] text-muted-foreground mt-1">{completed.length} total payments</p>
                     </div>
                     {isAdmin && (
-                      <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-none p-6">
+                      <div className="bg-primary/5 border border-primary/20 rounded-none p-6">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Rillcod Quota</p>
-                          <ShieldCheckIcon className="w-4 h-4 text-indigo-400" />
+                          <p className="text-[10px] font-black text-primary uppercase tracking-widest">Rillcod Quota</p>
+                          <ShieldCheckIcon className="w-4 h-4 text-primary" />
                         </div>
-                        <p className="text-2xl font-black text-indigo-100">₦{totalQuota.toLocaleString()}</p>
-                        <p className="text-[10px] text-indigo-400/40 mt-1">Calculated from school split %</p>
+                        <p className="text-2xl font-black text-foreground">₦{totalQuota.toLocaleString()}</p>
+                        <p className="text-[10px] text-primary/40 mt-1">Calculated from school split %</p>
                       </div>
                     )}
                     <div className="bg-card shadow-sm border border-border rounded-none p-6">
@@ -1018,13 +1314,13 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       <p className="text-[10px] text-muted-foreground mt-1">Pending & Completed</p>
                     </div>
                     {!isAdmin && (
-                      <div className="bg-emerald-600/10 border border-emerald-500/20 rounded-none p-6">
+                      <div className="bg-card shadow-sm border border-border rounded-none p-6">
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">School Share</p>
-                          <BuildingOfficeIcon className="w-4 h-4 text-emerald-400" />
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">School Share</p>
+                          <BuildingOfficeIcon className="w-4 h-4 text-muted-foreground" />
                         </div>
-                        <p className="text-2xl font-black text-emerald-100">₦{(totalRevenue - totalQuota).toLocaleString()}</p>
-                        <p className="text-[10px] text-emerald-400/40 mt-1">Net after service fee</p>
+                        <p className="text-2xl font-black text-foreground">₦{(totalRevenue - totalQuota).toLocaleString()}</p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1">Net after service fee</p>
                       </div>
                     )}
                   </>
@@ -1036,7 +1332,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
             <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden min-h-[400px]">
               <div className="p-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <CreditCardIcon className="w-5 h-5 text-indigo-400" />
+                  <CreditCardIcon className="w-5 h-5 text-primary" />
                   <h3 className="text-lg font-extrabold text-foreground">Recent Transactions</h3>
                 </div>
                 <div className="relative">
@@ -1046,14 +1342,14 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                     placeholder="Search transactions..."
                     value={searchTx}
                     onChange={e => setSearchTx(e.target.value)}
-                    className="bg-card shadow-sm border border-border rounded-none pl-9 pr-4 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-indigo-500 w-full sm:w-64"
+                    className="bg-card shadow-sm border border-border rounded-none pl-9 pr-4 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary w-full sm:w-64"
                   />
                 </div>
               </div>
 
               {loadingTx ? (
                 <div className="p-20 flex flex-col items-center justify-center gap-3">
-                  <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                   <p className="text-xs text-muted-foreground uppercase font-black tracking-widest">Fetching records...</p>
                 </div>
               ) : transactions.length === 0 ? (
@@ -1083,7 +1379,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                         return (
                           <tr key={t.id} className="hover:bg-white/[0.02] transition-colors group">
                             <td className="px-6 py-4">
-                              <p className="text-[13px] font-bold text-foreground group-hover:text-indigo-300 transition-colors">
+                              <p className="text-[13px] font-bold text-foreground group-hover:text-primary transition-colors">
                                 {t.portal_users?.full_name || 'Anonymous Student'}
                               </p>
                               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t.schools?.name || 'Individual'}</p>
@@ -1140,7 +1436,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                                           }
                                         }); 
                                       }}
-                                      className="px-2 py-0.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-[9px] font-black uppercase rounded-full border border-indigo-500/20 transition-all">
+                                      className="px-2 py-0.5 bg-primary/10 hover:bg-primary/20 text-primary text-[9px] font-black uppercase rounded-full border border-primary/20 transition-all">
                                       Receipt
                                     </button>
                                   )}
@@ -1171,8 +1467,8 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <DocumentTextIcon className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">Financial Records</span>
+                  <DocumentTextIcon className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-bold text-primary uppercase tracking-widest">Financial Records</span>
                 </div>
                 <h2 className="text-2xl font-black">Billing & Invoices</h2>
               </div>
@@ -1180,33 +1476,39 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                 {isAdmin && schools.length > 0 && (
                   <button
                     onClick={() => { setShowSchoolInvoice(v => !v); setShowReceiptBuilder(false); }}
-                    className={`px-5 py-2.5 font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg hover:scale-105 active:scale-95 ${showSchoolInvoice ? 'bg-orange-600 text-foreground shadow-orange-900/40' : 'bg-orange-600/20 border border-orange-500/30 text-orange-400'}`}>
-                    {showSchoolInvoice ? '✕ Close' : '🏫 School Invoice'}
+                    className={`px-5 py-2.5 font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg hover:scale-105 active:scale-95 ${showSchoolInvoice ? 'bg-primary text-black shadow-primary/30' : 'bg-primary/10 border border-primary/20 text-primary'}`}>
+                    {showSchoolInvoice ? '✕ Close' : 'School Invoice'}
                   </button>
                 )}
                 {canManage && (
                   <button
                     onClick={() => { setShowReceiptBuilder(v => !v); setShowSchoolInvoice(false); }}
-                    className={`px-5 py-2.5 font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg hover:scale-105 active:scale-95 ${showReceiptBuilder ? 'bg-emerald-600 text-foreground shadow-emerald-900/40' : 'bg-emerald-600/20 border border-emerald-500/30 text-emerald-400'}`}>
-                    {showReceiptBuilder ? '✕ Close' : '🧾 Build Receipt'}
+                    className={`px-5 py-2.5 font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg hover:scale-105 active:scale-95 ${showReceiptBuilder ? 'bg-white/10 text-white' : 'bg-white/[0.04] border border-white/[0.08] text-slate-400 hover:text-white'}`}>
+                    {showReceiptBuilder ? '✕ Close' : 'Build Receipt'}
                   </button>
                 )}
                 {canManage && (
                   <button
                     onClick={() => setShowInvoiceForm(true)}
-                    className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg shadow-amber-900/40 hover:scale-105 active:scale-95">
+                    className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-black font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg shadow-primary/20 hover:scale-105 active:scale-95">
                     + New Invoice
                   </button>
+                )}
+                {canManage && (
+                  <Link href="/dashboard/payments/bulk"
+                    className="px-5 py-2.5 bg-white/[0.04] border border-white/[0.08] text-slate-400 hover:text-white hover:border-white/20 font-black text-xs uppercase tracking-widest rounded-none transition-all flex items-center gap-2">
+                    <UserGroupIcon className="w-4 h-4" /> Bulk Generate
+                  </Link>
                 )}
               </div>
             </div>
             
             {/* ── School Invoice Builder ── */}
             {showSchoolInvoice && isAdmin && (
-              <div className="bg-orange-600/10 border border-orange-500/30 rounded-none p-6 space-y-5">
+              <div className="bg-primary/5 border border-primary/20 rounded-none p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-black text-orange-400 uppercase tracking-widest mb-0.5">School Invoice Builder</p>
+                    <p className="text-xs font-black text-primary uppercase tracking-widest mb-0.5">School Invoice Builder</p>
                     <p className="text-foreground font-bold text-sm">Generate a school invoice — per-student rate or fixed package deal</p>
                   </div>
                 </div>
@@ -1216,13 +1518,13 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   {(['per_student', 'fixed_package'] as const).map(mode => (
                     <button key={mode} type="button"
                       onClick={() => setSchoolInvForm(prev => ({ ...prev, pricing_mode: mode }))}
-                      className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-none transition-all ${schoolInvForm.pricing_mode === mode ? 'bg-orange-600 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                      className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-none transition-all ${schoolInvForm.pricing_mode === mode ? 'bg-primary text-black' : 'text-muted-foreground hover:text-foreground'}`}>
                       {mode === 'per_student' ? '👤 Per Student (Rate × Count)' : '🏫 Fixed School Package'}
                     </button>
                   ))}
                 </div>
                 {schoolInvForm.pricing_mode === 'fixed_package' && (
-                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-none px-4 py-2.5 text-xs text-amber-400 font-semibold">
+                  <div className="bg-white/[0.04] border border-white/[0.08] rounded-none px-4 py-2.5 text-xs text-muted-foreground font-semibold">
                     Fixed Package: the school pays one flat price regardless of student count — e.g. when the school has made the programme compulsory and negotiated a deal.
                   </div>
                 )}
@@ -1237,7 +1539,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                         setSchoolInvForm(prev => ({ ...prev, school_id: sid }));
                         fetchSchoolStudentCount(sid);
                       }}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500"
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50"
                     >
                       <option value="">— Choose school —</option>
                       {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -1253,7 +1555,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       placeholder="Manual count"
                       value={schoolInvForm.manual_student_count}
                       onChange={e => setSchoolInvForm(prev => ({ ...prev, manual_student_count: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 font-bold"
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 font-bold"
                     />
                   </div>
                   {schoolInvForm.pricing_mode === 'per_student' ? (
@@ -1265,19 +1567,19 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       placeholder="e.g. 5000"
                       value={schoolInvForm.rate_per_child}
                       onChange={e => setSchoolInvForm(prev => ({ ...prev, rate_per_child: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500"
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50"
                     />
                   </div>
                   ) : (
                   <div>
-                    <label className="block text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1.5">Fixed Package Price (₦)</label>
+                    <label className="block text-[10px] font-black text-primary uppercase tracking-widest mb-1.5">Fixed Package Price (₦)</label>
                     <input
                       type="number"
                       min="0"
                       placeholder="e.g. 150000"
                       value={schoolInvForm.fixed_package_price}
                       onChange={e => setSchoolInvForm(prev => ({ ...prev, fixed_package_price: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-none text-sm text-amber-300 focus:outline-none focus:border-amber-500 font-bold"
+                      className="w-full px-4 py-2.5 bg-primary/10 border border-primary/30 rounded-none text-sm text-foreground focus:outline-none focus:border-primary font-bold"
                     />
                   </div>
                   )}
@@ -1292,7 +1594,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       placeholder="e.g. 60"
                       value={schoolInvForm.rillcod_quota_percent}
                       onChange={e => setSchoolInvForm(prev => ({ ...prev, rillcod_quota_percent: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500"
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50"
                     />
                   </div>
                   <div>
@@ -1301,7 +1603,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       type="date"
                       value={schoolInvForm.due_date}
                       onChange={e => setSchoolInvForm(prev => ({ ...prev, due_date: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500"
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50"
                     />
                   </div>
                   <div className="sm:col-span-2 lg:col-span-3">
@@ -1311,7 +1613,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       placeholder="e.g. First term 2025/2026 session"
                       value={schoolInvForm.notes}
                       onChange={e => setSchoolInvForm(prev => ({ ...prev, notes: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500"
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50"
                     />
                   </div>
                   <div>
@@ -1322,7 +1624,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       placeholder="Amount already paid"
                       value={schoolInvForm.deposit_amount}
                       onChange={e => setSchoolInvForm(prev => ({ ...prev, deposit_amount: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 font-bold text-emerald-400"
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 font-bold"
                     />
                   </div>
                   <div className="lg:col-span-2">
@@ -1330,7 +1632,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                     <select
                       value={schoolInvForm.pay_to_account_id}
                       onChange={e => setSchoolInvForm(prev => ({ ...prev, pay_to_account_id: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500"
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50"
                     >
                       <option value="">— Select Payment Account —</option>
                       {rillcodAccounts.map(a => (
@@ -1342,7 +1644,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                     <label className="flex items-center gap-2 cursor-pointer group">
                       <div 
                         onClick={() => setSchoolInvForm(prev => ({ ...prev, show_revenue_share: !prev.show_revenue_share }))}
-                        className={`w-10 h-6 rounded-full transition-all flex items-center px-1 ${schoolInvForm.show_revenue_share ? 'bg-orange-600' : 'bg-muted'}`}
+                        className={`w-10 h-6 rounded-full transition-all flex items-center px-1 ${schoolInvForm.show_revenue_share ? 'bg-primary' : 'bg-muted'}`}
                       >
                         <div className={`w-4 h-4 rounded-full bg-white transition-all ${schoolInvForm.show_revenue_share ? 'translate-x-4' : 'translate-x-0'}`} />
                       </div>
@@ -1365,7 +1667,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   <div className="bg-card shadow-sm border border-border rounded-none p-4">
                     {loadingSchoolCount ? (
                       <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                        <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                         Counting students…
                       </div>
                     ) : (() => {
@@ -1381,7 +1683,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                         <div className="flex flex-wrap gap-6 items-center">
                           <div>
                             <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Students</p>
-                            <p className="text-2xl font-black text-orange-400">{count}</p>
+                            <p className="text-2xl font-black text-primary">{count}</p>
                           </div>
                           {!isFixed && (
                             <div>
@@ -1390,30 +1692,30 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                             </div>
                           )}
                           {isFixed && (
-                            <div className="bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-none">
-                              <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest">Fixed Package</p>
-                              <p className="text-2xl font-black text-amber-300">₦{fixedPrice.toLocaleString()}</p>
+                            <div className="bg-primary/10 border border-primary/30 px-4 py-2 rounded-none">
+                              <p className="text-[9px] font-black text-primary uppercase tracking-widest">Fixed Package</p>
+                              <p className="text-2xl font-black text-foreground">₦{fixedPrice.toLocaleString()}</p>
                             </div>
                           )}
                           <div className="flex-1">
                             <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Invoice Total</p>
-                            <p className="text-2xl font-black text-emerald-400">₦{subtotal.toLocaleString()}</p>
+                            <p className="text-2xl font-black text-foreground">₦{subtotal.toLocaleString()}</p>
                           </div>
                           {deposit > 0 && (
-                            <div className="bg-emerald-500/10 px-4 py-2 rounded-none border border-emerald-500/20">
-                              <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Balance Payable</p>
-                              <p className="text-2xl font-black text-emerald-300">₦{balance.toLocaleString()}</p>
+                            <div className="bg-primary/10 px-4 py-2 rounded-none border border-primary/20">
+                              <p className="text-[9px] font-black text-primary uppercase tracking-widest">Balance Payable</p>
+                              <p className="text-2xl font-black text-foreground">₦{balance.toLocaleString()}</p>
                             </div>
                           )}
                           {quotaPct > 0 && schoolInvForm.show_revenue_share && (
                             <>
                               <div>
-                                <p className="text-[9px] font-black text-orange-400/60 uppercase tracking-widest">Rillcod {quotaPct}%</p>
-                                <p className="text-lg font-black text-orange-400">₦{Math.round(subtotal * (quotaPct / 100)).toLocaleString()}</p>
+                                <p className="text-[9px] font-black text-primary/70 uppercase tracking-widest">Rillcod {quotaPct}%</p>
+                                <p className="text-lg font-black text-primary">₦{Math.round(subtotal * (quotaPct / 100)).toLocaleString()}</p>
                               </div>
                               <div>
-                                <p className="text-[9px] font-black text-emerald-400/60 uppercase tracking-widest">School {100 - quotaPct}%</p>
-                                <p className="text-lg font-black text-emerald-400">₦{Math.round(subtotal * ((100 - quotaPct) / 100)).toLocaleString()}</p>
+                                <p className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">School {100 - quotaPct}%</p>
+                                <p className="text-lg font-black text-foreground">₦{Math.round(subtotal * ((100 - quotaPct) / 100)).toLocaleString()}</p>
                               </div>
                             </>
                           )}
@@ -1427,7 +1729,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   <button
                     onClick={handlePrintSchoolInvoice}
                     disabled={!schoolInvForm.school_id || (schoolInvForm.pricing_mode === 'per_student' ? !(parseFloat(schoolInvForm.rate_per_child) > 0) : !(parseFloat(schoolInvForm.fixed_package_price) > 0))}
-                    className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg shadow-orange-900/40"
+                    className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg shadow-primary/20"
                   >
                     <DocumentTextIcon className="w-4 h-4" /> Generate &amp; Print Invoice
                   </button>
@@ -1437,9 +1739,9 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
 
             {/* ── Receipt Builder ── */}
             {showReceiptBuilder && canManage && (
-              <div className="bg-emerald-600/10 border border-emerald-500/30 rounded-none p-6 space-y-5">
+              <div className="bg-primary/5 border border-primary/20 rounded-none p-6 space-y-5">
                 <div>
-                  <p className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-0.5">Receipt Builder</p>
+                  <p className="text-xs font-black text-primary uppercase tracking-widest mb-0.5">Receipt Builder</p>
                   <p className="text-foreground font-bold text-sm">Build and print an official payment receipt for a school or student</p>
                 </div>
 
@@ -1452,13 +1754,13 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       placeholder="School name, student name, or organisation"
                       value={receiptForm.payer_name}
                       onChange={e => setReceiptForm(prev => ({ ...prev, payer_name: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500"
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary"
                     />
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Payer Type</label>
                     <select value={receiptForm.payer_type} onChange={e => setReceiptForm(prev => ({ ...prev, payer_type: e.target.value as any }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500">
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary">
                       <option value="school">School / Institution</option>
                       <option value="student">Student / Parent</option>
                       <option value="other">Other</option>
@@ -1467,7 +1769,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Link to School (optional)</label>
                     <select value={receiptForm.school_id} onChange={e => setReceiptForm(prev => ({ ...prev, school_id: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500">
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary">
                       <option value="">— No school link —</option>
                       {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
@@ -1475,7 +1777,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Payment Method</label>
                     <select value={receiptForm.payment_method} onChange={e => setReceiptForm(prev => ({ ...prev, payment_method: e.target.value as any }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500">
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary">
                       <option value="bank_transfer">Bank Transfer</option>
                       <option value="cash">Cash</option>
                       <option value="pos">POS Terminal</option>
@@ -1487,24 +1789,24 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Payment Date</label>
                     <input type="date" value={receiptForm.payment_date}
                       onChange={e => setReceiptForm(prev => ({ ...prev, payment_date: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Receipt Reference (auto if blank)</label>
                     <input type="text" placeholder="e.g. RCPT-2025-001" value={receiptForm.reference}
                       onChange={e => setReceiptForm(prev => ({ ...prev, reference: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Received By / Signatory</label>
                     <input type="text" placeholder="e.g. Admin, Finance Officer" value={receiptForm.received_by}
                       onChange={e => setReceiptForm(prev => ({ ...prev, received_by: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Deposited To (Account)</label>
                     <select value={receiptForm.pay_to_account_id} onChange={e => setReceiptForm(prev => ({ ...prev, pay_to_account_id: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500">
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary">
                       <option value="">— Select account —</option>
                       {accounts.map(a => <option key={a.id} value={a.id}>{a.label} — {a.bank_name}</option>)}
                     </select>
@@ -1513,7 +1815,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Notes (optional)</label>
                     <input type="text" placeholder="e.g. First term 2025/2026 coding club payment" value={receiptForm.notes}
                       onChange={e => setReceiptForm(prev => ({ ...prev, notes: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
                   </div>
                 </div>
 
@@ -1522,20 +1824,20 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest">Line Items</label>
                     <button type="button" onClick={() => setReceiptForm(prev => ({ ...prev, items: [...prev.items, { description: '', quantity: 1, unit_price: 0 }] }))}
-                      className="text-[10px] font-black text-emerald-400 hover:text-emerald-300 uppercase tracking-widest transition-colors">+ Add Line</button>
+                      className="text-[10px] font-black text-primary hover:text-primary/80 uppercase tracking-widest transition-colors">+ Add Line</button>
                   </div>
                   <div className="space-y-2">
                     {receiptForm.items.map((item, idx) => (
                       <div key={idx} className="flex gap-2 items-center">
                         <input type="text" placeholder="Description (e.g. Coding Club Fee Q1)" value={item.description}
                           onChange={e => setReceiptForm(prev => { const it = [...prev.items]; it[idx] = { ...it[idx], description: e.target.value }; return { ...prev, items: it }; })}
-                          className="flex-1 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+                          className="flex-1 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
                         <input type="number" placeholder="Qty" min="1" value={item.quantity}
                           onChange={e => setReceiptForm(prev => { const it = [...prev.items]; it[idx] = { ...it[idx], quantity: parseInt(e.target.value) || 1 }; return { ...prev, items: it }; })}
-                          className="w-16 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 text-center" />
+                          className="w-16 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary text-center" />
                         <input type="number" placeholder="Unit ₦" min="0" value={item.unit_price || ''}
                           onChange={e => setReceiptForm(prev => { const it = [...prev.items]; it[idx] = { ...it[idx], unit_price: parseFloat(e.target.value) || 0 }; return { ...prev, items: it }; })}
-                          className="w-32 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+                          className="w-32 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
                         <span className="text-sm font-black text-emerald-400 w-28 text-right flex-shrink-0">
                           ₦{(item.quantity * item.unit_price).toLocaleString()}
                         </span>
@@ -1564,6 +1866,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       if (totalAmount === 0) { alert('Add at least one line item with an amount.'); return; }
                       const sch = receiptForm.school_id ? schools.find(s => s.id === receiptForm.school_id) : null;
                       const docRef = receiptForm.reference || `RCPT-${Date.now().toString(36).toUpperCase()}`;
+                      const payToAcc = receiptForm.pay_to_account_id ? accounts.find(a => a.id === receiptForm.pay_to_account_id) : null;
                       setViewDoc({
                         type: 'receipt',
                         data: {
@@ -1578,6 +1881,13 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                           notes: receiptForm.notes,
                           transactionRef: docRef,
                           instructorName: receiptForm.received_by || 'Accounts Department',
+                          paymentMethod: receiptForm.payment_method,
+                          receivedBy: receiptForm.received_by || 'Accounts Department',
+                          depositAccount: payToAcc ? {
+                            bank_name: payToAcc.bank_name,
+                            account_number: payToAcc.account_number,
+                            account_name: payToAcc.account_name,
+                          } : undefined,
                         }
                       });
                     }}
@@ -1592,6 +1902,14 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                     className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg shadow-emerald-900/40"
                   >
                     <ReceiptPercentIcon className="w-4 h-4" /> Print Receipt
+                  </button>
+                  <button
+                    onClick={() => handleSaveReceipt()}
+                    disabled={loadingTx || !receiptForm.payer_name || receiptForm.items.every(i => i.unit_price === 0)}
+                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg shadow-blue-900/40"
+                  >
+                    {loadingTx ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
+                    Save to Portal
                   </button>
                 </div>
               </div>
@@ -1635,87 +1953,199 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
               })()}
             </div>
 
-            <div className="flex items-center justify-between bg-card shadow-sm border border-border p-4 rounded-none">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-card shadow-sm border border-border p-4 rounded-none">
               <div className="flex items-center gap-3">
-                <DocumentTextIcon className="w-5 h-5 text-amber-400" />
+                <DocumentTextIcon className="w-5 h-5 text-primary" />
                 <h3 className="text-sm font-extrabold text-foreground">Invoice Records</h3>
               </div>
-              <div className="relative">
-                <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input 
-                  type="search" 
-                  placeholder="Search invoices..."
-                  value={searchInv}
-                  onChange={e => setSearchInv(e.target.value)}
-                  className="bg-card shadow-sm border border-border rounded-none pl-9 pr-4 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 w-full sm:w-64"
-                />
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex gap-1 flex-wrap">
+                  {(['all', 'sent', 'paid', 'overdue', 'draft'] as const).map(s => (
+                    <button key={s} onClick={() => setFilterInvStatus(s)}
+                      className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-none transition-all border ${
+                        filterInvStatus === s
+                          ? s === 'paid' ? 'bg-green-600 border-green-600 text-white'
+                          : s === 'overdue' ? 'bg-rose-600 border-rose-600 text-white'
+                          : 'bg-primary border-primary text-black'
+                          : 'bg-transparent border-border text-muted-foreground hover:text-foreground'
+                      }`}
+                    >{s}</button>
+                  ))}
+                </div>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="search"
+                    placeholder="Search invoices..."
+                    value={searchInv}
+                    onChange={e => setSearchInv(e.target.value)}
+                    className="bg-card shadow-sm border border-border rounded-none pl-9 pr-4 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 w-full sm:w-52"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {invoices.filter(inv => 
-                !searchInv || 
-                inv.invoice_number?.toLowerCase().includes(searchInv.toLowerCase()) ||
-                inv.portal_users?.full_name?.toLowerCase().includes(searchInv.toLowerCase())
-              ).length === 0 ? (
-                <div className="col-span-full py-20 text-center bg-card shadow-sm border border-dashed border-border rounded-none">
-                  <DocumentTextIcon className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground text-sm">No invoices found matching your criteria.</p>
-                </div>
-              ) : (
-                invoices.filter(inv => 
-                  !searchInv || 
+            {(() => {
+              const filteredInvoices = invoices.filter(inv => {
+                const matchSearch = !searchInv ||
                   inv.invoice_number?.toLowerCase().includes(searchInv.toLowerCase()) ||
-                  inv.portal_users?.full_name?.toLowerCase().includes(searchInv.toLowerCase())
-                ).map(inv => (
-                  <div key={inv.id} className="bg-card shadow-sm border border-border rounded-none p-5 hover:border-amber-500/30 transition-all cursor-pointer group"
-                    onClick={() => {
-                      const total = calculateTotalWithFees(inv.amount);
-                      setViewDoc({
-                        type: 'invoice',
-                        data: {
-                          number: inv.invoice_number,
-                          date: new Date(inv.created_at).toLocaleDateString(),
-                          dueDate: new Date(inv.due_date).toLocaleDateString(),
-                          status: inv.status,
-                          amount: inv.amount,
-                          processingFee: total - inv.amount,
-                          currency: inv.currency,
-                          items: inv.items,
-                          studentName: inv.portal_users?.full_name || 'Student',
-                          studentEmail: inv.portal_users?.email,
-                          notes: inv.notes,
-                          schoolName: inv.schools?.name || 'Rillcod Technologies'
-                        }
-                      });
-                    }}>
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">{inv.invoice_number}</p>
-                        <p className="text-sm font-black text-foreground group-hover:text-amber-400 transition-colors uppercase tracking-tight">{inv.portal_users?.full_name}</p>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                        inv.status === 'paid' ? 'bg-emerald-500/10 text-emerald-400' :
-                        inv.status === 'overdue' ? 'bg-rose-500/10 text-rose-400' :
-                        'bg-muted text-muted-foreground'
-                      }`}>
-                        {inv.status}
-                      </span>
+                  inv.portal_users?.full_name?.toLowerCase().includes(searchInv.toLowerCase());
+                const matchStatus = filterInvStatus === 'all' || inv.status === filterInvStatus;
+                return matchSearch && matchStatus;
+              });
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredInvoices.length === 0 ? (
+                    <div className="col-span-full py-20 text-center bg-card shadow-sm border border-dashed border-border rounded-none">
+                      <DocumentTextIcon className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+                      <p className="text-muted-foreground text-sm">No invoices found matching your criteria.</p>
                     </div>
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Amount Due</p>
-                        <p className="text-xl font-black text-foreground">₦{inv.amount.toLocaleString()}</p>
+                  ) : (
+                    filteredInvoices.map(inv => (
+                      <div key={inv.id} className="bg-card shadow-sm border border-border rounded-none flex flex-col hover:border-primary/30 transition-all group">
+                        <div className="p-5 flex-1 cursor-pointer"
+                          onClick={() => {
+                            const total = calculateTotalWithFees(inv.amount);
+                            setViewDoc({
+                              type: 'invoice',
+                              data: {
+                                number: inv.invoice_number,
+                                date: new Date(inv.created_at).toLocaleDateString(),
+                                dueDate: new Date(inv.due_date).toLocaleDateString(),
+                                status: inv.status,
+                                amount: inv.amount,
+                                processingFee: total - inv.amount,
+                                currency: inv.currency,
+                                items: inv.items,
+                                studentName: inv.portal_users?.full_name || 'Student',
+                                studentEmail: inv.portal_users?.email,
+                                notes: inv.notes,
+                                schoolName: inv.schools?.name || 'Rillcod Technologies'
+                              }
+                            });
+                          }}>
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <p className="text-[10px] font-black text-primary uppercase tracking-widest">{inv.invoice_number}</p>
+                              <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors uppercase tracking-tight">{inv.portal_users?.full_name}</p>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                              inv.status === 'paid' ? 'bg-green-500/10 text-green-400' :
+                              inv.status === 'overdue' ? 'bg-rose-500/10 text-rose-400' :
+                              'bg-primary/10 text-primary'
+                            }`}>
+                              {inv.status}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-end">
+                            <div>
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                                {inv.status === 'paid' ? 'Amount Paid' : 'Amount Due'}
+                              </p>
+                              <p className="text-xl font-black text-foreground">₦{inv.amount.toLocaleString()}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Due Date</p>
+                              <p className="text-xs font-bold text-muted-foreground">{new Date(inv.due_date).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                        </div>
+                        {canManage && (
+                          <div className="flex border-t border-border" onClick={e => e.stopPropagation()}>
+                            {inv.status !== 'paid' && inv.status !== 'cancelled' && (
+                              <button
+                                onClick={() => handleMarkInvoicePaid(inv.id)}
+                                disabled={loadingTx}
+                                className="flex-1 py-2.5 text-[9px] font-black text-green-400 hover:bg-green-500/10 transition-colors uppercase tracking-widest disabled:opacity-40 border-r border-border"
+                              >
+                                ✓ Mark Paid
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => openEditInvoice(inv, e)}
+                              className="flex-1 py-2.5 text-[9px] font-black text-slate-400 hover:text-white hover:bg-white/[0.04] transition-colors uppercase tracking-widest border-r border-border flex items-center justify-center gap-1"
+                            >
+                              <PencilIcon className="w-3 h-3" /> Edit
+                            </button>
+                            <button
+                              onClick={(e) => handleDeleteInvoice(inv.id, e)}
+                              className="px-4 py-2.5 text-[9px] font-black text-rose-400 hover:bg-rose-500/10 transition-colors flex items-center justify-center"
+                            >
+                              <TrashIcon className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Due Date</p>
-                        <p className="text-xs font-bold text-muted-foreground">{new Date(inv.due_date).toLocaleDateString()}</p>
+                    ))
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ── Saved Receipts ── */}
+            {savedReceipts.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 bg-card border border-border p-4">
+                  <ReceiptPercentIcon className="w-5 h-5 text-emerald-400" />
+                  <h3 className="text-sm font-extrabold text-foreground">Issued Receipts</h3>
+                  <span className="ml-auto text-[10px] font-black text-muted-foreground uppercase tracking-widest">{savedReceipts.length} records</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {savedReceipts.map(rcpt => {
+                    const meta = rcpt.metadata || {};
+                    return (
+                      <div key={rcpt.id} className="bg-card border border-border rounded-none p-5 flex flex-col gap-3 hover:border-primary/30 transition-all cursor-pointer group"
+                        onClick={() => setViewDoc({
+                          type: 'receipt',
+                          data: {
+                            number: rcpt.receipt_number,
+                            date: new Date(rcpt.issued_at).toLocaleDateString(),
+                            status: 'paid',
+                            items: meta.items || [{ description: 'Payment', quantity: 1, unit_price: rcpt.amount, total: rcpt.amount }],
+                            amount: rcpt.amount,
+                            currency: rcpt.currency || 'NGN',
+                            studentName: meta.payer_name || rcpt.portal_users?.full_name || rcpt.schools?.name || 'Client',
+                            studentEmail: rcpt.portal_users?.email,
+                            schoolName: 'RILLCOD TECHNOLOGIES',
+                            notes: meta.notes,
+                            transactionRef: meta.reference || rcpt.receipt_number,
+                            instructorName: meta.received_by || 'Accounts Department',
+                            paymentMethod: meta.payment_method,
+                            receivedBy: meta.received_by,
+                            depositAccount: meta.deposit_account,
+                          }
+                        })}>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-[10px] font-black text-primary uppercase tracking-widest">{rcpt.receipt_number}</p>
+                            <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors">
+                              {meta.payer_name || rcpt.portal_users?.full_name || rcpt.schools?.name || 'Client'}
+                            </p>
+                          </div>
+                          <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-black rounded-full uppercase">PAID</span>
+                        </div>
+                        <div className="flex justify-between items-end">
+                          <div>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Amount</p>
+                            <p className="text-xl font-black text-foreground">₦{rcpt.amount.toLocaleString()}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Issued</p>
+                            <p className="text-xs font-bold text-muted-foreground">{new Date(rcpt.issued_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        {meta.payment_method && (
+                          <p className="text-[10px] text-muted-foreground capitalize">
+                            via {(meta.payment_method as string).replace('_', ' ')}
+                            {rcpt.schools?.name ? ` • ${rcpt.schools.name}` : ''}
+                          </p>
+                        )}
                       </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1733,7 +2163,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                     if (inv) handlePayWithPaystack(inv);
                   }}
                   disabled={loadingTx}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-foreground text-sm font-black uppercase tracking-widest rounded-none transition-all shadow-xl shadow-indigo-900/40 hover:scale-105 active:scale-95 flex flex-col items-center"
+                  className="px-6 py-3 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white text-sm font-black uppercase tracking-widest rounded-none transition-all shadow-xl hover:scale-105 active:scale-95 flex flex-col items-center"
                 >
                   <div className="flex items-center gap-2">
                     {loadingTx ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CreditCardIcon className="w-5 h-5" />}
@@ -1742,14 +2172,27 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   <span className="text-[8px] opacity-60 mt-0.5 whitespace-nowrap">Includes Paystack Admin Fee</span>
                 </button>
               )}
+              {viewDoc.type === 'invoice' && canManage && viewDoc.data.status !== 'paid' && (
+                <button
+                  onClick={() => {
+                    const inv = invoices.find(i => i.invoice_number === viewDoc!.data.number);
+                    if (inv) handleMarkInvoicePaid(inv.id);
+                  }}
+                  disabled={loadingTx}
+                  className="px-6 py-3 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-black uppercase tracking-widest rounded-none transition-all shadow-xl shadow-emerald-900/40 hover:scale-105 active:scale-95 flex items-center gap-2"
+                >
+                  {loadingTx ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CheckBadgeIcon className="w-5 h-5" />}
+                  Mark as Paid
+                </button>
+              )}
               {viewDoc.type === 'invoice' && canManage && (
-                <button 
+                <button
                   onClick={() => {
                     const inv = invoices.find(i => i.invoice_number === viewDoc!.data.number);
                     if (inv) handleSendInvoiceEmail(inv.id);
                   }}
                   disabled={loadingTx}
-                  className="px-6 py-3 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-foreground text-sm font-black uppercase tracking-widest rounded-none transition-all shadow-xl shadow-amber-900/40 hover:scale-105 active:scale-95 flex items-center gap-2"
+                  className="px-6 py-3 bg-card border border-border hover:bg-muted disabled:opacity-50 text-foreground text-sm font-black uppercase tracking-widest rounded-none transition-all shadow-xl hover:scale-105 active:scale-95 flex items-center gap-2"
                 >
                   {loadingTx ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <EnvelopeIcon className="w-5 h-5" />}
                   Send via Email
@@ -1772,70 +2215,153 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
       {/* ── Invoice Creation Modal ── */}
       {showInvoiceForm && (
         <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-background border border-border rounded-none w-full max-w-xl shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-border flex items-center justify-between">
-              <h3 className="text-lg font-extrabold text-foreground">Create Smart Invoice</h3>
-              <button onClick={() => setShowInvoiceForm(false)} className="p-2 hover:bg-card shadow-sm rounded-none text-muted-foreground hover:text-foreground transition-all"><XMarkIcon className="w-5 h-5" /></button>
+          <div className="bg-background border border-border rounded-none w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-border flex items-center justify-between flex-shrink-0">
+              <div>
+                <h3 className="text-lg font-extrabold text-foreground">Create Invoice</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Invoice will be sent to the student immediately</p>
+              </div>
+              <button onClick={() => setShowInvoiceForm(false)} className="p-2 hover:bg-card rounded-none text-muted-foreground hover:text-foreground transition-all">
+                <XMarkIcon className="w-5 h-5" />
+              </button>
             </div>
-            <form onSubmit={handleCreateInvoice} className="p-6 overflow-y-auto space-y-4">
-              <div className="space-y-4">
+            <form onSubmit={handleCreateInvoice} className="p-6 overflow-y-auto space-y-5">
+
+              {/* Student + Due Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Select Student</label>
-                  <select 
-                    required 
-                    value={invForm.student_id} 
-                    onChange={e => setInvForm({...invForm, student_id: e.target.value})}
-                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 appearance-none">
+                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Student <span className="text-rose-400">*</span></label>
+                  <select
+                    required
+                    value={invForm.student_id}
+                    onChange={e => setInvForm({ ...invForm, student_id: e.target.value })}
+                    className="w-full px-4 py-3 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary appearance-none">
                     <option value="">— Choose Student —</option>
-                    {allStudents.map(s => <option key={s.id} value={s.id} className="bg-background">{s.full_name} ({s.email})</option>)}
+                    {allStudents.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.email})</option>)}
                   </select>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Total Amount (₦)</label>
-                    <input 
-                      type="number" required 
-                      value={invForm.amount} 
-                      onChange={e => {
-                        const val = parseFloat(e.target.value) || 0;
-                        setInvForm({...invForm, amount: e.target.value, items: [{...invForm.items[0], unit_price: val, total: val}]});
-                      }}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Due Date</label>
-                    <input 
-                      type="date" required 
-                      value={invForm.due_date} 
-                      onChange={e => setInvForm({...invForm, due_date: e.target.value})}
-                      className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500" />
-                  </div>
-                </div>
-
                 <div>
-                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Description / Item</label>
-                  <input 
-                    required 
-                    value={invForm.items[0].description} 
-                    onChange={e => setInvForm({...invForm, items: [{...invForm.items[0], description: e.target.value}]})}
-                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500" />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Notes (Optional)</label>
-                  <textarea 
-                    value={invForm.notes} 
-                    onChange={e => setInvForm({...invForm, notes: e.target.value})}
-                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-amber-500 h-24 resize-none" />
+                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Due Date <span className="text-rose-400">*</span></label>
+                  <input
+                    type="date" required
+                    value={invForm.due_date}
+                    onChange={e => setInvForm({ ...invForm, due_date: e.target.value })}
+                    className="w-full px-4 py-3 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
               </div>
-              <button 
-                type="submit" 
-                disabled={loadingTx}
-                className="w-full py-4 bg-amber-600 hover:bg-amber-500 text-foreground font-black text-base rounded-none transition-all shadow-lg shadow-amber-900/30">
-                {loadingTx ? 'Generating...' : 'Issue Invoice & Notify →'}
-              </button>
+
+              {/* Line Items */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Line Items <span className="text-rose-400">*</span></label>
+                  <button type="button"
+                    onClick={() => setInvForm(prev => ({ ...prev, items: [...prev.items, { description: '', quantity: 1, unit_price: 0, total: 0 }] }))}
+                    className="text-[10px] font-black text-primary hover:text-primary/80 uppercase tracking-widest">+ Add Line</button>
+                </div>
+                <div className="space-y-2">
+                  {invForm.items.map((item, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <input
+                        type="text" placeholder="Description (e.g. Coding Club Fee Q1)"
+                        value={item.description} required
+                        onChange={e => setInvForm(prev => {
+                          const items = [...prev.items];
+                          items[idx] = { ...items[idx], description: e.target.value };
+                          return { ...prev, items };
+                        })}
+                        className="flex-1 px-3 py-2.5 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
+                      <input
+                        type="number" placeholder="Qty" min="1"
+                        value={item.quantity}
+                        onChange={e => setInvForm(prev => {
+                          const items = [...prev.items];
+                          const qty = parseInt(e.target.value) || 1;
+                          items[idx] = { ...items[idx], quantity: qty, total: qty * items[idx].unit_price };
+                          return { ...prev, items };
+                        })}
+                        className="w-14 px-2 py-2.5 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary text-center" />
+                      <input
+                        type="number" placeholder="₦" min="0"
+                        value={item.unit_price || ''}
+                        onChange={e => setInvForm(prev => {
+                          const items = [...prev.items];
+                          const price = parseFloat(e.target.value) || 0;
+                          items[idx] = { ...items[idx], unit_price: price, total: items[idx].quantity * price };
+                          const total = items.reduce((s, i) => s + i.total, 0);
+                          return { ...prev, items, amount: String(total) };
+                        })}
+                        className="w-28 px-3 py-2.5 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
+                      <span className="text-sm font-black text-foreground w-24 text-right flex-shrink-0">
+                        ₦{(item.quantity * item.unit_price).toLocaleString()}
+                      </span>
+                      {invForm.items.length > 1 && (
+                        <button type="button"
+                          onClick={() => setInvForm(prev => {
+                            const items = prev.items.filter((_, i) => i !== idx);
+                            const total = items.reduce((s, i) => s + i.total, 0);
+                            return { ...prev, items, amount: String(total) };
+                          })}
+                          className="text-rose-400 hover:text-rose-300 font-black text-xs flex-shrink-0">✕</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-end mt-3">
+                  <div className="bg-primary/10 border border-primary/20 px-5 py-2">
+                    <span className="text-[10px] font-black text-primary uppercase tracking-widest">Total: </span>
+                    <span className="text-lg font-black text-foreground">
+                      ₦{invForm.items.reduce((s, i) => s + i.quantity * i.unit_price, 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Notes (Optional)</label>
+                <textarea
+                  value={invForm.notes}
+                  onChange={e => setInvForm({ ...invForm, notes: e.target.value })}
+                  placeholder="e.g. First term 2025/2026 fee. Payment due before resumption."
+                  className="w-full px-4 py-3 bg-card border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary h-20 resize-none" />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <button type="button"
+                  disabled={!invForm.student_id || invForm.items.every(i => i.unit_price === 0)}
+                  onClick={() => {
+                    const items = invForm.items.filter(i => i.description && i.unit_price > 0);
+                    const total = items.reduce((s, i) => s + i.total, 0);
+                    const selectedStudent = allStudents.find(s => s.id === invForm.student_id);
+                    const docRef = `INV-${Date.now().toString(36).toUpperCase()}`;
+                    setViewDoc({
+                      type: 'invoice',
+                      data: {
+                        number: docRef,
+                        date: new Date().toLocaleDateString(),
+                        dueDate: new Date(invForm.due_date).toLocaleDateString(),
+                        status: 'sent',
+                        items,
+                        amount: total,
+                        currency: 'NGN',
+                        studentName: selectedStudent?.full_name || 'Student',
+                        studentEmail: selectedStudent?.email,
+                        notes: invForm.notes,
+                        schoolName: 'RILLCOD TECHNOLOGIES',
+                      }
+                    });
+                  }}
+                  className="flex items-center gap-2 px-5 py-3 bg-card border border-border hover:border-primary/50 text-foreground font-black text-xs uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                  <DocumentTextIcon className="w-4 h-4" /> Preview
+                </button>
+                <button
+                  type="submit"
+                  disabled={loadingTx || !invForm.student_id || invForm.items.every(i => i.unit_price === 0)}
+                  className="flex-1 py-3 bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-sm uppercase tracking-widest transition-all shadow-lg">
+                  {loadingTx ? 'Generating...' : 'Issue Invoice & Notify →'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -1861,7 +2387,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                     {(['rillcod', 'school'] as const).map(t => (
                       <button key={t} type="button"
                         onClick={() => setForm(f => ({ ...f, owner_type: t, school_id: t === 'rillcod' ? null : f.school_id }))}
-                        className={`py-2.5 rounded-none text-sm font-bold border transition-all ${form.owner_type === t ? 'bg-orange-600 border-orange-500 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground'}`}>
+                        className={`py-2.5 rounded-none text-sm font-bold border transition-all ${form.owner_type === t ? 'bg-primary border-primary text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground'}`}>
                         {t === 'rillcod' ? 'Rillcod Technologies' : 'Partner School'}
                       </button>
                     ))}
@@ -1874,7 +2400,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Partner School <span className="text-rose-400">*</span></label>
                   <select value={form.school_id ?? ''} onChange={e => setForm(f => ({ ...f, school_id: e.target.value || null }))}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500">
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50">
                     <option value="">— Select school —</option>
                     {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
@@ -1886,7 +2412,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Account Label <span className="text-rose-400">*</span></label>
                 <input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
                   placeholder="e.g. Main Collection Account, School Fees Account"
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground outline-none focus:border-orange-500" />
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
 
               {/* Bank + Account type */}
@@ -1894,7 +2420,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                 <div className="space-y-1 col-span-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Bank Name <span className="text-rose-400">*</span></label>
                   <select value={form.bank_name} onChange={e => setForm(f => ({ ...f, bank_name: e.target.value }))}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500">
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50">
                     <option value="">— Select bank —</option>
                     {NIGERIAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
@@ -1903,12 +2429,12 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Account Number <span className="text-rose-400">*</span></label>
                   <input value={form.account_number} onChange={e => setForm(f => ({ ...f, account_number: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
                     placeholder="10 digits" maxLength={10}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground outline-none focus:border-orange-500 font-mono tracking-widest" />
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 font-mono tracking-widest" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Account Type</label>
                   <select value={form.account_type} onChange={e => setForm(f => ({ ...f, account_type: e.target.value as any }))}
-                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-orange-500">
+                    className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50">
                     <option value="savings">Savings</option>
                     <option value="current">Current</option>
                   </select>
@@ -1920,7 +2446,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Account Name <span className="text-rose-400">*</span></label>
                 <input value={form.account_name} onChange={e => setForm(f => ({ ...f, account_name: e.target.value }))}
                   placeholder="Exact name on the bank account"
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground outline-none focus:border-orange-500" />
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
 
               {/* Payment note */}
@@ -1929,12 +2455,12 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                 <textarea value={form.payment_note ?? ''} onChange={e => setForm(f => ({ ...f, payment_note: e.target.value }))}
                   placeholder="e.g. Use student name and class as payment reference. Send proof to school admin."
                   rows={3}
-                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground outline-none focus:border-orange-500 resize-none" />
+                  className="w-full bg-card shadow-sm border border-border rounded-none px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 resize-none" />
               </div>
 
               {/* Active toggle */}
               <label className="flex items-center gap-3 cursor-pointer">
-                <div className={`w-10 h-6 rounded-full transition-colors flex-shrink-0 ${form.is_active ? 'bg-orange-600' : 'bg-muted'}`}
+                <div className={`w-10 h-6 rounded-full transition-colors flex-shrink-0 ${form.is_active ? 'bg-primary' : 'bg-muted'}`}
                   onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))}>
                   <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform shadow ${form.is_active ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </div>
@@ -1946,11 +2472,68 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
               <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
               <button onClick={save}
                 disabled={saving || !form.label.trim() || !form.bank_name || !form.account_number.trim() || !form.account_name.trim()}
-                className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground font-bold text-sm rounded-none transition-all">
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-black font-bold text-sm rounded-none transition-all">
                 {saving ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                 {editing ? 'Update' : 'Save Account'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Invoice Modal ─────────────────────────────────────────── */}
+      {editingInv && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#111113] border border-white/[0.1] w-full max-w-md shadow-2xl">
+            <div className="p-5 border-b border-white/[0.05] flex items-center justify-between">
+              <h3 className="text-sm font-black text-white uppercase tracking-widest">Edit Invoice</h3>
+              <button onClick={() => setEditingInv(null)} className="p-1.5 text-slate-500 hover:text-white transition-all">
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateInvoice} className="p-5 space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1.5">Status</label>
+                <select
+                  value={editInvForm.status}
+                  onChange={e => setEditInvForm(f => ({ ...f, status: e.target.value as Invoice['status'] }))}
+                  className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] text-white text-sm rounded-none focus:outline-none focus:border-primary/50"
+                >
+                  {(['draft', 'sent', 'paid', 'overdue', 'cancelled'] as const).map(s => (
+                    <option key={s} value={s} className="bg-[#111113]">{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1.5">Due Date</label>
+                <input
+                  type="date"
+                  value={editInvForm.due_date}
+                  onChange={e => setEditInvForm(f => ({ ...f, due_date: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] text-white text-sm rounded-none focus:outline-none focus:border-primary/50"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1.5">Notes</label>
+                <textarea
+                  value={editInvForm.notes}
+                  onChange={e => setEditInvForm(f => ({ ...f, notes: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] text-white text-sm rounded-none focus:outline-none focus:border-primary/50 resize-none"
+                />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setEditingInv(null)}
+                  className="flex-1 py-2.5 border border-white/[0.08] text-slate-400 text-[11px] font-black uppercase tracking-widest hover:text-white transition-all">
+                  Cancel
+                </button>
+                <button type="submit" disabled={loadingTx}
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary/90 text-black text-[11px] font-black uppercase tracking-widest disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                  {loadingTx ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -112,11 +112,43 @@ img[alt="Official Signature"] {
 }
 
 /* ── Print / PDF ────────────────────────────────────────────── */
+/* Default page: no forced size — reports (portrait) and certificates (landscape) set their own */
 @media print {
   @page {
     margin: 0;
-    size: A4 portrait;
   }
+  /* Certificate pages are landscape */
+  @page cert-landscape {
+    margin: 0;
+    size: A4 landscape;
+  }
+  .print-landscape {
+    page: cert-landscape;
+  }
+
+  /* ── Certificate print mode ──────────────────────────────────── */
+  /* When body has data-printing="certificate", only show the certificate */
+  body[data-printing="certificate"] > *:not(#cert-print-root) {
+    display: none !important;
+  }
+  body[data-printing="certificate"] #cert-print-root {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9999 !important;
+    background: white !important;
+    overflow: hidden !important;
+  }
+  /* Reset scale transform on the certificate preview for print */
+  body[data-printing="certificate"] #certificate-preview-container {
+    transform: none !important;
+    width: 297mm !important;
+    height: 210mm !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+  }
+
   html, body {
     background-color: #ffffff !important;
     -webkit-print-color-adjust: exact !important;

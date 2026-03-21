@@ -295,32 +295,34 @@ export default function ClassesPage() {
         </div>
       )}
 
-      {/* Quick links */}
-      <div className="bg-card shadow-sm border border-border rounded-none p-6">
-        <h2 className="text-sm font-bold text-foreground mb-4">Teaching Tools</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            { label: 'Students',    desc: 'Student records',    icon: UserGroupIcon,   color: 'text-orange-400', bg: 'bg-orange-500/10', href: '/dashboard/students'    },
-            { label: 'Assignments', desc: 'Tasks & grades',     icon: DocumentTextIcon,color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/dashboard/assignments' },
-            { label: 'CBT Exams',   desc: 'Online tests',       icon: AcademicCapIcon, color: 'text-emerald-400',bg: 'bg-emerald-500/10',href: '/dashboard/cbt'         },
-            { label: 'Lessons',     desc: 'Curriculum content', icon: BookOpenIcon,    color: 'text-purple-400', bg: 'bg-purple-500/10', href: '/dashboard/lessons'     },
-          ].map(a => (
-            <Link
-              key={a.label}
-              href={a.href}
-              className="flex items-center gap-3 p-3 border border-border hover:border-orange-500/40 hover:bg-orange-500/5 transition-colors rounded-none group"
-            >
-              <div className={`w-8 h-8 ${a.bg} flex items-center justify-center flex-shrink-0`}>
-                <a.icon className={`w-4 h-4 ${a.color}`} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-foreground group-hover:text-orange-400 transition-colors">{a.label}</p>
-                <p className="text-[10px] text-muted-foreground truncate">{a.desc}</p>
-              </div>
-            </Link>
-          ))}
+      {/* Quick links — staff only */}
+      {profile?.role !== 'school' && (
+        <div className="bg-card shadow-sm border border-border rounded-none p-6">
+          <h2 className="text-sm font-bold text-foreground mb-4">Quick Links</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { label: 'Students',    desc: 'Student records',    icon: UserGroupIcon,   color: 'text-orange-400', bg: 'bg-orange-500/10', href: '/dashboard/students'    },
+              { label: 'Assignments', desc: 'Tasks & grades',     icon: DocumentTextIcon,color: 'text-blue-400',   bg: 'bg-blue-500/10',   href: '/dashboard/assignments' },
+              { label: 'CBT Exams',   desc: 'Online tests',       icon: AcademicCapIcon, color: 'text-emerald-400',bg: 'bg-emerald-500/10',href: '/dashboard/cbt'         },
+              { label: 'Lessons',     desc: 'Curriculum content', icon: BookOpenIcon,    color: 'text-purple-400', bg: 'bg-purple-500/10', href: '/dashboard/lessons'     },
+            ].map(a => (
+              <Link
+                key={a.label}
+                href={a.href}
+                className="flex items-center gap-3 p-3 border border-border hover:border-orange-500/40 hover:bg-orange-500/5 transition-colors rounded-none group"
+              >
+                <div className={`w-8 h-8 ${a.bg} flex items-center justify-center flex-shrink-0`}>
+                  <a.icon className={`w-4 h-4 ${a.color}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-foreground group-hover:text-orange-400 transition-colors">{a.label}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{a.desc}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
     </div>
   );

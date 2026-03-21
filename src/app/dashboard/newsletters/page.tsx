@@ -23,6 +23,19 @@ import {
 } from '@/lib/icons';
 import { generateReportPDF } from '@/lib/pdf-utils';
 
+// Strip markdown symbols for clean document display
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, '')        // Remove # headings
+    .replace(/\*\*(.+?)\*\*/g, '$1')    // Remove **bold**
+    .replace(/\*(.+?)\*/g, '$1')        // Remove *italic*
+    .replace(/^[\-\*]\s+/gm, '• ')     // Convert - / * bullets to •
+    .replace(/^(\d+)\.\s+/gm, '$1. ')  // Keep numbered lists clean
+    .replace(/`{1,3}[^`]*`{1,3}/g, '') // Remove code blocks
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Remove links, keep text
+    .trim();
+}
+
 // ── Components ──
 
 interface Newsletter {
@@ -91,7 +104,7 @@ export default function NewslettersPage() {
         setActiveNewsletter(prev => ({
           ...prev,
           title: json.data.title,
-          content: json.data.content
+          content: stripMarkdown(json.data.content || ''),
         }));
       }
     } catch (e) {
@@ -499,7 +512,7 @@ export default function NewslettersPage() {
                          </h1>
                          
                          <div className="text-base sm:text-[15px] leading-[1.8] text-[#374151] whitespace-pre-wrap font-serif text-justify">
-                           {activeNewsletter?.content || 'Start writing or use the AI assistant to generate content...'}
+                           {activeNewsletter?.content ? stripMarkdown(activeNewsletter.content) : 'Start writing or use the AI assistant to generate content...'}
                          </div>
                        </div>
    

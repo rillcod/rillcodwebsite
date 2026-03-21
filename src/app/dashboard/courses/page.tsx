@@ -23,22 +23,49 @@ const LEVEL_BADGE: Record<string, string> = {
   advanced: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
 };
 
-function CourseCard({ course, i, canEdit, deleting, onDelete }: {
+function CourseCard({ course, i, canEdit, deleting, onDelete, programs, onAssignProgram }: {
   course: any; i: number; canEdit: boolean;
   deleting: string | null; onDelete: (id: string, title: string) => void;
+  programs?: any[]; onAssignProgram?: (courseId: string, programId: string) => Promise<void>;
 }) {
+  const [assigning, setAssigning] = useState(false);
+  const isUncategorized = !course.program_id;
+
+  async function handleAssign(e: React.ChangeEvent<HTMLSelectElement>) {
+    const pid = e.target.value;
+    if (!pid || !onAssignProgram) return;
+    setAssigning(true);
+    await onAssignProgram(course.id, pid);
+    setAssigning(false);
+  }
+
   return (
-    <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden hover:border-orange-500/30 transition-all flex flex-col group">
+    <div className={`bg-card shadow-sm border rounded-none overflow-hidden hover:border-orange-500/30 transition-all flex flex-col group ${isUncategorized && canEdit ? 'border-rose-500/40' : 'border-border'}`}>
       <div className={`h-1.5 bg-gradient-to-r ${GRADIENTS[i % GRADIENTS.length]}`} />
       <div className="p-5 flex-1 flex flex-col">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">{course.programs?.name ?? 'No Program'}</span>
+          <span className={`text-[9px] font-black uppercase tracking-widest ${isUncategorized ? 'text-rose-400' : 'text-orange-400'}`}>
+            {course.programs?.name ?? 'No Program'}
+          </span>
           <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${course.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border'}`}>
             {course.is_active ? 'Active' : 'Inactive'}
           </span>
         </div>
         <h3 className="font-bold text-foreground line-clamp-2 mb-2 group-hover:text-orange-400 transition-colors">{course.title}</h3>
         {course.description && <p className="text-xs text-muted-foreground line-clamp-2 mb-3 flex-1">{course.description}</p>}
+        {isUncategorized && canEdit && programs && programs.length > 0 && (
+          <div className="mb-3">
+            <select
+              defaultValue=""
+              disabled={assigning}
+              onChange={handleAssign}
+              className="w-full px-3 py-1.5 bg-rose-500/10 border border-rose-500/30 rounded-none text-xs text-foreground focus:outline-none focus:border-primary disabled:opacity-50"
+            >
+              <option value="" disabled>⚠ Assign to a program…</option>
+              {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+        )}
         <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4">
           {course.duration_hours && <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{course.duration_hours}h</span>}
           <span className="flex items-center gap-1"><UserGroupIcon className="w-3.5 h-3.5" />{course.assignment_submissions?.length ?? 0} submissions</span>
@@ -78,6 +105,9 @@ export default function CoursesPage() {
   const [search, setSearch] = useState('');
   const [programFilter, setProgramFilter] = useState<string>(searchParams?.get('program') ?? 'all');
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [bulkFixOpen, setBulkFixOpen] = useState(false);
+  const [bulkProgramId, setBulkProgramId] = useState('');
+  const [bulkFixing, setBulkFixing] = useState(false);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
   const canEdit = profile?.role === 'admin' || profile?.role === 'teacher';
@@ -95,6 +125,44 @@ export default function CoursesPage() {
     setDeleting(null);
   };
 
+  const handleAssignProgram = async (courseId: string, programId: string) => {
+    const program = programs.find(p => p.id === programId);
+    const res = await fetch(`/api/courses/${courseId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ program_id: programId }),
+    });
+    if (res.ok) {
+      setCourses(prev => prev.map(c =>
+        c.id === courseId ? { ...c, program_id: programId, programs: program ?? null } : c
+      ));
+    } else {
+      const json = await res.json().catch(() => ({}));
+      alert(json.message || json.error || 'Failed to assign program');
+    }
+  };
+
+  const handleBulkFix = async () => {
+    if (!bulkProgramId) return;
+    const uncat = courses.filter(c => !c.program_id);
+    if (uncat.length === 0) return;
+    setBulkFixing(true);
+    const program = programs.find(p => p.id === bulkProgramId);
+    await Promise.all(uncat.map(c =>
+      fetch(`/api/courses/${c.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ program_id: bulkProgramId }),
+      })
+    ));
+    setCourses(prev => prev.map(c =>
+      !c.program_id ? { ...c, program_id: bulkProgramId, programs: program ?? null } : c
+    ));
+    setBulkFixing(false);
+    setBulkFixOpen(false);
+    setBulkProgramId('');
+  };
+
   useEffect(() => {
     if (authLoading || !profile) return;
     let cancelled = false;
@@ -109,11 +177,18 @@ export default function CoursesPage() {
           fetch('/api/programs', { cache: 'no-store' }),
         ]);
         if (!cancelled) {
-          setCourses(data);
-          if (progRes.ok) {
-            const pj = await progRes.json();
-            setPrograms(pj.data ?? []);
-          }
+          const progList = progRes.ok ? ((await progRes.json()).data ?? []) : [];
+          setPrograms(progList);
+          // Hydrate courses: if the Supabase join didn't populate `programs`
+          // (e.g. due to RLS on programs table), fill it from the API-fetched list
+          const hydrated = (data as any[]).map(c => {
+            if (c.program_id && !c.programs) {
+              const match = progList.find((p: any) => p.id === c.program_id);
+              return match ? { ...c, programs: match } : c;
+            }
+            return c;
+          });
+          setCourses(hydrated);
         }
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load courses');
@@ -184,6 +259,72 @@ export default function CoursesPage() {
           <div className="bg-rose-500/10 border border-rose-500/20 rounded-none p-4 text-rose-400 text-sm">{error}</div>
         )}
 
+        {/* Uncategorised alert banner */}
+        {canEdit && courses.filter(c => !c.program_id).length > 0 && (
+          <div className="flex items-center justify-between gap-4 bg-rose-500/10 border border-rose-500/30 rounded-none px-5 py-3">
+            <div className="flex items-center gap-3">
+              <span className="text-rose-400 text-lg font-black">⚠</span>
+              <div>
+                <p className="text-sm font-black text-rose-400 uppercase tracking-widest">
+                  {courses.filter(c => !c.program_id).length} course{courses.filter(c => !c.program_id).length !== 1 ? 's' : ''} not assigned to any program
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">All courses must be categorised into a program to be properly visible to students.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setBulkFixOpen(true)}
+              className="flex-shrink-0 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-widest rounded-none transition-colors"
+            >
+              Fix All →
+            </button>
+          </div>
+        )}
+
+        {/* Bulk fix modal */}
+        {bulkFixOpen && (
+          <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+            <div className="bg-card border border-border rounded-none w-full max-w-md p-6 space-y-4">
+              <h2 className="text-base font-black text-foreground uppercase tracking-widest">Assign Program to All Uncategorised Courses</h2>
+              <p className="text-sm text-muted-foreground">
+                This will assign <span className="font-black text-foreground">{courses.filter(c => !c.program_id).length} courses</span> to the selected program at once. You can move individual courses later from their edit pages.
+              </p>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Select Program</label>
+                <select
+                  value={bulkProgramId}
+                  onChange={e => setBulkProgramId(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary"
+                >
+                  <option value="">— Choose a program —</option>
+                  {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div className="bg-muted/30 border border-border rounded-none p-3 max-h-40 overflow-y-auto space-y-1">
+                {courses.filter(c => !c.program_id).map(c => (
+                  <p key={c.id} className="text-xs text-muted-foreground truncate">• {c.title}</p>
+                ))}
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => { setBulkFixOpen(false); setBulkProgramId(''); }}
+                  className="flex-1 py-2.5 bg-card border border-border text-foreground text-xs font-black uppercase tracking-widest rounded-none hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkFix}
+                  disabled={!bulkProgramId || bulkFixing}
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-40 text-white text-xs font-black uppercase tracking-widest rounded-none transition-colors flex items-center justify-center gap-2"
+                >
+                  {bulkFixing ? (
+                    <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Assigning…</>
+                  ) : 'Assign to All →'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
         {(() => {
           const statItems = isStaff ? [
@@ -250,14 +391,19 @@ export default function CoursesPage() {
               {grouped.map((group, gi) => (
                 <div key={group.programId}>
                   <div className="flex items-center gap-3 mb-4">
-                    <AcademicCapIcon className="w-5 h-5 text-orange-400 flex-shrink-0" />
-                    <h2 className="text-base font-black text-foreground uppercase tracking-tight">{group.programName}</h2>
+                    <AcademicCapIcon className={`w-5 h-5 flex-shrink-0 ${group.programId === '__none__' ? 'text-rose-400' : 'text-orange-400'}`} />
+                    <h2 className={`text-base font-black uppercase tracking-tight ${group.programId === '__none__' ? 'text-rose-400' : 'text-foreground'}`}>{group.programName}</h2>
                     <span className="text-[10px] font-black text-muted-foreground bg-card border border-border px-2 py-0.5 rounded-full">{group.courses.length} courses</span>
+                    {group.programId === '__none__' && canEdit && (
+                      <span className="text-[9px] font-black text-rose-400 uppercase tracking-widest bg-rose-500/10 border border-rose-500/20 px-2 py-0.5">
+                        ⚠ Needs program assignment
+                      </span>
+                    )}
                     <div className="flex-1 h-px bg-border" />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {group.courses.map((course: any, i: number) => (
-                      <CourseCard key={course.id} course={course} i={gi * 10 + i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} />
+                      <CourseCard key={course.id} course={course} i={gi * 10 + i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} programs={programs} onAssignProgram={handleAssignProgram} />
                     ))}
                   </div>
                 </div>
@@ -266,7 +412,7 @@ export default function CoursesPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filtered.map((course: any, i: number) => (
-                <CourseCard key={course.id} course={course} i={i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} />
+                <CourseCard key={course.id} course={course} i={i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} programs={programs} onAssignProgram={handleAssignProgram} />
               ))}
             </div>
           )
