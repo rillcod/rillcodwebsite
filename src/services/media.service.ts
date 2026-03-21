@@ -1,62 +1,13 @@
-// sharp is a native binary — not available on Cloudflare Workers edge runtime.
-// eval('require') prevents esbuild/OpenNext from statically tracing and bundling sharp.
-let sharp: any = null;
-try { sharp = eval('require')('sharp'); } catch { /* not available on edge */ }
 import { createClient } from '@/lib/supabase/server';
-import crypto from 'crypto';
 import { AppError } from '@/lib/errors';
 
 export class MediaService {
     /**
-     * Generates a thumbnail for image files within 30 seconds
-     * Re-uses the primary file storage
+     * Thumbnail generation requires sharp (Node.js native binary).
+     * Not supported on Cloudflare Workers edge runtime — returns null silently.
      */
-    async generateThumbnail(fileData: any, storagePath: string, buffer: Buffer) {
-        // Only process images
-        if (!['jpg', 'jpeg', 'png', 'webp'].includes(fileData.file_type.toLowerCase())) {
-            return null;
-        }
-
-        if (!sharp) return null;
-        try {
-            const thumbnailBuffer = await sharp(buffer)
-                .resize({ width: 400, height: 400, fit: 'inside' })
-                .toFormat('jpeg', { quality: 80 })
-                .toBuffer();
-
-            const ext = 'jpg';
-            const rawName = fileData.filename.split('.')[0];
-            const thumbStoragePath = `${storagePath.split('/').slice(0, -1).join('/')}/thumb_${rawName}.${ext}`;
-
-            const supabase = await createClient();
-
-            const { error: uploadError } = await supabase.storage
-                .from('lms-files')
-                .upload(thumbStoragePath, thumbnailBuffer, {
-                    contentType: 'image/jpeg',
-                    cacheControl: '3600',
-                    upsert: false
-                });
-
-            if (uploadError) {
-                throw uploadError;
-            }
-
-            const { data: publicUrlData } = supabase.storage
-                .from('lms-files')
-                .getPublicUrl(thumbStoragePath);
-
-            // Update the file metadata to include the thumbnail URL
-            await supabase
-                .from('files')
-                .update({ thumbnail_url: publicUrlData.publicUrl })
-                .eq('id', fileData.id);
-
-            return publicUrlData.publicUrl;
-        } catch (err) {
-            console.error('Failed to generate thumbnail:', err);
-            return null;
-        }
+    async generateThumbnail(_fileData: any, _storagePath: string, _buffer: Buffer) {
+        return null;
     }
 
     /**
