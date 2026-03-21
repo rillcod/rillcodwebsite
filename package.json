@@ -1,5 +1,5 @@
 {
-  "name": "begnagan",
+  "name": "rillcodwebsite",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -91,6 +91,9 @@
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.15.9",
     "@opennextjs/cloudflare": "^1.17.1",
+    "@svta/cml-cta": "^1.0.1",
+    "@svta/cml-structured-field-values": "^1.0.1",
+    "@svta/cml-utils": "^1.0.1",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/cors": "^2.8.19",
     "@types/d3": "^7.4.3",
@@ -101,8 +104,10 @@
     "eslint": "^10.0.2",
     "eslint-config-next": "16.1.6",
     "lightningcss": "^1.29.1",
+    "monaco-editor": "^0.55.1",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.2.1",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "wrangler": "^4.76.0"
   }
 }
