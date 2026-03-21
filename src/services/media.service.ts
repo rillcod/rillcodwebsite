@@ -1,7 +1,8 @@
 // sharp is a native binary — not available on Cloudflare Workers edge runtime.
-// Dynamic import with fallback so the module loads safely in all environments.
+// Using a variable name prevents static bundlers from tracing the require.
 let sharp: any = null;
-try { sharp = require('sharp'); } catch { /* not available on edge */ }
+const _sharpPkg = 'sharp';
+try { sharp = require(_sharpPkg); } catch { /* not available on edge */ }
 import { createClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
 import { AppError } from '@/lib/errors';
