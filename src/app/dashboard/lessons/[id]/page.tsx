@@ -931,6 +931,71 @@ function CompletionCelebration({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
+// ── Activity Steps — auto-detects Scratch-like steps and shows them as colored blocks ──
+const SCRATCH_KEYWORDS = /^(when|move|turn|go to|say|think|show|hide|play|repeat|forever|if|wait|stop|set|change|broadcast|switch|next costume|ask|glide|point)/i;
+
+function ActivitySteps({ steps, isCoding }: { steps: string[]; isCoding?: boolean }) {
+  const scratchSteps = steps.filter(s => SCRATCH_KEYWORDS.test(s.trim()));
+  const hasBlocks = scratchSteps.length >= Math.ceil(steps.length / 2); // majority look like scratch blocks
+  const [viewMode, setViewMode] = useState<'steps' | 'blocks'>(hasBlocks ? 'blocks' : 'steps');
+
+  return (
+    <div className="space-y-4">
+      {hasBlocks && (
+        <div className="flex items-center gap-2">
+          <button onClick={() => setViewMode('steps')}
+            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded transition-colors ${viewMode === 'steps' ? 'bg-emerald-500/20 text-emerald-400' : 'text-white/30 hover:text-white/60'}`}>
+            📋 Steps
+          </button>
+          <button onClick={() => setViewMode('blocks')}
+            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded transition-colors ${viewMode === 'blocks' ? 'bg-yellow-500/20 text-yellow-400' : 'text-white/30 hover:text-white/60'}`}>
+            🧩 Block View
+          </button>
+        </div>
+      )}
+
+      {viewMode === 'blocks' ? (
+        <div style={{
+          background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%)',
+          border: '2px solid rgba(255,213,0,0.15)',
+          borderRadius: 8,
+          padding: '24px',
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)',
+            backgroundSize: '24px 24px',
+            pointerEvents: 'none',
+          }} />
+          <div style={{ position: 'absolute', top: 8, right: 12, opacity: 0.1, fontSize: 10, fontWeight: 900, color: '#FFD500', letterSpacing: '0.1em' }}>
+            SCRATCH BLOCKS
+          </div>
+          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {steps.map((text, i) => (
+              <ScratchBlockPiece key={i} text={text} index={i} total={steps.length} />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {steps.map((step, sIdx) => (
+            <div key={sIdx} className="flex gap-4 p-4 rounded-none bg-background/50 border border-emerald-500/10 hover:border-emerald-500/30 transition-all group/step">
+              <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-400 shrink-0">
+                {sIdx + 1}
+              </div>
+              <p className="text-sm font-medium text-muted-foreground leading-relaxed pt-1 group-hover/step:text-foreground transition-colors">
+                {step}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; lessonType?: string; onInteraction?: (idx: number) => void }) {
   if (!blocks || blocks.length === 0) return null;
 
@@ -1002,18 +1067,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
 
                 <div className="space-y-6">
                   {block.steps && Array.isArray(block.steps) ? (
-                    <div className="grid gap-4">
-                      {block.steps.map((step: string, sIdx: number) => (
-                        <div key={sIdx} className="flex gap-4 p-4 rounded-none bg-background/50 border border-emerald-500/10 hover:border-emerald-500/30 transition-all group/step">
-                          <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-400 shrink-0">
-                            {sIdx + 1}
-                          </div>
-                          <p className="text-sm font-medium text-muted-foreground leading-relaxed pt-1 group-hover/step:text-foreground transition-colors">
-                            {step}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+                    <ActivitySteps steps={block.steps} isCoding={block.is_coding} />
                   ) : (
                     <div className="border-l-4 border-emerald-500/40 pl-6 py-2">
                       <p className="text-lg font-medium text-foreground leading-relaxed whitespace-pre-wrap italic opacity-80">

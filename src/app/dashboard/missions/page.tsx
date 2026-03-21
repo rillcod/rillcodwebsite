@@ -27,7 +27,7 @@ const CodeEditor = dynamic(() => import('@/components/studio/IntegratedCodeRunne
 type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 type MissionLanguage = 'javascript' | 'python' | 'html' | 'robotics';
 type FilterType = 'All' | Difficulty | 'Completed';
-type LangFilter = 'all' | 'javascript' | 'python' | 'html';
+type LangFilter = 'all' | 'javascript' | 'python' | 'html' | 'robotics';
 
 interface Mission {
   id: string;
@@ -381,6 +381,538 @@ const MISSIONS: Mission[] = [
     starterCode: `students = [\n    {"name": "Amara",   "grade": "SS1",  "score": 85},\n    {"name": "Chidi",   "grade": "JSS3", "score": 72},\n    {"name": "Fatima",  "grade": "SS1",  "score": 91},\n    {"name": "Emeka",   "grade": "SS2",  "score": 67},\n    {"name": "Ngozi",   "grade": "JSS3", "score": 55},\n    {"name": "Tunde",   "grade": "SS2",  "score": 78},\n    {"name": "Adaeze",  "grade": "SS1",  "score": 88},\n    {"name": "Ibrahim", "grade": "JSS3", "score": 43},\n]\n\n\ndef class_stats(data):\n    scores = [s["score"] for s in data]\n    passing = sum(1 for s in scores if s >= 60)\n    return {\n        "average":   f"{sum(scores) / len(scores):.1f}",\n        "highest":   max(scores),\n        "lowest":    min(scores),\n        "pass_rate": f"{(passing / len(scores)) * 100:.1f}%",\n    }\n\n\ndef group_by_grade(data):\n    groups = {}\n    for s in data:\n        groups.setdefault(s["grade"], []).append(s["name"])\n    return groups\n\n\ndef rank_students(data):\n    ranked = sorted(data, key=lambda s: s["score"], reverse=True)\n    for i, s in enumerate(ranked, 1):\n        bar = "█" * (s["score"] // 10)\n        print(f"#{i:2d} {s['name']:<10} {s['score']:3d}  {bar}")\n\n\nprint("=== Class Statistics ===")\nfor k, v in class_stats(students).items():\n    print(f"  {k}: {v}")\n\nprint("\\n=== Groups by Grade ===")\nfor grade, names in sorted(group_by_grade(students).items()):\n    print(f"  {grade}: {', '.join(names)}")\n\nprint("\\n=== Rankings ===")\nrank_students(students)`,
     tags: ['data processing', 'sorting', 'grouping', 'dict'],
   },
+
+  // ── HTML & CSS Missions ────────────────────────────────────────────────────
+
+  {
+    id: 'h01',
+    title: 'Your First Web Page',
+    description: 'Write a valid HTML5 document from scratch with correct structure and content.',
+    instructions:
+      'Create a complete HTML5 page with: DOCTYPE declaration, html/head/body tags, a meta charset tag, a title tag, an h1 heading with your name, a paragraph about yourself, and an unordered list of your 3 favourite subjects.',
+    difficulty: 'Beginner',
+    language: 'html',
+    xp: 60,
+    starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title><!-- Page title here --></title>
+</head>
+<body>
+  <!-- h1: Your name -->
+
+  <!-- p: A sentence about yourself -->
+
+  <!-- ul: Three favourite subjects as list items -->
+
+</body>
+</html>`,
+    tags: ['HTML', 'structure', 'doctype', 'tags'],
+  },
+  {
+    id: 'h02',
+    title: 'Style Me Up',
+    description: 'Apply CSS rules to style a page with colours, fonts, and spacing.',
+    instructions:
+      'Given the HTML below, write CSS to: set a dark background (#1a1a2e) with white text, make the h1 orange (#f97316), centre-align the body content, add 40px padding to body, and give list items a line-height of 1.8.',
+    difficulty: 'Beginner',
+    language: 'html',
+    xp: 70,
+    starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Style Me Up</title>
+  <style>
+    body {
+      /* background, color, padding, text-align */
+    }
+    h1 {
+      /* color */
+    }
+    ul li {
+      /* line-height */
+    }
+  </style>
+</head>
+<body>
+  <h1>Rillcod Academy</h1>
+  <p>Learning to build the web, one line at a time.</p>
+  <ul>
+    <li>JavaScript</li>
+    <li>Python</li>
+    <li>Robotics</li>
+  </ul>
+</body>
+</html>`,
+    tags: ['CSS', 'styling', 'colors', 'fonts', 'spacing'],
+  },
+  {
+    id: 'h03',
+    title: 'Flexbox Navigation Bar',
+    description: 'Build a responsive navigation bar using CSS Flexbox.',
+    instructions:
+      'Complete the nav bar so the logo sits on the left and 4 links (Home, Courses, About, Contact) sit on the right, using justify-content: space-between. Links should change colour to #f97316 on hover. Style with a dark background (#0b132b) and 16px 32px padding.',
+    difficulty: 'Intermediate',
+    language: 'html',
+    xp: 100,
+    starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Flexbox Nav</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: sans-serif; background: #0f0f1a; color: white; }
+
+    nav {
+      display: flex;
+      /* justify-content and align-items here */
+      background: #0b132b;
+      padding: 16px 32px;
+    }
+
+    .logo { font-size: 1.2rem; font-weight: 900; color: #f97316; }
+
+    .nav-links { display: flex; gap: 24px; list-style: none; }
+
+    .nav-links a {
+      color: #94a3b8;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s;
+    }
+
+    /* Add :hover rule to change link colour to #f97316 */
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo">Rillcod</div>
+    <ul class="nav-links">
+      <li><a href="#">Home</a></li>
+      <li><a href="#">Courses</a></li>
+      <li><a href="#">About</a></li>
+      <li><a href="#">Contact</a></li>
+    </ul>
+  </nav>
+</body>
+</html>`,
+    tags: ['Flexbox', 'nav', 'CSS', 'layout', 'hover'],
+  },
+  {
+    id: 'h04',
+    title: 'CSS Grid Photo Gallery',
+    description: 'Build a responsive card gallery using CSS Grid with spanning cards.',
+    instructions:
+      'Use grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) to create a responsive gallery of 6 cards. Make every 3rd card span 2 columns with grid-column: span 2. Add a hover effect that scales cards up by 3% (transform: scale(1.03)).',
+    difficulty: 'Intermediate',
+    language: 'html',
+    xp: 110,
+    starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CSS Grid Gallery</title>
+  <style>
+    body { background: #0f0f1a; color: white; font-family: sans-serif; padding: 32px; }
+    h1 { margin-bottom: 24px; color: #f97316; }
+
+    .gallery {
+      display: grid;
+      /* grid-template-columns here */
+      gap: 16px;
+    }
+
+    .card {
+      background: #1e1e3f;
+      border: 1px solid #ffffff15;
+      padding: 48px 16px;
+      text-align: center;
+      font-weight: 700;
+      transition: transform 0.2s;
+      cursor: pointer;
+    }
+
+    /* Every 3rd card spans 2 columns */
+    .card:nth-child(3n) {
+      /* grid-column: span 2; */
+    }
+
+    /* Hover: scale up */
+    .card:hover {
+      /* transform: scale(1.03); */
+    }
+  </style>
+</head>
+<body>
+  <h1>Student Projects</h1>
+  <div class="gallery">
+    <div class="card">Project 1</div>
+    <div class="card">Project 2</div>
+    <div class="card">Project 3 ★</div>
+    <div class="card">Project 4</div>
+    <div class="card">Project 5</div>
+    <div class="card">Project 6 ★</div>
+  </div>
+</body>
+</html>`,
+    tags: ['CSS Grid', 'gallery', 'responsive', 'nth-child', 'span'],
+  },
+  {
+    id: 'h05',
+    title: 'Responsive Profile Page',
+    description: 'Build a mobile-first profile page that switches to a side-by-side layout on wider screens.',
+    instructions:
+      'Complete the CSS so on mobile everything stacks vertically (flex-direction: column). Add a @media (min-width: 640px) query that switches the .profile to flex-direction: row so the avatar and info appear side by side. Also colour the skill badges violet.',
+    difficulty: 'Intermediate',
+    language: 'html',
+    xp: 130,
+    starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Profile</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f0f1a; color: white; font-family: sans-serif; padding: 24px; }
+
+    .profile {
+      max-width: 600px;
+      margin: auto;
+      display: flex;
+      flex-direction: column;  /* mobile: stacked */
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* On wider screens, switch to side-by-side */
+    @media (min-width: 640px) {
+      .profile {
+        /* flex-direction and align-items here */
+      }
+    }
+
+    .avatar {
+      width: 100px; height: 100px; border-radius: 50%;
+      background: linear-gradient(135deg, #7c3aed, #f97316);
+      flex-shrink: 0;
+    }
+
+    .info h1 { font-size: 1.5rem; margin-bottom: 8px; }
+    .info p  { color: #94a3b8; line-height: 1.6; margin-bottom: 16px; }
+
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge {
+      padding: 4px 12px;
+      /* Add violet background, border, border-radius, font-size, color */
+    }
+  </style>
+</head>
+<body>
+  <div class="profile">
+    <div class="avatar"></div>
+    <div class="info">
+      <h1>Amara Okafor</h1>
+      <p>JSS3 student at Rillcod Academy. Loves Python, robotics, and building cool things.</p>
+      <div class="badges">
+        <span class="badge">Python</span>
+        <span class="badge">Robotics</span>
+        <span class="badge">HTML & CSS</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`,
+    tags: ['responsive', 'media queries', 'Flexbox', 'mobile-first'],
+  },
+  {
+    id: 'h06',
+    title: 'Semantic Blog Article',
+    description: 'Structure a blog post using HTML5 semantic elements — no div-soup.',
+    instructions:
+      'Build a blog post page using ONLY semantic tags: header (site title + nav), main, article (h1 title, time element, 3 paragraphs, at least one strong), aside (Related Posts list), and footer. Fill in the article paragraphs about why coding matters for Nigerian students.',
+    difficulty: 'Intermediate',
+    language: 'html',
+    xp: 120,
+    starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>STEM Blog</title>
+  <style>
+    body { background:#0f0f1a; color:#e2e8f0; font-family:sans-serif; line-height:1.7; }
+    a { color:#f97316; }
+    header { background:#0b132b; padding:16px 32px; display:flex; justify-content:space-between; align-items:center; }
+    nav a { margin-left:16px; text-decoration:none; }
+    main { max-width:900px; margin:40px auto; padding:0 24px; display:flex; gap:32px; }
+    article { flex:1; }
+    aside { width:220px; flex-shrink:0; }
+    footer { text-align:center; padding:24px; color:#64748b; border-top:1px solid #ffffff10; margin-top:40px; }
+    time { font-size:0.85rem; color:#64748b; display:block; margin-bottom:16px; }
+    aside h3 { color:#f97316; margin-bottom:8px; }
+    aside ul { list-style:none; padding:0; }
+    aside ul li { padding:6px 0; border-bottom:1px solid #ffffff10; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <strong>Rillcod Academy</strong>
+    <nav>
+      <a href="#">Home</a>
+      <a href="#">Blog</a>
+      <a href="#">Contact</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <h1>Why Every Nigerian Student Should Learn to Code</h1>
+      <time datetime="2025-03-21">March 21, 2025</time>
+
+      <p><!-- First paragraph: coding opens career doors in Nigeria --></p>
+      <p><!-- Second paragraph: real-world STEM examples in Nigeria --></p>
+      <p><!-- Third paragraph: use <strong> for emphasis + call to action --></p>
+    </article>
+
+    <aside>
+      <h3>Related Posts</h3>
+      <ul>
+        <li><a href="#">Scratch vs Python: Which First?</a></li>
+        <li><a href="#">Building Robots in JSS2</a></li>
+        <li><a href="#">AI Tools for Students</a></li>
+      </ul>
+    </aside>
+  </main>
+
+  <footer>
+    &copy; 2025 Rillcod Academy. All rights reserved.
+  </footer>
+
+</body>
+</html>`,
+    tags: ['semantic HTML', 'article', 'aside', 'header', 'footer', 'accessibility'],
+  },
+
+  // ── Robotics / Arduino Missions ───────────────────────────────────────────
+
+  {
+    id: 'r01',
+    title: 'Blink an LED',
+    description: 'Write your first Arduino sketch to blink the built-in LED on and off.',
+    instructions:
+      'Complete the Arduino sketch so the built-in LED (pin 13) blinks: ON for 1 second, OFF for 1 second, forever. Then explain: what does setup() do vs loop()? Why do we use delay(1000) and not delay(1)?',
+    difficulty: 'Beginner',
+    language: 'robotics',
+    xp: 60,
+    starterCode: `// Arduino Sketch — Blink LED
+// The built-in LED is on pin 13
+
+const int LED_PIN = 13;
+
+void setup() {
+  // Runs ONCE when the board powers on
+  // Set LED_PIN as an OUTPUT
+  pinMode(LED_PIN, OUTPUT);
+}
+
+void loop() {
+  // Runs FOREVER after setup()
+  digitalWrite(LED_PIN, HIGH);   // Turn LED ON
+  delay(1000);                   // Wait 1 second
+
+  // YOUR CODE: turn the LED OFF and wait 1 second
+}`,
+    tags: ['Arduino', 'LED', 'pinMode', 'digitalWrite', 'delay', 'blink'],
+  },
+  {
+    id: 'r02',
+    title: 'Button Controls LED',
+    description: 'Use a push button as digital input to toggle an LED.',
+    instructions:
+      'Wire a button to pin 7 with INPUT_PULLUP mode. When pressed (reads LOW), turn on pin 13 LED. When released, turn it off. Print the button state to Serial Monitor. Explain: why do we use INPUT_PULLUP? What is a "floating pin"?',
+    difficulty: 'Beginner',
+    language: 'robotics',
+    xp: 75,
+    starterCode: `// Arduino Sketch — Button-Controlled LED
+
+const int BUTTON_PIN = 7;
+const int LED_PIN    = 13;
+
+void setup() {
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);  // Pressed = LOW
+  Serial.begin(9600);
+}
+
+void loop() {
+  int buttonState = digitalRead(BUTTON_PIN);
+  Serial.println(buttonState);   // Watch in Serial Monitor
+
+  if (buttonState == LOW) {
+    // Button pressed — turn LED ON
+    digitalWrite(LED_PIN, HIGH);
+  } else {
+    // YOUR CODE: turn LED OFF
+  }
+}`,
+    tags: ['Arduino', 'button', 'digitalRead', 'INPUT_PULLUP', 'Serial'],
+  },
+  {
+    id: 'r03',
+    title: 'Analogue Sensor → LED Brightness',
+    description: 'Read a potentiometer and use its value to control LED brightness via PWM.',
+    instructions:
+      'Connect a potentiometer to A0. Read the raw value (0–1023), use map() to convert it to 0–255, then call analogWrite() on PWM pin 9 to set LED brightness. Print both raw and mapped values to Serial Monitor every 100ms.',
+    difficulty: 'Beginner',
+    language: 'robotics',
+    xp: 80,
+    starterCode: `// Arduino Sketch — Potentiometer → LED Brightness (PWM)
+
+const int POT_PIN = A0;   // Potentiometer on analogue pin 0
+const int LED_PIN = 9;    // Must be a PWM pin (~)
+
+void setup() {
+  pinMode(LED_PIN, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  int rawValue  = analogRead(POT_PIN);            // 0 to 1023
+  int brightness = map(rawValue, 0, 1023, 0, 255); // Scale to PWM range
+
+  analogWrite(LED_PIN, brightness);
+
+  Serial.print("Raw: ");
+  Serial.print(rawValue);
+  Serial.print("  Brightness: ");
+  Serial.println(brightness);
+
+  delay(100);
+  // Challenge: add a second LED that gets BRIGHTER as the first gets dimmer
+}`,
+    tags: ['Arduino', 'analogRead', 'analogWrite', 'PWM', 'map()', 'potentiometer'],
+  },
+  {
+    id: 'r04',
+    title: 'Ultrasonic Distance Alert',
+    description: 'Use an HC-SR04 sensor to measure distance and trigger zone-based LED alerts.',
+    instructions:
+      'Wire an HC-SR04 (TRIG pin 9, ECHO pin 10). Complete getDistanceCm() using pulseIn(). In loop(): if distance < 10 cm — blink LED every 100ms (danger). If 10–30 cm — blink every 500ms (caution). If > 30 cm — LED off (safe). Print distance each loop.',
+    difficulty: 'Intermediate',
+    language: 'robotics',
+    xp: 110,
+    starterCode: `// Arduino Sketch — HC-SR04 Ultrasonic Distance Alert
+
+const int TRIG_PIN = 9;
+const int ECHO_PIN = 10;
+const int LED_PIN  = 13;
+
+void setup() {
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(LED_PIN,  OUTPUT);
+  Serial.begin(9600);
+}
+
+long getDistanceCm() {
+  // Send 10-microsecond trigger pulse
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  // YOUR CODE: read echo with pulseIn() and convert to cm (÷ 58)
+  return 0;
+}
+
+void loop() {
+  long dist = getDistanceCm();
+  Serial.print("Distance: "); Serial.print(dist); Serial.println(" cm");
+
+  if (dist < 10) {
+    // Danger: blink fast
+    digitalWrite(LED_PIN, HIGH); delay(100);
+    digitalWrite(LED_PIN, LOW);  delay(100);
+  } else if (dist <= 30) {
+    // YOUR CODE: caution — blink every 500ms
+  } else {
+    // YOUR CODE: safe — LED off
+  }
+}`,
+    tags: ['Arduino', 'HC-SR04', 'ultrasonic', 'pulseIn', 'distance', 'sensors'],
+  },
+  {
+    id: 'r05',
+    title: 'Obstacle-Avoiding Robot',
+    description: 'Program an autonomous robot to detect and steer around obstacles.',
+    instructions:
+      'Complete motorStop(), motorReverse(), and motorRight() using the L298N motor driver pins. The robot should: drive forward normally, and when the ultrasonic sensor reads < 15 cm — stop → reverse 500ms → turn right 600ms → continue forward. Test all three zones.',
+    difficulty: 'Intermediate',
+    language: 'robotics',
+    xp: 140,
+    starterCode: `// Arduino Sketch — Obstacle-Avoiding Robot
+// Motor driver: L298N  |  Ultrasonic: HC-SR04
+
+// Motor A (Left)
+const int IN1 = 2, IN2 = 3, ENA = 5;
+// Motor B (Right)
+const int IN3 = 4, IN4 = 7, ENB = 6;
+// Ultrasonic
+const int TRIG = 9, ECHO = 10;
+
+const int SPEED    = 200;   // PWM 0-255
+const int SAFE_CM  = 15;    // Obstacle threshold
+
+void setup() {
+  pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT); pinMode(ENA, OUTPUT);
+  pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT); pinMode(ENB, OUTPUT);
+  pinMode(TRIG, OUTPUT); pinMode(ECHO, INPUT);
+  Serial.begin(9600);
+}
+
+long getDistance() {
+  digitalWrite(TRIG, LOW);  delayMicroseconds(2);
+  digitalWrite(TRIG, HIGH); delayMicroseconds(10);
+  digitalWrite(TRIG, LOW);
+  return pulseIn(ECHO, HIGH) / 58;
+}
+
+void motorForward() {
+  digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW); analogWrite(ENA, SPEED);
+  digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW); analogWrite(ENB, SPEED);
+}
+
+void motorStop() {
+  // YOUR CODE: set all IN and EN pins to LOW (or 0)
+}
+
+void motorReverse() {
+  // YOUR CODE: flip IN1/IN2 and IN3/IN4 relative to motorForward()
+}
+
+void motorRight() {
+  // YOUR CODE: left motor forward, right motor backward (pivot turn)
+}
+
+void loop() {
+  long dist = getDistance();
+  Serial.print("Dist: "); Serial.println(dist);
+
+  if (dist < SAFE_CM) {
+    motorStop();    delay(200);
+    motorReverse(); delay(500);
+    motorRight();   delay(600);
+  } else {
+    motorForward();
+  }
+}`,
+    tags: ['Arduino', 'robot', 'motors', 'L298N', 'obstacle avoidance', 'autonomous'],
+  },
 ];
 
 const XP_PER_LEVEL = 500;
@@ -558,6 +1090,7 @@ export default function MissionsPage() {
               { value: 'javascript', label: 'JavaScript' },
               { value: 'python', label: 'Python' },
               { value: 'html', label: 'HTML' },
+              { value: 'robotics', label: 'Robotics' },
             ] as { value: LangFilter; label: string }[]).map(({ value, label }) => (
               <button
                 key={value}

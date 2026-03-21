@@ -38,6 +38,7 @@ export default function AddLessonPage() {
   const [lastModel, setLastModel] = useState<string | null>(null);
   const [aiMode, setAiMode] = useState<'academic' | 'project' | 'interactive'>('academic');
   const [aiObjectives, setAiObjectives] = useState<string[]>([]);
+  const [showLessonPreview, setShowLessonPreview] = useState(false);
 
   const isYoungLearner = YOUNG_LEARNER_GRADES.some(g => aiGrade === g || aiGrade.startsWith(g));
 
@@ -137,6 +138,7 @@ export default function AddLessonPage() {
         lesson_type: d.lesson_type ?? prev.lesson_type,
       }));
       setAiOpen(false);
+      setShowLessonPreview(true);
     } catch (e: any) {
       setAiError(e.message ?? 'Failed to generate lesson');
       setAiOpen(true);
@@ -441,6 +443,124 @@ export default function AddLessonPage() {
             </div>
           )}
         </div>
+
+        {/* AI Generated — Preview Banner */}
+        {!aiOpen && !aiGenerating && form.title && (
+          <div className="flex items-center gap-3 bg-violet-500/10 border border-violet-500/30 rounded-none px-4 py-3">
+            <Sparkles className="w-4 h-4 text-violet-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black text-violet-400 uppercase tracking-widest">Lesson Generated — "{form.title}"</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Review the generated content below or preview how it looks to students before saving.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowLessonPreview(true)}
+              className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-none transition-all">
+              👁 Preview Lesson
+            </button>
+            <button type="button" onClick={() => { setAiOpen(true); setShowLessonPreview(false); }}
+              className="flex-shrink-0 text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors">
+              Regenerate
+            </button>
+          </div>
+        )}
+
+        {/* Lesson Preview Modal */}
+        {showLessonPreview && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" onClick={e => { if (e.target === e.currentTarget) setShowLessonPreview(false); }}>
+            <div className="bg-background border border-border rounded-none w-full max-w-3xl my-4 overflow-hidden shadow-2xl">
+              {/* Preview header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-card shadow-sm">
+                <div>
+                  <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">Lesson Preview</p>
+                  <p className="font-bold text-foreground text-sm mt-0.5 truncate">{form.title}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { setAiOpen(true); setShowLessonPreview(false); }}
+                    className="px-3 py-1.5 text-[10px] font-black text-muted-foreground border border-border hover:bg-muted rounded-none uppercase tracking-wider transition-all">
+                    ✕ Regenerate
+                  </button>
+                  <button onClick={() => setShowLessonPreview(false)}
+                    className="px-4 py-1.5 text-[10px] font-black bg-violet-600 hover:bg-violet-500 text-white rounded-none uppercase tracking-wider transition-all">
+                    ✓ Accept & Edit
+                  </button>
+                </div>
+              </div>
+
+              {/* Preview body */}
+              <div className="p-5 space-y-5 overflow-y-auto max-h-[75vh]">
+                {/* Meta */}
+                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                  {form.lesson_type && <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-full capitalize">{form.lesson_type}</span>}
+                  {form.duration_minutes && <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-full">⏱ {form.duration_minutes} min</span>}
+                  {aiGrade && <span className="px-2.5 py-1 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-full">{aiGrade}</span>}
+                  {lastModel && <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-full text-[10px]">🤖 {lastModel}</span>}
+                </div>
+
+                {/* Description */}
+                {form.description && (
+                  <div className="bg-white/5 border border-white/10 rounded-none p-4">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Description</p>
+                    <p className="text-sm text-foreground leading-relaxed">{form.description}</p>
+                  </div>
+                )}
+
+                {/* Objectives */}
+                {aiObjectives.length > 0 && (
+                  <div className="bg-white/5 border border-white/10 rounded-none p-4">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Learning Objectives</p>
+                    <ul className="space-y-1.5">
+                      {aiObjectives.map((obj, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                          <span className="text-violet-400 font-black flex-shrink-0">{i + 1}.</span>
+                          <span>{obj}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Content blocks summary */}
+                {form.content_layout && form.content_layout.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Content Blocks ({form.content_layout.length})</p>
+                    <div className="space-y-2">
+                      {(form.content_layout as any[]).map((block: any, i: number) => (
+                        <div key={i} className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-none px-4 py-3">
+                          <span className="text-[10px] font-black text-muted-foreground w-5 flex-shrink-0">{i + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">{block.title || block.type}</p>
+                            {block.content && <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{typeof block.content === 'string' ? block.content.slice(0, 120) : ''}</p>}
+                          </div>
+                          <span className="text-[10px] font-black text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full flex-shrink-0 capitalize">{block.type?.replace('-', ' ')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Lesson notes excerpt */}
+                {form.lesson_notes && (
+                  <div className="bg-white/5 border border-white/10 rounded-none p-4">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Study Notes (excerpt)</p>
+                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-line line-clamp-10">{form.lesson_notes.slice(0, 800)}{form.lesson_notes.length > 800 ? '…' : ''}</p>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                  <button onClick={() => { setAiOpen(true); setShowLessonPreview(false); }}
+                    className="px-4 py-2 text-xs font-black text-muted-foreground border border-border hover:bg-muted rounded-none uppercase tracking-wider transition-all">
+                    Discard & Regenerate
+                  </button>
+                  <button onClick={() => setShowLessonPreview(false)}
+                    className="px-5 py-2 text-xs font-black bg-violet-600 hover:bg-violet-500 text-white rounded-none uppercase tracking-wider transition-all">
+                    ✓ Accept — Continue Editing
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Lesson Plan Section */}
         <div className="bg-card shadow-sm border border-border rounded-none p-4 sm:p-8 space-y-6">

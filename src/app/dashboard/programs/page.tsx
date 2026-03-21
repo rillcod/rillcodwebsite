@@ -2,12 +2,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
   AcademicCapIcon, PlusIcon, PencilIcon, TrashIcon,
-  CheckCircleIcon, XCircleIcon, ClockIcon, BanknotesIcon,
-  UserGroupIcon, ChartBarIcon, MagnifyingGlassIcon,
-  ArrowPathIcon,
+  CheckCircleIcon, ClockIcon, BanknotesIcon,
+  UserGroupIcon, BookOpenIcon, MagnifyingGlassIcon,
+  ArrowRightIcon,
 } from '@/lib/icons';
 
 const DIFFICULTIES = ['beginner', 'intermediate', 'advanced'];
@@ -15,9 +16,11 @@ const DIFFICULTIES = ['beginner', 'intermediate', 'advanced'];
 export default function ProgramsPage() {
   const { profile, loading: authLoading } = useAuth();
   const [programs, setPrograms] = useState<any[]>([]);
+  const [courseCounts, setCourseCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [diffFilter, setDiffFilter] = useState<string>('all');
   
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
@@ -37,10 +40,22 @@ export default function ProgramsPage() {
   async function load() {
     setLoading(true); setError(null);
     try {
-      const res = await fetch('/api/programs', { cache: 'no-store' });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to load');
-      setPrograms(json.data ?? []);
+      const [progRes, courseRes] = await Promise.all([
+        fetch('/api/programs', { cache: 'no-store' }),
+        fetch('/api/courses', { cache: 'no-store' }),
+      ]);
+      const progJson = await progRes.json();
+      if (!progRes.ok) throw new Error(progJson.error || 'Failed to load');
+      setPrograms(progJson.data ?? []);
+      // Count courses per program
+      if (courseRes.ok) {
+        const courseJson = await courseRes.json();
+        const counts: Record<string, number> = {};
+        (courseJson.data ?? []).forEach((c: any) => {
+          if (c.program_id) counts[c.program_id] = (counts[c.program_id] || 0) + 1;
+        });
+        setCourseCounts(counts);
+      }
     } catch (e: any) {
       setError(e.message ?? 'Failed to load programs');
     } finally {
@@ -117,10 +132,18 @@ export default function ProgramsPage() {
     }
   };
 
-  const filtered = programs.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    p.description?.toLowerCase().includes(search.toLowerCase())
-  );
+  const DIFF_COLORS: Record<string, string> = {
+    beginner: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    intermediate: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+    advanced: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  };
+
+  const filtered = programs.filter(p => {
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.description?.toLowerCase().includes(search.toLowerCase());
+    const matchDiff = diffFilter === 'all' || p.difficulty_level === diffFilter;
+    return matchSearch && matchDiff;
+  });
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -176,11 +199,28 @@ export default function ProgramsPage() {
           ))}
         </div>
 
-        <div className="relative max-w-md">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input type="text" placeholder="Search programs…" value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative max-w-md flex-1">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input type="text" placeholder="Search programs…" value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+          </div>
+          <div className="flex gap-1.5 flex-wrap">
+            {['all', 'beginner', 'intermediate', 'advanced'].map(d => (
+              <button key={d} onClick={() => setDiffFilter(d)}
+                className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest border rounded-none transition-all ${
+                  diffFilter === d
+                    ? d === 'all' ? 'bg-orange-600 text-foreground border-orange-600'
+                      : d === 'beginner' ? 'bg-emerald-600 text-foreground border-emerald-600'
+                      : d === 'intermediate' ? 'bg-amber-600 text-foreground border-amber-600'
+                      : 'bg-rose-600 text-foreground border-rose-600'
+                    : 'bg-card text-muted-foreground border-border hover:text-foreground'
+                }`}>
+                {d === 'all' ? 'All Levels' : d}
+              </button>
+            ))}
+          </div>
         </div>
 
         {filtered.length === 0 ? (
@@ -191,43 +231,58 @@ export default function ProgramsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map(p => (
-              <div key={p.id} className="bg-card shadow-sm border border-border rounded-none p-6 flex flex-col hover:bg-white/8 transition-all group">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-card shadow-sm rounded-none flex items-center justify-center group-hover:bg-orange-600/20 group-hover:text-orange-400 transition-colors">
-                    <AcademicCapIcon className="w-6 h-6" />
-                  </div>
-                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
-                    {p.is_active ? 'Active' : 'Draft'}
-                  </span>
-                </div>
-                <h3 className="text-xl font-bold text-foreground mb-2">{p.name}</h3>
-                <p className="text-sm text-muted-foreground line-clamp-3 mb-6 flex-1">{p.description || 'No description provided.'}</p>
-                
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Duration</p>
-                    <p className="text-sm font-bold text-muted-foreground flex items-center gap-1.5"><ClockIcon className="w-3.5 h-3.5" /> {p.duration_weeks ?? '-'} weeks</p>
-                  </div>
-                  <div className="space-y-1 text-right">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Difficulty</p>
-                    <p className="text-sm font-bold capitalize text-muted-foreground">{p.difficulty_level}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-5 border-t border-border mt-auto">
-                    <div className="flex items-center gap-2">
-                        <p className="text-lg font-black text-orange-400">₦{(p.price || 0).toLocaleString()}</p>
+              <div key={p.id} className="bg-card shadow-sm border border-border rounded-none flex flex-col hover:border-orange-500/30 transition-all group">
+                {/* Color bar by difficulty */}
+                <div className={`h-1 w-full ${p.difficulty_level === 'beginner' ? 'bg-emerald-500' : p.difficulty_level === 'intermediate' ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                <div className="p-6 flex flex-col flex-1">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
+                        {p.is_active ? 'Active' : 'Draft'}
+                      </span>
+                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border capitalize ${DIFF_COLORS[p.difficulty_level] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                        {p.difficulty_level}
+                      </span>
                     </div>
                     {isAdmin && (
-                        <div className="flex items-center gap-2">
-                             <button onClick={() => startEdit(p)} className="p-2 bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
-                                <PencilIcon className="w-4 h-4 text-muted-foreground" />
-                            </button>
-                            <button onClick={() => handleDelete(p.id, p.name)} className="p-2 bg-rose-500/10 hover:bg-rose-500/20 rounded-none transition-colors">
-                                <TrashIcon className="w-4 h-4 text-rose-400" />
-                            </button>
-                        </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => startEdit(p)} className="p-1.5 bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
+                          <PencilIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                        </button>
+                        <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-none transition-colors">
+                          <TrashIcon className="w-3.5 h-3.5 text-rose-400" />
+                        </button>
+                      </div>
                     )}
+                  </div>
+
+                  <h3 className="text-lg font-bold text-foreground mb-2 group-hover:text-orange-400 transition-colors">{p.name}</h3>
+                  <p className="text-sm text-muted-foreground line-clamp-2 mb-5 flex-1">{p.description?.split('→')[0]?.split('Prerequisite')[0]?.trim() || 'No description.'}</p>
+
+                  <div className="grid grid-cols-3 gap-3 mb-5">
+                    <div className="bg-background rounded-none p-2.5 text-center border border-border">
+                      <p className="text-base font-black text-orange-400">{courseCounts[p.id] ?? 0}</p>
+                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Courses</p>
+                    </div>
+                    <div className="bg-background rounded-none p-2.5 text-center border border-border">
+                      <p className="text-base font-black text-foreground">{p.duration_weeks ?? '—'}</p>
+                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Weeks</p>
+                    </div>
+                    <div className="bg-background rounded-none p-2.5 text-center border border-border">
+                      <p className="text-base font-black text-foreground">{p.max_students ?? '∞'}</p>
+                      <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-0.5">Slots</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-border mt-auto">
+                    <p className="text-lg font-black text-orange-400">₦{(p.price || 0).toLocaleString()}</p>
+                    <Link
+                      href={`/dashboard/courses?program=${p.id}`}
+                      className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-widest bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20 rounded-none transition-all"
+                    >
+                      <BookOpenIcon className="w-3.5 h-3.5" /> View Courses <ArrowRightIcon className="w-3 h-3" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))}

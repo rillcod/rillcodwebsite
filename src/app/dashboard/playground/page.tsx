@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 
 // Safe dynamic imports
 const BlocklyEditor = dynamic(() => import('@/components/studio/BlocklyEditor'), { ssr: false });
+const ScratchSynthesisLab = dynamic(() => import('@/components/studio/ScratchSynthesisLab'), { ssr: false });
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 
 import { LAB_EXAMPLES } from '@/data/lab-examples';
@@ -32,6 +33,7 @@ const LANGUAGES = [
   { id: 'python', name: 'Python', icon: '/icons/python.svg', color: 'text-blue-400', desc: 'Powerful & Readable' },
   { id: 'javascript', name: 'JavaScript', icon: '/icons/javascript.svg', color: 'text-yellow-400', desc: 'Web & Beyond' },
   { id: 'blockly', name: 'Blockly Studio', icon: '/icons/puzzle.svg', color: 'text-emerald-400', desc: 'Visual Logic Engine' },
+  { id: 'scratch', name: 'Scratch Lab', icon: '/icons/puzzle.svg', color: 'text-yellow-300', desc: 'Drag-Drop Blocks 🧩' },
   { id: 'html', name: 'HTML/CSS', icon: '/icons/html5.svg', color: 'text-orange-400', desc: 'UI & Web Design' },
   { id: 'robotics', name: 'Robotics Lab', icon: '/icons/robot.svg', color: 'text-blue-500', desc: 'Simulate & Code' },
 ];
@@ -829,6 +831,7 @@ robot = Robot()
                            {l.id === 'javascript' && <SparklesIcon className="w-4 h-4" />}
                            {l.id === 'html' && <GlobeAltIcon className="w-4 h-4" />}
                            {l.id === 'blockly' && <PuzzlePieceIcon className="w-4 h-4" />}
+                           {l.id === 'scratch' && <span className="text-base leading-none">🧩</span>}
                            {l.id === 'robotics' && <RocketLaunchIcon className="w-4 h-4" />}
                         </div>
                         <div className="flex-1 text-left">
@@ -917,26 +920,37 @@ robot = Robot()
              {/* Tab Headers */}
             <div className="h-8 bg-[#0d1526]/50 border-b border-border flex items-center px-4 justify-between">
               <div className="flex gap-1">
-                <button onClick={() => setEditorMode('code')}
-                  className={`px-3 py-1 rounded-none text-xs font-bold transition-all ${editorMode === 'code' ? 'bg-orange-600/20 text-orange-400' : 'text-muted-foreground hover:text-foreground'}`}>
-                  Text Editor
-                </button>
+                {lang !== 'scratch' && (
+                  <button onClick={() => setEditorMode('code')}
+                    className={`px-3 py-1 rounded-none text-xs font-bold transition-all ${editorMode === 'code' ? 'bg-orange-600/20 text-orange-400' : 'text-muted-foreground hover:text-foreground'}`}>
+                    Text Editor
+                  </button>
+                )}
                 {(lang === 'python' || lang === 'javascript') && (
                   <button onClick={() => setEditorMode('blocks')}
                     className={`px-3 py-1 rounded-none text-xs font-bold transition-all ${editorMode === 'blocks' ? 'bg-emerald-600/20 text-emerald-400' : 'text-muted-foreground hover:text-foreground'}`}>
                     Blockly Mode
                   </button>
                 )}
+                {lang === 'scratch' && (
+                  <span className="px-3 py-1 text-xs font-black text-yellow-400 uppercase tracking-widest flex items-center gap-1.5">
+                    🧩 Scratch Lab
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
-                 <span className="hidden sm:inline text-[10px] font-mono text-muted-foreground uppercase tracking-widest">UTF-8 // active</span>
+                 <span className="hidden sm:inline text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+                   {lang === 'scratch' ? 'drag & drop // blocks' : 'UTF-8 // active'}
+                 </span>
               </div>
             </div>
 
             {/* Editor Component */}
             <div className="flex-1 flex relative overflow-hidden">
               <div className="flex-1 relative">
-                {editorMode === 'blocks' ? (
+                {lang === 'scratch' ? (
+                  <ScratchSynthesisLab onChange={(blocks) => setCode(blocks.map(b => b.label).join('\n'))} />
+                ) : editorMode === 'blocks' ? (
                   <BlocklyEditor xml={blocksXml} language={lang} onChange={(xml, genCode) => { setBlocksXml(xml); setCode(genCode); }} />
                 ) : (
                   <IntegratedCodeRunner
@@ -951,7 +965,7 @@ robot = Robot()
               </div>
 
               {lang === 'html' && (
-                 <div className="hidden lg:flex flex-[1.5] flex-col border-l border-border bg-[#f8fafc] group min-w-[300px] transition-all relative">
+                 <div className="hidden md:flex flex-[1.5] flex-col border-l border-border bg-[#f8fafc] group min-w-[300px] transition-all relative">
                    <div className="h-12 bg-white border-b border-slate-200 flex items-center px-4 md:px-6 justify-between shadow-sm">
                       <div className="flex items-center gap-2 md:gap-4">
                          <div className="hidden sm:flex items-center gap-2">
@@ -1009,12 +1023,12 @@ robot = Robot()
           </div>
 
           {/* ─── Console/Preview Area ─── */}
-           <div 
+           <div
              className={`
                border-t border-border flex flex-col bg-[#020617] relative
                ${view !== 'output' && 'hidden md:flex'} transition-all
              `}
-             style={{ height: view === 'output' ? `${terminalHeight}px` : 'auto' }}
+             style={{ height: view === 'output' ? (lang === 'html' ? '100%' : `${terminalHeight}px`) : 'auto' }}
            >
              {/* Resize Handle */}
              <div 
@@ -1177,12 +1191,12 @@ robot = Robot()
           <CodeBracketIcon className="w-5 h-5" />
           <span className="text-[8px] font-black uppercase tracking-widest">Editor</span>
         </button>
-        <button 
+        <button
           onClick={() => setView('output')}
           className={`flex flex-col items-center gap-1.5 transition-all ${view === 'output' ? 'text-orange-500' : 'text-muted-foreground'}`}
         >
-          <CommandLineIcon className="w-5 h-5" />
-          <span className="text-[8px] font-black uppercase tracking-widest">Terminal</span>
+          {lang === 'html' ? <EyeIcon className="w-5 h-5" /> : <CommandLineIcon className="w-5 h-5" />}
+          <span className="text-[8px] font-black uppercase tracking-widest">{lang === 'html' ? 'Preview' : 'Terminal'}</span>
         </button>
         {lang === 'robotics' && (
           <button 

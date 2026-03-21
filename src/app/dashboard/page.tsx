@@ -469,6 +469,25 @@ async function loadSchoolActivity(supabase: ReturnType<typeof createClient>, sch
 
 
 
+async function loadAdminSchoolPayments(supabase: ReturnType<typeof createClient>) {
+  const { data } = await supabase
+    .from('invoices')
+    .select('id, invoice_number, amount, currency, status, due_date, created_at, schools(name)')
+    .not('school_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(15);
+  return (data ?? []) as unknown as {
+    id: string;
+    invoice_number: string;
+    amount: number;
+    currency: string;
+    status: string;
+    due_date: string;
+    created_at: string;
+    schools: { name: string } | null;
+  }[];
+}
+
 /* ── Quick actions by role ────────────────────────────── */
 const QUICK_ACTIONS = {
   admin: [
@@ -508,6 +527,7 @@ export default function DashboardPage() {
   const [upcomingSlots, setUpcomingSlots] = useState<Slot[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [teacherActionCenter, setTeacherActionCenter] = useState<{ ungradedAssignments: number; ungradedExams: number } | null>(null);
+  const [schoolPayments, setSchoolPayments] = useState<Awaited<ReturnType<typeof loadAdminSchoolPayments>>>([]);
   // Track how many auto-retries we've done before showing the "not found" error
   const profileRetryCount = useRef(0);
 
@@ -580,6 +600,10 @@ export default function DashboardPage() {
       if (role === 'teacher') {
         const actionCenter = await loadTeacherActionCenter(supabase, profile.id);
         setTeacherActionCenter(actionCenter);
+      }
+      if (role === 'admin') {
+        const sp = await loadAdminSchoolPayments(supabase);
+        setSchoolPayments(sp);
       }
       await loadUpcomingSlots(supabase, role, profile.id, profile.school_id || undefined);
     } catch { /* silent */ } finally {
@@ -762,6 +786,88 @@ export default function DashboardPage() {
         }
       </div>
       </div>{/* end stats grid wrapper */}
+
+      {/* ── Admin: School Billing Records ── */}
+      {profile?.role === 'admin' && (
+        <div className="bg-card border border-border rounded-none p-6 sm:p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/5 blur-[80px] -mr-24 -mt-24 pointer-events-none" />
+          <div className="relative z-10">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+              <div>
+                <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.4em]">Finance</p>
+                <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">School Billing Records</h2>
+              </div>
+              <Link href="/dashboard/payments?view=billing" className="px-4 py-2 text-[9px] font-black uppercase tracking-widest border border-border text-muted-foreground hover:text-foreground hover:border-orange-500/40 rounded-none transition-all flex items-center gap-1.5">
+                <BanknotesIcon className="w-3.5 h-3.5" /> Full Billing View
+              </Link>
+            </div>
+
+            {dataLoading ? (
+              <div className="space-y-2">
+                {[1,2,3].map(i => (
+                  <div key={i} className="h-14 bg-muted animate-pulse rounded-none" />
+                ))}
+              </div>
+            ) : schoolPayments.length === 0 ? (
+              <div className="text-center py-10 border border-dashed border-border rounded-none">
+                <BanknotesIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">No school invoices yet</p>
+                <p className="text-xs text-muted-foreground mt-1">Generate school invoices from the Payments page</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left min-w-[600px]">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="pb-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest">School</th>
+                      <th className="pb-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Invoice #</th>
+                      <th className="pb-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right">Amount</th>
+                      <th className="pb-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-center">Status</th>
+                      <th className="pb-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Due</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {schoolPayments.map(inv => {
+                      const sym = inv.currency === 'NGN' ? '₦' : inv.currency === 'USD' ? '$' : inv.currency;
+                      const isPaid = inv.status === 'paid';
+                      const isOverdue = inv.status === 'overdue';
+                      const dueDate = inv.due_date ? new Date(inv.due_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+                      return (
+                        <tr key={inv.id} className="group hover:bg-white/[0.02] transition-colors">
+                          <td className="py-3.5">
+                            <div className="flex items-center gap-2">
+                              <BuildingOfficeIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                              <span className="text-sm font-bold text-foreground truncate max-w-[160px]">{(inv.schools as any)?.name ?? 'Unknown School'}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5">
+                            <span className="text-xs font-mono text-muted-foreground">{inv.invoice_number}</span>
+                          </td>
+                          <td className="py-3.5 text-right">
+                            <span className="text-sm font-black text-foreground">{sym}{inv.amount.toLocaleString()}</span>
+                          </td>
+                          <td className="py-3.5 text-center">
+                            <span className={`inline-flex items-center px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border ${
+                              isPaid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                              isOverdue ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                              'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            }`}>
+                              {isPaid ? '✓ Paid' : isOverdue ? 'Overdue' : inv.status}
+                            </span>
+                          </td>
+                          <td className="py-3.5">
+                            <span className={`text-xs font-bold ${isOverdue ? 'text-rose-400' : 'text-muted-foreground'}`}>{dueDate}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Teacher Smart Command Center */}
       {profile?.role === 'teacher' && teacherActionCenter !== null && (

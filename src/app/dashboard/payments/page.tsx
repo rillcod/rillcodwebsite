@@ -194,7 +194,9 @@ export default function PaymentsPage() {
   const [showSchoolInvoice, setShowSchoolInvoice] = useState(false);
   const [schoolInvForm, setSchoolInvForm] = useState({
     school_id: '',
+    pricing_mode: 'per_student' as 'per_student' | 'fixed_package',
     rate_per_child: '',
+    fixed_package_price: '',
     rillcod_quota_percent: '',
     notes: '',
     due_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
@@ -206,6 +208,21 @@ export default function PaymentsPage() {
   });
   const [schoolInvStudentCount, setSchoolInvStudentCount] = useState<number | null>(null);
   const [loadingSchoolCount, setLoadingSchoolCount] = useState(false);
+
+  // Receipt Builder state
+  const [showReceiptBuilder, setShowReceiptBuilder] = useState(false);
+  const [receiptForm, setReceiptForm] = useState({
+    school_id: '',
+    payer_name: '',
+    payer_type: 'school' as 'school' | 'student' | 'other',
+    payment_method: 'bank_transfer' as 'bank_transfer' | 'cash' | 'pos' | 'cheque' | 'online',
+    payment_date: new Date().toISOString().split('T')[0],
+    reference: '',
+    notes: '',
+    pay_to_account_id: '',
+    received_by: '',
+    items: [{ description: 'STEM / AI / Coding Programme Fee', quantity: 1, unit_price: 0 }] as { description: string; quantity: number; unit_price: number }[],
+  });
 
   const db = createClient();
 
@@ -366,11 +383,15 @@ export default function PaymentsPage() {
   function handlePrintSchoolInvoice() {
     const sch = schools.find(s => s.id === schoolInvForm.school_id);
     if (!sch) { alert('Select a school first.'); return; }
+    const isFixed = schoolInvForm.pricing_mode === 'fixed_package';
     const count = parseInt(schoolInvForm.manual_student_count) || schoolInvStudentCount || 0;
     const ratePerChild = parseFloat(schoolInvForm.rate_per_child) || 0;
+    const fixedPrice = parseFloat(schoolInvForm.fixed_package_price) || 0;
     const quotaPct = parseFloat(schoolInvForm.rillcod_quota_percent) || 0;
-    const subtotal = ratePerChild * count;
-    
+    const subtotal = isFixed ? fixedPrice : ratePerChild * count;
+
+    if (subtotal === 0) { alert(isFixed ? 'Enter a fixed package price first.' : 'Enter a rate per child first.'); return; }
+
     const deposit = parseFloat(schoolInvForm.deposit_amount) || 0;
     const balance = subtotal - deposit;
     
@@ -378,8 +399,6 @@ export default function PaymentsPage() {
     const schoolShare = subtotal - rillcodShare;
     
     const payToAcc = accounts.find(a => a.id === schoolInvForm.pay_to_account_id);
-
-    if (ratePerChild === 0) { alert('Enter a rate per child first.'); return; }
 
     const docRef = `SINV-${Date.now().toString(36).toUpperCase()}`;
     const now = new Date();
@@ -482,26 +501,41 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
   </div>
 </div>
 <div class="meta-row">
-  <div class="meta-cell"><div class="meta-label">Students</div><div class="meta-val">${count}</div></div>
-  <div class="meta-cell"><div class="meta-label">Rate / Child</div><div class="meta-val">${fmtNGN(ratePerChild)}</div></div>
-  ${schoolInvForm.show_revenue_share ? `
+  ${isFixed
+    ? `<div class="meta-cell" style="background:#fff7ed;border-color:#ea580c33"><div class="meta-label" style="color:#ea580c">Pricing</div><div class="meta-val" style="color:#ea580c;font-size:11px">Fixed Package</div></div>
+       <div class="meta-cell"><div class="meta-label">Enrolled Students</div><div class="meta-val">${count > 0 ? count : '—'}</div></div>`
+    : `<div class="meta-cell"><div class="meta-label">Students</div><div class="meta-val">${count}</div></div>
+       <div class="meta-cell"><div class="meta-label">Rate / Child</div><div class="meta-val">${fmtNGN(ratePerChild)}</div></div>`
+  }
+  <div class="meta-cell"><div class="meta-label">Package Price</div><div class="meta-val">${fmtNGN(subtotal)}</div></div>
+  ${schoolInvForm.show_revenue_share && quotaPct > 0 ? `
   <div class="meta-cell"><div class="meta-label">Rillcod %</div><div class="meta-val">${quotaPct}%</div></div>
   <div class="meta-cell"><div class="meta-label">School %</div><div class="meta-val">${100 - quotaPct}%</div></div>
   ` : ''}
 </div>
 <table>
-<thead><tr><th>Description</th><th style="text-align:center">Students</th><th style="text-align:right">Rate / Child</th><th style="text-align:right">Amount</th></tr></thead>
+<thead><tr>
+  <th>Description</th>
+  ${isFixed ? '' : '<th style="text-align:center">Students</th><th style="text-align:right">Rate / Child</th>'}
+  <th style="text-align:right">Amount</th>
+</tr></thead>
 <tbody>
   <tr>
-    <td><b>STEM / AI / Coding Programme Fee</b><br><span style="font-size:10px;color:#9ca3af">${sch.name} · Academic Term</span></td>
-    <td style="text-align:center;font-weight:700">${count}</td>
-    <td style="text-align:right">${fmtNGN(ratePerChild)}</td>
+    <td>
+      <b>${isFixed ? 'STEM / AI / Coding — Fixed School Package' : 'STEM / AI / Coding Programme Fee'}</b>
+      <br><span style="font-size:10px;color:#9ca3af">${sch.name} · ${isFixed ? 'All students included — compulsory school programme' : 'Academic Term'}</span>
+      ${isFixed && count > 0 ? `<br><span style="font-size:10px;color:#7c3aed;font-weight:700">Covers all ${count} enrolled students · Fixed pricing applies</span>` : ''}
+    </td>
+    ${isFixed ? '' : `<td style="text-align:center;font-weight:700">${count}</td><td style="text-align:right">${fmtNGN(ratePerChild)}</td>`}
     <td style="text-align:right;font-weight:700">${fmtNGN(subtotal)}</td>
   </tr>
 </tbody>
 </table>
 <div class="totals-box">
-  <div class="totals-row"><span class="totals-label">Total Fee (${count} students × ${fmtNGN(ratePerChild)})</span><span class="totals-val">${fmtNGN(subtotal)}</span></div>
+  <div class="totals-row">
+    <span class="totals-label">${isFixed ? `Fixed Package Price` : `Total Fee (${count} students × ${fmtNGN(ratePerChild)})`}</span>
+    <span class="totals-val">${fmtNGN(subtotal)}</span>
+  </div>
   <div class="totals-row"><span class="totals-label">Less Deposit / Previous Payment</span><span class="totals-val" style="color:#059669">(${fmtNGN(deposit)})</span></div>
   <hr/>
   <div class="totals-row"><span class="totals-grand-label">Total Payable Amount</span><span class="totals-grand-val">${fmtNGN(balance)}</span></div>
@@ -557,6 +591,182 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
   <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Finance Officer / Stamp</div></div>
 </div>
 <div class="watermark">This is a computer-generated invoice from Rillcod Technologies · Reference: ${docRef} · ${dateStr}</div>
+</body></html>`;
+
+    const w = window.open('', '_blank', 'width=900,height=800');
+    if (!w) { alert('Pop-up blocked. Please allow pop-ups.'); return; }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 700);
+
+    // Save invoice record to DB (fire-and-forget — don't block print)
+    const sch2 = schools.find(s => s.id === schoolInvForm.school_id);
+    if (sch2) {
+      const items2 = isFixed
+        ? [{ description: `STEM Programme — School Package (All Students) · Fixed Pricing`, quantity: 1, unit_price: subtotal, total: subtotal }]
+        : [{ description: `STEM / AI / Coding Programme — ${sch2.name}`, quantity: count, unit_price: ratePerChild, total: subtotal }];
+      const dueISO = schoolInvForm.due_date || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+      db.from('invoices').insert({
+        invoice_number: docRef,
+        school_id: schoolInvForm.school_id,
+        amount: subtotal,
+        currency: 'NGN',
+        status: 'sent',
+        due_date: dueISO,
+        items: items2,
+        notes: schoolInvForm.notes || null,
+      }).then(() => { loadTransactions(); }, () => {/* silent */});
+    }
+  }
+
+  function handlePrintReceipt() {
+    const sch = receiptForm.school_id ? schools.find(s => s.id === receiptForm.school_id) : null;
+    const payToAcc = accounts.find(a => a.id === receiptForm.pay_to_account_id);
+    const items = receiptForm.items.filter(i => i.description && i.unit_price > 0);
+    const totalAmount = items.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
+    if (totalAmount === 0 && items.length === 0) { alert('Add at least one line item with an amount.'); return; }
+
+    const docRef = receiptForm.reference || `RCPT-${Date.now().toString(36).toUpperCase()}`;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' });
+    const payDateStr = receiptForm.payment_date
+      ? new Date(receiptForm.payment_date).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })
+      : dateStr;
+    const fmtNGN = (n: number) => `₦${n.toLocaleString('en-NG')}`;
+    const payerLabel = receiptForm.payer_name || sch?.name || 'Client';
+    const methodLabels: Record<string, string> = {
+      bank_transfer: 'Bank Transfer', cash: 'Cash', pos: 'POS Terminal', cheque: 'Cheque', online: 'Online Payment',
+    };
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+<title>Payment Receipt — ${payerLabel}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:22px 24px}
+@page{size:A4;margin:14mm 15mm}
+@media print{body{padding:0}.no-print{display:none}}
+.header{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:4px solid #059669;padding-bottom:14px;margin-bottom:18px}
+.logo-block{display:flex;align-items:center;gap:12px}
+.logo-img{width:56px;height:56px;object-fit:contain}
+.org-name{font-size:22px;font-weight:900;color:#059669;letter-spacing:-0.4px}
+.org-sub{font-size:10px;color:#6b7280;margin-top:1px;font-weight:600}
+.rcpt-badge{text-align:right}
+.rcpt-label{font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px}
+.rcpt-number{font-size:24px;font-weight:900;color:#065f46;letter-spacing:-0.5px}
+.paid-stamp{display:inline-block;border:3px solid #059669;color:#059669;font-weight:900;font-size:18px;text-transform:uppercase;letter-spacing:3px;padding:4px 14px;border-radius:6px;transform:rotate(-5deg);margin-top:6px}
+.parties{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:18px}
+.party-box{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px}
+.party-label{font-size:9px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.party-name{font-size:15px;font-weight:900;color:#111827}
+.party-sub{font-size:11px;color:#6b7280;margin-top:2px;line-height:1.4}
+.meta-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.meta-cell{flex:1;min-width:120px;background:#f0fdf4;border:1px solid #05966922;border-radius:8px;padding:10px 12px;text-align:center}
+.meta-label{font-size:8px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
+.meta-val{font-size:14px;font-weight:900;color:#065f46}
+table{width:100%;border-collapse:collapse;margin-bottom:20px;border-radius:8px;overflow:hidden}
+thead tr{background:#065f46;color:white}
+thead th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+tbody tr{border-bottom:1px solid #e5e7eb}
+tbody tr:nth-child(even){background:#f9fafb}
+tbody td{padding:8px 12px;font-size:12px;color:#374151}
+.totals-box{background:#f0fdf4;border:1px solid #05966922;border-radius:8px;padding:16px;margin-bottom:20px}
+.totals-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.totals-label{font-size:11px;color:#6b7280}
+.totals-val{font-size:12px;font-weight:700;color:#374151}
+.totals-grand-label{font-size:14px;font-weight:900;color:#065f46}
+.totals-grand-val{font-size:22px;font-weight:900;color:#059669}
+.bank-box{background:#f8fafc;border:1px solid #33415522;border-radius:8px;padding:14px;margin-bottom:18px}
+.bank-title{font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.bank-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bank-cell{font-size:11px}
+.bank-label{color:#94a3b8;font-weight:700;display:block;margin-bottom:1px;font-size:9px}
+.bank-val{color:#334155;font-weight:800}
+.notes-box{background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:11px;color:#92400e}
+.footer{border-top:1px solid #e5e7eb;padding-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:8px}
+.sig-box{text-align:center}
+.sig-line{border-bottom:1px solid #374151;height:34px;margin-bottom:5px}
+.sig-label{font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px}
+.watermark{text-align:center;margin-top:12px;font-size:8px;color:#9ca3af}
+hr{border:none;border-top:1px solid #05966922;margin:8px 0}
+</style></head><body>
+<div class="header">
+  <div class="logo-block">
+    <img src="/logo.png" class="logo-img" onerror="this.style.display='none'" />
+    <div>
+      <div class="org-name">RILLCOD TECHNOLOGIES</div>
+      <div class="org-sub">STEM, Robotics &amp; AI Education Partner</div>
+      <div style="font-size:9px;color:#059669;margin-top:2px;font-weight:700">www.rillcod.com · rillcod@gmail.com · 08116600091</div>
+    </div>
+  </div>
+  <div class="rcpt-badge">
+    <div class="rcpt-label">Official Receipt</div>
+    <div class="rcpt-number">${docRef}</div>
+    <div style="font-size:10px;color:#6b7280;margin-top:4px"><b>Issued:</b> ${dateStr}</div>
+    <div style="font-size:10px;color:#6b7280"><b>Payment Date:</b> ${payDateStr}</div>
+    <div class="paid-stamp">PAID</div>
+  </div>
+</div>
+
+<div class="parties">
+  <div class="party-box">
+    <div class="party-label">Received By</div>
+    <div class="party-name">RILLCOD TECHNOLOGIES</div>
+    <div class="party-sub">STEM, Robotics &amp; AI Education Provider<br/>Technology &amp; Innovation Specialists</div>
+  </div>
+  <div class="party-box">
+    <div class="party-label">Received From</div>
+    <div class="party-name">${payerLabel}</div>
+    <div class="party-sub">${receiptForm.payer_type === 'school' ? 'School Partner' : receiptForm.payer_type === 'student' ? 'Enrolled Student' : 'Client'}<br/>Payment Method: <b>${methodLabels[receiptForm.payment_method] || receiptForm.payment_method}</b></div>
+  </div>
+</div>
+
+<div class="meta-row">
+  <div class="meta-cell"><div class="meta-label">Amount Paid</div><div class="meta-val">${fmtNGN(totalAmount)}</div></div>
+  <div class="meta-cell"><div class="meta-label">Payment Method</div><div class="meta-val" style="font-size:11px">${methodLabels[receiptForm.payment_method] || ''}</div></div>
+  <div class="meta-cell"><div class="meta-label">Payment Date</div><div class="meta-val" style="font-size:11px">${payDateStr}</div></div>
+  <div class="meta-cell"><div class="meta-label">Reference</div><div class="meta-val" style="font-size:11px">${docRef}</div></div>
+</div>
+
+<table>
+<thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Amount</th></tr></thead>
+<tbody>
+  ${items.map(item => `<tr>
+    <td><b>${item.description}</b></td>
+    <td style="text-align:center">${item.quantity}</td>
+    <td style="text-align:right">${fmtNGN(item.unit_price)}</td>
+    <td style="text-align:right;font-weight:700">${fmtNGN(item.quantity * item.unit_price)}</td>
+  </tr>`).join('')}
+</tbody>
+</table>
+
+<div class="totals-box">
+  ${items.length > 1 ? items.map(i => `<div class="totals-row"><span class="totals-label">${i.description}</span><span class="totals-val">${fmtNGN(i.quantity * i.unit_price)}</span></div>`).join('') : ''}
+  <hr/>
+  <div class="totals-row"><span class="totals-grand-label">Total Amount Received</span><span class="totals-grand-val">${fmtNGN(totalAmount)}</span></div>
+</div>
+
+${payToAcc ? `
+<div class="bank-box">
+  <div class="bank-title">Deposited To / Payment Account</div>
+  <div class="bank-grid">
+    <div class="bank-cell"><span class="bank-label">Bank Name</span><span class="bank-val">${payToAcc.bank_name}</span></div>
+    <div class="bank-cell"><span class="bank-label">Account Number</span><span class="bank-val" style="font-size:14px;letter-spacing:1px">${payToAcc.account_number}</span></div>
+    <div class="bank-cell" style="grid-column:span 2"><span class="bank-label">Account Name</span><span class="bank-val">${payToAcc.account_name}</span></div>
+  </div>
+</div>` : ''}
+
+${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}</div>` : ''}
+
+<div class="footer">
+  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">${receiptForm.payer_type === 'school' ? 'School Principal / Authority' : 'Payer Signature'}</div></div>
+  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">${receiptForm.received_by || 'Rillcod Technologies Representative'}</div></div>
+  <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Finance Officer / Stamp</div></div>
+</div>
+<div class="watermark">Official payment receipt from Rillcod Technologies · Reference: ${docRef} · ${dateStr}</div>
+<div style="text-align:center;margin-top:10px">
+  <button class="no-print" onclick="window.print()" style="padding:10px 28px;background:#059669;color:#fff;border:none;border-radius:8px;font-weight:900;font-size:13px;cursor:pointer;letter-spacing:1px">🖨 Print Receipt</button>
+</div>
 </body></html>`;
 
     const w = window.open('', '_blank', 'width=900,height=800');
@@ -966,12 +1176,19 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                 </div>
                 <h2 className="text-2xl font-black">Billing & Invoices</h2>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {isAdmin && schools.length > 0 && (
                   <button
-                    onClick={() => setShowSchoolInvoice(v => !v)}
+                    onClick={() => { setShowSchoolInvoice(v => !v); setShowReceiptBuilder(false); }}
                     className={`px-5 py-2.5 font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg hover:scale-105 active:scale-95 ${showSchoolInvoice ? 'bg-orange-600 text-foreground shadow-orange-900/40' : 'bg-orange-600/20 border border-orange-500/30 text-orange-400'}`}>
                     {showSchoolInvoice ? '✕ Close' : '🏫 School Invoice'}
+                  </button>
+                )}
+                {canManage && (
+                  <button
+                    onClick={() => { setShowReceiptBuilder(v => !v); setShowSchoolInvoice(false); }}
+                    className={`px-5 py-2.5 font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg hover:scale-105 active:scale-95 ${showReceiptBuilder ? 'bg-emerald-600 text-foreground shadow-emerald-900/40' : 'bg-emerald-600/20 border border-emerald-500/30 text-emerald-400'}`}>
+                    {showReceiptBuilder ? '✕ Close' : '🧾 Build Receipt'}
                   </button>
                 )}
                 {canManage && (
@@ -989,10 +1206,27 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
               <div className="bg-orange-600/10 border border-orange-500/30 rounded-none p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-black text-orange-400 uppercase tracking-widest mb-0.5">Intelligent School Invoice</p>
-                    <p className="text-foreground font-bold text-sm">Compute and print a school invoice based on student count × rate per child</p>
+                    <p className="text-xs font-black text-orange-400 uppercase tracking-widest mb-0.5">School Invoice Builder</p>
+                    <p className="text-foreground font-bold text-sm">Generate a school invoice — per-student rate or fixed package deal</p>
                   </div>
                 </div>
+
+                {/* Pricing mode toggle */}
+                <div className="flex items-center gap-2 p-1 bg-card shadow-sm border border-border rounded-none w-fit">
+                  {(['per_student', 'fixed_package'] as const).map(mode => (
+                    <button key={mode} type="button"
+                      onClick={() => setSchoolInvForm(prev => ({ ...prev, pricing_mode: mode }))}
+                      className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-none transition-all ${schoolInvForm.pricing_mode === mode ? 'bg-orange-600 text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                      {mode === 'per_student' ? '👤 Per Student (Rate × Count)' : '🏫 Fixed School Package'}
+                    </button>
+                  ))}
+                </div>
+                {schoolInvForm.pricing_mode === 'fixed_package' && (
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-none px-4 py-2.5 text-xs text-amber-400 font-semibold">
+                    Fixed Package: the school pays one flat price regardless of student count — e.g. when the school has made the programme compulsory and negotiated a deal.
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="lg:col-span-2">
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Select School</label>
@@ -1010,7 +1244,9 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Student Count Override</label>
+                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">
+                      Student Count {schoolInvForm.pricing_mode === 'fixed_package' ? '(Informational)' : 'Override'}
+                    </label>
                     <input
                       type="number"
                       min="0"
@@ -1020,6 +1256,7 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                       className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 font-bold"
                     />
                   </div>
+                  {schoolInvForm.pricing_mode === 'per_student' ? (
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Rate per Child (₦)</label>
                     <input
@@ -1031,6 +1268,19 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                       className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500"
                     />
                   </div>
+                  ) : (
+                  <div>
+                    <label className="block text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1.5">Fixed Package Price (₦)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 150000"
+                      value={schoolInvForm.fixed_package_price}
+                      onChange={e => setSchoolInvForm(prev => ({ ...prev, fixed_package_price: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-none text-sm text-amber-300 focus:outline-none focus:border-amber-500 font-bold"
+                    />
+                  </div>
+                  )}
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">
                       Rillcod % Share
@@ -1118,58 +1368,230 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                         <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
                         Counting students…
                       </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-6 items-center">
-                        <div>
-                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Active Students</p>
-                          <p className="text-2xl font-black text-orange-400">{schoolInvForm.manual_student_count || schoolInvStudentCount || 0}</p>
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Rate / Child</p>
-                          <p className="text-2xl font-black text-foreground">₦{(parseFloat(schoolInvForm.rate_per_child) || 0).toLocaleString()}</p>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Total Invoice</p>
-                          <p className="text-2xl font-black text-emerald-400">
-                            ₦{((parseInt(schoolInvForm.manual_student_count) || schoolInvStudentCount || 0) * (parseFloat(schoolInvForm.rate_per_child) || 0)).toLocaleString()}
-                          </p>
-                        </div>
-                        {schoolInvForm.deposit_amount && parseFloat(schoolInvForm.deposit_amount) > 0 && (
-                          <div className="bg-emerald-500/10 px-4 py-2 rounded-none border border-emerald-500/20">
-                            <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Balance Payable</p>
-                            <p className="text-2xl font-black text-emerald-300">
-                              ₦{(((parseInt(schoolInvForm.manual_student_count) || schoolInvStudentCount || 0) * (parseFloat(schoolInvForm.rate_per_child) || 0)) - parseFloat(schoolInvForm.deposit_amount)).toLocaleString()}
-                            </p>
+                    ) : (() => {
+                      const isFixed = schoolInvForm.pricing_mode === 'fixed_package';
+                      const count = parseInt(schoolInvForm.manual_student_count) || schoolInvStudentCount || 0;
+                      const ratePerChild = parseFloat(schoolInvForm.rate_per_child) || 0;
+                      const fixedPrice = parseFloat(schoolInvForm.fixed_package_price) || 0;
+                      const subtotal = isFixed ? fixedPrice : ratePerChild * count;
+                      const deposit = parseFloat(schoolInvForm.deposit_amount) || 0;
+                      const balance = subtotal - deposit;
+                      const quotaPct = parseFloat(schoolInvForm.rillcod_quota_percent) || 0;
+                      return (
+                        <div className="flex flex-wrap gap-6 items-center">
+                          <div>
+                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Students</p>
+                            <p className="text-2xl font-black text-orange-400">{count}</p>
                           </div>
-                        )}
-                        {schoolInvForm.rillcod_quota_percent && schoolInvForm.show_revenue_share && (
-                          <>
+                          {!isFixed && (
                             <div>
-                              <p className="text-[9px] font-black text-orange-400/60 uppercase tracking-widest">Rillcod {schoolInvForm.rillcod_quota_percent}%</p>
-                              <p className="text-lg font-black text-orange-400">
-                                ₦{Math.round((parseInt(schoolInvForm.manual_student_count) || schoolInvStudentCount || 0) * (parseFloat(schoolInvForm.rate_per_child) || 0) * (parseFloat(schoolInvForm.rillcod_quota_percent) / 100)).toLocaleString()}
-                              </p>
+                              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Rate / Child</p>
+                              <p className="text-2xl font-black text-foreground">₦{ratePerChild.toLocaleString()}</p>
                             </div>
-                            <div>
-                              <p className="text-[9px] font-black text-emerald-400/60 uppercase tracking-widest">School {100 - parseFloat(schoolInvForm.rillcod_quota_percent)}%</p>
-                              <p className="text-lg font-black text-emerald-400">
-                                ₦{Math.round((parseInt(schoolInvForm.manual_student_count) || schoolInvStudentCount || 0) * (parseFloat(schoolInvForm.rate_per_child) || 0) * ((100 - parseFloat(schoolInvForm.rillcod_quota_percent)) / 100)).toLocaleString()}
-                              </p>
+                          )}
+                          {isFixed && (
+                            <div className="bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-none">
+                              <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest">Fixed Package</p>
+                              <p className="text-2xl font-black text-amber-300">₦{fixedPrice.toLocaleString()}</p>
                             </div>
-                          </>
-                        )}
-                      </div>
-                    )}
+                          )}
+                          <div className="flex-1">
+                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Invoice Total</p>
+                            <p className="text-2xl font-black text-emerald-400">₦{subtotal.toLocaleString()}</p>
+                          </div>
+                          {deposit > 0 && (
+                            <div className="bg-emerald-500/10 px-4 py-2 rounded-none border border-emerald-500/20">
+                              <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Balance Payable</p>
+                              <p className="text-2xl font-black text-emerald-300">₦{balance.toLocaleString()}</p>
+                            </div>
+                          )}
+                          {quotaPct > 0 && schoolInvForm.show_revenue_share && (
+                            <>
+                              <div>
+                                <p className="text-[9px] font-black text-orange-400/60 uppercase tracking-widest">Rillcod {quotaPct}%</p>
+                                <p className="text-lg font-black text-orange-400">₦{Math.round(subtotal * (quotaPct / 100)).toLocaleString()}</p>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-black text-emerald-400/60 uppercase tracking-widest">School {100 - quotaPct}%</p>
+                                <p className="text-lg font-black text-emerald-400">₦{Math.round(subtotal * ((100 - quotaPct) / 100)).toLocaleString()}</p>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
                 <div className="flex justify-end">
                   <button
                     onClick={handlePrintSchoolInvoice}
-                    disabled={!schoolInvForm.school_id || !(parseFloat(schoolInvForm.rate_per_child) > 0)}
+                    disabled={!schoolInvForm.school_id || (schoolInvForm.pricing_mode === 'per_student' ? !(parseFloat(schoolInvForm.rate_per_child) > 0) : !(parseFloat(schoolInvForm.fixed_package_price) > 0))}
                     className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg shadow-orange-900/40"
                   >
                     <DocumentTextIcon className="w-4 h-4" /> Generate &amp; Print Invoice
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Receipt Builder ── */}
+            {showReceiptBuilder && canManage && (
+              <div className="bg-emerald-600/10 border border-emerald-500/30 rounded-none p-6 space-y-5">
+                <div>
+                  <p className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-0.5">Receipt Builder</p>
+                  <p className="text-foreground font-bold text-sm">Build and print an official payment receipt for a school or student</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Payer */}
+                  <div>
+                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Received From (Payer)</label>
+                    <input
+                      type="text"
+                      placeholder="School name, student name, or organisation"
+                      value={receiptForm.payer_name}
+                      onChange={e => setReceiptForm(prev => ({ ...prev, payer_name: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Payer Type</label>
+                    <select value={receiptForm.payer_type} onChange={e => setReceiptForm(prev => ({ ...prev, payer_type: e.target.value as any }))}
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500">
+                      <option value="school">School / Institution</option>
+                      <option value="student">Student / Parent</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Link to School (optional)</label>
+                    <select value={receiptForm.school_id} onChange={e => setReceiptForm(prev => ({ ...prev, school_id: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500">
+                      <option value="">— No school link —</option>
+                      {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Payment Method</label>
+                    <select value={receiptForm.payment_method} onChange={e => setReceiptForm(prev => ({ ...prev, payment_method: e.target.value as any }))}
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500">
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="cash">Cash</option>
+                      <option value="pos">POS Terminal</option>
+                      <option value="cheque">Cheque</option>
+                      <option value="online">Online Payment</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Payment Date</label>
+                    <input type="date" value={receiptForm.payment_date}
+                      onChange={e => setReceiptForm(prev => ({ ...prev, payment_date: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Receipt Reference (auto if blank)</label>
+                    <input type="text" placeholder="e.g. RCPT-2025-001" value={receiptForm.reference}
+                      onChange={e => setReceiptForm(prev => ({ ...prev, reference: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Received By / Signatory</label>
+                    <input type="text" placeholder="e.g. Admin, Finance Officer" value={receiptForm.received_by}
+                      onChange={e => setReceiptForm(prev => ({ ...prev, received_by: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Deposited To (Account)</label>
+                    <select value={receiptForm.pay_to_account_id} onChange={e => setReceiptForm(prev => ({ ...prev, pay_to_account_id: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500">
+                      <option value="">— Select account —</option>
+                      {accounts.map(a => <option key={a.id} value={a.id}>{a.label} — {a.bank_name}</option>)}
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Notes (optional)</label>
+                    <input type="text" placeholder="e.g. First term 2025/2026 coding club payment" value={receiptForm.notes}
+                      onChange={e => setReceiptForm(prev => ({ ...prev, notes: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+                  </div>
+                </div>
+
+                {/* Line items */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest">Line Items</label>
+                    <button type="button" onClick={() => setReceiptForm(prev => ({ ...prev, items: [...prev.items, { description: '', quantity: 1, unit_price: 0 }] }))}
+                      className="text-[10px] font-black text-emerald-400 hover:text-emerald-300 uppercase tracking-widest transition-colors">+ Add Line</button>
+                  </div>
+                  <div className="space-y-2">
+                    {receiptForm.items.map((item, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <input type="text" placeholder="Description (e.g. Coding Club Fee Q1)" value={item.description}
+                          onChange={e => setReceiptForm(prev => { const it = [...prev.items]; it[idx] = { ...it[idx], description: e.target.value }; return { ...prev, items: it }; })}
+                          className="flex-1 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+                        <input type="number" placeholder="Qty" min="1" value={item.quantity}
+                          onChange={e => setReceiptForm(prev => { const it = [...prev.items]; it[idx] = { ...it[idx], quantity: parseInt(e.target.value) || 1 }; return { ...prev, items: it }; })}
+                          className="w-16 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500 text-center" />
+                        <input type="number" placeholder="Unit ₦" min="0" value={item.unit_price || ''}
+                          onChange={e => setReceiptForm(prev => { const it = [...prev.items]; it[idx] = { ...it[idx], unit_price: parseFloat(e.target.value) || 0 }; return { ...prev, items: it }; })}
+                          className="w-32 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-emerald-500" />
+                        <span className="text-sm font-black text-emerald-400 w-28 text-right flex-shrink-0">
+                          ₦{(item.quantity * item.unit_price).toLocaleString()}
+                        </span>
+                        {receiptForm.items.length > 1 && (
+                          <button type="button" onClick={() => setReceiptForm(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}
+                            className="text-rose-400 hover:text-rose-300 font-black text-xs flex-shrink-0">✕</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-end mt-2">
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 px-5 py-2 rounded-none">
+                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Total: </span>
+                      <span className="text-lg font-black text-emerald-300">
+                        ₦{receiptForm.items.reduce((s, i) => s + i.quantity * i.unit_price, 0).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      const items = receiptForm.items.filter(i => i.description && i.unit_price > 0);
+                      const totalAmount = items.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
+                      if (totalAmount === 0) { alert('Add at least one line item with an amount.'); return; }
+                      const sch = receiptForm.school_id ? schools.find(s => s.id === receiptForm.school_id) : null;
+                      const docRef = receiptForm.reference || `RCPT-${Date.now().toString(36).toUpperCase()}`;
+                      setViewDoc({
+                        type: 'receipt',
+                        data: {
+                          number: docRef,
+                          date: receiptForm.payment_date || new Date().toISOString().split('T')[0],
+                          status: 'paid',
+                          items: items.map(i => ({ description: i.description, quantity: i.quantity, unit_price: i.unit_price, total: i.quantity * i.unit_price })),
+                          amount: totalAmount,
+                          currency: 'NGN',
+                          studentName: receiptForm.payer_name || sch?.name || 'Client',
+                          schoolName: 'RILLCOD TECHNOLOGIES',
+                          notes: receiptForm.notes,
+                          transactionRef: docRef,
+                          instructorName: receiptForm.received_by || 'Accounts Department',
+                        }
+                      });
+                    }}
+                    disabled={!receiptForm.payer_name || receiptForm.items.every(i => i.unit_price === 0)}
+                    className="flex items-center gap-2 px-6 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all"
+                  >
+                    <DocumentTextIcon className="w-4 h-4" /> Preview Receipt
+                  </button>
+                  <button
+                    onClick={handlePrintReceipt}
+                    disabled={!receiptForm.payer_name || receiptForm.items.every(i => i.unit_price === 0)}
+                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg shadow-emerald-900/40"
+                  >
+                    <ReceiptPercentIcon className="w-4 h-4" /> Print Receipt
                   </button>
                 </div>
               </div>
@@ -1300,9 +1722,9 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
 
       {/* ── Document Viewer Overlay ── */}
       {viewDoc && (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md overflow-y-auto pt-10 pb-20 px-4">
-          <div className="relative max-w-[794px] mx-auto min-h-screen">
-            <div className="fixed top-6 right-6 flex items-center gap-3 z-[110]">
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md overflow-y-auto pt-20 pb-20 px-0 sm:px-4">
+          <div className="relative max-w-[850px] mx-auto">
+            <div className="fixed top-4 right-4 flex flex-wrap items-center gap-2 z-[110]">
               {viewDoc.type === 'invoice' && viewDoc.data.status !== 'paid' && 
                 (profile?.role === 'student' || profile?.role === 'school') && (
                 <button 
@@ -1340,7 +1762,7 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
                 <XMarkIcon className="w-6 h-6" />
               </button>
             </div>
-            <div className="scale-90 sm:scale-100 origin-top">
+            <div className="mt-4">
               <SmartDocument type={viewDoc.type} data={viewDoc.data} />
             </div>
           </div>

@@ -136,94 +136,94 @@ export function CertificateCard({ cert }: CertificateProps) {
                     </>
                 )}
 
-                <CardContent className="relative p-16 text-center flex flex-col items-center justify-between h-full space-y-10 z-10">
+                <CardContent className="relative p-5 sm:p-10 md:p-16 text-center flex flex-col items-center justify-between h-full space-y-5 sm:space-y-8 md:space-y-10 z-10">
                     {/* Header Logotype */}
-                    <div className="space-y-6">
-                        <img 
-                            src="/images/logo.png" 
-                            alt="Rillcod" 
-                            className={`h-16 mx-auto ${template === 'academic' ? 'grayscale brightness-50' : 'brightness-125'}`}
+                    <div className="space-y-3 sm:space-y-5">
+                        <img
+                            src="/images/logo.png"
+                            alt="Rillcod"
+                            className={`h-10 sm:h-14 md:h-16 mx-auto ${template === 'academic' ? 'grayscale brightness-50' : 'brightness-125'}`}
                             crossOrigin="anonymous"
                         />
-                        <div className={`text-[11px] font-black uppercase tracking-[0.5em] ${template === 'academic' ? 'text-slate-900 border-t border-b border-black py-2' : 'text-primary'}`}>
+                        <div className={`text-[9px] sm:text-[11px] font-black uppercase tracking-[0.3em] sm:tracking-[0.5em] ${template === 'academic' ? 'text-slate-900 border-t border-b border-black py-2' : 'text-primary'}`}>
                             RILLCOD TECHNOLOGIES &middot; QUANTUM LEARNING
                         </div>
                     </div>
 
                     {/* Main Title Area */}
-                    <div className="space-y-8 flex-1 flex flex-col justify-center">
-                        <div className="space-y-3">
-                            <h3 className={`text-[12px] font-black uppercase tracking-[0.4em] ${template === 'academic' ? 'text-slate-500 italic font-medium' : 'text-slate-500'}`}>
+                    <div className="space-y-4 sm:space-y-6 md:space-y-8 flex-1 flex flex-col justify-center">
+                        <div className="space-y-2 sm:space-y-3">
+                            <h3 className={`text-[10px] sm:text-[12px] font-black uppercase tracking-[0.2em] sm:tracking-[0.4em] ${template === 'academic' ? 'text-slate-500 italic font-medium' : 'text-slate-500'}`}>
                                 Verified Academic Credential
                             </h3>
-                            <h2 className={`text-6xl lg:text-7xl font-black italic tracking-tighter uppercase leading-[0.85] ${
+                            <h2 className={`text-3xl sm:text-5xl lg:text-7xl font-black italic tracking-tighter uppercase leading-[0.85] ${
                                 template === 'academic' ? 'text-[#1e293b]' : 'text-white'
                             }`}>
                                 Certificate <br/> Of <span className="text-primary NOT-italic">Mastery</span>
                             </h2>
                         </div>
 
-                        <div className={`w-32 h-[2px] mx-auto ${template === 'academic' ? 'bg-[#1e293b]' : 'bg-primary/40'}`} />
+                        <div className={`w-16 sm:w-32 h-[2px] mx-auto ${template === 'academic' ? 'bg-[#1e293b]' : 'bg-primary/40'}`} />
 
-                        <div className="space-y-4">
-                            <p className={`text-[11px] uppercase tracking-[0.4em] font-black ${template === 'academic' ? 'text-slate-600' : 'text-slate-500'}`}>
+                        <div className="space-y-2 sm:space-y-4">
+                            <p className={`text-[9px] sm:text-[11px] uppercase tracking-[0.2em] sm:tracking-[0.4em] font-black ${template === 'academic' ? 'text-slate-600' : 'text-slate-500'}`}>
                                 This Record Confirms That
                             </p>
-                            <h1 className={`text-5xl lg:text-6xl font-black italic uppercase tracking-tighter leading-none ${
-                                template === 'academic' ? 'text-black border-b-[3px] border-primary pb-4 px-12' : 'text-primary drop-shadow-[0_0_15px_rgba(255,145,77,0.3)]'
+                            <h1 className={`text-2xl sm:text-4xl lg:text-6xl font-black italic uppercase tracking-tighter leading-none break-words ${
+                                template === 'academic' ? 'text-black border-b-[3px] border-primary pb-3 sm:pb-4 px-4 sm:px-12' : 'text-primary drop-shadow-[0_0_15px_rgba(255,145,77,0.3)]'
                             }`}>
                                 {studentName}
                             </h1>
                         </div>
 
-                        <div className="space-y-4 pt-4">
-                            <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em] italic">
+                        <div className="space-y-3 sm:space-y-4 pt-2 sm:pt-4">
+                            <p className="text-[9px] sm:text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] sm:tracking-[0.3em] italic">
                                 has established proficiency in the curriculum of
                             </p>
-                            <div className="space-y-2">
-                                <h4 className={`text-3xl font-black uppercase tracking-tight ${template === 'academic' ? 'text-black' : 'text-white'}`}>
+                            <div className="space-y-1.5 sm:space-y-2">
+                                <h4 className={`text-lg sm:text-2xl md:text-3xl font-black uppercase tracking-tight break-words ${template === 'academic' ? 'text-black' : 'text-white'}`}>
                                     {courseTitle}
                                 </h4>
-                                <div className="flex items-center justify-center gap-4">
-                                    <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{programName}</span>
-                                    <div className="w-1 h-1 bg-slate-700" />
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Class: {studentClass}</span>
+                                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+                                    <span className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-[0.15em] sm:tracking-[0.2em]">{programName}</span>
+                                    <div className="w-1 h-1 bg-slate-700 hidden sm:block" />
+                                    <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] sm:tracking-[0.2em]">Class: {studentClass}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Verification & Signatures */}
-                    <div className="w-full grid grid-cols-3 items-end gap-12 pt-12">
+                    <div className="w-full grid grid-cols-3 items-end gap-3 sm:gap-6 md:gap-12 pt-4 sm:pt-8 md:pt-12">
                         {/* Left: QR Placeholder */}
-                        <div className="flex flex-col items-start gap-3">
-                            <div className={`p-2 border transition-all ${template === 'academic' ? 'border-slate-900 bg-white' : 'border-primary/30 bg-primary/5 group/qr hover:border-primary'}`}>
-                                <QrCodeIcon className={`w-16 h-16 ${template === 'academic' ? 'text-black' : 'text-primary'}`} />
+                        <div className="flex flex-col items-start gap-1.5 sm:gap-3">
+                            <div className={`p-1.5 sm:p-2 border transition-all ${template === 'academic' ? 'border-slate-900 bg-white' : 'border-primary/30 bg-primary/5 group/qr hover:border-primary'}`}>
+                                <QrCodeIcon className={`w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16 ${template === 'academic' ? 'text-black' : 'text-primary'}`} />
                             </div>
                             <div className="text-left space-y-0.5">
-                                <p className="text-[8px] font-black uppercase text-slate-600 tracking-widest">VALIDATION HASH</p>
-                                <p className={`text-[10px] font-mono font-black tracking-tighter ${template === 'academic' ? 'text-black' : 'text-white'}`}>{cert.verification_code}</p>
+                                <p className="text-[7px] sm:text-[8px] font-black uppercase text-slate-600 tracking-widest">VALIDATION HASH</p>
+                                <p className={`text-[8px] sm:text-[10px] font-mono font-black tracking-tighter break-all ${template === 'academic' ? 'text-black' : 'text-white'}`}>{cert.verification_code}</p>
                             </div>
                         </div>
 
                         {/* Middle/Center: Signature 1 */}
                         <div className="flex flex-col items-center">
-                            <div className="relative mb-2">
-                                <img src="/images/signature.png" alt="Director" className={`h-16 w-auto ${template === 'vanguard' ? 'invert brightness-[500%]' : template === 'academic' ? 'contrast-200 grayscale' : 'brightness-125'}`} crossOrigin="anonymous" />
+                            <div className="relative mb-1 sm:mb-2">
+                                <img src="/images/signature.png" alt="Director" className={`h-8 sm:h-12 md:h-16 w-auto ${template === 'vanguard' ? 'invert brightness-[500%]' : template === 'academic' ? 'contrast-200 grayscale' : 'brightness-125'}`} crossOrigin="anonymous" onError={e => (e.currentTarget.style.display = 'none')} />
                             </div>
-                            <div className={`w-full h-[1.5px] mb-3 ${template === 'academic' ? 'bg-black' : 'bg-primary'}`} />
-                            <p className={`text-[10px] font-black uppercase tracking-widest ${template === 'academic' ? 'text-black' : 'text-white'}`}>Director General</p>
-                            <p className="text-[8px] font-black text-slate-600 uppercase tracking-tighter">Academic Standards Board</p>
+                            <div className={`w-full h-[1.5px] mb-1.5 sm:mb-3 ${template === 'academic' ? 'bg-black' : 'bg-primary'}`} />
+                            <p className={`text-[8px] sm:text-[10px] font-black uppercase tracking-widest ${template === 'academic' ? 'text-black' : 'text-white'}`}>Director General</p>
+                            <p className="text-[7px] sm:text-[8px] font-black text-slate-600 uppercase tracking-tighter hidden sm:block">Academic Standards Board</p>
                         </div>
 
                         {/* Right: Signature 2 */}
                         <div className="flex flex-col items-center">
-                            <div className="relative mb-2">
-                                <img src="/images/signature.png" alt="Head" className={`h-16 w-auto ${template === 'vanguard' ? 'invert brightness-[500%]' : template === 'academic' ? 'contrast-200 grayscale' : 'brightness-125'}`} crossOrigin="anonymous" />
+                            <div className="relative mb-1 sm:mb-2">
+                                <img src="/images/signature.png" alt="Head" className={`h-8 sm:h-12 md:h-16 w-auto ${template === 'vanguard' ? 'invert brightness-[500%]' : template === 'academic' ? 'contrast-200 grayscale' : 'brightness-125'}`} crossOrigin="anonymous" onError={e => (e.currentTarget.style.display = 'none')} />
                             </div>
-                            <div className={`w-full h-[1.5px] mb-3 ${template === 'academic' ? 'bg-black' : 'bg-primary'}`} />
-                            <p className={`text-[10px] font-black uppercase tracking-widest ${template === 'academic' ? 'text-black' : 'text-white'}`}>Head of Technology</p>
-                            <p className="text-[8px] font-black text-slate-600 uppercase tracking-tighter">Credential Verification Depot</p>
+                            <div className={`w-full h-[1.5px] mb-1.5 sm:mb-3 ${template === 'academic' ? 'bg-black' : 'bg-primary'}`} />
+                            <p className={`text-[8px] sm:text-[10px] font-black uppercase tracking-widest ${template === 'academic' ? 'text-black' : 'text-white'}`}>Head of Technology</p>
+                            <p className="text-[7px] sm:text-[8px] font-black text-slate-600 uppercase tracking-tighter hidden sm:block">Credential Verification Depot</p>
                         </div>
                     </div>
                 </CardContent>

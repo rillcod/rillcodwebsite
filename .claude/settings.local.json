@@ -31,7 +31,9 @@
       "Bash(cd:*)",
       "Bash(head:*)",
       "Bash(cat:*)",
-      "WebFetch(domain:rillcod.com)"
+      "WebFetch(domain:rillcod.com)",
+      "Bash(find C:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main -type f \\\\\\(-name *migration* -o -name *seed* -o -name *.sql \\\\\\))",
+      "Bash(grep -A 10 \"createClient\\(\\)\" /c/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/src/app/dashboard/cbt/[id]/page.tsx)"
     ]
   }
 }

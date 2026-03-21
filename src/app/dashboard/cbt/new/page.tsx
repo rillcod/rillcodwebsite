@@ -289,8 +289,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:
 @page{size:A4;margin:12mm 14mm}
 @media print{body{padding:0}.no-print{display:none!important}}
 .header{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:3px solid #7c3aed;padding-bottom:12px;margin-bottom:14px}
-.logo-block{display:flex;align-items:center;gap:10px}
-.logo-circle{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;color:white;font-weight:900;font-size:17px}
+.logo-block{display:flex;align-items:center;gap:12px}
+.logo-img{width:52px;height:52px;object-fit:contain}
 .org-name{font-size:18px;font-weight:900;color:#7c3aed}
 .org-sub{font-size:9px;color:#6b7280;margin-top:2px}
 .doc-meta{text-align:right;font-size:9px;color:#6b7280;line-height:1.6}
@@ -318,7 +318,7 @@ tbody tr:nth-child(even){background:#f9fafb}
 </style></head><body>
 <div class="header">
   <div class="logo-block">
-    <div class="logo-circle">R</div>
+    <img src="${window.location.origin}/logo.png" alt="Rillcod Logo" class="logo-img" onerror="this.style.display='none'" />
     <div>
       <div class="org-name">Rillcod Technologies</div>
       <div class="org-sub">Technology &amp; Innovation in Education</div>
@@ -356,7 +356,7 @@ ${questionRows}
 <div class="page-break">
   <div class="header" style="border-bottom:3px solid #dc2626;padding-bottom:10px;margin-bottom:14px">
     <div class="logo-block">
-      <div class="logo-circle" style="background:linear-gradient(135deg,#dc2626,#b91c1c)">R</div>
+      <img src="${window.location.origin}/logo.png" alt="Rillcod Logo" class="logo-img" onerror="this.style.display='none'" />
       <div>
         <div class="org-name" style="color:#dc2626">Rillcod Technologies — Marking Guide</div>
         <div class="org-sub">CONFIDENTIAL — For Examiner Use Only · Do Not Distribute</div>

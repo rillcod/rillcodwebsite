@@ -1,8 +1,9 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { fetchCourses, fetchStudentCourses } from '@/services/dashboard.service';
 import {
@@ -22,12 +23,60 @@ const LEVEL_BADGE: Record<string, string> = {
   advanced: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
 };
 
+function CourseCard({ course, i, canEdit, deleting, onDelete }: {
+  course: any; i: number; canEdit: boolean;
+  deleting: string | null; onDelete: (id: string, title: string) => void;
+}) {
+  return (
+    <div className="bg-card shadow-sm border border-border rounded-none overflow-hidden hover:border-orange-500/30 transition-all flex flex-col group">
+      <div className={`h-1.5 bg-gradient-to-r ${GRADIENTS[i % GRADIENTS.length]}`} />
+      <div className="p-5 flex-1 flex flex-col">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">{course.programs?.name ?? 'No Program'}</span>
+          <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${course.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border'}`}>
+            {course.is_active ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+        <h3 className="font-bold text-foreground line-clamp-2 mb-2 group-hover:text-orange-400 transition-colors">{course.title}</h3>
+        {course.description && <p className="text-xs text-muted-foreground line-clamp-2 mb-3 flex-1">{course.description}</p>}
+        <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4">
+          {course.duration_hours && <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{course.duration_hours}h</span>}
+          <span className="flex items-center gap-1"><UserGroupIcon className="w-3.5 h-3.5" />{course.assignment_submissions?.length ?? 0} submissions</span>
+        </div>
+        <div className="flex gap-2 mt-auto">
+          <Link href={`/dashboard/courses/${course.id}`}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 rounded-none transition-colors">
+            <EyeIcon className="w-3.5 h-3.5" /> View
+          </Link>
+          {canEdit && (
+            <>
+              <Link href={`/dashboard/courses/${course.id}/edit`}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
+                <PencilIcon className="w-3.5 h-3.5" /> Edit
+              </Link>
+              <button
+                onClick={() => onDelete(course.id, course.title)}
+                disabled={deleting === course.id}
+                className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-none transition-colors disabled:opacity-40">
+                <TrashIcon className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CoursesPage() {
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const [courses, setCourses] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [programFilter, setProgramFilter] = useState<string>(searchParams?.get('program') ?? 'all');
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
@@ -53,13 +102,19 @@ export default function CoursesPage() {
       setLoading(true);
       setError(null);
       try {
-        const data = isStaff
-          ? await fetchCourses(undefined, {
-            schoolId: profile?.school_id || undefined,
-            schoolName: profile?.school_name || undefined
-          })
-          : await fetchStudentCourses(profile?.id || '');
-        if (!cancelled) setCourses(data);
+        const [data, progRes] = await Promise.all([
+          isStaff
+            ? fetchCourses(undefined, { schoolId: profile?.school_id || undefined, schoolName: profile?.school_name || undefined })
+            : fetchStudentCourses(profile?.id || ''),
+          fetch('/api/programs', { cache: 'no-store' }),
+        ]);
+        if (!cancelled) {
+          setCourses(data);
+          if (progRes.ok) {
+            const pj = await progRes.json();
+            setPrograms(pj.data ?? []);
+          }
+        }
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'Failed to load courses');
       } finally {
@@ -72,8 +127,24 @@ export default function CoursesPage() {
 
   const filtered = courses.filter(c => {
     const title = isStaff ? (c.title ?? '') : (c.programs?.name ?? '');
-    return title.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = title.toLowerCase().includes(search.toLowerCase());
+    const matchProgram = programFilter === 'all' || (isStaff ? c.program_id === programFilter : c.programs?.id === programFilter);
+    return matchSearch && matchProgram;
   });
+
+  // Group staff courses by program for display
+  const grouped: { programId: string; programName: string; courses: any[] }[] = [];
+  if (isStaff && programFilter === 'all' && !search) {
+    const seen = new Set<string>();
+    for (const c of filtered) {
+      const pid = c.program_id ?? '__none__';
+      if (!seen.has(pid)) {
+        seen.add(pid);
+        grouped.push({ programId: pid, programName: c.programs?.name ?? 'Uncategorised', courses: [] });
+      }
+      grouped.find(g => g.programId === pid)!.courses.push(c);
+    }
+  }
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -141,12 +212,26 @@ export default function CoursesPage() {
           );
         })()}
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input type="text" placeholder="Search courses…" value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+        {/* Search + Program Filter */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 max-w-md">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input type="text" placeholder="Search courses…" value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+          </div>
+          {isStaff && programs.length > 0 && (
+            <select
+              value={programFilter}
+              onChange={e => setProgramFilter(e.target.value)}
+              className="px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[200px]"
+            >
+              <option value="all">All Programs</option>
+              {programs.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Empty */}
@@ -159,48 +244,32 @@ export default function CoursesPage() {
             </p>
           </div>
         ) : isStaff ? (
-          /* Staff grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map((course: any, i: number) => (
-              <div key={course.id} className="bg-card shadow-sm border border-border rounded-none overflow-hidden hover:border-border hover:bg-white/8 transition-all flex flex-col">
-                <div className={`h-28 bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} relative overflow-hidden flex items-center justify-center`}>
-                  <AcademicCapIcon className="w-14 h-14 text-muted-foreground" />
-                  <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-bold border bg-black/20 text-foreground border-border">
-                    {course.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-                <div className="p-5 flex-1 flex flex-col">
-                  <p className="text-xs text-muted-foreground mb-1">{course.programs?.name}</p>
-                  <h3 className="font-bold text-foreground line-clamp-2 mb-2">{course.title}</h3>
-                  {course.description && <p className="text-xs text-muted-foreground line-clamp-2 mb-3 flex-1">{course.description}</p>}
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4">
-                    {course.duration_hours && <span className="flex items-center gap-1"><ClockIcon className="w-3.5 h-3.5" />{course.duration_hours}h</span>}
-                    <span className="flex items-center gap-1"><UserGroupIcon className="w-3.5 h-3.5" />{course.assignment_submissions?.length ?? 0} submissions</span>
+          /* Staff view — grouped by program when no filter, flat grid when filtered */
+          grouped.length > 0 ? (
+            <div className="space-y-10">
+              {grouped.map((group, gi) => (
+                <div key={group.programId}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <AcademicCapIcon className="w-5 h-5 text-orange-400 flex-shrink-0" />
+                    <h2 className="text-base font-black text-foreground uppercase tracking-tight">{group.programName}</h2>
+                    <span className="text-[10px] font-black text-muted-foreground bg-card border border-border px-2 py-0.5 rounded-full">{group.courses.length} courses</span>
+                    <div className="flex-1 h-px bg-border" />
                   </div>
-                  <div className="flex gap-2 mt-auto">
-                    <Link href={`/dashboard/courses/${course.id}`}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 rounded-none transition-colors">
-                      <EyeIcon className="w-3.5 h-3.5" /> View
-                    </Link>
-                    {canEdit && (
-                      <>
-                        <Link href={`/dashboard/courses/${course.id}/edit`}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-none transition-colors">
-                          <PencilIcon className="w-3.5 h-3.5" /> Edit
-                        </Link>
-                        <button
-                          onClick={() => handleDelete(course.id, course.title)}
-                          disabled={deleting === course.id}
-                          className="p-2 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-none transition-colors disabled:opacity-40">
-                          <TrashIcon className="w-3.5 h-3.5" />
-                        </button>
-                      </>
-                    )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {group.courses.map((course: any, i: number) => (
+                      <CourseCard key={course.id} course={course} i={gi * 10 + i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} />
+                    ))}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filtered.map((course: any, i: number) => (
+                <CourseCard key={course.id} course={course} i={i} canEdit={canEdit} deleting={deleting} onDelete={handleDelete} />
+              ))}
+            </div>
+          )
         ) : (
           /* Student list */
           <div className="space-y-4">

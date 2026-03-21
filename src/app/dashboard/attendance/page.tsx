@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -63,6 +63,19 @@ function AttendanceContent() {
   const [showNewSession, setShowNewSession] = useState(false);
   const [newSession, setNewSession] = useState({ session_date: '', start_time: '', end_time: '', topic: '' });
   const [creatingSession, setCreatingSession] = useState(false);
+
+  // QR Scanner state
+  const [showQrScanner, setShowQrScanner] = useState(false);
+  const [qrScanning, setQrScanning] = useState(false);
+  const [qrStudent, setQrStudent] = useState<{ id: string; name: string; school?: string } | null>(null);
+  const [qrStatus, setQrStatus] = useState<string>('present');
+  const [qrNotes, setQrNotes] = useState('');
+  const [qrMsg, setQrMsg] = useState('');
+  const [qrMsgType, setQrMsgType] = useState<'ok' | 'err'>('ok');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scanLoopRef = useRef<number | null>(null);
+  const hasBarcodeDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
@@ -380,6 +393,117 @@ function AttendanceContent() {
     setLoading(false);
   };
 
+  // Auto-start camera when scanner opens (if BarcodeDetector supported)
+  useEffect(() => {
+    if (showQrScanner && hasBarcodeDetector && !qrStudent) {
+      startQrCamera();
+    }
+    if (!showQrScanner) {
+      stopQrCamera();
+    }
+  }, [showQrScanner]); // eslint-disable-line
+
+  // Stop camera on unmount / when scanner closed
+  useEffect(() => {
+    return () => stopQrCamera();
+  }, []);
+
+  const stopQrCamera = useCallback(() => {
+    if (scanLoopRef.current) cancelAnimationFrame(scanLoopRef.current);
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    setQrScanning(false);
+  }, []);
+
+  const startQrCamera = useCallback(async () => {
+    setQrStudent(null);
+    setQrMsg('');
+    setQrScanning(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      // @ts-ignore
+      const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+      const tick = async () => {
+        if (!videoRef.current || !streamRef.current) return;
+        try {
+          const codes = await detector.detect(videoRef.current);
+          if (codes.length > 0) {
+            const raw = codes[0].rawValue as string;
+            const match = raw.match(/\/student\/([0-9a-f-]{36})/i);
+            if (match) {
+              stopQrCamera();
+              await resolveScannedStudent(match[1]);
+              return;
+            }
+          }
+        } catch (_) {}
+        scanLoopRef.current = requestAnimationFrame(tick);
+      };
+      scanLoopRef.current = requestAnimationFrame(tick);
+    } catch (err: any) {
+      setQrMsg('Camera error: ' + (err.message || 'denied'));
+      setQrMsgType('err');
+      setQrScanning(false);
+    }
+  }, [stopQrCamera]); // eslint-disable-line
+
+  const handleQrPhoto = useCallback(async (file: File) => {
+    setQrStudent(null);
+    setQrMsg('');
+    try {
+      const bitmap = await createImageBitmap(file);
+      // @ts-ignore
+      const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+      const codes = await detector.detect(bitmap);
+      if (codes.length === 0) { setQrMsg('No QR code found in image.'); setQrMsgType('err'); return; }
+      const match = (codes[0].rawValue as string).match(/\/student\/([0-9a-f-]{36})/i);
+      if (!match) { setQrMsg('QR code is not a student ID.'); setQrMsgType('err'); return; }
+      await resolveScannedStudent(match[1]);
+    } catch (err: any) {
+      setQrMsg('Could not read image: ' + (err.message || 'error'));
+      setQrMsgType('err');
+    }
+  }, []); // eslint-disable-line
+
+  const resolveScannedStudent = useCallback(async (studentId: string) => {
+    setQrMsg('Looking up student…');
+    setQrMsgType('ok');
+    try {
+      const res = await fetch(`/api/public/student/${studentId}`);
+      const json = await res.json();
+      if (!res.ok || !json.student) { setQrMsg('Student not found.'); setQrMsgType('err'); return; }
+      const s = json.student;
+      setQrStudent({ id: s.id, name: s.full_name || s.name || 'Unknown', school: s.school_name });
+      setQrStatus('present');
+      setQrNotes('');
+      setQrMsg('');
+    } catch {
+      setQrMsg('Failed to fetch student.'); setQrMsgType('err');
+    }
+  }, []);
+
+  const markQrStudent = useCallback(async () => {
+    if (!qrStudent || !selectedSession) return;
+    const record = { session_id: selectedSession, user_id: qrStudent.id, status: qrStatus, notes: qrNotes || null };
+    const res = await fetch('/api/attendance/upsert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records: [record] }),
+    });
+    if (!res.ok) { setQrMsg('Save failed — try again.'); setQrMsgType('err'); return; }
+    // Update local attendance state if student is in the loaded list
+    setAttendance(prev => ({ ...prev, [qrStudent.id]: { status: qrStatus, notes: qrNotes } }));
+    setSaved(false);
+    setQrMsg(`✓ ${qrStudent.name} marked as ${qrStatus}`);
+    setQrMsgType('ok');
+    setQrStudent(null);
+  }, [qrStudent, selectedSession, qrStatus, qrNotes]);
+
   if (authLoading || profileLoading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
@@ -538,7 +662,112 @@ function AttendanceContent() {
                       className="w-full sm:w-auto px-4 py-3.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-xs font-bold text-muted-foreground hover:text-foreground transition-all">
                       Past / Custom Date
                     </button>
+                    {selectedSession && (
+                      <button
+                        onClick={() => { setShowQrScanner(v => { if (v) { stopQrCamera(); setQrStudent(null); setQrMsg(''); } return !v; }); }}
+                        className={`w-full sm:w-auto px-4 py-3.5 border rounded-none text-xs font-bold transition-all ${showQrScanner ? 'bg-violet-600 border-violet-500 text-white' : 'bg-card shadow-sm border-border text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
+                        📷 Scan QR
+                      </button>
+                    )}
                   </div>
+
+                  {/* QR Scanner Panel */}
+                  {showQrScanner && selectedSession && (
+                    <div className="bg-card shadow-sm border border-violet-500/30 rounded-none p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">QR Code Attendance Scanner</p>
+
+                      {/* No student yet — camera viewfinder + fallback */}
+                      {!qrStudent && (
+                        <div className="space-y-3">
+                          {/* Camera viewfinder (auto-started) */}
+                          {hasBarcodeDetector && (
+                            <div className="relative w-full max-w-xs mx-auto aspect-square bg-black rounded-none overflow-hidden">
+                              <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" playsInline muted />
+                              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <div className="w-48 h-48 border-2 border-violet-400 rounded-sm relative">
+                                  <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-violet-400" />
+                                  <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-violet-400" />
+                                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-violet-400" />
+                                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-violet-400" />
+                                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-violet-400/70 animate-bounce" style={{ animationDuration: '1.5s' }} />
+                                </div>
+                                <p className="mt-3 text-white text-xs font-semibold drop-shadow">
+                                  {qrScanning ? 'Point camera at student QR code' : 'Starting camera…'}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex gap-2">
+                            {hasBarcodeDetector && !qrScanning && (
+                              <button onClick={startQrCamera}
+                                className="flex-1 py-2 rounded-none text-xs font-bold border border-violet-500/30 bg-violet-600/10 text-violet-400 hover:bg-violet-600/20 transition-all">
+                                🔄 Restart Camera
+                              </button>
+                            )}
+                            <label className={`${hasBarcodeDetector ? 'flex-1' : 'w-full'} py-2 rounded-none text-xs font-bold border border-violet-500/30 bg-violet-600/10 text-violet-400 hover:bg-violet-600/20 transition-all cursor-pointer text-center`}>
+                              🖼 Upload Photo Instead
+                              <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) { stopQrCamera(); handleQrPhoto(f); } e.target.value = ''; }} />
+                            </label>
+                          </div>
+
+                          {qrMsg && (
+                            <p className={`text-xs font-semibold px-1 ${qrMsgType === 'ok' ? 'text-teal-400' : 'text-rose-400'}`}>{qrMsg}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Student found — show card + status buttons */}
+                      {qrStudent && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-none p-3">
+                            <div className="w-10 h-10 bg-violet-500/20 border border-violet-500/30 rounded-none flex items-center justify-center text-base font-black text-violet-400 flex-shrink-0">
+                              {qrStudent.name.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="font-bold text-foreground text-sm">{qrStudent.name}</p>
+                              {qrStudent.school && <p className="text-xs text-muted-foreground">{qrStudent.school}</p>}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Mark as</p>
+                            <div className="flex flex-wrap gap-2">
+                              {Object.entries(STATUS_CONFIG).map(([val, c]) => (
+                                <button key={val} onClick={() => setQrStatus(val)}
+                                  className={`px-3 py-1.5 rounded-none text-xs font-bold border transition-all ${qrStatus === val ? `${c.color} scale-105` : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
+                                  {c.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <input type="text" value={qrNotes} onChange={e => setQrNotes(e.target.value)}
+                            placeholder="Notes (optional)"
+                            className="w-full px-3 py-2 bg-background border border-border rounded-none text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-violet-500 transition-colors" />
+                          <div className="flex gap-2">
+                            <button onClick={markQrStudent}
+                              className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-500 text-white rounded-none text-xs font-bold transition-all">
+                              ✓ Confirm Attendance
+                            </button>
+                            <button onClick={() => { setQrStudent(null); setQrMsg(''); }}
+                              className="px-4 py-2.5 bg-card border border-border text-muted-foreground hover:text-foreground rounded-none text-xs font-bold transition-all">
+                              Cancel
+                            </button>
+                          </div>
+                          {qrMsg && (
+                            <p className={`text-xs font-semibold px-1 ${qrMsgType === 'ok' ? 'text-teal-400' : 'text-rose-400'}`}>{qrMsg}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Scan next after success */}
+                      {!qrStudent && qrMsg && qrMsgType === 'ok' && (
+                        <button onClick={() => { setQrMsg(''); startQrCamera(); }}
+                          className="w-full py-2.5 bg-violet-600/20 border border-violet-500/30 text-violet-400 hover:bg-violet-600/30 rounded-none text-xs font-bold transition-all">
+                          📷 Scan Next Student
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {showNewSession && (
                     <div className="bg-card shadow-sm border border-teal-500/10 rounded-none p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
