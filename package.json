@@ -10,7 +10,9 @@
     "create-admin": "node scripts/create-admin.js",
     "upgrade-next": "node scripts/upgrade-next.js",
     "perf:mobile": "node scripts/mobile-performance.js",
-    "seed:programs": "node scripts/seed-courses.js"
+    "seed:programs": "node scripts/seed-courses.js",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview"
   },
   "dependencies": {
     "@capacitor/android": "^8.2.0",
@@ -71,7 +73,6 @@
     "react-qr-code": "^2.0.18",
     "recharts": "^3.7.0",
     "sendpulse-api": "^1.1.7",
-    "sharp": "^0.34.5",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "sonner": "^2.0.7",
@@ -82,8 +83,6 @@
     "zod": "^4.3.6"
   },
   "optionalDependencies": {
-    "@img/sharp-linux-x64": "^0.34.0",
-    "@img/sharp-linuxmusl-x64": "^0.34.0",
     "@tailwindcss/oxide-linux-x64-gnu": "^4.2.1",
     "@tailwindcss/oxide-linux-x64-musl": "^4.2.1",
     "lightningcss-linux-x64-gnu": "^1.29.1",
@@ -91,6 +90,7 @@
   },
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.15.9",
+    "@opennextjs/cloudflare": "^1.17.1",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/cors": "^2.8.19",
     "@types/d3": "^7.4.3",
