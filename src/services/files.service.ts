@@ -31,7 +31,7 @@ export interface FileMetadata {
 }
 
 const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'mp4', 'mp3', 'jpg', 'jpeg', 'png', 'zip'];
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB — Supabase free-tier limit
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 
 export class FilesService {
     private getStorageProvider() {

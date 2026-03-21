@@ -148,26 +148,66 @@ export default function ContentLibraryPage() {
     return result;
   }, [items, search, activeTab, activeCategory, subjectFilter, sortKey, profile?.school_id]);
 
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setSaving(true);
+    setUploadProgress(0);
+    setError(null);
+
+    const isVideo = file.type.startsWith('video/');
+
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error || 'Upload failed');
-      setForm(s => ({
-        ...s,
-        fileId: payload.data.id,
-        title: s.title || file.name.split('.')[0],
-        category: s.category || (file.type.includes('video') ? 'Videos' : 'Guides')
-      }));
+      if (isVideo) {
+        // Direct browser → Supabase upload (bypasses server for large files)
+        const initRes = await fetch('/api/files/upload', {
+          method: 'POST',
+          body: (() => { const f = new FormData(); f.append('resumable', 'true'); f.append('filename', file.name); f.append('size', String(file.size)); f.append('mimeType', file.type); return f; })(),
+        });
+        const initPayload = await initRes.json();
+        if (!initRes.ok) throw new Error(initPayload.error || 'Failed to initiate upload');
+
+        const { signedUrl, path, originalFilename, mimeType, size } = initPayload.data;
+
+        // Upload directly to Supabase storage using XHR for progress tracking
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.upload.onprogress = (ev) => {
+            if (ev.lengthComputable) setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
+          };
+          xhr.onload = () => xhr.status < 300 ? resolve() : reject(new Error(`Storage upload failed (${xhr.status})`));
+          xhr.onerror = () => reject(new Error('Network error during upload'));
+          xhr.open('PUT', signedUrl);
+          xhr.setRequestHeader('Content-Type', file.type);
+          xhr.send(file);
+        });
+
+        // Save file metadata to DB
+        const finalRes = await fetch('/api/files/finalize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path, originalFilename, mimeType, size }),
+        });
+        const finalPayload = await finalRes.json();
+        if (!finalRes.ok) throw new Error(finalPayload.error || 'Failed to save file record');
+
+        setForm(s => ({ ...s, fileId: finalPayload.data.id, title: s.title || file.name.split('.')[0], category: s.category || 'Videos' }));
+      } else {
+        // Standard small-file upload through API route
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error || 'Upload failed');
+        setForm(s => ({ ...s, fileId: payload.data.id, title: s.title || file.name.split('.')[0], category: s.category || 'Guides' }));
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
       setSaving(false);
+      setUploadProgress(0);
     }
   };
 
@@ -604,11 +644,19 @@ export default function ContentLibraryPage() {
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Upload File</label>
                   <div className="relative group cursor-pointer">
                     <input type="file" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                    <div className={`w-full border-2 border-dashed p-6 text-center transition-all ${form.fileId ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-border group-hover:border-orange-500/50'}`}>
+                    <div className={`w-full border-2 border-dashed p-6 text-center transition-all ${form.fileId ? 'border-primary/50 bg-primary/5' : 'border-border group-hover:border-primary/50'}`}>
                       {form.fileId
-                        ? <CheckCircleIcon className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                        : <ArrowDownTrayIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2 group-hover:text-orange-400 transition-colors" />}
-                      <p className="text-xs font-bold text-muted-foreground">{form.fileId ? 'File uploaded' : 'Click or drag to upload'}</p>
+                        ? <CheckCircleIcon className="w-8 h-8 text-primary mx-auto mb-2" />
+                        : <ArrowDownTrayIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2 group-hover:text-primary transition-colors" />}
+                      <p className="text-xs font-bold text-muted-foreground">{form.fileId ? 'File uploaded successfully' : 'Click to upload (videos upload directly)'}</p>
+                      {saving && uploadProgress > 0 && (
+                        <div className="mt-3">
+                          <div className="w-full bg-white/10 rounded-full h-1.5">
+                            <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+                          </div>
+                          <p className="text-[10px] text-primary mt-1">{uploadProgress}%</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
