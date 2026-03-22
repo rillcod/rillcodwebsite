@@ -328,9 +328,9 @@ export default function NewProjectActivityPage() {
                                                 <button key={cat.key} type="button" onClick={() => setCategory(cat.key)}
                                                     className={`flex items-center gap-2 px-3 py-2.5 border text-left transition-all ${active ? 'border-opacity-60 bg-opacity-10' : 'border-white/[0.06] bg-white/[0.02] hover:border-white/20'}`}
                                                     style={active ? { borderColor: cat.color + '80', backgroundColor: cat.color + '18' } : {}}>
-                                                    <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: active ? cat.color : undefined }} />
+                                                    <span style={{ color: active ? cat.color : undefined }} className="flex-shrink-0"><Icon className="w-3.5 h-3.5" /></span>
                                                     <span className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-white' : 'text-white/40'}`}>{cat.label}</span>
-                                                    {active && <CheckIcon className="w-3 h-3 ml-auto flex-shrink-0" style={{ color: cat.color }} />}
+                                                    {active && <span style={{ color: cat.color }} className="ml-auto flex-shrink-0"><CheckIcon className="w-3 h-3" /></span>}
                                                 </button>
                                             );
                                         })}
@@ -379,7 +379,7 @@ export default function NewProjectActivityPage() {
                                                     className={`w-full flex items-center gap-4 px-4 py-3 border text-left transition-all ${active ? 'border-opacity-50 bg-opacity-10' : 'border-white/[0.06] bg-white/[0.02] hover:border-white/20'}`}
                                                     style={active ? { borderColor: t.color + '80', backgroundColor: t.color + '15' } : {}}>
                                                     <div className="w-8 h-8 flex items-center justify-center flex-shrink-0" style={active ? { backgroundColor: t.color + '25' } : { backgroundColor: 'rgba(255,255,255,0.03)' }}>
-                                                        <Icon className="w-4 h-4" style={{ color: active ? t.color : 'rgba(255,255,255,0.3)' }} />
+                                                        <span style={{ color: active ? t.color : 'rgba(255,255,255,0.3)' }}><Icon className="w-4 h-4" /></span>
                                                     </div>
                                                     <div className="flex-1">
                                                         <p className={`text-xs font-black uppercase tracking-widest ${active ? 'text-white' : 'text-white/50'}`}>{t.label}</p>
