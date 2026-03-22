@@ -101,7 +101,7 @@ function ReportBuilderInner() {
     const searchParams = useSearchParams();
     const prefStudentId = searchParams.get('student');
 
-    const { profile, loading: authLoading, profileLoading } = useAuth();
+    const { profile, loading: authLoading } = useAuth();
 
     // ── Permissions ──────────────────────────────────────────────────────────
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
@@ -173,9 +173,24 @@ function ReportBuilderInner() {
     const [uploading, setUploading] = useState(false);
     const [generating, setGenerating] = useState<string | null>(null);
     const [fetchingStats, setFetchingStats] = useState(false);
-    const [studentStats, setStudentStats] = useState({ attendance: 0, totalSessions: 0, assignments: 0, totalAssignments: 0 });
+    const [studentStats, setStudentStats] = useState({
+        attendance: 0, totalSessions: 0,
+        assignments: 0, totalAssignments: 0,
+        cbtScore: 0,
+        assignmentAvg: 0,
+        assignmentPct: 0,
+        projects: 0,
+    });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Auto-clear success after 4 seconds
+    const setSuccessMsg = (msg: string) => {
+        setSuccess(msg);
+        if (successTimerRef.current) clearTimeout(successTimerRef.current);
+        successTimerRef.current = setTimeout(() => setSuccess(''), 4000);
+    };
     const [showPreview, setShowPreview] = useState(false);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -481,50 +496,94 @@ function ReportBuilderInner() {
             participation_score: String(report?.participation_score ?? 0),
         });
 
-        // ── Fetch realistic stats ─────────────────────────────────────────────
+        // ── Fetch transparent stats for all 4 score categories ───────────────
         setFetchingStats(true);
         try {
-            // 1. Find the class ID for this student by matching section_class and school
+            // 1. Resolve class ID for attendance lookup
             const studentSchoolId = s.school_id;
             const studentClassName = (s as any).section_class;
-
             let targetClassId = (s as any).class_id;
-
             if (!targetClassId && studentClassName) {
                 const { data: clsData } = await db.from('classes')
-                    .select('id')
-                    .eq('name', studentClassName)
-                    .eq('school_id', studentSchoolId || '')
-                    .maybeSingle();
+                    .select('id').eq('name', studentClassName).eq('school_id', studentSchoolId || '').maybeSingle();
                 targetClassId = clsData?.id;
             }
 
-            // 2. Fetch sessions for that class
             const { data: sessions } = targetClassId
                 ? await db.from('class_sessions').select('id').eq('class_id', targetClassId).eq('is_active', true)
                 : { data: [] };
             const sessionIds = sessions?.map(x => x.id) || [];
 
-            const [attRes, subRes, allAssignments] = await Promise.all([
-                sessionIds.length > 0 ? db.from('attendance').select('id').eq('user_id', s.id).in('session_id', sessionIds).eq('status', 'present') : { data: [] },
-                db.from('assignment_submissions').select('id').eq('portal_user_id', s.id).eq('status', 'graded'),
-                db.from('assignments').select('id').eq('course_id', sessionConfig.course_id).eq('is_active', true)
+            // 2. Fetch all 4 data sources in parallel
+            const [attRes, subRes, allAssignments, cbtAllRes, labRes, portfolioRes] = await Promise.all([
+                // Attendance (for reference)
+                sessionIds.length > 0
+                    ? db.from('attendance').select('id').eq('user_id', s.id).in('session_id', sessionIds).eq('status', 'present')
+                    : { data: [] },
+                // Assignment submissions — graded (feeds Assignment + Evaluation)
+                db.from('assignment_submissions').select('id, grade').eq('portal_user_id', s.id).eq('status', 'graded'),
+                // Total active assignments for this course (Assignment denominator)
+                sessionConfig.course_id
+                    ? db.from('assignments').select('id').eq('course_id', sessionConfig.course_id).eq('is_active', true)
+                    : { data: [] },
+                // All CBT sessions with exam metadata for type splitting
+                db.from('cbt_sessions').select('score, cbt_exams(metadata)').eq('user_id', s.id).order('score', { ascending: false }),
+                // Lab projects (feeds Project Engagement)
+                db.from('lab_projects').select('id').eq('user_id', s.id),
+                // Portfolio projects (feeds Project Engagement)
+                db.from('portfolio_projects').select('id').eq('user_id', s.id),
             ]);
+
+            // 3. Split CBT scores by exam_type stored in metadata
+            const allCbt: any[] = cbtAllRes.data || [];
+            const examSessions = allCbt.filter(r => {
+                const t = (r.cbt_exams as any)?.metadata?.exam_type;
+                return !t || t === 'examination'; // default = examination
+            });
+            const evalSessions = allCbt.filter(r =>
+                (r.cbt_exams as any)?.metadata?.exam_type === 'evaluation'
+            );
+            const cbtScore = Math.min(100, examSessions[0]?.score || 0);
+            const asgnGrades = subRes.data?.map((x: any) => x.grade).filter((g: any) => g !== null) as number[] || [];
+            const assignmentAvg = asgnGrades.length > 0
+                ? Math.round(asgnGrades.reduce((a, b) => a + b, 0) / asgnGrades.length)
+                : 0;
+            const totalAsgn = allAssignments.data?.length || 8;
+            const gradedAsgn = subRes.data?.length || 0;
+            const assignmentPct = Math.round((gradedAsgn / totalAsgn) * 100);
+            // Evaluation score = best CBT score where exam_type = 'evaluation'
+            const evalScore = Math.min(100, evalSessions[0]?.score || 0);
+            const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
+            // Project Engagement: every 3 projects = 100% (capped at 100)
+            const projectPct = Math.min(100, Math.round((projectCount / 3) * 100));
 
             setStudentStats({
                 attendance: attRes.data?.length || 0,
-                totalSessions: sessionIds.length || 12, // fallback to typical term length
-                assignments: subRes.data?.length || 0,
-                totalAssignments: allAssignments.data?.length || 8, // fallback
+                totalSessions: sessionIds.length || 12,
+                assignments: gradedAsgn,
+                totalAssignments: totalAsgn,
+                cbtScore,
+                assignmentAvg: evalScore || assignmentAvg, // prefer eval CBT score, fall back to assignment avg
+                assignmentPct,
+                projects: projectCount,
             });
 
-            // Fallback / Suggestion for participation if unset
-            if (form.participation_score === '0' || !form.participation_score) {
-                const attRatio = (attRes.data?.length || 0) / (sessionIds.length || 12);
-                const subRatio = (subRes.data?.length || 0) / (allAssignments.data?.length || 8);
-                const suggested = Math.min(100, Math.round(attRatio * 70 + subRatio * 30));
-                setForm(f => ({ ...f, participation_score: String(suggested) }));
-            }
+            // 4. Auto-suggest all 4 scores from real platform data (only if currently 0/unset)
+            setForm(f => ({
+                ...f,
+                // Examination → best CBT score where exam_type = 'examination'
+                ...(cbtScore > 0 && (f.theory_score === '0' || !f.theory_score)
+                    ? { theory_score: String(cbtScore) } : {}),
+                // Evaluation → best CBT score where exam_type = 'evaluation' (fallback: assignment avg)
+                ...((evalScore > 0 || assignmentAvg > 0) && (f.practical_score === '0' || !f.practical_score)
+                    ? { practical_score: String(evalScore || assignmentAvg) } : {}),
+                // Assignment → completion percentage
+                ...(f.attendance_score === '0' || !f.attendance_score
+                    ? { attendance_score: String(assignmentPct) } : {}),
+                // Project Engagement → lab + portfolio projects ratio
+                ...(f.participation_score === '0' || !f.participation_score
+                    ? { participation_score: String(projectPct) } : {}),
+            }));
         } catch { /* silent fail */ } finally {
             setFetchingStats(false);
         }
@@ -534,10 +593,10 @@ function ReportBuilderInner() {
     }
 
     const overallScore = Math.round(
-        (parseFloat(form.theory_score) || 0) * 0.35 +
-        (parseFloat(form.practical_score) || 0) * 0.35 +
-        (parseFloat(form.attendance_score) || 0) * 0.15 +
-        (parseFloat(form.participation_score) || 0) * 0.15
+        (parseFloat(form.theory_score) || 0) * 0.40 +
+        (parseFloat(form.practical_score) || 0) * 0.20 +
+        (parseFloat(form.attendance_score) || 0) * 0.20 +
+        (parseFloat(form.participation_score) || 0) * 0.20
     );
 
     // We use the helper from ReportCard which returns an object with {g,label,color}.
@@ -576,30 +635,37 @@ function ReportBuilderInner() {
                 const { data: sessions } = targetClassId ? await db.from('class_sessions').select('id').eq('class_id', targetClassId).eq('is_active', true) : { data: [] };
                 const sessionIds = sessions?.map(x => x.id) || [];
 
-                const [attRes, subRes, allAsgn, cbtRes] = await Promise.all([
+                const [attRes, subRes, allAsgn, cbtRes, labRes, portfolioRes] = await Promise.all([
                     sessionIds.length > 0 ? db.from('attendance').select('id').eq('user_id', s.id).in('session_id', sessionIds).eq('status', 'present') : { data: [] },
-                    db.from('assignment_submissions').select('grade').eq('portal_user_id', s.id).eq('status', 'graded'),
-                    db.from('assignments').select('id').eq('course_id', sessionConfig.course_id).eq('is_active', true),
-                    programId ? db.from('cbt_sessions').select('score').eq('user_id', s.id).eq('exam_id', programId).order('score', { ascending: false }).limit(1) : { data: [] }
+                    db.from('assignment_submissions').select('id, grade').eq('portal_user_id', s.id).eq('status', 'graded'),
+                    sessionConfig.course_id ? db.from('assignments').select('id').eq('course_id', sessionConfig.course_id).eq('is_active', true) : { data: [] },
+                    programId ? db.from('cbt_sessions').select('score').eq('user_id', s.id).eq('exam_id', programId).order('score', { ascending: false }).limit(1)
+                              : db.from('cbt_sessions').select('score').eq('user_id', s.id).order('score', { ascending: false }).limit(1),
+                    db.from('lab_projects').select('id').eq('user_id', s.id),
+                    db.from('portfolio_projects').select('id').eq('user_id', s.id),
                 ]);
 
-                // 2. Calculate scores
-                const attPct = sessionIds.length > 0 ? Math.min(100, Math.round((attRes.data?.length || 0) / sessionIds.length * 100)) : 80;
-                const cbtScore = cbtRes.data?.[0]?.score || 0;
-                const asgnGrades = subRes.data?.map(sub => sub.grade).filter(g => g !== null) || [];
+                // 2. Compute transparent scores (same logic as fetchStats)
+                const cbtScore = Math.min(100, cbtRes.data?.[0]?.score || 0);
+                const asgnGrades = subRes.data?.map((x: any) => x.grade).filter((g: any) => g !== null) as number[] || [];
                 const asgnAvg = asgnGrades.length > 0 ? Math.round(asgnGrades.reduce((a, b) => a + b, 0) / asgnGrades.length) : 0;
-                const assigPct = allAsgn.data?.length ? Math.round((subRes.data?.length || 0) / allAsgn.data.length * 100) : 0;
+                const totalAsgn = allAsgn.data?.length || 8;
+                const assigPct = Math.round((subRes.data?.length || 0) / totalAsgn * 100);
+                const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
+                const projectPct = Math.min(100, Math.round((projectCount / 3) * 100));
+                const attPct = sessionIds.length > 0 ? Math.min(100, Math.round((attRes.data?.length || 0) / sessionIds.length * 100)) : 80;
 
-                // 3. Map to Report Fields
-                const theory = cbtScore || Math.min(100, asgnAvg + 5);
-                const practical = asgnAvg || theory;
-                const participation = Math.min(100, Math.round(attPct * 0.7 + assigPct * 0.3));
+                // 3. Map to report fields — Exam/Test/Assignment/Project
+                const theory = cbtScore;                         // Exam (40%) — CBT score
+                const practical = asgnAvg;                       // Test (20%) — assignment grade avg
+                const attendance_score = assigPct;              // Assignment (20%) — completion %
+                const participation = projectPct || Math.min(100, Math.round(attPct * 0.7 + assigPct * 0.3));
 
                 // 4. Check for existing report
                 const isPrePortal = s.id?.startsWith('manual-') || s.id?.startsWith('students-');
                 const { data: existing } = isPrePortal ? { data: null } : await db.from('student_progress_reports').select('id').eq('student_id', s.id).eq('report_term', sessionConfig.report_term).order('updated_at', { ascending: false }).maybeSingle();
 
-                const overall = Math.round(theory * 0.35 + practical * 0.35 + attPct * 0.15 + participation * 0.15);
+                const overall = Math.round(theory * 0.40 + practical * 0.20 + attendance_score * 0.20 + participation * 0.20);
                 const gradeLetter = reportGrade(overall).g;
 
                 const payload: any = {
@@ -617,7 +683,7 @@ function ReportBuilderInner() {
                     instructor_name: sessionConfig.instructor_name,
                     theory_score: theory,
                     practical_score: practical,
-                    attendance_score: attPct,
+                    attendance_score: attendance_score,
                     participation_score: participation,
                     overall_score: overall,
                     overall_grade: gradeLetter,
@@ -636,7 +702,7 @@ function ReportBuilderInner() {
                     throw new Error(j.error || 'Failed to save report');
                 }
             }
-            setSuccess(`Successfully generated ${filteredStudents.length} report drafts!`);
+            setSuccessMsg(`Successfully generated ${filteredStudents.length} report drafts!`);
             // Trigger a data refresh for student list
             selectStudent(filteredStudents[0], 0);
         } catch (err: any) {
@@ -699,8 +765,10 @@ function ReportBuilderInner() {
                 show_payment_notice: sessionConfig.show_payment_notice,
                 participation_score: parseFloat(form.participation_score) || 0,
                 engagement_metrics: {
-                    attendanceRate: Math.round((studentStats.attendance / (studentStats.totalSessions || 1)) * 100),
-                    assignmentCompletion: Math.round((studentStats.assignments / (studentStats.totalAssignments || 1)) * 100),
+                    examScore: studentStats.cbtScore,
+                    testAvg: studentStats.assignmentAvg,
+                    assignmentCompletion: studentStats.assignmentPct,
+                    projectsCompleted: studentStats.projects,
                 },
             };
 
@@ -715,7 +783,7 @@ function ReportBuilderInner() {
                 setExistingReport({ ...payload, id: j.data.id } as unknown as StudentReport);
             }
 
-            setSuccess(publish ? 'Report published — visible to student!' : 'Draft saved!');
+            setSuccessMsg(publish ? 'Report published — visible to student!' : 'Draft saved!');
             if (publish) setForm(f => ({ ...f, is_published: true }));
         } catch (err: any) {
             setError(err.message ?? 'Failed to save');
@@ -762,23 +830,23 @@ function ReportBuilderInner() {
                     homework_grade: `${prefix}${Math.round(assigPct)}% Assignment Completion Rate — ${assigPct >= 80 ? 'Reliable' : 'Inconsistent'}`,
                 };
                 setForm(f => ({ ...f, [field]: (responses as any)[field] }));
-                setSuccess(`Realistic ${(field as string).replace('_grade', '')} generated!`);
+                setSuccessMsg(`Realistic ${(field as string).replace('_grade', '')} generated!`);
                 return;
             }
 
             // Qualitative evaluation uses actual AI with a concise fallback system
             const topic = sessionConfig.current_module || sessionConfig.course_name || 'the course';
-            const scoreContext = overallScore >= 80 ? 'high scores' : overallScore >= 60 ? 'good effort' : 'dedication to learning';
+            const perfWord = overallScore >= 80 ? 'excellent' : overallScore >= 65 ? 'very good' : overallScore >= 50 ? 'satisfactory' : 'fair';
             const fallbackThemes = {
                 key_strengths: [
-                    `${form.student_name} has shown ${scoreContext} this term and participates well in ${topic} activities. Their attitude towards learning is positive and consistent.`,
-                    `${form.student_name} demonstrates good understanding of ${topic} and completes tasks with care. We are pleased with the progress made this term.`,
-                    `This term, ${form.student_name} has worked hard in ${topic} and shown real improvement. Their practical skills and class engagement stand out.`,
+                    `${form.student_name} has demonstrated ${perfWord} performance this term and shows consistent enthusiasm in ${topic} activities. Their positive attitude towards learning is commendable.`,
+                    `${form.student_name} shows a sound understanding of ${topic} and completes tasks with care and commitment. We are pleased with the steady progress made this term.`,
+                    `This term, ${form.student_name} has worked diligently in ${topic} and shown notable improvement. Their practical engagement and classroom conduct stand out positively.`,
                 ],
                 areas_for_growth: [
-                    `${form.student_name} should spend more time practising ${topic} at home to build stronger confidence. Regular review of class notes will make a big difference.`,
-                    `We encourage ${form.student_name} to ask more questions when topics are unclear. Consistent effort in assignments will help raise their overall performance.`,
-                    `${form.student_name} will benefit from focusing on accuracy and attention to detail. With extra practice, we expect to see even better results next term.`,
+                    `${form.student_name} is encouraged to spend more time practising ${topic} concepts at home to build greater confidence. Regular review of class notes will make a meaningful difference.`,
+                    `We encourage ${form.student_name} to ask questions whenever topics are unclear and to engage more actively during lessons. Consistent effort in assignments will support stronger overall results.`,
+                    `${form.student_name} will benefit from focusing on accuracy and attention to detail in ${topic} work. With continued dedication, we look forward to even better outcomes next term.`,
                 ]
             };
 
@@ -802,8 +870,6 @@ function ReportBuilderInner() {
                         programName: programName,
                         studentName: form.student_name || 'The Student',
                         gradeLevel: form.section_class || 'General Academic',
-                        attendance: `${attendance}/${totalSessions} sessions (${Math.round(attPct)}%)`,
-                        assignments: `${assignments}/${totalAssignments} labs (${Math.round(assigPct)}%)`,
                         theoryScore: form.theory_score,
                         practicalScore: form.practical_score,
                         participationScore: form.participation_score,
@@ -822,7 +888,7 @@ function ReportBuilderInner() {
                     key_strengths: aiData.key_strengths || getRandomFallback('key_strengths'),
                     areas_for_growth: aiData.areas_for_growth || getRandomFallback('areas_for_growth')
                 }));
-                setSuccess('AI-assisted evaluation ready!');
+                setSuccessMsg('AI-assisted evaluation ready!');
             } catch (err) {
                 console.warn('AI failed, using high-quality fallback:', err);
                 setForm(f => ({
@@ -830,7 +896,7 @@ function ReportBuilderInner() {
                     key_strengths: f.key_strengths || getRandomFallback('key_strengths'),
                     areas_for_growth: f.areas_for_growth || getRandomFallback('areas_for_growth')
                 }));
-                setSuccess('Generated detailed report insights (Fallback System Activated).');
+                setSuccessMsg('Generated detailed report insights (Fallback System Activated).');
             }
         } catch (err: any) {
             setError(err.message ?? 'Generation failed');
@@ -852,7 +918,7 @@ function ReportBuilderInner() {
             if (uploadErr) throw uploadErr;
             const { data: { publicUrl } } = db.storage.from('reports').getPublicUrl(fileName);
             setForm(f => ({ ...f, photo_url: publicUrl }));
-            setSuccess('Photo uploaded!');
+            setSuccessMsg('Photo uploaded!');
         } catch (err: any) {
             setError('Upload failed: ' + err.message);
         } finally {
@@ -897,7 +963,7 @@ function ReportBuilderInner() {
     };
 
     // ── Guards ────────────────────────────────────────────────────────────────
-    if (authLoading || profileLoading) return (
+    if (authLoading) return (
         <div className="min-h-screen bg-background flex items-center justify-center">
             <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -1041,6 +1107,57 @@ function ReportBuilderInner() {
                         </Field>
                     </div>
 
+                    {/* Learning Milestones editor */}
+                    <div>
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Learning Milestones</label>
+                        <div className="flex gap-2 mb-2">
+                            <input
+                                value={milestoneInput}
+                                onChange={e => setMilestoneInput(e.target.value)}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter' && milestoneInput.trim()) {
+                                        e.preventDefault();
+                                        setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, milestoneInput.trim()] }));
+                                        setMilestoneInput('');
+                                    }
+                                }}
+                                placeholder="Type a milestone and press Enter…"
+                                className={INPUT}
+                            />
+                            <button
+                                type="button"
+                                disabled={!milestoneInput.trim()}
+                                onClick={() => {
+                                    if (!milestoneInput.trim()) return;
+                                    setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, milestoneInput.trim()] }));
+                                    setMilestoneInput('');
+                                }}
+                                className="px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-30 text-foreground text-xs font-bold rounded-none transition-colors flex-shrink-0"
+                            >
+                                Add
+                            </button>
+                        </div>
+                        {sessionConfig.learning_milestones.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {sessionConfig.learning_milestones.map((m, i) => (
+                                    <div key={i} className="flex items-center gap-1.5 bg-orange-600/10 border border-orange-500/20 px-3 py-1.5 text-[11px] text-orange-300 font-semibold group">
+                                        <span>{m}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSessionConfig(s => ({ ...s, learning_milestones: s.learning_milestones.filter((_, idx) => idx !== i) }))}
+                                            className="text-orange-500/40 hover:text-rose-400 transition-colors ml-0.5"
+                                            aria-label="Remove milestone"
+                                        >
+                                            <XMarkIcon className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-[10px] text-muted-foreground italic">No milestones added yet. These appear on the report card.</p>
+                        )}
+                    </div>
+
                     {/* Next-term payment notice toggle (also accessible from summary bar) */}
                     <div className="flex items-center gap-4 px-1 pt-1">
                         <button
@@ -1070,6 +1187,51 @@ function ReportBuilderInner() {
     return (
         <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-5">
+
+                {/* ── Step progress bar ── */}
+                {['session','pick','edit'].includes(step) && (
+                    <div className="flex items-center gap-0 overflow-hidden rounded-none">
+                        {[
+                            { key: 'session', num: 1, label: 'Session Setup' },
+                            { key: 'pick',    num: 2, label: 'Pick Student' },
+                            { key: 'edit',    num: 3, label: 'Grade & Publish' },
+                        ].map((s, i) => {
+                            const idx = ['session','pick','edit'].indexOf(step);
+                            const done = i < idx;
+                            const active = s.key === step;
+                            return (
+                                <button
+                                    key={s.key}
+                                    onClick={() => {
+                                        if (done) setStep(s.key as any);
+                                    }}
+                                    disabled={!done}
+                                    className={`flex-1 flex items-center gap-2 px-3 py-2.5 text-left transition-colors border-b-2 ${
+                                        active
+                                            ? 'border-orange-500 bg-orange-500/10'
+                                            : done
+                                            ? 'border-emerald-500/50 bg-emerald-500/5 cursor-pointer hover:bg-emerald-500/10'
+                                            : 'border-border bg-card cursor-default opacity-50'
+                                    }`}
+                                >
+                                    <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center flex-shrink-0 ${
+                                        active ? 'bg-orange-500 text-white'
+                                        : done ? 'bg-emerald-500 text-white'
+                                        : 'bg-muted text-muted-foreground'
+                                    }`}>
+                                        {done ? '✓' : s.num}
+                                    </span>
+                                    <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate ${
+                                        active ? 'text-orange-400' : done ? 'text-emerald-400' : 'text-muted-foreground'
+                                    }`}>
+                                        <span className="hidden sm:inline">{s.label}</span>
+                                        <span className="sm:hidden">Step {s.num}</span>
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
 
                 {/* ── Page header ── */}
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -1321,6 +1483,61 @@ function ReportBuilderInner() {
                             </div>
                         </div>
 
+                        {/* Learning Milestones */}
+                        <div className="bg-card shadow-sm border border-border rounded-none p-5 space-y-3">
+                            <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
+                                <span>🎯</span>
+                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Learning Milestones</h3>
+                                <span className="ml-auto text-[10px] text-muted-foreground">Appear on every report card in this session</span>
+                            </div>
+                            <div className="flex gap-2">
+                                <input
+                                    value={milestoneInput}
+                                    onChange={e => setMilestoneInput(e.target.value)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && milestoneInput.trim()) {
+                                            e.preventDefault();
+                                            setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, milestoneInput.trim()] }));
+                                            setMilestoneInput('');
+                                        }
+                                    }}
+                                    placeholder="e.g. Completed Python Basics module"
+                                    className={INPUT}
+                                />
+                                <button
+                                    type="button"
+                                    disabled={!milestoneInput.trim()}
+                                    onClick={() => {
+                                        if (!milestoneInput.trim()) return;
+                                        setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, milestoneInput.trim()] }));
+                                        setMilestoneInput('');
+                                    }}
+                                    className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-30 text-foreground text-xs font-bold rounded-none transition-colors flex-shrink-0"
+                                >
+                                    + Add
+                                </button>
+                            </div>
+                            {sessionConfig.learning_milestones.length > 0 ? (
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                    {sessionConfig.learning_milestones.map((m, i) => (
+                                        <div key={i} className="flex items-center gap-1.5 bg-orange-600/10 border border-orange-500/20 px-3 py-1.5 text-[11px] text-orange-300 font-semibold">
+                                            <span>{m}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSessionConfig(s => ({ ...s, learning_milestones: s.learning_milestones.filter((_, idx) => idx !== i) }))}
+                                                className="text-orange-500/40 hover:text-rose-400 transition-colors"
+                                                aria-label="Remove"
+                                            >
+                                                <XMarkIcon className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-[10px] text-muted-foreground italic">No milestones yet. Add key topics or skills covered this term.</p>
+                            )}
+                        </div>
+
                         <button
                             onClick={() => {
                                 setSessionDone(true);
@@ -1558,11 +1775,55 @@ function ReportBuilderInner() {
                             </button>
                         </div>
 
+                        {/* Transparent score sources bar */}
+                        {!fetchingStats && (
+                            <div className="bg-[#0d1526] border border-border px-5 py-3 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-orange-400/70 uppercase tracking-widest">Score Sources — Live Platform Data</span>
+                                    <span className="text-[9px] text-muted-foreground">auto-suggested when score is 0</span>
+                                </div>
+                                <div className="grid grid-cols-4 gap-3">
+                                    {/* Exam ← CBT */}
+                                    <div className="bg-indigo-500/5 border border-indigo-500/20 rounded px-3 py-2">
+                                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Examination (40%)</p>
+                                        <p className="text-[11px] font-black text-foreground">{studentStats.cbtScore > 0 ? `${studentStats.cbtScore}%` : '—'}</p>
+                                        <p className="text-[9px] text-muted-foreground">CBT best score</p>
+                                    </div>
+                                    {/* Test ← assignment grade avg */}
+                                    <div className="bg-cyan-500/5 border border-cyan-500/20 rounded px-3 py-2">
+                                        <p className="text-[9px] font-black text-cyan-400 uppercase tracking-widest mb-1">Evaluation (20%)</p>
+                                        <p className="text-[11px] font-black text-foreground">{studentStats.assignmentAvg > 0 ? `${studentStats.assignmentAvg}%` : '—'}</p>
+                                        <p className="text-[9px] text-muted-foreground">CBT evaluation test score</p>
+                                    </div>
+                                    {/* Assignment ← completion */}
+                                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded px-3 py-2">
+                                        <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Assignment (20%)</p>
+                                        <p className="text-[11px] font-black text-foreground">{studentStats.assignments}/{studentStats.totalAssignments}</p>
+                                        <p className="text-[9px] text-muted-foreground">{studentStats.assignmentPct}% completed</p>
+                                    </div>
+                                    {/* Project ← lab + portfolio */}
+                                    <div className="bg-violet-500/5 border border-violet-500/20 rounded px-3 py-2">
+                                        <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Project Engagement (20%)</p>
+                                        <p className="text-[11px] font-black text-foreground">{studentStats.projects} project{studentStats.projects !== 1 ? 's' : ''}</p>
+                                        <p className="text-[9px] text-muted-foreground">Lab + portfolio work</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {fetchingStats && (
+                            <div className="flex items-center gap-2 px-5 py-2.5 bg-[#0d1526] border border-border text-[10px] text-muted-foreground">
+                                <ArrowPathIcon className="w-3 h-3 animate-spin" /> Fetching student stats...
+                            </div>
+                        )}
+
                         {/* Alerts */}
                         {error && (
                             <div className="flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 rounded-none p-4">
                                 <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 flex-shrink-0" />
                                 <p className="text-rose-400 text-sm">{error}</p>
+                                <button onClick={() => setError('')} className="ml-auto text-rose-400/50 hover:text-rose-400 transition-colors flex-shrink-0">
+                                    <XMarkIcon className="w-4 h-4" />
+                                </button>
                             </div>
                         )}
                         {success && (
@@ -1690,10 +1951,10 @@ function ReportBuilderInner() {
                                     <div className="space-y-5">
                                         {(['theory_score', 'practical_score', 'attendance_score', 'participation_score'] as const).map((key) => {
                                             const labels: Record<string, string> = {
-                                                theory_score: 'Theory Protocols (35%)',
-                                                practical_score: 'Practical Efficiency (35%)',
-                                                attendance_score: 'Operational Presence (15%)',
-                                                participation_score: 'Class Participation & Engagement (15%)',
+                                                theory_score: 'Examination (40%)',
+                                                practical_score: 'Evaluation (20%)',
+                                                attendance_score: 'Assignment (20%)',
+                                                participation_score: 'Project Engagement (20%)',
                                             };
                                             const colors: Record<string, string> = {
                                                 theory_score: '#6366f1',
@@ -1701,45 +1962,51 @@ function ReportBuilderInner() {
                                                 attendance_score: '#10b981',
                                                 participation_score: '#8b5cf6',
                                             };
-
-                                            const val = parseInt(form[key]) || 0;
+                                            const sources: Record<string, string> = {
+                                                theory_score: studentStats.cbtScore > 0 ? `CBT Examination: ${studentStats.cbtScore}%` : 'Source: CBT exam_type=examination',
+                                                practical_score: studentStats.assignmentAvg > 0 ? `CBT Evaluation: ${studentStats.assignmentAvg}%` : 'Source: CBT exam_type=evaluation',
+                                                attendance_score: `${studentStats.assignments}/${studentStats.totalAssignments} assignments graded (${studentStats.assignmentPct}%)`,
+                                                participation_score: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''} (lab + portfolio)`,
+                                            };
+                                            const val = Math.min(100, Math.max(0, parseInt(form[key]) || 0));
+                                            const nudge = (delta: number) =>
+                                                setForm(f => ({ ...f, [key]: String(Math.min(100, Math.max(0, (parseInt(f[key]) || 0) + delta))) }));
                                             return (
                                                 <div key={key}>
                                                     <div className="flex justify-between mb-2">
                                                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{labels[key]}</label>
                                                         <span className="text-xs font-black text-foreground">{val}%</span>
                                                     </div>
-                                                    <div className="flex items-center gap-4">
+                                                    <div className="flex items-center gap-2">
                                                         <input
-                                                            type="range"
-                                                            min="0"
-                                                            max="100"
-                                                            value={form[key]}
+                                                            type="range" min="0" max="100" value={form[key]}
                                                             onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                            className={`flex-1 h-3 rounded-full appearance-none cursor-pointer outline-none bg-muted [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg ${key === 'theory_score' ? '[&::-webkit-slider-thumb]:bg-indigo-500' :
-                                                                    key === 'practical_score' ? '[&::-webkit-slider-thumb]:bg-cyan-500' :
-                                                                        key === 'attendance_score' ? '[&::-webkit-slider-thumb]:bg-emerald-500' :
-                                                                            '[&::-webkit-slider-thumb]:bg-orange-500'
-                                                                }`}
-                                                            style={{
-                                                                background: `linear-gradient(to right, ${colors[key]} ${val}%, rgba(255, 255, 255, 0.1) ${val}%)`
-                                                            }}
+                                                            className={`flex-1 h-3 rounded-full appearance-none cursor-pointer outline-none bg-muted [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg ${key === 'theory_score' ? '[&::-webkit-slider-thumb]:bg-indigo-500' : key === 'practical_score' ? '[&::-webkit-slider-thumb]:bg-cyan-500' : key === 'attendance_score' ? '[&::-webkit-slider-thumb]:bg-emerald-500' : '[&::-webkit-slider-thumb]:bg-violet-500'}`}
+                                                            style={{ background: `linear-gradient(to right, ${colors[key]} ${val}%, rgba(255,255,255,0.1) ${val}%)` }}
                                                         />
-                                                        <input
-                                                            type="number" min="0" max="100" value={form[key]}
-                                                            onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                            className="w-14 text-center py-1 bg-card shadow-sm border border-border rounded-none text-xs font-bold text-foreground focus:outline-none focus:border-orange-500" />
+                                                        {/* Nudge buttons */}
+                                                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                                                            <button type="button" onClick={() => nudge(-5)} title="-5" className="px-1.5 py-1 text-[9px] font-black text-muted-foreground hover:text-rose-400 bg-card border border-border hover:border-rose-500/40 rounded-none transition-all">−5</button>
+                                                            <button type="button" onClick={() => nudge(-1)} title="-1" className="px-1.5 py-1 text-[9px] font-black text-muted-foreground hover:text-rose-400 bg-card border border-border hover:border-rose-500/40 rounded-none transition-all">−1</button>
+                                                            <input
+                                                                type="number" min="0" max="100" value={form[key]}
+                                                                onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                                                                className="w-12 text-center py-1 bg-card border border-border rounded-none text-xs font-bold text-foreground focus:outline-none focus:border-orange-500" />
+                                                            <button type="button" onClick={() => nudge(1)} title="+1" className="px-1.5 py-1 text-[9px] font-black text-muted-foreground hover:text-emerald-400 bg-card border border-border hover:border-emerald-500/40 rounded-none transition-all">+1</button>
+                                                            <button type="button" onClick={() => nudge(5)} title="+5" className="px-1.5 py-1 text-[9px] font-black text-muted-foreground hover:text-emerald-400 bg-card border border-border hover:border-emerald-500/40 rounded-none transition-all">+5</button>
+                                                        </div>
                                                     </div>
+                                                    <p className="text-[9px] text-muted-foreground/60 mt-1 pl-0.5">{sources[key]}</p>
                                                 </div>
                                             );
                                         })}
 
-
-                                        {/* Overall display */}
+                                        {/* Overall display — auto-calculated, read-only */}
                                         <div className="mt-2 p-5 bg-gradient-to-br from-orange-600/20 to-indigo-600/20 border border-orange-500/20 rounded-none flex items-center justify-between">
                                             <div>
                                                 <p className="text-[10px] font-bold text-orange-500/40 uppercase tracking-widest">Weighted Overall</p>
                                                 <p className="text-4xl font-black text-foreground">{overallScore}%</p>
+                                                <p className="text-[9px] text-muted-foreground mt-1">Examination 40% · Evaluation 20% · Assignment 20% · Project Engagement 20%</p>
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-[10px] font-bold text-orange-500/40 uppercase tracking-widest mb-1">Grade</p>
@@ -1766,6 +2033,7 @@ function ReportBuilderInner() {
                                         return (
                                             <div className="space-y-5">
                                                 {[
+                                                    { key: 'participation_grade', label: 'Class Participation' },
                                                     { key: 'projects_grade', label: 'Project Work' },
                                                     { key: 'homework_grade', label: 'Homework' },
                                                 ].map(({ key, label }) => {
@@ -1807,6 +2075,29 @@ function ReportBuilderInner() {
 
                             {/* Right column */}
                             <div className="space-y-6">
+                                {/* Proficiency level quick-set */}
+                                <Section title="Proficiency Level" icon="🎯">
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {PROFICIENCY_OPTIONS.map(p => (
+                                            <button
+                                                key={p}
+                                                type="button"
+                                                onClick={() => setForm(f => ({ ...f, proficiency_level: p }))}
+                                                className={`py-2.5 text-[10px] font-black uppercase tracking-wider transition-all border rounded-none ${
+                                                    form.proficiency_level === p
+                                                        ? p === 'advanced' ? 'bg-emerald-600 border-emerald-500 text-white'
+                                                            : p === 'intermediate' ? 'bg-orange-600 border-orange-500 text-white'
+                                                            : 'bg-slate-600 border-slate-500 text-white'
+                                                        : 'bg-card border-border text-muted-foreground hover:bg-muted'
+                                                }`}
+                                            >
+                                                {p === 'beginner' ? '🌱 Beginner' : p === 'intermediate' ? '⚡ Mid-level' : '🚀 Advanced'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground mt-1">Overall score is {overallScore}% — auto-suggestion: <span className="text-orange-400 font-bold">{overallScore >= 80 ? 'Advanced' : overallScore >= 50 ? 'Intermediate' : 'Beginner'}</span></p>
+                                </Section>
+
                                 {/* Evaluation */}
                                 <Section title="Instructor Evaluation" icon="✍️">
                                     <div className="space-y-5">
@@ -1841,33 +2132,52 @@ function ReportBuilderInner() {
                         </div>
 
                         {/* Sticky Action Bar */}
-                        <div className="sticky bottom-0 z-40 bg-background/80 backdrop-blur-xl border-t border-border p-4 transition-all mt-6 -mx-3 sm:-mx-6 lg:-mx-8">
-                            <div className="max-w-5xl mx-auto flex items-center gap-3">
+                        <div className="sticky bottom-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border transition-all mt-6 -mx-3 sm:-mx-6 lg:-mx-8">
+                            {/* Success / Error flash banner in the action bar */}
+                            {(success || error) && (
+                                <div className={`px-4 py-2 flex items-center gap-2 text-xs font-bold border-b ${
+                                    success
+                                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                        : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                }`}>
+                                    {success
+                                        ? <CheckIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                        : <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                    }
+                                    <span>{success || error}</span>
+                                </div>
+                            )}
+                            <div className="max-w-5xl mx-auto flex items-center gap-2 sm:gap-3 p-3 sm:p-4">
                                 <button onClick={() => handleSave(false)} disabled={saving || publishing}
-                                    className="flex items-center gap-2 px-5 py-3 bg-card shadow-sm hover:bg-muted text-foreground text-xs font-bold rounded-none transition-all disabled:opacity-50">
+                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-card shadow-sm hover:bg-muted text-foreground text-[10px] sm:text-xs font-bold rounded-none transition-all disabled:opacity-50 flex-shrink-0">
                                     {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CloudArrowUpIcon className="w-4 h-4" />}
-                                    {saving ? 'Saving...' : 'Save Draft'}
+                                    <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save Draft'}</span>
+                                    <span className="sm:hidden">{saving ? '…' : 'Draft'}</span>
                                 </button>
                                 <button onClick={() => handleSave(true)} disabled={saving || publishing}
-                                    className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-none transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] sm:text-xs font-bold rounded-none transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 flex-shrink-0">
                                     {publishing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <RocketLaunchIcon className="w-4 h-4" />}
-                                    {publishing ? 'Publishing...' : 'Publish'}
+                                    {publishing ? 'Publishing…' : 'Publish'}
                                 </button>
                                 <button onClick={() => setShowPreview(true)}
-                                    className="flex items-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-bold rounded-none transition-all shadow-lg shadow-orange-900/40">
-                                    <EyeIcon className="w-4 h-4" /> Preview
+                                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 bg-orange-600 hover:bg-orange-500 text-white text-[10px] sm:text-xs font-bold rounded-none transition-all shadow-lg shadow-orange-900/40 flex-shrink-0">
+                                    <EyeIcon className="w-4 h-4" /> <span className="hidden sm:inline">Preview</span>
                                 </button>
 
-                                <div className="ml-auto">
+                                <div className="ml-auto flex-shrink-0">
                                     {currentStudentIdx < filteredStudents.length - 1 ? (
                                         <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
-                                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-500 hover:to-indigo-500 text-foreground text-xs font-black rounded-none transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
-                                            Next Student <ChevronRightIcon className="w-4 h-4" />
+                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-500 hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-none transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
+                                            <span className="hidden sm:inline">Next Student</span>
+                                            <span className="sm:hidden">Next</span>
+                                            <ChevronRightIcon className="w-4 h-4" />
                                         </button>
                                     ) : (
                                         <button onClick={() => { handleSave(false); setStep('pick'); }} disabled={saving || publishing}
-                                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-500 hover:to-indigo-500 text-foreground text-xs font-black rounded-none transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
-                                            Finish All <CheckCircleIcon className="w-4 h-4" />
+                                            className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-500 hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-none transition-all disabled:opacity-50 shadow-xl shadow-orange-900/30">
+                                            <span className="hidden sm:inline">Finish All</span>
+                                            <span className="sm:hidden">Done</span>
+                                            <CheckCircleIcon className="w-4 h-4" />
                                         </button>
                                     )}
                                 </div>
@@ -1977,7 +2287,7 @@ function ReportBuilderInner() {
                                             body: JSON.stringify(branding),
                                         });
                                         if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to save'); }
-                                        setSuccess('Branding settings saved!');
+                                        setSuccessMsg('Branding settings saved!');
                                         setShowSettings(false);
                                     } catch (err: any) {
                                         setError(err.message);

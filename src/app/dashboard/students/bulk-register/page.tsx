@@ -898,10 +898,9 @@ export default function BulkRegisterPage() {
       sessionStorage.setItem('last_bulk_reg', JSON.stringify({ results: allResults, date: new Date().toISOString() }));
       setHasRecoverable(true);
 
-      // Auto-switch to Registration History after successful registration
-      await fetchHistory();
-      setStep('registry');
-      setShowHistory(true);
+      // Show success screen, then load history in background
+      setStep('done');
+      fetchHistory().catch(() => {}); // non-blocking
 
     } catch (err: any) {
       alert(err.message);

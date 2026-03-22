@@ -85,6 +85,14 @@ const STATUS_PILLS = [
   { value: 'missing', label: 'Missing' },
 ];
 
+const STAFF_FILTER_TABS = [
+  { value: 'all', label: 'All' },
+  { value: 'needs_grading', label: 'Needs Grading' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'draft', label: 'Drafts' },
+  { value: 'active', label: 'Active' },
+];
+
 // ─── Main page ───────────────────────────────────────────────
 export default function AssignmentsPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -94,6 +102,7 @@ export default function AssignmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [staffTab, setStaffTab] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -143,10 +152,23 @@ export default function AssignmentsPage() {
   const filtered = items.filter((a: any) => {
     const title = isStaff ? (a.title ?? '') : (a.assignments?.title ?? '');
     const ms = title.toLowerCase().includes(search.toLowerCase());
-    const status = isStaff ? 'active' : (a.status ?? 'pending');
-    const mf = filter === 'all' || status === filter;
     const type = isStaff ? (a.assignment_type ?? '') : (a.assignments?.assignment_type ?? '');
     const mt = typeFilter === 'all' || type === typeFilter;
+
+    if (isStaff) {
+      const subs = a.assignment_submissions ?? [];
+      const hasPending = subs.some((s: any) => s.status === 'submitted');
+      const overdue = isOverdue(a.due_date);
+      let mTab = true;
+      if (staffTab === 'needs_grading') mTab = hasPending;
+      else if (staffTab === 'overdue') mTab = overdue;
+      else if (staffTab === 'draft') mTab = a.is_active === false;
+      else if (staffTab === 'active') mTab = a.is_active !== false;
+      return ms && mt && mTab;
+    }
+
+    const status = a.status ?? 'pending';
+    const mf = filter === 'all' || status === filter;
     return ms && mf && mt;
   });
 
@@ -159,8 +181,9 @@ export default function AssignmentsPage() {
     ? items.filter((a: any) => (a.assignment_submissions ?? []).some((s: any) => s.status === 'graded')).length
     : items.filter((a: any) => a.status === 'graded').length;
   const overdueCount = isStaff
-    ? items.filter((a: any) => isOverdue(a.due_date)).length
+    ? items.filter((a: any) => isOverdue(a.due_date) && a.is_active !== false).length
     : items.filter((a: any) => isOverdue(a.assignments?.due_date) && a.status !== 'graded').length;
+  const draftCount = isStaff ? items.filter((a: any) => a.is_active === false).length : 0;
 
   // ── LOADING ──────────────────────────────────────────────────
   if (authLoading || loading) return (
@@ -297,6 +320,36 @@ export default function AssignmentsPage() {
         )}
 
         {/* ── FILTERS ── */}
+        {/* Staff tab bar */}
+        {isStaff && (
+          <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none">
+            {STAFF_FILTER_TABS.map(tab => {
+              const badge = tab.value === 'needs_grading' ? pendingCount
+                : tab.value === 'overdue' ? overdueCount
+                : tab.value === 'draft' ? draftCount
+                : null;
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => setStaffTab(tab.value)}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] border transition-colors ${
+                    staffTab === tab.value
+                      ? 'bg-orange-500/20 border-orange-500/30 text-orange-400'
+                      : 'bg-card border-border text-muted-foreground hover:border-orange-500/20 hover:text-foreground'
+                  }`}
+                >
+                  {tab.label}
+                  {badge != null && badge > 0 && (
+                    <span className={`px-1.5 py-0.5 text-[8px] font-black rounded-sm ${
+                      staffTab === tab.value ? 'bg-orange-500/30 text-orange-300' : 'bg-rose-500/20 text-rose-400'
+                    }`}>{badge}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-3">
           {/* Search */}
           <div className="relative flex-1">
@@ -375,16 +428,38 @@ export default function AssignmentsPage() {
               const subs = a.assignment_submissions ?? [];
               const submittedCnt = subs.filter((s: any) => s.status === 'submitted').length;
               const gradedCnt = subs.filter((s: any) => s.status === 'graded').length;
-              const overdue = isOverdue(a.due_date);
-              const accentColor = TYPE_ACCENT[a.assignment_type ?? ''] ?? 'bg-orange-600';
+              const totalSubs = subs.length;
+              const overdue = isOverdue(a.due_date) && a.is_active !== false;
+              const isDraft = a.is_active === false;
+              const accentColor = isDraft ? 'bg-muted-foreground/40' : (TYPE_ACCENT[a.assignment_type ?? ''] ?? 'bg-orange-600');
 
               return (
                 <div
                   key={a.id}
-                  className="group relative bg-card border border-border hover:border-orange-500/20 transition-all overflow-hidden"
+                  className={`group relative bg-card border transition-all overflow-hidden ${
+                    submittedCnt > 0 ? 'border-amber-500/30 hover:border-amber-500/50' : 'border-border hover:border-orange-500/20'
+                  }`}
                 >
                   {/* Left accent bar */}
                   <div className={`absolute left-0 top-0 bottom-0 w-1 ${accentColor}`} />
+
+                  {/* Needs grading alert strip */}
+                  {submittedCnt > 0 && (
+                    <div className="pl-7 pr-6 py-2 bg-amber-500/5 border-b border-amber-500/20 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" />
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-400">
+                          {submittedCnt} submission{submittedCnt > 1 ? 's' : ''} awaiting review
+                        </span>
+                      </div>
+                      <Link
+                        href={`/dashboard/assignments/${a.id}`}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 font-black text-[8px] uppercase tracking-widest transition-colors"
+                      >
+                        <AcademicCapIcon className="w-3 h-3" /> Grade Now
+                      </Link>
+                    </div>
+                  )}
 
                   <div className="pl-7 pr-6 py-5">
                     <div className="flex items-start justify-between gap-4">
@@ -392,6 +467,11 @@ export default function AssignmentsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                           <h4 className="font-black text-foreground text-base">{a.title}</h4>
+                          {isDraft && (
+                            <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border bg-muted text-muted-foreground border-border">
+                              Draft
+                            </span>
+                          )}
                           {a.assignment_type && (
                             <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${TYPE_BADGE[a.assignment_type] ?? 'bg-muted text-muted-foreground border-border'}`}>
                               {a.assignment_type}
@@ -416,13 +496,28 @@ export default function AssignmentsPage() {
                             </span>
                           )}
                           <span className="text-[11px] text-muted-foreground">{a.max_points ?? 100} pts</span>
-                          {subs.length > 0 && (
+                          {totalSubs > 0 && (
                             <>
-                              <span className="text-[11px] text-blue-400">{submittedCnt} submitted</span>
-                              <span className="text-[11px] text-emerald-400">{gradedCnt} graded</span>
+                              <span className="text-[11px] text-blue-400">{submittedCnt} pending</span>
+                              <span className="text-[11px] text-emerald-400">{gradedCnt}/{totalSubs} graded</span>
                             </>
                           )}
                         </div>
+
+                        {/* Grading progress bar */}
+                        {totalSubs > 0 && (
+                          <div className="mt-3 flex items-center gap-2">
+                            <div className="flex-1 h-1 bg-muted overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-500 transition-all"
+                                style={{ width: `${Math.round((gradedCnt / totalSubs) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-[9px] text-muted-foreground font-bold">
+                              {Math.round((gradedCnt / totalSubs) * 100)}% graded
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Right: actions */}

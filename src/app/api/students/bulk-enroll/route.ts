@@ -54,27 +54,46 @@ export async function POST(request: Request) {
     if (caller.role !== 'admin' && class_id) {
       const { data: targetClass } = await supabaseAdmin
         .from('classes')
-        .select('school_id')
+        .select('school_id, schools(name)')
         .eq('id', class_id)
         .single();
 
       if (targetClass?.school_id) {
+        const clsSchoolName = (targetClass as any).schools?.name ?? null;
+        // Accept students linked by school_id OR by school_name (legacy records)
         safeStudents = safeStudents.filter(
-          (s: any) => s.school_id && s.school_id === targetClass.school_id,
+          (s: any) =>
+            s.school_id === targetClass.school_id ||
+            (clsSchoolName && s.school_name === clsSchoolName),
         );
       }
     }
 
     // Also enforce when school_id is explicitly passed — students must belong to that school
     if (caller.role !== 'admin' && school_id) {
+      // Fetch the school name so we can also match legacy school_name-only records
+      const { data: schoolRow } = await supabaseAdmin
+        .from('schools')
+        .select('name')
+        .eq('id', school_id)
+        .maybeSingle();
+      const schoolName = schoolRow?.name ?? null;
+
       safeStudents = safeStudents.filter(
-        (s: any) => s.school_id && s.school_id === school_id,
+        (s: any) =>
+          s.school_id === school_id ||
+          (schoolName && s.school_name === schoolName),
       );
     }
 
     const safeIds = safeStudents.map((u: any) => u.id);
     if (safeIds.length === 0) {
-      return NextResponse.json({ error: 'No valid student accounts found for the given IDs' }, { status: 400 });
+      // Don't fail hard — the class was already created. Return a 200 with a warning so
+      // the caller can redirect and the teacher can manually add students.
+      return NextResponse.json({
+        enrolled: 0, skipped: userIds.length, program_id,
+        warning: 'No matching student accounts found after school scoping. Use the class enrolment page to add students manually.',
+      });
     }
 
     // Optionally update school, class, and/or section_class on the student profiles
