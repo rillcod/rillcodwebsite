@@ -170,10 +170,10 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
 
                     <div className="grid grid-cols-2 gap-x-12 gap-y-8">
                         {[
-                            { label: 'Theory Protocols (40%)', value: theory, color: 'bg-[#121212]' },
-                            { label: 'Practical Synthesis (40%)', value: practical, color: 'bg-[#FF914D]' },
-                            { label: 'Presence Metric (20%)', value: attendance, color: 'bg-[#121212]' },
-                            { label: 'Engagement (Bonus)', value: engagement, color: 'bg-[#FF914D]' }
+                            { label: 'Examination (40%)', value: theory, color: 'bg-[#121212]' },
+                            { label: 'Evaluation (20%)', value: practical, color: 'bg-[#FF914D]' },
+                            { label: 'Assignment (20%)', value: attendance, color: 'bg-[#121212]' },
+                            { label: 'Project Engagement (20%)', value: engagement, color: 'bg-[#FF914D]' }
                         ].map(m => (
                             <div key={m.label} className="space-y-3">
                                 <div className="flex justify-between items-end">

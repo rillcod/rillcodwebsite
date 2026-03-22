@@ -142,8 +142,9 @@ export default function ReportCard({ report, orgSettings }: {
     const theory = Number(report.theory_score) || 0;
     const practical = Number(report.practical_score) || 0;
     const attendance = Number(report.attendance_score) || 0;
-    // Always compute from components; use stored overall_score only when > 0
-    const computed = Math.round(theory * 0.4 + practical * 0.4 + attendance * 0.2);
+    const participation = Number(report.participation_score) || 0;
+    // Examination 40% · Evaluation 20% · Assignment 20% · Project Engagement 20%
+    const computed = Math.round(theory * 0.4 + practical * 0.2 + attendance * 0.2 + participation * 0.2);
     const overall = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
     const grade = letterGrade(overall);
     const showCertificate = overall >= 45 || report.has_certificate === true;
@@ -203,6 +204,25 @@ export default function ReportCard({ report, orgSettings }: {
                         <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Progress Report</h2>
                     </div>
                 </div>
+            </div>
+
+            {/* SCORING SYSTEM LINE */}
+            <div className="bg-[#1a1a2e] px-10 py-1.5 flex items-center justify-center gap-0">
+                <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.18em] mr-3">Scoring System</span>
+                {[
+                    { label: 'Examination', pts: 40, color: '#6366f1' },
+                    { label: 'Evaluation', pts: 20, color: '#06b6d4' },
+                    { label: 'Assignment', pts: 20, color: '#10b981' },
+                    { label: 'Project Engagement', pts: 20, color: '#8b5cf6' },
+                ].map((item, i) => (
+                    <span key={item.label} className="flex items-center">
+                        {i > 0 && <span className="text-gray-600 mx-2 text-[9px]">·</span>}
+                        <span className="text-[9px] font-black" style={{ color: item.color }}>{item.label}</span>
+                        <span className="text-[9px] font-bold text-gray-500 ml-0.5">/{item.pts}</span>
+                    </span>
+                ))}
+                <span className="text-gray-600 mx-2 text-[9px]">=</span>
+                <span className="text-[9px] font-black text-white">100 pts</span>
             </div>
 
             {/* STATS BAR */}
@@ -295,18 +315,12 @@ export default function ReportCard({ report, orgSettings }: {
                         <SectionHeaderPremium title="Final Performance Assessment" />
                         <div className="flex-1 grid grid-cols-2 gap-5">
 
-                            {/* Left — scores + qualitative grades */}
+                            {/* Left — scores */}
                             <div className="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 flex flex-col gap-3">
-                                <MetricBar label="Theory Protocols (35%)" value={theory} color="#6366f1" />
-                                <MetricBar label="Practical Efficiency (35%)" value={practical} color="#06b6d4" />
-                                <MetricBar label="Operational Presence (15%)" value={attendance} color="#10b981" />
-                                <MetricBar label="Class Participation & Engagement (15%)" value={report.participation_score || 0} color="#8b5cf6" />
-
-                                {/* Qualitative grades — same column, thin rule separator */}
-                                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly' }}>
-                                    <GradeRow label="Project Work" value={report.projects_grade} />
-                                    <GradeRow label="Homework" value={report.homework_grade} />
-                                </div>
+                                <MetricBar label="Examination (40%)" value={theory} color="#6366f1" />
+                                <MetricBar label="Evaluation (20%)" value={practical} color="#06b6d4" />
+                                <MetricBar label="Assignment (20%)" value={attendance} color="#10b981" />
+                                <MetricBar label="Project Engagement (20%)" value={participation} color="#8b5cf6" />
                             </div>
 
                             {/* Right — weighted grade display */}

@@ -7,6 +7,11 @@ import { Sparkles, X, Send } from 'lucide-react';
 interface StudyAssistantProps {
   lessonTitle: string;
   lessonType?: string;
+  courseTitle?: string;
+  programName?: string;
+  gradeLevel?: string;
+  lessonObjectives?: string[];
+  externalMessage?: string; // When set, auto-opens and submits this message
 }
 
 interface Message {
@@ -17,7 +22,7 @@ interface Message {
 
 const MAX_HISTORY = 20;
 
-export default function StudyAssistant({ lessonTitle, lessonType }: StudyAssistantProps) {
+export default function StudyAssistant({ lessonTitle, lessonType, courseTitle, programName, gradeLevel, lessonObjectives, externalMessage }: StudyAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -25,6 +30,7 @@ export default function StudyAssistant({ lessonTitle, lessonType }: StudyAssista
   const [hasOpened, setHasOpened] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const lastExternalMessage = useRef<string | undefined>(undefined);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -38,13 +44,61 @@ export default function StudyAssistant({ lessonTitle, lessonType }: StudyAssista
     }
   }, [isOpen]);
 
+  // Auto-open and submit when an external explain request arrives
+  // externalMessage may have a __timestamp suffix (e.g. "Explain X__1712345678") — strip it before sending
+  useEffect(() => {
+    if (!externalMessage || externalMessage === lastExternalMessage.current) return;
+    lastExternalMessage.current = externalMessage;
+    const cleanMessage = externalMessage.replace(/__\d+$/, '');
+
+    // Ensure welcome message exists
+    if (!hasOpened) {
+      const contextHint = courseTitle ? ` (${courseTitle})` : '';
+      setMessages([{
+        id: 'welcome',
+        role: 'assistant',
+        content: `Hi! I'm your AI tutor for "${lessonTitle}"${contextHint}. Ask me anything — I'll explain it clearly and show you real examples! 🚀`,
+      }]);
+      setHasOpened(true);
+    }
+
+    setIsOpen(true);
+    setInput(cleanMessage);
+    // Submit after a short delay so the panel has time to open
+    setTimeout(() => {
+      setInput('');
+      const userMsg: Message = { id: `user-${Date.now()}`, role: 'user', content: cleanMessage };
+      setMessages(prev => [...prev, userMsg].slice(-MAX_HISTORY));
+      setIsLoading(true);
+
+      const history = messages.filter(m => m.id !== 'welcome').map(m => ({ role: m.role, content: m.content }));
+
+      fetch('/api/ai/study-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: cleanMessage, lessonTitle, lessonType, courseTitle, programName, gradeLevel, lessonObjectives, conversationHistory: history }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          const reply = data.reply ?? 'Sorry, I could not generate a response.';
+          setMessages(prev => [...prev, { id: `ai-${Date.now()}`, role: 'assistant' as const, content: reply }].slice(-MAX_HISTORY));
+        })
+        .catch(() => {
+          setMessages(prev => [...prev, { id: `err-${Date.now()}`, role: 'assistant' as const, content: 'Something went wrong. Please try again.' }].slice(-MAX_HISTORY));
+        })
+        .finally(() => setIsLoading(false));
+    }, 350);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalMessage]);
+
   const handleOpen = () => {
     if (!hasOpened) {
+      const contextHint = courseTitle ? ` (${courseTitle})` : '';
       setMessages([
         {
           id: 'welcome',
           role: 'assistant',
-          content: `Hi! I'm your study assistant. Ask me anything about ${lessonTitle}!`,
+          content: `Hi! I'm your AI tutor for "${lessonTitle}"${contextHint}. Ask me anything — I'll explain it clearly and show you real examples! 🚀`,
         },
       ]);
       setHasOpened(true);
@@ -81,6 +135,10 @@ export default function StudyAssistant({ lessonTitle, lessonType }: StudyAssista
           message: trimmed,
           lessonTitle,
           lessonType,
+          courseTitle,
+          programName,
+          gradeLevel,
+          lessonObjectives,
           conversationHistory,
         }),
       });
@@ -146,8 +204,8 @@ export default function StudyAssistant({ lessonTitle, lessonType }: StudyAssista
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground leading-tight">Study Assistant</p>
-                  <p className="text-xs text-muted-foreground truncate max-w-[220px]" title={lessonTitle}>
-                    {lessonTitle}
+                  <p className="text-xs text-muted-foreground truncate max-w-[220px]" title={`${lessonTitle}${courseTitle ? ` · ${courseTitle}` : ''}`}>
+                    {lessonTitle}{courseTitle ? ` · ${courseTitle}` : ''}
                   </p>
                 </div>
               </div>
