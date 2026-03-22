@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -757,16 +757,38 @@ function MotionGraphicRenderer({ type, config, title }: { type: string; config: 
   );
 }
 
-function InteractiveQuiz({ block }: { block: any }) {
+function InteractiveQuiz({ block, lessonContext }: { block: any; lessonContext?: { lessonTitle: string; courseTitle?: string; gradeLevel?: string } }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [loadingExplanation, setLoadingExplanation] = useState(false);
 
   const handleSelect = (idx: number) => {
     if (revealed) return;
     setSelected(idx);
     setRevealed(true);
-    if (idx === block.correctAnswer && block.onComplete) {
-      block.onComplete();
+    if (idx === block.correctAnswer) {
+      if (block.onComplete) block.onComplete();
+    } else {
+      // Wrong answer — fetch an AI explanation
+      const correctOption = block.options?.[block.correctAnswer] ?? 'the correct answer';
+      const wrongOption = block.options?.[idx] ?? 'your answer';
+      setLoadingExplanation(true);
+      fetch('/api/ai/study-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `In this quiz question: "${block.question}" — the correct answer is "${correctOption}" but I chose "${wrongOption}". Can you explain clearly why "${correctOption}" is correct and help me understand?`,
+          lessonTitle: lessonContext?.lessonTitle ?? 'this lesson',
+          courseTitle: lessonContext?.courseTitle,
+          gradeLevel: lessonContext?.gradeLevel,
+          conversationHistory: [],
+        }),
+      })
+        .then(r => r.json())
+        .then(d => setAiExplanation(d.reply ?? null))
+        .catch(() => {})
+        .finally(() => setLoadingExplanation(false));
     }
   };
 
@@ -837,15 +859,30 @@ function InteractiveQuiz({ block }: { block: any }) {
                   {selected === block.correctAnswer ? <CheckBadgeIcon className="w-4 h-4" /> : <XMarkIcon className="w-4 h-4" />}
                 </div>
                 <p className="text-xs font-medium text-foreground flex-1">
-                  {selected === block.correctAnswer ? "Correct! Well done." : "Not quite — review and try again."}
+                  {selected === block.correctAnswer ? "Correct! Well done." : "Not quite — see the explanation below."}
                 </p>
                 <button
-                  onClick={() => { setRevealed(false); setSelected(null); }}
+                  onClick={() => { setRevealed(false); setSelected(null); setAiExplanation(null); }}
                   className="px-4 py-1.5 bg-card border border-border text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all flex-shrink-0"
                 >
                   Retry
                 </button>
               </div>
+              {selected !== block.correctAnswer && (
+                <div className="mt-3 rounded-none border border-indigo-500/20 bg-indigo-500/5 p-4">
+                  <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <span>✦</span> AI Tutor Explanation
+                  </p>
+                  {loadingExplanation ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs">Thinking...</span>
+                    </div>
+                  ) : aiExplanation ? (
+                    <p className="text-sm text-muted-foreground leading-relaxed">{aiExplanation}</p>
+                  ) : null}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -854,7 +891,36 @@ function InteractiveQuiz({ block }: { block: any }) {
   );
 }
 
-function CompletionCelebration({ onDismiss }: { onDismiss: () => void }) {
+function CompletionCelebration({ onDismiss, lessonTitle, courseTitle, gradeLevel, objectives }: {
+  onDismiss: () => void;
+  lessonTitle?: string;
+  courseTitle?: string;
+  gradeLevel?: string;
+  objectives?: string[];
+}) {
+  const [recap, setRecap] = useState<string | null>(null);
+  const [recapLoading, setRecapLoading] = useState(true);
+
+  useEffect(() => {
+    if (!lessonTitle) { setRecapLoading(false); return; }
+    fetch('/api/ai/study-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: `I just completed the lesson "${lessonTitle}". Give me exactly 3 bullet points summarising the most important things I learned. Be brief, specific, and exciting! Use ✓ for each bullet.`,
+        lessonTitle,
+        courseTitle,
+        gradeLevel,
+        lessonObjectives: objectives,
+        conversationHistory: [],
+      }),
+    })
+      .then(r => r.json())
+      .then(d => setRecap(d.reply ?? null))
+      .catch(() => {})
+      .finally(() => setRecapLoading(false));
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -906,7 +972,24 @@ function CompletionCelebration({ onDismiss }: { onDismiss: () => void }) {
             <div className="h-px w-12 bg-muted" />
           </div>
           <h2 className="text-5xl sm:text-7xl font-black text-foreground leading-none tracking-tighter">LESSON COMPLETE!</h2>
-          <p className="text-xl sm:text-2xl text-muted-foreground font-medium">You've successfully completed this lesson.</p>
+          <p className="text-base text-muted-foreground font-medium">{courseTitle ? `${courseTitle} · ` : ''}{lessonTitle}</p>
+        </div>
+
+        {/* AI recap */}
+        <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-none p-6 text-left min-h-[80px]">
+          <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <span>✦</span> What You Mastered Today
+          </p>
+          {recapLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground/50">
+              <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs">Generating your recap...</span>
+            </div>
+          ) : recap ? (
+            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{recap}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">You've successfully completed this lesson. Great work!</p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-6">
@@ -996,7 +1079,13 @@ function ActivitySteps({ steps, isCoding }: { steps: string[]; isCoding?: boolea
   );
 }
 
-function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; lessonType?: string; onInteraction?: (idx: number) => void }) {
+function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, lessonContext }: {
+  blocks: any[];
+  lessonType?: string;
+  onInteraction?: (idx: number) => void;
+  onExplainRequest?: (text: string) => void;
+  lessonContext?: { lessonTitle: string; courseTitle?: string; gradeLevel?: string };
+}) {
   if (!blocks || blocks.length === 0) return null;
 
   return (
@@ -1090,7 +1179,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
               </div>
             );
           case 'quiz':
-            return <InteractiveQuiz key={i} block={{ ...block, onComplete: () => onInteraction?.(i) }} />;
+            return <InteractiveQuiz key={i} block={{ ...block, onComplete: () => onInteraction?.(i) }} lessonContext={lessonContext} />;
           case 'video':
             return (
               <div key={i} className="space-y-4 sm:space-y-8">
@@ -1174,6 +1263,14 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
                         <div className="space-y-1 flex-1 min-w-0">
                           <p className={`text-[9px] font-black ${col.text} uppercase tracking-widest leading-none`}>{item.label}</p>
                           <p className="text-sm font-medium text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">{item.value}</p>
+                          {onExplainRequest && (
+                            <button
+                              onClick={() => onExplainRequest(`Explain "${item.label}": ${item.value}`)}
+                              className={`mt-1.5 text-[8px] font-black uppercase tracking-widest ${col.text} opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity flex items-center gap-1`}
+                            >
+                              <span>✦</span> Ask AI
+                            </button>
+                          )}
                         </div>
                       </motion.div>
                     );
@@ -1196,6 +1293,14 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
                       <div className="pb-8">
                         <h4 className="text-lg font-black text-white uppercase tracking-tight mb-2 italic group-hover:text-cyan-400 transition-colors">{comp.name}</h4>
                         <p className="text-sm text-white/40 leading-relaxed max-w-2xl">{comp.description}</p>
+                        {onExplainRequest && (
+                          <button
+                            onClick={() => onExplainRequest(`Explain "${comp.name}": ${comp.description}`)}
+                            className="mt-2 text-[8px] font-black uppercase tracking-widest text-cyan-400 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity flex items-center gap-1"
+                          >
+                            <span>✦</span> Ask AI
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1271,6 +1376,131 @@ function CanvaRenderer({ blocks, lessonType, onInteraction }: { blocks: any[]; l
   );
 }
 
+// ── Full markdown renderer for lesson_notes ──────────────────────────────────
+function renderMarkdownNotes(md: string): React.ReactNode[] {
+  const lines = md.split('\n');
+  const nodes: React.ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+
+  const inline = (text: string, k: number | string) => {
+    const html = text
+      .replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.08);color:#67e8f9;padding:2px 6px;border-radius:4px;font-size:0.85em;font-family:monospace">$1</code>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--foreground);font-weight:900">$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em style="color:rgba(255,255,255,0.7)">$1</em>');
+    return <span key={k} dangerouslySetInnerHTML={{ __html: html }} />;
+  };
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Fenced code block
+    if (line.trim().startsWith('```')) {
+      const lang = line.trim().slice(3).trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith('```')) { codeLines.push(lines[i]); i++; }
+      nodes.push(
+        <div key={key++} className="my-4 bg-black/50 border border-white/10 rounded-lg overflow-hidden">
+          {lang && <div className="px-4 py-1.5 bg-white/5 text-[10px] font-black text-cyan-400 uppercase tracking-widest border-b border-white/10">{lang}</div>}
+          <pre className="p-4 overflow-x-auto text-sm font-mono text-emerald-300 leading-relaxed"><code>{codeLines.join('\n')}</code></pre>
+        </div>
+      );
+      i++; continue;
+    }
+
+    // Headings
+    if (/^### /.test(line)) {
+      nodes.push(<h3 key={key++} className="text-lg font-black text-foreground pt-4 tracking-wide">{inline(line.slice(4), 'h3')}</h3>);
+      i++; continue;
+    }
+    if (/^## /.test(line)) {
+      nodes.push(<h2 key={key++} className="text-xl font-black text-foreground pt-6 pb-2 border-b border-white/5 uppercase tracking-widest">{inline(line.slice(3), 'h2')}</h2>);
+      i++; continue;
+    }
+    if (/^# /.test(line)) {
+      nodes.push(<h1 key={key++} className="text-2xl font-black text-foreground pt-6">{inline(line.slice(2), 'h1')}</h1>);
+      i++; continue;
+    }
+
+    // Bullet list — collect consecutive bullets
+    if (/^[-*] /.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^[-*] /.test(lines[i])) { items.push(lines[i].slice(2)); i++; }
+      nodes.push(
+        <ul key={key++} className="list-none space-y-2 pl-0 my-2">
+          {items.map((item, ii) => (
+            <li key={ii} className="flex gap-3 items-start">
+              <span className="text-indigo-500 mt-1 shrink-0">▸</span>
+              <span className="flex-1">{inline(item, ii)}</span>
+            </li>
+          ))}
+        </ul>
+      );
+      continue;
+    }
+
+    // Numbered list — collect consecutive numbered items
+    if (/^\d+\. /.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\d+\. /.test(lines[i])) { items.push(lines[i].replace(/^\d+\. /, '')); i++; }
+      nodes.push(
+        <ol key={key++} className="list-none space-y-2 pl-0 my-2">
+          {items.map((item, ii) => (
+            <li key={ii} className="flex gap-3 items-start">
+              <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{ii + 1}</span>
+              <span className="flex-1">{inline(item, ii)}</span>
+            </li>
+          ))}
+        </ol>
+      );
+      continue;
+    }
+
+    // Table
+    if (line.trim().startsWith('|')) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        if (!/^[\s|:-]+$/.test(lines[i])) tableLines.push(lines[i]);
+        i++;
+      }
+      if (tableLines.length > 0) {
+        const rows = tableLines.map(r => r.split('|').filter(c => c.trim()).map(c => c.trim()));
+        nodes.push(
+          <div key={key++} className="overflow-x-auto my-4">
+            <table className="w-full text-xs border-collapse">
+              {rows.map((row, ri) => (
+                <tr key={ri} className={ri === 0 ? 'bg-white/5 font-black text-foreground' : 'border-t border-white/5 text-muted-foreground'}>
+                  {row.map((cell, ci) => ri === 0
+                    ? <th key={ci} className="px-4 py-2 text-left text-[10px] uppercase tracking-widest">{cell}</th>
+                    : <td key={ci} className="px-4 py-2">{inline(cell, ci)}</td>
+                  )}
+                </tr>
+              ))}
+            </table>
+          </div>
+        );
+      }
+      continue;
+    }
+
+    // Empty line
+    if (!line.trim()) { i++; continue; }
+
+    // Paragraph — collect non-special lines
+    const paraLines: string[] = [];
+    while (
+      i < lines.length && lines[i].trim() &&
+      !/^#{1,3} /.test(lines[i]) && !/^[-*] /.test(lines[i]) &&
+      !/^\d+\. /.test(lines[i]) && !lines[i].trim().startsWith('```') && !lines[i].trim().startsWith('|')
+    ) { paraLines.push(lines[i]); i++; }
+    if (paraLines.length > 0) {
+      nodes.push(<p key={key++} className="whitespace-pre-wrap">{inline(paraLines.join('\n'), 'p')}</p>);
+    }
+  }
+  return nodes;
+}
+
 const TabBtn = ({ active, onClick, icon: Icon, label, count }: any) => (
   <button onClick={onClick} className={`flex items-center gap-2 sm:gap-2.5 px-4 sm:px-6 py-3 sm:py-4 rounded-none transition-all relative group whitespace-nowrap ${active ? 'bg-gradient-to-r from-orange-600 to-orange-400 to-indigo-500 text-foreground shadow-[0_10px_30px_-10px_rgba(6,182,212,0.5)]' : 'text-muted-foreground hover:text-foreground hover:bg-card shadow-sm'}`}>
     <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:scale-110 ${active ? 'text-foreground' : 'text-current'}`} />
@@ -1312,10 +1542,14 @@ export default function LessonDetailPage() {
   const [generatingNotes, setGeneratingNotes] = useState(false);
   const startTimeRef = useState<number>(() => Date.now())[0];
   const [notesRead, setNotesRead] = useState(false);
+  const [lessonHook, setLessonHook] = useState<{ hook_title: string; hook: string; real_world_example: string; challenge_question: string } | null>(null);
+  const [hookLoading, setHookLoading] = useState(false);
+  const hookFetchedRef = useRef(false);
   const [isCinemaMode, setIsCinemaMode] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [interactions, setInteractions] = useState<Set<number>>(new Set());
+  const [explainRequest, setExplainRequest] = useState<string | undefined>(undefined);
 
   const handleInteraction = (idx: number) => {
     setInteractions(prev => {
@@ -1329,6 +1563,9 @@ export default function LessonDetailPage() {
     if (!lesson || generatingNotes) return;
     setGeneratingNotes(true);
     try {
+      const siblingTitles = courseLessons
+        .filter(l => l.id !== id)
+        .map(l => l.title);
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1338,6 +1575,9 @@ export default function LessonDetailPage() {
           gradeLevel: lesson.grade_level || 'JSS1–SS3',
           subject: lesson.subject || undefined,
           durationMinutes: lesson.duration_minutes || 60,
+          courseName: lesson.courses?.title || undefined,
+          programName: lesson.courses?.programs?.name || undefined,
+          siblingLessons: siblingTitles.length ? siblingTitles : undefined,
         }),
       });
       const payload = await res.json();
@@ -1440,6 +1680,28 @@ export default function LessonDetailPage() {
     if (!authLoading && profile) fetchData();
   }, [authLoading, profile, fetchData]);
 
+  // Auto-fetch lesson hook once when lesson loads
+  useEffect(() => {
+    if (!lesson || hookFetchedRef.current) return;
+    hookFetchedRef.current = true;
+    setHookLoading(true);
+    fetch('/api/ai/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'lesson-hook',
+        topic: lesson.title,
+        gradeLevel: lesson.grade_level || 'JSS1–SS3',
+        courseName: lesson.courses?.title || undefined,
+        programName: lesson.courses?.programs?.name || undefined,
+      }),
+    })
+      .then(r => r.json())
+      .then(p => { if (p.data?.hook) setLessonHook(p.data); })
+      .catch(() => {})
+      .finally(() => setHookLoading(false));
+  }, [lesson]);
+
   const handleMarkComplete = async () => {
     if (!profile || !id || marking || completed) return;
     setMarking(true);
@@ -1512,7 +1774,15 @@ export default function LessonDetailPage() {
     <div className="min-h-screen bg-[#070710] text-foreground flex flex-col md:flex-row h-screen overflow-hidden">
       {alwaysScripts}
       <AnimatePresence>
-        {showCelebration && <CompletionCelebration onDismiss={() => setShowCelebration(false)} />}
+        {showCelebration && (
+          <CompletionCelebration
+            onDismiss={() => setShowCelebration(false)}
+            lessonTitle={lesson?.title}
+            courseTitle={lesson?.courses?.title ?? undefined}
+            gradeLevel={lesson?.grade_level ?? undefined}
+            objectives={Array.isArray(lesson?.objectives) ? lesson.objectives : undefined}
+          />
+        )}
       </AnimatePresence>
       {/* Mobile Header (Techy & Clean) */}
       <div className="md:hidden p-5 border-b border-border bg-background/80 backdrop-blur-xl flex items-center justify-between z-50 sticky top-0">
@@ -1720,43 +1990,50 @@ export default function LessonDetailPage() {
                         )}
                       </div>
                     </div>
+                    {/* ── Lesson Hook Banner ── */}
+                    {hookLoading && (
+                      <div className="flex items-center gap-3 px-1 py-6 text-muted-foreground/50">
+                        <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin shrink-0" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Loading lesson intro...</span>
+                      </div>
+                    )}
+                    {lessonHook && (
+                      <div className="rounded-none border-2 border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-amber-500/5 overflow-hidden mb-8">
+                        <div className="flex items-center gap-3 px-6 py-3 border-b border-orange-500/15 bg-orange-500/5">
+                          <span className="text-base">🔥</span>
+                          <p className="text-[10px] font-black text-orange-400 uppercase tracking-[0.3em]">{lessonHook.hook_title}</p>
+                        </div>
+                        <div className="p-6 sm:p-8 space-y-5">
+                          <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                            {lessonHook.hook}
+                          </div>
+                          {lessonHook.real_world_example && (
+                            <div className="flex gap-3 p-4 bg-amber-500/8 border border-amber-500/20 rounded-none">
+                              <span className="text-amber-400 shrink-0 mt-0.5">🌍</span>
+                              <div>
+                                <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-1">Real-World Connection</p>
+                                <p className="text-sm text-muted-foreground">{lessonHook.real_world_example}</p>
+                              </div>
+                            </div>
+                          )}
+                          {lessonHook.challenge_question && (
+                            <div className="flex gap-3 p-4 bg-indigo-500/8 border border-indigo-500/20 rounded-none">
+                              <span className="text-indigo-400 shrink-0 mt-0.5">💭</span>
+                              <div>
+                                <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1">Think About It</p>
+                                <p className="text-sm font-semibold text-foreground italic">{lessonHook.challenge_question}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {lesson.lesson_notes ? (
                       <div className="max-w-none bg-card p-12 sm:p-20 rounded-none border border-border shadow-[0_20px_50px_rgba(0,0,0,0.3)] relative overflow-hidden group/notes">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[120px] pointer-events-none" />
                         <div className="text-muted-foreground leading-relaxed text-base font-medium space-y-4">
-                          {lesson.lesson_notes.split('\n\n').map((para: string, idx: number) => {
-                            if (para.startsWith('### ')) return <h3 key={idx} className="text-lg font-black text-foreground pt-3 uppercase tracking-wide">{para.replace('### ', '').trim()}</h3>;
-                            if (para.startsWith('## ')) return <h2 key={idx} className="text-2xl font-black text-foreground pt-4 border-b border-white/5 pb-2 uppercase tracking-widest">{para.replace('## ', '').trim()}</h2>;
-                            if (para.startsWith('# ')) return <h1 key={idx} className="text-2xl font-black text-foreground pt-6">{para.replace('# ', '').trim()}</h1>;
-                            if (para.startsWith('- ') || para.startsWith('* ')) {
-                              const items = para.split('\n').filter(Boolean);
-                              return <ul key={idx} className="list-none space-y-2 pl-0">{items.map((item, ii) => <li key={ii} className="flex gap-3 items-start"><span className="text-indigo-500 mt-1 shrink-0">▸</span><span>{item.replace(/^[-*]\s*/, '')}</span></li>)}</ul>;
-                            }
-                            // Simple table support: lines starting with |
-                            if (para.includes('|') && para.split('\n').some(l => l.trim().startsWith('|'))) {
-                              const rows = para.split('\n').filter(l => l.trim().startsWith('|'));
-                              const cells = rows.map(r => r.split('|').filter(c => c.trim() !== '').map(c => c.trim()));
-                              if (cells.length > 0) {
-                                return (
-                                  <div key={idx} className="overflow-x-auto">
-                                    <table className="w-full text-xs border-collapse">
-                                      {cells.map((row, ri) => (
-                                        <tr key={ri} className={ri === 0 ? 'bg-white/5 font-black text-foreground' : 'border-t border-white/5 text-muted-foreground'}>
-                                          {row.map((cell, ci) => (
-                                            ri === 0
-                                              ? <th key={ci} className="px-4 py-2 text-left text-[10px] uppercase tracking-widest">{cell}</th>
-                                              : <td key={ci} className="px-4 py-2">{cell}</td>
-                                          ))}
-                                        </tr>
-                                      ))}
-                                    </table>
-                                  </div>
-                                );
-                              }
-                            }
-                            const bold = para.replace(/\*\*(.+?)\*\*/g, '<strong class="text-foreground font-black">$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>');
-                            return <p key={idx} className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: bold }} />;
-                          })}
+                          {renderMarkdownNotes(lesson.lesson_notes)}
                         </div>
                       </div>
                     ) : (
@@ -1774,6 +2051,12 @@ export default function LessonDetailPage() {
                     blocks={lesson.content_layout || []}
                     lessonType={lesson.lesson_type}
                     onInteraction={handleInteraction}
+                    onExplainRequest={(text) => setExplainRequest(`${text}__${Date.now()}`)}
+                    lessonContext={{
+                      lessonTitle: lesson.title,
+                      courseTitle: lesson.courses?.title ?? undefined,
+                      gradeLevel: lesson.grade_level ?? undefined,
+                    }}
                   />
 
 
@@ -2129,8 +2412,16 @@ export default function LessonDetailPage() {
             title={lesson.title}
           />
         )}
-        {profile?.role === 'student' && lesson && (
-          <StudyAssistant lessonTitle={lesson.title} lessonType={lesson.lesson_type ?? undefined} />
+        {lesson && (
+          <StudyAssistant
+            lessonTitle={lesson.title}
+            lessonType={lesson.lesson_type ?? undefined}
+            courseTitle={lesson.courses?.title ?? undefined}
+            programName={lesson.courses?.programs?.name ?? undefined}
+            gradeLevel={lesson.grade_level ?? undefined}
+            lessonObjectives={Array.isArray(lesson.objectives) ? lesson.objectives : undefined}
+            externalMessage={explainRequest ?? undefined}
+          />
         )}
       </main>
     </div>

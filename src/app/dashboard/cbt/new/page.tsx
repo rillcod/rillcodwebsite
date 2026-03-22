@@ -52,6 +52,7 @@ export default function NewExamPage() {
     start_date: '',
     end_date: '',
     is_active: true,
+    exam_type: 'examination' as 'examination' | 'evaluation',
   });
   const [questions, setQuestions] = useState<Question[]>([emptyQuestion()]);
   const [sectionWeights, setSectionWeights] = useState({ objective: 60, subjective: 30, practical: 10 });
@@ -181,7 +182,10 @@ export default function NewExamPage() {
         passing_score: parseInt(form.passing_score) || 70,
         total_questions: validQuestions.length,
         is_active: form.is_active,
-        metadata: useWeights ? { section_weights: sectionWeights, weights_total: weightTotal } : null,
+        metadata: {
+            ...(useWeights ? { section_weights: sectionWeights, weights_total: weightTotal } : {}),
+            exam_type: form.exam_type,
+        },
         questions: validQuestions.map((q, i) => ({
           question_text: q.question_text.trim(),
           question_type: q.question_type,
@@ -598,6 +602,28 @@ ${questionRows}
                   {courses.filter(c => c.program_id === form.program_id).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
               </div>
+            </div>
+
+            {/* Exam Type — critical for score routing */}
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button"
+                onClick={() => setForm(f => ({ ...f, exam_type: 'examination' }))}
+                className={`flex items-start gap-3 px-4 py-3 border text-left transition-all ${form.exam_type === 'examination' ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-card border-border hover:border-indigo-500/30'}`}>
+                <div className={`w-3 h-3 rounded-full mt-0.5 flex-shrink-0 border-2 ${form.exam_type === 'examination' ? 'bg-indigo-500 border-indigo-500' : 'border-muted-foreground'}`} />
+                <div>
+                  <p className="text-xs font-black text-foreground uppercase tracking-widest">Examination</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">40% of final grade · main end-of-term exam</p>
+                </div>
+              </button>
+              <button type="button"
+                onClick={() => setForm(f => ({ ...f, exam_type: 'evaluation' }))}
+                className={`flex items-start gap-3 px-4 py-3 border text-left transition-all ${form.exam_type === 'evaluation' ? 'bg-cyan-500/10 border-cyan-500/50' : 'bg-card border-border hover:border-cyan-500/30'}`}>
+                <div className={`w-3 h-3 rounded-full mt-0.5 flex-shrink-0 border-2 ${form.exam_type === 'evaluation' ? 'bg-cyan-500 border-cyan-500' : 'border-muted-foreground'}`} />
+                <div>
+                  <p className="text-xs font-black text-foreground uppercase tracking-widest">Evaluation (Test)</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">20% of final grade · compulsory class test</p>
+                </div>
+              </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

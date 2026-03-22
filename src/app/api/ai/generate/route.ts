@@ -106,6 +106,8 @@ interface GenerateRequest {
   proficiencyLevel?: string;
   courseName?: string;
   programName?: string;
+  // Curriculum context — used to tailor lessons to specific course/program
+  siblingLessons?: string[]; // Titles of other lessons in the same course (for continuity)
 }
 
 function buildPrompt(req: GenerateRequest): string {
@@ -130,25 +132,26 @@ Important: Be fair but encouraging. For 'essay' questions, look for key concepts
 
     case 'report-feedback': {
       const overallScore = Number(req.overallScore ?? 0);
-      const grade = req.overallGrade ?? '';
       const theory = Number(req.theoryScore ?? 0);
       const practical = Number(req.practicalScore ?? 0);
       const participation = Number(req.participationScore ?? 0);
       const proficiency = req.proficiencyLevel ?? 'intermediate';
-      // Attendance/lab stats may be absent if scores were entered manually — only show if present
-      const attText = req.attendance && !req.attendance.startsWith('0/') ? `Attendance: ${req.attendance}` : '';
-      const labText = req.assignments && !req.assignments.startsWith('0/') ? `Lab Completion: ${req.assignments}` : '';
-      const engagementLine = [attText, labText].filter(Boolean).join(' | ') || 'Scores entered manually by teacher';
 
-      const performanceSummary = overallScore >= 80
-        ? 'excellent — well above standard'
-        : overallScore >= 65
-        ? 'good — meeting expectations'
-        : overallScore >= 50
-        ? 'developing — making progress'
-        : 'needs improvement — below standard';
+      // Convert scores to descriptive bands — never expose raw numbers to the AI output
+      const band = (n: number) =>
+        n >= 85 ? 'outstanding' :
+        n >= 75 ? 'excellent' :
+        n >= 65 ? 'very good' :
+        n >= 55 ? 'good' :
+        n >= 45 ? 'satisfactory' :
+        n >= 35 ? 'fair' : 'needs improvement';
 
-      // Identify the weakest area to guide growth comment
+      const overallBand = band(overallScore);
+      const theoryBand = band(theory);
+      const practicalBand = band(practical);
+      const participationBand = band(participation);
+
+      // Identify weakest/strongest area by label only
       const scores = { Theory: theory, Practical: practical, Participation: participation };
       const weakest = Object.entries(scores).sort(([, a], [, b]) => a - b)[0][0];
       const strongest = Object.entries(scores).sort(([, a], [, b]) => b - a)[0][0];
@@ -157,30 +160,29 @@ Important: Be fair but encouraging. For 'essay' questions, look for key concepts
       const programLine = req.programName ? `Programme: "${req.programName}"` : '';
       const contextBlock = [courseLine, programLine].filter(Boolean).join('\n');
 
-      return `You are an experienced Nigerian school administrator writing brief, professional student report comments.
+      return `You are an experienced Nigerian school administrator writing brief, professional student report card comments.
 
 Student: "${req.studentName ?? 'The student'}"
 ${contextBlock}
 Current Topic/Module: "${req.topic}"
-Overall Score: ${overallScore}% (Grade ${grade}) — ${performanceSummary}
-Theory: ${theory}% | Practical: ${practical}% | Participation: ${participation}%
-Best area: ${strongest} | Needs most work: ${weakest}
-${engagementLine}
-Proficiency Level: ${proficiency}
+Overall performance: ${overallBand}
+Theory: ${theoryBand} | Practical: ${practicalBand} | Participation: ${participationBand}
+Strongest area: ${strongest} | Area needing most attention: ${weakest}
+Proficiency level: ${proficiency}
 
 RULES — follow strictly:
 1. Write EXACTLY 2-3 short, clear sentences per section. No more, no less.
-2. Use simple, everyday English that parents and students can easily understand. Avoid jargon.
-3. Be SPECIFIC — reference the course or programme name to make comments feel personal and relevant.
-4. Ground every sentence in the actual scores above. Mention numbers where they add value.
+2. NEVER include any numbers, percentages, or scores in your output — use only descriptive words (e.g. "excellent", "satisfactory", "needs more practice").
+3. Use simple, everyday English that parents and students can easily understand.
+4. Be SPECIFIC — reference the course or programme name to make the comment feel personal.
 5. Sound like a caring but professional head teacher — warm, honest, and encouraging.
-6. Key Strengths: celebrate what the student genuinely did well (focus on the strongest area and overall score).
-7. Areas for Growth: give one clear, achievable action the student can take in this specific course (focus on the weakest area).
+6. Key Strengths: celebrate what the student genuinely did well, referencing their strongest area and overall performance level.
+7. Areas for Growth: give one clear, kind, achievable action the student can take in this specific course, focused on the weakest area.
 
 Return ONLY this JSON (no extra text):
 {
-  "key_strengths": "2-3 sentences praising real achievements, referencing the course/programme and scores.",
-  "areas_for_growth": "2-3 sentences with a simple, kind, actionable direction for improvement in this course."
+  "key_strengths": "2-3 sentences praising real achievements using descriptive words only.",
+  "areas_for_growth": "2-3 sentences with a simple, kind, actionable direction — no numbers."
 }`; }
 
 
@@ -188,12 +190,17 @@ Return ONLY this JSON (no extra text):
       const grade = req.gradeLevel ?? 'Basic 1–SS3';
       const youngGrades = ['KG', 'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6'];
       const isYoung = youngGrades.some(g => grade === g || grade.startsWith(g) || grade.includes('KG'));
+      const notesContextLine = [
+        req.programName ? `Programme: "${req.programName}"` : '',
+        req.courseName ? `Course: "${req.courseName}"` : '',
+      ].filter(Boolean).join(' | ');
 
       if (isYoung) {
         return `Write simple, fun study notes for a Nigerian primary school student.
 Topic: "${req.topic}"
 Grade: ${grade}
-Subject: ${req.subject ?? 'Coding & Technology'}
+Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
+${notesContextLine ? `Context: ${notesContextLine}` : ''}
 
 STRICT RULES for young learners:
 - Write like you are talking to a 7-10 year old friend
@@ -202,6 +209,7 @@ STRICT RULES for young learners:
 - Give real-life Nigerian examples (mention things like phones, generators, traffic lights, Afrobeats, suya, football)
 - NO technical jargon. If you must use a tech word, explain it with "That means..."
 - Use headers like "## What is it? 🤔", "## How does it work? ⚙️", "## Try it yourself! 🚀", "## Fun Facts! 🌟"
+${req.courseName ? `- Show how "${req.topic}" connects to the student's "${req.courseName}" course` : ''}
 - Keep it SHORT — around 400 words total
 - End with 3 simple fun questions like "Can you name 3 things that use ${req.topic}?"
 
@@ -214,8 +222,9 @@ Return ONLY this JSON (nothing else):
       return `Write clear, engaging study notes for a Rillcod Technologies student.
 Topic: "${req.topic}"
 Grade: ${grade}
-Subject: ${req.subject ?? 'Coding & Technology'}
+Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
 Duration: ${req.durationMinutes ?? 60} minutes
+${notesContextLine ? `Context: ${notesContextLine}` : ''}
 
 RULES:
 - Use ## and ### markdown headers to structure the notes clearly
@@ -223,6 +232,8 @@ RULES:
 - Include real-world examples relevant to African/Nigerian students
 - For coding topics: include ONE short code example with comments
 - Use bullet points for lists and key concepts
+${req.courseName ? `- Frame every example and analogy within the context of "${req.courseName}" so the student can connect this topic to their course` : ''}
+${req.programName ? `- Mention how this topic fits the broader "${req.programName}" programme once, naturally, in the introduction` : ''}
 - Tone: encouraging, clear, British English
 - Length: 800-1200 words (not more — quality over quantity)
 - End with a "## Quick Recap 📌" section with 5 bullet points
@@ -310,13 +321,23 @@ ${isEarlyYears ? `EARLY YEARS (KG–Basic 3):
 - Tone MUST use "Let's...", "Great job!", "Try this!", "Can you...?" — no formal academic language.
 - ALL block content must be age-appropriate: no complex syntax, no technical abbreviations without simple explanation.` : '';
 
+      const curriculumContext = (req.courseName || req.programName || req.siblingLessons?.length)
+        ? `\nCURRICULUM CONTEXT (use this to tailor all content and examples):
+${req.programName ? `Programme: "${req.programName}"` : ''}
+${req.courseName ? `Course: "${req.courseName}"` : ''}
+${req.siblingLessons?.length ? `Other lessons already covered in this course (DO NOT repeat — build on them instead): ${req.siblingLessons.slice(0, 10).join(', ')}` : ''}
+- All examples, analogies, code samples, quiz questions, and activities MUST be directly relevant to this programme and course.
+- Connect new concepts to what students already know from previous lessons where possible.`
+        : '';
+
       return `Generate an IMMERSIVE, ADDICTIVE, and COMPLETE lesson for Rillcod Technologies.
 Topic: "${req.topic}"
 Grade level: ${grade}
-Subject: ${req.subject ?? 'Coding & Technology'}
+Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
 Duration: ${req.durationMinutes ?? 60} minutes
 Lesson type: ${req.contentType ?? modeConfig.lessonTypeHint}
 LESSON MODE: ${modeConfig.label}
+${curriculumContext}
 ${youngLearnerOverride}
 ${modeConfig.blockRules}
 
@@ -416,7 +437,9 @@ UNIVERSAL RULES:
       return `Generate an assignment for Rillcod Technologies students.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
-Subject: ${req.subject ?? 'Coding & Technology'}
+Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
+${req.programName ? `Programme: "${req.programName}"` : ''}
+${req.courseName ? `Course: "${req.courseName}" — all questions and scenarios MUST relate to this course` : ''}
 Assignment type hint: ${req.assignmentType ?? 'auto-detect'}
 Max Points: 100
 
@@ -474,7 +497,9 @@ RULES:
       return `Generate a Computer Based Test (CBT) for Rillcod Technologies.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
-Subject: ${req.subject ?? 'Coding & Technology'}
+Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
+${req.programName ? `Programme: "${req.programName}"` : ''}
+${req.courseName ? `Course: "${req.courseName}" — all questions MUST be framed within this course's scope and context` : ''}
 Total questions required: EXACTLY ${totalQ}. You MUST generate all ${totalQ} — do not stop early.
 
 ${mcqInstruction}
@@ -513,8 +538,11 @@ ${openCount > 0 ? `- Last ${openCount} questions MUST be open-ended (essay/fill_
       return `Generate a HIGH-ACTION, BENEFICIAL lesson plan for a Rillcod Technologies instructor.
       Topic: "${req.topic}"
       Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
-      
+      ${req.programName ? `Programme: "${req.programName}"` : ''}
+      ${req.courseName ? `Course: "${req.courseName}"` : ''}
+
       This plan is for the TEACHER/PARENT. It should contain a "Secret Blueprint" on how to teach this topic effectively.
+      ${req.courseName ? `All activities, examples, and teaching strategies MUST align with the "${req.courseName}" course scope.` : ''}
       
       Return a JSON object with this exact shape:
       {
@@ -622,15 +650,21 @@ Return a JSON object with this exact shape:
     }
 
     case 'lesson-hook': {
+      const hookContext = [
+        req.programName ? `Programme: "${req.programName}"` : '',
+        req.courseName ? `Course: "${req.courseName}"` : '',
+      ].filter(Boolean).join(' | ');
       return `You are the Great Learning Explorer for Rillcod Technologies. Generate an EXCITING, addictive opening hook for a lesson.
 
 Topic: "${req.topic}"
 Grade Level: ${req.gradeLevel ?? 'JSS1–SS3'}
+${hookContext ? `Curriculum Context: ${hookContext}` : ''}
 
 The hook should:
 - Open with a surprising real-world fact or story about "${req.topic}"
 - Create immediate curiosity and excitement
 - Be 2-3 short paragraphs maximum
+${req.courseName ? `- Show how this topic is a key building block in "${req.courseName}"` : ''}
 - End with a challenge question to the student
 
 Return a JSON object:
@@ -748,9 +782,8 @@ export async function POST(req: NextRequest) {
       case 'lesson':
         // Best models for rich, structured, creative educational content
         modelQueue = [
-          "google/gemini-2.5-pro-preview",        // Best overall: rich structured JSON + creative
-          "anthropic/claude-sonnet-4-5",           // Excellent for educational depth + engagement
-          "google/gemini-2.0-flash-001",           // Fast reliable fallback
+          "google/gemini-2.0-flash-001",           // Primary: fast, reliable, 1M ctx, excellent JSON
+          "qwen/qwen3-235b-a22b:free",             // 235B params, massive reasoning, free
           "moonshotai/kimi-k2.5",                  // High intelligence, great for detailed content
           "x-ai/grok-2-1212",                      // Creative/playful fallback
         ];
@@ -760,8 +793,8 @@ export async function POST(req: NextRequest) {
 
       case 'lesson-notes':
         modelQueue = [
-          "google/gemini-2.0-flash-001",           // Fast, reliable, handles text well
-          "anthropic/claude-sonnet-4-5",           // Best for long-form educational writing
+          "google/gemini-2.0-flash-001",           // Primary: fast, reliable, long-form text
+          "qwen/qwen3-235b-a22b:free",             // 235B free — excellent at structured writing
           "moonshotai/kimi-k2.5",                  // Deep synthesis
           "deepseek/deepseek-chat-v3-5",           // Strong writer
           "meta-llama/llama-3.3-70b-instruct",     // Solid free fallback
@@ -794,8 +827,17 @@ export async function POST(req: NextRequest) {
         adaptiveTemperature = 0.1; // Zero hallucination
         break;
 
-      case 'daily-missions':
       case 'lesson-hook':
+        modelQueue = [
+          "google/gemini-2.0-flash-001",
+          "x-ai/grok-2-1212",
+          "meta-llama/llama-3.3-70b-instruct",
+        ];
+        adaptiveTemperature = 0.92; // High creativity for hooks
+        adaptiveMaxTokens = 1024;
+        break;
+
+      case 'daily-missions':
         modelQueue = [
           "google/gemini-2.0-flash-001",
           "x-ai/grok-2-1212",
@@ -805,11 +847,33 @@ export async function POST(req: NextRequest) {
         adaptiveMaxTokens = 2048;
         break;
 
+      case 'assignment':
+        modelQueue = [
+          "google/gemini-2.0-flash-001",
+          "deepseek/deepseek-chat-v3-5",
+          "meta-llama/llama-3.3-70b-instruct",
+          "google/gemini-flash-1.5",
+        ];
+        adaptiveTemperature = 0.4; // Balanced — consistent but not rigid
+        adaptiveMaxTokens = 3000;
+        break;
+
+      case 'lesson-plan':
+        modelQueue = [
+          "qwen/qwen3-235b-a22b:free",             // Primary: 235B free, superb at structured plans
+          "google/gemini-2.0-flash-001",           // Fast reliable second choice
+          "moonshotai/kimi-k2.5",                  // High intelligence fallback
+          "meta-llama/llama-3.3-70b-instruct",
+        ];
+        adaptiveTemperature = 0.5; // Structured and pedagogically sound
+        adaptiveMaxTokens = 3500;
+        break;
+
       case 'report-feedback':
         modelQueue = [
-          "anthropic/claude-sonnet-4-5",
-          "google/gemini-2.5-pro-preview",
-          "google/gemini-2.0-flash-001",
+          "qwen/qwen3-235b-a22b:free",             // Primary: nuanced writing, 235B free
+          "google/gemini-2.0-flash-001",           // Fast reliable second
+          "deepseek/deepseek-chat-v3-5",           // Strong at empathetic prose
         ];
         adaptiveTemperature = 0.75;
         adaptiveMaxTokens = 2048;
@@ -826,6 +890,87 @@ export async function POST(req: NextRequest) {
 
     // lesson-notes uses plain-text response (no response_format) to avoid malformed JSON errors
     const useJsonFormat = type !== 'lesson-notes';
+
+    // ── SSE Streaming path — used when client sends ?stream=1 (lesson type only) ──
+    const wantsStream = req.nextUrl?.searchParams.get('stream') === '1' && type === 'lesson';
+
+    if (wantsStream) {
+      const enc = new TextEncoder();
+      const sseStream = new ReadableStream({
+        async start(streamController) {
+          const emit = (payload: object) => {
+            try {
+              streamController.enqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`));
+            } catch { /* stream may be closed */ }
+          };
+
+          emit({ status: 'Initialising lesson engine...' });
+
+          for (const modelId of modelQueue) {
+            const shortName = modelId.split('/').pop()?.split(':')[0] ?? modelId;
+            emit({ status: `Generating with ${shortName}...` });
+
+            try {
+              const abortCtrl = new AbortController();
+              const tid = setTimeout(() => abortCtrl.abort(), 55000);
+
+              const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                  'X-Title': 'Rillcod Technologies (Kid-Friendly Platform)',
+                  'Content-Type': 'application/json',
+                },
+                signal: abortCtrl.signal,
+                body: JSON.stringify({
+                  model: modelId,
+                  messages: [
+                    { role: 'system', content: SYSTEM_PROMPT },
+                    { role: 'user', content: prompt },
+                  ],
+                  max_tokens: Math.min(adaptiveMaxTokens, 16000),
+                  temperature: adaptiveTemperature,
+                  response_format: { type: 'json_object' },
+                }),
+              });
+
+              clearTimeout(tid);
+
+              if (apiRes.ok) {
+                emit({ status: 'Assembling lesson blocks...' });
+                const apiData = await apiRes.json();
+                const content = apiData.choices[0]?.message?.content;
+                if (content) {
+                  try {
+                    const parsed = safeParseJSON(content);
+                    emit({ done: true, model: modelId, data: parsed });
+                    streamController.close();
+                    return;
+                  } catch {
+                    emit({ status: 'Retrying with better model...' });
+                  }
+                }
+              } else {
+                emit({ status: 'Switching to backup model...' });
+              }
+            } catch {
+              emit({ status: 'Switching to backup model...' });
+            }
+          }
+
+          emit({ error: 'All AI models are currently busy. Please try again.' });
+          streamController.close();
+        },
+      });
+
+      return new Response(sseStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    }
 
     // Iterate through models until one succeeds
     for (const modelId of modelQueue) {

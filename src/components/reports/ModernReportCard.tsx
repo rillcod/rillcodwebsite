@@ -97,12 +97,12 @@ export default function ModernReportCard({ report, orgSettings }: {
         ? new Date(report.report_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
         : '—';
 
-    // ── Scores (formula mirrors ReportCard: 40/40/20) ──────────────────
+    // ── Scores (Exam 40% · Test 20% · Assignment 20% · Participation 20%) ──
     const theory      = Number(report.theory_score)       || 0;
     const practical   = Number(report.practical_score)    || 0;
     const attendance  = Number(report.attendance_score)   || 0;
     const participation = Number(report.participation_score) || 0;
-    const computed    = Math.round(theory * 0.4 + practical * 0.4 + attendance * 0.2);
+    const computed    = Math.round(theory * 0.4 + practical * 0.2 + attendance * 0.2 + participation * 0.2);
     const overall     = Number(report.overall_score) > 0 ? Number(report.overall_score) : computed;
     const grade       = letterGrade(overall);
     const showCertificate = overall >= 45 || report.has_certificate === true;
@@ -122,10 +122,10 @@ export default function ModernReportCard({ report, orgSettings }: {
     const radiusPill  = isIndustrial ? 0 : 999;
 
     const metrics = [
-        { label: 'Theory Protocols',     weight: '40%',   value: theory,        color: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#4f46e5' },
-        { label: 'Practical Efficiency', weight: '40%',   value: practical,      color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#06b6d4' },
-        { label: 'Operational Presence', weight: '20%',   value: attendance,     color: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#10b981' },
-        { label: 'Class Participation',  weight: 'bonus', value: participation,  color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#8b5cf6' },
+        { label: 'Examination',       weight: '40%', value: theory,       color: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#4f46e5' },
+        { label: 'Evaluation',        weight: '20%', value: practical,    color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#06b6d4' },
+        { label: 'Assignment',        weight: '20%', value: attendance,   color: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#10b981' },
+        { label: 'Project Engagement',weight: '20%', value: participation,color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#8b5cf6' },
     ];
 
     return (

@@ -72,7 +72,7 @@ export async function PATCH(
 
   const allowed: Record<string, unknown> = {};
   const allowedFields = ['title', 'description', 'instructions', 'course_id', 'due_date',
-    'max_points', 'assignment_type', 'is_active', 'questions'];
+    'max_points', 'assignment_type', 'is_active', 'questions', 'metadata'];
   for (const f of allowedFields) {
     if (f in body) allowed[f] = body[f] ?? null;
   }

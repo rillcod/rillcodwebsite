@@ -12,7 +12,7 @@ const client = new OpenAI({
 });
 
 const PRIMARY_MODEL = 'google/gemini-2.0-flash-001';
-const FALLBACK_MODEL = 'openai/gpt-4o-mini';
+const FALLBACK_MODEL = 'qwen/qwen3-235b-a22b:free';
 
 interface ConversationMessage {
   role: 'user' | 'assistant';
@@ -23,6 +23,10 @@ interface StudyChatRequest {
   message: string;
   lessonTitle: string;
   lessonType?: string;
+  courseTitle?: string;
+  programName?: string;
+  gradeLevel?: string;
+  lessonObjectives?: string[];
   conversationHistory?: ConversationMessage[];
 }
 
@@ -37,7 +41,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body: StudyChatRequest = await req.json();
-    const { message, lessonTitle, lessonType, conversationHistory = [] } = body;
+    const { message, lessonTitle, lessonType, courseTitle, programName, gradeLevel, lessonObjectives, conversationHistory = [] } = body;
 
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
@@ -47,7 +51,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Lesson title is required' }, { status: 400 });
     }
 
-    const systemPrompt = `You are a friendly, encouraging STEM tutor helping a student understand their lesson on ${lessonTitle}${lessonType ? ` (${lessonType})` : ''}. Give clear, concise explanations. Use examples relevant to the topic. If asked off-topic questions, gently redirect to the lesson. Keep responses under 200 words.`;
+    const contextLines = [
+      programName ? `Programme: ${programName}` : '',
+      courseTitle ? `Course: ${courseTitle}` : '',
+      gradeLevel ? `Grade level: ${gradeLevel}` : '',
+      lessonType ? `Lesson type: ${lessonType}` : '',
+      lessonObjectives?.length
+        ? `Learning objectives:\n${lessonObjectives.slice(0, 4).map(o => `- ${o}`).join('\n')}`
+        : '',
+    ].filter(Boolean).join('\n');
+
+    const systemPrompt = `You are a friendly, encouraging STEM tutor at Rillcod Technologies helping a Nigerian student understand their current lesson.
+
+Lesson: "${lessonTitle}"
+${contextLines}
+
+YOUR RULES:
+- Give clear, accurate, step-by-step explanations tailored to the student's grade level and course.
+- Use real Nigerian or African examples (e.g. Eko Bridge traffic algorithms, NEPA power systems, mobile money apps, Nollywood streaming) wherever they naturally fit.
+- For coding or technical questions: always show a short working code snippet with clear comments.
+- Connect your answer to the specific course ("${courseTitle || lessonTitle}") so the student understands WHY this matters in their learning path.
+- If asked off-topic questions, warmly redirect back to the lesson.
+- Tone: warm, enthusiastic, encouraging — like a brilliant older sibling who loves STEM.
+- Keep responses under 280 words. Prefer bullet points or numbered steps for clarity.`;
 
     // Include up to the last 8 messages of conversation history
     const historyMessages = conversationHistory.slice(-8).map((msg) => ({

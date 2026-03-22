@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import {
     ArrowDownTrayIcon, ShareIcon, TrophyIcon,
-    CheckBadgeIcon, QrCodeIcon, ArrowPathIcon
+    CheckBadgeIcon, QrCodeIcon, ArrowPathIcon, ClipboardIcon, CheckIcon
 } from '@/lib/icons';
 import { generateReportPDF } from '@/lib/pdf-utils';
 
@@ -32,6 +31,13 @@ export function CertificateCard({ cert }: CertificateProps) {
     const certRef = useRef<HTMLDivElement>(null);
     const [isDownloading, setIsDownloading] = useState(false);
     const [template, setTemplate] = useState<TemplateType>('vanguard');
+    const [toast, setToast] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    const showToast = (msg: string) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 3000);
+    };
 
     const handleDownload = async () => {
         if (!certRef.current) return;
@@ -56,11 +62,26 @@ export function CertificateCard({ cert }: CertificateProps) {
                     url
                 });
             } catch (err) {
-                console.error('Share failed:', err);
+                // User cancelled share — no action needed
             }
         } else {
-            await navigator.clipboard.writeText(url);
-            alert('Verification link copied to clipboard!');
+            try {
+                await navigator.clipboard.writeText(url);
+                showToast('Verification link copied to clipboard!');
+            } catch {
+                showToast('Copy link: ' + url);
+            }
+        }
+    };
+
+    const handleCopyCertNumber = async () => {
+        try {
+            await navigator.clipboard.writeText(cert.certificate_number);
+            setCopied(true);
+            showToast('Certificate number copied!');
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            showToast('Cert #: ' + cert.certificate_number);
         }
     };
 
@@ -73,7 +94,14 @@ export function CertificateCard({ cert }: CertificateProps) {
         : '';
 
     return (
-        <div className="space-y-6 animate-fade-in group/main">
+        <div className="space-y-6 animate-fade-in group/main relative">
+            {/* Toast notification */}
+            {toast && (
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-[#1a1a2e] border border-white/10 text-white text-xs font-semibold px-5 py-3 shadow-2xl flex items-center gap-2 pointer-events-none animate-fade-in">
+                    <CheckIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    {toast}
+                </div>
+            )}
             {/* Template Selector */}
             <div className="flex justify-center gap-0 bg-[#111113] border border-white/[0.05] p-1 w-fit mx-auto shadow-xl">
                 {(['vanguard', 'academic', 'future'] as TemplateType[]).map((t) => (
@@ -273,6 +301,22 @@ export function CertificateCard({ cert }: CertificateProps) {
                 </div>
             </div>
 
+            {/* Certificate number + copy row */}
+            <div className="flex items-center justify-between px-1">
+                <div>
+                    <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] mb-0.5">Certificate Number</p>
+                    <p className="text-xs font-mono font-bold text-slate-400">{cert.certificate_number}</p>
+                </div>
+                <button
+                    onClick={handleCopyCertNumber}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all"
+                    title="Copy certificate number"
+                >
+                    {copied ? <CheckIcon className="w-3.5 h-3.5 text-emerald-400" /> : <ClipboardIcon className="w-3.5 h-3.5" />}
+                    {copied ? 'Copied!' : 'Copy #'}
+                </button>
+            </div>
+
             <div className="flex items-center justify-center gap-4">
                 <button
                     onClick={handleDownload}
@@ -280,13 +324,14 @@ export function CertificateCard({ cert }: CertificateProps) {
                     className="flex-1 max-w-[280px] flex items-center justify-center gap-4 py-5 bg-primary hover:bg-primary/90 disabled:opacity-30 text-black text-[11px] font-black uppercase tracking-[0.3em] transition-all shadow-[0_10px_40px_rgba(255,145,77,0.2)] hover:-translate-y-1 active:translate-y-0"
                 >
                     {isDownloading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <ArrowDownTrayIcon className="w-6 h-6" />}
-                    {isDownloading ? 'ENCRYPTING...' : 'Download Record'}
+                    {isDownloading ? 'Generating...' : 'Download PDF'}
                 </button>
                 <button
                     onClick={handleShare}
                     className="px-8 py-5 bg-[#111113] border border-white/[0.1] hover:border-white/20 text-white text-[10px] font-black uppercase tracking-[0.3em] transition-all hover:bg-white/[0.02]"
                 >
-                    System Share
+                    <ShareIcon className="w-4 h-4 mx-auto mb-1" />
+                    Share
                 </button>
             </div>
         </div>

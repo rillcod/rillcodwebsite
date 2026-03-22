@@ -41,6 +41,7 @@ export default function AddLessonPage() {
   const [aiMode, setAiMode] = useState<'academic' | 'project' | 'interactive'>('academic');
   const [aiObjectives, setAiObjectives] = useState<string[]>([]);
   const [showLessonPreview, setShowLessonPreview] = useState(false);
+  const [aiStatus, setAiStatus] = useState<string | null>(null);
 
   const isYoungLearner = YOUNG_LEARNER_GRADES.some(g => aiGrade === g || aiGrade.startsWith(g));
 
@@ -106,7 +107,7 @@ export default function AddLessonPage() {
     }
   };
 
-  // Full lesson generation — fills everything
+  // Full lesson generation — uses SSE streaming for live status feedback
   const handleAiGenerate = async (topicOverride?: string) => {
     const topicToUse = topicOverride || aiTopic;
     if (!topicToUse.trim()) { setAiError('Enter a topic first.'); setAiOpen(true); return; }
@@ -114,46 +115,102 @@ export default function AddLessonPage() {
     setAiGenerating(true);
     setAiError(null);
     setLastModel(null);
+    setAiStatus('Connecting to AI...');
     try {
-      const res = await fetch('/api/ai/generate', {
+      const selectedCourse = courses.find(c => c.id === form.course_id);
+      const body = JSON.stringify({
+        type: 'lesson',
+        topic: topicToUse,
+        gradeLevel: aiGrade,
+        subject: aiSubject || selectedCourse?.title || undefined,
+        durationMinutes: form.duration_minutes ? parseInt(form.duration_minutes) : 60,
+        contentType: form.lesson_type,
+        lessonMode: aiMode,
+        courseName: selectedCourse?.title || undefined,
+        programName: (selectedCourse as any)?.programs?.name || undefined,
+      });
+
+      const res = await fetch('/api/ai/generate?stream=1', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'lesson',
-          topic: topicToUse,
-          gradeLevel: aiGrade,
-          subject: aiSubject || undefined,
-          durationMinutes: form.duration_minutes ? parseInt(form.duration_minutes) : 60,
-          contentType: form.lesson_type,
-          lessonMode: aiMode,
-        }),
+        body,
       });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error ?? 'Generation failed');
-      const d = payload.data;
-      setLastModel(payload.model ?? null);
-      if (Array.isArray(d.objectives) && d.objectives.length > 0) {
-        setAiObjectives(d.objectives);
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? 'Generation failed');
       }
-      setForm(prev => ({
-        ...prev,
-        title: d.title ?? (topicOverride || prev.title),
-        description: d.description ?? prev.description,
-        lesson_notes: d.lesson_notes ?? prev.lesson_notes,
-        content_layout: Array.isArray(d.content_layout) && d.content_layout.length > 0
-          ? d.content_layout
-          : prev.content_layout,
-        video_url: d.video_url ?? prev.video_url,
-        duration_minutes: d.duration_minutes ? String(d.duration_minutes) : prev.duration_minutes,
-        lesson_type: d.lesson_type ?? prev.lesson_type,
-      }));
-      setAiOpen(false);
-      setShowLessonPreview(true);
+
+      const contentType = res.headers.get('Content-Type') ?? '';
+
+      if (contentType.includes('text/event-stream') && res.body) {
+        // Read SSE stream
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const event = JSON.parse(line.slice(6));
+              if (event.status) {
+                setAiStatus(event.status);
+              } else if (event.error) {
+                throw new Error(event.error);
+              } else if (event.done && event.data) {
+                const d = event.data;
+                setLastModel(event.model ?? null);
+                if (Array.isArray(d.objectives) && d.objectives.length > 0) setAiObjectives(d.objectives);
+                setForm(prev => ({
+                  ...prev,
+                  title: d.title ?? (topicOverride || prev.title),
+                  description: d.description ?? prev.description,
+                  lesson_notes: d.lesson_notes ?? prev.lesson_notes,
+                  content_layout: Array.isArray(d.content_layout) && d.content_layout.length > 0 ? d.content_layout : prev.content_layout,
+                  video_url: d.video_url ?? prev.video_url,
+                  duration_minutes: d.duration_minutes ? String(d.duration_minutes) : prev.duration_minutes,
+                  lesson_type: d.lesson_type ?? prev.lesson_type,
+                }));
+                setAiOpen(false);
+                setShowLessonPreview(true);
+              }
+            } catch (parseErr: any) {
+              if (parseErr.message !== 'Unexpected end of JSON input') throw parseErr;
+            }
+          }
+        }
+      } else {
+        // Fallback: non-streaming response
+        const payload = await res.json();
+        const d = payload.data;
+        setLastModel(payload.model ?? null);
+        if (Array.isArray(d.objectives) && d.objectives.length > 0) setAiObjectives(d.objectives);
+        setForm(prev => ({
+          ...prev,
+          title: d.title ?? (topicOverride || prev.title),
+          description: d.description ?? prev.description,
+          lesson_notes: d.lesson_notes ?? prev.lesson_notes,
+          content_layout: Array.isArray(d.content_layout) && d.content_layout.length > 0 ? d.content_layout : prev.content_layout,
+          video_url: d.video_url ?? prev.video_url,
+          duration_minutes: d.duration_minutes ? String(d.duration_minutes) : prev.duration_minutes,
+          lesson_type: d.lesson_type ?? prev.lesson_type,
+        }));
+        setAiOpen(false);
+        setShowLessonPreview(true);
+      }
     } catch (e: any) {
       setAiError(e.message ?? 'Failed to generate lesson');
       setAiOpen(true);
     } finally {
       setAiGenerating(false);
+      setAiStatus(null);
     }
   };
 
@@ -165,6 +222,7 @@ export default function AddLessonPage() {
     setAiGeneratingNotes(true);
     setAiError(null);
     try {
+      const selectedCourse = courses.find(c => c.id === form.course_id);
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -172,8 +230,10 @@ export default function AddLessonPage() {
           type: 'lesson-notes',
           topic: topicToUse,
           gradeLevel: aiGrade,
-          subject: aiSubject || undefined,
+          subject: aiSubject || selectedCourse?.title || undefined,
           durationMinutes: form.duration_minutes ? parseInt(form.duration_minutes) : 60,
+          courseName: selectedCourse?.title || undefined,
+          programName: (selectedCourse as any)?.programs?.name || undefined,
         }),
       });
       const payload = await res.json();
@@ -427,7 +487,7 @@ export default function AddLessonPage() {
                 >
                   {aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                   {aiGenerating
-                    ? 'Generating...'
+                    ? (aiStatus ?? 'Generating...')
                     : `Build ${aiMode.charAt(0).toUpperCase() + aiMode.slice(1)} Lesson`}
                 </button>
               </div>

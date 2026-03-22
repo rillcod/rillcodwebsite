@@ -34,9 +34,9 @@ export async function GET(request: NextRequest) {
       .select(`
         id, title, description, instructions, due_date, max_points,
         assignment_type, is_active, created_at, created_by,
-        school_id, school_name,
+        school_id, school_name, metadata,
         courses ( id, title, programs ( name ) ),
-        assignment_submissions ( id, status, grade )
+        assignment_submissions ( id, status, grade, portal_user_id )
       `)
       .order('due_date', { ascending: true });
 
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const allowed = ['title', 'description', 'instructions', 'course_id', 'lesson_id', 'due_date',
-      'max_points', 'assignment_type', 'is_active', 'questions', 'school_id', 'school_name'];
+      'max_points', 'assignment_type', 'is_active', 'questions', 'school_id', 'school_name', 'metadata'];
     const payload: Record<string, unknown> = { created_by: caller.id };
     for (const f of allowed) {
       if (f in body) payload[f] = body[f] ?? null;
