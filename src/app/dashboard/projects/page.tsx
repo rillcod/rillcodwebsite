@@ -110,10 +110,10 @@ export default function ProjectsPage() {
         async function load() {
             setLoading(true);
             try {
-                if (isStudent) {
+                if (isStudent && profile) {
                     const [labRes, portRes] = await Promise.all([
-                        db.from('lab_projects').select('*').eq('user_id', profile.id).order('updated_at', { ascending: false }),
-                        db.from('portfolio_projects').select('*').eq('user_id', profile.id).order('updated_at', { ascending: false }),
+                        db.from('lab_projects').select('*').eq('user_id', profile!.id).order('updated_at', { ascending: false }),
+                        db.from('portfolio_projects').select('*').eq('user_id', profile!.id).order('updated_at', { ascending: false }),
                     ]);
                     setMyLab(labRes.data || []);
                     setMyPortfolio(portRes.data || []);
@@ -198,13 +198,13 @@ export default function ProjectsPage() {
         // Student activity stats
         const myActStats = {
             total:     myActivities.length,
-            pending:   myActivities.filter(a => { const s = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile.id); return !s; }).length,
-            submitted: myActivities.filter(a => { const s = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile.id); return s?.status === 'submitted'; }).length,
-            graded:    myActivities.filter(a => { const s = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile.id); return s?.status === 'graded'; }).length,
+            pending:   myActivities.filter(a => { const s = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile!.id); return !s; }).length,
+            submitted: myActivities.filter(a => { const s = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile!.id); return s?.status === 'submitted'; }).length,
+            graded:    myActivities.filter(a => { const s = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile!.id); return s?.status === 'graded'; }).length,
         };
 
         const filteredMyActs = myActivities.filter(a => {
-            const sub = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile.id);
+            const sub = a.assignment_submissions?.find((s: any) => s.portal_user_id === profile!.id);
             const status = sub?.status || 'pending';
             if (studentActFilter === 'pending')   return status === 'pending';
             if (studentActFilter === 'submitted') return status === 'submitted';
@@ -412,7 +412,7 @@ export default function ProjectsPage() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                             {filteredMyActs.map((act: any) => {
                                                 const subs  = act.assignment_submissions || [];
-                                                const mySub = subs.find((s: any) => s.portal_user_id === profile.id);
+                                                const mySub = subs.find((s: any) => s.portal_user_id === profile!.id);
                                                 const status = mySub?.status || 'pending';
                                                 const meta   = act.metadata || {};
                                                 const catInfo = CAT_META[meta.category] || CAT_META.coding;
