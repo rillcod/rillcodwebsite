@@ -101,7 +101,7 @@ function ReportBuilderInner() {
     const searchParams = useSearchParams();
     const prefStudentId = searchParams.get('student');
 
-    const { profile, loading: authLoading } = useAuth();
+    const { profile, loading: authLoading, profileLoading } = useAuth();
 
     // ── Permissions ──────────────────────────────────────────────────────────
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
@@ -963,7 +963,7 @@ function ReportBuilderInner() {
     };
 
     // ── Guards ────────────────────────────────────────────────────────────────
-    if (authLoading) return (
+    if (authLoading || profileLoading) return (
         <div className="min-h-screen bg-background flex items-center justify-center">
             <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
         </div>

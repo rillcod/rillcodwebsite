@@ -23,7 +23,7 @@ export default function ClassDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const router = useRouter();
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, profileLoading } = useAuth();
 
   const [cls, setCls] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
@@ -139,10 +139,10 @@ export default function ClassDetailPage() {
   };
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || profileLoading) return;
     if (profile && id) fetchData();
     else setLoading(false);
-  }, [id, profile?.id, authLoading]);
+  }, [id, profile?.id, authLoading, profileLoading]);
 
   const loadAvailableStudents = async () => {
     if (!cls) return;
@@ -515,7 +515,7 @@ export default function ClassDetailPage() {
     printWindow.onload = () => { printWindow.focus(); };
   };
 
-  if (authLoading || profileLoading || loading) return (
+  if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
