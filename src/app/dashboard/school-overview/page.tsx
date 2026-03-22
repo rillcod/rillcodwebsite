@@ -11,8 +11,6 @@ import {
   StarIcon, BookOpenIcon, CalendarDaysIcon, CheckCircleIcon,
   ExclamationCircleIcon, ClockIcon,
 } from '@/lib/icons';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 interface StudentRow {
   id: string;
@@ -169,8 +167,10 @@ export default function SchoolOverviewPage() {
     setLoading(false);
   }
 
-  function exportPDF() {
-    const doc = new jsPDF();
+  async function exportPDF() {
+    const { jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+    const doc = new jsPDF() as any;
     doc.setFontSize(18);
     doc.text('School Performance Report', 14, 22);
     doc.setFontSize(11);

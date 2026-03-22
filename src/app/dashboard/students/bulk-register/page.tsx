@@ -32,14 +32,6 @@ import {
 } from '@/lib/icons';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 import toast from 'react-hot-toast';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
-import { UserOptions } from 'jspdf-autotable';
-
-// Fix for jspdf-autotable types
-interface jsPDFWithPlugin extends jsPDF {
-  autoTable: (options: UserOptions) => jsPDF;
-}
 
 // ─── Class detection ─────────────────────────────────────────────────────────
 //
@@ -249,14 +241,16 @@ export default function BulkRegisterPage() {
   const [activeTab, setActiveTab]= useState<'register' | 'vault'>('register');
   const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
 
-  const handleExportRosterPDF = (resultsToPrint: any[]) => {
+  const handleExportRosterPDF = async (resultsToPrint: any[]) => {
     const validResults = resultsToPrint.filter(r => r.status !== 'failed');
     if (validResults.length === 0) {
       toast.error('No valid records found for PDF export.');
       return;
     }
 
-    const doc = new jsPDF() as jsPDFWithPlugin;
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
+    const doc = new jsPDF() as any;
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const batchIdStr = validResults[0].batch_id?.slice(0, 8) || 'N/A';
 
@@ -316,14 +310,15 @@ export default function BulkRegisterPage() {
     toast.success('Roster PDF generated successfully.');
   };
 
-  const handleExportCardsPDF = (resultsToPrint: any[]) => {
+  const handleExportCardsPDF = async (resultsToPrint: any[]) => {
     const validResults = resultsToPrint.filter(r => r.status !== 'failed');
     if (validResults.length === 0) {
       toast.error('No valid records found for PDF export.');
       return;
     }
 
-    const doc = new jsPDF() as jsPDFWithPlugin;
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF() as any;
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
     // Cards: exactly 80×60mm, 8mm gap, centered on A4
