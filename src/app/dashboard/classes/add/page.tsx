@@ -120,11 +120,9 @@ export default function AddClassPage() {
               .map(s => `school_name.eq.${s.name}`)
               .filter(Boolean);
             poolQuery = (poolQuery as any).or(nameParts.length ? `${idPart},${nameParts.join(',')}` : idPart);
-          } else {
-            setAvailableStudents([]);
-            setLoadingStudents(false);
-            return;
           }
+          // No school filter — teacher with no school associations sees all students
+          // (admin can always further restrict via school_id selection)
         }
 
         const { data: studs } = await poolQuery.order('full_name');
@@ -193,7 +191,7 @@ export default function AddClassPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ids: selectedStudents, update: patchUpdate }),
         });
-        await fetch('/api/students/bulk-enroll', {
+        const enrollRes = await fetch('/api/students/bulk-enroll', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -203,6 +201,13 @@ export default function AddClassPage() {
             school_id: form.school_id || undefined,
           }),
         });
+        const enrollJson = await enrollRes.json();
+        if (!enrollRes.ok) {
+          // Class was created — just warn, don't fail
+          console.warn('Bulk enroll partially failed:', enrollJson.error);
+        } else if (enrollJson.warning) {
+          console.warn('Bulk enroll warning:', enrollJson.warning);
+        }
       }
 
       router.push('/dashboard/classes');

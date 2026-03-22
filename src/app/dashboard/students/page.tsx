@@ -740,7 +740,12 @@ export default function StudentsPage() {
   };
 
   // ── Unified combined list ───────────────────────────────────
-  const normalizedApplications = students.map(s => ({ ...s, _source: 'application' as const }));
+  // Exclude applications that already have a linked portal account (user_id set)
+  // — those students already appear in the enrolled (portalStudents) list.
+  const enrolledPortalIds = new Set(portalStudents.map((s: any) => s.id));
+  const normalizedApplications = students
+    .filter((s: any) => !s.user_id || !enrolledPortalIds.has(s.user_id))
+    .map(s => ({ ...s, _source: 'application' as const }));
   const normalizedEnrolled = portalStudents.map(s => ({
     ...s, _source: 'enrolled' as const,
     status: s.is_active ? 'active' : 'inactive',
