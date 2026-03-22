@@ -2,6 +2,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { AppError, NotFoundError } from '@/lib/errors';
 import { filesService } from './files.service';
+import PdfPrinter from 'pdfmake';
 import { TDocumentDefinitions } from 'pdfmake/interfaces';
 
 function adminClient() {
@@ -20,7 +21,7 @@ export class CertificateService {
             .eq('portal_user_id', studentId)
             .eq('course_id', courseId)
             .maybeSingle();
-        
+
         if (existing) return existing; // Skip if already issued
 
         // 2. Generate unique numbers
@@ -56,14 +57,14 @@ export class CertificateService {
 
     async bulkIssue(classId: string, courseId: string, issuerId?: string, schoolId?: string) {
         const admin = adminClient();
-        
+
         // 1. Get all students in the class
         const { data: students } = await admin
             .from('portal_users')
             .select('id')
             .eq('class_id', classId)
             .eq('role', 'student');
-        
+
         if (!students || students.length === 0) throw new AppError('No students found in this class', 404);
 
         // 2. Issue certificates in parallel
@@ -82,12 +83,12 @@ export class CertificateService {
         const admin = adminClient();
         const { data: cert } = await admin.from('certificates').select('metadata').eq('id', id).single();
         const newMetadata = { ...(cert?.metadata as any ?? {}), is_published: true };
-        
+
         const { error } = await admin
             .from('certificates')
             .update({ metadata: newMetadata })
             .eq('id', id);
-            
+
         if (error) throw new AppError(error.message, 500);
         return { success: true };
     }
@@ -122,7 +123,6 @@ export class CertificateService {
                 bolditalics: 'Helvetica-BoldOblique'
             }
         };
-        const { default: PdfPrinter } = await import('pdfmake');
         const printer = new PdfPrinter(fonts);
 
         const docDefinition: TDocumentDefinitions = {

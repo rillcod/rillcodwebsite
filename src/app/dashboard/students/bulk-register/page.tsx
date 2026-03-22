@@ -32,6 +32,14 @@ import {
 } from '@/lib/icons';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 import toast from 'react-hot-toast';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import { UserOptions } from 'jspdf-autotable';
+
+// Fix for jspdf-autotable types
+interface jsPDFWithPlugin extends jsPDF {
+  autoTable: (options: UserOptions) => jsPDF;
+}
 
 // ─── Class detection ─────────────────────────────────────────────────────────
 //
@@ -238,19 +246,17 @@ export default function BulkRegisterPage() {
   const [editingResultId, setEditingResultId] = useState<string | null>(null);
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
   const [selectedResultIds, setSelectedResultIds] = useState<string[]>([]);
-  const [activeTab, setActiveTab]= useState<'register' | 'vault'>('register');
+  const [activeTab, setActiveTab] = useState<'register' | 'vault'>('register');
   const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
 
-  const handleExportRosterPDF = async (resultsToPrint: any[]) => {
+  const handleExportRosterPDF = (resultsToPrint: any[]) => {
     const validResults = resultsToPrint.filter(r => r.status !== 'failed');
     if (validResults.length === 0) {
       toast.error('No valid records found for PDF export.');
       return;
     }
 
-    const { jsPDF } = await import('jspdf');
-    await import('jspdf-autotable');
-    const doc = new jsPDF() as any;
+    const doc = new jsPDF() as jsPDFWithPlugin;
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const batchIdStr = validResults[0].batch_id?.slice(0, 8) || 'N/A';
 
@@ -261,11 +267,11 @@ export default function BulkRegisterPage() {
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.text('OFFICIAL STUDENT ROSTER', 14, 28);
-    
+
     doc.setFontSize(10);
     doc.text(`BATCH: ${batchIdStr}`, 196, 22, { align: 'right' });
     doc.text(`DATE: ${dateStr}`, 196, 28, { align: 'right' });
-    
+
     doc.setDrawColor(200);
     doc.line(14, 32, 196, 32);
 
@@ -310,15 +316,14 @@ export default function BulkRegisterPage() {
     toast.success('Roster PDF generated successfully.');
   };
 
-  const handleExportCardsPDF = async (resultsToPrint: any[]) => {
+  const handleExportCardsPDF = (resultsToPrint: any[]) => {
     const validResults = resultsToPrint.filter(r => r.status !== 'failed');
     if (validResults.length === 0) {
       toast.error('No valid records found for PDF export.');
       return;
     }
 
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF() as any;
+    const doc = new jsPDF() as jsPDFWithPlugin;
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
     // Cards: exactly 80×60mm, 8mm gap, centered on A4
@@ -439,7 +444,7 @@ export default function BulkRegisterPage() {
 
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const batchIdStr = validResults[0].batch_id?.slice(0, 8) || 'N/A';
-    
+
     const html = `
       <html><head><title>Student Registration Roster - ${dateStr}</title>
       <style>
@@ -552,9 +557,9 @@ export default function BulkRegisterPage() {
       </head><body>
       <div class="grid">
         ${validResults.map(r => {
-          const sCode = 'RC-' + (r.id || r.portal_user_id || '').slice(0, 8).toUpperCase();
-          const qUrl = encodeURIComponent('https://rillcod.com/student/' + (r.id || r.portal_user_id || ''));
-          return `
+      const sCode = 'RC-' + (r.id || r.portal_user_id || '').slice(0, 8).toUpperCase();
+      const qUrl = encodeURIComponent('https://rillcod.com/student/' + (r.id || r.portal_user_id || ''));
+      return `
           <div class="card">
             <div class="chdr">
               <img src="${logoUrl}" class="logo" />
@@ -577,7 +582,7 @@ export default function BulkRegisterPage() {
             </div>
             <div class="cftr"><span>rillcod.com/login</span><span class="cftr-id">${sCode}</span></div>
           </div>`;
-        }).join('')}
+    }).join('')}
       </div>
       <script>window.onload = () => { window.print(); }</script>
       </body></html>
@@ -629,7 +634,7 @@ export default function BulkRegisterPage() {
   const handleBulkDelete = async () => {
     if (selectedResultIds.length === 0) return;
     if (!confirm(`Permanently purge ${selectedResultIds.length} identity nodes from this batch archive? This action is irreversible.`)) return;
-    
+
     setLoadingHistory(true);
     try {
       const res = await fetch(`/api/students/bulk-register?resultId=${selectedResultIds.join(',')}`, {
@@ -892,12 +897,12 @@ export default function BulkRegisterPage() {
       setResults(allResults);
       sessionStorage.setItem('last_bulk_reg', JSON.stringify({ results: allResults, date: new Date().toISOString() }));
       setHasRecoverable(true);
-      
+
       // Auto-switch to Registration History after successful registration
       await fetchHistory();
       setStep('registry');
       setShowHistory(true);
-      
+
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -981,7 +986,7 @@ export default function BulkRegisterPage() {
   return (
     <>
       <div className="min-h-screen bg-background p-4 sm:p-6 md:p-8 font-sans">
-        
+
         {/* Page Header */}
         <div className="max-w-7xl mx-auto mb-6 flex items-center gap-3">
           <div className="w-10 h-10 bg-orange-600 flex items-center justify-center rotate-3 border border-orange-400/20 shadow-xl shadow-orange-600/10 hover:rotate-6 transition-transform flex-shrink-0">
@@ -1022,206 +1027,206 @@ export default function BulkRegisterPage() {
         {activeTab === 'register' && (
           <div className="max-w-4xl mx-auto space-y-12">
 
-        {/* ══════════════════ STEP 1 — SINGLE ══════════════════════════ */}
-        {step === 'single' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <AddStudentModal inline isOpen={true} onClose={() => {}} onSuccess={() => { setStep('input'); setActiveTab('vault'); fetchHistory(); toast.success('Student registered. Check history.'); }} classId={selectedRegistryClass || undefined} />
-          </div>
-        )}
+            {/* ══════════════════ STEP 1 — SINGLE ══════════════════════════ */}
+            {step === 'single' && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <AddStudentModal inline isOpen={true} onClose={() => { }} onSuccess={() => { setStep('input'); setActiveTab('vault'); fetchHistory(); toast.success('Student registered. Check history.'); }} classId={selectedRegistryClass || undefined} />
+              </div>
+            )}
 
-        {step === 'input' && (
-          <div className="space-y-6">
+            {step === 'input' && (
+              <div className="space-y-6">
 
-            {/* ── Batch Settings ──────────────────────────────────── */}
-            <div className="bg-card border border-border rounded-none overflow-hidden">
-              <button
-                onClick={() => setSettingsOpen((o) => !o)}
-                className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-white/[0.02] transition-colors"
-              >
-                <div className="flex items-center gap-2 text-muted-foreground font-bold text-sm">
-                  <BuildingOffice2Icon className="w-4 h-4 text-orange-400" />
-                  Batch Settings
-                  <span className="text-muted-foreground font-normal text-xs ml-1">— school, programme &amp; default class</span>
-                </div>
-                <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {settingsOpen && (
-                <div className="px-4 sm:px-6 pb-6 pt-3 border-t border-border space-y-5">
-
-                  {/* Row 1: School + Programme */}
-                  <div className={`grid gap-5 ${schools.length > 0 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
-
-                    {/* School — admin (all schools) or teacher (their allocated schools) */}
-                    {schools.length > 0 && (
-                      <div>
-                        <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                          <BuildingOffice2Icon className="w-3.5 h-3.5" /> School
-                          {!isAdmin && <span className="text-orange-400/60 normal-case font-normal text-[10px] ml-1">(your allocated schools)</span>}
-                        </label>
-                        <select
-                          value={selectedSchoolId}
-                          onChange={(e) => {
-                            const opt = e.target.options[e.target.selectedIndex];
-                            setSelectedSchoolId(e.target.value);
-                            setSelectedSchoolName(e.target.value ? opt.text : '');
-                          }}
-                          className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
-                        >
-                          <option value="">— Select a school —</option>
-                          {schools.map((s) => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                          ))}
-                        </select>
-                        <p className="text-white/25 text-[11px] mt-1.5">
-                          {selectedSchoolId ? `Students will be assigned to ${selectedSchoolName}.` : 'Select the school to register students into.'}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Programme */}
-                    <div>
-                      <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                        <BookOpenIcon className="w-3.5 h-3.5" /> Programme
-                      </label>
-                      <select
-                        value={selectedProgramId}
-                        onChange={(e) => setSelectedProgramId(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
-                      >
-                        <option value="">— No auto-enrolment —</option>
-                        {programmes.map((p) => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
-                      <p className="text-white/25 text-[11px] mt-1.5">
-                        {selectedProgramId
-                          ? `Auto-enrolled into "${selectedProgLabel}" after registration.`
-                          : 'Leave blank to skip auto-enrolment.'}
-                      </p>
+                {/* ── Batch Settings ──────────────────────────────────── */}
+                <div className="bg-card border border-border rounded-none overflow-hidden">
+                  <button
+                    onClick={() => setSettingsOpen((o) => !o)}
+                    className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-white/[0.02] transition-colors"
+                  >
+                    <div className="flex items-center gap-2 text-muted-foreground font-bold text-sm">
+                      <BuildingOffice2Icon className="w-4 h-4 text-orange-400" />
+                      Batch Settings
+                      <span className="text-muted-foreground font-normal text-xs ml-1">— school, programme &amp; default class</span>
                     </div>
-                  </div>
+                    <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
+                  </button>
 
-                  {/* Divider */}
-                  <div className="border-t border-border" />
+                  {settingsOpen && (
+                    <div className="px-4 sm:px-6 pb-6 pt-3 border-t border-border space-y-5">
 
-                  {/* Row 2: Registry class (primary) + Standard code fallback */}
-                  <div className="sm:grid sm:grid-cols-2 gap-5 space-y-5 sm:space-y-0">
+                      {/* Row 1: School + Programme */}
+                      <div className={`grid gap-5 ${schools.length > 0 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
 
-                    {/* Teacher's created class — primary class assignment */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-muted-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-1.5">
-                          <AcademicCapIcon className="w-3.5 h-3.5" />
-                          My Class <span className="text-orange-400/70 ml-1 normal-case font-normal">(from class registry)</span>
-                        </label>
-                        <Link
-                          href="/dashboard/classes/add"
-                          className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-none text-orange-400 text-[10px] font-bold transition-colors"
-                          title="Create a new class"
-                        >
-                          <PlusIcon className="w-3 h-3" /> New Class
-                        </Link>
+                        {/* School — admin (all schools) or teacher (their allocated schools) */}
+                        {schools.length > 0 && (
+                          <div>
+                            <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                              <BuildingOffice2Icon className="w-3.5 h-3.5" /> School
+                              {!isAdmin && <span className="text-orange-400/60 normal-case font-normal text-[10px] ml-1">(your allocated schools)</span>}
+                            </label>
+                            <select
+                              value={selectedSchoolId}
+                              onChange={(e) => {
+                                const opt = e.target.options[e.target.selectedIndex];
+                                setSelectedSchoolId(e.target.value);
+                                setSelectedSchoolName(e.target.value ? opt.text : '');
+                              }}
+                              className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+                            >
+                              <option value="">— Select a school —</option>
+                              {schools.map((s) => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))}
+                            </select>
+                            <p className="text-white/25 text-[11px] mt-1.5">
+                              {selectedSchoolId ? `Students will be assigned to ${selectedSchoolName}.` : 'Select the school to register students into.'}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Programme */}
+                        <div>
+                          <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <BookOpenIcon className="w-3.5 h-3.5" /> Programme
+                          </label>
+                          <select
+                            value={selectedProgramId}
+                            onChange={(e) => setSelectedProgramId(e.target.value)}
+                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+                          >
+                            <option value="">— No auto-enrolment —</option>
+                            {programmes.map((p) => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
+                          <p className="text-white/25 text-[11px] mt-1.5">
+                            {selectedProgramId
+                              ? `Auto-enrolled into "${selectedProgLabel}" after registration.`
+                              : 'Leave blank to skip auto-enrolment.'}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-white/25 text-[11px] mb-2">
-                        Pick one of your created classes — registered students will be placed in it.
-                      </p>
-                      {filteredRegistryClasses.length > 0 ? (
-                        <select
-                          value={selectedRegistryClass}
-                          onChange={(e) => setSelectedRegistryClass(e.target.value)}
-                          disabled={!selectedSchoolId}
-                          className="w-full px-3 py-2.5 bg-card border border-orange-500/20 rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          <option value="">— No class selected —</option>
-                          {filteredRegistryClasses.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}{c.section_class ? ` (${c.section_class})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <div className="px-3 py-2.5 bg-white/3 border border-border rounded-none text-white/25 text-sm italic">
-                          {!selectedSchoolId ? 'Select a school first.' : 'No classes found for this school.'}
+
+                      {/* Divider */}
+                      <div className="border-t border-border" />
+
+                      {/* Row 2: Registry class (primary) + Standard code fallback */}
+                      <div className="sm:grid sm:grid-cols-2 gap-5 space-y-5 sm:space-y-0">
+
+                        {/* Teacher's created class — primary class assignment */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-muted-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-1.5">
+                              <AcademicCapIcon className="w-3.5 h-3.5" />
+                              My Class <span className="text-orange-400/70 ml-1 normal-case font-normal">(from class registry)</span>
+                            </label>
+                            <Link
+                              href="/dashboard/classes/add"
+                              className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-none text-orange-400 text-[10px] font-bold transition-colors"
+                              title="Create a new class"
+                            >
+                              <PlusIcon className="w-3 h-3" /> New Class
+                            </Link>
+                          </div>
+                          <p className="text-white/25 text-[11px] mb-2">
+                            Pick one of your created classes — registered students will be placed in it.
+                          </p>
+                          {filteredRegistryClasses.length > 0 ? (
+                            <select
+                              value={selectedRegistryClass}
+                              onChange={(e) => setSelectedRegistryClass(e.target.value)}
+                              disabled={!selectedSchoolId}
+                              className="w-full px-3 py-2.5 bg-card border border-orange-500/20 rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <option value="">— No class selected —</option>
+                              {filteredRegistryClasses.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}{c.section_class ? ` (${c.section_class})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div className="px-3 py-2.5 bg-white/3 border border-border rounded-none text-white/25 text-sm italic">
+                              {!selectedSchoolId ? 'Select a school first.' : 'No classes found for this school.'}
+                            </div>
+                          )}
+                          {selectedRegistryClass && (() => {
+                            const rc = filteredRegistryClasses.find((c) => c.id === selectedRegistryClass);
+                            return rc ? (
+                              <p className="text-orange-400/70 text-[11px] mt-1.5">
+                                Students will be tagged as <span className="font-mono font-bold">{rc.section_class ?? rc.name}</span>
+                              </p>
+                            ) : null;
+                          })()}
+                        </div>
+
+                        {/* Fallback standard class code */}
+                        <div>
+                          <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                            <AcademicCapIcon className="w-3.5 h-3.5" />
+                            Default Class / Arm <span className="text-muted-foreground normal-case font-normal ml-1">(optional)</span>
+                          </label>
+                          <p className="text-white/25 text-[11px] mb-2">
+                            Select a class or arm — students without an inline class will be placed here (e.g. JSS2A, SS1B).
+                          </p>
+                          <select
+                            value={defaultClass}
+                            onChange={(e) => setDefaultClass(e.target.value)}
+                            className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+                          >
+                            <option value="">— No default code —</option>
+                            <optgroup label="Primary School">
+                              {classOptions.filter((c) => c.id.startsWith('std-kg') || c.id.startsWith('std-b')).map((c) => (
+                                <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="Junior Secondary (JSS)">
+                              {classOptions.filter((c) => c.id.startsWith('std-jss')).map((c) => (
+                                <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="Senior Secondary (SS / SSS)">
+                              {classOptions.filter((c) => c.id.startsWith('std-ss')).map((c) => (
+                                <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
+                              ))}
+                            </optgroup>
+                          </select>
+                          {defaultClass && !selectedRegistryClass && (
+                            <p className="text-emerald-400/60 text-[11px] mt-1.5">
+                              Students will be placed in <span className="font-mono font-bold">{defaultClass}</span>.
+                            </p>
+                          )}
+                          {selectedRegistryClass && defaultClass && (
+                            <p className="text-white/25 text-[11px] mt-1.5 italic">Registry class takes priority — this code is a secondary fallback.</p>
+                          )}
+                        </div>
+
+                      </div>
+
+                      {/* Effective class preview */}
+                      {effectiveClassCode && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-muted-foreground">Students without inline class will be tagged:</span>
+                          <span className="px-2 py-0.5 bg-orange-500/15 text-foreground font-mono font-bold rounded-none border border-orange-500/20">
+                            {effectiveClassCode}
+                          </span>
                         </div>
                       )}
-                      {selectedRegistryClass && (() => {
-                        const rc = filteredRegistryClasses.find((c) => c.id === selectedRegistryClass);
-                        return rc ? (
-                          <p className="text-orange-400/70 text-[11px] mt-1.5">
-                            Students will be tagged as <span className="font-mono font-bold">{rc.section_class ?? rc.name}</span>
-                          </p>
-                        ) : null;
-                      })()}
-                    </div>
-
-                    {/* Fallback standard class code */}
-                    <div>
-                      <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5">
-                        <AcademicCapIcon className="w-3.5 h-3.5" />
-                        Default Class / Arm <span className="text-muted-foreground normal-case font-normal ml-1">(optional)</span>
-                      </label>
-                      <p className="text-white/25 text-[11px] mb-2">
-                        Select a class or arm — students without an inline class will be placed here (e.g. JSS2A, SS1B).
-                      </p>
-                      <select
-                        value={defaultClass}
-                        onChange={(e) => setDefaultClass(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
-                      >
-                        <option value="">— No default code —</option>
-                        <optgroup label="Primary School">
-                          {classOptions.filter((c) => c.id.startsWith('std-kg') || c.id.startsWith('std-b')).map((c) => (
-                            <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="Junior Secondary (JSS)">
-                          {classOptions.filter((c) => c.id.startsWith('std-jss')).map((c) => (
-                            <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="Senior Secondary (SS / SSS)">
-                          {classOptions.filter((c) => c.id.startsWith('std-ss')).map((c) => (
-                            <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
-                          ))}
-                        </optgroup>
-                      </select>
-                      {defaultClass && !selectedRegistryClass && (
-                        <p className="text-emerald-400/60 text-[11px] mt-1.5">
-                          Students will be placed in <span className="font-mono font-bold">{defaultClass}</span>.
-                        </p>
-                      )}
-                      {selectedRegistryClass && defaultClass && (
-                        <p className="text-white/25 text-[11px] mt-1.5 italic">Registry class takes priority — this code is a secondary fallback.</p>
-                      )}
-                    </div>
-
-                  </div>
-
-                  {/* Effective class preview */}
-                  {effectiveClassCode && (
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-muted-foreground">Students without inline class will be tagged:</span>
-                      <span className="px-2 py-0.5 bg-orange-500/15 text-foreground font-mono font-bold rounded-none border border-orange-500/20">
-                        {effectiveClassCode}
-                      </span>
                     </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            {/* ── Names textarea ──────────────────────────────────── */}
-            <div className="bg-card border border-border rounded-none p-6">
-              <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-3">
-                Student Names — one per line
-              </label>
-              <textarea
-                value={namesText}
-                onChange={(e) => setNamesText(e.target.value)}
-                rows={24}
-                placeholder={
-                  `JSS2A
+                {/* ── Names textarea ──────────────────────────────────── */}
+                <div className="bg-card border border-border rounded-none p-6">
+                  <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-3">
+                    Student Names — one per line
+                  </label>
+                  <textarea
+                    value={namesText}
+                    onChange={(e) => setNamesText(e.target.value)}
+                    rows={24}
+                    placeholder={
+                      `JSS2A
 ChukwuemekaOkonkwo
 Adaeze Nwosu
 John Doe
@@ -1235,429 +1240,429 @@ Tolu Adesanya
 
 Ngozi Okonkwo JSS3B
 Yusuf Ibrahim SS1A`}
-                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground resize-none focus:outline-none focus:border-orange-500/50 transition-colors font-mono leading-relaxed"
-              />
-              <p className="text-muted-foreground text-xs mt-2">
-                You can correct any mistakes in the next step — every field is editable before you register.
-              </p>
-            </div>
+                    className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground resize-none focus:outline-none focus:border-orange-500/50 transition-colors font-mono leading-relaxed"
+                  />
+                  <p className="text-muted-foreground text-xs mt-2">
+                    You can correct any mistakes in the next step — every field is editable before you register.
+                  </p>
+                </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="bg-orange-500/10 border border-orange-500/20 rounded-none p-5">
-                <h3 className="text-orange-500 font-bold text-sm mb-3 flex items-center gap-2">
-                  <ClipboardDocumentListIcon className="w-4 h-4" /> How names work
-                </h3>
-                <ul className="space-y-1.5 text-orange-500/70 text-xs list-disc list-inside">
-                  <li>With space: <span className="font-mono bg-orange-500/20 px-1 rounded">John Doe</span></li>
-                  <li>Joined: <span className="font-mono bg-orange-500/20 px-1 rounded">JohnDoe</span></li>
-                  <li>CamelCase: <span className="font-mono bg-orange-500/20 px-1 rounded">ChukwuemekaOkonkwo</span></li>
-                  <li>First name → <span className="font-mono bg-orange-500/20 px-1 rounded">firstname@rillcod.com</span></li>
-                  <li>Edit anything in the next step before registering</li>
-                </ul>
-              </div>
-              <div className="bg-orange-500/10 border border-orange-500/20 rounded-none p-5">
-                <h3 className="text-foreground font-bold text-sm mb-3 flex items-center gap-2">
-                  <AcademicCapIcon className="w-4 h-4" /> How classes work
-                </h3>
-                <ul className="space-y-1.5 text-muted-foreground text-xs list-disc list-inside">
-                  <li>Header line: <span className="font-mono bg-orange-500/20 px-1 rounded">JSS2A</span> — applies to names below</li>
-                  <li>Inline: <span className="font-mono bg-orange-500/20 px-1 rounded">John Doe SS2B</span></li>
-                  <li>Supported: <span className="font-mono bg-orange-500/20 px-1 rounded">JSS1–3 · SS1–3 · SSS1–3 · BASIC 1–6</span></li>
-                  <li>Section letters OK: <span className="font-mono bg-orange-500/20 px-1 rounded">JSS2A · SS1C</span></li>
-                  <li>Fallback: use the <em>Default Class</em> setting above</li>
-                </ul>
-              </div>
-            </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="bg-orange-500/10 border border-orange-500/20 rounded-none p-5">
+                    <h3 className="text-orange-500 font-bold text-sm mb-3 flex items-center gap-2">
+                      <ClipboardDocumentListIcon className="w-4 h-4" /> How names work
+                    </h3>
+                    <ul className="space-y-1.5 text-orange-500/70 text-xs list-disc list-inside">
+                      <li>With space: <span className="font-mono bg-orange-500/20 px-1 rounded">John Doe</span></li>
+                      <li>Joined: <span className="font-mono bg-orange-500/20 px-1 rounded">JohnDoe</span></li>
+                      <li>CamelCase: <span className="font-mono bg-orange-500/20 px-1 rounded">ChukwuemekaOkonkwo</span></li>
+                      <li>First name → <span className="font-mono bg-orange-500/20 px-1 rounded">firstname@rillcod.com</span></li>
+                      <li>Edit anything in the next step before registering</li>
+                    </ul>
+                  </div>
+                  <div className="bg-orange-500/10 border border-orange-500/20 rounded-none p-5">
+                    <h3 className="text-foreground font-bold text-sm mb-3 flex items-center gap-2">
+                      <AcademicCapIcon className="w-4 h-4" /> How classes work
+                    </h3>
+                    <ul className="space-y-1.5 text-muted-foreground text-xs list-disc list-inside">
+                      <li>Header line: <span className="font-mono bg-orange-500/20 px-1 rounded">JSS2A</span> — applies to names below</li>
+                      <li>Inline: <span className="font-mono bg-orange-500/20 px-1 rounded">John Doe SS2B</span></li>
+                      <li>Supported: <span className="font-mono bg-orange-500/20 px-1 rounded">JSS1–3 · SS1–3 · SSS1–3 · BASIC 1–6</span></li>
+                      <li>Section letters OK: <span className="font-mono bg-orange-500/20 px-1 rounded">JSS2A · SS1C</span></li>
+                      <li>Fallback: use the <em>Default Class</em> setting above</li>
+                    </ul>
+                  </div>
+                </div>
 
-            <button
-              onClick={handlePreview}
-              disabled={!namesText.trim()}
-              className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-bold rounded-none transition-colors text-sm"
-            >
-              Continue to Review →
-            </button>
-          </div>
-        )}
-
-        {/* ══════════════════ STEP 2 — EDITABLE PREVIEW ═══════════════ */}
-        {step === 'preview' && (
-          <div className="space-y-5">
-
-            {/* Batch settings summary */}
-            {(selectedSchoolId || selectedProgramId || defaultClass) && (
-              <div className="flex flex-wrap gap-2 text-xs">
-                {selectedSchoolId && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-none text-orange-500">
-                    <BuildingOffice2Icon className="w-3.5 h-3.5" />
-                    {selectedSchoolName || 'Selected school'}
-                  </span>
-                )}
-                {selectedProgramId && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-none text-emerald-300">
-                    <BookOpenIcon className="w-3.5 h-3.5" />
-                    Auto-enrol: {selectedProgLabel}
-                  </span>
-                )}
-                {effectiveClassCode && (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-none text-foreground font-mono">
-                    <AcademicCapIcon className="w-3.5 h-3.5" />
-                    Class: {effectiveClassCode}
-                  </span>
-                )}
+                <button
+                  onClick={handlePreview}
+                  disabled={!namesText.trim()}
+                  className="w-full py-3.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-bold rounded-none transition-colors text-sm"
+                >
+                  Continue to Review →
+                </button>
               </div>
             )}
 
-            {/* Stats bar */}
-            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm rounded-none border border-border text-sm">
-                <UserGroupIcon className="w-4 h-4 text-orange-400" />
-                <span className="text-foreground font-bold">{preview.length}</span>
-                <span className="text-muted-foreground">students</span>
-              </div>
-              {previewClasses.length > 0 && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 rounded-none border border-orange-500/20 text-sm">
-                  <AcademicCapIcon className="w-4 h-4 text-orange-400" />
-                  <span className="text-foreground font-bold">{previewClasses.length}</span>
-                  <span className="text-muted-foreground text-xs">class{previewClasses.length !== 1 ? 'es' : ''}:</span>
-                  <span className="text-foreground font-mono text-xs">{previewClasses.join(' · ')}</span>
-                </div>
-              )}
-              {dups.size > 0 && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 rounded-none border border-rose-500/20 text-xs">
-                  <ExclamationTriangleIcon className="w-4 h-4 text-rose-400" />
-                  <span className="text-rose-400 font-bold">Duplicate emails — fix before registering</span>
-                </div>
-              )}
-              {incompleteRows.length > 0 && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-none border border-amber-500/20 text-xs">
-                  <ExclamationTriangleIcon className="w-4 h-4 text-amber-400" />
-                  <span className="text-amber-400">{incompleteRows.length} row{incompleteRows.length !== 1 ? 's' : ''} incomplete (will be skipped)</span>
-                </div>
-              )}
-            </div>
+            {/* ══════════════════ STEP 2 — EDITABLE PREVIEW ═══════════════ */}
+            {step === 'preview' && (
+              <div className="space-y-5">
 
-            {/* Editable table */}
-            <div className="bg-card border border-border rounded-none overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
-                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">
-                  Click any cell to edit — changes are instant
-                </p>
-                <button onClick={handleReset} className="text-muted-foreground hover:text-foreground transition-colors" title="Back to names">
-                  <XMarkIcon className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
-                <table className="hidden md:table w-full text-xs border-separate border-spacing-0">
-                  <thead className="sticky top-0 bg-background z-10">
-                    <tr className="text-muted-foreground uppercase tracking-wider text-[10px]">
-                      <th className="text-left px-3 py-2.5 border-b border-border w-8">#</th>
-                      <th className="text-left px-2 py-2.5 border-b border-border w-[28%]">Full Name</th>
-                      <th className="text-left px-2 py-2.5 border-b border-border w-[12%]">Class</th>
-                      <th className="text-left px-2 py-2.5 border-b border-border w-[28%]">Email</th>
-                      <th className="text-left px-2 py-2.5 border-b border-border w-[22%]">Temp Password</th>
-                      <th className="px-2 py-2.5 border-b border-border w-8" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.map((s, i) => {
-                      const emailDup = dups.has(s.email.toLowerCase());
-                      const incomplete = !s.full_name.trim() || !s.email.trim();
-                      return (
-                        <tr
-                          key={s.id}
-                          className={`group border-b border-border transition-colors ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : 'hover:bg-white/[0.02]'
-                            }`}
-                        >
-                          {/* # */}
-                          <td className="px-3 py-2 text-muted-foreground align-middle">{i + 1}</td>
-
-                          {/* Full Name */}
-                          <td className="px-2 py-1.5 align-middle">
-                            <input
-                              className={inp}
-                              value={s.full_name}
-                              onChange={(e) => updateField(s.id, 'full_name', e.target.value)}
-                              onBlur={(e) => onNameBlur(s.id, e.target.value)}
-                              placeholder="Full name"
-                            />
-                          </td>
-
-                          {/* Class */}
-                          <td className="px-2 py-1.5 align-middle">
-                            <input
-                              className={`${inp} font-mono`}
-                              value={s.class_name ?? ''}
-                              onChange={(e) => updateField(s.id, 'class_name', e.target.value)}
-                              onBlur={(e) => onClassBlur(s.id, e.target.value)}
-                              placeholder="e.g. JSS2A"
-                            />
-                          </td>
-
-                          {/* Email */}
-                          <td className="px-2 py-1.5 align-middle">
-                            <div className="relative">
-                              <input
-                                className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-orange-500'}`}
-                                value={s.email}
-                                onChange={(e) => updateField(s.id, 'email', e.target.value)}
-                                placeholder="email@rillcod.com"
-                              />
-                              {emailDup && (
-                                <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-400 pointer-events-none" />
-                              )}
-                            </div>
-                          </td>
-
-                          {/* Password (read-only display) */}
-                          <td className="px-2 py-2 align-middle">
-                            <span className="font-mono text-amber-300/80">{s.password}</span>
-                          </td>
-
-                          {/* Delete */}
-                          <td className="px-2 py-2 align-middle text-center">
-                            <button
-                              onClick={() => removeRow(s.id)}
-                              className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-rose-400 transition-all rounded p-0.5"
-                              title="Remove row"
-                            >
-                              <XMarkIcon className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                {/* Mobile view */}
-                <div className="md:hidden divide-y divide-white/5">
-                  {preview.map((s, i) => {
-                    const emailDup = dups.has(s.email.toLowerCase());
-                    const incomplete = !s.full_name.trim() || !s.email.trim();
-                    return (
-                      <div key={s.id} className={`p-4 space-y-3 ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : ''}`}>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Student #{i + 1}</span>
-                          <button onClick={() => removeRow(s.id)} className="text-muted-foreground hover:text-rose-400 p-1"><XMarkIcon className="w-4 h-4" /></button>
-                        </div>
-                        <div className="space-y-2">
-                          <input className={inp} value={s.full_name} onChange={(e) => updateField(s.id, 'full_name', e.target.value)} onBlur={(e) => onNameBlur(s.id, e.target.value)} placeholder="Full Name" />
-                          <div className="flex gap-2">
-                            <input className={`${inp} font-mono w-24`} value={s.class_name ?? ''} onChange={(e) => updateField(s.id, 'class_name', e.target.value)} onBlur={(e) => onClassBlur(s.id, e.target.value)} placeholder="Class" />
-                            <div className="relative flex-1">
-                              <input className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-orange-500'}`} value={s.email} onChange={(e) => updateField(s.id, 'email', e.target.value)} placeholder="Email" />
-                              {emailDup && <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-400" />}
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between px-3 py-2 bg-card shadow-sm rounded-none border border-border text-[10px]">
-                            <span className="text-muted-foreground uppercase font-bold">Password</span>
-                            <span className="font-mono text-amber-300/80">{s.password}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Add row + footer */}
-              <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-3 flex-wrap">
-                <button
-                  onClick={addRow}
-                  className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-500 font-bold transition-colors"
-                >
-                  <PlusIcon className="w-4 h-4" /> Add student
-                </button>
-                <p className="text-muted-foreground text-xs">
-                  Editing name auto-updates the email if it&apos;s still @rillcod.com.
-                </p>
-              </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={handleReset}
-                className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground font-bold rounded-none transition-colors text-sm border border-border"
-              >
-                ← Edit Names
-              </button>
-              <div className="flex-1 flex flex-col gap-2">
-                <button
-                  onClick={handleRegister}
-                  disabled={registering || dups.size > 0 || validCount === 0}
-                  className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-bold rounded-none transition-colors text-sm"
-                >
-                  {registering
-                    ? `Registering ${registerProgress?.done ?? 0} / ${registerProgress?.total ?? validCount}...`
-                    : dups.size > 0
-                      ? 'Fix duplicate emails first'
-                      : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
-                </button>
-                {registering && registerProgress && (
-                  <div className="space-y-1">
-                    <div className="w-full h-1.5 bg-card shadow-sm rounded-none overflow-hidden">
-                      <div
-                        className="h-full bg-[#7a0606] rounded-none transition-all duration-300"
-                        style={{ width: `${(registerProgress.done / registerProgress.total) * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      Processing: {registerProgress.current}
-                    </p>
+                {/* Batch settings summary */}
+                {(selectedSchoolId || selectedProgramId || defaultClass) && (
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {selectedSchoolId && (
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-none text-orange-500">
+                        <BuildingOffice2Icon className="w-3.5 h-3.5" />
+                        {selectedSchoolName || 'Selected school'}
+                      </span>
+                    )}
+                    {selectedProgramId && (
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-none text-emerald-300">
+                        <BookOpenIcon className="w-3.5 h-3.5" />
+                        Auto-enrol: {selectedProgLabel}
+                      </span>
+                    )}
+                    {effectiveClassCode && (
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-none text-foreground font-mono">
+                        <AcademicCapIcon className="w-3.5 h-3.5" />
+                        Class: {effectiveClassCode}
+                      </span>
+                    )}
                   </div>
                 )}
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* ══════════════════ STEP 3 — DONE ═══════════════════════════ */}
-        {step === 'done' && results && (
-          <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {profile && (
-               <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-none p-4 flex items-center gap-3 text-emerald-400">
-                 <CheckCircleIcon className="w-5 h-5" />
-                 <span className="text-sm font-bold tracking-widest uppercase">Registration complete</span>
-               </div>
+                {/* Stats bar */}
+                <div className="flex flex-wrap gap-3">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm rounded-none border border-border text-sm">
+                    <UserGroupIcon className="w-4 h-4 text-orange-400" />
+                    <span className="text-foreground font-bold">{preview.length}</span>
+                    <span className="text-muted-foreground">students</span>
+                  </div>
+                  {previewClasses.length > 0 && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 rounded-none border border-orange-500/20 text-sm">
+                      <AcademicCapIcon className="w-4 h-4 text-orange-400" />
+                      <span className="text-foreground font-bold">{previewClasses.length}</span>
+                      <span className="text-muted-foreground text-xs">class{previewClasses.length !== 1 ? 'es' : ''}:</span>
+                      <span className="text-foreground font-mono text-xs">{previewClasses.join(' · ')}</span>
+                    </div>
+                  )}
+                  {dups.size > 0 && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 rounded-none border border-rose-500/20 text-xs">
+                      <ExclamationTriangleIcon className="w-4 h-4 text-rose-400" />
+                      <span className="text-rose-400 font-bold">Duplicate emails — fix before registering</span>
+                    </div>
+                  )}
+                  {incompleteRows.length > 0 && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-none border border-amber-500/20 text-xs">
+                      <ExclamationTriangleIcon className="w-4 h-4 text-amber-400" />
+                      <span className="text-amber-400">{incompleteRows.length} row{incompleteRows.length !== 1 ? 's' : ''} incomplete (will be skipped)</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Editable table */}
+                <div className="bg-card border border-border rounded-none overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+                    <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">
+                      Click any cell to edit — changes are instant
+                    </p>
+                    <button onClick={handleReset} className="text-muted-foreground hover:text-foreground transition-colors" title="Back to names">
+                      <XMarkIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
+                    <table className="hidden md:table w-full text-xs border-separate border-spacing-0">
+                      <thead className="sticky top-0 bg-background z-10">
+                        <tr className="text-muted-foreground uppercase tracking-wider text-[10px]">
+                          <th className="text-left px-3 py-2.5 border-b border-border w-8">#</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[28%]">Full Name</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[12%]">Class</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[28%]">Email</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[22%]">Temp Password</th>
+                          <th className="px-2 py-2.5 border-b border-border w-8" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {preview.map((s, i) => {
+                          const emailDup = dups.has(s.email.toLowerCase());
+                          const incomplete = !s.full_name.trim() || !s.email.trim();
+                          return (
+                            <tr
+                              key={s.id}
+                              className={`group border-b border-border transition-colors ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : 'hover:bg-white/[0.02]'
+                                }`}
+                            >
+                              {/* # */}
+                              <td className="px-3 py-2 text-muted-foreground align-middle">{i + 1}</td>
+
+                              {/* Full Name */}
+                              <td className="px-2 py-1.5 align-middle">
+                                <input
+                                  className={inp}
+                                  value={s.full_name}
+                                  onChange={(e) => updateField(s.id, 'full_name', e.target.value)}
+                                  onBlur={(e) => onNameBlur(s.id, e.target.value)}
+                                  placeholder="Full name"
+                                />
+                              </td>
+
+                              {/* Class */}
+                              <td className="px-2 py-1.5 align-middle">
+                                <input
+                                  className={`${inp} font-mono`}
+                                  value={s.class_name ?? ''}
+                                  onChange={(e) => updateField(s.id, 'class_name', e.target.value)}
+                                  onBlur={(e) => onClassBlur(s.id, e.target.value)}
+                                  placeholder="e.g. JSS2A"
+                                />
+                              </td>
+
+                              {/* Email */}
+                              <td className="px-2 py-1.5 align-middle">
+                                <div className="relative">
+                                  <input
+                                    className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-orange-500'}`}
+                                    value={s.email}
+                                    onChange={(e) => updateField(s.id, 'email', e.target.value)}
+                                    placeholder="email@rillcod.com"
+                                  />
+                                  {emailDup && (
+                                    <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-400 pointer-events-none" />
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* Password (read-only display) */}
+                              <td className="px-2 py-2 align-middle">
+                                <span className="font-mono text-amber-300/80">{s.password}</span>
+                              </td>
+
+                              {/* Delete */}
+                              <td className="px-2 py-2 align-middle text-center">
+                                <button
+                                  onClick={() => removeRow(s.id)}
+                                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-rose-400 transition-all rounded p-0.5"
+                                  title="Remove row"
+                                >
+                                  <XMarkIcon className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+
+                    {/* Mobile view */}
+                    <div className="md:hidden divide-y divide-white/5">
+                      {preview.map((s, i) => {
+                        const emailDup = dups.has(s.email.toLowerCase());
+                        const incomplete = !s.full_name.trim() || !s.email.trim();
+                        return (
+                          <div key={s.id} className={`p-4 space-y-3 ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : ''}`}>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Student #{i + 1}</span>
+                              <button onClick={() => removeRow(s.id)} className="text-muted-foreground hover:text-rose-400 p-1"><XMarkIcon className="w-4 h-4" /></button>
+                            </div>
+                            <div className="space-y-2">
+                              <input className={inp} value={s.full_name} onChange={(e) => updateField(s.id, 'full_name', e.target.value)} onBlur={(e) => onNameBlur(s.id, e.target.value)} placeholder="Full Name" />
+                              <div className="flex gap-2">
+                                <input className={`${inp} font-mono w-24`} value={s.class_name ?? ''} onChange={(e) => updateField(s.id, 'class_name', e.target.value)} onBlur={(e) => onClassBlur(s.id, e.target.value)} placeholder="Class" />
+                                <div className="relative flex-1">
+                                  <input className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-orange-500'}`} value={s.email} onChange={(e) => updateField(s.id, 'email', e.target.value)} placeholder="Email" />
+                                  {emailDup && <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-400" />}
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between px-3 py-2 bg-card shadow-sm rounded-none border border-border text-[10px]">
+                                <span className="text-muted-foreground uppercase font-bold">Password</span>
+                                <span className="font-mono text-amber-300/80">{s.password}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Add row + footer */}
+                  <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-3 flex-wrap">
+                    <button
+                      onClick={addRow}
+                      className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-500 font-bold transition-colors"
+                    >
+                      <PlusIcon className="w-4 h-4" /> Add student
+                    </button>
+                    <p className="text-muted-foreground text-xs">
+                      Editing name auto-updates the email if it&apos;s still @rillcod.com.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleReset}
+                    className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground font-bold rounded-none transition-colors text-sm border border-border"
+                  >
+                    ← Edit Names
+                  </button>
+                  <div className="flex-1 flex flex-col gap-2">
+                    <button
+                      onClick={handleRegister}
+                      disabled={registering || dups.size > 0 || validCount === 0}
+                      className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-bold rounded-none transition-colors text-sm"
+                    >
+                      {registering
+                        ? `Registering ${registerProgress?.done ?? 0} / ${registerProgress?.total ?? validCount}...`
+                        : dups.size > 0
+                          ? 'Fix duplicate emails first'
+                          : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
+                    </button>
+                    {registering && registerProgress && (
+                      <div className="space-y-1">
+                        <div className="w-full h-1.5 bg-card shadow-sm rounded-none overflow-hidden">
+                          <div
+                            className="h-full bg-[#7a0606] rounded-none transition-all duration-300"
+                            style={{ width: `${(registerProgress.done / registerProgress.total) * 100}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          Processing: {registerProgress.current}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
-            
-            <div className="bg-gradient-to-b from-orange-600 to-orange-400/10 to-[#0d1526] border border-emerald-500/20 rounded-none p-8 text-center relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
-              <div className="relative z-10">
-                <h2 className="text-3xl font-black text-foreground mb-2 uppercase tracking-tighter italic">Process Complete</h2>
-                <div className="flex items-center justify-center gap-4 text-emerald-400/80 font-black tracking-widest uppercase text-[10px]">
-                   <span>Success: {results.filter(r => r.status !== 'failed').length}</span>
-                   <div className="w-1 h-1 bg-white/20 rounded-none" />
-                   <span>All records saved</span>
+
+            {/* ══════════════════ STEP 3 — DONE ═══════════════════════════ */}
+            {step === 'done' && results && (
+              <div className="space-y-8 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {profile && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-none p-4 flex items-center gap-3 text-emerald-400">
+                    <CheckCircleIcon className="w-5 h-5" />
+                    <span className="text-sm font-bold tracking-widest uppercase">Registration complete</span>
+                  </div>
+                )}
+
+                <div className="bg-gradient-to-b from-orange-600 to-orange-400/10 to-[#0d1526] border border-emerald-500/20 rounded-none p-8 text-center relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
+                  <div className="relative z-10">
+                    <h2 className="text-3xl font-black text-foreground mb-2 uppercase tracking-tighter italic">Process Complete</h2>
+                    <div className="flex items-center justify-center gap-4 text-emerald-400/80 font-black tracking-widest uppercase text-[10px]">
+                      <span>Success: {results.filter(r => r.status !== 'failed').length}</span>
+                      <div className="w-1 h-1 bg-white/20 rounded-none" />
+                      <span>All records saved</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-4 justify-center">
+                  {/* Card Export Group */}
+                  <div className="flex bg-card border border-border p-1">
+                    <button onClick={() => handleExportCardsPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-orange-600 hover:bg-orange-500 text-foreground font-black text-[10px] uppercase tracking-widest transition-all">
+                      <DocumentArrowDownIcon className="w-4 h-4" /> Cards PDF
+                    </button>
+                    <button onClick={() => handleMassPrint(results)} className="flex items-center gap-2 px-6 py-4 bg-card hover:bg-muted text-foreground font-black text-[10px] uppercase tracking-widest transition-all border-l border-border">
+                      <PrinterIcon className="w-4 h-4" /> Print
+                    </button>
+                  </div>
+
+                  {/* Roster Export Group */}
+                  <div className="flex bg-card border border-border p-1">
+                    <button onClick={() => handleExportRosterPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-orange-600 hover:bg-orange-500 text-foreground font-black text-[10px] uppercase tracking-widest transition-all">
+                      <DocumentArrowDownIcon className="w-4 h-4" /> Roster PDF
+                    </button>
+                    <button onClick={() => handleMassPrintReport(results)} className="flex items-center gap-2 px-6 py-4 bg-card hover:bg-muted text-foreground font-black text-[10px] uppercase tracking-widest transition-all border-l border-border">
+                      <PrinterIcon className="w-4 h-4" /> Print
+                    </button>
+                  </div>
+
+                  {/* Utility Group */}
+                  <button onClick={downloadCSV} className="flex items-center gap-2 px-8 py-4 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 font-bold border border-orange-500/20 text-[10px] uppercase tracking-widest">
+                    <DocumentArrowDownIcon className="w-4 h-4" /> CSV
+                  </button>
+
+                  <button onClick={handleUpdateResults} disabled={loading} className="flex items-center gap-2 px-8 py-4 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 font-bold border border-emerald-500/20 text-[10px] uppercase tracking-widest">
+                    {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
+                    Confirm Fixes
+                  </button>
+
+                  <button onClick={() => setStep('input')} className="flex items-center gap-2 px-8 py-4 bg-card border border-border text-muted-foreground font-bold text-[10px] uppercase tracking-widest">
+                    <PlusIcon className="w-4 h-4" /> New Batch
+                  </button>
+                </div>
+
+
+                {/* Results Table */}
+                <div className="bg-card border border-border rounded-none overflow-hidden shadow-2xl">
+                  <div className="px-6 py-5 border-b border-border bg-white/[0.02] flex items-center justify-between">
+                    <div>
+                      <h3 className="text-foreground font-black text-lg flex items-center gap-2 uppercase tracking-tighter">
+                        <ClipboardDocumentListIcon className="w-5 h-5 text-orange-400" />
+                        Session results
+                      </h3>
+                      <p className="text-muted-foreground text-[10px] uppercase font-black tracking-widest mt-1">Archive ID: {results[0]?.batch_id?.slice(0, 8) || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-border text-muted-foreground uppercase tracking-widest text-[9px] font-black">
+                          <th className="text-left px-6 py-4">#</th>
+                          <th className="text-left px-4 py-4">Full Name</th>
+                          <th className="text-left px-4 py-4">Class</th>
+                          <th className="text-left px-4 py-4">Email / Login</th>
+                          <th className="text-right px-6 py-4">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {results.map((r, i) => (
+                          <tr key={i} className={`group transition-colors ${r.status === 'failed' ? 'bg-rose-500/5' : 'hover:bg-white/[0.01]'}`}>
+                            <td className="px-6 py-4 text-muted-foreground font-mono">{String(i + 1).padStart(2, '0')}</td>
+                            <td className="px-4 py-4">
+                              <input className="bg-transparent border-none text-foreground font-bold w-full focus:ring-1 focus:ring-orange-500 rounded p-1" value={r.full_name} onChange={(e) => {
+                                const newResults = [...results]; newResults[i].full_name = e.target.value; setResults(newResults);
+                              }} />
+                            </td>
+                            <td className="px-4 py-4">
+                              <input className="bg-transparent border-none text-orange-400 text-[10px] font-black uppercase tracking-tighter w-full focus:ring-1 focus:ring-orange-500 rounded p-1" value={r.class_name || ''} onChange={(e) => {
+                                const newResults = [...results]; newResults[i].class_name = e.target.value; setResults(newResults);
+                              }} />
+                            </td>
+                            <td className="px-4 py-4 font-mono text-muted-foreground">{r.email}</td>
+                            <td className="px-6 py-4 text-right transform group-hover:scale-105 transition-transform">
+                              <span className={`px-2 py-1 rounded-none text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+                                {r.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Print Sheet Hidden */}
+                <div id="printable-sheet" className="hidden">
+                  <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">RILLCOD TECHNOLOGIES // STUDENT CREDENTIALS</h2>
+                  <div className="flex gap-4 text-sm font-bold text-slate-500 mb-6 pb-4 border-b">
+                    <span>Batch: {results[0]?.batch_id?.slice(0, 8)}</span>
+                    <span>Date: {new Date().toLocaleDateString()}</span>
+                    {selectedSchoolName && <span>School: {selectedSchoolName}</span>}
+                  </div>
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-slate-900 text-foreground">
+                        <th className="p-2 border">#</th>
+                        <th className="p-2 border">Full Name</th>
+                        <th className="p-2 border">Class</th>
+                        <th className="p-2 border">Email (Login)</th>
+                        <th className="p-2 border">Temporary Password</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {results.filter(r => r.status !== 'failed').map((r, i) => (
+                        <tr key={i}>
+                          <td className="p-2 border font-mono">{i + 1}</td>
+                          <td className="p-2 border font-bold uppercase">{r.full_name}</td>
+                          <td className="p-2 border text-slate-500">{r.class_name || effectiveClassCode}</td>
+                          <td className="p-2 border font-mono">{r.email}</td>
+                          <td className="p-2 border font-mono font-bold">{r.password}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="mt-8 p-4 bg-slate-50 border rounded-none text-[10px] text-slate-500 italic">
+                    Instructions: 1. Login at academy.rillcod.com 2. Use credentials above 3. Change password immediately.
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div className="flex flex-wrap gap-4 justify-center">
-              {/* Card Export Group */}
-              <div className="flex bg-card border border-border p-1">
-                <button onClick={() => handleExportCardsPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-orange-600 hover:bg-orange-500 text-foreground font-black text-[10px] uppercase tracking-widest transition-all">
-                  <DocumentArrowDownIcon className="w-4 h-4" /> Cards PDF
-                </button>
-                <button onClick={() => handleMassPrint(results)} className="flex items-center gap-2 px-6 py-4 bg-card hover:bg-muted text-foreground font-black text-[10px] uppercase tracking-widest transition-all border-l border-border">
-                  <PrinterIcon className="w-4 h-4" /> Print
-                </button>
-              </div>
-
-              {/* Roster Export Group */}
-              <div className="flex bg-card border border-border p-1">
-                <button onClick={() => handleExportRosterPDF(results)} className="flex items-center gap-2 px-6 py-4 bg-orange-600 hover:bg-orange-500 text-foreground font-black text-[10px] uppercase tracking-widest transition-all">
-                  <DocumentArrowDownIcon className="w-4 h-4" /> Roster PDF
-                </button>
-                <button onClick={() => handleMassPrintReport(results)} className="flex items-center gap-2 px-6 py-4 bg-card hover:bg-muted text-foreground font-black text-[10px] uppercase tracking-widest transition-all border-l border-border">
-                  <PrinterIcon className="w-4 h-4" /> Print
-                </button>
-              </div>
-
-              {/* Utility Group */}
-              <button onClick={downloadCSV} className="flex items-center gap-2 px-8 py-4 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 font-bold border border-orange-500/20 text-[10px] uppercase tracking-widest">
-                <DocumentArrowDownIcon className="w-4 h-4" /> CSV
-              </button>
-              
-              <button onClick={handleUpdateResults} disabled={loading} className="flex items-center gap-2 px-8 py-4 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 font-bold border border-emerald-500/20 text-[10px] uppercase tracking-widest">
-                {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
-                Confirm Fixes
-              </button>
-
-              <button onClick={() => setStep('input')} className="flex items-center gap-2 px-8 py-4 bg-card border border-border text-muted-foreground font-bold text-[10px] uppercase tracking-widest">
-                <PlusIcon className="w-4 h-4" /> New Batch
-              </button>
-            </div>
-
-
-            {/* Results Table */}
-            <div className="bg-card border border-border rounded-none overflow-hidden shadow-2xl">
-              <div className="px-6 py-5 border-b border-border bg-white/[0.02] flex items-center justify-between">
-                <div>
-                  <h3 className="text-foreground font-black text-lg flex items-center gap-2 uppercase tracking-tighter">
-                    <ClipboardDocumentListIcon className="w-5 h-5 text-orange-400" />
-                    Session results
-                  </h3>
-                  <p className="text-muted-foreground text-[10px] uppercase font-black tracking-widest mt-1">Archive ID: {results[0]?.batch_id?.slice(0, 8) || 'N/A'}</p>
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-border text-muted-foreground uppercase tracking-widest text-[9px] font-black">
-                      <th className="text-left px-6 py-4">#</th>
-                      <th className="text-left px-4 py-4">Full Name</th>
-                      <th className="text-left px-4 py-4">Class</th>
-                      <th className="text-left px-4 py-4">Email / Login</th>
-                      <th className="text-right px-6 py-4">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {results.map((r, i) => (
-                      <tr key={i} className={`group transition-colors ${r.status === 'failed' ? 'bg-rose-500/5' : 'hover:bg-white/[0.01]'}`}>
-                        <td className="px-6 py-4 text-muted-foreground font-mono">{String(i + 1).padStart(2, '0')}</td>
-                        <td className="px-4 py-4">
-                          <input className="bg-transparent border-none text-foreground font-bold w-full focus:ring-1 focus:ring-orange-500 rounded p-1" value={r.full_name} onChange={(e) => {
-                            const newResults = [...results]; newResults[i].full_name = e.target.value; setResults(newResults);
-                          }} />
-                        </td>
-                        <td className="px-4 py-4">
-                          <input className="bg-transparent border-none text-orange-400 text-[10px] font-black uppercase tracking-tighter w-full focus:ring-1 focus:ring-orange-500 rounded p-1" value={r.class_name || ''} onChange={(e) => {
-                            const newResults = [...results]; newResults[i].class_name = e.target.value; setResults(newResults);
-                          }} />
-                        </td>
-                        <td className="px-4 py-4 font-mono text-muted-foreground">{r.email}</td>
-                        <td className="px-6 py-4 text-right transform group-hover:scale-105 transition-transform">
-                          <span className={`px-2 py-1 rounded-none text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
-                            {r.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Print Sheet Hidden */}
-            <div id="printable-sheet" className="hidden">
-               <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">RILLCOD TECHNOLOGIES // STUDENT CREDENTIALS</h2>
-               <div className="flex gap-4 text-sm font-bold text-slate-500 mb-6 pb-4 border-b">
-                 <span>Batch: {results[0]?.batch_id?.slice(0, 8)}</span>
-                 <span>Date: {new Date().toLocaleDateString()}</span>
-                 {selectedSchoolName && <span>School: {selectedSchoolName}</span>}
-               </div>
-               <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-slate-900 text-foreground">
-                      <th className="p-2 border">#</th>
-                      <th className="p-2 border">Full Name</th>
-                      <th className="p-2 border">Class</th>
-                      <th className="p-2 border">Email (Login)</th>
-                      <th className="p-2 border">Temporary Password</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.filter(r => r.status !== 'failed').map((r, i) => (
-                      <tr key={i}>
-                        <td className="p-2 border font-mono">{i+1}</td>
-                        <td className="p-2 border font-bold uppercase">{r.full_name}</td>
-                        <td className="p-2 border text-slate-500">{r.class_name || effectiveClassCode}</td>
-                        <td className="p-2 border font-mono">{r.email}</td>
-                        <td className="p-2 border font-mono font-bold">{r.password}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-               </table>
-               <div className="mt-8 p-4 bg-slate-50 border rounded-none text-[10px] text-slate-500 italic">
-                 Instructions: 1. Login at academy.rillcod.com 2. Use credentials above 3. Change password immediately.
-               </div>
-            </div>
+            )}
           </div>
-        )}
-        </div>
         )}
 
         {/* ══════════════════ VAULT TAB ═══════════════════════════════ */}
@@ -1665,329 +1670,328 @@ Yusuf Ibrahim SS1A`}
           <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
             {/* Vault Header (Refined) */}
             <div className="bg-card border border-orange-500/20 p-3 sm:p-6 relative overflow-hidden shadow-2xl">
-               <div className="absolute top-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-orange-500/20 to-transparent" />
-               <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-12">
-                  <div className="max-w-xl">
-                     <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-                        <div className="w-2 h-2 bg-orange-500 rounded-none animate-pulse shadow-[0_0_15px_rgba(234,88,12,0.4)]" />
-                        <span className="text-[8px] sm:text-[10px] text-orange-400 font-black uppercase tracking-[0.4em]">Registration Archive</span>
-                     </div>
-                     <h2 className="text-base sm:text-xl lg:text-2xl font-black text-foreground italic uppercase tracking-tighter leading-none mb-1 sm:mb-2">Registration History</h2>
-                     <p className="text-muted-foreground text-[9px] sm:text-[10px] font-medium leading-relaxed uppercase tracking-widest hidden sm:block">A record of all student registration sessions.</p>
+              <div className="absolute top-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-orange-500/20 to-transparent" />
+              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-12">
+                <div className="max-w-xl">
+                  <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-none animate-pulse shadow-[0_0_15px_rgba(234,88,12,0.4)]" />
+                    <span className="text-[8px] sm:text-[10px] text-orange-400 font-black uppercase tracking-[0.4em]">Registration Archive</span>
                   </div>
-                  <div className="flex items-center gap-6 sm:gap-10 lg:pl-10">
-                     <div className="text-right">
-                        <p className="text-foreground font-black text-3xl sm:text-5xl leading-none italic">{history.length}</p>
-                        <p className="text-[7px] sm:text-[9px] text-muted-foreground font-black uppercase tracking-[0.3em] mt-1.5 sm:mt-2">Total Sessions</p>
-                     </div>
-                     <button 
-                       onClick={fetchHistory}
-                       disabled={loadingHistory}
-                       className="w-14 h-14 sm:w-20 sm:h-20 bg-orange-600/10 border border-orange-500/20 flex items-center justify-center hover:bg-orange-600/20 transition-all group active:scale-95 shadow-xl shadow-orange-600/10"
-                     >
-                       <ArrowPathIcon className={`w-7 h-7 sm:w-10 h-10 text-orange-500 ${loadingHistory ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
-                     </button>
+                  <h2 className="text-base sm:text-xl lg:text-2xl font-black text-foreground italic uppercase tracking-tighter leading-none mb-1 sm:mb-2">Registration History</h2>
+                  <p className="text-muted-foreground text-[9px] sm:text-[10px] font-medium leading-relaxed uppercase tracking-widest hidden sm:block">A record of all student registration sessions.</p>
+                </div>
+                <div className="flex items-center gap-6 sm:gap-10 lg:pl-10">
+                  <div className="text-right">
+                    <p className="text-foreground font-black text-3xl sm:text-5xl leading-none italic">{history.length}</p>
+                    <p className="text-[7px] sm:text-[9px] text-muted-foreground font-black uppercase tracking-[0.3em] mt-1.5 sm:mt-2">Total Sessions</p>
                   </div>
-               </div>
+                  <button
+                    onClick={fetchHistory}
+                    disabled={loadingHistory}
+                    className="w-14 h-14 sm:w-20 sm:h-20 bg-orange-600/10 border border-orange-500/20 flex items-center justify-center hover:bg-orange-600/20 transition-all group active:scale-95 shadow-xl shadow-orange-600/10"
+                  >
+                    <ArrowPathIcon className={`w-7 h-7 sm:w-10 h-10 text-orange-500 ${loadingHistory ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
+                  </button>
+                </div>
+              </div>
             </div>
 
             {loadingHistory && history.length === 0 ? (
-               <div className="h-[400px] flex flex-col items-center justify-center gap-8 bg-card/40 border border-border italic text-muted-foreground uppercase tracking-[0.5em] animate-pulse">Loading...</div>
+              <div className="h-[400px] flex flex-col items-center justify-center gap-8 bg-card/40 border border-border italic text-muted-foreground uppercase tracking-[0.5em] animate-pulse">Loading...</div>
             ) : history.length === 0 ? (
-               <div className="h-[400px] flex flex-col items-center justify-center gap-8 bg-white/[0.02] border border-border border-dashed italic text-muted-foreground uppercase tracking-[0.5em]">No registration history yet</div>
+              <div className="h-[400px] flex flex-col items-center justify-center gap-8 bg-white/[0.02] border border-border border-dashed italic text-muted-foreground uppercase tracking-[0.5em]">No registration history yet</div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-10">
-                  {history.map((batch) => (
-                    <div key={batch.id} className="group bg-card border border-border p-3 sm:p-6 transition-all hover:bg-card/80 hover:border-orange-500/20 hover:shadow-latest relative overflow-hidden">
-                       <div className="absolute top-0 right-0 w-32 h-32 bg-card rotate-45 translate-x-16 -translate-y-16 pointer-events-none" />
-                       
-                       <div className="relative z-10">
-                          <div className="flex items-start justify-between mb-6 sm:mb-10">
-                             <div className="flex-1 min-w-0">
-                                {editingBatchId === batch.id ? (
-                                   <input
-                                     autoFocus
-                                     className="bg-black/60 border border-orange-500/50 px-4 py-2 sm:px-6 sm:py-4 text-foreground font-black text-xl sm:text-3xl w-full italic outline-none focus:ring-1 focus:ring-orange-500/30 transition-all"
-                                     defaultValue={batch.class_name || 'General Batch'}
-                                     onBlur={async (e) => {
-                                       await fetch('/api/students/bulk-register', {
-                                         method: 'PATCH',
-                                         headers: {'Content-Type': 'application/json'},
-                                         body: JSON.stringify({ type: 'batch', data: { id: batch.id, class_name: e.target.value } })
-                                       });
-                                       setEditingBatchId(null);
-                                       fetchHistory();
-                                       toast.success('Batch renamed successfully.');
-                                     }}
-                                   />
-                                ) : (
-                                   <h3 className="text-2xl sm:text-4xl font-black text-foreground truncate uppercase tracking-tighter italic group-hover:text-orange-400 cursor-pointer transition-colors"
-                                       onDoubleClick={() => setEditingBatchId(batch.id)}>
-                                     {batch.class_name || 'General Batch'}
-                                   </h3>
-                                )}
-                                <div className="flex items-center gap-4 sm:gap-6 mt-3 sm:mt-5 bg-card shadow-sm w-fit px-3 py-1.5 sm:px-4 sm:py-2 border border-border">
-                                   <span className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">{new Date(batch.created_at).toLocaleDateString()}</span>
-                                   <div className="w-1 h-1 bg-muted rounded-none" />
-                                   <span className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] italic">{batch.student_count} Students</span>
-                                </div>
-                             </div>
-                             {['admin', 'teacher'].includes(profile?.role || '') && (
-                               <button onClick={() => handleDeleteBatch(batch.id)} className="p-3 bg-card shadow-sm hover:bg-rose-600/20 text-muted-foreground hover:text-rose-500 transition-all border border-border ml-3">
-                                 <TrashIcon className="w-5 h-5" />
-                               </button>
-                             )}
-                          </div>
-                          
-                          <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-6 sm:mt-10">
-                             <button 
-                               onClick={async () => {
-                                 if (selectedBatchId === batch.id) {
-                                   setSelectedBatchId(null);
-                                   setSelectedResultIds([]);
-                                 } else {
-                                   setSelectedBatchId(batch.id);
-                                   setSelectedResultIds([]);
-                                   setLoadingHistory(true);
-                                   const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                   if (data) setBatchResults(data);
-                                   setLoadingHistory(false);
-                                 }
-                               }}
-                               className={`flex-1 py-2.5 sm:py-3 text-[9px] font-black uppercase tracking-[0.2em] sm:tracking-[0.4em] transition-all border ${
-                                 selectedBatchId === batch.id ? 'bg-orange-600 text-foreground border-orange-400 shadow-xl shadow-orange-600/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted hover:text-foreground border-border'
-                               }`}
-                             >
-                               {selectedBatchId === batch.id ? 'Hide Students' : 'View Students'}
-                             </button>
-                             <div className="flex gap-1.5 sm:gap-2">
-                               <button
-                                 onClick={async () => {
-                                   setLoadingHistory(true);
-                                   const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                   if (data) handleExportRosterPDF(data);
-                                   setLoadingHistory(false);
-                                 }}
-                                 className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
-                               >
-                                 Export List (PDF)
-                               </button>
-                               <button
-                                 onClick={async () => {
-                                   setLoadingHistory(true);
-                                   const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                   if (data) handleExportCardsPDF(data);
-                                   setLoadingHistory(false);
-                                 }}
-                                 className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
-                               >
-                                 Export Cards (PDF)
-                               </button>
-                               <button 
-                                 onClick={async () => {
-                                   setLoadingHistory(true);
-                                   const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                   if (data) handleMassPrintReport(data);
-                                   setLoadingHistory(false);
-                                 }}
-                                 className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
-                               >
-                                 Print List
-                               </button>
-                               <button 
-                                 onClick={async () => {
-                                   setLoadingHistory(true);
-                                   const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                   if (data) handleMassPrint(data);
-                                   setLoadingHistory(false);
-                                 }}
-                                 className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
-                               >
-                                 Print Cards
-                               </button>
-                             </div>
-                          </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-10">
+                {history.map((batch) => (
+                  <div key={batch.id} className="group bg-card border border-border p-3 sm:p-6 transition-all hover:bg-card/80 hover:border-orange-500/20 hover:shadow-latest relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-card rotate-45 translate-x-16 -translate-y-16 pointer-events-none" />
 
-                           {selectedBatchId === batch.id && (
-                              <div className="mt-12 pt-12 border-t border-border space-y-4 animate-in fade-in slide-in-from-top-6 duration-700">
-                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 px-2 sm:px-4 gap-3">
-                                     <div className="flex items-center gap-3 flex-wrap">
-                                        <p className="text-[11px] text-muted-foreground font-black uppercase tracking-[0.3em]">
-                                          {batchResults.length} Students
-                                        </p>
-                                        <label className="flex items-center gap-2 bg-black/40 px-3 py-1.5 border border-border cursor-pointer">
-                                           <input
-                                             type="checkbox"
-                                             className="w-4 h-4 bg-transparent border-orange-500/50 rounded-none text-orange-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
-                                             checked={batchResults.length > 0 && selectedResultIds.length === batchResults.length}
-                                             onChange={(e) => {
-                                               if (e.target.checked) setSelectedResultIds(batchResults.map(r => r.id));
-                                               else setSelectedResultIds([]);
-                                             }}
-                                           />
-                                           <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Select All</span>
-                                        </label>
-                                     </div>
-                                     {selectedResultIds.length > 0 && (
-                                       <div className="flex flex-wrap gap-1 animate-in fade-in zoom-in-95 duration-200">
-                                         <button
-                                           onClick={() => handleExportRosterPDF(batchResults.filter(r => selectedResultIds.includes(r.id)))}
-                                           className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
-                                         >
-                                           Export List
-                                         </button>
-                                         <button
-                                           onClick={() => handleExportCardsPDF(batchResults.filter(r => selectedResultIds.includes(r.id)))}
-                                           className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
-                                         >
-                                           Export Cards
-                                         </button>
-                                         <button
-                                           onClick={() => handleMassPrintReport(batchResults.filter(r => selectedResultIds.includes(r.id)))}
-                                           className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
-                                         >
-                                           Print List
-                                         </button>
-                                         <button
-                                           onClick={() => handleMassPrint(batchResults.filter(r => selectedResultIds.includes(r.id)))}
-                                           className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
-                                         >
-                                           Print Cards
-                                         </button>
-                                         {['admin', 'teacher'].includes(profile?.role || '') && (
-                                           <button
-                                             onClick={handleBulkDelete}
-                                             className="px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[9px] font-black uppercase tracking-widest transition-all border border-rose-500/30"
-                                           >
-                                             Delete Selected
-                                           </button>
-                                         )}
-                                       </div>
-                                     )}
-                                  </div>
-                                  <div className="max-h-[500px] overflow-y-auto custom-scrollbar space-y-1.5 pr-2">
-                                     {batchResults.map((r, ri) => (
-                                       <div key={r.id} className={`flex items-center justify-between p-2 sm:p-3 transition-all group/it border ${selectedResultIds.includes(r.id) ? 'bg-orange-500/5 border-orange-500/30' : 'bg-white/[0.02] border-border hover:border-orange-500/20 hover:bg-white/[0.04]'}`}>
-                                         <div className="flex items-center gap-3 sm:gap-6 overflow-hidden">
-                                           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-                                             <input
-                                               type="checkbox"
-                                               className="w-4 h-4 bg-black/40 border-border rounded-none text-orange-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
-                                               checked={selectedResultIds.includes(r.id)}
-                                               onChange={(e) => {
-                                                 if (e.target.checked) setSelectedResultIds(prev => [...prev, r.id]);
-                                                 else setSelectedResultIds(prev => prev.filter(id => id !== r.id));
-                                               }}
-                                             />
-                                             <div className="w-8 h-8 bg-black/40 flex items-center justify-center text-[9px] font-black italic text-muted-foreground border border-border group-hover/it:text-orange-400 group-hover/it:border-orange-500/40 transition-all">
-                                               {String(ri + 1).padStart(2, '0')}
-                                             </div>
-                                           </div>
-                                           <div className="min-w-0">
-                                             {editingResultId === r.id ? (
-                                               <div className="flex gap-3 w-full animate-in fade-in zoom-in-95 duration-200">
-                                                 <input
-                                                   id={`edit-name-${r.id}`}
-                                                   autoFocus
-                                                   defaultValue={r.full_name}
-                                                   className="bg-black/80 border border-orange-500/50 px-4 py-2 text-white font-black text-xs min-w-[150px] outline-none"
-                                                 />
-                                                 <input
-                                                   id={`edit-class-${r.id}`}
-                                                   defaultValue={r.class_name || ''}
-                                                   className="bg-black/80 border border-orange-500/50 px-4 py-2 text-orange-400 font-black text-[10px] uppercase tracking-widest min-w-[80px] outline-none"
-                                                 />
-                                                 <button
-                                                   onClick={async () => {
-                                                     const n = (document.getElementById(`edit-name-${r.id}`) as HTMLInputElement).value;
-                                                     const c = (document.getElementById(`edit-class-${r.id}`) as HTMLInputElement).value;
-                                                     await fetch('/api/students/bulk-register', {
-                                                       method: 'PATCH',
-                                                       headers: { 'Content-Type': 'application/json' },
-                                                       body: JSON.stringify({ type: 'result', data: { id: r.id, full_name: n, class_name: c, email: r.email } })
-                                                     });
-                                                     setEditingResultId(null);
-                                                     const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
-                                                     if (data) setBatchResults(data);
-                                                     toast.success('Identity node updated.');
-                                                   }}
-                                                   className="bg-orange-600 hover:bg-orange-500 text-white px-4 flex items-center justify-center transition-all"
-                                                 >
-                                                   <CheckCircleIcon className="w-4 h-4" />
-                                                 </button>
-                                               </div>
-                                             ) : (
-                                               <div onDoubleClick={() => setEditingResultId(r.id)} className="cursor-pointer">
-                                                 <p className="text-[12px] font-black text-foreground italic truncate uppercase tracking-tight group-hover/it:text-orange-400 transition-colors">{r.full_name}</p>
-                                                 <p className="text-[8.5px] text-muted-foreground font-mono tracking-tighter truncate mt-0.5">{r.email}</p>
-                                               </div>
-                                             )}
-                                           </div>
-                                         </div>
-                                          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-                                            {editingResultId !== r.id && (
-                                              <>
-                                                <span className="text-[9px] font-black text-orange-400/80 bg-orange-400/10 px-2 py-1 sm:px-3 sm:py-1.5 border border-orange-400/20 uppercase tracking-widest hidden sm:block italic">
-                                                  {r.class_name || '...'}
-                                                </span>
-                                                {/* Always visible on mobile, hover-reveal on desktop */}
-                                                <div className="flex gap-1 sm:opacity-0 sm:group-hover/it:opacity-100 transition-opacity">
-                                                  <button
-                                                    onClick={() => setEditingResultId(r.id)}
-                                                    className="p-2 sm:p-2.5 bg-muted hover:bg-orange-600/20 text-orange-400 sm:text-orange-400/60 hover:text-orange-400 transition-all border border-border"
-                                                    title="Edit"
-                                                  >
-                                                    <PencilIcon className="w-3.5 h-3.5" />
-                                                  </button>
-                                                  <button
-                                                    onClick={() => handleMassPrint([r])}
-                                                    className="p-2 sm:p-2.5 bg-muted hover:bg-orange-600/20 text-orange-400 sm:text-orange-400/60 hover:text-orange-400 transition-all border border-border"
-                                                    title="Print Card"
-                                                  >
-                                                    <PrinterIcon className="w-3.5 h-3.5" />
-                                                  </button>
-                                                  <button
-                                                    onClick={() => handleExportCardsPDF([r])}
-                                                    className="p-2 sm:p-2.5 bg-muted hover:bg-blue-600/20 text-blue-400 sm:text-blue-400/60 hover:text-blue-400 transition-all border border-border hidden sm:block"
-                                                    title="Export PDF"
-                                                  >
-                                                    <DocumentArrowDownIcon className="w-3.5 h-3.5" />
-                                                  </button>
-                                                  {['admin', 'teacher'].includes(profile?.role || '') && (
-                                                    <button
-                                                      onClick={async () => {
-                                                        if (!confirm('Delete this record?')) return;
-                                                        await fetch(`/api/students/bulk-register?resultId=${r.id}`, { method: 'DELETE' });
-                                                        setBatchResults(prev => prev.filter(x => x.id !== r.id));
-                                                        fetchHistory();
-                                                        toast.success('Record deleted.');
-                                                      }}
-                                                      className="p-2 sm:p-2.5 bg-muted hover:bg-rose-600/20 text-rose-400 sm:text-rose-400/60 hover:text-rose-400 transition-all border border-border"
-                                                      title="Delete"
-                                                    >
-                                                      <TrashIcon className="w-3.5 h-3.5" />
-                                                    </button>
-                                                  )}
-                                                </div>
-                                              </>
-                                            )}
-                                          </div>
-                                      </div>
-                                   ))}
-                                </div>
-                             </div>
+                    <div className="relative z-10">
+                      <div className="flex items-start justify-between mb-6 sm:mb-10">
+                        <div className="flex-1 min-w-0">
+                          {editingBatchId === batch.id ? (
+                            <input
+                              autoFocus
+                              className="bg-black/60 border border-orange-500/50 px-4 py-2 sm:px-6 sm:py-4 text-foreground font-black text-xl sm:text-3xl w-full italic outline-none focus:ring-1 focus:ring-orange-500/30 transition-all"
+                              defaultValue={batch.class_name || 'General Batch'}
+                              onBlur={async (e) => {
+                                await fetch('/api/students/bulk-register', {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ type: 'batch', data: { id: batch.id, class_name: e.target.value } })
+                                });
+                                setEditingBatchId(null);
+                                fetchHistory();
+                                toast.success('Batch renamed successfully.');
+                              }}
+                            />
+                          ) : (
+                            <h3 className="text-2xl sm:text-4xl font-black text-foreground truncate uppercase tracking-tighter italic group-hover:text-orange-400 cursor-pointer transition-colors"
+                              onDoubleClick={() => setEditingBatchId(batch.id)}>
+                              {batch.class_name || 'General Batch'}
+                            </h3>
                           )}
-                       </div>
+                          <div className="flex items-center gap-4 sm:gap-6 mt-3 sm:mt-5 bg-card shadow-sm w-fit px-3 py-1.5 sm:px-4 sm:py-2 border border-border">
+                            <span className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">{new Date(batch.created_at).toLocaleDateString()}</span>
+                            <div className="w-1 h-1 bg-muted rounded-none" />
+                            <span className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] italic">{batch.student_count} Students</span>
+                          </div>
+                        </div>
+                        {['admin', 'teacher'].includes(profile?.role || '') && (
+                          <button onClick={() => handleDeleteBatch(batch.id)} className="p-3 bg-card shadow-sm hover:bg-rose-600/20 text-muted-foreground hover:text-rose-500 transition-all border border-border ml-3">
+                            <TrashIcon className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-6 sm:mt-10">
+                        <button
+                          onClick={async () => {
+                            if (selectedBatchId === batch.id) {
+                              setSelectedBatchId(null);
+                              setSelectedResultIds([]);
+                            } else {
+                              setSelectedBatchId(batch.id);
+                              setSelectedResultIds([]);
+                              setLoadingHistory(true);
+                              const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                              if (data) setBatchResults(data);
+                              setLoadingHistory(false);
+                            }
+                          }}
+                          className={`flex-1 py-2.5 sm:py-3 text-[9px] font-black uppercase tracking-[0.2em] sm:tracking-[0.4em] transition-all border ${selectedBatchId === batch.id ? 'bg-orange-600 text-foreground border-orange-400 shadow-xl shadow-orange-600/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted hover:text-foreground border-border'
+                            }`}
+                        >
+                          {selectedBatchId === batch.id ? 'Hide Students' : 'View Students'}
+                        </button>
+                        <div className="flex gap-1.5 sm:gap-2">
+                          <button
+                            onClick={async () => {
+                              setLoadingHistory(true);
+                              const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                              if (data) handleExportRosterPDF(data);
+                              setLoadingHistory(false);
+                            }}
+                            className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                          >
+                            Export List (PDF)
+                          </button>
+                          <button
+                            onClick={async () => {
+                              setLoadingHistory(true);
+                              const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                              if (data) handleExportCardsPDF(data);
+                              setLoadingHistory(false);
+                            }}
+                            className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                          >
+                            Export Cards (PDF)
+                          </button>
+                          <button
+                            onClick={async () => {
+                              setLoadingHistory(true);
+                              const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                              if (data) handleMassPrintReport(data);
+                              setLoadingHistory(false);
+                            }}
+                            className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                          >
+                            Print List
+                          </button>
+                          <button
+                            onClick={async () => {
+                              setLoadingHistory(true);
+                              const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                              if (data) handleMassPrint(data);
+                              setLoadingHistory(false);
+                            }}
+                            className="px-3 py-2 sm:px-4 sm:py-3 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 border border-orange-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                          >
+                            Print Cards
+                          </button>
+                        </div>
+                      </div>
+
+                      {selectedBatchId === batch.id && (
+                        <div className="mt-12 pt-12 border-t border-border space-y-4 animate-in fade-in slide-in-from-top-6 duration-700">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 px-2 sm:px-4 gap-3">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <p className="text-[11px] text-muted-foreground font-black uppercase tracking-[0.3em]">
+                                {batchResults.length} Students
+                              </p>
+                              <label className="flex items-center gap-2 bg-black/40 px-3 py-1.5 border border-border cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="w-4 h-4 bg-transparent border-orange-500/50 rounded-none text-orange-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                  checked={batchResults.length > 0 && selectedResultIds.length === batchResults.length}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setSelectedResultIds(batchResults.map(r => r.id));
+                                    else setSelectedResultIds([]);
+                                  }}
+                                />
+                                <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Select All</span>
+                              </label>
+                            </div>
+                            {selectedResultIds.length > 0 && (
+                              <div className="flex flex-wrap gap-1 animate-in fade-in zoom-in-95 duration-200">
+                                <button
+                                  onClick={() => handleExportRosterPDF(batchResults.filter(r => selectedResultIds.includes(r.id)))}
+                                  className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
+                                >
+                                  Export List
+                                </button>
+                                <button
+                                  onClick={() => handleExportCardsPDF(batchResults.filter(r => selectedResultIds.includes(r.id)))}
+                                  className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
+                                >
+                                  Export Cards
+                                </button>
+                                <button
+                                  onClick={() => handleMassPrintReport(batchResults.filter(r => selectedResultIds.includes(r.id)))}
+                                  className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
+                                >
+                                  Print List
+                                </button>
+                                <button
+                                  onClick={() => handleMassPrint(batchResults.filter(r => selectedResultIds.includes(r.id)))}
+                                  className="px-3 py-2 bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 text-[9px] font-black uppercase tracking-widest transition-all border border-orange-500/30"
+                                >
+                                  Print Cards
+                                </button>
+                                {['admin', 'teacher'].includes(profile?.role || '') && (
+                                  <button
+                                    onClick={handleBulkDelete}
+                                    className="px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[9px] font-black uppercase tracking-widest transition-all border border-rose-500/30"
+                                  >
+                                    Delete Selected
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="max-h-[500px] overflow-y-auto custom-scrollbar space-y-1.5 pr-2">
+                            {batchResults.map((r, ri) => (
+                              <div key={r.id} className={`flex items-center justify-between p-2 sm:p-3 transition-all group/it border ${selectedResultIds.includes(r.id) ? 'bg-orange-500/5 border-orange-500/30' : 'bg-white/[0.02] border-border hover:border-orange-500/20 hover:bg-white/[0.04]'}`}>
+                                <div className="flex items-center gap-3 sm:gap-6 overflow-hidden">
+                                  <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                                    <input
+                                      type="checkbox"
+                                      className="w-4 h-4 bg-black/40 border-border rounded-none text-orange-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                      checked={selectedResultIds.includes(r.id)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) setSelectedResultIds(prev => [...prev, r.id]);
+                                        else setSelectedResultIds(prev => prev.filter(id => id !== r.id));
+                                      }}
+                                    />
+                                    <div className="w-8 h-8 bg-black/40 flex items-center justify-center text-[9px] font-black italic text-muted-foreground border border-border group-hover/it:text-orange-400 group-hover/it:border-orange-500/40 transition-all">
+                                      {String(ri + 1).padStart(2, '0')}
+                                    </div>
+                                  </div>
+                                  <div className="min-w-0">
+                                    {editingResultId === r.id ? (
+                                      <div className="flex gap-3 w-full animate-in fade-in zoom-in-95 duration-200">
+                                        <input
+                                          id={`edit-name-${r.id}`}
+                                          autoFocus
+                                          defaultValue={r.full_name}
+                                          className="bg-black/80 border border-orange-500/50 px-4 py-2 text-white font-black text-xs min-w-[150px] outline-none"
+                                        />
+                                        <input
+                                          id={`edit-class-${r.id}`}
+                                          defaultValue={r.class_name || ''}
+                                          className="bg-black/80 border border-orange-500/50 px-4 py-2 text-orange-400 font-black text-[10px] uppercase tracking-widest min-w-[80px] outline-none"
+                                        />
+                                        <button
+                                          onClick={async () => {
+                                            const n = (document.getElementById(`edit-name-${r.id}`) as HTMLInputElement).value;
+                                            const c = (document.getElementById(`edit-class-${r.id}`) as HTMLInputElement).value;
+                                            await fetch('/api/students/bulk-register', {
+                                              method: 'PATCH',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ type: 'result', data: { id: r.id, full_name: n, class_name: c, email: r.email } })
+                                            });
+                                            setEditingResultId(null);
+                                            const { data } = await supabase.from('registration_results').select('*').eq('batch_id', batch.id);
+                                            if (data) setBatchResults(data);
+                                            toast.success('Identity node updated.');
+                                          }}
+                                          className="bg-orange-600 hover:bg-orange-500 text-white px-4 flex items-center justify-center transition-all"
+                                        >
+                                          <CheckCircleIcon className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div onDoubleClick={() => setEditingResultId(r.id)} className="cursor-pointer">
+                                        <p className="text-[12px] font-black text-foreground italic truncate uppercase tracking-tight group-hover/it:text-orange-400 transition-colors">{r.full_name}</p>
+                                        <p className="text-[8.5px] text-muted-foreground font-mono tracking-tighter truncate mt-0.5">{r.email}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                                  {editingResultId !== r.id && (
+                                    <>
+                                      <span className="text-[9px] font-black text-orange-400/80 bg-orange-400/10 px-2 py-1 sm:px-3 sm:py-1.5 border border-orange-400/20 uppercase tracking-widest hidden sm:block italic">
+                                        {r.class_name || '...'}
+                                      </span>
+                                      {/* Always visible on mobile, hover-reveal on desktop */}
+                                      <div className="flex gap-1 sm:opacity-0 sm:group-hover/it:opacity-100 transition-opacity">
+                                        <button
+                                          onClick={() => setEditingResultId(r.id)}
+                                          className="p-2 sm:p-2.5 bg-muted hover:bg-orange-600/20 text-orange-400 sm:text-orange-400/60 hover:text-orange-400 transition-all border border-border"
+                                          title="Edit"
+                                        >
+                                          <PencilIcon className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleMassPrint([r])}
+                                          className="p-2 sm:p-2.5 bg-muted hover:bg-orange-600/20 text-orange-400 sm:text-orange-400/60 hover:text-orange-400 transition-all border border-border"
+                                          title="Print Card"
+                                        >
+                                          <PrinterIcon className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleExportCardsPDF([r])}
+                                          className="p-2 sm:p-2.5 bg-muted hover:bg-blue-600/20 text-blue-400 sm:text-blue-400/60 hover:text-blue-400 transition-all border border-border hidden sm:block"
+                                          title="Export PDF"
+                                        >
+                                          <DocumentArrowDownIcon className="w-3.5 h-3.5" />
+                                        </button>
+                                        {['admin', 'teacher'].includes(profile?.role || '') && (
+                                          <button
+                                            onClick={async () => {
+                                              if (!confirm('Delete this record?')) return;
+                                              await fetch(`/api/students/bulk-register?resultId=${r.id}`, { method: 'DELETE' });
+                                              setBatchResults(prev => prev.filter(x => x.id !== r.id));
+                                              fetchHistory();
+                                              toast.success('Record deleted.');
+                                            }}
+                                            className="p-2 sm:p-2.5 bg-muted hover:bg-rose-600/20 text-rose-400 sm:text-rose-400/60 hover:text-rose-400 transition-all border border-border"
+                                            title="Delete"
+                                          >
+                                            <TrashIcon className="w-3.5 h-3.5" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
-               </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}
 
-        <AddStudentModal 
-          isOpen={isSingleModalOpen} 
-          onClose={() => setIsSingleModalOpen(false)} 
+        <AddStudentModal
+          isOpen={isSingleModalOpen}
+          onClose={() => setIsSingleModalOpen(false)}
           onSuccess={() => { setIsSingleModalOpen(false); setActiveTab('vault'); fetchHistory(); toast.success('Student registered successfully.'); }}
         />
       </div>
