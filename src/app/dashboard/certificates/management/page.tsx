@@ -25,7 +25,10 @@ import {
     UserCircleIcon,
     PrinterIcon,
     RectangleGroupIcon,
-    ClockIcon
+    ClockIcon,
+    ClipboardIcon,
+    CheckIcon,
+    ArrowLeftIcon
 } from '@/lib/icons';
 import NextImage from 'next/image';
 import { cn } from '@/lib/utils';
@@ -33,6 +36,7 @@ import { toast } from 'react-hot-toast';
 import QRCode from 'react-qr-code';
 import type { Database } from '@/types/supabase';
 import CertificatePreview from '@/components/certificates/CertificatePreview';
+import { TEMPLATES } from '@/components/certificates/shared/CertificateTemplates';
 
 type Certificate = Omit<Database['public']['Tables']['certificates']['Row'], 'metadata'> & {
     is_published?: boolean;
@@ -90,7 +94,7 @@ export default function CertificateManagement() {
         programId: '',
         courseId: '',
         isBulk: false,
-        templateId: 'modern-sharp'
+        templateId: 'prestige'
     });
 
     // View Modal State
@@ -695,13 +699,7 @@ export default function CertificateManagement() {
                                     </div>
                                 </div>
                                 <div className="mt-3 sm:mt-5 flex flex-wrap gap-2">
-                                    {[
-                                        { id: 'modern-sharp', label: 'Modern' },
-                                        { id: 'classic-heritage', label: 'Classic' },
-                                        { id: 'cyber-minimal', label: 'Cyber' },
-                                        { id: 'executive-platinum', label: 'Executive' },
-                                        { id: 'royal-diploma', label: 'Royal' },
-                                    ].map(t => (
+                                    {TEMPLATES.map(t => (
                                         <button
                                             key={t.id}
                                             onClick={() => setIssueForm(prev => ({ ...prev, templateId: t.id }))}
