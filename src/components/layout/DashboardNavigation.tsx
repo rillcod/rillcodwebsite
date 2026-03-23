@@ -249,7 +249,7 @@ export default function DashboardNavigation() {
             <Image src="/images/logo.png" alt="Rillcod" width={16} height={16} className="object-contain" priority />
           </div>
           <span className="font-black uppercase tracking-widest text-[13px] text-sidebar-foreground italic">
-            Rillcod <span className="text-orange-500">Tech</span>
+            Rillcod <span className="text-orange-500">Technologies</span>
           </span>
         </Link>
         <div className="flex items-center gap-1.5">
