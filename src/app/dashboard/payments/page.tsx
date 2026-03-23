@@ -1719,8 +1719,11 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       const fixedPrice = parseFloat(schoolInvForm.fixed_package_price) || 0;
                       const subtotal = isFixed ? fixedPrice : ratePerChild * count;
                       const deposit = parseFloat(schoolInvForm.deposit_amount) || 0;
-                      const balance = subtotal - deposit;
                       const quotaPct = parseFloat(schoolInvForm.rillcod_quota_percent) || 0;
+                      const revenueShareOn = schoolInvForm.show_revenue_share && quotaPct > 0;
+                      const rillcodShare = Math.round(subtotal * (quotaPct / 100));
+                      const schoolShare = subtotal - rillcodShare;
+                      const outstanding = revenueShareOn ? Math.max(0, rillcodShare - deposit) : Math.max(0, subtotal - deposit);
                       return (
                         <div className="flex flex-wrap gap-6 items-center">
                           <div>
@@ -1743,6 +1746,18 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                             <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Invoice Total</p>
                             <p className="text-2xl font-black text-foreground">₦{subtotal.toLocaleString()}</p>
                           </div>
+                          {revenueShareOn && (
+                            <>
+                              <div>
+                                <p className="text-[9px] font-black text-primary/70 uppercase tracking-widest">Rillcod {quotaPct}%</p>
+                                <p className="text-lg font-black text-primary">₦{rillcodShare.toLocaleString()}</p>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">School {100 - quotaPct}%</p>
+                                <p className="text-lg font-black text-foreground">₦{schoolShare.toLocaleString()}</p>
+                              </div>
+                            </>
+                          )}
                           {deposit > 0 && (
                             <div>
                               <p className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">Less Deposit</p>
@@ -1750,21 +1765,11 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                             </div>
                           )}
                           <div className="bg-primary/10 px-4 py-2 rounded-none border border-primary/20">
-                            <p className="text-[9px] font-black text-primary uppercase tracking-widest">Total Outstanding</p>
-                            <p className="text-2xl font-black text-foreground">₦{balance.toLocaleString()}</p>
+                            <p className="text-[9px] font-black text-primary uppercase tracking-widest">
+                              {revenueShareOn ? `Rillcod Outstanding` : `Total Outstanding`}
+                            </p>
+                            <p className="text-2xl font-black text-foreground">₦{outstanding.toLocaleString()}</p>
                           </div>
-                          {quotaPct > 0 && schoolInvForm.show_revenue_share && (
-                            <>
-                              <div>
-                                <p className="text-[9px] font-black text-primary/70 uppercase tracking-widest">Rillcod {quotaPct}%</p>
-                                <p className="text-lg font-black text-primary">₦{Math.round(subtotal * (quotaPct / 100)).toLocaleString()}</p>
-                              </div>
-                              <div>
-                                <p className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">School {100 - quotaPct}%</p>
-                                <p className="text-lg font-black text-foreground">₦{Math.round(subtotal * ((100 - quotaPct) / 100)).toLocaleString()}</p>
-                              </div>
-                            </>
-                          )}
                         </div>
                       );
                     })()}
