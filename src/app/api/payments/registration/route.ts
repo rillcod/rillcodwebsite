@@ -59,6 +59,7 @@ export async function POST(req: Request) {
             course_interest,
             preferred_schedule,
             heard_about_us,
+            program_id, // optional — if set, price comes from programs table
         } = body;
 
         // Validate required fields
@@ -115,7 +116,18 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: studentErr?.message || 'Failed to save registration' }, { status: 500 });
         }
 
-        const amount = getFee(enrollment_type, preferred_schedule);
+        // If a program_id was passed, use its price from the DB (admin-controlled)
+        let amount = getFee(enrollment_type, preferred_schedule);
+        if (program_id) {
+            const { data: prog } = await supabase
+                .from('programs')
+                .select('price')
+                .eq('id', program_id)
+                .single();
+            if (prog?.price && Number(prog.price) > 0) {
+                amount = Number(prog.price);
+            }
+        }
         const reference = `REG-${Date.now()}-${student.id.substring(0, 6)}`;
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
 
