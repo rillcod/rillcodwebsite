@@ -125,9 +125,10 @@ const SCHEDULES: Record<string, { value: string; label: string; fee: number; fee
     { value: 'Online Weekend',      label: 'Online – Weekends Only',                   fee: 25000, feeLabel: '₦25,000 / term' },
   ],
   '': [
-    { value: 'Weekend In-Person',   label: 'Weekend Classes (Sat & Sun)',  fee: 20000, feeLabel: '₦20,000' },
-    { value: 'Online Live Classes', label: 'Online Live Classes',          fee: 40000, feeLabel: '₦40,000 / term' },
-    { value: 'Online Self-Paced',   label: 'Online – Self-Paced',         fee: 30000, feeLabel: '₦30,000' },
+    { value: 'Weekday Afternoons', label: 'Weekday Afternoons (at school)',  fee: 20000, feeLabel: '₦20,000 / term' },
+    { value: 'Weekend In-Person',  label: 'Weekend In-Person Sessions',      fee: 18000, feeLabel: '₦18,000 / term' },
+    { value: 'Termly Programme',   label: 'Full Termly Programme',           fee: 20000, feeLabel: '₦20,000 / term' },
+    { value: 'Holiday Programme',  label: 'Holiday / Vacation Programme',    fee: 25000, feeLabel: '₦25,000 / holiday' },
   ],
 };
 
