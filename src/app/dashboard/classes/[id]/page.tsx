@@ -23,7 +23,7 @@ export default function ClassDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const router = useRouter();
-  const { profile, loading: authLoading, profileLoading } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
 
   const [cls, setCls] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
@@ -139,10 +139,10 @@ export default function ClassDetailPage() {
   };
 
   useEffect(() => {
-    if (authLoading || profileLoading) return;
+    if (authLoading) return;
     if (profile && id) fetchData();
     else setLoading(false);
-  }, [id, profile?.id, authLoading, profileLoading]);
+  }, [id, profile?.id, authLoading]);
 
   const loadAvailableStudents = async () => {
     if (!cls) return;
