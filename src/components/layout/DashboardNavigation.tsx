@@ -303,8 +303,8 @@ export default function DashboardNavigation() {
             <Image src="/images/logo.png" alt="Rillcod Technologies" width={28} height={28} className="object-contain" priority />
           </div>
           <div className="text-center leading-none relative z-10">
-            <h1 className="text-[15px] font-black uppercase tracking-[0.25em] text-sidebar-foreground italic">RILLCOD<span className="text-orange-500">.</span></h1>
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-orange-500/80 italic mt-0.5">TECHNOLOGIES</p>
+            <h1 className="text-[18px] font-black uppercase tracking-[0.25em] text-sidebar-foreground italic">RILLCOD<span className="text-orange-500">.</span></h1>
+            <p className="text-[12px] font-black uppercase tracking-[0.2em] text-orange-500/80 italic mt-0.5">TECHNOLOGIES</p>
           </div>
         </div>
 
@@ -316,8 +316,8 @@ export default function DashboardNavigation() {
             </span>
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[12px] font-black truncate text-sidebar-foreground/90 tracking-wide">{profile.full_name}</span>
-            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-400/70 mt-0.5">
+            <span className="text-[14px] font-black truncate text-sidebar-foreground/90 tracking-wide">{profile.full_name}</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-orange-400/70 mt-0.5">
               {profile.role === 'school' && profile.school_name ? profile.school_name : profile.role}
             </span>
           </div>
@@ -334,7 +334,7 @@ export default function DashboardNavigation() {
             if (isDivider(entry)) {
               return (
                 <div key={`divider-${idx}`} className="pt-5 pb-2 px-3">
-                  <p className="text-[9px] font-black uppercase tracking-[0.35em] text-sidebar-foreground/35 mb-2">{entry.label}</p>
+                  <p className="text-[11px] font-black uppercase tracking-[0.25em] text-sidebar-foreground/35 mb-2">{entry.label}</p>
                   <div className="h-px bg-gradient-to-r from-sidebar-foreground/[0.1] to-transparent" />
                 </div>
               );

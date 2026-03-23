@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import {
     ArrowDownTrayIcon, ShareIcon, TrophyIcon,
-    CheckBadgeIcon, QrCodeIcon, ArrowPathIcon, ClipboardIcon, CheckIcon
+    CheckBadgeIcon, ArrowPathIcon, ClipboardIcon, CheckIcon
 } from '@/lib/icons';
 import { generateReportPDF } from '@/lib/pdf-utils';
 
@@ -25,14 +25,20 @@ interface CertificateProps {
     };
 }
 
-type TemplateType = 'vanguard' | 'academic' | 'future';
+type TemplateType = 'prestige' | 'royal' | 'tech';
+
+const TEMPLATES: { id: TemplateType; label: string }[] = [
+    { id: 'prestige', label: 'Prestige' },
+    { id: 'royal',   label: 'Royal' },
+    { id: 'tech',    label: 'Tech' },
+];
 
 export function CertificateCard({ cert }: CertificateProps) {
-    const certRef = useRef<HTMLDivElement>(null);
+    const certRef  = useRef<HTMLDivElement>(null);
     const [isDownloading, setIsDownloading] = useState(false);
-    const [template, setTemplate] = useState<TemplateType>('vanguard');
-    const [toast, setToast] = useState<string | null>(null);
-    const [copied, setCopied] = useState(false);
+    const [template, setTemplate]           = useState<TemplateType>('prestige');
+    const [toast, setToast]                 = useState<string | null>(null);
+    const [copied, setCopied]               = useState(false);
 
     const showToast = (msg: string) => {
         setToast(msg);
@@ -45,9 +51,7 @@ export function CertificateCard({ cert }: CertificateProps) {
         try {
             const fileName = `Certificate_${cert.courses.title.replace(/\s+/g, '_')}_${cert.verification_code}.pdf`;
             await generateReportPDF(certRef.current, fileName, true);
-        } catch (error) {
-            console.error('Download failed:', error);
-        } finally {
+        } catch { /* ignore */ } finally {
             setIsDownloading(false);
         }
     };
@@ -55,262 +59,363 @@ export function CertificateCard({ cert }: CertificateProps) {
     const handleShare = async () => {
         const url = `https://rillcod.com/verify/${cert.verification_code}`;
         if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: `Certificate: ${cert.courses.title}`,
-                    text: `I just earned a certificate for ${cert.courses.title} at Rillcod Academy!`,
-                    url
-                });
-            } catch (err) {
-                // User cancelled share — no action needed
-            }
+            try { await navigator.share({ title: `Certificate: ${cert.courses.title}`, url }); } catch { /* cancelled */ }
         } else {
-            try {
-                await navigator.clipboard.writeText(url);
-                showToast('Verification link copied to clipboard!');
-            } catch {
-                showToast('Copy link: ' + url);
-            }
+            try { await navigator.clipboard.writeText(url); showToast('Verification link copied!'); } catch { showToast('Link: ' + url); }
         }
     };
 
     const handleCopyCertNumber = async () => {
         try {
             await navigator.clipboard.writeText(cert.certificate_number);
-            setCopied(true);
-            showToast('Certificate number copied!');
+            setCopied(true); showToast('Certificate number copied!');
             setTimeout(() => setCopied(false), 2000);
-        } catch {
-            showToast('Cert #: ' + cert.certificate_number);
-        }
+        } catch { showToast('Cert #: ' + cert.certificate_number); }
     };
 
-    const studentName = cert.portal_users?.full_name || 'Valued Learner';
-    const courseTitle = cert.courses.title;
-    const programName = cert.courses.program?.name || 'STEM Advancement Program';
-    const studentClass = cert.portal_users?.section_class || cert.portal_users?.grade_level || 'N/A';
-    const issuedDate = cert.issued_date
+    const studentName  = cert.portal_users?.full_name || 'Valued Learner';
+    const courseTitle  = cert.courses.title;
+    const programName  = cert.courses.program?.name || 'STEM Advancement Programme';
+    const studentClass = cert.portal_users?.section_class || cert.portal_users?.grade_level || '';
+    const issuedDate   = cert.issued_date
         ? new Date(cert.issued_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
-        : '';
+        : new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const certCode = cert.verification_code;
+    const certNum  = cert.certificate_number;
 
     return (
-        <div className="space-y-6 animate-fade-in group/main relative">
-            {/* Toast notification */}
+        <div className="space-y-5 animate-fade-in">
+            {/* Toast */}
             {toast && (
-                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-[#1a1a2e] border border-white/10 text-white text-xs font-semibold px-5 py-3 shadow-2xl flex items-center gap-2 pointer-events-none animate-fade-in">
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-[#1a1a2e] border border-white/10 text-white text-xs font-semibold px-5 py-3 shadow-2xl flex items-center gap-2 pointer-events-none">
                     <CheckIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                     {toast}
                 </div>
             )}
-            {/* Template Selector */}
-            <div className="flex justify-center gap-0 bg-[#111113] border border-white/[0.05] p-1 w-fit mx-auto shadow-xl">
-                {(['vanguard', 'academic', 'future'] as TemplateType[]).map((t) => (
-                    <button
-                        key={t}
-                        onClick={() => setTemplate(t)}
-                        className={`px-4 py-2 text-[9px] font-black uppercase tracking-[0.2em] transition-all ${
-                            template === t
-                            ? 'bg-primary text-black'
-                            : 'text-slate-500 hover:text-white hover:bg-white/5'
-                        }`}
-                    >
-                        {t}
-                    </button>
-                ))}
-            </div>
 
-            {/* ── Certificate Card — A4 Landscape proportions ────────────────── */}
-            <div
-                ref={certRef}
-                className={`relative w-full overflow-hidden rounded-none border-none shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-700 ${
-                    template === 'vanguard' ? 'bg-[#121212]' :
-                    template === 'academic' ? 'bg-[#fafafa]' :
-                    'bg-[#050505]'
-                }`}
-                style={{ aspectRatio: '297/210', width: '100%' }}
-            >
-                {/* ─ VANGUARD TEMPLATE ─────────────────────────────────────── */}
-                {template === 'vanguard' && (
-                    <>
-                        <div className="absolute inset-0 bg-[#121212]" />
-                        <div className="absolute top-0 right-0 w-[350px] h-[350px] bg-primary/5 blur-[100px] pointer-events-none" />
-                        <div className="absolute inset-0 border-[2px] border-primary/20 pointer-events-none m-3" />
-                        <div className="absolute inset-0 border-[1px] border-white/5 pointer-events-none m-6" />
-                        <div className="absolute top-3 left-3 w-3 h-3 bg-primary" />
-                        <div className="absolute top-3 right-3 w-3 h-3 bg-primary" />
-                        <div className="absolute bottom-3 left-3 w-3 h-3 bg-primary" />
-                        <div className="absolute bottom-3 right-3 w-3 h-3 bg-primary" />
-                    </>
-                )}
-
-                {/* ─ ACADEMIC TEMPLATE ─────────────────────────────────────── */}
-                {template === 'academic' && (
-                    <>
-                        <div className="absolute inset-0 bg-[#fafafa]" />
-                        <div className="absolute inset-3 border-[3px] border-[#1e293b] pointer-events-none" />
-                        <div className="absolute inset-5 border border-[#1e293b]/10 pointer-events-none" />
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.02] rotate-12 pointer-events-none">
-                            <TrophyIcon className="w-80 h-80 text-[#1e293b]" />
-                        </div>
-                    </>
-                )}
-
-                {/* ─ FUTURE TEMPLATE ───────────────────────────────────────── */}
-                {template === 'future' && (
-                    <>
-                        <div className="absolute inset-0 bg-[#000]" />
-                        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,145,77,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,145,77,0.05)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
-                        <div className="absolute top-0 left-0 w-full h-[3px] bg-primary shadow-[0_0_20px_rgba(255,145,77,0.5)]" />
-                        <div className="absolute bottom-0 left-0 w-full h-[3px] bg-primary shadow-[0_0_20px_rgba(255,145,77,0.5)]" />
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 blur-[150px] pointer-events-none" />
-                    </>
-                )}
-
-                {/* ── Two-column landscape layout ──────────────────────────── */}
-                <div className="relative z-10 flex h-full" style={{ padding: '5%' }}>
-
-                    {/* LEFT PANEL — branding + QR */}
-                    <div className="flex flex-col items-center justify-between" style={{ width: '28%', paddingRight: '3%' }}>
-                        {/* Logo */}
-                        <div className="flex flex-col items-center gap-1.5">
-                            <img
-                                src="/images/logo.png"
-                                alt="Rillcod"
-                                className={`w-auto mx-auto ${template === 'academic' ? 'grayscale brightness-50' : 'brightness-125'}`}
-                                style={{ height: 'clamp(28px, 6%, 48px)' }}
-                                crossOrigin="anonymous"
-                            />
-                            <div className={`text-center font-black uppercase leading-tight ${template === 'academic' ? 'text-slate-900 border-t border-b border-black py-1' : 'text-primary'}`}
-                                style={{ fontSize: 'clamp(5px, 0.9%, 8px)', letterSpacing: '0.3em' }}>
-                                RILLCOD TECHNOLOGIES &middot; QUANTUM LEARNING
-                            </div>
-                        </div>
-
-                        {/* Center badge */}
-                        <div className="flex flex-col items-center gap-1">
-                            <div style={{ width: 'clamp(28px, 8%, 48px)', height: 'clamp(28px, 8%, 48px)' }}>
-                                <CheckBadgeIcon className={`w-full h-full ${template === 'academic' ? 'text-[#1e293b]' : 'text-primary'}`} />
-                            </div>
-                            <div className={`font-black uppercase text-center ${template === 'academic' ? 'text-slate-700' : 'text-slate-400'}`}
-                                style={{ fontSize: 'clamp(5px, 0.85%, 7px)', letterSpacing: '0.15em' }}>
-                                VERIFIED CREDENTIAL
-                            </div>
-                        </div>
-
-                        {/* QR + cert number */}
-                        <div className="flex flex-col items-center gap-1">
-                            <div className={`p-1 border ${template === 'academic' ? 'border-slate-900 bg-white' : 'border-primary/30 bg-primary/5'}`}>
-                                <div style={{ width: 'clamp(28px, 7%, 44px)', height: 'clamp(28px, 7%, 44px)' }}>
-                                    <QrCodeIcon className={`w-full h-full ${template === 'academic' ? 'text-black' : 'text-primary'}`} />
-                                </div>
-                            </div>
-                            <div className={`font-mono font-black text-center break-all ${template === 'academic' ? 'text-black' : 'text-white'}`}
-                                style={{ fontSize: 'clamp(5px, 0.75%, 7px)' }}>
-                                {cert.verification_code}
-                            </div>
-                            {issuedDate && (
-                                <div className={`font-black uppercase text-center ${template === 'academic' ? 'text-slate-500' : 'text-slate-500'}`}
-                                    style={{ fontSize: 'clamp(5px, 0.75%, 7px)', letterSpacing: '0.1em' }}>
-                                    {issuedDate}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* VERTICAL DIVIDER */}
-                    <div className={`self-stretch w-px flex-shrink-0 ${template === 'academic' ? 'bg-[#1e293b]/20' : 'bg-primary/20'}`} />
-
-                    {/* RIGHT PANEL — certificate content */}
-                    <div className="flex flex-col justify-between flex-1 min-w-0" style={{ paddingLeft: '4%' }}>
-
-                        {/* Title block */}
-                        <div>
-                            <div className={`font-black uppercase ${template === 'academic' ? 'text-slate-500 italic font-medium' : 'text-slate-500'}`}
-                                style={{ fontSize: 'clamp(5px, 0.9%, 8px)', letterSpacing: '0.3em' }}>
-                                Verified Academic Credential
-                            </div>
-                            <h2 className={`font-black italic tracking-tighter uppercase leading-none mt-1 ${
-                                template === 'academic' ? 'text-[#1e293b]' : 'text-white'
-                            }`} style={{ fontSize: 'clamp(16px, 5%, 36px)' }}>
-                                Certificate <span className={template !== 'academic' ? 'text-primary' : ''}>Of Mastery</span>
-                            </h2>
-                            <div className={`mt-1.5 ${template === 'academic' ? 'bg-[#1e293b]' : 'bg-primary/40'}`}
-                                style={{ height: '2px', width: 'clamp(32px, 8%, 64px)' }} />
-                        </div>
-
-                        {/* Recipient */}
-                        <div>
-                            <div className={`font-black uppercase ${template === 'academic' ? 'text-slate-600' : 'text-slate-500'}`}
-                                style={{ fontSize: 'clamp(5px, 0.85%, 7px)', letterSpacing: '0.3em' }}>
-                                This Record Confirms That
-                            </div>
-                            <h1 className={`font-black italic uppercase tracking-tighter leading-none break-words mt-1 ${
-                                template === 'academic'
-                                    ? 'text-black border-b-[2px] border-primary pb-1'
-                                    : 'text-primary drop-shadow-[0_0_15px_rgba(255,145,77,0.3)]'
-                            }`} style={{ fontSize: 'clamp(14px, 4.2%, 30px)' }}>
-                                {studentName}
-                            </h1>
-                        </div>
-
-                        {/* Course info */}
-                        <div>
-                            <div className="font-black text-slate-500 uppercase italic"
-                                style={{ fontSize: 'clamp(5px, 0.8%, 7px)', letterSpacing: '0.2em' }}>
-                                has established proficiency in the curriculum of
-                            </div>
-                            <h4 className={`font-black uppercase tracking-tight break-words mt-1 ${template === 'academic' ? 'text-black' : 'text-white'}`}
-                                style={{ fontSize: 'clamp(10px, 2.4%, 18px)' }}>
-                                {courseTitle}
-                            </h4>
-                            <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                                <span className="font-black text-primary uppercase" style={{ fontSize: 'clamp(5px, 0.8%, 7px)', letterSpacing: '0.15em' }}>{programName}</span>
-                                <div className="w-1 h-1 bg-slate-700" />
-                                <span className="font-black text-slate-500 uppercase" style={{ fontSize: 'clamp(5px, 0.8%, 7px)', letterSpacing: '0.15em' }}>Class: {studentClass}</span>
-                            </div>
-                        </div>
-
-                        {/* Signatures */}
-                        <div className="grid grid-cols-2 gap-4">
-                            {[
-                                { title: 'Director General', sub: 'Academic Standards Board' },
-                                { title: 'Head of Technology', sub: 'Credential Verification Depot' },
-                            ].map(({ title, sub }) => (
-                                <div key={title} className="flex flex-col items-center">
-                                    <img
-                                        src="/images/signature.png"
-                                        alt={title}
-                                        className={`w-auto mb-1 ${template === 'vanguard' ? 'invert brightness-[500%]' : template === 'academic' ? 'contrast-200 grayscale' : 'brightness-125'}`}
-                                        style={{ height: 'clamp(16px, 4%, 28px)' }}
-                                        crossOrigin="anonymous"
-                                        onError={e => (e.currentTarget.style.display = 'none')}
-                                    />
-                                    <div className={`w-full mb-1 ${template === 'academic' ? 'bg-black' : 'bg-primary'}`} style={{ height: '1.5px' }} />
-                                    <div className={`font-black uppercase text-center ${template === 'academic' ? 'text-black' : 'text-white'}`}
-                                        style={{ fontSize: 'clamp(5px, 0.8%, 7px)', letterSpacing: '0.12em' }}>
-                                        {title}
-                                    </div>
-                                    <div className="font-black text-slate-600 uppercase text-center"
-                                        style={{ fontSize: 'clamp(4px, 0.7%, 6px)', letterSpacing: '0.1em' }}>
-                                        {sub}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+            {/* Template switcher */}
+            <div className="flex justify-center">
+                <div className="flex gap-0 bg-black/40 border border-white/[0.08] p-1">
+                    {TEMPLATES.map(t => (
+                        <button
+                            key={t.id}
+                            onClick={() => setTemplate(t.id)}
+                            className={`px-5 py-2 text-[9px] font-black uppercase tracking-[0.2em] transition-all ${
+                                template === t.id ? 'bg-primary text-black' : 'text-slate-500 hover:text-white hover:bg-white/5'
+                            }`}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {/* Certificate number + copy row */}
+            {/* ── Certificate — fixed A4 landscape (794 × 561 px) ── */}
+            <div
+                ref={certRef}
+                className="relative overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.6)]"
+                style={{ width: '100%', aspectRatio: '794/561' }}
+            >
+
+                {/* ════ PRESTIGE TEMPLATE ════════════════════════════════════════ */}
+                {template === 'prestige' && (
+                    <div className="absolute inset-0 flex" style={{ background: 'linear-gradient(135deg, #0f0c29 0%, #1a1040 50%, #0f0c29 100%)' }}>
+                        {/* Decorative side strip */}
+                        <div style={{ width: '4px', background: 'linear-gradient(to bottom, #FF914D, #ff6b1a, #FF914D)', flexShrink: 0 }} />
+
+                        {/* Left panel */}
+                        <div className="flex flex-col items-center justify-between py-[6%] px-[3%]" style={{ width: '26%', borderRight: '1px solid rgba(255,145,77,0.18)' }}>
+                            {/* Logo */}
+                            <div className="flex flex-col items-center gap-2">
+                                <img src="/images/logo.png" alt="Rillcod" crossOrigin="anonymous"
+                                    style={{ height: 'clamp(32px, 7%, 52px)', width: 'auto' }}
+                                    onError={e => (e.currentTarget.style.display = 'none')} />
+                                <div style={{ height: '1px', width: '60%', background: 'rgba(255,145,77,0.3)' }} />
+                                <p style={{ fontSize: 'clamp(5px, 1%, 8px)', color: '#FF914D', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.25em', textAlign: 'center', lineHeight: 1.4 }}>
+                                    Rillcod Technologies
+                                </p>
+                            </div>
+
+                            {/* Verified badge */}
+                            <div className="flex flex-col items-center gap-1.5">
+                                <div style={{ width: 'clamp(32px, 8%, 52px)', height: 'clamp(32px, 8%, 52px)', background: 'rgba(255,145,77,0.1)', border: '1px solid rgba(255,145,77,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
+                                    <span style={{ padding: '20%', display: 'flex' }}><CheckBadgeIcon className="w-full h-full text-primary" /></span>
+                                </div>
+                                <p style={{ fontSize: 'clamp(4px, 0.8%, 7px)', color: 'rgba(255,145,77,0.6)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', textAlign: 'center' }}>
+                                    Verified Credential
+                                </p>
+                            </div>
+
+                            {/* QR + code */}
+                            <div className="flex flex-col items-center gap-1.5">
+                                <div style={{ padding: '6px', border: '1px solid rgba(255,145,77,0.3)', background: 'rgba(255,145,77,0.05)' }}>
+                                    <div style={{ width: 'clamp(28px, 7%, 44px)', height: 'clamp(28px, 7%, 44px)', background: 'rgba(255,145,77,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <span style={{ fontSize: 'clamp(8px, 1.5%, 12px)', fontWeight: 900, color: '#FF914D' }}>QR</span>
+                                    </div>
+                                </div>
+                                <p style={{ fontSize: 'clamp(4px, 0.75%, 7px)', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', fontWeight: 700, textAlign: 'center', wordBreak: 'break-all' }}>
+                                    {certCode}
+                                </p>
+                                <p style={{ fontSize: 'clamp(4px, 0.7%, 6px)', color: 'rgba(255,145,77,0.4)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center' }}>
+                                    rillcod.com/verify
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Right panel */}
+                        <div className="flex flex-col justify-between flex-1 py-[6%] px-[5%]">
+                            {/* Header */}
+                            <div>
+                                <p style={{ fontSize: 'clamp(5px, 0.9%, 8px)', color: 'rgba(255,145,77,0.5)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.35em' }}>
+                                    Rillcod Technologies · Official Award
+                                </p>
+                                <h2 style={{ fontSize: 'clamp(20px, 5.5%, 40px)', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '-0.02em', lineHeight: 1, marginTop: '2%' }}>
+                                    Certificate <span style={{ color: '#FF914D' }}>Of Mastery</span>
+                                </h2>
+                                <div style={{ width: 'clamp(40px, 10%, 80px)', height: '2px', background: 'linear-gradient(to right, #FF914D, transparent)', marginTop: '1.5%' }} />
+                            </div>
+
+                            {/* Recipient */}
+                            <div>
+                                <p style={{ fontSize: 'clamp(5px, 0.85%, 7px)', color: 'rgba(255,255,255,0.3)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em' }}>
+                                    This Certifies That
+                                </p>
+                                <h1 style={{ fontSize: 'clamp(16px, 4.2%, 32px)', fontWeight: 900, color: '#FF914D', textTransform: 'uppercase', letterSpacing: '-0.01em', lineHeight: 1.1, marginTop: '1%', textShadow: '0 0 30px rgba(255,145,77,0.3)' }}>
+                                    {studentName}
+                                </h1>
+                                {studentClass && (
+                                    <p style={{ fontSize: 'clamp(4px, 0.8%, 7px)', color: 'rgba(255,255,255,0.3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', marginTop: '0.5%' }}>
+                                        {studentClass}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Course */}
+                            <div>
+                                <p style={{ fontSize: 'clamp(5px, 0.8%, 7px)', color: 'rgba(255,255,255,0.25)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', fontStyle: 'italic' }}>
+                                    has successfully completed
+                                </p>
+                                <h3 style={{ fontSize: 'clamp(11px, 2.6%, 20px)', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '-0.01em', marginTop: '0.8%', lineHeight: 1.2 }}>
+                                    {courseTitle}
+                                </h3>
+                                <p style={{ fontSize: 'clamp(4px, 0.75%, 7px)', color: '#FF914D', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: '0.5%' }}>
+                                    {programName}
+                                </p>
+                            </div>
+
+                            {/* Footer: signatures + date */}
+                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                                {[
+                                    { name: 'Mr Osahon', role: 'Director, Rillcod Technologies' },
+                                    { name: 'Head of Academics', role: 'Curriculum & Standards Board' },
+                                ].map(sig => (
+                                    <div key={sig.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                                        <img src="/images/signature.png" alt={sig.name} crossOrigin="anonymous"
+                                            style={{ height: 'clamp(16px, 4%, 30px)', width: 'auto', filter: 'brightness(500%) invert(1)' }}
+                                            onError={e => (e.currentTarget.style.display = 'none')} />
+                                        <div style={{ width: 'clamp(60px, 15%, 100px)', height: '1.5px', background: 'rgba(255,145,77,0.4)' }} />
+                                        <p style={{ fontSize: 'clamp(5px, 0.8%, 7px)', color: 'white', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{sig.name}</p>
+                                        <p style={{ fontSize: 'clamp(4px, 0.65%, 6px)', color: 'rgba(255,255,255,0.35)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center' }}>{sig.role}</p>
+                                    </div>
+                                ))}
+                                <div style={{ textAlign: 'right' }}>
+                                    <p style={{ fontSize: 'clamp(4px, 0.7%, 6px)', color: 'rgba(255,145,77,0.5)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em' }}>Date Issued</p>
+                                    <p style={{ fontSize: 'clamp(6px, 1%, 9px)', color: 'rgba(255,255,255,0.7)', fontWeight: 900 }}>{issuedDate}</p>
+                                    <p style={{ fontSize: 'clamp(4px, 0.65%, 6px)', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace', marginTop: 2 }}>{certNum}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right side strip */}
+                        <div style={{ width: '4px', background: 'linear-gradient(to bottom, #FF914D, #ff6b1a, #FF914D)', flexShrink: 0 }} />
+                    </div>
+                )}
+
+                {/* ════ ROYAL TEMPLATE ════════════════════════════════════════════ */}
+                {template === 'royal' && (
+                    <div className="absolute inset-0 flex" style={{ background: '#faf7f0' }}>
+                        {/* Triple border frame */}
+                        <div style={{ position: 'absolute', inset: '8px', border: '3px solid #1e293b', pointerEvents: 'none' }} />
+                        <div style={{ position: 'absolute', inset: '12px', border: '1px solid rgba(30,41,59,0.12)', pointerEvents: 'none' }} />
+                        {/* Corner ornaments */}
+                        {[['top-2 left-2', ''], ['top-2 right-2', 'rotate-90'], ['bottom-2 left-2', '-rotate-90'], ['bottom-2 right-2', 'rotate-180']].map(([pos, rot], i) => (
+                            <div key={i} className={`absolute ${pos} ${rot} w-5 h-5`}
+                                style={{ background: '#1e293b' }} />
+                        ))}
+
+                        {/* Watermark */}
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.04, pointerEvents: 'none' }}>
+                            <TrophyIcon className="w-48 h-48 text-[#1e293b]" />
+                        </div>
+
+                        {/* Content */}
+                        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '7% 8%', textAlign: 'center' }}>
+                            {/* Header */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5%' }}>
+                                <img src="/images/logo.png" alt="Rillcod" crossOrigin="anonymous"
+                                    style={{ height: 'clamp(24px, 5.5%, 40px)', width: 'auto', filter: 'grayscale(1) brightness(0.2)' }}
+                                    onError={e => (e.currentTarget.style.display = 'none')} />
+                                <p style={{ fontSize: 'clamp(5px, 0.85%, 8px)', color: '#475569', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em' }}>
+                                    Rillcod Technologies · Est. Excellence
+                                </p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5%', width: '100%' }}>
+                                    <div style={{ flex: 1, height: '1px', background: '#1e293b' }} />
+                                    <div style={{ width: 6, height: 6, background: '#1e293b', transform: 'rotate(45deg)', flexShrink: 0 }} />
+                                    <div style={{ flex: 1, height: '1px', background: '#1e293b' }} />
+                                </div>
+                            </div>
+
+                            {/* Title */}
+                            <div>
+                                <p style={{ fontSize: 'clamp(5px, 0.9%, 8px)', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.35em', fontStyle: 'italic' }}>
+                                    Be it known to all that
+                                </p>
+                                <h2 style={{ fontSize: 'clamp(18px, 5%, 38px)', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '-0.02em', lineHeight: 1, marginTop: '1%' }}>
+                                    Certificate of Achievement
+                                </h2>
+                            </div>
+
+                            {/* Recipient */}
+                            <div>
+                                <p style={{ fontSize: 'clamp(5px, 0.8%, 7px)', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.25em', fontStyle: 'italic' }}>
+                                    is hereby awarded to
+                                </p>
+                                <h1 style={{ fontSize: 'clamp(18px, 4.5%, 34px)', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.01em', lineHeight: 1.1, marginTop: '0.8%', borderBottom: '2.5px solid #FF914D', paddingBottom: '1%' }}>
+                                    {studentName}
+                                </h1>
+                                <p style={{ fontSize: 'clamp(5px, 0.8%, 7px)', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.2em', marginTop: '1%', fontStyle: 'italic' }}>
+                                    for successfully completing · <strong>{courseTitle}</strong> · {programName}
+                                </p>
+                            </div>
+
+                            {/* Footer */}
+                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', width: '100%' }}>
+                                {[
+                                    { name: 'Mr Osahon', role: 'Director' },
+                                    { name: 'Head of Academics', role: 'Curriculum Board' },
+                                ].map(sig => (
+                                    <div key={sig.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                                        <img src="/images/signature.png" alt={sig.name} crossOrigin="anonymous"
+                                            style={{ height: 'clamp(16px, 3.5%, 28px)', width: 'auto', filter: 'contrast(200%) grayscale(1)' }}
+                                            onError={e => (e.currentTarget.style.display = 'none')} />
+                                        <div style={{ width: 'clamp(50px, 12%, 90px)', height: '1.5px', background: '#1e293b' }} />
+                                        <p style={{ fontSize: 'clamp(5px, 0.75%, 7px)', color: '#1e293b', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em' }}>{sig.name}</p>
+                                        <p style={{ fontSize: 'clamp(4px, 0.65%, 6px)', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{sig.role}</p>
+                                    </div>
+                                ))}
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{ padding: '4px', border: '1px solid #1e293b', marginBottom: 4, display: 'inline-block' }}>
+                                        <div style={{ width: 'clamp(24px, 5%, 36px)', height: 'clamp(24px, 5%, 36px)', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <span style={{ fontSize: 'clamp(6px, 1.2%, 10px)', fontWeight: 900, color: '#475569' }}>QR</span>
+                                        </div>
+                                    </div>
+                                    <p style={{ fontSize: 'clamp(4px, 0.65%, 6px)', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{issuedDate}</p>
+                                    <p style={{ fontSize: 'clamp(4px, 0.6%, 5px)', color: '#cbd5e1', fontFamily: 'monospace' }}>{certCode}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ════ TECH TEMPLATE ═════════════════════════════════════════════ */}
+                {template === 'tech' && (
+                    <div className="absolute inset-0" style={{ background: '#000' }}>
+                        {/* Grid lines */}
+                        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,145,77,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,145,77,0.04) 1px, transparent 1px)', backgroundSize: '40px 40px', pointerEvents: 'none' }} />
+                        {/* Top & bottom glow bars */}
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(to right, transparent, #FF914D, transparent)', boxShadow: '0 0 20px rgba(255,145,77,0.5)' }} />
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(to right, transparent, #FF914D, transparent)', boxShadow: '0 0 20px rgba(255,145,77,0.5)' }} />
+                        {/* Center glow */}
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '60%', height: '60%', background: 'radial-gradient(circle, rgba(255,145,77,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+                        {/* Content: left accent + main area */}
+                        <div style={{ position: 'relative', zIndex: 1, display: 'flex', height: '100%' }}>
+                            {/* Left vertical bar */}
+                            <div style={{ width: '22%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', padding: '6% 3%', borderRight: '1px solid rgba(255,145,77,0.15)' }}>
+                                <img src="/images/logo.png" alt="Rillcod" crossOrigin="anonymous"
+                                    style={{ height: 'clamp(28px, 6.5%, 48px)', width: 'auto', filter: 'brightness(130%)' }}
+                                    onError={e => (e.currentTarget.style.display = 'none')} />
+
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                                    <div style={{ width: 'clamp(24px, 5%, 36px)', height: 'clamp(24px, 5%, 36px)', border: '1.5px solid rgba(255,145,77,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <span style={{ width: '80%', height: '80%', display: 'flex' }}><CheckBadgeIcon className="w-full h-full text-primary" /></span>
+                                    </div>
+                                    <p style={{ fontSize: 'clamp(4px, 0.75%, 6.5px)', color: 'rgba(255,145,77,0.5)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', textAlign: 'center' }}>
+                                        Auth.<br />Verified
+                                    </p>
+                                </div>
+
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{ width: 'clamp(24px, 5.5%, 40px)', height: 'clamp(24px, 5.5%, 40px)', border: '1px solid rgba(255,145,77,0.25)', background: 'rgba(255,145,77,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 4px' }}>
+                                        <span style={{ fontSize: 'clamp(7px, 1.4%, 11px)', color: '#FF914D', fontWeight: 900 }}>QR</span>
+                                    </div>
+                                    <p style={{ fontSize: 'clamp(4px, 0.7%, 6px)', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace', wordBreak: 'break-all' }}>{certCode}</p>
+                                </div>
+                            </div>
+
+                            {/* Main content */}
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '6% 5%' }}>
+                                {/* Top label */}
+                                <div>
+                                    <p style={{ fontSize: 'clamp(5px, 0.9%, 8px)', color: 'rgba(255,145,77,0.4)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', fontFamily: 'monospace' }}>
+                                        // Rillcod · Verified Digital Credential
+                                    </p>
+                                    <h2 style={{ fontSize: 'clamp(22px, 5.8%, 42px)', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '-0.02em', lineHeight: 0.95, marginTop: '1.5%' }}>
+                                        Certificate<br /><span style={{ color: '#FF914D' }}>Of Mastery_</span>
+                                    </h2>
+                                </div>
+
+                                {/* Name */}
+                                <div>
+                                    <p style={{ fontSize: 'clamp(5px, 0.8%, 7px)', color: 'rgba(255,255,255,0.2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.25em', fontFamily: 'monospace' }}>
+                                        &gt; RECIPIENT:
+                                    </p>
+                                    <h1 style={{ fontSize: 'clamp(14px, 4%, 30px)', fontWeight: 900, color: '#FF914D', textTransform: 'uppercase', letterSpacing: '-0.01em', lineHeight: 1, marginTop: '0.8%', textShadow: '0 0 40px rgba(255,145,77,0.25)' }}>
+                                        {studentName}
+                                    </h1>
+                                    <p style={{ fontSize: 'clamp(4px, 0.75%, 6.5px)', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace', marginTop: '0.5%' }}>
+                                        &gt; MODULE: {courseTitle} · {programName}
+                                    </p>
+                                </div>
+
+                                {/* Footer */}
+                                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                                    {[
+                                        { name: 'Mr Osahon', role: 'Director' },
+                                        { name: 'Head of Academics', role: 'Curriculum Board' },
+                                    ].map(sig => (
+                                        <div key={sig.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                                            <img src="/images/signature.png" alt={sig.name} crossOrigin="anonymous"
+                                                style={{ height: 'clamp(14px, 3.5%, 26px)', width: 'auto', filter: 'brightness(500%) invert(1)' }}
+                                                onError={e => (e.currentTarget.style.display = 'none')} />
+                                            <div style={{ width: 'clamp(48px, 12%, 90px)', height: '1px', background: 'rgba(255,145,77,0.35)' }} />
+                                            <p style={{ fontSize: 'clamp(5px, 0.75%, 6.5px)', color: 'rgba(255,255,255,0.6)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{sig.name}</p>
+                                            <p style={{ fontSize: 'clamp(4px, 0.6%, 5.5px)', color: 'rgba(255,145,77,0.35)', fontWeight: 700, textTransform: 'uppercase' }}>{sig.role}</p>
+                                        </div>
+                                    ))}
+                                    <div style={{ textAlign: 'right' }}>
+                                        <p style={{ fontSize: 'clamp(4px, 0.7%, 6px)', color: 'rgba(255,145,77,0.4)', fontFamily: 'monospace', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                            DATE_ISSUED
+                                        </p>
+                                        <p style={{ fontSize: 'clamp(6px, 1%, 9px)', color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace', fontWeight: 700 }}>{issuedDate}</p>
+                                        <p style={{ fontSize: 'clamp(4px, 0.65%, 5.5px)', color: 'rgba(255,255,255,0.15)', fontFamily: 'monospace', marginTop: 2 }}>{certNum}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Actions row */}
             <div className="flex items-center justify-between px-1">
                 <div>
                     <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] mb-0.5">Certificate Number</p>
-                    <p className="text-xs font-mono font-bold text-slate-400">{cert.certificate_number}</p>
+                    <p className="text-xs font-mono font-bold text-slate-400">{certNum}</p>
                 </div>
                 <button
                     onClick={handleCopyCertNumber}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all"
-                    title="Copy certificate number"
                 >
                     {copied ? <CheckIcon className="w-3.5 h-3.5 text-emerald-400" /> : <ClipboardIcon className="w-3.5 h-3.5" />}
                     {copied ? 'Copied!' : 'Copy #'}

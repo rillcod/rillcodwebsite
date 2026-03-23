@@ -74,21 +74,18 @@ export default function CertificateVault() {
 
             {/* Content */}
             {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {[1, 2, 3].map(i => (
-                        <div key={i} className="aspect-[4/3] bg-white/[0.02] border border-white/[0.05] relative overflow-hidden">
+                <div className="space-y-8">
+                    {[1, 2].map(i => (
+                        <div key={i} style={{ aspectRatio: '297/210' }} className="w-full bg-white/[0.02] border border-white/[0.05] relative overflow-hidden">
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
                         </div>
                     ))}
                 </div>
             ) : filteredCerts.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="space-y-12">
                     {filteredCerts.map(cert => (
-                        <div key={cert.id} className="group relative">
-                            <div className="absolute -inset-[1px] bg-primary/0 group-hover:bg-primary transition-colors duration-500 z-0" />
-                            <div className="relative z-10">
-                                <CertificateCard cert={cert} />
-                            </div>
+                        <div key={cert.id} className="group relative max-w-4xl mx-auto">
+                            <CertificateCard cert={cert} />
                         </div>
                     ))}
                 </div>
