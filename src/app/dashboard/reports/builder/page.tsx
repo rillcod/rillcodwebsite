@@ -2102,50 +2102,57 @@ function ReportBuilderInner() {
                                                 attendance_score: `${studentStats.assignments}/${studentStats.totalAssignments} assignments graded (${studentStats.assignmentPct}%)`,
                                                 participation_score: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''} (lab + portfolio)`,
                                             };
+                                            const thumbColors: Record<string, string> = {
+                                                theory_score: '[&::-webkit-slider-thumb]:bg-indigo-500',
+                                                practical_score: '[&::-webkit-slider-thumb]:bg-cyan-500',
+                                                attendance_score: '[&::-webkit-slider-thumb]:bg-emerald-500',
+                                                participation_score: '[&::-webkit-slider-thumb]:bg-violet-500',
+                                            };
                                             const val = Math.min(100, Math.max(0, parseInt(form[key]) || 0));
                                             const nudge = (delta: number) =>
                                                 setForm(f => ({ ...f, [key]: String(Math.min(100, Math.max(0, (parseInt(f[key]) || 0) + delta))) }));
                                             return (
-                                                <div key={key}>
-                                                    <div className="flex justify-between mb-2">
-                                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{labels[key]}</label>
-                                                        <span className="text-xs font-black text-foreground">{val}%</span>
+                                                <div key={key} className="space-y-1.5">
+                                                    <div className="flex justify-between items-baseline">
+                                                        <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{labels[key]}</label>
+                                                        <span className="text-[11px] font-black tabular-nums" style={{ color: colors[key] }}>{val}%</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <input
                                                             type="range" min="0" max="100" value={form[key]}
                                                             onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                            className={`flex-1 h-3 rounded-full appearance-none cursor-pointer outline-none bg-muted [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg ${key === 'theory_score' ? '[&::-webkit-slider-thumb]:bg-indigo-500' : key === 'practical_score' ? '[&::-webkit-slider-thumb]:bg-cyan-500' : key === 'attendance_score' ? '[&::-webkit-slider-thumb]:bg-emerald-500' : '[&::-webkit-slider-thumb]:bg-violet-500'}`}
-                                                            style={{ background: `linear-gradient(to right, ${colors[key]} ${val}%, rgba(255,255,255,0.1) ${val}%)` }}
+                                                            className={`flex-1 h-[3px] appearance-none cursor-pointer outline-none bg-muted/40 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20 ${thumbColors[key]}`}
+                                                            style={{ background: `linear-gradient(to right, ${colors[key]} ${val}%, rgba(255,255,255,0.06) ${val}%)` }}
                                                         />
-                                                        {/* Nudge buttons */}
-                                                        <div className="flex items-center gap-0.5 flex-shrink-0">
-                                                            <button type="button" onClick={() => nudge(-5)} title="-5" className="px-1.5 py-1 text-[9px] font-black text-muted-foreground hover:text-rose-400 bg-card border border-border hover:border-rose-500/40 rounded-none transition-all">−5</button>
-                                                            <button type="button" onClick={() => nudge(-1)} title="-1" className="px-1.5 py-1 text-[9px] font-black text-muted-foreground hover:text-rose-400 bg-card border border-border hover:border-rose-500/40 rounded-none transition-all">−1</button>
+                                                        <div className="flex items-center gap-px flex-shrink-0">
+                                                            <button type="button" onClick={() => nudge(-5)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−5</button>
+                                                            <button type="button" onClick={() => nudge(-1)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−1</button>
                                                             <input
                                                                 type="number" min="0" max="100" value={form[key]}
                                                                 onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                                                className="w-12 text-center py-1 bg-card border border-border rounded-none text-xs font-bold text-foreground focus:outline-none focus:border-orange-500" />
-                                                            <button type="button" onClick={() => nudge(1)} title="+1" className="px-1.5 py-1 text-[9px] font-black text-muted-foreground hover:text-emerald-400 bg-card border border-border hover:border-emerald-500/40 rounded-none transition-all">+1</button>
-                                                            <button type="button" onClick={() => nudge(5)} title="+5" className="px-1.5 py-1 text-[9px] font-black text-muted-foreground hover:text-emerald-400 bg-card border border-border hover:border-emerald-500/40 rounded-none transition-all">+5</button>
+                                                                className="w-9 text-center py-0.5 bg-card border border-border rounded-none text-[10px] font-black text-foreground focus:outline-none focus:border-orange-500" />
+                                                            <button type="button" onClick={() => nudge(1)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+1</button>
+                                                            <button type="button" onClick={() => nudge(5)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+5</button>
                                                         </div>
                                                     </div>
-                                                    <p className="text-[9px] text-muted-foreground/60 mt-1 pl-0.5">{sources[key]}</p>
+                                                    <p className="text-[8px] text-muted-foreground/40 italic">{sources[key]}</p>
                                                 </div>
                                             );
                                         })}
 
-                                        {/* Overall display — auto-calculated, read-only */}
-                                        <div className="mt-2 p-5 bg-gradient-to-br from-orange-600/20 to-indigo-600/20 border border-orange-500/20 rounded-none flex items-center justify-between">
+                                        {/* Overall — compact premium display */}
+                                        <div className="mt-1 pt-3 border-t border-border flex items-center justify-between">
                                             <div>
-                                                <p className="text-[10px] font-bold text-orange-500/40 uppercase tracking-widest">Weighted Overall</p>
-                                                <p className="text-4xl font-black text-foreground">{overallScore}%</p>
-                                                <p className="text-[9px] text-muted-foreground mt-1">Examination 40% · Evaluation 20% · Assignment 20% · Project Engagement 20%</p>
+                                                <p className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">Weighted Overall</p>
+                                                <p className="text-2xl font-black text-foreground tabular-nums">{overallScore}<span className="text-sm text-muted-foreground/50 ml-0.5">%</span></p>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-bold text-orange-500/40 uppercase tracking-widest mb-1">Grade</p>
-                                                <div className="inline-flex w-12 h-12 rounded-none bg-orange-600 items-center justify-center shadow-lg shadow-orange-900/40">
-                                                    <span className="text-xl font-black text-foreground">{overallGradeLetter}</span>
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right">
+                                                    <p className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">Grade</p>
+                                                    <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{overallScore >= 45 ? 'Pass' : 'Below Pass'}</span>
+                                                </div>
+                                                <div className="w-10 h-10 flex items-center justify-center font-black text-lg border-2 border-orange-500/40 bg-orange-500/10 text-orange-400">
+                                                    {overallGradeLetter}
                                                 </div>
                                             </div>
                                         </div>

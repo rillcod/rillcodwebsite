@@ -158,8 +158,12 @@ function ResultsPageInner() {
 
         // Reset stale state immediately so the UI shows spinner, not cached data
         setStudents([]);
+        setReportsMap({});
+        setSelectedStudent(null);
+        setSelectedReport(null);
         setLoading(true);
 
+        let aborted = false;
         const db = createClient();
 
         if (!isStaff) {
@@ -174,11 +178,12 @@ function ResultsPageInner() {
                     .maybeSingle(),
                 db.from('report_settings').select('*').limit(1).maybeSingle(),
             ]).then(([rep, org]) => {
+                if (aborted) return;
                 setSelectedReport(rep.data as StudentReport | null);
                 setOrgSettings(org.data);
                 setLoading(false);
             });
-            return;
+            return () => { aborted = true; };
         }
 
         async function loadStaffData() {
@@ -261,6 +266,7 @@ function ResultsPageInner() {
             ]);
 
             if (sRes.error) throw sRes.error;
+            if (aborted) return;
 
             const studs = (sRes.data ?? []) as unknown as PortalUser[];
             setStudents(studs);
@@ -275,6 +281,7 @@ function ResultsPageInner() {
                     .order('is_published', { ascending: false })
                     .order('updated_at', { ascending: false });
 
+                if (aborted) return;
                 (reports ?? []).forEach(r => {
                     // Latest report for each student (since they are ordered by updated_at desc)
                     if (r.student_id && !rMap[r.student_id]) rMap[r.student_id] = r;
@@ -285,13 +292,13 @@ function ResultsPageInner() {
 
             if (prefStudentId) {
                 const s = studs.find(x => x.id === prefStudentId);
-                if (s) loadStudentReport(s);
+                if (s && !aborted) loadStudentReport(s);
             }
-            setLoading(false);
+            if (!aborted) setLoading(false);
         }
 
-        loadStaffData();
-        return;
+        loadStaffData().catch(() => { if (!aborted) setLoading(false); });
+        return () => { aborted = true; };
     }, [profile?.id, authLoading]); // eslint-disable-line
 
     // ── Load single student report ─────────────────────────────────────────────
@@ -932,11 +939,12 @@ tbody tr:hover{background:#f3f4f6}
                                     <div className="bg-card shadow-sm border-b border-border px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
                                         <div className="flex items-center gap-2 flex-1 min-w-0">
                                             {isStaff && (
-                                                <button 
-                                                    onClick={() => setShowSidebar(!showSidebar)}
-                                                    className="lg:hidden p-2 bg-card shadow-sm border border-border rounded-none text-muted-foreground hover:text-foreground transition-colors"
+                                                <button
+                                                    onClick={() => { setShowSidebar(true); setSelectedStudent(null); setSelectedReport(null); }}
+                                                    className="lg:hidden flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-muted-foreground hover:text-foreground transition-colors text-[10px] font-black uppercase tracking-widest flex-shrink-0"
                                                 >
-                                                    <MagnifyingGlassIcon className="w-4 h-4" />
+                                                    <ArrowLeftIcon className="w-3.5 h-3.5" />
+                                                    Students
                                                 </button>
                                             )}
                                             <DocumentTextIcon className="w-4 h-4 text-orange-400 flex-shrink-0" />
