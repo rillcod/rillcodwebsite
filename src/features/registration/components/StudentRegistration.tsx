@@ -115,27 +115,25 @@ function getSchoolSchedules(courseInterest: string) {
 
 const SCHEDULES: Record<string, { value: string; label: string; fee: number; feeLabel: string }[]> = {
   bootcamp: [
-    { value: 'Summer Intensive (Day)',       label: 'Full Summer – Full Day (9am–4pm)',  fee: 60000, feeLabel: '₦60,000' },
-    { value: 'Summer Intensive (Half Day)',  label: 'Full Summer – Half Day (AM)',       fee: 45000, feeLabel: '₦45,000' },
-    { value: 'Summer Intensive (Afternoon)', label: 'Full Summer – Half Day (PM)',      fee: 45000, feeLabel: '₦45,000' },
-    { value: 'Weekend Bootcamp',             label: 'Weekend Bootcamp (Sat & Sun)',     fee: 35000, feeLabel: '₦35,000' },
-    { value: 'Holiday Programme',            label: 'Holiday / Vacation Programme',    fee: 30000, feeLabel: '₦30,000' },
+    { value: 'Summer School',    label: 'Summer School (Mon–Fri, 9am–2pm)',  fee: 55000, feeLabel: '₦55,000' },
+    { value: 'Weekend Bootcamp', label: 'Weekend Bootcamp (Sat & Sun)',       fee: 35000, feeLabel: '₦35,000' },
+    { value: 'Holiday Programme',label: 'Holiday / Vacation Programme',       fee: 30000, feeLabel: '₦30,000' },
   ],
   online: [
-    { value: 'Online Self-Paced',    label: 'Online – Self-Paced (any time)',     fee: 30000, feeLabel: '₦30,000 / term' },
-    { value: 'Online Live Sessions', label: 'Online – Live Sessions (scheduled)', fee: 40000, feeLabel: '₦40,000 / term' },
-    { value: 'Online Weekend',       label: 'Online – Weekends Only',             fee: 25000, feeLabel: '₦25,000 / term' },
+    { value: 'Online Live Classes', label: 'Online Live Classes (scheduled sessions)', fee: 40000, feeLabel: '₦40,000 / term' },
+    { value: 'Online Self-Paced',   label: 'Online – Self-Paced (learn at your pace)', fee: 30000, feeLabel: '₦30,000 / term' },
+    { value: 'Online Weekend',      label: 'Online – Weekends Only',                   fee: 25000, feeLabel: '₦25,000 / term' },
   ],
   '': [
-    { value: 'Weekday Afternoons', label: 'Weekday Afternoons', fee: 25000, feeLabel: '₦25,000' },
-    { value: 'Weekend In-Person',  label: 'Weekend Classes',    fee: 20000, feeLabel: '₦20,000' },
-    { value: 'Online Self-Paced',  label: 'Online',             fee: 30000, feeLabel: '₦30,000' },
+    { value: 'Weekend In-Person',   label: 'Weekend Classes (Sat & Sun)',  fee: 20000, feeLabel: '₦20,000' },
+    { value: 'Online Live Classes', label: 'Online Live Classes',          fee: 40000, feeLabel: '₦40,000 / term' },
+    { value: 'Online Self-Paced',   label: 'Online – Self-Paced',         fee: 30000, feeLabel: '₦30,000' },
   ],
 };
 
 const TYPE_FEES: Record<string, string> = {
-  school:   '₦20,000 – ₦25,000',
-  bootcamp: '₦35,000 – ₦60,000',
+  school:   '₦10,000 – ₦25,000',
+  bootcamp: '₦30,000 – ₦55,000',
   online:   '₦25,000 – ₦40,000',
   '':       '',
 };

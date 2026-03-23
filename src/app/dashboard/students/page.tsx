@@ -318,13 +318,31 @@ export default function StudentsPage() {
     }
   };
 
-  // ── DELETE ────────────────────────────────────────────────
+  // ── DELETE (pre-portal / application student) ─────────────
   const handleDeleteStudent = async (id: string) => {
     if (!confirm('Are you sure you want to delete this student record?')) return;
     setDeleting(id);
     try {
       const res = await fetch(`/api/students/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(await res.text());
+      setStudents(prev => prev.filter(s => s.id !== id));
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to delete student');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  // ── DELETE (enrolled portal student) ──────────────────────
+  const handleDeleteEnrolledStudent = async (id: string, name: string) => {
+    if (!confirm(`Delete ${name}'s portal account? This permanently removes their login, progress and all records.`)) return;
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/portal-users/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error ?? 'Failed to delete student');
+      }
       setStudents(prev => prev.filter(s => s.id !== id));
     } catch (e: any) {
       alert(e.message ?? 'Failed to delete student');
@@ -1467,12 +1485,25 @@ export default function StudentsPage() {
                                 <PencilSquareIcon className="w-4 h-4" />
                               </button>
                             )}
+                            {/* Pre-portal student delete */}
                             {!isEnrolled && (
                               <button
                                 onClick={e => { e.stopPropagation(); handleDeleteStudent(s.id); }}
                                 disabled={deleting === s.id}
                                 className="p-2 rounded-none bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
                                 <XMarkIcon className="w-4 h-4" />
+                              </button>
+                            )}
+                            {/* Enrolled student delete — teacher (own school) or admin */}
+                            {isEnrolled && (profile?.role === 'admin' || profile?.role === 'teacher') && (
+                              <button
+                                onClick={e => { e.stopPropagation(); handleDeleteEnrolledStudent(s.id, s.full_name ?? 'this student'); }}
+                                disabled={deleting === s.id}
+                                title="Remove student account"
+                                className="p-2 rounded-none bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
+                                {deleting === s.id
+                                  ? <div className="w-4 h-4 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
+                                  : <XMarkIcon className="w-4 h-4" />}
                               </button>
                             )}
                             <div className="p-2 rounded-none bg-card shadow-sm border border-border text-muted-foreground">
