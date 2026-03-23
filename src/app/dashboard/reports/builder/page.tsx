@@ -15,7 +15,7 @@ import {
     UserGroupIcon, DocumentTextIcon, EyeIcon, XMarkIcon,
     Cog6ToothIcon, ArrowUpTrayIcon, ChevronDownIcon, ChevronUpIcon,
     PhotoIcon, RocketLaunchIcon, CloudArrowUpIcon, ChevronRightIcon,
-    CheckCircleIcon, PrinterIcon, SparklesIcon,
+    CheckCircleIcon, PrinterIcon, SparklesIcon, PlusIcon,
 } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +60,76 @@ const TERM_OPTIONS = ['Termly', 'Mid-Term', 'First Term', 'Second Term', 'Third 
 const PROFICIENCY_OPTIONS = ['beginner', 'intermediate', 'advanced'];
 const DURATION_OPTIONS = ['Termly', '4 weeks', '6 weeks', '8 weeks', '10 weeks', '12 weeks', '3 months', '6 months', 'Full Year'];
 const PERIOD_PRESETS = ['2024/2025 First Term', '2024/2025 Second Term', '2024/2025 Third Term', '2025/2026 First Term', '2025/2026 Second Term', '2025/2026 Third Term'];
+
+const MILESTONE_SUGGESTIONS: Record<string, string[]> = {
+    default: [
+        'Completed all assigned coursework for the term',
+        'Demonstrated strong problem-solving skills',
+        'Successfully built and submitted a project',
+        'Showed consistent attendance and participation',
+        'Improved coding speed and accuracy significantly',
+        'Passed all assessments above the pass mark',
+    ],
+    python: [
+        'Mastered Python syntax: variables, loops, and functions',
+        'Built a working Python project (calculator / quiz / game)',
+        'Understood object-oriented programming concepts',
+        'Successfully used Python libraries (e.g. math, random)',
+        'Debugged and fixed at least 3 real code errors',
+        'Completed Python exercises with 80%+ accuracy',
+    ],
+    web: [
+        'Built a fully styled HTML/CSS webpage from scratch',
+        'Applied responsive design using Flexbox or Grid',
+        'Added interactivity to a page using JavaScript',
+        'Deployed a live website (GitHub Pages or Netlify)',
+        'Understood DOM manipulation and event handling',
+        'Created a personal portfolio website',
+    ],
+    ai: [
+        'Understood core concepts of Artificial Intelligence',
+        'Trained a basic classification model using real data',
+        'Explored AI tools and their real-world applications',
+        'Completed a machine learning project end-to-end',
+        'Understood bias, fairness, and ethics in AI systems',
+        'Applied AI techniques to solve a local problem',
+    ],
+    robotics: [
+        'Assembled and programmed an Arduino-based circuit',
+        'Controlled LEDs, motors, and sensors using code',
+        'Built a functional robot prototype for a real task',
+        'Understood basic electronics: voltage, current, resistance',
+        'Completed wiring and debugging of a hardware project',
+        'Demonstrated safe and proper use of lab equipment',
+    ],
+    scratch: [
+        'Created an interactive Scratch animation story',
+        'Built a working game using Scratch sprites and blocks',
+        'Used loops, conditions, and events correctly in Scratch',
+        'Recorded and shared a Scratch project with the class',
+        'Demonstrated computational thinking through block logic',
+        'Helped a classmate fix their Scratch project',
+    ],
+    game: [
+        'Designed and built a playable 2D game',
+        'Applied game logic: score, lives, levels, and collision',
+        'Used a game engine or framework to develop the project',
+        'Created original game art or used free assets ethically',
+        'Playtested and improved game based on peer feedback',
+        'Wrote a brief game design document (GDD)',
+    ],
+};
+
+function getMilestoneSuggestions(courseName: string): string[] {
+    const lower = (courseName || '').toLowerCase();
+    if (lower.includes('python'))   return MILESTONE_SUGGESTIONS.python;
+    if (lower.includes('web') || lower.includes('html') || lower.includes('css')) return MILESTONE_SUGGESTIONS.web;
+    if (lower.includes('ai') || lower.includes('machine') || lower.includes('ml')) return MILESTONE_SUGGESTIONS.ai;
+    if (lower.includes('robot') || lower.includes('arduino') || lower.includes('iot')) return MILESTONE_SUGGESTIONS.robotics;
+    if (lower.includes('scratch')) return MILESTONE_SUGGESTIONS.scratch;
+    if (lower.includes('game'))    return MILESTONE_SUGGESTIONS.game;
+    return MILESTONE_SUGGESTIONS.default;
+}
 
 const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-orange-500 transition-colors';
 
@@ -195,10 +265,14 @@ function ReportBuilderInner() {
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [milestoneInput, setMilestoneInput] = useState('');
+    const [showMilestoneSuggestions, setShowMilestoneSuggestions] = useState(false);
+    const [forceCertificate, setForceCertificate] = useState(false);
     const [isBulkBuilding, setIsBulkBuilding] = useState(false);
     const [reportStyle, setReportStyle] = useState<'standard'|'modern'>('modern');
     const [modernTemplateId, setModernTemplateId] = useState<'industrial'|'executive'|'futuristic'>('industrial');
     const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
+    const [previewScale, setPreviewScale] = useState(0.85);
+    const previewContainerRef = useRef<HTMLDivElement>(null);
     const pdfRef = useRef<HTMLDivElement>(null);
 
     const [branding, setBranding] = useState({
@@ -231,7 +305,23 @@ function ReportBuilderInner() {
         setSessionConfig(s => ({ ...s, report_date: new Date().toISOString().split('T')[0] }));
     }, [profile?.id]);
 
-    // ── Persist session config to localStorage on every change ────────────────
+    // ── Dynamic preview scale based on container width ────────────────────────
+    useEffect(() => {
+        if (!showPreview) return;
+        const A4_PX = 794;
+        function updateScale() {
+            const el = previewContainerRef.current;
+            if (!el) return;
+            const availW = el.clientWidth - 32;
+            setPreviewScale(Math.min(0.85, availW / A4_PX));
+        }
+        const timer = setTimeout(updateScale, 50); // wait for mount
+        const obs = typeof ResizeObserver !== 'undefined'
+            ? new ResizeObserver(updateScale) : null;
+        if (obs && previewContainerRef.current) obs.observe(previewContainerRef.current);
+        return () => { clearTimeout(timer); obs?.disconnect(); };
+    }, [showPreview]);
+
     // ── Persist session config to localStorage on every change ────────────────
     useEffect(() => {
         if (typeof window === 'undefined' || !profile?.id) return;
@@ -749,7 +839,7 @@ function ReportBuilderInner() {
                 overall_score: overallScore,
                 key_strengths: form.key_strengths || null,
                 areas_for_growth: form.areas_for_growth || null,
-                has_certificate: overallScore >= 45,
+                has_certificate: forceCertificate || overallScore >= 45,
                 certificate_text: overallScore >= 45
                     ? `This document officially recognizes that ${form.student_name} has successfully completed the intensive study programme in ${sessionConfig.course_name || 'the enrolled course'}.`
                     : null,
@@ -950,8 +1040,8 @@ function ReportBuilderInner() {
         practical_score: parseFloat(form.practical_score),
         attendance_score: parseFloat(form.attendance_score),
         overall_score: overallScore,
-        has_certificate: overallScore >= 45,
-        certificate_text: overallScore >= 45
+        has_certificate: forceCertificate || overallScore >= 45,
+        certificate_text: (forceCertificate || overallScore >= 45)
             ? `This document officially recognizes that ${form.student_name} has successfully completed the intensive study programme in ${sessionConfig.course_name || 'the enrolled course'}.`
             : undefined,
         section_class: form.section_class || sessionConfig.section_class || undefined,
@@ -1108,8 +1198,46 @@ function ReportBuilderInner() {
                     </div>
 
                     {/* Learning Milestones editor */}
-                    <div>
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Learning Milestones</label>
+                    <div className="relative">
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                Learning Milestones
+                                <span className="ml-1.5 text-[9px] text-orange-400/60 font-normal normal-case">({sessionConfig.learning_milestones.length} added)</span>
+                            </label>
+                            <button type="button" onClick={() => setShowMilestoneSuggestions(v => !v)}
+                                className="flex items-center gap-1.5 px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition-all">
+                                <SparklesIcon className="w-3 h-3" /> Suggest from Course
+                            </button>
+                        </div>
+
+                        {/* AI-based milestone suggestions dropdown */}
+                        {showMilestoneSuggestions && (
+                            <div className="mb-3 bg-[#0d0d18] border border-orange-500/20 p-3">
+                                <p className="text-[9px] font-black text-orange-400/60 uppercase tracking-widest mb-2">
+                                    Suggested milestones for <strong className="text-orange-400">{sessionConfig.course_name || 'your course'}</strong>
+                                    <span className="text-white/20 ml-1">· click to add</span>
+                                </p>
+                                <div className="space-y-1">
+                                    {getMilestoneSuggestions(sessionConfig.course_name).map((sug, i) => {
+                                        const alreadyAdded = sessionConfig.learning_milestones.includes(sug);
+                                        return (
+                                            <button key={i} type="button" disabled={alreadyAdded}
+                                                onClick={() => {
+                                                    if (!alreadyAdded) setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, sug] }));
+                                                }}
+                                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[11px] border transition-all ${alreadyAdded ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400/50 cursor-default' : 'bg-white/[0.02] border-white/[0.06] text-white/50 hover:border-orange-500/30 hover:bg-orange-500/5 hover:text-white/80'}`}>
+                                                {alreadyAdded
+                                                    ? <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                                                    : <PlusIcon className="w-3.5 h-3.5 flex-shrink-0 text-orange-400/50" />
+                                                }
+                                                {sug}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex gap-2 mb-2">
                             <input
                                 value={milestoneInput}
@@ -1121,41 +1249,47 @@ function ReportBuilderInner() {
                                         setMilestoneInput('');
                                     }
                                 }}
-                                placeholder="Type a milestone and press Enter…"
+                                placeholder="Type a custom milestone and press Enter…"
                                 className={INPUT}
                             />
-                            <button
-                                type="button"
-                                disabled={!milestoneInput.trim()}
+                            <button type="button" disabled={!milestoneInput.trim()}
                                 onClick={() => {
                                     if (!milestoneInput.trim()) return;
                                     setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, milestoneInput.trim()] }));
                                     setMilestoneInput('');
                                 }}
-                                className="px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-30 text-foreground text-xs font-bold rounded-none transition-colors flex-shrink-0"
-                            >
+                                className="px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-30 text-foreground text-xs font-bold rounded-none transition-colors flex-shrink-0">
                                 Add
                             </button>
                         </div>
                         {sessionConfig.learning_milestones.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="space-y-1">
                                 {sessionConfig.learning_milestones.map((m, i) => (
-                                    <div key={i} className="flex items-center gap-1.5 bg-orange-600/10 border border-orange-500/20 px-3 py-1.5 text-[11px] text-orange-300 font-semibold group">
-                                        <span>{m}</span>
-                                        <button
-                                            type="button"
+                                    <div key={i} className="flex items-start gap-2 bg-orange-600/10 border border-orange-500/20 px-3 py-2 text-[11px] text-orange-300 font-semibold">
+                                        <span className="flex-1 leading-snug">{m}</span>
+                                        <button type="button"
                                             onClick={() => setSessionConfig(s => ({ ...s, learning_milestones: s.learning_milestones.filter((_, idx) => idx !== i) }))}
-                                            className="text-orange-500/40 hover:text-rose-400 transition-colors ml-0.5"
-                                            aria-label="Remove milestone"
-                                        >
+                                            className="text-orange-500/40 hover:text-rose-400 transition-colors flex-shrink-0 mt-0.5" aria-label="Remove milestone">
                                             <XMarkIcon className="w-3 h-3" />
                                         </button>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-[10px] text-muted-foreground italic">No milestones added yet. These appear on the report card.</p>
+                            <p className="text-[10px] text-muted-foreground italic">No milestones added yet — use "Suggest from Course" or type above.</p>
                         )}
+                    </div>
+
+                    {/* Award Certificate override toggle */}
+                    <div className="flex items-center gap-4 px-1 pt-1">
+                        <button type="button" onClick={() => setForceCertificate(v => !v)}
+                            className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${forceCertificate ? 'bg-amber-500' : 'bg-muted'}`}>
+                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${forceCertificate ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </button>
+                        <div>
+                            <p className="text-sm text-muted-foreground font-semibold">Award Certificate of Achievement</p>
+                            <p className="text-[10px] text-muted-foreground">Force-show the Academic Excellence Award on this report (auto-shown when score ≥ 45%)</p>
+                        </div>
                     </div>
 
                     {/* Next-term payment notice toggle (also accessible from summary bar) */}
@@ -2361,14 +2495,17 @@ function ReportBuilderInner() {
                             {isGeneratingPdf ? 'Processing...' : 'Export PDF'}
                         </button>
                     </div>
-                    <div className="flex-1 overflow-auto p-4 sm:p-8 bg-black/40">
-                        <div className="mx-auto rounded-[2rem] bg-white overflow-hidden shadow-2xl"
-                            style={{ width: '210mm', minHeight: '297mm', transform: 'scale(0.85)', transformOrigin: 'top center' }}>
-                            {reportStyle === 'modern' ? (
-                                <ModernReportCard report={previewData} orgSettings={branding as any} />
-                            ) : (
-                                <ReportCard report={previewData} orgSettings={branding as any} />
-                            )}
+                    <div ref={previewContainerRef} className="flex-1 overflow-auto p-2 sm:p-6 bg-black/40">
+                        {/* Outer wrapper sized to scaled A4 dimensions so scroll area is correct */}
+                        <div style={{ width: Math.round(794 * previewScale), minHeight: Math.round(1122 * previewScale), margin: '0 auto' }}>
+                            <div className="bg-white overflow-hidden shadow-2xl"
+                                style={{ width: '210mm', minHeight: '297mm', transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
+                                {reportStyle === 'modern' ? (
+                                    <ModernReportCard report={previewData} orgSettings={branding as any} />
+                                ) : (
+                                    <ReportCard report={previewData} orgSettings={branding as any} />
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
