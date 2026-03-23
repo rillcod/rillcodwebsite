@@ -341,8 +341,24 @@ export default function ReportCard({ report, orgSettings }: {
                 </div>
 
 
+                {/* QUALIFIERS ROW — Project Work, Homework, Participation */}
+                {(report.projects_grade || report.homework_grade || report.participation_grade) && (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
+                        {[
+                            { label: 'Project Work',  value: report.projects_grade,    color: '#8b5cf6', bg: '#ede9fe' },
+                            { label: 'Homework',      value: report.homework_grade,     color: '#0891b2', bg: '#e0f2fe' },
+                            { label: 'Participation', value: report.participation_grade, color: '#059669', bg: '#d1fae5' },
+                        ].filter(q => q.value).map(q => (
+                            <div key={q.label} style={{ flex: 1, minWidth: 0, backgroundColor: q.bg, border: `1px solid ${q.color}30`, borderRadius: 12, padding: '5px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <p style={{ fontSize: 8.5, fontWeight: 900, color: q.color, textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.7 }}>{q.label}</p>
+                                <p style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{q.value}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 {/* EVALUATION */}
-                <div className="flex-1 grid grid-cols-2 gap-4 overflow-hidden" style={{ minHeight: 0, maxHeight: 160 }}>
+                <div className="flex-1 grid grid-cols-2 gap-4 overflow-hidden" style={{ minHeight: 0, maxHeight: 150 }}>
                     <div className="flex flex-col gap-1.5">
                         <SectionHeaderPremium title="Core Strengths" />
                         <div className="flex-1 p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl">

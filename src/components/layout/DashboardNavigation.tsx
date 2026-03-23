@@ -347,7 +347,7 @@ export default function DashboardNavigation() {
                 key={name}
                 href={href}
                 onClick={() => setMobileOpen(false)}
-                className={`relative flex items-center gap-3 px-3 py-2.5 text-[11px] font-black tracking-[0.12em] uppercase transition-all duration-200 group ${
+                className={`relative flex items-center gap-3 px-3 py-2.5 text-[13px] font-black tracking-[0.08em] uppercase transition-all duration-200 group ${
                   active
                     ? 'bg-orange-500/[0.08] text-sidebar-foreground'
                     : 'text-sidebar-foreground/40 hover:text-sidebar-foreground/80 hover:bg-sidebar-foreground/[0.05]'
@@ -426,7 +426,7 @@ export default function DashboardNavigation() {
                   </span>
                 )}
               </div>
-              <span className={`text-[9px] font-black uppercase tracking-[0.15em] leading-none ${active ? 'text-orange-400' : 'text-sidebar-foreground/25'}`}>
+              <span className={`text-[10px] font-black uppercase tracking-[0.1em] leading-none ${active ? 'text-orange-400' : 'text-sidebar-foreground/25'}`}>
                 {shortName}
               </span>
             </Link>
