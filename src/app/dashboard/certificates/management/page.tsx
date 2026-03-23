@@ -759,7 +759,7 @@ export default function CertificateManagement() {
                                                 setTimeout(() => {
                                                     document.getElementById('__cert-landscape-print')?.remove();
                                                     document.body.removeAttribute('data-printing');
-                                                }, 1000);
+                                                }, 500); 
                                             }}
                                             className="flex-1 bg-white text-black py-3 sm:py-4 text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-2 hover:bg-slate-200 transition-all"
                                         >
@@ -786,7 +786,21 @@ export default function CertificateManagement() {
                                         </button>
                                     </div>
                                     {/* Hidden full-size cert for PDF capture */}
-                                    <div ref={certPdfRef} style={{ position: 'fixed', left: '-9999px', top: 0, zIndex: -1 }}>
+                                    <div 
+                                        id="cert-print-root"
+                                        ref={certPdfRef} 
+                                        style={{ 
+                                            position: 'fixed', 
+                                            left: (isDownloadingPDF || (typeof document !== 'undefined' && document.body.getAttribute('data-printing') === 'certificate')) ? 0 : -9999, 
+                                            top: 0, 
+                                            zIndex: 9999,
+                                            backgroundColor: '#fff',
+                                            width: 1122,
+                                            height: 794,
+                                            overflow: 'hidden',
+                                            pointerEvents: 'none'
+                                        }}
+                                    >
                                         {viewingCert && (
                                             <CertificatePreview
                                                 studentName={viewingCert.portal_users?.full_name}

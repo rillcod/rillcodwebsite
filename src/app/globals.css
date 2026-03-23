@@ -128,10 +128,11 @@ img[alt="Official Signature"] {
 
   /* ── Certificate print mode ──────────────────────────────────── */
   /* When body has data-printing="certificate", only show the certificate */
-  body[data-printing="certificate"] > *:not(#cert-print-root) {
-    display: none !important;
+  body[data-printing="certificate"] {
+    visibility: hidden;
   }
   body[data-printing="certificate"] #cert-print-root {
+    visibility: visible !important;
     display: block !important;
     position: fixed !important;
     inset: 0 !important;

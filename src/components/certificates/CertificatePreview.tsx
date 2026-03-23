@@ -44,7 +44,7 @@ export default function CertificatePreview({
     return (
         <div
             id="certificate-preview-container"
-            className="relative bg-white overflow-hidden shadow-2xl"
+            className="relative overflow-hidden"
             style={{ ...containerStyle }}
         >
             <CertificateTemplates
@@ -52,7 +52,7 @@ export default function CertificatePreview({
                 studentName={studentName || 'Recipient Name'}
                 courseTitle={courseTitle || 'Course Title'}
                 programName={programName || 'Program name'}
-                studentClass="" // Preview doesn't always have class context in the same way
+                studentClass="" 
                 issuedDate={issuedDate ? new Date(issuedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'}
                 certCode={verificationCode || 'XXXXXX'}
                 certNum={certificateNumber || 'RC-XXXX-XXXX'}

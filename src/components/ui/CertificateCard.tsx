@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import {
     ArrowDownTrayIcon, ShareIcon, TrophyIcon,
-    CheckBadgeIcon, ArrowPathIcon, ClipboardIcon, CheckIcon
+    CheckBadgeIcon, ArrowPathIcon, ClipboardIcon, CheckIcon, PrinterIcon
 } from '@/lib/icons';
 import { generateReportPDF } from '@/lib/pdf-utils';
 import { toast as showToast } from 'react-hot-toast';
@@ -46,7 +46,7 @@ export function CertificateCard({ cert }: CertificateProps) {
     };
 
     const handleDownload = async () => {
-        if (!captureRef.current) return;
+        if (!certRef.current) return;
         setIsDownloading(true);
 
         try {
@@ -56,6 +56,8 @@ export function CertificateCard({ cert }: CertificateProps) {
             // 2. Wait for stable layout + extra beat for image stabilization
             await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
             await new Promise(r => setTimeout(r, 150)); // Extra 150ms for good measure
+
+            if (!captureRef.current) throw new Error('Capture reference missing');
 
             const fileName = `Certificate_${cert.courses.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_')}_${cert.verification_code}.pdf`;
             await generateReportPDF(captureRef.current, fileName, true);
@@ -75,6 +77,19 @@ export function CertificateCard({ cert }: CertificateProps) {
         } else {
             try { await navigator.clipboard.writeText(url); showToast('Verification link copied!'); } catch { showToast('Link: ' + url); }
         }
+    };
+
+    const handlePrint = () => {
+        const style = document.createElement('style');
+        style.id = '__cert-landscape-print';
+        style.textContent = '@page { size: A4 landscape; margin: 0; }';
+        document.head.appendChild(style);
+        document.body.setAttribute('data-printing', 'certificate');
+        window.print();
+        setTimeout(() => {
+            document.getElementById('__cert-landscape-print')?.remove();
+            document.body.removeAttribute('data-printing');
+        }, 500);
     };
 
     const handleCopyCertNumber = async () => {
@@ -136,17 +151,19 @@ export function CertificateCard({ cert }: CertificateProps) {
             </div>
 
             <div
+                id="cert-print-root"
                 ref={captureRef}
                 aria-hidden="true"
                 style={{
                     position: 'fixed',
-                    left: isCapturing ? 0 : -9999,
+                    left: (isCapturing || (typeof document !== 'undefined' && document.body.getAttribute('data-printing') === 'certificate')) ? 0 : -9999,
                     top: 0,
                     width: 1122,
                     height: 794,
                     overflow: 'hidden',
                     pointerEvents: 'none',
-                    zIndex: isCapturing ? 9999 : -1,
+                    zIndex: (isCapturing || (typeof document !== 'undefined' && document.body.getAttribute('data-printing') === 'certificate')) ? 9999 : -1,
+                    backgroundColor: '#fff', // Safety net for transparent backgrounds
                 }}
             >
                 <CertificateTemplates {...templateProps} />
@@ -178,10 +195,17 @@ export function CertificateCard({ cert }: CertificateProps) {
                 </button>
                 <button
                     onClick={handleShare}
-                    className="px-8 py-5 bg-[#111113] border border-white/[0.1] hover:border-white/20 text-white text-[10px] font-black uppercase tracking-[0.3em] transition-all hover:bg-white/[0.02]"
+                    className="flex-1 py-5 bg-[#111113] border border-white/[0.1] hover:border-white/20 text-white text-[10px] font-black uppercase tracking-[0.3em] transition-all hover:bg-white/[0.02]"
                 >
                     <ShareIcon className="w-4 h-4 mx-auto mb-1" />
                     Share
+                </button>
+                <button
+                    onClick={handlePrint}
+                    className="flex-1 py-5 bg-[#111113] border border-white/[0.1] hover:border-white/20 text-white text-[10px] font-black uppercase tracking-[0.3em] transition-all hover:bg-white/[0.02]"
+                >
+                    <PrinterIcon className="w-4 h-4 mx-auto mb-1" />
+                    Print
                 </button>
             </div>
         </div>
