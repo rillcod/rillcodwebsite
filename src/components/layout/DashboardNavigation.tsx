@@ -205,6 +205,7 @@ export default function DashboardNavigation() {
           { name: 'Classes', href: '/dashboard/classes', icon: AcademicCapIcon },
           { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardDocumentCheckIcon },
           { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
+          { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
           { divider: true, label: 'Reports' },
           { name: 'Student Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },

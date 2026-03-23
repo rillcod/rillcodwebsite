@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 // POST /api/live-sessions — create session (staff only)
 export async function POST(request: NextRequest) {
   const caller = await requireAuth();
-  if (!caller || caller.role === 'student')
+  if (!caller || !['admin', 'teacher'].includes(caller.role))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
