@@ -18,13 +18,40 @@ export async function PATCH(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data: caller } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+    const { data: caller } = await supabase
+        .from('portal_users')
+        .select('id, role, school_id')
+        .eq('id', user.id)
+        .single();
     if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
     const { id } = await params;
     const body = await req.json();
+
+    // Non-admins must be scoped to their assigned school
+    if (caller.role !== 'admin') {
+        const { data: student } = await adminClient()
+            .from('students')
+            .select('school_id')
+            .eq('id', id)
+            .single();
+
+        let allowed = false;
+        if (caller.role === 'school') {
+            allowed = !!caller.school_id && student?.school_id === caller.school_id;
+        } else if (caller.role === 'teacher') {
+            const { data: assignments } = await adminClient()
+                .from('teacher_schools')
+                .select('school_id')
+                .eq('teacher_id', caller.id);
+            const ids = (assignments ?? []).map((a: any) => a.school_id).filter(Boolean);
+            if (caller.school_id) ids.push(caller.school_id);
+            allowed = student?.school_id ? ids.includes(student.school_id) : false;
+        }
+        if (!allowed) return NextResponse.json({ error: 'You can only edit students from your assigned school' }, { status: 403 });
+    }
 
     // Whitelist updatable fields
     const allowed: Record<string, any> = {};
@@ -48,7 +75,12 @@ export async function DELETE(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data: caller } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+    const { data: caller } = await supabase
+        .from('portal_users')
+        .select('id, role, school_id')
+        .eq('id', user.id)
+        .single();
+
     if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
@@ -56,7 +88,43 @@ export async function DELETE(
     const { id } = await params;
     const admin = adminClient();
 
-    const { data: student } = await admin.from('students').select('user_id').eq('id', id).single();
+    // Fetch the student to verify school ownership before deleting
+    const { data: student } = await admin
+        .from('students')
+        .select('user_id, school_id, school_name')
+        .eq('id', id)
+        .single();
+
+    if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+
+    // Non-admins must be scoped to their own school
+    if (caller.role !== 'admin') {
+        let allowed = false;
+
+        if (caller.role === 'school') {
+            // School partner: must match their school_id directly
+            allowed = !!caller.school_id && student.school_id === caller.school_id;
+        } else if (caller.role === 'teacher') {
+            // Teacher: check teacher_schools assignments
+            const { data: assignments } = await admin
+                .from('teacher_schools')
+                .select('school_id')
+                .eq('teacher_id', caller.id);
+
+            const assignedIds = (assignments ?? []).map((a: any) => a.school_id).filter(Boolean);
+
+            // Also include teacher's own profile school_id as fallback
+            if (caller.school_id) assignedIds.push(caller.school_id);
+
+            allowed = student.school_id
+                ? assignedIds.includes(student.school_id)
+                : false;
+        }
+
+        if (!allowed) {
+            return NextResponse.json({ error: 'You can only delete students from your assigned school' }, { status: 403 });
+        }
+    }
 
     if (student?.user_id) {
         await admin.from('portal_users').delete().eq('id', student.user_id);
