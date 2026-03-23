@@ -34,7 +34,7 @@ export async function PATCH(
   const body = await request.json();
 
   const allowed: Record<string, any> = { updated_at: new Date().toISOString() };
-  const fields = ['session_date', 'topic', 'start_time', 'end_time', 'notes'];
+  const fields = ['session_date', 'topic', 'start_time', 'end_time'];
   for (const f of fields) {
     if (body[f] !== undefined) allowed[f] = body[f];
   }

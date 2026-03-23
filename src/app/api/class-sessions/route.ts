@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { class_id, session_date, topic, start_time, end_time, notes } = body;
+    const { class_id, session_date, topic, start_time, end_time } = body;
 
     if (!class_id || !session_date) {
       return NextResponse.json({ error: 'class_id and session_date required' }, { status: 400 });
@@ -42,7 +42,6 @@ export async function POST(request: NextRequest) {
         topic: topic || `Session on ${session_date}`,
         start_time: start_time || null,
         end_time: end_time || null,
-        notes: notes || null,
       })
       .select()
       .single();
