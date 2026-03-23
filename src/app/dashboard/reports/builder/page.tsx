@@ -1036,9 +1036,10 @@ function ReportBuilderInner() {
         ...form,
         id: existingReport?.id || 'Preview',
         template_id: modernTemplateId,
-        theory_score: parseFloat(form.theory_score),
-        practical_score: parseFloat(form.practical_score),
-        attendance_score: parseFloat(form.attendance_score),
+        theory_score: parseFloat(form.theory_score) || 0,
+        practical_score: parseFloat(form.practical_score) || 0,
+        attendance_score: parseFloat(form.attendance_score) || 0,
+        participation_score: parseFloat(form.participation_score) || 0,
         overall_score: overallScore,
         has_certificate: forceCertificate || overallScore >= 45,
         certificate_text: (forceCertificate || overallScore >= 45)

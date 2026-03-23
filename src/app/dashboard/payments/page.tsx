@@ -365,6 +365,32 @@ export default function PaymentsPage() {
 
   function openEditInvoice(inv: Invoice, e: React.MouseEvent) {
     e.stopPropagation();
+    // School invoices → open the builder pre-populated for re-generation
+    if (inv.school_id && isAdmin) {
+      const item = inv.items?.[0];
+      const isFixed = !item || (item.quantity === 1 && String(item.description ?? '').toLowerCase().includes('fixed'));
+      const sch = schools.find(s => s.id === inv.school_id);
+      setSchoolInvForm({
+        school_id: inv.school_id,
+        pricing_mode: isFixed ? 'fixed_package' : 'per_student',
+        manual_student_count: isFixed ? '' : String(item?.quantity ?? ''),
+        rate_per_child: isFixed ? '' : String(item?.unit_price ?? ''),
+        fixed_package_price: isFixed ? String(inv.amount) : '',
+        rillcod_quota_percent: String(sch?.rillcod_quota_percent ?? ''),
+        notes: inv.notes ?? '',
+        due_date: inv.due_date?.split('T')[0] ?? new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+        deposit_amount: '',
+        pay_to_account_id: '',
+        show_revenue_share: true,
+        show_whatsapp_option: true,
+      });
+      setShowSchoolInvoice(true);
+      setShowReceiptBuilder(false);
+      // Scroll to top of payments tab where the builder lives
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    // Non-school invoices → use the simple edit modal
     setEditingInv(inv);
     setEditInvForm({ due_date: inv.due_date?.split('T')[0] ?? '', notes: inv.notes ?? '', status: inv.status });
   }
@@ -615,8 +641,7 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
 </div>
 <div class="meta-row">
   ${isFixed
-    ? `<div class="meta-cell" style="background:#fff7ed;border-color:#ea580c33"><div class="meta-label" style="color:#ea580c">Pricing</div><div class="meta-val" style="color:#ea580c;font-size:11px">Fixed Package</div></div>
-       <div class="meta-cell"><div class="meta-label">Enrolled Students</div><div class="meta-val">${count > 0 ? count : '—'}</div></div>`
+    ? `<div class="meta-cell" style="background:#fff7ed;border-color:#ea580c33"><div class="meta-label" style="color:#ea580c">Pricing</div><div class="meta-val" style="color:#ea580c;font-size:11px">Fixed Package</div></div>`
     : `<div class="meta-cell"><div class="meta-label">Students</div><div class="meta-val">${count}</div></div>
        <div class="meta-cell"><div class="meta-label">Rate / Child</div><div class="meta-val">${fmtNGN(ratePerChild)}</div></div>`
   }
@@ -637,7 +662,6 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
     <td>
       <b>${isFixed ? 'STEM / AI / Coding — Fixed School Package' : 'STEM / AI / Coding Programme Fee'}</b>
       <br><span style="font-size:10px;color:#9ca3af">${sch.name} · ${isFixed ? 'All students included — compulsory school programme' : 'Academic Term'}</span>
-      ${isFixed && count > 0 ? `<br><span style="font-size:10px;color:#7c3aed;font-weight:700">Covers all ${count} enrolled students · Fixed pricing applies</span>` : ''}
     </td>
     ${isFixed ? '' : `<td style="text-align:center;font-weight:700">${count}</td><td style="text-align:right">${fmtNGN(ratePerChild)}</td>`}
     <td style="text-align:right;font-weight:700">${fmtNGN(subtotal)}</td>
@@ -1720,11 +1744,15 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                             <p className="text-2xl font-black text-foreground">₦{subtotal.toLocaleString()}</p>
                           </div>
                           {deposit > 0 && (
-                            <div className="bg-primary/10 px-4 py-2 rounded-none border border-primary/20">
-                              <p className="text-[9px] font-black text-primary uppercase tracking-widest">Balance Payable</p>
-                              <p className="text-2xl font-black text-foreground">₦{balance.toLocaleString()}</p>
+                            <div>
+                              <p className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-widest">Less Deposit</p>
+                              <p className="text-lg font-black text-emerald-400">−₦{deposit.toLocaleString()}</p>
                             </div>
                           )}
+                          <div className="bg-primary/10 px-4 py-2 rounded-none border border-primary/20">
+                            <p className="text-[9px] font-black text-primary uppercase tracking-widest">Total Outstanding</p>
+                            <p className="text-2xl font-black text-foreground">₦{balance.toLocaleString()}</p>
+                          </div>
                           {quotaPct > 0 && schoolInvForm.show_revenue_share && (
                             <>
                               <div>
