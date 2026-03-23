@@ -2,38 +2,61 @@ import { NextResponse } from 'next/server';
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 import { env } from '@/config/env';
 
-// Schedule-specific fees in Naira — must stay in sync with StudentRegistration.tsx SCHEDULE_FEES
-const SCHEDULE_FEES: Record<string, number> = {
-    // Partner school schedules
-    'Weekday Afternoons':          25000,
-    'Weekend In-Person':           20000,
-
-    // Summer bootcamp schedules
-    'Summer Intensive (Day)':      60000,
-    'Summer Intensive (Half Day)': 45000,
-    'Summer Intensive (Afternoon)':45000,
-    'Weekend Bootcamp':            35000,
-
-    // Holiday / termly programme (same type as bootcamp or school)
-    'Holiday Programme':           30000,
-    'Termly Programme':            25000,
-
-    // Online schedules
-    'Online Self-Paced':           30000,
-    'Online Live Sessions':        40000,
-    'Online Weekend':              25000,
+// ── Partner school pricing (Young Innovators & Teen Developers are subsidised) ──
+const SCHOOL_YOUNG_INNOVATORS_FEES: Record<string, number> = {
+    'Weekday Afternoons': 12000,
+    'Weekend In-Person':  10000,
+    'Termly Programme':   12000,
+    'Holiday Programme':  18000,
 };
 
-// Fallback fees per enrollment type when schedule isn't matched
+const SCHOOL_TEEN_DEVELOPERS_FEES: Record<string, number> = {
+    'Weekday Afternoons': 15000,
+    'Weekend In-Person':  12000,
+    'Termly Programme':   15000,
+    'Holiday Programme':  22000,
+};
+
+const SCHOOL_OTHER_FEES: Record<string, number> = {
+    'Weekday Afternoons': 20000,
+    'Weekend In-Person':  18000,
+    'Termly Programme':   20000,
+    'Holiday Programme':  25000,
+};
+
+// Bootcamp and online remain unchanged
+const NON_SCHOOL_FEES: Record<string, number> = {
+    'Summer Intensive (Day)':       60000,
+    'Summer Intensive (Half Day)':  45000,
+    'Summer Intensive (Afternoon)': 45000,
+    'Weekend Bootcamp':             35000,
+    'Holiday Programme':            30000,
+    'Online Self-Paced':            30000,
+    'Online Live Sessions':         40000,
+    'Online Weekend':               25000,
+};
+
 const TYPE_FEES: Record<string, number> = {
-    school:   25000,
+    school:   20000,
     bootcamp: 60000,
     online:   30000,
 };
 
-function getFee(enrollment_type: string, preferred_schedule: string): number {
-    if (preferred_schedule && SCHEDULE_FEES[preferred_schedule] != null) {
-        return SCHEDULE_FEES[preferred_schedule];
+function getFee(enrollment_type: string, preferred_schedule: string, course_interest?: string): number {
+    if (enrollment_type === 'school') {
+        const lower = (course_interest || '').toLowerCase();
+        const schoolMap = lower.includes('young innovator')
+            ? SCHOOL_YOUNG_INNOVATORS_FEES
+            : lower.includes('teen developer')
+                ? SCHOOL_TEEN_DEVELOPERS_FEES
+                : SCHOOL_OTHER_FEES;
+        if (preferred_schedule && schoolMap[preferred_schedule] != null) {
+            return schoolMap[preferred_schedule];
+        }
+        return TYPE_FEES.school;
+    }
+    if (preferred_schedule && NON_SCHOOL_FEES[preferred_schedule] != null) {
+        return NON_SCHOOL_FEES[preferred_schedule];
     }
     return TYPE_FEES[enrollment_type] ?? 30000;
 }
@@ -117,7 +140,7 @@ export async function POST(req: Request) {
         }
 
         // If a program_id was passed, use its price from the DB (admin-controlled)
-        let amount = getFee(enrollment_type, preferred_schedule);
+        let amount = getFee(enrollment_type, preferred_schedule, course_interest);
         if (program_id) {
             const { data: prog } = await supabase
                 .from('programs')

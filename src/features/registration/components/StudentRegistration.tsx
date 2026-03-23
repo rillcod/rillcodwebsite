@@ -83,24 +83,48 @@ const defaultForm = {
 };
 
 // ─── Schedule options per type ────────────────────────────────────
+// Partner school: Young Innovators (ages 6–12) — subsidised via school arrangement
+const SCHOOL_YOUNG_INNOVATORS: { value: string; label: string; fee: number; feeLabel: string }[] = [
+  { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',     fee: 12000, feeLabel: '₦12,000 / term' },
+  { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',         fee: 10000, feeLabel: '₦10,000 / term' },
+  { value: 'Termly Programme',    label: 'Full Termly Programme',              fee: 12000, feeLabel: '₦12,000 / term' },
+  { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',       fee: 18000, feeLabel: '₦18,000 / holiday' },
+];
+
+// Partner school: Teen Developers (ages 12–18) — subsidised
+const SCHOOL_TEEN_DEVELOPERS: { value: string; label: string; fee: number; feeLabel: string }[] = [
+  { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',     fee: 15000, feeLabel: '₦15,000 / term' },
+  { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',         fee: 12000, feeLabel: '₦12,000 / term' },
+  { value: 'Termly Programme',    label: 'Full Termly Programme',              fee: 15000, feeLabel: '₦15,000 / term' },
+  { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',       fee: 22000, feeLabel: '₦22,000 / holiday' },
+];
+
+// Helper: get school schedule options based on programme
+function getSchoolSchedules(courseInterest: string) {
+  const lower = (courseInterest || '').toLowerCase();
+  if (lower.includes('young innovator') || lower.includes('young_innovator')) return SCHOOL_YOUNG_INNOVATORS;
+  if (lower.includes('teen developer') || lower.includes('teen_developer')) return SCHOOL_TEEN_DEVELOPERS;
+  // All other school programmes (Python, Web, AI, Robotics, etc.)
+  return [
+    { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',   fee: 20000, feeLabel: '₦20,000 / term' },
+    { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',       fee: 18000, feeLabel: '₦18,000 / term' },
+    { value: 'Termly Programme',    label: 'Full Termly Programme',            fee: 20000, feeLabel: '₦20,000 / term' },
+    { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',     fee: 25000, feeLabel: '₦25,000 / holiday' },
+  ];
+}
+
 const SCHEDULES: Record<string, { value: string; label: string; fee: number; feeLabel: string }[]> = {
-  school: [
-    { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',  fee: 25000, feeLabel: '₦25,000 / term' },
-    { value: 'Weekend In-Person',   label: 'Weekend In-Person',               fee: 20000, feeLabel: '₦20,000 / term' },
-    { value: 'Termly Programme',    label: 'Termly Programme (full term)',     fee: 25000, feeLabel: '₦25,000 / term' },
-    { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',    fee: 30000, feeLabel: '₦30,000 / holiday' },
-  ],
   bootcamp: [
-    { value: 'Summer Intensive (Day)',      label: 'Full Summer – Full Day (9am–4pm)',  fee: 60000, feeLabel: '₦60,000' },
-    { value: 'Summer Intensive (Half Day)', label: 'Full Summer – Half Day (AM)',       fee: 45000, feeLabel: '₦45,000' },
-    { value: 'Summer Intensive (Afternoon)',label: 'Full Summer – Half Day (PM)',       fee: 45000, feeLabel: '₦45,000' },
-    { value: 'Weekend Bootcamp',            label: 'Weekend Bootcamp (Sat & Sun)',      fee: 35000, feeLabel: '₦35,000' },
-    { value: 'Holiday Programme',           label: 'Holiday / Vacation Programme',     fee: 30000, feeLabel: '₦30,000' },
+    { value: 'Summer Intensive (Day)',       label: 'Full Summer – Full Day (9am–4pm)',  fee: 60000, feeLabel: '₦60,000' },
+    { value: 'Summer Intensive (Half Day)',  label: 'Full Summer – Half Day (AM)',       fee: 45000, feeLabel: '₦45,000' },
+    { value: 'Summer Intensive (Afternoon)', label: 'Full Summer – Half Day (PM)',      fee: 45000, feeLabel: '₦45,000' },
+    { value: 'Weekend Bootcamp',             label: 'Weekend Bootcamp (Sat & Sun)',     fee: 35000, feeLabel: '₦35,000' },
+    { value: 'Holiday Programme',            label: 'Holiday / Vacation Programme',    fee: 30000, feeLabel: '₦30,000' },
   ],
   online: [
-    { value: 'Online Self-Paced',    label: 'Online – Self-Paced (any time)',       fee: 30000, feeLabel: '₦30,000 / term' },
-    { value: 'Online Live Sessions', label: 'Online – Live Sessions (scheduled)',   fee: 40000, feeLabel: '₦40,000 / term' },
-    { value: 'Online Weekend',       label: 'Online – Weekends Only',               fee: 25000, feeLabel: '₦25,000 / term' },
+    { value: 'Online Self-Paced',    label: 'Online – Self-Paced (any time)',     fee: 30000, feeLabel: '₦30,000 / term' },
+    { value: 'Online Live Sessions', label: 'Online – Live Sessions (scheduled)', fee: 40000, feeLabel: '₦40,000 / term' },
+    { value: 'Online Weekend',       label: 'Online – Weekends Only',             fee: 25000, feeLabel: '₦25,000 / term' },
   ],
   '': [
     { value: 'Weekday Afternoons', label: 'Weekday Afternoons', fee: 25000, feeLabel: '₦25,000' },
@@ -110,7 +134,7 @@ const SCHEDULES: Record<string, { value: string; label: string; fee: number; fee
 };
 
 const TYPE_FEES: Record<string, string> = {
-  school:   '₦20,000 – ₦30,000',
+  school:   '₦20,000 – ₦25,000',
   bootcamp: '₦35,000 – ₦60,000',
   online:   '₦25,000 – ₦40,000',
   '':       '',
@@ -145,7 +169,12 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
   const set = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    setForm(p => ({ ...p, [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value }));
+    // Reset preferredSchedule when courseInterest changes for school type (price tiers differ)
+    if (name === 'courseInterest' && form.enrollmentType === 'school') {
+      setForm(p => ({ ...p, courseInterest: value, preferredSchedule: '' }));
+    } else {
+      setForm(p => ({ ...p, [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value }));
+    }
   };
 
   const next = (e: React.FormEvent) => {
@@ -210,7 +239,9 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   }
 
   const et = form.enrollmentType;
-  const schedules = SCHEDULES[et] ?? SCHEDULES[''];
+  const schedules = et === 'school'
+    ? getSchoolSchedules(form.courseInterest)
+    : (SCHEDULES[et] ?? SCHEDULES['']);
   const selectedSchedule = schedules.find(s => s.value === form.preferredSchedule);
   const feeLabel = selectedSchedule?.feeLabel ?? TYPE_FEES[et] ?? '';
   const feeAmount = selectedSchedule ? `₦${selectedSchedule.fee.toLocaleString()}` : '';
@@ -353,13 +384,29 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                    <Field label="Programme Interest *" icon={BookOpen}>
                       <select name="courseInterest" value={form.courseInterest} onChange={set} required className={selectCls(true)}>
                          <option value="">Select Programme</option>
-                         <option value="Python Programming">Python Programming</option>
-                         <option value="Robotics">Robotics & IoT</option>
-                         <option value="Web Design">Web Development</option>
-                         <option value="AI & Data Science">AI & Data Science</option>
+                         {et === 'school' && <>
+                           <optgroup label="School Programmes (Subsidised)">
+                             <option value="Young Innovators">Young Innovators (Ages 6–12)</option>
+                             <option value="Teen Developers">Teen Developers (Ages 12–18)</option>
+                           </optgroup>
+                         </>}
+                         <optgroup label="Specialised Courses">
+                           <option value="Python Programming">Python Programming</option>
+                           <option value="Web Development">Web Development (HTML, CSS, JS)</option>
+                           <option value="AI & Data Science">AI & Data Science</option>
+                           <option value="Robotics & IoT">Robotics & IoT (Arduino)</option>
+                           <option value="Scratch & Game Design">Scratch & Game Design</option>
+                           <option value="Cyber Safety">Cyber Safety & Digital Literacy</option>
+                           <option value="UI/UX Design">UI/UX Design</option>
+                         </optgroup>
                       </select>
                       <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                    </Field>
+                   {et === 'school' && (form.courseInterest === 'Young Innovators' || form.courseInterest === 'Teen Developers') && (
+                     <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1 ml-1">
+                       ✓ Partner school pricing applies — reduced fees
+                     </p>
+                   )}
 
                    <Field label="Preferred Schedule *" icon={Calendar}>
                       <select name="preferredSchedule" value={form.preferredSchedule} onChange={set} required className={selectCls(true)}>
