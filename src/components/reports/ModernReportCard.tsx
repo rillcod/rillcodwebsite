@@ -291,6 +291,19 @@ export default function ModernReportCard({ report, orgSettings }: {
                     <div style={{ display: 'grid', gridTemplateColumns: '8fr 4fr', gap: 12 }}>
                         {/* Metric bars + qualifier grades */}
                         <div style={{ background: '#fff', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #f3f4f6', borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 18, padding: '12px 14px' }}>
+                            {/* Scoring key */}
+                            <div style={{ borderBottom: isIndustrial ? '2px solid #000' : '1px solid #e5e7eb', paddingBottom: 6, marginBottom: 9, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+                                <span style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4 }}>Key</span>
+                                {metrics.map((m, i) => (
+                                    <span key={m.label} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                        {i > 0 && <span style={{ color: '#d1d5db', marginRight: 4, fontSize: 7 }}>·</span>}
+                                        <span style={{ width: 6, height: 6, borderRadius: isIndustrial ? 0 : '50%', backgroundColor: m.color, display: 'inline-block', marginRight: 3, flexShrink: 0 }} />
+                                        <span style={{ fontSize: 7, fontWeight: 800, color: m.color }}>{m.label}</span>
+                                        <span style={{ fontSize: 7, fontWeight: 600, color: '#9ca3af', marginLeft: 1 }}>/{m.weight}</span>
+                                    </span>
+                                ))}
+                                <span style={{ fontSize: 7, fontWeight: 700, color: '#6b7280', marginLeft: 4 }}>= 100 pts</span>
+                            </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                                 {metrics.map(m => (
                                     <div key={m.label}>
