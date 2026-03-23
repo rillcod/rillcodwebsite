@@ -35,9 +35,17 @@ const ENROLLMENT_TYPES = [
     color: 'border-emerald-500 bg-emerald-500/10',
     dot: 'bg-emerald-400',
   },
+  {
+    id: 'in_person',
+    icon: MapPin,
+    title: 'In-Person',
+    desc: 'Walk-in direct enrolment at our physical training centre',
+    color: 'border-violet-500 bg-violet-500/10',
+    dot: 'bg-violet-400',
+  },
 ] as const;
 
-type EnrollmentType = 'school' | 'bootcamp' | 'online' | '';
+type EnrollmentType = 'school' | 'bootcamp' | 'online' | 'in_person' | '';
 
 // ─── Steps ────────────────────────────────────────────────────────
 const STEPS = [
@@ -124,6 +132,11 @@ const SCHEDULES: Record<string, { value: string; label: string; fee: number; fee
     { value: 'Online Self-Paced',   label: 'Online – Self-Paced (learn at your pace)', fee: 30000, feeLabel: '₦30,000 / term' },
     { value: 'Online Weekend',      label: 'Online – Weekends Only',                   fee: 25000, feeLabel: '₦25,000 / term' },
   ],
+  in_person: [
+    { value: 'In-Person (Weekdays)',  label: 'Weekdays – Tue & Thu (10am–1pm)',    fee: 50000, feeLabel: '₦50,000 / term' },
+    { value: 'In-Person (Weekends)',  label: 'Weekends – Sat & Sun (9am–12pm)',    fee: 50000, feeLabel: '₦50,000 / term' },
+    { value: 'In-Person (Evening)',   label: 'Evenings – Mon & Wed (4pm–7pm)',     fee: 50000, feeLabel: '₦50,000 / term' },
+  ],
   '': [
     { value: 'Weekday Afternoons', label: 'Weekday Afternoons (at school)',  fee: 20000, feeLabel: '₦20,000 / term' },
     { value: 'Weekend In-Person',  label: 'Weekend In-Person Sessions',      fee: 18000, feeLabel: '₦18,000 / term' },
@@ -133,10 +146,11 @@ const SCHEDULES: Record<string, { value: string; label: string; fee: number; fee
 };
 
 const TYPE_FEES: Record<string, string> = {
-  school:   '₦10,000 – ₦25,000',
-  bootcamp: '₦30,000 – ₦55,000',
-  online:   '₦25,000 – ₦40,000',
-  '':       '',
+  school:    '₦10,000 – ₦25,000',
+  bootcamp:  '₦30,000 – ₦55,000',
+  online:    '₦25,000 – ₦40,000',
+  in_person: '₦50,000 / term',
+  '':        '',
 };
 
 // ─── Main component ───────────────────────────────────────────────
@@ -261,7 +275,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
         {/* Enrollment Path Selector */}
         <div className="mb-10">
           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] mb-4 text-center">Select Enrolment Type</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {ENROLLMENT_TYPES.map(t => {
               const active = et === t.id;
               return (
