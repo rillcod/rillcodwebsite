@@ -154,7 +154,7 @@ export default function CertificateManagement() {
                 
                 if (preSelectId) {
                     setIssueForm(prev => ({ ...prev, schoolId: preSelectId }));
-                    fetchClasses(preSelectId);
+                    // fetchClasses triggered by schoolId cascade useEffect
                 }
             }
             if (programRes.ok) {
@@ -224,7 +224,7 @@ export default function CertificateManagement() {
         }
     };
 
-    // Cascade Triggers
+    // Cascade Triggers — only fetch, resets are handled in onChange
     useEffect(() => {
         if (issueForm.schoolId) fetchClasses(issueForm.schoolId);
         else setClasses([]);
@@ -568,7 +568,7 @@ export default function CertificateManagement() {
                                             <p className="text-[8px] text-slate-500 uppercase tracking-widest">Issue to entire class at once</p>
                                         </div>
                                         <button 
-                                            onClick={() => setIssueForm({...issueForm, isBulk: !issueForm.isBulk, studentId: ''})}
+                                            onClick={() => setIssueForm(prev => ({ ...prev, isBulk: !prev.isBulk, studentId: '' }))}
                                             className={cn(
                                                 "w-12 h-6 rounded-full relative transition-all duration-300",
                                                 issueForm.isBulk ? "bg-primary" : "bg-white/10"
@@ -583,9 +583,13 @@ export default function CertificateManagement() {
 
                                     <div className="space-y-4">
                                         <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">1. School</label>
-                                        <select 
+                                        <select
                                             value={issueForm.schoolId}
-                                            onChange={e => setIssueForm({...issueForm, schoolId: e.target.value})}
+                                            onChange={e => {
+                                                const v = e.target.value;
+                                                setIssueForm(prev => ({ ...prev, schoolId: v, classId: '', studentId: '' }));
+                                                setClasses([]); setStudents([]);
+                                            }}
                                             className="w-full bg-[#0A0A0B] border border-white/10 p-4 text-[11px] font-black uppercase text-white outline-none focus:border-primary transition-all"
                                         >
                                             <option value="">-- SELECT SCHOOL --</option>
@@ -597,21 +601,31 @@ export default function CertificateManagement() {
                                         <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
                                             2. {issueForm.isBulk ? 'Class' : 'Class & Student'}
                                         </label>
-                                        <select 
+                                        <select
                                             value={issueForm.classId}
-                                            onChange={e => setIssueForm({...issueForm, classId: e.target.value})}
-                                            className="w-full bg-[#0A0A0B] border border-white/10 p-4 text-[11px] font-black uppercase text-white outline-none focus:border-primary transition-all"
+                                            disabled={!issueForm.schoolId || loadingDropdowns.classes}
+                                            onChange={e => {
+                                                const v = e.target.value;
+                                                setIssueForm(prev => ({ ...prev, classId: v, studentId: '' }));
+                                                setStudents([]);
+                                            }}
+                                            className="w-full bg-[#0A0A0B] border border-white/10 p-4 text-[11px] font-black uppercase text-white outline-none focus:border-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                         >
-                                            <option value="">-- SELECT CLASS --</option>
+                                            <option value="">
+                                                {loadingDropdowns.classes ? 'Loading...' : classes.length === 0 && issueForm.schoolId ? 'No classes found' : '-- SELECT CLASS --'}
+                                            </option>
                                             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                         </select>
                                         {issueForm.classId && !issueForm.isBulk && (
-                                            <select 
+                                            <select
                                                 value={issueForm.studentId}
-                                                onChange={e => setIssueForm({...issueForm, studentId: e.target.value})}
-                                                className="w-full bg-[#0A0A0B] border border-white/10 p-4 mt-4 text-[11px] font-black uppercase text-white outline-none focus:border-primary transition-all"
+                                                disabled={loadingDropdowns.students}
+                                                onChange={e => setIssueForm(prev => ({ ...prev, studentId: e.target.value }))}
+                                                className="w-full bg-[#0A0A0B] border border-white/10 p-4 mt-4 text-[11px] font-black uppercase text-white outline-none focus:border-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                             >
-                                                <option value="">-- SELECT STUDENT --</option>
+                                                <option value="">
+                                                    {loadingDropdowns.students ? 'Loading...' : students.length === 0 ? 'No students found' : '-- SELECT STUDENT --'}
+                                                </option>
                                                 {students.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
                                             </select>
                                         )}
@@ -619,21 +633,28 @@ export default function CertificateManagement() {
 
                                     <div className="space-y-4">
                                         <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">3. Program & Course</label>
-                                        <select 
+                                        <select
                                             value={issueForm.programId}
-                                            onChange={e => setIssueForm({...issueForm, programId: e.target.value})}
+                                            onChange={e => {
+                                                const v = e.target.value;
+                                                setIssueForm(prev => ({ ...prev, programId: v, courseId: '' }));
+                                                setCourses([]);
+                                            }}
                                             className="w-full bg-[#0A0A0B] border border-white/10 p-4 text-[11px] font-black uppercase text-white outline-none focus:border-primary transition-all"
                                         >
                                             <option value="">-- SELECT PROGRAM --</option>
                                             {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                         </select>
                                         {issueForm.programId && (
-                                            <select 
+                                            <select
                                                 value={issueForm.courseId}
-                                                onChange={e => setIssueForm({...issueForm, courseId: e.target.value})}
-                                                className="w-full bg-[#0A0A0B] border border-white/10 p-4 mt-4 text-[11px] font-black uppercase text-white outline-none focus:border-primary transition-all"
+                                                disabled={loadingDropdowns.courses}
+                                                onChange={e => setIssueForm(prev => ({ ...prev, courseId: e.target.value }))}
+                                                className="w-full bg-[#0A0A0B] border border-white/10 p-4 mt-4 text-[11px] font-black uppercase text-white outline-none focus:border-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                             >
-                                                <option value="">-- SELECT MODULE --</option>
+                                                <option value="">
+                                                    {loadingDropdowns.courses ? 'Loading...' : courses.length === 0 ? 'No modules found' : '-- SELECT MODULE --'}
+                                                </option>
                                                 {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                                             </select>
                                         )}
@@ -683,7 +704,7 @@ export default function CertificateManagement() {
                                     ].map(t => (
                                         <button
                                             key={t.id}
-                                            onClick={() => setIssueForm({...issueForm, templateId: t.id})}
+                                            onClick={() => setIssueForm(prev => ({ ...prev, templateId: t.id }))}
                                             className={cn(
                                                 "px-3 sm:px-4 py-2.5 border text-[9px] font-black uppercase tracking-widest transition-all flex-1 min-w-[70px]",
                                                 issueForm.templateId === t.id ? "bg-primary text-black border-primary" : "bg-white/[0.02] border-white/10 text-slate-500 hover:border-white/20"
