@@ -51,17 +51,17 @@ const Hero: React.FC = () => {
 
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mb-12">
               <Link
-                href="/school-registration"
+                href="/login"
                 className="group flex items-center justify-center gap-2.5 px-10 py-5 bg-orange-500 text-white font-black text-xs uppercase tracking-[0.2em] rounded-none hover:bg-orange-600 transition-all shadow-lg"
               >
-                Register School
+                Student Login
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
-                href="/login"
+                href="/school-registration"
                 className="flex items-center justify-center gap-2.5 px-10 py-5 bg-card text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-none border border-border hover:bg-muted transition-all"
               >
-                Portal Login
+                Register School
               </Link>
             </div>
 
