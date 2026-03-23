@@ -80,7 +80,7 @@ type ActFilter = 'all' | 'active' | 'pending_review' | 'overdue' | 'draft';
 export default function ProjectsPage() {
     const { profile, loading: authLoading } = useAuth();
     const role      = profile?.role;
-    const isStaff   = role === 'admin' || role === 'teacher';
+    const isStaff   = role === 'admin' || role === 'teacher' || role === 'school';
     const isStudent = role === 'student';
 
     const [tab, setTab]           = useState<Tab>('work');
@@ -88,8 +88,10 @@ export default function ProjectsPage() {
     const [actLoading, setActLoading] = useState(false);
     const [search, setSearch]     = useState('');
     const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
+    const [collapsedSchools, setCollapsedSchools] = useState<Set<string>>(new Set());
     const [actFilter, setActFilter] = useState<ActFilter>('all');
     const [actSearch, setActSearch] = useState('');
+    const [selectedCat, setSelectedCat] = useState<string>('all');
 
     // Student state
     const [myLab, setMyLab]         = useState<any[]>([]);
@@ -530,6 +532,15 @@ export default function ProjectsPage() {
         ? Math.round(students.reduce((sum, s) => sum + projectScore(labMap[s.id]?.length || 0, portfolioMap[s.id]?.length || 0), 0) / students.length)
         : 0;
 
+    // Group students by school
+    const studentsBySchool = filteredStudents.reduce<Record<string, any[]>>((acc, s) => {
+        const key = s.school_name || 'No School';
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(s);
+        return acc;
+    }, {});
+    const schoolNames = Object.keys(studentsBySchool).sort();
+
     // Activity filters
     const filteredActs = activities.filter(a => {
         const isOverdue  = a.due_date && new Date(a.due_date) < new Date();
@@ -549,6 +560,20 @@ export default function ProjectsPage() {
         totalSubs:    activities.reduce((n, a) => n + (a.assignment_submissions || []).length, 0),
         graded:       activities.reduce((n, a) => n + (a.assignment_submissions || []).filter((s: any) => s.status === 'graded').length, 0),
     };
+
+    // Group filtered activities by category
+    const catFilteredActs = selectedCat === 'all' ? filteredActs : filteredActs.filter(a => (a.metadata?.category || 'coding') === selectedCat);
+    const actsByCategory = catFilteredActs.reduce<Record<string, any[]>>((acc, a) => {
+        const cat = a.metadata?.category || 'coding';
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(a);
+        return acc;
+    }, {});
+    const usedCategories = Object.keys(CAT_META).filter(k => actsByCategory[k]?.length > 0);
+    const catCounts = Object.keys(CAT_META).reduce<Record<string, number>>((acc, k) => {
+        acc[k] = filteredActs.filter(a => (a.metadata?.category || 'coding') === k).length;
+        return acc;
+    }, {});
 
     return (
         <div className="min-h-screen bg-background">
@@ -605,76 +630,123 @@ export default function ProjectsPage() {
                     {loading ? (
                         <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-violet-400 animate-spin" /></div>
                     ) : (
-                        <div className="px-6 md:px-10 py-6 space-y-2">
+                        <div className="px-6 md:px-10 py-6 space-y-6">
                             {filteredStudents.length === 0 && <div className="text-center py-20 text-white/30 text-sm">No students found.</div>}
-                            {filteredStudents.map(student => {
-                                const labs  = labMap[student.id] || [];
-                                const port  = portfolioMap[student.id] || [];
-                                const pct   = projectScore(labs.length, port.length);
-                                const isExp = expandedStudent === student.id;
+                            {schoolNames.map(schoolName => {
+                                const schoolStudents = studentsBySchool[schoolName];
+                                const isCollapsed = collapsedSchools.has(schoolName);
+                                const schoolAvg = schoolStudents.length > 0
+                                    ? Math.round(schoolStudents.reduce((sum, s) => sum + projectScore(labMap[s.id]?.length || 0, portfolioMap[s.id]?.length || 0), 0) / schoolStudents.length)
+                                    : 0;
+                                const schoolActive = schoolStudents.filter(s => (labMap[s.id]?.length || 0) + (portfolioMap[s.id]?.length || 0) > 0).length;
                                 return (
-                                    <div key={student.id} className="bg-[#0d0d18] border border-white/[0.06] hover:border-violet-500/20 transition-all">
-                                        <button onClick={() => setExpandedStudent(isExp ? null : student.id)} className="w-full flex items-center gap-4 px-5 py-4 text-left">
-                                            <div className="w-9 h-9 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
-                                                <span className="text-xs font-black text-violet-300">{(student.full_name || '?')[0].toUpperCase()}</span>
+                                    <div key={schoolName} className="space-y-2">
+                                        {/* School section header */}
+                                        <button
+                                            onClick={() => setCollapsedSchools(prev => {
+                                                const next = new Set(prev);
+                                                if (next.has(schoolName)) next.delete(schoolName); else next.add(schoolName);
+                                                return next;
+                                            })}
+                                            className="w-full flex items-center gap-3 px-4 py-2.5 bg-white/[0.025] border border-white/[0.06] hover:border-violet-500/20 transition-all text-left"
+                                        >
+                                            <div className="w-7 h-7 bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
+                                                <UserGroupIcon className="w-3.5 h-3.5 text-violet-400" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-black text-white truncate">{student.full_name || '—'}</p>
-                                                <p className="text-[10px] text-white/30 truncate">{student.school_name || 'No school'}</p>
+                                                <p className="text-xs font-black text-white uppercase tracking-widest truncate">{schoolName}</p>
+                                                <p className="text-[9px] text-white/30">{schoolStudents.length} student{schoolStudents.length !== 1 ? 's' : ''} · {schoolActive} active · avg {schoolAvg}%</p>
                                             </div>
-                                            <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
-                                                <div className="text-center"><p className="text-base font-black text-indigo-400">{labs.length}</p><p className="text-[9px] text-white/30 uppercase tracking-widest">Lab</p></div>
-                                                <div className="text-center"><p className="text-base font-black text-violet-400">{port.length}</p><p className="text-[9px] text-white/30 uppercase tracking-widest">Portfolio</p></div>
-                                                <div className="w-px h-8 bg-white/10" />
-                                                <ScoreBadge pct={pct} />
-                                            </div>
-                                            <Link href={`/dashboard/reports/builder?student=${student.id}`} onClick={e => e.stopPropagation()}
-                                                className="hidden md:flex items-center gap-1 text-[9px] font-black text-orange-400/60 uppercase tracking-widest hover:text-orange-400 transition-colors px-2 py-1 border border-orange-500/20 hover:border-orange-500/40 flex-shrink-0">
-                                                <EyeIcon className="w-3 h-3" /> Report
-                                            </Link>
-                                            {isExp ? <ChevronUpIcon className="w-4 h-4 text-violet-400 flex-shrink-0" /> : <ChevronDownIcon className="w-4 h-4 text-white/30 flex-shrink-0" />}
+                                            <ScoreBadge pct={schoolAvg} />
+                                            {isCollapsed ? <ChevronDownIcon className="w-3.5 h-3.5 text-white/30 flex-shrink-0" /> : <ChevronUpIcon className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />}
                                         </button>
-                                        {isExp && (
-                                            <div className="border-t border-white/[0.06] px-5 py-5 space-y-5 bg-black/20">
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-3"><CodeBracketIcon className="w-4 h-4 text-indigo-400" /><span className="text-xs font-black text-indigo-400 uppercase tracking-widest">Lab Projects ({labs.length})</span></div>
-                                                    {labs.length === 0 ? <p className="text-[11px] text-white/20 italic pl-6">No lab projects saved yet</p> : (
-                                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 pl-6">
-                                                            {labs.map(p => { const color = LANG_COLOR[(p.language || '').toLowerCase()] || LANG_COLOR.default; return (
-                                                                <div key={p.id} className="bg-white/[0.03] border border-white/[0.06] px-3 py-2.5">
-                                                                    <p className="text-[11px] font-black text-white truncate">{p.title}</p>
-                                                                    <span className="text-[9px] font-bold" style={{ color }}>{p.language}</span>
-                                                                    <p className="text-[9px] text-white/20 mt-1">{p.updated_at ? new Date(p.updated_at).toLocaleDateString('en-GB') : '—'}</p>
+
+                                        {/* Students in this school */}
+                                        {!isCollapsed && (
+                                            <div className="space-y-1.5 pl-0">
+                                                {schoolStudents.map(student => {
+                                                    const labs  = labMap[student.id] || [];
+                                                    const port  = portfolioMap[student.id] || [];
+                                                    const pct   = projectScore(labs.length, port.length);
+                                                    const isExp = expandedStudent === student.id;
+                                                    return (
+                                                        <div key={student.id} className="bg-[#0d0d18] border border-white/[0.06] hover:border-violet-500/20 transition-all">
+                                                            <button onClick={() => setExpandedStudent(isExp ? null : student.id)} className="w-full flex items-center gap-4 px-5 py-3.5 text-left">
+                                                                <div className="w-8 h-8 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
+                                                                    <span className="text-[11px] font-black text-violet-300">{(student.full_name || '?')[0].toUpperCase()}</span>
                                                                 </div>
-                                                            ); })}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-3"><StarIcon className="w-4 h-4 text-violet-400" /><span className="text-xs font-black text-violet-400 uppercase tracking-widest">Portfolio Projects ({port.length})</span></div>
-                                                    {port.length === 0 ? <p className="text-[11px] text-white/20 italic pl-6">No portfolio projects added yet</p> : (
-                                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 pl-6">
-                                                            {port.map(p => { const color = CAT_COLOR[(p.category || '').toLowerCase()] || CAT_COLOR.other; return (
-                                                                <div key={p.id} className="bg-white/[0.03] border border-white/[0.06] px-3 py-2.5">
-                                                                    <p className="text-[11px] font-black text-white truncate">{p.title}</p>
-                                                                    <span className="text-[9px] font-bold" style={{ color }}>{p.category}</span>
-                                                                    {p.is_featured && <p className="text-[9px] text-amber-400 font-black mt-1">★ Featured</p>}
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-sm font-black text-white truncate">{student.full_name || '—'}</p>
+                                                                    <div className="flex items-center gap-2 mt-0.5 sm:hidden">
+                                                                        <span className="text-[9px] text-indigo-400">{labs.length} Lab</span>
+                                                                        <span className="text-white/10">·</span>
+                                                                        <span className="text-[9px] text-violet-400">{port.length} Portfolio</span>
+                                                                        <span className="text-white/10">·</span>
+                                                                        <span className="text-[9px] font-black" style={{ color: pct >= 80 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444' }}>{pct}%</span>
+                                                                    </div>
                                                                 </div>
-                                                            ); })}
+                                                                <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
+                                                                    <div className="text-center"><p className="text-base font-black text-indigo-400">{labs.length}</p><p className="text-[9px] text-white/30 uppercase tracking-widest">Lab</p></div>
+                                                                    <div className="text-center"><p className="text-base font-black text-violet-400">{port.length}</p><p className="text-[9px] text-white/30 uppercase tracking-widest">Portfolio</p></div>
+                                                                    <div className="w-px h-8 bg-white/10" />
+                                                                    <ScoreBadge pct={pct} />
+                                                                </div>
+                                                                {role !== 'school' && (
+                                                                    <Link href={`/dashboard/reports/builder?student=${student.id}`} onClick={e => e.stopPropagation()}
+                                                                        className="hidden md:flex items-center gap-1 text-[9px] font-black text-orange-400/60 uppercase tracking-widest hover:text-orange-400 transition-colors px-2 py-1 border border-orange-500/20 hover:border-orange-500/40 flex-shrink-0">
+                                                                        <EyeIcon className="w-3 h-3" /> Report
+                                                                    </Link>
+                                                                )}
+                                                                {isExp ? <ChevronUpIcon className="w-4 h-4 text-violet-400 flex-shrink-0" /> : <ChevronDownIcon className="w-4 h-4 text-white/30 flex-shrink-0" />}
+                                                            </button>
+                                                            {isExp && (
+                                                                <div className="border-t border-white/[0.06] px-5 py-5 space-y-5 bg-black/20">
+                                                                    <div>
+                                                                        <div className="flex items-center gap-2 mb-3"><CodeBracketIcon className="w-4 h-4 text-indigo-400" /><span className="text-xs font-black text-indigo-400 uppercase tracking-widest">Lab Projects ({labs.length})</span></div>
+                                                                        {labs.length === 0 ? <p className="text-[11px] text-white/20 italic pl-6">No lab projects saved yet</p> : (
+                                                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 pl-6">
+                                                                                {labs.map(p => { const color = LANG_COLOR[(p.language || '').toLowerCase()] || LANG_COLOR.default; return (
+                                                                                    <div key={p.id} className="bg-white/[0.03] border border-white/[0.06] px-3 py-2.5">
+                                                                                        <p className="text-[11px] font-black text-white truncate">{p.title}</p>
+                                                                                        <span className="text-[9px] font-bold" style={{ color }}>{p.language}</span>
+                                                                                        <p className="text-[9px] text-white/20 mt-1">{p.updated_at ? new Date(p.updated_at).toLocaleDateString('en-GB') : '—'}</p>
+                                                                                    </div>
+                                                                                ); })}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="flex items-center gap-2 mb-3"><StarIcon className="w-4 h-4 text-violet-400" /><span className="text-xs font-black text-violet-400 uppercase tracking-widest">Portfolio Projects ({port.length})</span></div>
+                                                                        {port.length === 0 ? <p className="text-[11px] text-white/20 italic pl-6">No portfolio projects added yet</p> : (
+                                                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 pl-6">
+                                                                                {port.map(p => { const color = CAT_COLOR[(p.category || '').toLowerCase()] || CAT_COLOR.other; return (
+                                                                                    <div key={p.id} className="bg-white/[0.03] border border-white/[0.06] px-3 py-2.5">
+                                                                                        <p className="text-[11px] font-black text-white truncate">{p.title}</p>
+                                                                                        <span className="text-[9px] font-bold" style={{ color }}>{p.category}</span>
+                                                                                        {p.is_featured && <p className="text-[9px] text-amber-400 font-black mt-1">★ Featured</p>}
+                                                                                    </div>
+                                                                                ); })}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex items-center gap-3 bg-violet-500/5 border border-violet-500/20 px-4 py-3">
+                                                                        <div className="w-8 h-8 bg-violet-500/20 flex items-center justify-center flex-shrink-0"><RocketLaunchIcon className="w-4 h-4 text-violet-400" /></div>
+                                                                        <div className="flex-1">
+                                                                            <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">Project Engagement Score</p>
+                                                                            <p className="text-xs text-white/40 mt-0.5">{labs.length} lab + {port.length} portfolio = {labs.length + port.length} total → <span className="text-violet-300 font-black">{pct}%</span></p>
+                                                                        </div>
+                                                                        {role !== 'school' && (
+                                                                            <Link href={`/dashboard/reports/builder?student=${student.id}`}
+                                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600/20 border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-widest hover:bg-orange-600/30 transition-all flex-shrink-0">
+                                                                                <EyeIcon className="w-3.5 h-3.5" /> Build Report
+                                                                            </Link>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-3 bg-violet-500/5 border border-violet-500/20 px-4 py-3">
-                                                    <div className="w-8 h-8 bg-violet-500/20 flex items-center justify-center flex-shrink-0"><RocketLaunchIcon className="w-4 h-4 text-violet-400" /></div>
-                                                    <div className="flex-1">
-                                                        <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">Project Engagement Score</p>
-                                                        <p className="text-xs text-white/40 mt-0.5">{labs.length} lab + {port.length} portfolio = {labs.length + port.length} total → <span className="text-violet-300 font-black">{pct}%</span></p>
-                                                    </div>
-                                                    <Link href={`/dashboard/reports/builder?student=${student.id}`}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600/20 border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-widest hover:bg-orange-600/30 transition-all flex-shrink-0">
-                                                        <EyeIcon className="w-3.5 h-3.5" /> Build Report
-                                                    </Link>
-                                                </div>
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>
@@ -747,8 +819,31 @@ export default function ProjectsPage() {
                         </Link>
                     </div>
 
-                    {/* Activity grid */}
-                    <div className="px-6 md:px-10 py-6">
+                    {/* Category filter pills */}
+                    {activities.length > 0 && (
+                        <div className="px-6 md:px-10 py-3 border-b border-white/[0.06] bg-[#0a0a12] flex items-center gap-2 overflow-x-auto">
+                            <button onClick={() => setSelectedCat('all')}
+                                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${selectedCat === 'all' ? 'bg-violet-500/20 border-violet-500/40 text-violet-400' : 'bg-white/[0.02] border-white/[0.06] text-white/30 hover:text-white/60'}`}>
+                                All ({filteredActs.length})
+                            </button>
+                            {Object.entries(CAT_META).map(([key, meta]) => {
+                                const count = catCounts[key] || 0;
+                                if (count === 0) return null;
+                                const CatIcon = meta.Icon;
+                                return (
+                                    <button key={key} onClick={() => setSelectedCat(key)}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all flex-shrink-0 ${selectedCat === key ? 'border-[currentColor]' : 'bg-white/[0.02] border-white/[0.06] text-white/30 hover:text-white/60'}`}
+                                        style={selectedCat === key ? { backgroundColor: meta.color + '22', borderColor: meta.color + '66', color: meta.color } : {}}>
+                                        <CatIcon className="w-3 h-3" />
+                                        {meta.label} ({count})
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {/* Activity sections by category */}
+                    <div className="px-6 md:px-10 py-6 space-y-10">
                         {actLoading ? (
                             <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-violet-400 animate-spin" /></div>
                         ) : activities.length === 0 ? (
@@ -761,13 +856,30 @@ export default function ProjectsPage() {
                                     <PlusIcon className="w-3.5 h-3.5" /> Create First Activity
                                 </Link>
                             </div>
-                        ) : filteredActs.length === 0 ? (
+                        ) : catFilteredActs.length === 0 ? (
                             <div className="border border-dashed border-white/10 p-10 text-center">
                                 <p className="text-white/30 text-sm">No activities match this filter</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                {filteredActs.map((act: any) => {
+                            usedCategories.map(catKey => {
+                                const catMeta = CAT_META[catKey];
+                                const CatSectionIcon = catMeta.Icon;
+                                const catActs = actsByCategory[catKey];
+                                return (
+                                <section key={catKey}>
+                                    {/* Category section header */}
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-8 h-8 flex items-center justify-center border" style={{ backgroundColor: catMeta.color + '18', borderColor: catMeta.color + '40' }}>
+                                            <CatSectionIcon className="w-4 h-4" style={{ color: catMeta.color }} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="text-xs font-black text-white uppercase tracking-widest">{catMeta.label}</h3>
+                                            <p className="text-[9px] text-white/30">{catActs.length} activit{catActs.length !== 1 ? 'ies' : 'y'}</p>
+                                        </div>
+                                        <div className="h-px flex-1 bg-white/[0.05]" />
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                        {catActs.map((act: any) => {
                                     const subs          = act.assignment_submissions || [];
                                     const gradedCount   = subs.filter((s: any) => s.status === 'graded').length;
                                     const pendingCount  = subs.filter((s: any) => s.status === 'submitted').length;
@@ -853,7 +965,10 @@ export default function ProjectsPage() {
                                         </Link>
                                     );
                                 })}
-                            </div>
+                                    </div>
+                                </section>
+                                );
+                            })
                         )}
                     </div>
                 </div>
