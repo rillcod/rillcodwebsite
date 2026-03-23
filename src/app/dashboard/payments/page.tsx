@@ -213,6 +213,7 @@ export default function PaymentsPage() {
   });
   const [schoolInvStudentCount, setSchoolInvStudentCount] = useState<number | null>(null);
   const [loadingSchoolCount, setLoadingSchoolCount] = useState(false);
+  const [showFixedStudentCount, setShowFixedStudentCount] = useState(false);
 
   // Receipt Builder state
   const [showReceiptBuilder, setShowReceiptBuilder] = useState(false);
@@ -1545,21 +1546,36 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   </div>
-                  {schoolInvForm.pricing_mode !== 'fixed_package' && (
                   <div>
-                    <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">
-                      Student Count Override
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="Manual count"
-                      value={schoolInvForm.manual_student_count}
-                      onChange={e => setSchoolInvForm(prev => ({ ...prev, manual_student_count: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 font-bold"
-                    />
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                        Student Count {schoolInvForm.pricing_mode === 'fixed_package' ? '(Informational)' : 'Override'}
+                      </label>
+                      {schoolInvForm.pricing_mode === 'fixed_package' && (
+                        <button
+                          type="button"
+                          onClick={() => setShowFixedStudentCount(v => !v)}
+                          className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border transition-colors ${
+                            showFixedStudentCount
+                              ? 'border-primary/40 text-primary bg-primary/5'
+                              : 'border-border text-muted-foreground/40 hover:text-muted-foreground'
+                          }`}
+                        >
+                          {showFixedStudentCount ? 'Hide' : 'Show'}
+                        </button>
+                      )}
+                    </div>
+                    {(schoolInvForm.pricing_mode !== 'fixed_package' || showFixedStudentCount) && (
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Manual count"
+                        value={schoolInvForm.manual_student_count}
+                        onChange={e => setSchoolInvForm(prev => ({ ...prev, manual_student_count: e.target.value }))}
+                        className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 font-bold"
+                      />
+                    )}
                   </div>
-                  )}
                   {schoolInvForm.pricing_mode === 'per_student' ? (
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Rate per Child (₦)</label>
