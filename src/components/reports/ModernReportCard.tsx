@@ -229,209 +229,209 @@ export default function ModernReportCard({ report, orgSettings }: {
                 </div>
             </div>
 
-            {/* ── IDENTITY GRID ────────────────────────────────────────────── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8, position: 'relative', zIndex: 10 }}>
+            {/* ── MAIN CONTENT — fills remaining height, spreads evenly ───── */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', zIndex: 10, minHeight: 0 }}>
 
-                {/* Student panel */}
-                <div style={{ background: accentLight, border: panelBorder, borderRadius: radius, padding: '10px 14px' }}>
-                    <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: accent, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <UserCircleIcon className="w-3 h-3 shrink-0" /> Authorized Recipient
-                    </p>
-                    <h3 style={{ fontSize: 15, fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.15, marginBottom: 8, color: isExecutive ? '#1A1A2E' : '#000' }}>
-                        {report.student_name || '—'}
-                    </h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 10px' }}>
-                        {[
-                            { l: 'Class',    v: report.section_class },
-                            { l: 'School',   v: report.school_name },
-                            { l: report.school_section === 'school' ? 'Term' : 'Duration', v: report.report_term || report.course_duration },
-                            { l: 'Status',   v: 'CERTIFIED', green: true },
-                        ].map(f => (
-                            <div key={f.l}>
-                                <p style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 2 }}>{f.l}</p>
-                                <p style={{ fontSize: 11, fontWeight: 900, fontStyle: 'italic', textTransform: 'uppercase', color: f.green ? '#059669' : (isExecutive ? '#1A1A2E' : '#111827'), lineHeight: 1.2 }}>
-                                    {f.v || '—'}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                {/* ── IDENTITY GRID ──────────────────────────────────────────── */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
 
-                {/* Course + module panel */}
-                <div style={{ background: accentLight, border: panelBorder, borderRadius: radius, padding: '10px 14px' }}>
-                    <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: accent, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <ShieldCheckIcon className="w-3 h-3 shrink-0" /> Operational Domain
-                    </p>
-                    <h3 style={{ fontSize: 15, fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.15, marginBottom: 8, color: isExecutive ? '#1A1A2E' : '#000' }}>
-                        {report.course_name || '—'}
-                    </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                        {/* Current module */}
-                        <div style={{ background: isIndustrial ? '#f5f5f5' : isExecutive ? '#fff' : '#f1f5f9', border: isIndustrial ? '1px solid #000' : isExecutive ? '1px solid rgba(197,160,89,0.3)' : '1px solid #cbd5e1', borderRadius: radiusSm, padding: '5px 10px' }}>
-                            <p style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#64748b', marginBottom: 2 }}>Current Module</p>
-                            <p style={{ fontSize: 11, fontWeight: 700, color: isExecutive ? '#1A1A2E' : '#1e293b', lineHeight: 1.2 }}>{report.current_module || '—'}</p>
-                        </div>
-                        {/* Next module */}
-                        <div style={{ background: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#ede9fe', border: isIndustrial ? '1px solid #000' : isExecutive ? 'none' : '1px solid #c4b5fd', borderRadius: radiusSm, padding: '5px 10px' }}>
-                            <p style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: isIndustrial ? '#ccc' : isExecutive ? '#C5A059' : '#7c3aed', marginBottom: 2 }}>Upcoming Module</p>
-                            <p style={{ fontSize: 11, fontWeight: 700, color: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#4c1d95', lineHeight: 1.2 }}>{report.next_module || '—'}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* ── ASSESSMENT MATRIX ────────────────────────────────────────── */}
-            <div style={{ position: 'relative', zIndex: 10, marginBottom: 8 }}>
-                {/* Section title */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                    <div style={{ height: 1, flex: 1, background: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#e5e7eb' }} />
-                    <p style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5em', fontStyle: 'italic', color: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#9ca3af', flexShrink: 0 }}>Assessment Matrix</p>
-                    <div style={{ height: 1, flex: 1, background: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#e5e7eb' }} />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '8fr 4fr', gap: 12 }}>
-                    {/* Metric bars + qualitative grades */}
-                    <div style={{ background: '#fff', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #f3f4f6', borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 18, padding: '12px 14px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                            {metrics.map(m => (
-                                <div key={m.label}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                                        <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>{m.label} ({m.weight})</span>
-                                        <span style={{ fontSize: 13, fontWeight: 900, fontStyle: 'italic', color: isIndustrial ? '#000' : m.color }}>{m.value}%</span>
-                                    </div>
-                                    <div style={{ height: 5, width: '100%', background: isIndustrial ? '#f5f5f5' : isExecutive ? '#FFF8EC' : '#f8fafc', border: isIndustrial ? '1px solid #000' : '1px solid #f3f4f6', borderRadius: isIndustrial ? 0 : 999, overflow: 'hidden' }}>
-                                        <div style={{ height: '100%', width: `${m.value}%`, background: m.color, borderRadius: isIndustrial ? 0 : 999 }} />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        {/* Project + Homework grades */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10, paddingTop: 10, borderTop: isIndustrial ? '2px solid #000' : '1px solid #f3f4f6' }}>
+                    {/* Student panel */}
+                    <div style={{ background: accentLight, border: panelBorder, borderRadius: radius, padding: '10px 14px' }}>
+                        <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: accent, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <UserCircleIcon className="w-3 h-3 shrink-0" /> Authorized Recipient
+                        </p>
+                        <h3 style={{ fontSize: 15, fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.15, marginBottom: 8, color: isExecutive ? '#1A1A2E' : '#000' }}>
+                            {report.student_name || '—'}
+                        </h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 10px' }}>
                             {[
-                                { l: 'Project Grade', v: report.projects_grade },
-                                { l: 'Homework',      v: report.homework_grade },
-                            ].map(g => (
-                                <div key={g.l} style={{ background: accentLight, border: panelBorder, borderRadius: radiusSm, padding: '6px 10px' }}>
-                                    <p style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 3 }}>{g.l}</p>
-                                    <p style={{ fontSize: 16, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? '#1A1A2E' : '#111827', lineHeight: 1 }}>{g.v || '—'}</p>
+                                { l: 'Class',    v: report.section_class },
+                                { l: 'School',   v: report.school_name },
+                                { l: report.school_section === 'school' ? 'Term' : 'Duration', v: report.report_term || report.course_duration },
+                                { l: 'Status',   v: 'CERTIFIED', green: true },
+                            ].map(f => (
+                                <div key={f.l}>
+                                    <p style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 2 }}>{f.l}</p>
+                                    <p style={{ fontSize: 11, fontWeight: 900, fontStyle: 'italic', textTransform: 'uppercase', color: f.green ? '#059669' : (isExecutive ? '#1A1A2E' : '#111827'), lineHeight: 1.2 }}>
+                                        {f.v || '—'}
+                                    </p>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Grade display */}
-                    <div style={{
-                        background: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#4f46e5',
-                        borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 18,
-                        padding: 14, display: 'flex', flexDirection: 'column',
-                        alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-                        position: 'relative', overflow: 'hidden',
-                    }}>
-                        {isExecutive && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: '#C5A059' }} />}
-                        <span style={{ color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.4)', display: 'flex', marginBottom: 4 }}><TrophyIcon className="w-6 h-6" /></span>
-                        <p style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.55)', marginBottom: 4 }}>Composite</p>
-                        <h3 style={{ fontSize: 76, fontWeight: 900, fontStyle: 'italic', lineHeight: 1, color: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', marginBottom: 6 }}>{grade.g}</h3>
-                        <div style={{ padding: '4px 12px', background: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', borderRadius: isIndustrial ? 0 : radiusSm, marginBottom: 6 }}>
-                            <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#111827' }}>{grade.label}</span>
+                    {/* Course + module panel */}
+                    <div style={{ background: accentLight, border: panelBorder, borderRadius: radius, padding: '10px 14px' }}>
+                        <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: accent, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <ShieldCheckIcon className="w-3 h-3 shrink-0" /> Operational Domain
+                        </p>
+                        <h3 style={{ fontSize: 15, fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.15, marginBottom: 8, color: isExecutive ? '#1A1A2E' : '#000' }}>
+                            {report.course_name || '—'}
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                            <div style={{ background: isIndustrial ? '#f5f5f5' : isExecutive ? '#fff' : '#f1f5f9', border: isIndustrial ? '1px solid #000' : isExecutive ? '1px solid rgba(197,160,89,0.3)' : '1px solid #cbd5e1', borderRadius: radiusSm, padding: '5px 10px' }}>
+                                <p style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#64748b', marginBottom: 2 }}>Current Module</p>
+                                <p style={{ fontSize: 11, fontWeight: 700, color: isExecutive ? '#1A1A2E' : '#1e293b', lineHeight: 1.2 }}>{report.current_module || '—'}</p>
+                            </div>
+                            <div style={{ background: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#ede9fe', border: isIndustrial ? '1px solid #000' : isExecutive ? 'none' : '1px solid #c4b5fd', borderRadius: radiusSm, padding: '5px 10px' }}>
+                                <p style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', color: isIndustrial ? '#ccc' : isExecutive ? '#C5A059' : '#7c3aed', marginBottom: 2 }}>Upcoming Module</p>
+                                <p style={{ fontSize: 11, fontWeight: 700, color: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#4c1d95', lineHeight: 1.2 }}>{report.next_module || '—'}</p>
+                            </div>
                         </div>
-                        <p style={{ fontSize: 15, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? 'rgba(197,160,89,0.7)' : 'rgba(255,255,255,0.65)', letterSpacing: '-0.02em' }}>{overall}%</p>
                     </div>
                 </div>
-            </div>
 
-            {/* ── QUALITATIVE ASSESSMENT ───────────────────────────────────── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8, position: 'relative', zIndex: 10 }}>
-                <div style={{ background: isExecutive ? '#FFFDF7' : '#f0fdf4', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #bbf7d0', borderRadius: radius, padding: '10px 14px' }}>
-                    <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: '#059669', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
-                        <SparklesIcon className="w-3 h-3 shrink-0" /> Precision Strengths
-                    </p>
-                    <p style={{ fontSize: 11, lineHeight: 1.5, color: '#166534', fontWeight: 500, fontStyle: 'italic' }}>
-                        {report.key_strengths || 'Cognitive patterns indicate high analytical precision and rapid assimilation of core technical logic.'}
-                    </p>
-                </div>
-                <div style={{ background: isExecutive ? '#FFFDF7' : '#fff7ed', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #fed7aa', borderRadius: radius, padding: '10px 14px' }}>
-                    <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: '#dc2626', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
-                        <BoltIcon className="w-3 h-3 shrink-0" /> Growth Vectors
-                    </p>
-                    <p style={{ fontSize: 11, lineHeight: 1.5, color: '#7c2d12', fontWeight: 500, fontStyle: 'italic' }}>
-                        {report.areas_for_growth || 'Transition to complex architectural modeling is required to optimize deployment competence.'}
-                    </p>
-                </div>
-            </div>
-
-            {/* ── CERTIFICATION DECREE (conditional, mirrors ReportCard) ────── */}
-            {showCertificate && (
-                <div style={{
-                    position: 'relative', zIndex: 10, marginBottom: 8, padding: '9px 14px',
-                    background: isIndustrial ? '#fff' : isExecutive ? '#FFFDF7' : '#eef2ff',
-                    border: isIndustrial ? '4px double #000' : isExecutive ? '2px solid #C5A059' : '1px solid #c7d2fe',
-                    borderRadius: radius, display: 'flex', alignItems: 'center', gap: 12,
-                }}>
-                    <div style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: accentDark, borderRadius: radiusSm }}>
-                        <span style={{ color: isExecutive ? '#C5A059' : '#fff', display: 'flex' }}><CheckBadgeIcon className="w-5 h-5" /></span>
+                {/* ── ASSESSMENT MATRIX ──────────────────────────────────────── */}
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                        <div style={{ height: 1, flex: 1, background: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#e5e7eb' }} />
+                        <p style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5em', fontStyle: 'italic', color: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#9ca3af', flexShrink: 0 }}>Assessment Matrix</p>
+                        <div style={{ height: 1, flex: 1, background: isIndustrial ? '#000' : isExecutive ? '#C5A059' : '#e5e7eb' }} />
                     </div>
-                    <div>
-                        <p style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', fontStyle: 'italic', opacity: 0.6, color: isExecutive ? '#C5A059' : accent, marginBottom: 3 }}>Official Certification Decree</p>
-                        <p style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.45, fontStyle: 'italic', color: '#374151' }}>
-                            This document officially recognizes that{' '}
-                            <strong style={{ fontStyle: 'normal', color: '#111' }}>{report.student_name}</strong>{' '}
-                            has successfully satisfied the rigorous technical requirements of the{' '}
-                            <strong style={{ fontStyle: 'normal', color: isExecutive ? '#C5A059' : accent }}>{report.course_name}</strong>{' '}
-                            curriculum.
+                    <div style={{ display: 'grid', gridTemplateColumns: '8fr 4fr', gap: 12 }}>
+                        {/* Metric bars + qualifier grades */}
+                        <div style={{ background: '#fff', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #f3f4f6', borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 18, padding: '12px 14px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                                {metrics.map(m => (
+                                    <div key={m.label}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                                            <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af' }}>{m.label} ({m.weight})</span>
+                                            <span style={{ fontSize: 13, fontWeight: 900, fontStyle: 'italic', color: isIndustrial ? '#000' : m.color }}>{m.value}%</span>
+                                        </div>
+                                        <div style={{ height: 5, width: '100%', background: isIndustrial ? '#f5f5f5' : isExecutive ? '#FFF8EC' : '#f8fafc', border: isIndustrial ? '1px solid #000' : '1px solid #f3f4f6', borderRadius: isIndustrial ? 0 : 999, overflow: 'hidden' }}>
+                                            <div style={{ height: '100%', width: `${m.value}%`, background: m.color, borderRadius: isIndustrial ? 0 : 999 }} />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 10, paddingTop: 10, borderTop: isIndustrial ? '2px solid #000' : '1px solid #f3f4f6' }}>
+                                {[
+                                    { l: 'Project Work', v: report.projects_grade },
+                                    { l: 'Homework',     v: report.homework_grade },
+                                    { l: 'Participation',v: report.participation_grade },
+                                ].map(g => (
+                                    <div key={g.l} style={{ background: accentLight, border: panelBorder, borderRadius: radiusSm, padding: '6px 10px' }}>
+                                        <p style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 3 }}>{g.l}</p>
+                                        <p style={{ fontSize: 16, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? '#1A1A2E' : '#111827', lineHeight: 1 }}>{g.v || '—'}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Grade display */}
+                        <div style={{
+                            background: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#4f46e5',
+                            borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 18,
+                            padding: 14, display: 'flex', flexDirection: 'column',
+                            alignItems: 'center', justifyContent: 'center', textAlign: 'center',
+                            position: 'relative', overflow: 'hidden',
+                        }}>
+                            {isExecutive && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: '#C5A059' }} />}
+                            <span style={{ color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.4)', display: 'flex', marginBottom: 4 }}><TrophyIcon className="w-6 h-6" /></span>
+                            <p style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', color: isExecutive ? '#C5A059' : 'rgba(255,255,255,0.55)', marginBottom: 4 }}>Composite</p>
+                            <h3 style={{ fontSize: 76, fontWeight: 900, fontStyle: 'italic', lineHeight: 1, color: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', marginBottom: 6 }}>{grade.g}</h3>
+                            <div style={{ padding: '4px 12px', background: isIndustrial ? '#fff' : isExecutive ? '#C5A059' : '#fff', borderRadius: isIndustrial ? 0 : radiusSm, marginBottom: 6 }}>
+                                <span style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', color: isIndustrial ? '#000' : isExecutive ? '#1A1A2E' : '#111827' }}>{grade.label}</span>
+                            </div>
+                            <p style={{ fontSize: 15, fontWeight: 900, fontStyle: 'italic', color: isExecutive ? 'rgba(197,160,89,0.7)' : 'rgba(255,255,255,0.65)', letterSpacing: '-0.02em' }}>{overall}%</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ── QUALITATIVE ASSESSMENT — grows to fill remaining space ── */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, flex: 1, minHeight: 0 }}>
+                    <div style={{ background: isExecutive ? '#FFFDF7' : '#f0fdf4', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #bbf7d0', borderRadius: radius, padding: '10px 14px', display: 'flex', flexDirection: 'column' }}>
+                        <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: '#059669', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
+                            <SparklesIcon className="w-3 h-3 shrink-0" /> Precision Strengths
+                        </p>
+                        <p style={{ fontSize: 11, lineHeight: 1.55, color: '#166534', fontWeight: 500, fontStyle: 'italic', flex: 1 }}>
+                            {report.key_strengths || 'Cognitive patterns indicate high analytical precision and rapid assimilation of core technical logic.'}
+                        </p>
+                    </div>
+                    <div style={{ background: isExecutive ? '#FFFDF7' : '#fff7ed', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #fed7aa', borderRadius: radius, padding: '10px 14px', display: 'flex', flexDirection: 'column' }}>
+                        <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: '#dc2626', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
+                            <BoltIcon className="w-3 h-3 shrink-0" /> Growth Vectors
+                        </p>
+                        <p style={{ fontSize: 11, lineHeight: 1.55, color: '#7c2d12', fontWeight: 500, fontStyle: 'italic', flex: 1 }}>
+                            {report.areas_for_growth || 'Transition to complex architectural modeling is required to optimize deployment competence.'}
                         </p>
                     </div>
                 </div>
-            )}
 
-            {/* ── SIGNATURE & AUTHENTICATION ──────────────────────────────── */}
-            <div style={{
-                marginTop: 'auto', position: 'relative', zIndex: 10,
-                paddingTop: 10,
-                borderTop: isIndustrial ? '4px solid #000' : isExecutive ? '2px solid #C5A059' : '1px solid #e5e7eb',
-            }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 14 }}>
-                    {/* Signature block */}
-                    <div>
-                        <p style={{ fontSize: 8, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 4 }}>Signatory Authority</p>
-                        <img
-                            src="/images/signature.png"
-                            alt="Signature"
-                            style={{ height: 38, objectFit: 'contain', mixBlendMode: 'multiply', marginBottom: 3 }}
-                        />
-                        <div style={{ width: 160, height: isIndustrial ? 2 : 1, background: isExecutive ? '#C5A059' : '#111827', marginBottom: 4 }} />
-                        <p style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', fontStyle: 'italic', color: isExecutive ? '#1A1A2E' : '#111' }}>Director</p>
-                        <p style={{ fontSize: 8, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Rillcod Technologies</p>
-                        {report.instructor_name && (
-                            <p style={{ fontSize: 8, fontWeight: 900, color: accent, textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: 2, fontStyle: 'italic' }}>
-                                {report.instructor_name}
+                {/* ── CERTIFICATION DECREE (conditional) ─────────────────────── */}
+                {showCertificate && (
+                    <div style={{
+                        padding: '9px 14px',
+                        background: isIndustrial ? '#fff' : isExecutive ? '#FFFDF7' : '#eef2ff',
+                        border: isIndustrial ? '4px double #000' : isExecutive ? '2px solid #C5A059' : '1px solid #c7d2fe',
+                        borderRadius: radius, display: 'flex', alignItems: 'center', gap: 12,
+                    }}>
+                        <div style={{ width: 36, height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: accentDark, borderRadius: radiusSm }}>
+                            <span style={{ color: isExecutive ? '#C5A059' : '#fff', display: 'flex' }}><CheckBadgeIcon className="w-5 h-5" /></span>
+                        </div>
+                        <div>
+                            <p style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', fontStyle: 'italic', opacity: 0.6, color: isExecutive ? '#C5A059' : accent, marginBottom: 3 }}>Official Certification Decree</p>
+                            <p style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.45, fontStyle: 'italic', color: '#374151' }}>
+                                This document officially recognizes that{' '}
+                                <strong style={{ fontStyle: 'normal', color: '#111' }}>{report.student_name}</strong>{' '}
+                                has successfully satisfied the rigorous technical requirements of the{' '}
+                                <strong style={{ fontStyle: 'normal', color: isExecutive ? '#C5A059' : accent }}>{report.course_name}</strong>{' '}
+                                curriculum.
                             </p>
-                        )}
+                        </div>
                     </div>
+                )}
 
-                    {/* Payment notice (optional) */}
-                    {report.show_payment_notice && (
-                        <div style={{
-                            flex: 1, padding: '8px 12px',
-                            background: isIndustrial ? '#fff' : isExecutive ? '#FFFDF7' : '#fffbeb',
-                            border: isIndustrial ? '2px solid #000' : isExecutive ? '2px solid #C5A059' : '1.5px solid #fcd34d',
-                            borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 12,
-                            textAlign: 'center',
-                        }}>
-                            <p style={{ fontSize: 8, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 3 }}>Next Term Fee Payment</p>
-                            <p style={{ fontSize: 14, fontWeight: 900, color: '#78350f', fontStyle: 'italic', marginBottom: 2 }}>₦{report.fee_amount || '20,000'} · RILLCOD LTD</p>
-                            <p style={{ fontSize: 12, fontWeight: 900, color: '#78350f' }}>Providus · 7901178957</p>
+                {/* ── SIGNATURE & AUTHENTICATION ─────────────────────────────── */}
+                <div style={{
+                    paddingTop: 10,
+                    borderTop: isIndustrial ? '4px solid #000' : isExecutive ? '2px solid #C5A059' : '1px solid #e5e7eb',
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 14 }}>
+                        {/* Signature block */}
+                        <div>
+                            <p style={{ fontSize: 8, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 4 }}>Signatory Authority</p>
+                            <img
+                                src="/images/signature.png"
+                                alt="Signature"
+                                style={{ height: 38, objectFit: 'contain', mixBlendMode: 'multiply', marginBottom: 3 }}
+                            />
+                            <div style={{ width: 160, height: isIndustrial ? 2 : 1, background: isExecutive ? '#C5A059' : '#111827', marginBottom: 4 }} />
+                            <p style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', fontStyle: 'italic', color: isExecutive ? '#1A1A2E' : '#111' }}>Director</p>
+                            <p style={{ fontSize: 8, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Rillcod Technologies</p>
+                            {report.instructor_name && (
+                                <p style={{ fontSize: 8, fontWeight: 900, color: accent, textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: 2, fontStyle: 'italic' }}>
+                                    {report.instructor_name}
+                                </p>
+                            )}
                         </div>
-                    )}
 
-                    {/* QR */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                        <div style={{ padding: 8, background: '#fff', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #e5e7eb', borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 14 }}>
-                            <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) || 'preview'}`} size={54} fgColor={isExecutive ? '#1A1A2E' : '#000'} />
+                        {/* Payment notice (optional) */}
+                        {report.show_payment_notice && (
+                            <div style={{
+                                flex: 1, padding: '8px 12px',
+                                background: isIndustrial ? '#fff' : isExecutive ? '#FFFDF7' : '#fffbeb',
+                                border: isIndustrial ? '2px solid #000' : isExecutive ? '2px solid #C5A059' : '1.5px solid #fcd34d',
+                                borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 12,
+                                textAlign: 'center',
+                            }}>
+                                <p style={{ fontSize: 8, fontWeight: 900, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 3 }}>Next Term Fee Payment</p>
+                                <p style={{ fontSize: 14, fontWeight: 900, color: '#78350f', fontStyle: 'italic', marginBottom: 2 }}>₦{report.fee_amount || '20,000'} · RILLCOD LTD</p>
+                                <p style={{ fontSize: 12, fontWeight: 900, color: '#78350f' }}>Providus · 7901178957</p>
+                            </div>
+                        )}
+
+                        {/* QR */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                            <div style={{ padding: 8, background: '#fff', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #e5e7eb', borderRadius: isIndustrial ? 0 : isExecutive ? 0 : 14 }}>
+                                <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) || 'preview'}`} size={54} fgColor={isExecutive ? '#1A1A2E' : '#000'} />
+                            </div>
+                            <p style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', fontStyle: 'italic', color: accent }}>Verify Secure Hash</p>
                         </div>
-                        <p style={{ fontSize: 7, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', fontStyle: 'italic', color: accent }}>Verify Secure Hash</p>
                     </div>
                 </div>
-            </div>
+
+            </div>{/* end main content */}
 
             {/* ── FOOTER STRIP ─────────────────────────────────────────────── */}
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 6, display: 'flex' }}>

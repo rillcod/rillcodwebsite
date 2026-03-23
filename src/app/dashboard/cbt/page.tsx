@@ -18,6 +18,7 @@ export default function CBTPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<'all' | 'examination' | 'evaluation'>('all');
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -50,10 +51,14 @@ export default function CBTPage() {
     setDeleting(null);
   };
 
-  const filtered = exams.filter(e =>
-    (e.title ?? '').toLowerCase().includes(search.toLowerCase()) ||
-    (e.programs?.name ?? '').toLowerCase().includes(search.toLowerCase())
-  );
+  const getExamType = (e: any) => e.metadata?.exam_type ?? 'examination';
+
+  const filtered = exams.filter(e => {
+    const matchesSearch = (e.title ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (e.programs?.name ?? '').toLowerCase().includes(search.toLowerCase());
+    const matchesType = typeFilter === 'all' || getExamType(e) === typeFilter;
+    return matchesSearch && matchesType;
+  });
 
   const getStudentSession = (examId: string) => sessions.find(s => s.exam_id === examId);
 
@@ -113,10 +118,10 @@ export default function CBTPage() {
               </div>
               <div>
                 <h1 className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter text-foreground leading-none">
-                  CBT Centre
+                  CBT Section
                 </h1>
                 <p className="text-[9px] font-black uppercase tracking-[0.4em] text-orange-400 mt-1">
-                  Assessments &amp; Examinations
+                  Examinations &amp; Evaluations
                 </p>
                 <p className="text-sm text-muted-foreground mt-1.5">
                   {isStaff ? 'Create and manage exams and quizzes' : 'View and take your scheduled exams'}
@@ -149,6 +154,30 @@ export default function CBTPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* ── TYPE FILTER TABS ── */}
+        <div className="flex gap-px border border-border bg-card w-fit">
+          {([
+            { key: 'all', label: 'All', count: exams.length },
+            { key: 'examination', label: 'Examination', count: exams.filter(e => getExamType(e) === 'examination').length },
+            { key: 'evaluation', label: 'Evaluation', count: exams.filter(e => getExamType(e) === 'evaluation').length },
+          ] as const).map((tab, idx) => (
+            <button
+              key={tab.key}
+              onClick={() => setTypeFilter(tab.key)}
+              className={`flex items-center gap-2 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors ${idx > 0 ? 'border-l border-border' : ''} ${
+                typeFilter === tab.key
+                  ? 'bg-orange-600 text-white'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+              }`}
+            >
+              {tab.label}
+              <span className={`text-[9px] px-1.5 py-0.5 font-black ${typeFilter === tab.key ? 'bg-white/20' : 'bg-muted'}`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
         </div>
 
         {/* ── SEARCH BAR ── */}
@@ -207,6 +236,9 @@ export default function CBTPage() {
                           <h3 className="font-black text-foreground text-base">{exam.title}</h3>
                           <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
                             {exam.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                          <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${getExamType(exam) === 'evaluation' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' : 'bg-orange-500/20 text-orange-400 border-orange-500/30'}`}>
+                            {getExamType(exam) === 'evaluation' ? 'Evaluation' : 'Examination'}
                           </span>
                           {!isStaff && studentSession && (
                             <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${
