@@ -161,6 +161,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     e.preventDefault();
     if (!form.termsAgreement) { setErr('Please accept the terms to continue.'); return; }
     setLoading(true); setErr('');
+    const programId = searchParams?.get('program_id') || null;
     try {
       const res = await fetch('/api/payments/registration', {
         method: 'POST',
@@ -182,6 +183,7 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
           course_interest: form.courseInterest,
           preferred_schedule: form.preferredSchedule,
           heard_about_us: form.hearAboutUs,
+          ...(programId ? { program_id: programId } : {}),
         }),
       });
       const data = await res.json();
