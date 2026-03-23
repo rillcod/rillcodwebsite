@@ -34,7 +34,9 @@
       "WebFetch(domain:rillcod.com)",
       "Bash(find C:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main -type f \\\\\\(-name *migration* -o -name *seed* -o -name *.sql \\\\\\))",
       "Bash(grep -A 10 \"createClient\\(\\)\" /c/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/src/app/dashboard/cbt/[id]/page.tsx)",
-      "Bash(npm pkg:*)"
+      "Bash(npm pkg:*)",
+      "Bash(node -e \"const j = require\\(''''./node_modules/jspdf/dist/jspdf.umd.min.js''''\\); console.log\\(''''default:'''', typeof j.default, ''''| jsPDF:'''', typeof j.jsPDF\\)\")",
+      "Bash(node -e \"const hi = require\\(''''./node_modules/html-to-image/es''''\\); console.log\\(Object.keys\\(hi\\).join\\('''', ''''\\)\\)\")"
     ]
   }
 }
