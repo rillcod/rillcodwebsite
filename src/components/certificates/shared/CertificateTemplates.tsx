@@ -47,7 +47,7 @@ export function CertificateTemplates({
                             </p>
                         </div>
                         <div className="flex flex-col items-center gap-1.5">
-                            <div style={{ width: 'clamp(32px, 8%, 52px)', height: 'clamp(32px, 8%, 52px)', background: 'rgba(255,145,77,0.1)', border: '1px solid rgba(255,145,77,0.3)', display: 'flex', alignItems: 'center', justify-content: 'center', borderRadius: '50%' }}>
+                            <div style={{ width: 'clamp(32px, 8%, 52px)', height: 'clamp(32px, 8%, 52px)', background: 'rgba(255,145,77,0.1)', border: '1px solid rgba(255,145,77,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
                                 <span style={{ padding: '20%', display: 'flex', color: '#FF914D' }}><CheckBadgeIcon className="w-full h-full" /></span>
                             </div>
                             <p style={{ fontSize: 'clamp(4px, 0.8%, 7px)', color: 'rgba(255,145,77,0.6)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', textAlign: 'center' }}>
@@ -56,7 +56,7 @@ export function CertificateTemplates({
                         </div>
                         <div className="flex flex-col items-center gap-1.5">
                             <div style={{ padding: '6px', border: '1px solid rgba(255,145,77,0.3)', background: 'rgba(255,145,77,0.05)' }}>
-                                <div style={{ width: 'clamp(28px, 7%, 44px)', height: 'clamp(28px, 7%, 44px)', background: 'rgba(255,145,77,0.1)', display: 'flex', alignItems: 'center', justify-content: 'center' }}>
+                                <div style={{ width: 'clamp(28px, 7%, 44px)', height: 'clamp(28px, 7%, 44px)', background: 'rgba(255,145,77,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <span style={{ fontSize: 'clamp(8px, 1.5%, 12px)', fontWeight: 900, color: '#FF914D' }}>QR</span>
                                 </div>
                             </div>
@@ -83,7 +83,7 @@ export function CertificateTemplates({
                             <h3 style={{ fontSize: 'clamp(11px, 2.6%, 20px)', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '-0.01em', marginTop: '0.8%', lineHeight: 1.2 }}>{courseTitle}</h3>
                             <p style={{ fontSize: 'clamp(4px, 0.75%, 7px)', color: '#FF914D', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: '0.5%' }}>{programName}</p>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'flex-end', justify-content: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
                             {[{ name: 'Mr Osahon', role: 'Director, Rillcod Technologies' }, { name: 'Head of Academics', role: 'Curriculum & Standards Board' }].map(sig => (
                                 <div key={sig.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                                     <img src="/images/signature.png" alt={sig.name} crossOrigin="anonymous"
@@ -136,7 +136,7 @@ export function CertificateTemplates({
                                 for successfully completing · <strong>{courseTitle}</strong> · {programName}
                             </p>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'flex-end', justify-content: 'space-between', width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', width: '100%' }}>
                             {[{ name: 'Mr Osahon', role: 'Director' }, { name: 'Head of Academics', role: 'Curriculum Board' }].map(sig => (
                                 <div key={sig.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                                     <img src="/images/signature.png" alt={sig.name} crossOrigin="anonymous"
@@ -149,7 +149,7 @@ export function CertificateTemplates({
                             ))}
                             <div style={{ textAlign: 'center' }}>
                                 <div style={{ padding: '4px', border: '1px solid #1e293b', marginBottom: 4, display: 'inline-block' }}>
-                                    <div style={{ width: 'clamp(24px, 5%, 36px)', height: 'clamp(24px, 5%, 36px)', background: '#f1f5f9', display: 'flex', alignItems: 'center', justify-content: 'center' }}>
+                                    <div style={{ width: 'clamp(24px, 5%, 36px)', height: 'clamp(24px, 5%, 36px)', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <span style={{ fontSize: 'clamp(6px, 1.2%, 10px)', fontWeight: 900, color: '#475569' }}>QR</span>
                                     </div>
                                 </div>
@@ -169,24 +169,24 @@ export function CertificateTemplates({
                     <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(to right, transparent, #FF914D, transparent)' }} />
                     <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '60%', height: '60%', background: 'radial-gradient(circle, rgba(255,145,77,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
                     <div style={{ position: 'relative', zIndex: 1, display: 'flex', height: '100%' }}>
-                        <div style={{ width: '22%', display: 'flex', flexDirection: 'column', justify-content: 'space-between', alignItems: 'center', padding: '6% 3%', borderRight: '1px solid rgba(255,145,77,0.15)' }}>
+                        <div style={{ width: '22%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', padding: '6% 3%', borderRight: '1px solid rgba(255,145,77,0.15)' }}>
                             <img src="/images/logo.png" alt="Rillcod" crossOrigin="anonymous"
                                 style={{ height: 'clamp(28px, 6.5%, 48px)', width: 'auto', filter: 'brightness(130%)' }}
                                 onError={e => (e.currentTarget.style.display = 'none')} />
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                                <div style={{ width: 'clamp(24px, 5%, 36px)', height: 'clamp(24px, 5%, 36px)', border: '1.5px solid rgba(255,145,77,0.4)', display: 'flex', alignItems: 'center', justify-content: 'center' }}>
+                                <div style={{ width: 'clamp(24px, 5%, 36px)', height: 'clamp(24px, 5%, 36px)', border: '1.5px solid rgba(255,145,77,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <span style={{ width: '80%', height: '80%', display: 'flex', color: '#FF914D' }}><CheckBadgeIcon className="w-full h-full" /></span>
                                 </div>
                                 <p style={{ fontSize: 'clamp(4px, 0.75%, 6.5px)', color: 'rgba(255,145,77,0.5)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', textAlign: 'center' }}>Auth.<br />Verified</p>
                             </div>
                             <div style={{ textAlign: 'center' }}>
-                                <div style={{ width: 'clamp(24px, 5.5%, 40px)', height: 'clamp(24px, 5.5%, 40px)', border: '1px solid rgba(255,145,77,0.25)', background: 'rgba(255,145,77,0.05)', display: 'flex', alignItems: 'center', justify-content: 'center', margin: '0 auto 4px' }}>
+                                <div style={{ width: 'clamp(24px, 5.5%, 40px)', height: 'clamp(24px, 5.5%, 40px)', border: '1px solid rgba(255,145,77,0.25)', background: 'rgba(255,145,77,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 4px' }}>
                                     <span style={{ fontSize: 'clamp(7px, 1.4%, 11px)', color: '#FF914D', fontWeight: 900 }}>QR</span>
                                 </div>
                                 <p style={{ fontSize: 'clamp(4px, 0.7%, 6px)', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace', wordBreak: 'break-all' }}>{certCode}</p>
                             </div>
                         </div>
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justify-content: 'space-between', padding: '6% 5%' }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '6% 5%' }}>
                             <div>
                                 <p style={{ fontSize: 'clamp(5px, 0.9%, 8px)', color: 'rgba(255,145,77,0.4)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', fontFamily: 'monospace' }}>// Rillcod · Verified Digital Credential</p>
                                 <h2 style={{ fontSize: 'clamp(22px, 5.8%, 42px)', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '-0.02em', lineHeight: 0.95, marginTop: '1.5%' }}>
@@ -198,7 +198,7 @@ export function CertificateTemplates({
                                 <h1 style={{ fontSize: 'clamp(14px, 4%, 30px)', fontWeight: 900, color: '#FF914D', textTransform: 'uppercase', letterSpacing: '-0.01em', lineHeight: 1, marginTop: '0.8%', textShadow: '0 0 40px rgba(255,145,77,0.25)' }}>{studentName}</h1>
                                 <p style={{ fontSize: 'clamp(4px, 0.75%, 6.5px)', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace', marginTop: '0.5%' }}>&gt; MODULE: {courseTitle} · {programName}</p>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'flex-end', justify-content: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
                                 {[{ name: 'Mr Osahon', role: 'Director' }, { name: 'Head of Academics', role: 'Curriculum Board' }].map(sig => (
                                     <div key={sig.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                                         <img src="/images/signature.png" alt={sig.name} crossOrigin="anonymous"
@@ -229,9 +229,9 @@ export function CertificateTemplates({
                         <div key={i} className={`absolute ${pos}`} style={{ width: 20, height: 20, border: '2px solid #c9a227', borderRadius: 0 }} />
                     ))}
                     <div style={{ position: 'relative', zIndex: 1, display: 'flex', height: '100%' }}>
-                        <div style={{ width: '22%', display: 'flex', flexDirection: 'column', alignItems: 'center', justify-content: 'space-between', padding: '8% 3%', borderRight: '2px solid rgba(30,58,95,0.12)' }}>
+                        <div style={{ width: '22%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '8% 3%', borderRight: '2px solid rgba(30,58,95,0.12)' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                                <div style={{ width: 'clamp(36px, 9%, 58px)', height: 'clamp(36px, 9%, 58px)', borderRadius: '50%', background: '#1e3a5f', display: 'flex', alignItems: 'center', justify-content: 'center', boxShadow: '0 4px 12px rgba(30,58,95,0.25)' }}>
+                                <div style={{ width: 'clamp(36px, 9%, 58px)', height: 'clamp(36px, 9%, 58px)', borderRadius: '50%', background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(30,58,95,0.25)' }}>
                                     <img src="/images/logo.png" alt="Rillcod" crossOrigin="anonymous"
                                         style={{ width: '65%', height: '65%', objectFit: 'contain', filter: 'brightness(10)' }}
                                         onError={e => (e.currentTarget.style.display = 'none')} />
@@ -239,20 +239,20 @@ export function CertificateTemplates({
                                 <p style={{ fontSize: 'clamp(5px, 0.9%, 7.5px)', color: '#1e3a5f', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', textAlign: 'center', lineHeight: 1.5 }}>Rillcod<br />Technologies</p>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                                <div style={{ width: 'clamp(28px, 7%, 44px)', height: 'clamp(28px, 7%, 44px)', borderRadius: '50%', border: '2px solid #c9a227', background: 'rgba(201,162,39,0.08)', display: 'flex', alignItems: 'center', justify-content: 'center' }}>
+                                <div style={{ width: 'clamp(28px, 7%, 44px)', height: 'clamp(28px, 7%, 44px)', borderRadius: '50%', border: '2px solid #c9a227', background: 'rgba(201,162,39,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <span style={{ color: '#c9a227', display: 'flex', padding: '18%' }}><CheckBadgeIcon className="w-full h-full" /></span>
                                 </div>
                                 <p style={{ fontSize: 'clamp(4px, 0.7%, 6px)', color: '#c9a227', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center' }}>Certified</p>
                             </div>
                             <div style={{ textAlign: 'center' }}>
-                                <div style={{ width: 'clamp(28px, 6%, 42px)', height: 'clamp(28px, 6%, 42px)', border: '1.5px solid rgba(30,58,95,0.3)', background: 'rgba(30,58,95,0.05)', display: 'flex', alignItems: 'center', justify-content: 'center', margin: '0 auto 4px' }}>
+                                <div style={{ width: 'clamp(28px, 6%, 42px)', height: 'clamp(28px, 6%, 42px)', border: '1.5px solid rgba(30,58,95,0.3)', background: 'rgba(30,58,95,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 4px' }}>
                                     <span style={{ fontSize: 'clamp(6px, 1.2%, 10px)', fontWeight: 900, color: '#1e3a5f' }}>QR</span>
                                 </div>
                                 <p style={{ fontSize: 'clamp(3px, 0.6%, 5.5px)', color: 'rgba(30,58,95,0.4)', fontFamily: 'monospace', wordBreak: 'break-all' }}>{certCode}</p>
                             </div>
                         </div>
 
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justify-content: 'space-between', padding: '8% 6%' }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '8% 6%' }}>
                             <div>
                                 <p style={{ fontSize: 'clamp(5px, 0.85%, 8px)', color: '#c9a227', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em' }}>Academic Excellence Award</p>
                                 <h2 style={{ fontSize: 'clamp(20px, 5.2%, 38px)', fontWeight: 900, color: '#1e3a5f', textTransform: 'uppercase', letterSpacing: '-0.02em', lineHeight: 1, marginTop: '1.5%' }}>
@@ -273,7 +273,7 @@ export function CertificateTemplates({
                                 <h3 style={{ fontSize: 'clamp(11px, 2.6%, 20px)', fontWeight: 900, color: '#1e3a5f', textTransform: 'uppercase', letterSpacing: '-0.01em', marginTop: '0.8%', lineHeight: 1.2 }}>{courseTitle}</h3>
                                 <p style={{ fontSize: 'clamp(4px, 0.75%, 7px)', color: '#c9a227', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: '0.5%' }}>{programName}</p>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'flex-end', justify-content: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
                                 {[{ name: 'Mr Osahon', role: 'Director, Rillcod Technologies' }, { name: 'Head of Academics', role: 'Curriculum & Standards Board' }].map(sig => (
                                     <div key={sig.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                                         <img src="/images/signature.png" alt={sig.name} crossOrigin="anonymous"
@@ -304,9 +304,9 @@ export function CertificateTemplates({
                     <div style={{ position: 'absolute', bottom: '10%', left: '38%', right: 0, height: '1px', background: 'rgba(201,162,39,0.2)' }} />
                     <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '70%', height: '80%', background: 'radial-gradient(ellipse, rgba(201,162,39,0.04) 0%, transparent 70%)', pointerEvents: 'none' }} />
                     <div style={{ position: 'relative', zIndex: 1, display: 'flex', height: '100%' }}>
-                        <div style={{ width: '38%', display: 'flex', flexDirection: 'column', alignItems: 'center', justify-content: 'space-between', padding: '8% 4%' }}>
+                        <div style={{ width: '38%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '8% 4%' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                                <div style={{ width: 'clamp(36px, 9%, 58px)', height: 'clamp(36px, 9%, 58px)', borderRadius: '50%', border: '2px solid rgba(201,162,39,0.5)', background: 'rgba(201,162,39,0.06)', display: 'flex', alignItems: 'center', justify-content: 'center' }}>
+                                <div style={{ width: 'clamp(36px, 9%, 58px)', height: 'clamp(36px, 9%, 58px)', borderRadius: '50%', border: '2px solid rgba(201,162,39,0.5)', background: 'rgba(201,162,39,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <img src="/images/logo.png" alt="Rillcod" crossOrigin="anonymous"
                                         style={{ width: '60%', height: '60%', objectFit: 'contain', filter: 'brightness(200%) sepia(1) hue-rotate(5deg) saturate(2)' }}
                                         onError={e => (e.currentTarget.style.display = 'none')} />
@@ -318,14 +318,14 @@ export function CertificateTemplates({
                                 <p style={{ fontSize: 'clamp(4px, 0.75%, 6.5px)', color: 'rgba(201,162,39,0.6)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', marginTop: 4 }}>Excellence</p>
                             </div>
                             <div style={{ textAlign: 'center' }}>
-                                <div style={{ width: 'clamp(28px, 6%, 42px)', height: 'clamp(28px, 6%, 42px)', border: '1px solid rgba(201,162,39,0.3)', display: 'flex', alignItems: 'center', justify-content: 'center', margin: '0 auto 4px', background: 'rgba(201,162,39,0.04)' }}>
+                                <div style={{ width: 'clamp(28px, 6%, 42px)', height: 'clamp(28px, 6%, 42px)', border: '1px solid rgba(201,162,39,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 4px', background: 'rgba(201,162,39,0.04)' }}>
                                     <span style={{ fontSize: 'clamp(7px, 1.3%, 10px)', fontWeight: 900, color: '#c9a227' }}>QR</span>
                                 </div>
                                 <p style={{ fontSize: 'clamp(3px, 0.6%, 5.5px)', color: 'rgba(255,255,255,0.15)', fontFamily: 'monospace', wordBreak: 'break-all' }}>{certCode}</p>
                             </div>
                         </div>
 
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justify-content: 'space-between', padding: '10% 6% 8%' }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '10% 6% 8%' }}>
                             <div>
                                 <p style={{ fontSize: 'clamp(5px, 0.85%, 8px)', color: 'rgba(201,162,39,0.5)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.45em' }}>Rillcod Technologies</p>
                                 <h2 style={{ fontSize: 'clamp(18px, 5%, 38px)', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '-0.02em', lineHeight: 1, marginTop: '1.5%' }}>
@@ -343,7 +343,7 @@ export function CertificateTemplates({
                                 <h3 style={{ fontSize: 'clamp(11px, 2.5%, 19px)', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '-0.01em', marginTop: '0.8%', lineHeight: 1.2 }}>{courseTitle}</h3>
                                 <p style={{ fontSize: 'clamp(4px, 0.75%, 7px)', color: 'rgba(201,162,39,0.6)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: '0.5%' }}>{programName}</p>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'flex-end', justify-content: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
                                 {[{ name: 'Mr Osahon', role: 'Director' }, { name: 'Head of Academics', role: 'Curriculum Board' }].map(sig => (
                                     <div key={sig.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                                         <img src="/images/signature.png" alt={sig.name} crossOrigin="anonymous"
@@ -374,9 +374,9 @@ export function CertificateTemplates({
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(to right, #8b5cf6, #06b6d4, #ec4899, #8b5cf6)' }} />
                     <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(to right, #06b6d4, #8b5cf6, #ec4899, #06b6d4)' }} />
                     <div style={{ position: 'relative', zIndex: 1, display: 'flex', height: '100%' }}>
-                        <div style={{ width: '24%', display: 'flex', flexDirection: 'column', alignItems: 'center', justify-content: 'space-between', padding: '8% 3%', borderRight: '1px solid rgba(139,92,246,0.15)' }}>
+                        <div style={{ width: '24%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '8% 3%', borderRight: '1px solid rgba(139,92,246,0.15)' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                                <div style={{ width: 'clamp(32px, 8%, 52px)', height: 'clamp(32px, 8%, 52px)', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(6,182,212,0.3))', border: '1.5px solid rgba(139,92,246,0.4)', display: 'flex', alignItems: 'center', justify-content: 'center' }}>
+                                <div style={{ width: 'clamp(32px, 8%, 52px)', height: 'clamp(32px, 8%, 52px)', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(6,182,212,0.3))', border: '1.5px solid rgba(139,92,246,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <img src="/images/logo.png" alt="Rillcod" crossOrigin="anonymous"
                                         style={{ width: '60%', height: '60%', objectFit: 'contain', filter: 'brightness(10)' }}
                                         onError={e => (e.currentTarget.style.display = 'none')} />
@@ -384,20 +384,20 @@ export function CertificateTemplates({
                                 <p style={{ fontSize: 'clamp(5px, 0.85%, 7px)', color: '#a78bfa', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.2em', textAlign: 'center', lineHeight: 1.5 }}>Rillcod<br />Technologies</p>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                                <div style={{ width: 'clamp(26px, 6%, 40px)', height: 'clamp(26px, 6%, 40px)', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(6,182,212,0.2))', border: '1px solid rgba(6,182,212,0.4)', display: 'flex', alignItems: 'center', justify-content: 'center' }}>
+                                <div style={{ width: 'clamp(26px, 6%, 40px)', height: 'clamp(26px, 6%, 40px)', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(6,182,212,0.2))', border: '1px solid rgba(6,182,212,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <span style={{ color: '#06b6d4', display: 'flex', padding: '18%' }}><CheckBadgeIcon className="w-full h-full" /></span>
                                 </div>
                                 <p style={{ fontSize: 'clamp(4px, 0.7%, 6px)', color: 'rgba(6,182,212,0.7)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', textAlign: 'center' }}>Verified</p>
                             </div>
                             <div style={{ textAlign: 'center' }}>
-                                <div style={{ width: 'clamp(26px, 5.5%, 40px)', height: 'clamp(26px, 5.5%, 40px)', border: '1px solid rgba(139,92,246,0.25)', background: 'rgba(139,92,246,0.05)', display: 'flex', alignItems: 'center', justify-content: 'center', margin: '0 auto 4px' }}>
+                                <div style={{ width: 'clamp(26px, 5.5%, 40px)', height: 'clamp(26px, 5.5%, 40px)', border: '1px solid rgba(139,92,246,0.25)', background: 'rgba(139,92,246,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 4px' }}>
                                     <span style={{ fontSize: 'clamp(6px, 1.2%, 10px)', color: '#a78bfa', fontWeight: 900 }}>QR</span>
                                 </div>
                                 <p style={{ fontSize: 'clamp(3px, 0.6%, 5.5px)', color: 'rgba(255,255,255,0.15)', fontFamily: 'monospace', wordBreak: 'break-all' }}>{certCode}</p>
                             </div>
                         </div>
 
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justify-content: 'space-between', padding: '7% 5%' }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '7% 5%' }}>
                             <div>
                                 <p style={{ fontSize: 'clamp(5px, 0.85%, 8px)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.4em', background: 'linear-gradient(90deg, #8b5cf6, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                                     Rillcod · Digital Achievement
@@ -424,7 +424,7 @@ export function CertificateTemplates({
                                 <h3 style={{ fontSize: 'clamp(11px, 2.6%, 20px)', fontWeight: 900, color: 'white', textTransform: 'uppercase', letterSpacing: '-0.01em', marginTop: '0.8%', lineHeight: 1.2 }}>{courseTitle}</h3>
                                 <p style={{ fontSize: 'clamp(4px, 0.75%, 7px)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: '0.5%', background: 'linear-gradient(90deg, #8b5cf6, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{programName}</p>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'flex-end', justify-content: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
                                 {[{ name: 'Mr Osahon', role: 'Director' }, { name: 'Head of Academics', role: 'Curriculum Board' }].map(sig => (
                                     <div key={sig.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                                         <img src="/images/signature.png" alt={sig.name} crossOrigin="anonymous"
