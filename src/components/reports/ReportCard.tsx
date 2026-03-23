@@ -302,6 +302,24 @@ export default function ReportCard({ report, orgSettings }: {
                                 <MetricBar label="Evaluation (20%)" value={practical} color="#06b6d4" />
                                 <MetricBar label="Assignment (20%)" value={attendance} color="#10b981" />
                                 <MetricBar label="Project Engagement (20%)" value={participation} color="#8b5cf6" />
+                                {/* Scoring key — print-safe inline styles */}
+                                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 6, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
+                                    <span style={{ fontSize: 8, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4 }}>Key</span>
+                                    {[
+                                        { label: 'Exam', pts: 40, color: '#4f46e5' },
+                                        { label: 'Eval', pts: 20, color: '#0891b2' },
+                                        { label: 'Assign', pts: 20, color: '#059669' },
+                                        { label: 'Project', pts: 20, color: '#7c3aed' },
+                                    ].map((item, i) => (
+                                        <span key={item.label} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                            {i > 0 && <span style={{ color: '#d1d5db', marginRight: 4, fontSize: 8 }}>·</span>}
+                                            <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: item.color, display: 'inline-block', marginRight: 3, flexShrink: 0 }} />
+                                            <span style={{ fontSize: 8, fontWeight: 800, color: item.color }}>{item.label}</span>
+                                            <span style={{ fontSize: 8, fontWeight: 600, color: '#9ca3af', marginLeft: 1 }}>/{item.pts}</span>
+                                        </span>
+                                    ))}
+                                    <span style={{ fontSize: 8, fontWeight: 700, color: '#6b7280', marginLeft: 4 }}>= 100 pts</span>
+                                </div>
                             </div>
 
                             {/* Right — weighted grade display */}
@@ -415,25 +433,6 @@ export default function ReportCard({ report, orgSettings }: {
 
                     </div>
                 </div>
-            </div>
-
-            {/* SCORING SYSTEM — footer, legible & print-safe */}
-            <div style={{ borderTop: '1px solid #e5e7eb', backgroundColor: '#f9fafb', padding: '5px 40px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                <span style={{ fontSize: 8.5, fontWeight: 900, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.18em', marginRight: 10 }}>Scoring Key</span>
-                {[
-                    { label: 'Examination', pts: 40, color: '#4f46e5' },
-                    { label: 'Evaluation', pts: 20, color: '#0891b2' },
-                    { label: 'Assignment', pts: 20, color: '#059669' },
-                    { label: 'Project Engagement', pts: 20, color: '#7c3aed' },
-                ].map((item, i) => (
-                    <span key={item.label} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                        {i > 0 && <span style={{ color: '#d1d5db', margin: '0 8px', fontSize: 9 }}>·</span>}
-                        <span style={{ fontSize: 9, fontWeight: 900, color: item.color }}>{item.label}</span>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: '#9ca3af', marginLeft: 2 }}>/{item.pts}</span>
-                    </span>
-                ))}
-                <span style={{ color: '#d1d5db', margin: '0 8px', fontSize: 9 }}>=</span>
-                <span style={{ fontSize: 9, fontWeight: 900, color: '#111827' }}>100 pts</span>
             </div>
 
             {/* Footer colour strip */}
