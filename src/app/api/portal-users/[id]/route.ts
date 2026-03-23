@@ -13,7 +13,7 @@ async function getCallerRole(userId: string) {
   const supabase = await createServerClient();
   const { data: caller } = await supabase
     .from('portal_users')
-    .select('role, id')
+    .select('role, id, school_id')
     .eq('id', userId)
     .single();
   return caller ?? null;
@@ -93,7 +93,9 @@ export async function DELETE(
   const { data: { user }, error: deleteAuthErr } = await supabase.auth.getUser();
   if (deleteAuthErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const caller = await getCallerRole(user.id);
-  if (!caller || caller.role !== 'admin') return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  if (!caller || !['admin', 'teacher'].includes(caller.role)) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+  }
 
   const { id } = await params;
 
@@ -104,12 +106,34 @@ export async function DELETE(
 
   const admin = adminClient();
 
-  // Fetch user info so we know what cascade cleanup is needed
+  // Fetch target user info
   const { data: pu } = await admin
     .from('portal_users')
     .select('role, school_id')
     .eq('id', id)
     .single();
+
+  // Teachers can only delete students, and only from their assigned school
+  if (caller.role === 'teacher') {
+    if (!pu || pu.role !== 'student') {
+      return NextResponse.json({ error: 'Teachers can only delete student accounts' }, { status: 403 });
+    }
+
+    // Gather assigned school IDs from teacher_schools + profile fallback
+    const { data: assignments } = await admin
+      .from('teacher_schools')
+      .select('school_id')
+      .eq('teacher_id', caller.id);
+
+    const assignedIds: string[] = (assignments ?? [])
+      .map((a: any) => a.school_id)
+      .filter(Boolean);
+    if (caller.school_id) assignedIds.push(caller.school_id);
+
+    if (!pu.school_id || !assignedIds.includes(pu.school_id)) {
+      return NextResponse.json({ error: 'You can only delete students from your assigned school' }, { status: 403 });
+    }
+  }
 
   // ── Step 1: Remove all child records that FK-reference this portal user ──
 
