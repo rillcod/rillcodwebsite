@@ -298,12 +298,8 @@ export default function ReportCard({ report, orgSettings }: {
 
                             {/* Left — scores */}
                             <div className="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 flex flex-col gap-3">
-                                <MetricBar label="Examination (40%)" value={theory} color="#6366f1" />
-                                <MetricBar label="Evaluation (20%)" value={practical} color="#06b6d4" />
-                                <MetricBar label="Assignment (20%)" value={attendance} color="#10b981" />
-                                <MetricBar label="Project Engagement (20%)" value={participation} color="#8b5cf6" />
                                 {/* Scoring key — print-safe inline styles */}
-                                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 6, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
+                                <div style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: 6, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
                                     <span style={{ fontSize: 8, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4 }}>Key</span>
                                     {[
                                         { label: 'Exam', pts: 40, color: '#4f46e5' },
@@ -320,6 +316,10 @@ export default function ReportCard({ report, orgSettings }: {
                                     ))}
                                     <span style={{ fontSize: 8, fontWeight: 700, color: '#6b7280', marginLeft: 4 }}>= 100 pts</span>
                                 </div>
+                                <MetricBar label="Examination (40%)" value={theory} color="#6366f1" />
+                                <MetricBar label="Evaluation (20%)" value={practical} color="#06b6d4" />
+                                <MetricBar label="Assignment (20%)" value={attendance} color="#10b981" />
+                                <MetricBar label="Project Engagement (20%)" value={participation} color="#8b5cf6" />
                             </div>
 
                             {/* Right — weighted grade display */}
