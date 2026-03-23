@@ -70,7 +70,7 @@ function CertificateTemplates({
 
                         <div className="flex flex-col items-center gap-1.5">
                             <div style={{ width: 'clamp(32px, 8%, 52px)', height: 'clamp(32px, 8%, 52px)', background: 'rgba(255,145,77,0.1)', border: '1px solid rgba(255,145,77,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
-                                <span style={{ padding: '20%', display: 'flex' }}><CheckBadgeIcon className="w-full h-full" style={{ color: '#FF914D' }} /></span>
+                                <span style={{ padding: '20%', display: 'flex', color: '#FF914D' }}><CheckBadgeIcon className="w-full h-full" /></span>
                             </div>
                             <p style={{ fontSize: 'clamp(4px, 0.8%, 7px)', color: 'rgba(255,145,77,0.6)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', textAlign: 'center' }}>
                                 Verified Credential
@@ -167,7 +167,7 @@ function CertificateTemplates({
                     ))}
 
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.04, pointerEvents: 'none' }}>
-                        <TrophyIcon className="w-48 h-48" style={{ color: '#1e293b' }} />
+                        <span style={{ color: '#1e293b', display: 'flex' }}><TrophyIcon className="w-48 h-48" /></span>
                     </div>
 
                     <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '7% 8%', textAlign: 'center' }}>
@@ -250,7 +250,7 @@ function CertificateTemplates({
 
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                                 <div style={{ width: 'clamp(24px, 5%, 36px)', height: 'clamp(24px, 5%, 36px)', border: '1.5px solid rgba(255,145,77,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <span style={{ width: '80%', height: '80%', display: 'flex' }}><CheckBadgeIcon className="w-full h-full" style={{ color: '#FF914D' }} /></span>
+                                    <span style={{ width: '80%', height: '80%', display: 'flex', color: '#FF914D' }}><CheckBadgeIcon className="w-full h-full" /></span>
                                 </div>
                                 <p style={{ fontSize: 'clamp(4px, 0.75%, 6.5px)', color: 'rgba(255,145,77,0.5)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.15em', textAlign: 'center' }}>
                                     Auth.<br />Verified
