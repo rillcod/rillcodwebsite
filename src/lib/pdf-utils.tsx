@@ -241,6 +241,7 @@ export async function generateReportPDF(element: HTMLElement, filename: string, 
         skipAutoScale: false,
         width: W,
         height: H,
+        backgroundColor: '#fff',
     });
 
     const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'px', format: [W, H] });
