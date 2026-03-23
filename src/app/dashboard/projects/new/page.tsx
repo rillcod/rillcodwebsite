@@ -30,9 +30,42 @@ const CATEGORIES = [
 ];
 
 const DIFFICULTIES = [
-    { key: 'beginner',     label: 'Beginner',    color: 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300',    dot: 'bg-emerald-500' },
-    { key: 'intermediate', label: 'Intermediate', color: 'bg-amber-500/10 border-amber-500/40 text-amber-300',         dot: 'bg-amber-500'   },
-    { key: 'advanced',     label: 'Advanced',    color: 'bg-rose-500/10 border-rose-500/40 text-rose-300',            dot: 'bg-rose-500'    },
+    {
+        key: 'beginner',
+        label: 'Beginner',
+        sub: 'No prior experience needed',
+        stars: 1,
+        color: 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300',
+        dot: 'bg-emerald-500',
+        dotColor: '#10b981',
+        badge: 'Great for first-timers',
+    },
+    {
+        key: 'intermediate',
+        label: 'Intermediate',
+        sub: 'Basic coding knowledge required',
+        stars: 2,
+        color: 'bg-amber-500/10 border-amber-500/40 text-amber-300',
+        dot: 'bg-amber-500',
+        dotColor: '#f59e0b',
+        badge: 'Some experience needed',
+    },
+    {
+        key: 'advanced',
+        label: 'Advanced',
+        sub: 'Strong programming skills needed',
+        stars: 3,
+        color: 'bg-rose-500/10 border-rose-500/40 text-rose-300',
+        dot: 'bg-rose-500',
+        dotColor: '#ef4444',
+        badge: 'For experienced students',
+    },
+];
+
+const COMMON_TAGS = [
+    'python', 'javascript', 'html', 'css', 'typescript', 'react', 'scratch',
+    'arduino', 'robotics', 'web', 'mobile', 'game', 'ai', 'data-science',
+    'research', 'iot', 'hardware', 'animation', 'database', 'api',
 ];
 
 const SUBMISSION_TYPES = [
@@ -90,6 +123,12 @@ export default function NewProjectActivityPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
+    // AI generation
+    const [aiOpen, setAiOpen]       = useState(false);
+    const [aiPrompt, setAiPrompt]   = useState('');
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiError, setAiError]     = useState('');
+
     // Step 1 — Details
     const [title, setTitle]           = useState('');
     const [category, setCategory]     = useState('coding');
@@ -98,7 +137,8 @@ export default function NewProjectActivityPage() {
     const [instructions, setInstructions] = useState('');
     const [dueDate, setDueDate]       = useState('');
     const [maxPoints, setMaxPoints]   = useState('100');
-    const [tags, setTags]             = useState('');
+    const [tagList, setTagList]       = useState<string[]>([]);
+    const [customTagInput, setCustomTagInput] = useState('');
 
     // Step 2 — Submission & Grading
     const [selectedTypes, setSelectedTypes] = useState<string[]>(['link', 'code', 'text']);
@@ -145,6 +185,35 @@ export default function NewProjectActivityPage() {
     }
     function getStudentGroup(sid: string) { return groups.find(g => g.studentIds.includes(sid)); }
 
+    // ── AI generation ─────────────────────────────────────────────────────────
+    async function handleAiGenerate() {
+        if (!aiPrompt.trim()) return;
+        setAiLoading(true); setAiError('');
+        try {
+            const res = await fetch('/api/ai/project-gen', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: aiPrompt }),
+            });
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.error || 'Generation failed');
+            const d = j.data;
+            if (d.title)        setTitle(d.title);
+            if (d.description)  setDescription(d.description);
+            if (d.instructions) setInstructions(d.instructions);
+            if (d.category && CATEGORIES.find(c => c.key === d.category)) setCategory(d.category);
+            if (d.difficulty && DIFFICULTIES.find(x => x.key === d.difficulty)) setDifficulty(d.difficulty);
+            if (Array.isArray(d.tags)) setTagList(d.tags.slice(0, 8));
+            if (Array.isArray(d.submission_types)) setSelectedTypes(d.submission_types);
+            setAiOpen(false);
+            setAiPrompt('');
+        } catch (err: any) {
+            setAiError(err.message);
+        } finally {
+            setAiLoading(false);
+        }
+    }
+
     // ── Validation ────────────────────────────────────────────────────────────
     function canProceed(): boolean {
         if (step === 1) return title.trim().length >= 3;
@@ -157,7 +226,7 @@ export default function NewProjectActivityPage() {
         if (!title.trim()) { setError('Title is required'); return; }
         setSaving(true); setError('');
         try {
-            const tagList = tags.split(',').map(t => t.trim()).filter(Boolean);
+            const tagList_ = tagList;
             const payload: any = {
                 title:            title.trim(),
                 description:      description.trim() || null,
@@ -169,7 +238,7 @@ export default function NewProjectActivityPage() {
                 metadata: {
                     category,
                     difficulty,
-                    tags: tagList,
+                    tags: tagList_,
                     submission_types:  selectedTypes,
                     grading_mode:      gradingMode,
                     rubric:            gradingMode === 'rubric' ? rubric : [],
@@ -243,9 +312,81 @@ export default function NewProjectActivityPage() {
                         })}
                     </div>
 
-                    <div className="text-[10px] font-black text-white/20 uppercase tracking-widest md:hidden">Step {step}/4</div>
+                    <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-black text-white/20 uppercase tracking-widest md:hidden">Step {step}/4</span>
+                        <button onClick={() => { setAiOpen(true); setAiError(''); }}
+                            className="flex items-center gap-2 px-3 py-2 bg-violet-600/20 border border-violet-500/40 text-violet-300 text-[10px] font-black uppercase tracking-widest hover:bg-violet-600/30 transition-all">
+                            <SparklesIcon className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Generate with AI</span>
+                            <span className="sm:hidden">AI</span>
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            {/* ── AI Generation Panel ────────────────────────────────────────── */}
+            {aiOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                    <div className="w-full max-w-lg bg-[#0d0d18] border border-violet-500/30 shadow-2xl">
+                        <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-violet-500/5">
+                            <div className="w-8 h-8 bg-violet-500/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
+                                <SparklesIcon className="w-4 h-4 text-violet-400" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm font-black text-white uppercase tracking-widest">AI Project Generator</p>
+                                <p className="text-[10px] text-white/40">Describe what you want — AI fills in all the details</p>
+                            </div>
+                            <button onClick={() => setAiOpen(false)} className="text-white/30 hover:text-white text-lg leading-none">✕</button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-2">What project do you want to create?</label>
+                                <textarea
+                                    value={aiPrompt}
+                                    onChange={e => setAiPrompt(e.target.value)}
+                                    rows={4}
+                                    placeholder={"e.g. Build a weather app using Python that fetches data from an API and displays temperature and humidity for Nigerian cities\n\nor: Create a simple HTML/CSS portfolio webpage for JSS3 students\n\nor: Arduino LED traffic light project for beginners"}
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-violet-500 transition-colors resize-none"
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div className="flex flex-wrap gap-1.5">
+                                <span className="text-[9px] font-black text-white/20 uppercase tracking-widest self-center">Try:</span>
+                                {['Python calculator app', 'HTML portfolio page', 'Arduino LED project', 'AI chatbot with Python', 'Scratch animation story'].map(ex => (
+                                    <button key={ex} onClick={() => setAiPrompt(ex)}
+                                        className="text-[9px] text-violet-400/70 border border-violet-500/20 px-2 py-1 hover:border-violet-500/50 hover:text-violet-300 transition-all">
+                                        {ex}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {aiError && (
+                                <div className="flex items-center gap-2 text-rose-400 text-xs bg-rose-500/10 border border-rose-500/20 px-3 py-2">
+                                    <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                    {aiError}
+                                </div>
+                            )}
+
+                            <div className="flex items-center gap-3 pt-2">
+                                <button onClick={() => setAiOpen(false)}
+                                    className="flex-1 py-2.5 border border-white/10 text-white/40 text-xs font-black uppercase tracking-widest hover:border-white/20 transition-colors">
+                                    Cancel
+                                </button>
+                                <button onClick={handleAiGenerate} disabled={!aiPrompt.trim() || aiLoading}
+                                    className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+                                    {aiLoading
+                                        ? <><ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Generating...</>
+                                        : <><SparklesIcon className="w-3.5 h-3.5" /> Generate Activity</>
+                                    }
+                                </button>
+                            </div>
+                            <p className="text-[9px] text-white/20 text-center">AI will fill in title, description, instructions, category, difficulty, and tags. You can edit everything after.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── Progress bar ──────────────────────────────────────────────── */}
             <div className="h-0.5 bg-white/5">
@@ -296,9 +437,53 @@ export default function NewProjectActivityPage() {
                                                 <label className={LABEL}>Due Date & Time</label>
                                                 <input type="datetime-local" value={dueDate} onChange={e => setDueDate(e.target.value)} className={INPUT} />
                                             </div>
-                                            <div>
-                                                <label className={LABEL}>Tags (comma-separated)</label>
-                                                <input value={tags} onChange={e => setTags(e.target.value)} placeholder="python, web, project..." className={INPUT} />
+                                        </div>
+
+                                        {/* Tags chip picker */}
+                                        <div>
+                                            <label className={LABEL}>Tags</label>
+                                            <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
+                                                {tagList.map(t => (
+                                                    <span key={t} className="flex items-center gap-1 px-2 py-0.5 bg-violet-500/20 border border-violet-500/40 text-violet-300 text-[10px] font-black">
+                                                        {t}
+                                                        <button type="button" onClick={() => setTagList(prev => prev.filter(x => x !== t))} className="text-violet-400/50 hover:text-rose-400 transition-colors leading-none ml-0.5">×</button>
+                                                    </span>
+                                                ))}
+                                                {tagList.length === 0 && <span className="text-[10px] text-white/20 italic">No tags yet — pick below or type a custom one</span>}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1 mb-2">
+                                                {COMMON_TAGS.map(t => {
+                                                    const active = tagList.includes(t);
+                                                    return (
+                                                        <button key={t} type="button"
+                                                            onClick={() => setTagList(prev => active ? prev.filter(x => x !== t) : [...prev, t])}
+                                                            className={`px-2 py-0.5 text-[9px] font-bold border transition-all ${active ? 'bg-violet-500/20 border-violet-500/40 text-violet-300' : 'bg-white/[0.02] border-white/[0.06] text-white/30 hover:border-white/20 hover:text-white/60'}`}>
+                                                            {active ? '✓ ' : ''}{t}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <input value={customTagInput} onChange={e => setCustomTagInput(e.target.value)}
+                                                    onKeyDown={e => {
+                                                        if ((e.key === 'Enter' || e.key === ',') && customTagInput.trim()) {
+                                                            e.preventDefault();
+                                                            const t = customTagInput.trim().toLowerCase().replace(/\s+/g, '-');
+                                                            if (t && !tagList.includes(t)) setTagList(prev => [...prev, t]);
+                                                            setCustomTagInput('');
+                                                        }
+                                                    }}
+                                                    placeholder="Add custom tag (Enter or comma to add)"
+                                                    className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 text-xs text-white placeholder-white/20 focus:outline-none focus:border-violet-500 transition-colors"
+                                                />
+                                                <button type="button"
+                                                    onClick={() => {
+                                                        const t = customTagInput.trim().toLowerCase().replace(/\s+/g, '-');
+                                                        if (t && !tagList.includes(t)) { setTagList(prev => [...prev, t]); setCustomTagInput(''); }
+                                                    }}
+                                                    className="px-3 py-1.5 bg-white/5 border border-white/10 text-white/40 text-xs hover:border-white/20 transition-colors">
+                                                    + Add
+                                                </button>
                                             </div>
                                         </div>
 
@@ -340,15 +525,31 @@ export default function NewProjectActivityPage() {
                                 {/* Difficulty */}
                                 <div className={CARD}>
                                     <label className={LABEL}>Difficulty Level</label>
-                                    <div className="grid grid-cols-3 gap-3 mt-1">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1">
                                         {DIFFICULTIES.map(d => {
                                             const active = difficulty === d.key;
                                             return (
                                                 <button key={d.key} type="button" onClick={() => setDifficulty(d.key)}
-                                                    className={`flex items-center gap-2.5 px-4 py-3 border text-left transition-all ${active ? d.color : 'border-white/[0.06] bg-white/[0.02] text-white/40 hover:border-white/20'}`}>
-                                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${active ? d.dot : 'bg-white/20'}`} />
-                                                    <span className="text-xs font-black uppercase tracking-widest">{d.label}</span>
-                                                    {active && <CheckIcon className="w-3 h-3 ml-auto flex-shrink-0" />}
+                                                    className={`flex flex-col gap-2 px-4 py-4 border text-left transition-all relative ${active ? d.color : 'border-white/[0.06] bg-white/[0.02] text-white/40 hover:border-white/20 hover:bg-white/[0.03]'}`}>
+                                                    {/* Stars */}
+                                                    <div className="flex items-center gap-1">
+                                                        {[1,2,3].map(n => (
+                                                            <div key={n} className={`w-3 h-3 rounded-full ${n <= d.stars ? (active ? d.dot : 'bg-white/20') : 'bg-white/[0.06]'}`}
+                                                                style={n <= d.stars && active ? { backgroundColor: d.dotColor } : {}} />
+                                                        ))}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-black uppercase tracking-widest leading-none">{d.label}</p>
+                                                        <p className={`text-[10px] mt-1 leading-tight ${active ? 'opacity-70' : 'text-white/25'}`}>{d.sub}</p>
+                                                    </div>
+                                                    <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 self-start border ${active ? 'border-current opacity-50' : 'border-white/10 text-white/20'}`}>
+                                                        {d.badge}
+                                                    </span>
+                                                    {active && (
+                                                        <div className="absolute top-2 right-2">
+                                                            <CheckIcon className="w-3.5 h-3.5" />
+                                                        </div>
+                                                    )}
                                                 </button>
                                             );
                                         })}
@@ -682,6 +883,18 @@ export default function NewProjectActivityPage() {
                                             </div>
                                         )}
 
+                                        {/* Tags */}
+                                        {tagList.length > 0 && (
+                                            <div>
+                                                <p className={LABEL}>Tags</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {tagList.map(t => (
+                                                        <span key={t} className="text-[9px] font-bold px-2 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-400">{t}</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Instructions preview */}
                                         {instructions && (
                                             <div>
@@ -748,6 +961,13 @@ export default function NewProjectActivityPage() {
                                             <span className="text-[8px] font-black px-1.5 py-0.5" style={{ backgroundColor: catInfo.color + '20', color: catInfo.color }}>{catInfo.label}</span>
                                             <span className={`text-[8px] font-black px-1.5 py-0.5 ${DIFFICULTIES.find(d => d.key === difficulty)?.color}`}>{DIFFICULTIES.find(d => d.key === difficulty)?.label}</span>
                                         </div>
+                                        {tagList.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mb-2">
+                                                {tagList.slice(0, 4).map(t => (
+                                                    <span key={t} className="text-[8px] text-white/30 border border-white/10 px-1 py-0.5">{t}</span>
+                                                ))}
+                                            </div>
+                                        )}
                                         <div className="flex items-center justify-between text-[9px] text-white/30">
                                             <span>{dueDate ? `Due ${new Date(dueDate).toLocaleDateString('en-GB')}` : 'No deadline'}</span>
                                             <span>{gradingMode === 'rubric' ? rubricTotal : maxPoints} pts</span>
