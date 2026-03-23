@@ -1545,9 +1545,10 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   </div>
+                  {schoolInvForm.pricing_mode !== 'fixed_package' && (
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">
-                      Student Count {schoolInvForm.pricing_mode === 'fixed_package' ? '(Informational)' : 'Override'}
+                      Student Count Override
                     </label>
                     <input
                       type="number"
@@ -1558,6 +1559,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50 font-bold"
                     />
                   </div>
+                  )}
                   {schoolInvForm.pricing_mode === 'per_student' ? (
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Rate per Child (₦)</label>

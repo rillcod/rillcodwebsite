@@ -90,12 +90,27 @@ const Hero: React.FC = () => {
               {/* Image with Sharp Frame */}
               <div className="relative z-10 w-full h-full rounded-none overflow-hidden border border-border shadow-2xl bg-muted group-hover:-translate-y-1 transition-transform duration-500">
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60 z-10" />
-                <Image 
-                   src="/images/landing/hero.png" 
-                   alt="Rillcod Excellence" 
-                   fill 
+                <Image
+                   src="/images/landing/hero.png"
+                   alt="Rillcod Excellence"
+                   fill
                    className="object-cover"
                 />
+                {/* Student Registration CTA overlay */}
+                <div className="absolute bottom-0 inset-x-0 z-20 p-4 sm:p-6">
+                  <Link
+                    href="/student-registration"
+                    className="group/cta flex items-center justify-between w-full bg-background/90 backdrop-blur-sm border border-orange-500/40 px-5 py-4 hover:bg-orange-500 transition-all duration-300 shadow-2xl"
+                  >
+                    <div>
+                      <p className="text-[9px] font-black text-orange-500 group-hover/cta:text-white uppercase tracking-[0.25em] mb-0.5 transition-colors">New Student?</p>
+                      <p className="text-sm font-black text-foreground group-hover/cta:text-white uppercase tracking-tight transition-colors">Register Now</p>
+                    </div>
+                    <div className="w-9 h-9 bg-orange-500 group-hover/cta:bg-white flex items-center justify-center flex-shrink-0 transition-colors">
+                      <ArrowRight className="w-4 h-4 text-white group-hover/cta:text-orange-500 group-hover/cta:translate-x-0.5 transition-all" />
+                    </div>
+                  </Link>
+                </div>
               </div>
 
               {/* Halo */}
