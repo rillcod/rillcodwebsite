@@ -6,11 +6,13 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-async function checkRLS() {
+async function checkCertificate() {
     try {
-        const { data, error } = await supabase.rpc('execute_sql', {
-            sql: "SELECT policyname, cmd, qual FROM pg_policies WHERE tablename = 'students';"
-        });
+        const { data, error } = await supabase
+            .from('certificates')
+            .select('*, portal_users(full_name, class_id), courses(title, program_id)')
+            .eq('certificate_number', 'RC-1774273301753-43')
+            .single();
         if (error) {
             console.error('Error:', error);
         } else {
@@ -21,4 +23,4 @@ async function checkRLS() {
     }
 }
 
-checkRLS();
+checkCertificate();
