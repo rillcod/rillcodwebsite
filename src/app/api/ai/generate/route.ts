@@ -891,8 +891,8 @@ export async function POST(req: NextRequest) {
         ];
     }
 
-    // lesson-notes and custom use plain-text response (no response_format) to avoid malformed JSON errors
-    const useJsonFormat = type !== 'lesson-notes' && type !== 'custom';
+    // lesson-notes uses plain-text response (no response_format) to avoid malformed JSON errors
+    const useJsonFormat = type !== 'lesson-notes';
 
     // ── SSE Streaming path — used when client sends ?stream=1 (lesson type only) ──
     const wantsStream = req.nextUrl?.searchParams.get('stream') === '1' && type === 'lesson';
@@ -1030,24 +1030,15 @@ export async function POST(req: NextRequest) {
                 }
               }
             } else {
-              // For 'custom' type: try JSON parse but fall back to raw text if it fails
-              if (type === 'custom') {
-                try {
-                  const parsed = safeParseJSON(content);
-                  return NextResponse.json({
-                    success: true,
-                    content: parsed.content || parsed.text || parsed.answer || content,
-                    ...parsed
-                  });
-                } catch {
-                  // Fallback for raw text response
-                  return NextResponse.json({
-                    success: true,
-                    content: content.replace(/^```(?:json|markdown)?\s*/i, '').replace(/\s*```$/i, '').trim()
-                  });
-                }
-              }
               const parsed = safeParseJSON(content);
+              // Handle 'custom' type specifically to match ProtocolPage expectation
+              if (type === 'custom') {
+                return NextResponse.json({
+                  success: true,
+                  content: parsed.content || parsed.text || parsed.answer || (typeof content === 'string' ? content : JSON.stringify(content)),
+                  ...parsed
+                });
+              }
               return NextResponse.json({ success: true, model: modelId, data: parsed });
             }
           }
