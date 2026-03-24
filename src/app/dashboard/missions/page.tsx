@@ -913,6 +913,131 @@ void loop() {
 }`,
     tags: ['Arduino', 'robot', 'motors', 'L298N', 'obstacle avoidance', 'autonomous'],
   },
+  {
+    id: 'r06',
+    title: 'Servo Sweep & Wave',
+    description: 'Control a Servo motor to rotate smoothly back and forth.',
+    instructions:
+      'Attach a servo to pin 9. Use the Servo library to attach it. In the loop, use a for loop to slowly sweep the servo from 0 to 180 degrees, then another for loop to sweep back from 180 to 0 degrees.',
+    difficulty: 'Intermediate',
+    language: 'robotics',
+    xp: 120,
+    starterCode: `// Arduino Sketch — Servo Motor Sweep
+#include <Servo.h>
+
+Servo myServo;
+int pos = 0;    // variable to store the servo position
+
+void setup() {
+  myServo.attach(9);  // attaches the servo on pin 9
+}
+
+void loop() {
+  // YOUR CODE: sweep from 0 to 180 degrees
+  for (pos = 0; pos <= 180; pos += 1) {
+    // Go to 'pos'
+    // Wait ~15ms
+  }
+  
+  // YOUR CODE: sweep back from 180 to 0 degrees
+}`,
+    tags: ['Arduino', 'Servo', 'motors', 'PWM'],
+  },
+  {
+    id: 'p14',
+    title: 'Pandas Data Analysis',
+    description: 'Use the famous pandas library (simulated) to clean and transform datasets.',
+    instructions:
+      'Given a simulated pandas DataFrame, calculate the mean of the "Math" column, fill all NaN values with 0, and create a new column "Total" which is the sum of Math and Physics scores.',
+    difficulty: 'Advanced',
+    language: 'python',
+    xp: 190,
+    starterCode: `# Data Science — Pandas Simulation
+# In a real environment, you'd use: import pandas as pd
+
+dataset = [
+    {"name": "Ada", "Math": 95, "Physics": 88},
+    {"name": "Obi", "Math": 76, "Physics": None},
+    {"name": "Chi", "Math": None, "Physics": 92},
+]
+
+# 1. Fill NaN/None with 0
+def fill_na(data, value=0):
+    for row in data:
+        for k, v in row.items():
+            if v is None:
+                row[k] = value
+    return data
+
+clean_data = fill_na(dataset)
+
+# 2. Add 'Total' column
+def add_total(data):
+    for row in data:
+        row["Total"] = row["Math"] + row["Physics"]
+    return data
+
+final_data = add_total(clean_data)
+
+# Print results
+for d in final_data:
+    print(f"{d['name']} - Math: {d['Math']}, Physics: {d['Physics']}, Total: {d['Total']}")`,
+    tags: ['python', 'pandas', 'data science', 'cleaning'],
+  },
+  {
+    id: 'h07',
+    title: 'HTML5 Canvas Animations',
+    description: 'Draw and animate graphics directly in the browser utilizing HTML5 <canvas>.',
+    instructions:
+      'Write JavaScript to draw a circle on the HTML5 <canvas>. Then, use requestAnimationFrame() to animate the circle moving across the canvas and bouncing off the walls.',
+    difficulty: 'Advanced',
+    language: 'html',
+    xp: 200,
+    starterCode: `<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { background: #111; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+    canvas { background: #222; border: 2px solid #555; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="400" height="300"></canvas>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let x = 50, y = 50, dx = 3, dy = 3, radius = 15;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear screen
+      
+      // Draw circle
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2, false);
+      ctx.fillStyle = '#f97316';
+      ctx.fill();
+      ctx.closePath();
+
+      // Bounce off walls
+      if (x + radius > canvas.width || x - radius < 0) {
+        dx = -dx;
+      }
+      if (y + radius > canvas.height || y - radius < 0) {
+        dy = -dy;
+      }
+
+      x += dx;
+      y += dy;
+    }
+
+    animate();
+  </script>
+</body>
+</html>`,
+    tags: ['HTML5', 'canvas', 'animations', 'game dev'],
+  }
 ];
 
 const XP_PER_LEVEL = 500;
