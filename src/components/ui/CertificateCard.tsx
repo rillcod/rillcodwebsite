@@ -4,7 +4,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     DownloadCloud, Share2, Printer, Copy, CheckCircle2, 
-    Sparkles, Palette, Loader2, Award
+    Sparkles, Palette, Loader2, Award, Linkedin
 } from 'lucide-react';
 import { generateReportPDF } from '@/lib/pdf-utils';
 import { toast as showToast } from 'react-hot-toast';
@@ -77,6 +77,11 @@ export function CertificateCard({ cert }: CertificateProps) {
         }
     };
 
+    const handleLinkedInShare = () => {
+        const url = encodeURIComponent(`https://rillcod.com/verify/${cert.verification_code}`);
+        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, '_blank');
+    };
+
     const handlePrint = () => {
         const style = document.createElement('style');
         style.id = '__cert-landscape-print';
@@ -145,11 +150,20 @@ export function CertificateCard({ cert }: CertificateProps) {
         setIsHovering(false);
     };
 
+    const templateColors: Record<TemplateType, string> = {
+        prestige: 'rgba(212, 175, 55, 0.15)',
+        royal: 'rgba(197, 160, 89, 0.15)',
+        tech: 'rgba(6, 182, 212, 0.15)',
+        scholar: 'rgba(30, 58, 138, 0.15)',
+        elite: 'rgba(168, 85, 247, 0.15)',
+        spark: 'rgba(249, 115, 22, 0.15)',
+    };
+
     return (
         <motion.div 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full bg-[#0d0d12] border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+            className="w-full bg-[#07070a] border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col relative"
         >
             {/* Toast Notification */}
             <AnimatePresence>
@@ -167,45 +181,51 @@ export function CertificateCard({ cert }: CertificateProps) {
             </AnimatePresence>
 
             {/* Header / Builder Control Area */}
-            <div className="bg-gradient-to-b from-[#16161c] to-[#0d0d12] p-6 lg:p-8 border-b border-white/5 relative overflow-hidden">
-                <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-50" />
+            <div className="bg-white/[0.02] backdrop-blur-xl p-6 lg:p-8 border-b border-white/5 relative overflow-hidden">
+                {/* Ambient glows */}
+                <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] -translate-y-1/2 pointer-events-none" />
+                <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent opacity-50" />
                 
-                <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between relative z-10">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2 mb-1">
-                            <Award className="w-5 h-5 text-emerald-400" />
-                            <h3 className="text-xl font-black text-white tracking-tight uppercase italic">{cert.courses.title}</h3>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs font-mono text-slate-400">
-                            <span className="flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Valid & Verified
-                            </span>
-                            <span className="w-px h-3 bg-white/20" />
-                            <span>ID: {cert.certificate_number}</span>
+                <div className="flex flex-col xl:flex-row gap-8 items-start xl:items-center justify-between relative z-10">
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500/20 to-emerald-900/20 border border-emerald-500/30 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                                <Award className="w-5 h-5 text-emerald-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-black text-white tracking-tight leading-none mb-1 shadow-black drop-shadow-md">{cert.courses.title}</h3>
+                                <div className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-white/50">
+                                    <span className="flex items-center gap-1.5 text-emerald-400">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" /> Valid & Verified
+                                    </span>
+                                    <span className="w-1 h-1 rounded-full bg-white/20" />
+                                    <span className="font-mono bg-white/5 px-2 py-0.5 rounded border border-white/10">ID: {cert.certificate_number}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     {/* Template Builder Selector */}
-                    <div className="w-full lg:w-auto">
-                        <div className="flex items-center gap-2 mb-2">
-                            <Palette className="w-4 h-4 text-slate-400" />
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Select Template Design</p>
+                    <div className="w-full xl:w-auto">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Palette className="w-4 h-4 text-indigo-400/80" />
+                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200/50">Select Template Design</p>
                         </div>
-                        <div className="flex items-center bg-black/40 border border-white/[0.08] p-1.5 rounded-xl overflow-x-auto custom-scrollbar">
+                        <div className="flex items-center bg-black/40 border border-white/10 p-2 rounded-2xl overflow-x-auto custom-scrollbar shadow-inner relative">
                             {TEMPLATES.map(t => {
                                 const isActive = template === t.id;
                                 return (
                                     <button
                                         key={t.id}
                                         onClick={() => setTemplate(t.id)}
-                                        className={`relative px-4 py-2 text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap rounded-lg flex-shrink-0 ${
-                                            isActive ? 'text-white' : 'text-slate-500 hover:text-white hover:bg-white/5'
+                                        className={`relative px-5 py-3 text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap rounded-xl flex-shrink-0 ${
+                                            isActive ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]' : 'text-white/40 hover:text-white/80 hover:bg-white/5'
                                         }`}
                                     >
                                         {isActive && (
                                             <motion.div 
                                                 layoutId="activeTemplate" 
-                                                className="absolute inset-0 bg-white/10 border border-white/20 rounded-lg backdrop-blur-md"
+                                                className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/50 rounded-xl backdrop-blur-md shadow-[0_0_15px_rgba(99,102,241,0.2)]"
                                                 transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                             />
                                         )}
@@ -219,8 +239,14 @@ export function CertificateCard({ cert }: CertificateProps) {
             </div>
 
             {/* 3D Certificate Preview Area */}
-            <div className="p-4 sm:p-8 lg:p-12 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#111] via-black to-black relative perspective-1000 flex items-center justify-center min-h-[300px] overflow-hidden">
-                <div className="absolute inset-0 bg-[url('/images/grid.svg')] bg-center opacity-[0.02]" />
+            <div className="p-4 sm:p-8 lg:p-12 relative perspective-1000 flex items-center justify-center min-h-[300px] overflow-hidden">
+                <motion.div 
+                    initial={false}
+                    animate={{ color: templateColors[template] }}
+                    transition={{ duration: 0.8 }}
+                    className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-current via-black to-black"
+                />
+                <div className="absolute inset-0 bg-[url('/images/grid.svg')] bg-center opacity-[0.03]" />
 
                 <motion.div
                     ref={containerRef}
@@ -229,9 +255,14 @@ export function CertificateCard({ cert }: CertificateProps) {
                     onMouseLeave={handleMouseLeave}
                     animate={{ rotateX, rotateY, scale: isHovering ? 1.02 : 1 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.5 }}
-                    className="relative w-full shadow-[0_20px_60px_rgba(0,0,0,0.8)] border border-white/10 flex items-center justify-center bg-white"
+                    className="relative w-full shadow-[0_30px_60px_rgba(0,0,0,0.9)] border border-white/10 flex items-center justify-center bg-white"
                     style={{ aspectRatio: '1122/794', transformStyle: 'preserve-3d' }}
                 >
+                    <motion.div 
+                        className="absolute inset-0 rounded-none pointer-events-none -z-10 blur-xl"
+                        animate={{ backgroundColor: templateColors[template] }}
+                        transition={{ duration: 0.8 }}
+                    />
                     <div 
                         ref={certRef}
                         style={{
@@ -286,36 +317,43 @@ export function CertificateCard({ cert }: CertificateProps) {
             </div>
 
             {/* Premium Action Bar */}
-            <div className="bg-[#111113] border-t border-white/5 p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="bg-[#040406] border-t border-white/5 p-4 sm:p-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                     <button
                         onClick={handleCopyCertNumber}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-[10px] font-black uppercase tracking-widest transition-all group"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2.5 px-6 py-3.5 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-white/70 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all group"
                     >
-                        {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />}
+                        {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-white/40 group-hover:text-white/80 transition-colors" />}
                         {copied ? 'Copied' : 'Copy ID'}
                     </button>
                     <button
                         onClick={handlePrint}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-[10px] font-black uppercase tracking-widest transition-all group"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2.5 px-6 py-3.5 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-white/70 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all group"
                     >
-                        <Printer className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+                        <Printer className="w-4 h-4 text-white/40 group-hover:text-white/80 transition-colors" />
                         Print
                     </button>
                     <button
                         onClick={handleShare}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-[10px] font-black uppercase tracking-widest transition-all group"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2.5 px-6 py-3.5 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-white/70 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all group"
                     >
-                        <Share2 className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
-                        Share
+                        <Share2 className="w-4 h-4 text-white/40 group-hover:text-white/80 transition-colors" />
+                        Share Link
+                    </button>
+                    <button
+                        onClick={handleLinkedInShare}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#0A66C2]/10 hover:bg-[#0A66C2]/20 border border-[#0A66C2]/30 rounded-xl text-[#0A66C2] hover:text-[#0A66C2] text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_10px_rgba(10,102,194,0.1)] group"
+                    >
+                        <Linkedin className="w-4 h-4" />
+                        LinkedIn
                     </button>
                 </div>
 
-                <div className="w-full sm:w-auto">
+                <div className="w-full sm:w-auto mt-2 sm:mt-0">
                     <button
                         onClick={handleDownload}
                         disabled={isDownloading}
-                        className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-black text-[11px] font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(249,115,22,0.3)] hover:shadow-[0_0_40px_rgba(249,115,22,0.5)] transform hover:-translate-y-0.5 active:translate-y-0"
+                        className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-black text-[11px] font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(249,115,22,0.3)] hover:shadow-[0_0_40px_rgba(249,115,22,0.5)] transform hover:-translate-y-0.5 active:translate-y-0"
                     >
                         {isDownloading ? <Loader2 className="w-5 h-5 animate-spin" /> : <DownloadCloud className="w-5 h-5" />}
                         {isDownloading ? 'Generating PDF...' : 'Download High-Res PDF'}

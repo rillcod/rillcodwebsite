@@ -927,5 +927,158 @@ console.log(' * [new branch]      main -> main');`,
         aiPrompt: 'Explain Git version control: what is a commit, branch, push, and pull? How does GitHub fit into the workflow? Why do software engineers use version control?'
       }
     ]
+  },
+  {
+    id: 6,
+    name: 'Security & Ethics',
+    subtitle: 'Cybersecurity, Pentesting, and Safe Web',
+    color: 'border-rose-500/40',
+    accentColor: 'text-rose-400',
+    modules: [
+      {
+        id: 'p6m1',
+        title: 'Encryption & Hashing',
+        description: 'Protecting user data and passwords',
+        language: 'python',
+        icon: 'code',
+        starterCode: `# Simulating basic hashing in Python using hashlib
+import hashlib
+
+def secure_password(password: str) -> str:
+    # We use SHA-256 for a modern cryptographic hash
+    # In real applications, always use a salt (e.g. bcrypt/argon2)
+    hasher = hashlib.sha256()
+    hasher.update(password.encode('utf-8'))
+    return hasher.hexdigest()
+
+print("=== User Database Security ===")
+user_password = "super_secret_password_123"
+hashed = secure_password(user_password)
+
+print(f"Original Password: {user_password}")
+print(f"Stored Hash inside Database: {hashed}")
+print("\\nNotice how the hash looks like random gibberish.")
+print("Even if a hacker steals the database, they cannot easily reverse this hash!")
+`,
+        aiPrompt: 'Explain cryptography basics, hashing algorithms (like SHA-256), the difference between encryption and hashing, and why storing plain-text passwords is a catastrophic security failure.'
+      },
+      {
+        id: 'p6m2',
+        title: 'Network Traffic & Firewalls',
+        description: 'Understanding IP packets and blocking threats',
+        language: 'python',
+        icon: 'beaker',
+        starterCode: `# Simulating a basic Software Firewall
+class Firewall:
+    def __init__(self):
+        self.blocked_ips = {"192.168.1.100", "10.0.0.5"}
+        
+    def allow_traffic(self, ip_address, packet_data):
+        if ip_address in self.blocked_ips:
+            print(f"[BLOCKED] Packet dropped from {ip_address}")
+            return False
+        
+        if "malware_payload" in packet_data:
+            print(f"[BLOCKED] Malicious signature detected from {ip_address}")
+            self.blocked_ips.add(ip_address)
+            return False
+            
+        print(f"[ALLOWED] Packet accepted from {ip_address}")
+        return True
+
+fw = Firewall()
+print("Analyzing Incoming Network Traffic...\\n")
+
+fw.allow_traffic("192.168.1.50", "GET /index.html")
+fw.allow_traffic("10.0.0.5", "GET /admin")
+fw.allow_traffic("172.16.0.10", "POST /login\\nmalware_payload_execute")
+fw.allow_traffic("172.16.0.10", "GET /") # Now it should be blocked
+`,
+        aiPrompt: 'Explain how computer networks communicate via packets, the role of IP addresses, and how firewalls protect servers from DDoS attacks and malware.'
+      }
+    ]
+  },
+  {
+    id: 7,
+    name: 'AI Engineering',
+    subtitle: 'Machine Learning Models and API Integration',
+    color: 'border-fuchsia-500/40',
+    accentColor: 'text-fuchsia-400',
+    modules: [
+      {
+        id: 'p7m1',
+        title: 'Building an ML Pipeline',
+        description: 'Data cleaning, training, and inference',
+        language: 'python',
+        icon: 'cpu',
+        starterCode: `# Pseudocode for an ML Pipeline using scikit-learn
+import numpy as np
+
+# 1. Dataset (Hours Studied vs. Exam Score)
+X = np.array([[1], [2], [3], [4], [5]]) # Input: Hours
+y = np.array([45, 50, 60, 68, 80])      # Output: Score
+
+# 2. Define Mode (Linear Regression)
+print("Initializing Linear Regression Model...")
+class SimpleLinearRegression:
+    def __init__(self): self.weight, self.bias = 0, 0
+    def fit(self, X, y):
+        self.weight = 8.5 # Simulated calculated weight
+        self.bias = 35.0  # Simulated bias
+    def predict(self, x):
+        return self.weight * x + self.bias
+
+model = SimpleLinearRegression()
+
+# 3. Train Model
+print("Training Model on exam data...")
+model.fit(X, y)
+
+# 4. Inference (Prediction)
+new_student_hours = 6
+predicted_score = model.predict(new_student_hours)
+
+print(f"\\nStudent studying {new_student_hours} hours is predicted to score: {predicted_score}%")
+`,
+        aiPrompt: 'Explain the Machine Learning lifecycle: collecting data, feature engineering, model training, evaluation, and inference. How does linear regression work simply?'
+      },
+      {
+        id: 'p7m2',
+        title: 'LLM API Integration',
+        description: 'Connecting apps to advanced Artificial Intelligence',
+        language: 'javascript',
+        icon: 'bolt',
+        starterCode: `// Simulating an API request to a Large Language Model
+async function generateAIStory(prompt) {
+    console.log('[System] Formatting request for LLM...');
+    
+    // Simulate network latency for API call
+    console.log('[Network] Sending HTTP POST to https://api.openai.com/v1/chat/completions\\n');
+    await new Promise(r => setTimeout(r, 1000));
+    
+    // Simulated JSON response from the API
+    const response = {
+        id: "chatcmpl-123",
+        object: "chat.completion",
+        choices: [{
+            message: {
+                role: "assistant",
+                content: "In a futuristic Lagos, a young coder named Ade discovered an ancient algorithm that could control the smart city's grid..."
+            }
+        }]
+    };
+    
+    console.log("=== AI Response Received ===");
+    console.log(response.choices[0].message.content);
+}
+
+const userPrompt = "Write a sci-fi intro set in Lagos about a coder.";
+console.log(\`User Prompt: "\${userPrompt}"\\n\`);
+
+generateAIStory(userPrompt).catch(console.error);
+`,
+        aiPrompt: 'Explain what an API is, how JSON responses work, and how developers integrate Large Language Models (like OpenAI or Gemini) into their custom applications.'
+      }
+    ]
   }
 ];
