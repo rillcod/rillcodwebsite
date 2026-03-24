@@ -65,7 +65,7 @@ For KG-Basic 6: Focus on "Visual Logic Models" and "Debugging Fun".
 
 Return ONLY valid JSON.`;
 
-type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation' | 'daily-missions' | 'lesson-hook';
+type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation' | 'daily-missions' | 'lesson-hook' | 'custom';
 
 interface GenerateRequest {
   type: GenerateType;
@@ -106,12 +106,15 @@ interface GenerateRequest {
   proficiencyLevel?: string;
   courseName?: string;
   programName?: string;
+  prompt?: string;
   // Curriculum context — used to tailor lessons to specific course/program
   siblingLessons?: string[]; // Titles of other lessons in the same course (for continuity)
 }
 
 function buildPrompt(req: GenerateRequest): string {
   switch (req.type) {
+    case 'custom':
+      return req.prompt || req.topic;
     case 'cbt-grading':
       return `You are an AI Grader for Rillcod Technologies. Grade the following student's responses for a CBT exam.
 Questions and Rubrics: ${JSON.stringify(req.questions)}
@@ -723,15 +726,15 @@ export async function POST(req: NextRequest) {
     const { type } = body;
 
     // Security: students can use lesson-hook and daily-missions; staff gets everything
-    const STUDENT_ALLOWED: GenerateType[] = ['lesson-hook', 'daily-missions', 'report-feedback'];
+    const STUDENT_ALLOWED: GenerateType[] = ['lesson-hook', 'daily-missions', 'report-feedback', 'custom'];
     if (!isStaff && !STUDENT_ALLOWED.includes(type)) {
       return NextResponse.json({ error: 'Forbidden: Professional access required' }, { status: 403 });
     }
 
-    if (!body.topic?.trim()) {
-      return NextResponse.json({ error: 'topic is required' }, { status: 400 });
+    if (!body.topic?.trim() && !body.prompt?.trim()) {
+      return NextResponse.json({ error: 'topic or prompt is required' }, { status: 400 });
     }
-    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'cbt', 'report-feedback', 'cbt-grading', 'newsletter', 'code-generation', 'daily-missions', 'lesson-hook'];
+    const VALID_TYPES = ['lesson', 'lesson-notes', 'lesson-plan', 'library-content', 'assignment', 'cbt', 'report-feedback', 'cbt-grading', 'newsletter', 'code-generation', 'daily-missions', 'lesson-hook', 'custom'];
     if (!VALID_TYPES.includes(type)) {
       return NextResponse.json({ error: 'invalid type' }, { status: 400 });
     }
@@ -888,8 +891,8 @@ export async function POST(req: NextRequest) {
         ];
     }
 
-    // lesson-notes uses plain-text response (no response_format) to avoid malformed JSON errors
-    const useJsonFormat = type !== 'lesson-notes';
+    // lesson-notes and custom use plain-text response (no response_format) to avoid malformed JSON errors
+    const useJsonFormat = type !== 'lesson-notes' && type !== 'custom';
 
     // ── SSE Streaming path — used when client sends ?stream=1 (lesson type only) ──
     const wantsStream = req.nextUrl?.searchParams.get('stream') === '1' && type === 'lesson';
@@ -1027,6 +1030,23 @@ export async function POST(req: NextRequest) {
                 }
               }
             } else {
+              // For 'custom' type: try JSON parse but fall back to raw text if it fails
+              if (type === 'custom') {
+                try {
+                  const parsed = safeParseJSON(content);
+                  return NextResponse.json({
+                    success: true,
+                    content: parsed.content || parsed.text || parsed.answer || content,
+                    ...parsed
+                  });
+                } catch {
+                  // Fallback for raw text response
+                  return NextResponse.json({
+                    success: true,
+                    content: content.replace(/^```(?:json|markdown)?\s*/i, '').replace(/\s*```$/i, '').trim()
+                  });
+                }
+              }
               const parsed = safeParseJSON(content);
               return NextResponse.json({ success: true, model: modelId, data: parsed });
             }

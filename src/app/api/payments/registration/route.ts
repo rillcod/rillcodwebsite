@@ -40,6 +40,7 @@ const TYPE_FEES: Record<string, number> = {
     school:   20000,
     bootcamp: 60000,
     online:   30000,
+    in_person: 50000,
 };
 
 function getFee(enrollment_type: string, preferred_schedule: string, course_interest?: string): number {
