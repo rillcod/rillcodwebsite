@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/auth-context';
 import {
   RocketLaunchIcon,
@@ -1043,9 +1044,9 @@ for d in final_data:
 const XP_PER_LEVEL = 500;
 
 const DIFFICULTY_STYLES: Record<Difficulty, string> = {
-  Beginner: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
-  Intermediate: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20',
-  Advanced: 'bg-red-500/15 text-red-400 border-red-500/20',
+  Beginner: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]',
+  Intermediate: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.15)]',
+  Advanced: 'bg-rose-500/10 text-rose-400 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)]',
 };
 
 export default function MissionsPage() {
@@ -1147,69 +1148,74 @@ export default function MissionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-black bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950 via-background to-background text-foreground selection:bg-indigo-500/30">
+      <div className="max-w-5xl mx-auto px-4 py-12">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-indigo-500/15 flex items-center justify-center rounded-none">
-            <RocketLaunchIcon className="w-5 h-5 text-indigo-400" />
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-5 mb-8">
+          <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center rounded-2xl shadow-[0_0_30px_rgba(99,102,241,0.3)] border border-white/10">
+            <RocketLaunchIcon className="w-7 h-7 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-foreground tracking-tight">Missions</h1>
-            <p className="text-sm text-muted-foreground">Complete coding challenges to level up</p>
+            <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight mb-1">Missions</h1>
+            <p className="text-sm text-indigo-200/60 font-bold tracking-widest uppercase">Complete coding challenges to level up</p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Stats bar */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <div className="bg-card border border-border p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckBadgeIcon className="w-4 h-4 text-emerald-400" />
-              <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Completed</span>
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 p-5 rounded-2xl relative overflow-hidden group hover:bg-white/[0.04] transition-colors">
+            <div className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-2 mb-2 relative z-10">
+              <CheckBadgeIcon className="w-4 h-4 text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+              <span className="text-[10px] text-white/50 uppercase tracking-widest font-black">Completed</span>
             </div>
-            <p className="text-xl font-black text-foreground">{completedIds.size} / {MISSIONS.length}</p>
+            <p className="text-2xl font-black text-white relative z-10 drop-shadow-md">{completedIds.size} <span className="text-sm font-medium text-white/30">/ {MISSIONS.length}</span></p>
           </div>
-          <div className="bg-card border border-border p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <BoltIcon className="w-4 h-4 text-amber-400" />
-              <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">XP Earned</span>
+          <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 p-5 rounded-2xl relative overflow-hidden group hover:bg-white/[0.04] transition-colors">
+            <div className="absolute inset-0 bg-amber-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-2 mb-2 relative z-10">
+              <BoltIcon className="w-4 h-4 text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+              <span className="text-[10px] text-white/50 uppercase tracking-widest font-black">XP Earned</span>
             </div>
-            <p className="text-xl font-black text-foreground">{totalXP}</p>
+            <p className="text-2xl font-black text-white relative z-10 drop-shadow-md">{totalXP}</p>
           </div>
-          <div className="bg-card border border-border p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <TrophyIcon className="w-4 h-4 text-violet-400" />
-              <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Level</span>
+          <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 p-5 rounded-2xl relative overflow-hidden group hover:bg-white/[0.04] transition-colors">
+            <div className="absolute inset-0 bg-violet-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-2 mb-2 relative z-10">
+              <TrophyIcon className="w-4 h-4 text-violet-400 drop-shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
+              <span className="text-[10px] text-white/50 uppercase tracking-widest font-black">Level</span>
             </div>
-            <p className="text-xl font-black text-foreground">{level}</p>
+            <p className="text-2xl font-black text-white relative z-10 drop-shadow-md">{level}</p>
           </div>
-          <div className="bg-card border border-border p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <StarIcon className="w-4 h-4 text-cyan-400" />
-              <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Remaining XP</span>
+          <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 p-5 rounded-2xl relative overflow-hidden group hover:bg-white/[0.04] transition-colors">
+            <div className="absolute inset-0 bg-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-2 mb-2 relative z-10">
+              <StarIcon className="w-4 h-4 text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
+              <span className="text-[10px] text-white/50 uppercase tracking-widest font-black">Remaining XP</span>
             </div>
-            <p className="text-xl font-black text-foreground">{XP_PER_LEVEL - (totalXP % XP_PER_LEVEL)}</p>
+            <p className="text-2xl font-black text-white relative z-10 drop-shadow-md">{XP_PER_LEVEL - (totalXP % XP_PER_LEVEL)}</p>
           </div>
-        </div>
+        </motion.div>
 
         {/* XP Progress bar */}
-        <div className="bg-card border border-border p-4 mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Level {level} Progress</span>
-            <span className="text-xs text-violet-400 font-bold">{totalXP % XP_PER_LEVEL} / {XP_PER_LEVEL} XP</span>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white/[0.02] backdrop-blur-xl border border-white/10 p-5 rounded-2xl mb-8 relative overflow-hidden">
+          <div className="absolute -right-24 -top-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl" />
+          <div className="flex items-center justify-between mb-3 relative z-10">
+            <span className="text-xs font-black text-white/60 uppercase tracking-widest">Level {level} Progress</span>
+            <span className="text-xs text-indigo-300 font-black tracking-widest uppercase">{totalXP % XP_PER_LEVEL} <span className="text-white/30">/ {XP_PER_LEVEL} XP</span></span>
           </div>
-          <div className="h-2 bg-white/5 rounded-none overflow-hidden">
+          <div className="h-2.5 bg-black/50 rounded-full overflow-hidden shadow-inner relative z-10">
             <div
-              className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-500"
+              className="absolute left-0 top-0 h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-rose-500 transition-all duration-700 ease-out shadow-[0_0_15px_rgba(168,85,247,0.5)]"
               style={{ width: `${Math.min(100, ((totalXP % XP_PER_LEVEL) / XP_PER_LEVEL) * 100)}%` }}
             />
           </div>
-        </div>
+        </motion.div>
 
         {/* Language + Search + Filter */}
-        <div className="flex flex-col gap-3 mb-6">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="flex flex-col gap-4 mb-8">
           {/* Language selector */}
-          <div className="flex gap-1 flex-wrap">
+          <div className="flex gap-2 flex-wrap">
             {([
               { value: 'all', label: 'All Languages' },
               { value: 'javascript', label: 'JavaScript' },
@@ -1220,10 +1226,10 @@ export default function MissionsPage() {
               <button
                 key={value}
                 onClick={() => setLangFilter(value)}
-                className={`px-3 py-2 text-xs font-bold transition-colors rounded-none border ${
+                className={`px-4 py-2 text-[11px] uppercase tracking-widest font-black transition-all rounded-xl border ${
                   langFilter === value
-                    ? 'bg-orange-500 border-orange-500 text-white'
-                    : 'border-border text-muted-foreground hover:text-foreground'
+                    ? 'bg-gradient-to-r from-rose-500 to-orange-500 border-transparent text-white shadow-[0_0_15px_rgba(244,63,94,0.3)]'
+                    : 'bg-white/[0.03] border-white/10 text-white/50 hover:text-white hover:bg-white/[0.06]'
                 }`}
               >
                 {label}
@@ -1231,27 +1237,27 @@ export default function MissionsPage() {
             ))}
           </div>
           {/* Search + difficulty filter */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col lg:flex-row gap-4">
             <div className="relative flex-1">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
               <input
                 type="text"
                 placeholder="Search missions..."
-                className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-border rounded-none text-sm focus:outline-none focus:border-violet-500 text-foreground placeholder:text-muted-foreground"
+                className="w-full pl-11 pr-4 py-3 bg-white/[0.03] border border-white/10 rounded-xl text-sm focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.05] text-white placeholder:text-white/30 transition-all font-medium"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="flex gap-1 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               {(['All', 'Beginner', 'Intermediate', 'Advanced', 'Completed'] as FilterType[]).map(
                 (f) => (
                   <button
                     key={f}
                     onClick={() => setFilter(f)}
-                    className={`px-3 py-2 text-xs font-bold transition-colors rounded-none border ${
+                    className={`px-4 py-2 text-[11px] uppercase tracking-widest font-black transition-all rounded-xl border ${
                       filter === f
-                        ? 'bg-violet-600 border-violet-600 text-white'
-                        : 'border-border text-muted-foreground hover:text-foreground'
+                        ? 'bg-gradient-to-r from-indigo-500 to-purple-500 border-transparent text-white shadow-[0_0_15px_rgba(99,102,241,0.3)]'
+                        : 'bg-white/[0.03] border-white/10 text-white/50 hover:text-white hover:bg-white/[0.06]'
                     }`}
                   >
                     {f}
@@ -1260,180 +1266,202 @@ export default function MissionsPage() {
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Mission grid */}
         {filteredMissions.length === 0 ? (
-          <div className="text-center py-16">
-            <RocketLaunchIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-foreground font-bold">No missions found</p>
-            <p className="text-muted-foreground text-sm">Try a different filter or search term.</p>
-          </div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-24">
+            <div className="w-20 h-20 bg-white/[0.02] border border-white/10 rounded-3xl flex items-center justify-center mx-auto mb-6 transform rotate-12">
+              <RocketLaunchIcon className="w-10 h-10 text-white/20" />
+            </div>
+            <p className="text-white font-black text-xl mb-2 tracking-tight">No missions found</p>
+            <p className="text-white/50 text-sm font-medium">Try tweaking your search or applying different filters.</p>
+          </motion.div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredMissions.map((mission) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <AnimatePresence>
+            {filteredMissions.map((mission, idx) => {
               const isCompleted = completedIds.has(mission.id);
               const isActive = activeMission === mission.id;
 
               return (
-                <div
+                <motion.div
                   key={mission.id}
-                  className={`bg-card border transition-colors ${
-                    isCompleted ? 'border-emerald-500/30' : isActive ? 'border-violet-500/50' : 'border-border'
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2, delay: idx * 0.03 }}
+                  className={`bg-white/[0.02] backdrop-blur-xl rounded-3xl overflow-hidden transition-all duration-300 border ${
+                    isCompleted ? 'border-emerald-500/30 inset-shadow-[0_0_20px_rgba(16,185,129,0.05)]' : isActive ? 'border-indigo-500/50 shadow-[0_0_30px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/50' : 'border-white/5 hover:border-white/20 hover:bg-white/[0.04]'
                   } ${isActive ? 'md:col-span-2' : ''}`}
                 >
                   {/* Mission card header */}
-                  <div className="p-4">
-                    <div className="flex items-start gap-3">
+                  <div className="p-6 lg:p-8 relative overflow-hidden">
+                    {/* Background glow if active */}
+                    {isActive && <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-[80px] -z-10 pointer-events-none translate-x-1/3 -translate-y-1/3" />}
+                    
+                    <div className="flex items-start gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <div className="flex items-center gap-2 flex-wrap mb-3 border-b border-white/5 pb-3">
                           <span
-                            className={`px-2 py-0.5 text-xs font-bold border ${DIFFICULTY_STYLES[mission.difficulty]}`}
+                            className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border ${DIFFICULTY_STYLES[mission.difficulty]}`}
                           >
                             {mission.difficulty}
                           </span>
-                          <span className="px-2 py-0.5 bg-white/5 border border-border text-xs text-muted-foreground">
+                          <span className="px-3 py-1 bg-white/[0.05] border border-white/10 rounded-full text-[9px] uppercase font-black tracking-widest text-white/70">
                             {mission.language}
                           </span>
-                          <span className="ml-auto flex items-center gap-1 text-xs text-amber-400 font-bold">
-                            <BoltIcon className="w-3 h-3" />
+                          <span className="ml-auto flex items-center gap-1.5 text-[11px] text-amber-400 font-black tracking-widest bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]">
+                            <BoltIcon className="w-3.5 h-3.5" />
                             {mission.xp} XP
                           </span>
                         </div>
-                        <h3 className="font-black text-foreground text-sm mb-1">{mission.title}</h3>
-                        <p className="text-xs text-muted-foreground leading-relaxed">{mission.description}</p>
+                        <h3 className="font-black text-white text-xl mb-2 tracking-tight drop-shadow-sm">{mission.title}</h3>
+                        <p className="text-sm text-white/60 leading-relaxed font-medium">{mission.description}</p>
                       </div>
                       {isCompleted && (
-                        <div className="flex-shrink-0">
-                          <CheckBadgeIcon className="w-6 h-6 text-emerald-400" />
+                        <div className="flex-shrink-0 bg-emerald-500/10 p-2.5 rounded-2xl border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.3)] transform rotate-12">
+                          <CheckBadgeIcon className="w-8 h-8 text-emerald-400" />
                         </div>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {mission.tags.slice(0, 3).map((tag) => (
+                    <div className="flex flex-wrap gap-2 mt-5">
+                      {mission.tags.slice(0, 4).map((tag) => (
                         <span
                           key={tag}
-                          className="px-2 py-0.5 bg-white/5 text-xs text-muted-foreground"
+                          className="px-3 py-1 bg-black/40 border border-white/5 rounded-lg text-[10px] text-white/40 font-black font-mono tracking-widest uppercase"
                         >
                           #{tag}
                         </span>
                       ))}
                     </div>
 
-                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
+                    <div className="flex items-center gap-3 mt-6 pt-6 border-t border-white/5">
                       <button
                         onClick={() =>
                           setActiveMission(isActive ? null : mission.id)
                         }
-                        className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-none transition-all ${
+                        className={`flex items-center justify-center min-w-[140px] gap-2 px-5 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${
                           isActive
-                            ? 'bg-white/5 border border-border text-muted-foreground'
-                            : 'bg-violet-600 hover:bg-violet-500 text-white'
+                            ? 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10'
+                            : 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] hover:-translate-y-0.5'
                         }`}
                       >
                         {isActive ? (
                           <>
-                            <XMarkIcon className="w-3.5 h-3.5" />
+                            <XMarkIcon className="w-4 h-4" />
                             Close
                           </>
                         ) : (
                           <>
-                            <CodeBracketIcon className="w-3.5 h-3.5" />
-                            {isCompleted ? 'Review' : 'Start Mission'}
+                            <CodeBracketIcon className="w-4 h-4" />
+                            {isCompleted ? 'Review Code' : 'Start Mission'}
                           </>
                         )}
                       </button>
                       {isCompleted && (
-                        <span className="flex items-center gap-1 text-xs text-emerald-400 font-bold ml-auto">
+                        <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-black ml-auto uppercase tracking-widest bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
                           <CheckCircleIcon className="w-4 h-4" />
-                          Completed
+                          Validated
                         </span>
                       )}
                     </div>
                   </div>
 
                   {/* Expanded mission area */}
-                  {isActive && (
-                    <div className="border-t border-border">
-                      {/* Instructions */}
-                      <div className="px-4 py-3 bg-violet-500/5 border-b border-border">
-                        <p className="text-xs font-bold text-violet-400 uppercase tracking-wider mb-1.5">
-                          Instructions
-                        </p>
-                        <p className="text-sm text-foreground leading-relaxed">{mission.instructions}</p>
-                      </div>
-
-                      {/* Code editor */}
-                      <CodeEditor
-                        value={missionCode[mission.id] ?? mission.starterCode}
-                        onChange={(v) =>
-                          setMissionCode((prev) => ({
-                            ...prev,
-                            [mission.id]: v || '',
-                          }))
-                        }
-                        language={mission.language}
-                        height={350}
-                        title={mission.title}
-                        showHeader={true}
-                      />
-
-                      {/* AI Hint + Mark Complete */}
-                      <div className="px-4 py-3 border-t border-border flex flex-wrap items-start gap-3">
-                        <button
-                          onClick={() =>
-                            hints[mission.id]
-                              ? toggleHint(mission.id)
-                              : getHint(mission)
-                          }
-                          disabled={hintLoading === mission.id}
-                          className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-400 border border-amber-500/30 hover:bg-amber-500/5 transition-all rounded-none disabled:opacity-50"
-                        >
-                          <LightBulbIcon className="w-4 h-4" />
-                          {hintLoading === mission.id
-                            ? 'Getting hint...'
-                            : hints[mission.id]
-                            ? showHints.has(mission.id)
-                              ? 'Hide Hint'
-                              : 'Show Hint'
-                            : 'AI Hint'}
-                        </button>
-
-                        {!isCompleted && (
-                          <button
-                            onClick={() => markComplete(mission.id)}
-                            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-none transition-all ml-auto"
-                          >
-                            <CheckBadgeIcon className="w-4 h-4" />
-                            Mark Complete (+{mission.xp} XP)
-                          </button>
-                        )}
-                        {isCompleted && (
-                          <span className="ml-auto flex items-center gap-1.5 text-xs text-emerald-400 font-bold">
-                            <CheckBadgeIcon className="w-4 h-4" />
-                            Mission Complete!
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Hint panel */}
-                      {hints[mission.id] && showHints.has(mission.id) && (
-                        <div className="mx-4 mb-4 bg-amber-500/5 border border-amber-500/20 px-4 py-3">
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <LightBulbIcon className="w-4 h-4 text-amber-400" />
-                            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                              AI Hint
-                            </span>
-                          </div>
-                          <p className="text-sm text-amber-200 leading-relaxed">{hints[mission.id]}</p>
+                  <AnimatePresence>
+                    {isActive && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-white/10 bg-black/50">
+                        {/* Instructions */}
+                        <div className="px-8 py-6 bg-indigo-500/5 border-b border-indigo-500/10 relative overflow-hidden">
+                          <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
+                          <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <RocketLaunchIcon className="w-4 h-4" /> Mission Briefing
+                          </p>
+                          <p className="text-[15px] text-white/80 leading-relaxed font-medium">{mission.instructions}</p>
                         </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+
+                        {/* Code editor */}
+                        <div className="relative border-b border-white/5">
+                          <CodeEditor
+                            value={missionCode[mission.id] ?? mission.starterCode}
+                            onChange={(v) =>
+                              setMissionCode((prev) => ({
+                                ...prev,
+                                [mission.id]: v || '',
+                              }))
+                            }
+                            language={mission.language}
+                            height={450}
+                            title={mission.title}
+                            showHeader={true}
+                          />
+                        </div>
+
+                        {/* AI Hint + Mark Complete */}
+                        <div className="px-8 py-5 flex flex-wrap items-center gap-4 bg-white/[0.02]">
+                          <button
+                            onClick={() =>
+                              hints[mission.id]
+                                ? toggleHint(mission.id)
+                                : getHint(mission)
+                            }
+                            disabled={hintLoading === mission.id}
+                            className="flex items-center gap-2 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all rounded-xl disabled:opacity-50 shadow-[0_0_15px_rgba(245,158,11,0.15)]"
+                          >
+                            <LightBulbIcon className="w-4 h-4" />
+                            {hintLoading === mission.id
+                              ? 'Getting hint...'
+                              : hints[mission.id]
+                              ? showHints.has(mission.id)
+                                ? 'Hide Hint'
+                                : 'Request Intel'
+                              : 'Request Intel'}
+                          </button>
+
+                          {!isCompleted && (
+                            <button
+                              onClick={() => markComplete(mission.id)}
+                              className="flex items-center gap-2 px-6 py-3 text-[11px] font-black uppercase tracking-widest bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500 text-emerald-400 hover:text-white rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] ml-auto"
+                            >
+                              <CheckBadgeIcon className="w-5 h-5" />
+                              Submit Solution (+{mission.xp} XP)
+                            </button>
+                          )}
+                          {isCompleted && (
+                            <span className="ml-auto flex items-center gap-2 text-[11px] text-emerald-400 font-black uppercase tracking-widest bg-emerald-500/10 px-5 py-3 border border-emerald-500/30 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                              <CheckBadgeIcon className="w-5 h-5" />
+                              Data Validated
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Hint panel */}
+                        <AnimatePresence>
+                          {hints[mission.id] && showHints.has(mission.id) && (
+                            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="px-8 pb-6">
+                              <div className="bg-amber-500/10 border border-amber-500/30 p-5 rounded-2xl shadow-[0_0_20px_rgba(245,158,11,0.15)] relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/20 rounded-full blur-[40px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
+                                <div className="flex items-center gap-2 mb-3 relative z-10">
+                                  <LightBulbIcon className="w-5 h-5 text-amber-400 animate-pulse drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+                                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">
+                                    AI Assist Intel
+                                  </span>
+                                </div>
+                                <p className="text-[14px] text-amber-100/90 leading-relaxed font-medium relative z-10">{hints[mission.id]}</p>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
               );
             })}
+            </AnimatePresence>
           </div>
         )}
       </div>
