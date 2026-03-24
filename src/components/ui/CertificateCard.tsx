@@ -163,7 +163,7 @@ export function CertificateCard({ cert }: CertificateProps) {
         <motion.div 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full bg-[#07070a] border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col relative"
+            className="w-full bg-[#07070a] border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col relative max-w-full"
         >
             {/* Toast Notification */}
             <AnimatePresence>
@@ -181,7 +181,7 @@ export function CertificateCard({ cert }: CertificateProps) {
             </AnimatePresence>
 
             {/* Header / Builder Control Area */}
-            <div className="bg-white/[0.02] backdrop-blur-xl p-6 lg:p-8 border-b border-white/5 relative overflow-hidden">
+            <div className="bg-white/[0.02] backdrop-blur-xl p-4 sm:p-6 lg:p-8 border-b border-white/5 relative overflow-hidden">
                 {/* Ambient glows */}
                 <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] -translate-y-1/2 pointer-events-none" />
                 <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent opacity-50" />
@@ -189,12 +189,12 @@ export function CertificateCard({ cert }: CertificateProps) {
                 <div className="flex flex-col xl:flex-row gap-8 items-start xl:items-center justify-between relative z-10">
                     <div className="space-y-3">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500/20 to-emerald-900/20 border border-emerald-500/30 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                                <Award className="w-5 h-5 text-emerald-400" />
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-emerald-500/20 to-emerald-900/20 border border-emerald-500/30 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                                <Award className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
                             </div>
                             <div>
-                                <h3 className="text-2xl font-black text-white tracking-tight leading-none mb-1 shadow-black drop-shadow-md">{cert.courses.title}</h3>
-                                <div className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-white/50">
+                                <h3 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-none mb-1 shadow-black drop-shadow-md">{cert.courses.title}</h3>
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[9px] sm:text-[11px] font-black uppercase tracking-widest text-white/50">
                                     <span className="flex items-center gap-1.5 text-emerald-400">
                                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" /> Valid & Verified
                                     </span>
@@ -256,7 +256,7 @@ export function CertificateCard({ cert }: CertificateProps) {
                     animate={{ rotateX, rotateY, scale: isHovering ? 1.02 : 1 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.5 }}
                     className="relative w-full shadow-[0_30px_60px_rgba(0,0,0,0.9)] border border-white/10 flex items-center justify-center bg-white"
-                    style={{ aspectRatio: '1122/794', transformStyle: 'preserve-3d' }}
+                    style={{ aspectRatio: '1122/794', transformStyle: 'preserve-3d', touchAction: 'none' }}
                 >
                     <motion.div 
                         className="absolute inset-0 rounded-none pointer-events-none -z-10 blur-xl"
@@ -321,28 +321,28 @@ export function CertificateCard({ cert }: CertificateProps) {
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                     <button
                         onClick={handleCopyCertNumber}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2.5 px-6 py-3.5 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-white/70 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all group"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3.5 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-white/70 hover:text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all group"
                     >
                         {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-white/40 group-hover:text-white/80 transition-colors" />}
                         {copied ? 'Copied' : 'Copy ID'}
                     </button>
                     <button
                         onClick={handlePrint}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2.5 px-6 py-3.5 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-white/70 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all group"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3.5 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-white/70 hover:text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all group"
                     >
                         <Printer className="w-4 h-4 text-white/40 group-hover:text-white/80 transition-colors" />
                         Print
                     </button>
                     <button
                         onClick={handleShare}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2.5 px-6 py-3.5 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-white/70 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all group"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3.5 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-white/70 hover:text-white text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all group"
                     >
                         <Share2 className="w-4 h-4 text-white/40 group-hover:text-white/80 transition-colors" />
                         Share Link
                     </button>
                     <button
                         onClick={handleLinkedInShare}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#0A66C2]/10 hover:bg-[#0A66C2]/20 border border-[#0A66C2]/30 rounded-xl text-[#0A66C2] hover:text-[#0A66C2] text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_10px_rgba(10,102,194,0.1)] group"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3.5 bg-[#0A66C2]/10 hover:bg-[#0A66C2]/20 border border-[#0A66C2]/30 rounded-xl text-[#0A66C2] hover:text-[#0A66C2] text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_10px_rgba(10,102,194,0.1)] group"
                     >
                         <Linkedin className="w-4 h-4" />
                         LinkedIn

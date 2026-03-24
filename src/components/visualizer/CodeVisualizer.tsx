@@ -139,8 +139,8 @@ export default function CodeVisualizer({
       className
     )}>
       {/* Premium Header */}
-      <div className="flex items-center justify-between p-4 bg-zinc-900/50 backdrop-blur-md border-b border-zinc-800/50 z-20">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-center justify-between p-3 sm:p-4 bg-zinc-900/50 backdrop-blur-md border-b border-zinc-800/50 z-20">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="w-8 h-8 rounded-none bg-zinc-800 flex items-center justify-center border border-white/10 shadow-lg group-hover/visualizer:border-cyan-500/50 transition-all duration-500">
             {getVisualIcon(visualizationType)}
           </div>
@@ -176,7 +176,7 @@ export default function CodeVisualizer({
       </div>
 
       {/* Main Canvas Area */}
-      <div ref={containerRef} className="relative w-full aspect-video md:h-[500px] bg-black overflow-hidden group/canvas">
+      <div ref={containerRef} className="relative w-full aspect-video sm:h-[400px] md:h-[500px] bg-black overflow-hidden group/canvas">
         <P5Wrapper 
           type={visualizationType} 
           data={codeData} 
