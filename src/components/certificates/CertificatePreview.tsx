@@ -44,9 +44,15 @@ export default function CertificatePreview({
     return (
         <div
             id="certificate-preview-container"
-            className="relative overflow-hidden"
+            className="relative overflow-hidden shadow-2xl transition-all duration-500 hover:shadow-[0_0_60px_rgba(0,0,0,0.3)] bg-white"
             style={{ ...containerStyle }}
         >
+            {/* Structural corner marks — only for digital preview */}
+            <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-black/5 z-20 pointer-events-none" />
+            <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-black/5 z-20 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-black/5 z-20 pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-black/5 z-20 pointer-events-none" />
+
             <CertificateTemplates
                 template={mappedTemplate(templateId)}
                 studentName={studentName || 'Recipient Name'}
@@ -57,6 +63,13 @@ export default function CertificatePreview({
                 certCode={verificationCode || 'XXXXXX'}
                 certNum={certificateNumber || 'RC-XXXX-XXXX'}
             />
+
+            {/* Subtle digital watermark — visible only on-screen, doesn't interfere with high-res capture usually */}
+            <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center opacity-[0.02] mix-blend-multiply select-none">
+                <p className="text-[120px] font-black uppercase rotate-[-25deg] tracking-widest text-black">
+                    RILLCOD ACADEMY
+                </p>
+            </div>
         </div>
     );
 }
