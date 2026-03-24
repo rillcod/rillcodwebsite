@@ -849,4 +849,83 @@ for xi, yi in zip(X, y):
       },
     ],
   },
+  {
+    id: 5,
+    name: 'Future Builders',
+    subtitle: 'Deployment, Frameworks, and the Cloud',
+    color: 'border-orange-500/40',
+    accentColor: 'text-orange-400',
+    modules: [
+      {
+        id: 'p5m1',
+        title: 'Introduction to Next.js',
+        description: 'Server-side rendering, routing, and modern React',
+        language: 'javascript',
+        icon: 'rocket',
+        starterCode: `// Simulated Next.js App Router Page
+// In Next.js, files inside the /app directory become routes
+
+// app/page.tsx
+export default async function HomePage() {
+  // Server Component: fetches data securely on the server
+  const res = await fetch('https://api.github.com/users/vercel');
+  const user = await res.json();
+
+  return (
+    <main style={{ fontFamily: 'sans-serif', padding: '40px' }}>
+      <h1>{user.name}</h1>
+      <p>{user.bio}</p>
+      
+      <div style={{ marginTop: '20px' }}>
+        <h3>Stats</h3>
+        <ul>
+          <li>Repos: {user.public_repos}</li>
+          <li>Followers: {user.followers}</li>
+        </ul>
+      </div>
+    </main>
+  );
+}
+
+// Simulated Output Generator
+HomePage().then(jsx => {
+  console.log('=== Rendered HTML Structure ===\\n');
+  console.log('<main>');
+  console.log(\`  <h1>\${jsx.props.children[0].props.children}</h1>\`);
+  console.log(\`  <p>\${jsx.props.children[1].props.children}</p>\`);
+  console.log('</main>');
+});`,
+        aiPrompt: 'Explain Next.js: the App Router, Server Components vs Client Components, fetching data on the server, and why frameworks are used instead of plain React.'
+      },
+      {
+        id: 'p5m2',
+        title: 'Git & Version Control',
+        description: 'Collaborating and tracing history',
+        language: 'javascript',
+        icon: 'book',
+        starterCode: `// Simulating Git Commands Output
+
+console.log('$ git init');
+console.log('Initialized empty Git repository in /project/.git/\\n');
+
+console.log('$ git add .');
+console.log('Files staged for commit.\\n');
+
+console.log('$ git commit -m "Initial commit with protocol feature"');
+console.log('[main (root-commit) a1b2c3d] Initial commit with protocol feature');
+console.log(' 3 files changed, 142 insertions(+)\\n');
+
+console.log('$ git status');
+console.log('On branch main');
+console.log('nothing to commit, working tree clean\\n');
+
+console.log('$ git push origin main');
+console.log('Enumerating objects: 5, done.');
+console.log('Writing objects: 100% (5/5), 1.2 KiB | ...');
+console.log('To https://github.com/user/project.git');
+console.log(' * [new branch]      main -> main');`,
+        aiPrompt: 'Explain Git version control: what is a commit, branch, push, and pull? How does GitHub fit into the workflow? Why do software engineers use version control?'
+      }
+    ]
+  }
 ];

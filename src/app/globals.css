@@ -525,6 +525,7 @@ select {
 /* Sidebar custom scrollbar — slimmer, matches dark theme */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
+  height: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {

@@ -352,63 +352,61 @@ export function CertificateTemplates({
 
             {/* ════ CREATIVE SPARK (COLORFUL) ═════════════════════════════════ */}
             {template === 'spark' && (
-                <div className="absolute inset-0 bg-white" style={{ background: 'linear-gradient(135deg, #6366F1 0%, #A855F7 100%)' }}>
-                    <div className="absolute inset-4 sm:inset-6 bg-white rounded-3xl overflow-hidden flex flex-col items-center justify-between p-8 sm:p-12 shadow-2xl">
+                <div className="absolute inset-0 bg-white" style={{ background: 'linear-gradient(135deg, #FF6B6B 0%, #6366F1 50%, #A855F7 100%)' }}>
+                    <div className="absolute inset-4 sm:inset-6 bg-white/95 backdrop-blur-3xl rounded-3xl overflow-hidden flex flex-col items-center justify-between p-8 sm:p-12 shadow-[0_30px_60px_rgba(0,0,0,0.3)] border border-white/50">
                         {/* Decorative dynamic shapes */}
-                        <div className="absolute -top-12 -left-12 w-48 h-48 bg-purple-100 rounded-full blur-3xl opacity-60" />
-                        <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-indigo-100 rounded-full blur-3xl opacity-60" />
+                        <div className="absolute -top-24 -left-24 w-64 h-64 bg-rose-400 rounded-full blur-[80px] opacity-40 mix-blend-multiply" />
+                        <div className="absolute top-1/2 -right-32 w-80 h-80 bg-indigo-400 rounded-full blur-[100px] opacity-40 mix-blend-multiply" />
+                        <div className="absolute -bottom-24 -left-12 w-56 h-56 bg-purple-400 rounded-full blur-[60px] opacity-30 mix-blend-multiply" />
 
                         <div className="w-full flex justify-between items-start relative z-10">
-                            <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl shadow-lg">
-                                <img src="/images/logo.png" alt="Rillcod" className="h-8 w-auto invert brightness-200" />
+                            <div className="p-3 bg-gradient-to-br from-rose-500 via-indigo-500 to-purple-500 rounded-2xl shadow-xl transform -rotate-3 hover:rotate-0 transition-transform">
+                                <img src="/images/logo.png" alt="Rillcod" className="h-8 w-auto invert brightness-200 drop-shadow-md" />
                             </div>
                             <div className="text-right">
-                                <h3 className="text-[18px] font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 italic">Certificate of Creativity</h3>
-                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Celebrating New Talents</p>
+                                <h3 className="text-[20px] font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-indigo-600 italic leading-none mb-1">Creative Spark</h3>
+                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest pl-4 border-l-2 border-indigo-200 inline-block">Igniting Ambition</p>
                             </div>
                         </div>
 
-                        <div className="text-center relative z-10 space-y-4">
-                            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-yellow-400/10 border border-yellow-400 rounded-full mb-2">
-                                <Star className="w-4 h-4 text-yellow-500" fill="currentColor" />
-                                <p className="text-[11px] text-yellow-700 font-black uppercase tracking-widest">Shining Achievement</p>
+                        <div className="text-center relative z-10 space-y-5">
+                            <div className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-yellow-400/20 to-orange-400/20 border border-yellow-400/50 rounded-full mb-2 shadow-[0_0_20px_rgba(250,204,21,0.2)]">
+                                <Star className="w-5 h-5 text-yellow-500 animate-pulse" fill="currentColor" />
+                                <p className="text-[12px] text-yellow-700 font-black uppercase tracking-[0.2em]">Excellence Award</p>
                             </div>
-                            <h1 className="text-[52px] font-black text-slate-900 tracking-tight leading-[0.9] drop-shadow-sm">
+                            <h1 className="text-[64px] font-black text-transparent bg-clip-text bg-gradient-to-br from-slate-900 to-slate-700 tracking-tighter leading-[0.9] drop-shadow-sm pb-2">
                                 {studentName}
                             </h1>
-                            <p className="text-[15px] text-slate-500 max-w-lg mx-auto leading-relaxed">
-                                You have successfully unlocked your potential and mastered the creative arts of <br/>
-                                <span className="text-indigo-600 font-black text-[22px] tracking-tight block my-2 italic">"{courseTitle}"</span>
-                                within the {programName} journey. Keep sparking!
+                            <p className="text-[16px] text-slate-600 max-w-xl mx-auto leading-relaxed border-t border-b border-indigo-100 py-4">
+                                This momentous scroll verifies your extraordinary creativity and unstoppable drive in mastering the colorful realm of <br/>
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-purple-600 font-black text-[26px] tracking-tight block mt-3 mb-1 italic leading-none">{courseTitle}</span>
+                                <span className="text-[12px] text-indigo-400 font-bold uppercase tracking-widest">{programName}</span>
                             </p>
                         </div>
 
-                        <div className="w-full flex items-end justify-between relative z-10 pt-6">
+                        <div className="w-full flex items-end justify-between relative z-10 pt-4">
                             <div className="flex flex-col items-center">
-                                <div className="w-20 h-20 bg-indigo-50 p-1.5 rounded-xl border-2 border-dashed border-indigo-200 group-hover:border-indigo-400 transition-all">
+                                <div className="w-24 h-24 bg-white p-2 rounded-2xl border-4 border-dashed border-indigo-200 shadow-lg transform rotate-3 hover:rotate-0 transition-all">
                                     <QRCode value={verifyUrl} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                                 </div>
-                                <p className="text-[8px] font-black text-indigo-400 uppercase mt-2 tracking-widest italic">{certCode}</p>
+                                <p className="text-[9px] font-black text-indigo-400 uppercase mt-3 tracking-[0.3em] bg-indigo-50 px-3 py-1 rounded-full">{certCode}</p>
                             </div>
 
-                            <div className="flex gap-12 items-end">
-                                <div className="text-center space-y-2">
-                                    <img src="/images/signature.png" alt="Sig" className="h-10 w-auto mx-auto opacity-70" style={{ filter: 'hue-rotate(240deg) saturate(2)' }} />
-                                    <div className="h-1 w-24 bg-gradient-to-r from-indigo-500/50 to-purple-500/50 rounded-full" />
-                                    <p className="text-[10px] font-black text-slate-700 uppercase leading-none">Creative Director</p>
-                                </div>
-                                <div className="text-center space-y-2">
-                                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg transform rotate-12">
-                                        <Trophy className="w-8 h-8 text-white" />
-                                    </div>
-                                    <p className="text-[10px] font-black text-slate-700 uppercase leading-none">Rillcod 2026</p>
+                            <div className="text-center space-y-3">
+                                <img src="/images/signature.png" alt="Sig" className="h-12 w-auto mx-auto opacity-80 mix-blend-multiply" style={{ filter: 'hue-rotate(280deg) saturate(1.5)' }} />
+                                <div className="h-1.5 w-32 bg-gradient-to-r from-rose-400 via-indigo-400 to-purple-400 rounded-full mx-auto" />
+                                <div className="space-y-0.5">
+                                    <p className="text-[12px] font-black text-slate-800 uppercase leading-none tracking-widest">Osahon J.</p>
+                                    <p className="text-[9px] text-slate-500 font-bold uppercase italic tracking-widest">Visionary Director</p>
                                 </div>
                             </div>
 
-                            <div className="text-right space-y-1">
-                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Dated Sparked</p>
+                            <div className="text-right space-y-2">
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-rose-400 to-indigo-600 flex items-center justify-center shadow-xl transform -rotate-12 mb-4 ml-auto">
+                                    <Trophy className="w-8 h-8 text-white drop-shadow-md" />
+                                </div>
                                 <p className="text-[16px] font-black text-slate-900 leading-none">{issuedDate}</p>
-                                <p className="text-[7px] font-mono text-slate-300 mt-2">{certNum}</p>
+                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">{certNum}</p>
                             </div>
                         </div>
                     </div>
