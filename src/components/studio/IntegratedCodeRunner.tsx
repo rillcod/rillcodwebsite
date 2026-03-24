@@ -203,7 +203,7 @@ export default function IntegratedCodeRunner({
   };
 
   return (
-    <div className="flex flex-col border border-border bg-background overflow-hidden shadow-xl my-4">
+    <div className="flex flex-col border border-border bg-background overflow-hidden shadow-xl rounded-2xl">
 
       {/* ─── Row 1: Title + Editor/Output toggle ─── */}
       {showHeader && (

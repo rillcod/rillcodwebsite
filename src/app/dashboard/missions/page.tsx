@@ -7,18 +7,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/auth-context';
 import {
   RocketLaunchIcon,
-  CheckBadgeIcon,
   LightBulbIcon,
   MagnifyingGlassIcon,
-  XMarkIcon,
-  TrophyIcon,
-  StarIcon,
-  BoltIcon,
   CodeBracketIcon,
   ChevronRightIcon,
   CheckCircleIcon,
   LockClosedIcon,
+  ArrowRightIcon,
+  SparklesIcon,
+  ArrowLeftIcon,
+  CheckBadgeIcon,
+  XMarkIcon,
+  TrophyIcon,
+  StarIcon,
+  BoltIcon,
 } from '@/lib/icons';
+import Link from 'next/link';
 
 const CodeEditor = dynamic(() => import('@/components/studio/IntegratedCodeRunner'), {
   ssr: false,
@@ -1149,15 +1153,22 @@ export default function MissionsPage() {
 
   return (
     <div className="min-h-screen bg-black bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-950/20 via-background to-background text-foreground selection:bg-orange-500/30">
-      <div className="max-w-5xl mx-auto px-4 py-12">
+      <div className="max-w-5xl mx-auto px-4 py-8 sm:py-12">
+        {/* Back Button */}
+        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="mb-8">
+          <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-all">
+            <ArrowLeftIcon className="w-4 h-4" />
+            Back to Dashboard
+          </Link>
+        </motion.div>
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-5 mb-8">
-          <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center rounded-2xl shadow-[0_0_30px_rgba(249,115,22,0.3)] border border-white/10">
-            <RocketLaunchIcon className="w-7 h-7 text-white" />
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4 sm:gap-5 mb-10">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center rounded-2xl shadow-[0_0_30px_rgba(249,115,22,0.3)] border border-white/10">
+            <RocketLaunchIcon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight mb-1 uppercase">Missions</h1>
-            <p className="text-[10px] text-orange-400 font-black tracking-[0.2em] uppercase">Rillcod Tactical Exercises</p>
+            <h1 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight mb-0.5 sm:mb-1 uppercase">Missions</h1>
+            <p className="text-[9px] sm:text-[10px] text-orange-400 font-black tracking-[0.2em] uppercase">Rillcod Tactical Exercises</p>
           </div>
         </motion.div>
 
@@ -1384,7 +1395,7 @@ export default function MissionsPage() {
                         </div>
 
                         {/* Code editor */}
-                        <div className="relative border-b border-white/5">
+                        <div className="relative p-4 sm:p-8 bg-black/40 backdrop-blur-sm border-b border-white/5">
                           <CodeEditor
                             value={missionCode[mission.id] ?? mission.starterCode}
                             onChange={(v) =>

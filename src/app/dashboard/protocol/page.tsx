@@ -21,7 +21,9 @@ import {
   StarIcon,
   ArrowPathIcon,
   XMarkIcon,
+  ArrowLeftIcon,
 } from '@/lib/icons';
+import Link from 'next/link';
 
 const CodeEditor = dynamic(() => import('@/components/studio/IntegratedCodeRunner'), {
   ssr: false,
@@ -166,31 +168,41 @@ export default function ProtocolPage() {
         <div className="absolute bottom-[10%] right-[-5%] w-[35%] h-[35%] bg-amber-500/10 blur-[100px] rounded-full" />
       </div>
 
-      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 md:px-8 py-10 sm:py-16">
+      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 md:px-8 py-8 sm:py-16">
+        
+        {/* Back Button */}
+        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="mb-8">
+          <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-all">
+            <ArrowLeftIcon className="w-4 h-4" />
+            Back to Dashboard
+          </Link>
+        </motion.div>
         
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(249,115,22,0.3)] border border-white/10 flex-shrink-0">
-              <CommandLineIcon className="w-8 h-8 text-white" />
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+          <div className="flex items-center gap-4 sm:gap-5">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(249,115,22,0.3)] border border-white/10 flex-shrink-0">
+              <CommandLineIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
             <div>
-              <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1 drop-shadow-md">Rillcod Academy</p>
-              <h1 className="text-4xl sm:text-5xl font-black text-white uppercase tracking-tight mb-2 drop-shadow-sm">Protocol</h1>
-              <p className="text-sm text-white/50 font-medium max-w-sm mt-1">Industrial path to software mastery. Build the future.</p>
+              <p className="text-[9px] sm:text-[10px] font-black text-orange-400 uppercase tracking-widest mb-0.5 sm:mb-1 drop-shadow-md">Rillcod Academy</p>
+              <h1 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight mb-1 sm:mb-2 drop-shadow-sm">Protocol</h1>
+              <p className="text-[11px] sm:text-sm text-white/50 font-medium max-w-[240px] sm:max-w-sm mt-0.5 sm:mt-1">Industrial path to software mastery.</p>
             </div>
           </div>
-          <div className="flex flex-col items-end">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Total Mastery</span>
-              <span className="text-xl font-black text-orange-400 drop-shadow-[0_0_10px_rgba(249,115,22,0.5)]">{Math.round(overallProgress)}%</span>
-            </div>
-            <div className="w-48 h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${overallProgress}%` }}
-                className="h-full bg-gradient-to-r from-orange-500 to-amber-400 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
-              />
+          <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-end bg-white/[0.03] md:bg-transparent p-4 md:p-0 rounded-2xl md:rounded-none border border-white/5 md:border-none">
+            <div className="flex flex-col md:items-end">
+              <div className="flex items-center gap-3 mb-1 sm:mb-2">
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Total Mastery</span>
+                <span className="text-lg sm:text-xl font-black text-orange-400 drop-shadow-[0_0_10px_rgba(249,115,22,0.5)]">{Math.round(overallProgress)}%</span>
+              </div>
+              <div className="w-32 sm:w-48 h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${overallProgress}%` }}
+                  className="h-full bg-gradient-to-r from-orange-500 to-amber-400 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
+                />
+              </div>
             </div>
           </div>
         </motion.div>
