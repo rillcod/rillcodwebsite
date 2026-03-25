@@ -247,7 +247,7 @@ export default function ProtocolPage() {
             { value: 'javascript', label: 'JS Neural' },
             { value: 'python', label: 'Python Core' },
             { value: 'html', label: 'Web Engine' },
-            { value: 'robotics', label: 'Hardware Lab' },
+            { value: 'robotics', label: 'Visual Blocks' },
           ] as { value: LangFilter; label: string }[]).map(({ value, label }) => (
             <button
               key={value}
@@ -299,7 +299,7 @@ export default function ProtocolPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
                       <h2 className={`text-xl font-black uppercase tracking-tight ${phaseCompletedCount === phaseModules.length ? 'text-emerald-400' : 'text-white'}`}>
-                        Phase {phase.id}: {phase.name}
+                        {phase.name}
                       </h2>
                       {phaseCompletedCount === phaseModules.length && (
                         <CheckBadgeIcon className="w-5 h-5 text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
