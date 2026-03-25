@@ -110,6 +110,7 @@ interface RegisterResult extends GeneratedStudent {
   status: 'created' | 'updated' | 'failed';
   error?: string;
   batch_id?: string;
+  portal_user_id?: string;
 }
 
 interface School {
@@ -316,6 +317,15 @@ export default function BulkRegisterPage() {
     toast.success('Roster PDF generated successfully.');
   };
 
+  // ── Read Card Builder config from localStorage ──────────────────────────────
+  const getCardCfg = (): any | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem('rillcod_card_builder_config');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  };
+
   const handleExportCardsPDF = (resultsToPrint: any[]) => {
     const validResults = resultsToPrint.filter(r => r.status !== 'failed');
     if (validResults.length === 0) {
@@ -323,17 +333,30 @@ export default function BulkRegisterPage() {
       return;
     }
 
-    const doc = new jsPDF() as jsPDFWithPlugin;
-    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    // Pull saved Card Builder design (accent, header style, fields, text)
+    const cardCfg = getCardCfg();
+    const acc = cardCfg?.accentColor || '#ea580c';
+    const orgName = cardCfg?.orgName || 'RILLCOD TECHNOLOGIES';
+    const orgWeb = cardCfg?.orgWebsite || 'www.rillcod.com';
+    const footLeft = cardCfg?.footerLeft || 'rillcod.com/login';
+    const hStyle: string = cardCfg?.headerStyle || 'band';
+    const fieldVis = (key: string) => {
+      if (!cardCfg?.fields) return true;
+      return cardCfg.fields.find((f: any) => f.key === key)?.visible ?? true;
+    };
 
-    // Cards: exactly 80×60mm, 8mm gap, centered on A4
+    const hexR = (hex: string) => parseInt(hex.slice(1, 3), 16);
+    const hexG = (hex: string) => parseInt(hex.slice(3, 5), 16);
+    const hexB = (hex: string) => parseInt(hex.slice(5, 7), 16);
+
+    const doc = new jsPDF() as jsPDFWithPlugin;
+
     const cardW = 80, cardH = 60;
     const gapX = 8, gapY = 8;
-    const marginX = (210 - 2 * cardW - gapX) / 2;   // = 17mm
-    const marginY = (297 - 4 * cardH - 3 * gapY) / 2; // = 16.5mm
+    const marginX = (210 - 2 * cardW - gapX) / 2;
+    const marginY = (297 - 4 * cardH - 3 * gapY) / 2;
 
-    validResults.forEach((r, i) => {
-      const pageIndex = Math.floor(i / 8);
+    validResults.forEach((res, i) => {
       const posInPage = i % 8;
       if (posInPage === 0 && i > 0) doc.addPage();
 
@@ -342,97 +365,93 @@ export default function BulkRegisterPage() {
       const x = marginX + col * (cardW + gapX);
       const y = marginY + row * (cardH + gapY);
 
-      // Left orange accent bar
-      doc.setFillColor(234, 88, 12);
-      doc.rect(x, y, 1.5, cardH, 'F');
-
       // Card border
       doc.setDrawColor(229, 231, 235);
       doc.setLineWidth(0.3);
       doc.rect(x, y, cardW, cardH);
 
-      const ix = x + 4; // inner x (after accent bar)
-
-      // Header: org name + website
-      doc.setFontSize(7);
-      doc.setTextColor(17, 24, 39);
-      doc.setFont('helvetica', 'bold');
-      doc.text('RILLCOD TECHNOLOGIES', ix, y + 6);
-      doc.setFontSize(5.5);
-      doc.setTextColor(234, 88, 12);
-      doc.setFont('helvetica', 'normal');
-      doc.text('www.rillcod.com', ix, y + 9.5);
-
-      // Grade badge (top right)
-      if (r.class_name) {
-        doc.setFillColor(234, 88, 12);
-        doc.setFontSize(6);
-        doc.setTextColor(255, 255, 255);
-        const badgeText = r.class_name.toUpperCase();
-        const bw = badgeText.length * 1.6 + 4;
-        doc.rect(x + cardW - bw - 1, y + 3, bw, 5, 'F');
-        doc.text(badgeText, x + cardW - bw / 2 - 1, y + 6.8, { align: 'center' });
+      // Header — follows builder style
+      if (hStyle === 'band') {
+        doc.setFillColor(hexR(acc), hexG(acc), hexB(acc));
+        doc.rect(x, y, cardW, 8.5, 'F');
+        doc.setFontSize(7); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold');
+        doc.text(orgName, x + 3, y + 5);
+        doc.setFontSize(4.5); doc.setFont('helvetica', 'normal');
+        doc.text(orgWeb, x + 3, y + 7.5);
+      } else if (hStyle === 'border') {
+        doc.setFillColor(hexR(acc), hexG(acc), hexB(acc));
+        doc.rect(x, y, 1.5, cardH, 'F');
+        doc.setFontSize(7); doc.setTextColor(17, 24, 39); doc.setFont('helvetica', 'bold');
+        doc.text(orgName, x + 4, y + 6);
+        doc.setFontSize(5); doc.setTextColor(hexR(acc), hexG(acc), hexB(acc));
+        doc.text(orgWeb, x + 4, y + 9.5);
+      } else {
+        doc.setDrawColor(hexR(acc), hexG(acc), hexB(acc)); doc.setLineWidth(0.8);
+        doc.line(x, y + 10, x + cardW, y + 10);
+        doc.setFontSize(7); doc.setTextColor(17, 24, 39); doc.setFont('helvetica', 'bold');
+        doc.text(orgName, x + 3, y + 6);
       }
 
-      // Divider
-      doc.setDrawColor(243, 244, 246);
-      doc.setLineWidth(0.2);
-      doc.line(ix, y + 12, x + cardW - 2, y + 12);
+      // Class badge
+      if (fieldVis('className') && res.class_name) {
+        const badgeText = res.class_name.toUpperCase();
+        const bw = badgeText.length * 1.5 + 4;
+        if (hStyle === 'band') { doc.setFillColor(0, 0, 0); }
+        else { doc.setFillColor(hexR(acc), hexG(acc), hexB(acc)); }
+        doc.rect(x + cardW - bw - 1, y + 2, bw, 4.5, 'F');
+        doc.setFontSize(5.5); doc.setTextColor(255, 255, 255);
+        doc.text(badgeText, x + cardW - bw / 2 - 1, y + 5.2, { align: 'center' });
+      }
 
-      // School
-      doc.setFontSize(6);
-      doc.setTextColor(234, 88, 12);
-      doc.setFont('helvetica', 'bold');
-      doc.text((r.school_name || 'RILLCOD ACADEMY').toUpperCase(), ix, y + 16.5);
+      const ix = x + (hStyle === 'border' ? 4 : 3);
+      const iy = y + (hStyle === 'band' ? 13 : 15);
 
       // Student name
-      doc.setFontSize(11);
-      doc.setTextColor(17, 24, 39);
-      const nameLines = doc.splitTextToSize(r.full_name.toUpperCase(), cardW - 58);
-      doc.text(nameLines.slice(0, 2), ix, y + 22);
+      doc.setFontSize(10.5); doc.setTextColor(17, 24, 39); doc.setFont('helvetica', 'bold');
+      doc.text(res.full_name.toUpperCase(), ix, iy);
 
-      // Email label + value
-      doc.setFontSize(5.5);
-      doc.setTextColor(156, 163, 175);
-      doc.setFont('helvetica', 'normal');
-      doc.text('EMAIL', ix, y + 33);
-      doc.setFontSize(7);
-      doc.setTextColor(17, 24, 39);
-      doc.setFont('courier', 'bold');
-      const emailText = doc.splitTextToSize(r.email, cardW - 58);
-      doc.text(emailText[0], ix, y + 37);
+      doc.setDrawColor(243, 244, 246); doc.setLineWidth(0.2);
+      doc.line(ix, iy + 2, x + cardW - 18, iy + 2);
 
-      // Password label + value
-      doc.setFontSize(5.5);
-      doc.setTextColor(156, 163, 175);
-      doc.setFont('helvetica', 'normal');
-      doc.text('TEMPORARY PASSWORD', ix, y + 43);
-      doc.setFontSize(7);
-      doc.setTextColor(17, 24, 39);
-      doc.setFont('courier', 'bold');
-      doc.text(r.password || 'Contact Admin', ix, y + 47);
+      // Dynamic fields based on builder visibility
+      let fy = iy + 7;
+      if (fieldVis('school')) {
+        doc.setFontSize(5.5); doc.setTextColor(hexR(acc), hexG(acc), hexB(acc)); doc.setFont('helvetica', 'bold');
+        doc.text((res.school_name || selectedSchoolName || 'RILLCOD ACADEMY').toUpperCase(), ix, fy);
+        fy += 5;
+      }
+      if (fieldVis('email')) {
+        doc.setFontSize(4.5); doc.setTextColor(156, 163, 175); doc.setFont('helvetica', 'normal');
+        doc.text('EMAIL', ix, fy);
+        doc.setFontSize(6.5); doc.setTextColor(17, 24, 39); doc.setFont('courier', 'bold');
+        doc.text(doc.splitTextToSize(res.email, cardW - 28)[0], ix, fy + 3.5);
+        fy += 8;
+      }
+      if (fieldVis('password')) {
+        doc.setFontSize(4.5); doc.setTextColor(156, 163, 175); doc.setFont('helvetica', 'normal');
+        doc.text('TEMPORARY PASSWORD', ix, fy);
+        doc.setFontSize(6.5); doc.setTextColor(hexR(acc), hexG(acc), hexB(acc)); doc.setFont('courier', 'bold');
+        doc.text(res.password || 'Contact Admin', ix, fy + 3.5);
+        fy += 8;
+      }
 
-      // Student code (bottom of info col)
-      doc.setFontSize(5.5);
-      doc.setTextColor(234, 88, 12);
-      doc.setFont('courier', 'bold');
-      const sCode = `RC-${r.id?.slice(0, 8).toUpperCase() || '--------'}`;
-      doc.text(sCode, ix, y + 53);
+      const sCode = `RC-${(res.portal_user_id || '').slice(0, 8).toUpperCase() || '--------'}`;
+      if (fieldVis('studentId')) {
+        doc.setFontSize(5); doc.setTextColor(hexR(acc), hexG(acc), hexB(acc)); doc.setFont('courier', 'bold');
+        doc.text(sCode, ix, y + cardH - 11);
+      }
 
-      // Footer divider
+      // Footer
       doc.setDrawColor(243, 244, 246);
-      doc.line(ix, y + cardH - 8, x + cardW - 2, y + cardH - 8);
-      doc.setFontSize(5.5);
-      doc.setTextColor(156, 163, 175);
-      doc.setFont('helvetica', 'normal');
-      doc.text('www.rillcod.com/login', ix, y + cardH - 4);
-      doc.setTextColor(17, 24, 39);
-      doc.setFont('courier', 'bold');
-      doc.text(sCode, x + cardW - 2, y + cardH - 4, { align: 'right' });
+      doc.line(ix, y + cardH - 7, x + cardW - 2, y + cardH - 7);
+      doc.setFontSize(5); doc.setTextColor(156, 163, 175); doc.setFont('helvetica', 'normal');
+      doc.text(footLeft, ix, y + cardH - 3);
+      doc.setTextColor(55, 65, 81); doc.setFont('courier', 'bold');
+      doc.text(sCode, x + cardW - 2, y + cardH - 3, { align: 'right' });
     });
 
     doc.save(`rillcod_access_cards_${new Date().getTime()}.pdf`);
-    toast.success('Access cards PDF saved.');
+    toast.success('Access cards PDF generated with your card design.');
   };
 
   const handleMassPrintReport = (resultsToPrint: any[]) => {
@@ -521,7 +540,18 @@ export default function BulkRegisterPage() {
       return;
     }
 
-    const logoUrl = window.location.origin + '/images/logo.png';
+    const cardCfg = getCardCfg();
+    const acc = cardCfg?.accentColor || '#ea580c';
+    const orgName = cardCfg?.orgName || 'RILLCOD TECHNOLOGIES';
+    const orgWeb = cardCfg?.orgWebsite || 'www.rillcod.com';
+    const footLeft = cardCfg?.footerLeft || 'rillcod.com/login';
+    const hStyle: string = cardCfg?.headerStyle || 'band';
+    const fieldVis = (key: string) => {
+      if (!cardCfg?.fields) return true;
+      return cardCfg.fields.find((f: any) => f.key === key)?.visible ?? true;
+    };
+
+    const logoUrl = window.location.origin + '/logo.png';
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
     const html = `
@@ -531,25 +561,27 @@ export default function BulkRegisterPage() {
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter','Segoe UI',system-ui,sans-serif; background:#fff; color:#111827; padding:10mm; }
         .grid { display:grid; grid-template-columns:80mm 80mm; grid-auto-rows:60mm; gap:8mm; justify-content:center; }
-        .card { width:80mm; height:60mm; border:.3mm solid #d1d5db; display:flex; flex-direction:column; overflow:hidden; break-inside:avoid; background:#fff; }
-        .chdr { background:#ea580c; height:9mm; padding:0 2.5mm; display:flex; align-items:center; gap:1.5mm; flex-shrink:0; }
+        .card { width:80mm; height:60mm; border:.3mm solid #d1d5db; ${hStyle === 'border' ? `border-left:1.5mm solid ${acc};` : ''} display:flex; flex-direction:column; overflow:hidden; break-inside:avoid; background:#fff; }
+        .chdr { background:${acc}; min-height:9mm; padding:0 2.5mm; display:flex; align-items:center; gap:1.5mm; flex-shrink:0; }
+        .mhdr { border-bottom:1.5mm solid ${acc}; min-height:9mm; padding:0 2.5mm; display:flex; align-items:center; gap:1.5mm; flex-shrink:0; }
+        .shdr { min-height:9mm; padding:0 2.5mm; display:flex; align-items:center; gap:1.5mm; flex-shrink:0; border-bottom:.1mm solid #f0f0f0; }
         .logo  { width:5mm; height:5mm; object-fit:contain; flex-shrink:0; }
-        .org-name { font-size:2.5mm; font-weight:900; color:#fff; text-transform:uppercase; line-height:1; }
-        .org-web  { font-size:1.6mm; color:rgba(255,255,255,.85); font-weight:700; margin-top:.4mm; }
-        .cbadge { margin-left:auto; background:rgba(0,0,0,.22); color:#fff; padding:.6mm 1.8mm; font-size:1.8mm; font-weight:900; text-transform:uppercase; flex-shrink:0; }
+        .org-name { font-size:2.5mm; font-weight:900; color:${hStyle === 'band' ? '#fff' : '#111'}; text-transform:uppercase; line-height:1; }
+        .org-web  { font-size:1.6mm; color:${hStyle === 'band' ? 'rgba(255,255,255,.85)' : acc}; font-weight:700; margin-top:.4mm; }
+        .cbadge { margin-left:auto; background:${hStyle === 'band' ? 'rgba(0,0,0,.22)' : acc}; color:#fff; padding:.6mm 1.8mm; font-size:1.8mm; font-weight:900; text-transform:uppercase; flex-shrink:0; }
         .cbody { display:flex; flex:1; min-height:0; }
-        .info  { flex:1; padding:1.5mm 2mm; display:flex; flex-direction:column; gap:.8mm; overflow:hidden; min-width:0; border-right:.3mm solid #f0f0f0; }
-        .school { font-size:1.9mm; font-weight:900; color:#ea580c; text-transform:uppercase; letter-spacing:.1mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .info  { flex:1; padding:1.5mm 2mm; display:flex; flex-direction:column; gap:.8mm; overflow:hidden; min-width:0; ${fieldVis('qr') ? 'border-right:.3mm solid #f0f0f0;' : ''} }
+        .school { font-size:1.9mm; font-weight:900; color:${acc}; text-transform:uppercase; letter-spacing:.1mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .sname  { font-size:3.8mm; font-weight:900; color:#111; text-transform:uppercase; line-height:1.15; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin:.5mm 0 1mm; }
         .sep    { height:.3mm; background:#f0f0f0; margin:.5mm 0; }
         .field  { display:flex; flex-direction:column; gap:.3mm; }
         .lbl    { font-size:1.5mm; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.2mm; }
         .val    { font-size:2.1mm; font-weight:700; font-family:monospace; color:#111; word-break:break-all; line-height:1.25; }
-        .val-a  { font-size:2.2mm; font-weight:800; font-family:monospace; color:#ea580c; line-height:1.25; }
+        .val-a  { font-size:2.2mm; font-weight:800; font-family:monospace; color:${acc}; line-height:1.25; }
         .qrp { width:22mm; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.8mm; padding:1.5mm; background:#fafafa; flex-shrink:0; }
         .qr  { width:17mm; height:17mm; border:.3mm solid #e5e7eb; display:block; }
         .qrl { font-size:1.4mm; color:#9ca3af; text-transform:uppercase; text-align:center; line-height:1.2; }
-        .qrc { font-size:1.7mm; font-weight:900; font-family:monospace; color:#ea580c; text-align:center; }
+        .qrc { font-size:1.7mm; font-weight:900; font-family:monospace; color:${acc}; text-align:center; }
         .cftr    { display:flex; justify-content:space-between; align-items:center; padding:0 2mm; border-top:.3mm solid #f0f0f0; font-size:1.5mm; color:#9ca3af; font-weight:600; flex-shrink:0; background:#fafafa; height:5mm; }
         .cftr-id { font-family:monospace; color:#374151; font-weight:900; font-size:1.7mm; }
         @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
@@ -557,30 +589,48 @@ export default function BulkRegisterPage() {
       </head><body>
       <div class="grid">
         ${validResults.map(r => {
-      const sCode = 'RC-' + (r.id || r.portal_user_id || '').slice(0, 8).toUpperCase();
-      const qUrl = encodeURIComponent('https://rillcod.com/student/' + (r.id || r.portal_user_id || ''));
+      const pId = (r.portal_user_id || '');
+      const sCode = 'RC-' + (pId.slice(0, 8).toUpperCase() || '--------');
+      const qUrl = encodeURIComponent('https://rillcod.com/student/' + pId);
+
+      // Build header HTML based on builder style
+      const headerHtml = hStyle === 'band' ? `
+              <div class="chdr">
+                <img src="${logoUrl}" class="logo" />
+                <div><div class="org-name">${orgName}</div><div class="org-web">${orgWeb}</div></div>
+                ${fieldVis('className') && r.class_name ? `<div class="cbadge">${r.class_name}</div>` : ''}
+              </div>` : hStyle === 'minimal' ? `
+              <div class="mhdr">
+                <img src="${logoUrl}" class="logo" />
+                <div><div class="org-name">${orgName}</div></div>
+                ${fieldVis('className') && r.class_name ? `<div class="cbadge">${r.class_name}</div>` : ''}
+              </div>` : `
+              <div class="shdr">
+                <img src="${logoUrl}" class="logo" />
+                <div><div class="org-name">${orgName}</div><div class="org-web" style="color:${acc}">${orgWeb}</div></div>
+                ${fieldVis('className') && r.class_name ? `<div class="cbadge">${r.class_name}</div>` : ''}
+              </div>`;
+
       return `
           <div class="card">
-            <div class="chdr">
-              <img src="${logoUrl}" class="logo" />
-              <div><div class="org-name">RILLCOD TECHNOLOGIES</div><div class="org-web">www.rillcod.com</div></div>
-              <div class="cbadge">${r.class_name || 'STUDENT'}</div>
-            </div>
+            ${headerHtml}
             <div class="cbody">
               <div class="info">
-                <div class="school">${r.school_name || 'RILLCOD ACADEMY'}</div>
+                ${fieldVis('school') ? `<div class="school">${r.school_name || selectedSchoolName || 'RILLCOD ACADEMY'}</div>` : ''}
                 <div class="sname">${r.full_name || 'N/A'}</div>
                 <div class="sep"></div>
-                <div class="field"><div class="lbl">Email</div><div class="val">${r.email || 'N/A'}</div></div>
-                <div class="field"><div class="lbl">Temporary Password</div><div class="val-a">${r.password || 'Contact Admin'}</div></div>
+                ${fieldVis('email') ? `<div class="field"><div class="lbl">Email</div><div class="val">${r.email || 'N/A'}</div></div>` : ''}
+                ${fieldVis('password') ? `<div class="field"><div class="lbl">Temporary Password</div><div class="val-a">${r.password || 'Contact Admin'}</div></div>` : ''}
+                ${fieldVis('studentId') ? `<div class="field"><div class="lbl">Student ID</div><div class="val-a">${sCode}</div></div>` : ''}
               </div>
+              ${fieldVis('qr') ? `
               <div class="qrp">
                 <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qUrl}" class="qr" crossorigin="anonymous" />
                 <div class="qrl">Scan to verify</div>
                 <div class="qrc">${sCode}</div>
-              </div>
+              </div>` : ''}
             </div>
-            <div class="cftr"><span>rillcod.com/login</span><span class="cftr-id">${sCode}</span></div>
+            <div class="cftr"><span>${footLeft}</span><span class="cftr-id">${sCode}</span></div>
           </div>`;
     }).join('')}
       </div>
@@ -592,6 +642,7 @@ export default function BulkRegisterPage() {
     win?.document.write(html);
     win?.document.close();
   };
+
 
 
   useEffect(() => {
@@ -860,6 +911,17 @@ export default function BulkRegisterPage() {
   const handleRegister = async () => {
     const valid = preview.filter((s) => s.full_name.trim() && s.email.trim());
     if (!valid.length) return;
+
+    // ── Pre-check for duplicate emails within the batch ───────────────────
+    const batchEmails = valid.map(s => s.email.toLowerCase());
+    const dupeSet = new Set<string>();
+    const seen = new Set<string>();
+    batchEmails.forEach(e => { if (seen.has(e)) dupeSet.add(e); seen.add(e); });
+    if (dupeSet.size > 0) {
+      const dupeList = [...dupeSet].join(', ');
+      if (!confirm(`⚠ Duplicate emails detected within this batch:\n\n${dupeList}\n\nDuplicate accounts will have their passwords updated. Continue?`)) return;
+    }
+
     setRegistering(true);
     setRegisterProgress({ done: 0, total: valid.length, current: valid[0]?.full_name ?? '' });
 
@@ -900,7 +962,7 @@ export default function BulkRegisterPage() {
 
       // Show success screen, then load history in background
       setStep('done');
-      fetchHistory().catch(() => {}); // non-blocking
+      fetchHistory().catch(() => { }); // non-blocking
 
     } catch (err: any) {
       alert(err.message);
@@ -1592,9 +1654,11 @@ Yusuf Ibrahim SS1A`}
                       <thead>
                         <tr className="border-b border-border text-muted-foreground uppercase tracking-widest text-[9px] font-black">
                           <th className="text-left px-6 py-4">#</th>
+                          <th className="text-left px-4 py-4">Student ID</th>
                           <th className="text-left px-4 py-4">Full Name</th>
                           <th className="text-left px-4 py-4">Class</th>
                           <th className="text-left px-4 py-4">Email / Login</th>
+                          <th className="text-left px-4 py-4">Password</th>
                           <th className="text-right px-6 py-4">Status</th>
                         </tr>
                       </thead>
@@ -1602,6 +1666,11 @@ Yusuf Ibrahim SS1A`}
                         {results.map((r, i) => (
                           <tr key={i} className={`group transition-colors ${r.status === 'failed' ? 'bg-rose-500/5' : 'hover:bg-white/[0.01]'}`}>
                             <td className="px-6 py-4 text-muted-foreground font-mono">{String(i + 1).padStart(2, '0')}</td>
+                            <td className="px-4 py-4">
+                              <span className="font-mono font-black text-orange-400 text-[10px] tracking-wide">
+                                {r.portal_user_id ? `RC-${r.portal_user_id.slice(0, 8).toUpperCase()}` : '—'}
+                              </span>
+                            </td>
                             <td className="px-4 py-4">
                               <input className="bg-transparent border-none text-foreground font-bold w-full focus:ring-1 focus:ring-orange-500 rounded p-1" value={r.full_name} onChange={(e) => {
                                 const newResults = [...results]; newResults[i].full_name = e.target.value; setResults(newResults);
@@ -1613,6 +1682,7 @@ Yusuf Ibrahim SS1A`}
                               }} />
                             </td>
                             <td className="px-4 py-4 font-mono text-muted-foreground">{r.email}</td>
+                            <td className="px-4 py-4 font-mono font-bold text-orange-400 text-[11px]">{r.password || '—'}</td>
                             <td className="px-6 py-4 text-right transform group-hover:scale-105 transition-transform">
                               <span className={`px-2 py-1 rounded-none text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
                                 {r.status}

@@ -16,12 +16,25 @@ export async function GET(
   // 1. Try portal_users (enrolled / registered students)
   const { data: portalData } = await db
     .from('portal_users')
-    .select('id, full_name, school_name, is_active, enrollment_type, avatar_url')
+    .select('id, full_name, school_name, is_active, enrollment_type, avatar_url, section_class, class_id, created_at')
     .eq('id', id)
     .eq('role', 'student')
     .maybeSingle();
 
   if (portalData) {
+    // Get class info if class_id exists
+    let className: string | null = portalData.section_class;
+    if (portalData.class_id && !className) {
+      const { data: classData } = await db
+        .from('classes')
+        .select('name')
+        .eq('id', portalData.class_id)
+        .maybeSingle();
+      className = classData?.name ?? null;
+    }
+
+    const schoolLogo: string | null = null;
+
     return NextResponse.json({
       id: portalData.id,
       full_name: portalData.full_name,
@@ -29,6 +42,9 @@ export async function GET(
       is_active: portalData.is_active,
       enrollment_type: portalData.enrollment_type,
       avatar_url: portalData.avatar_url ?? null,
+      class_name: className,
+      school_logo: schoolLogo,
+      enrolled_at: portalData.created_at,
       source: 'portal',
     });
   }
@@ -36,7 +52,7 @@ export async function GET(
   // 2. Fallback: pre-portal students table
   const { data: studentData } = await db
     .from('students')
-    .select('id, full_name, school_name, status')
+    .select('id, full_name, school_name, status, grade_level, created_at')
     .eq('id', id)
     .maybeSingle();
 
@@ -48,6 +64,9 @@ export async function GET(
       is_active: studentData.status === 'active',
       enrollment_type: null,
       avatar_url: null,
+      class_name: studentData.grade_level,
+      school_logo: null,
+      enrolled_at: studentData.created_at,
       source: 'students',
     });
   }
