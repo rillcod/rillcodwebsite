@@ -9,6 +9,9 @@ import {
   CheckBadgeIcon,
   XCircleIcon,
   UserCircleIcon,
+  BookOpenIcon,
+  CalendarIcon,
+  ShieldCheckIcon,
 } from '@/lib/icons';
 
 interface StudentProfile {
@@ -18,7 +21,17 @@ interface StudentProfile {
   is_active: boolean;
   enrollment_type: string | null;
   avatar_url: string | null;
+  class_name: string | null;
+  school_logo: string | null;
+  enrolled_at: string | null;
 }
+
+const TYPE_LABELS: Record<string, string> = {
+  school: 'Partner School',
+  bootcamp: 'Summer Bootcamp',
+  online: 'Online School',
+  in_person: 'In-Person Centre',
+};
 
 export default function PublicStudentProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -42,38 +55,59 @@ export default function PublicStudentProfilePage() {
   }, [id]);
 
   const studentCode = student ? `RC-${student.id.slice(0, 8).toUpperCase()}` : '';
+  const enrolledDate = student?.enrolled_at
+    ? new Date(student.enrolled_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : null;
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-[#0a0a14] flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+      {/* Background grid pattern */}
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+          backgroundSize: '40px 40px',
+        }}
+      />
+
+      {/* Glow effects */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-orange-500/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-violet-500/5 rounded-full blur-[100px] pointer-events-none" />
+
       {/* Header */}
-      <div className="mb-8 text-center">
-        <Link href="/" className="inline-block">
-          <span className="text-2xl font-black text-white tracking-tight">
-            RILLCOD <span className="text-[#7a0606]">ACADEMY</span>
+      <div className="mb-8 text-center relative z-10">
+        <Link href="/" className="inline-flex items-center gap-3 group">
+          <img src="/logo.png" alt="Rillcod" className="w-8 h-8 opacity-80 group-hover:opacity-100 transition-opacity" />
+          <span className="text-xl font-black text-white/90 tracking-tight uppercase">
+            RILLCOD <span className="text-orange-500">TECHNOLOGIES</span>
           </span>
         </Link>
-        <p className="text-white/40 text-xs mt-1">Student Verification</p>
+        <p className="text-white/30 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">
+          Student Identity Verification
+        </p>
       </div>
 
       {/* Card */}
-      <div className="w-full max-w-sm bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+      <div className="w-full max-w-sm relative z-10">
         {status === 'loading' && (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-white/40 text-sm">Verifying student...</p>
+          <div className="bg-white/[0.03] border border-white/10 backdrop-blur-sm flex flex-col items-center justify-center py-20 gap-4">
+            <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Verifying identity…</p>
           </div>
         )}
 
         {status === 'notfound' && (
-          <div className="flex flex-col items-center justify-center py-16 gap-4 px-6">
-            <XCircleIcon className="w-14 h-14 text-red-400" />
-            <h2 className="text-white font-bold text-lg">Student Not Found</h2>
-            <p className="text-white/40 text-sm text-center">
-              This QR code does not match any registered student. Please contact the school administrator.
+          <div className="bg-white/[0.03] border border-red-500/20 backdrop-blur-sm flex flex-col items-center justify-center py-16 gap-4 px-6">
+            <div className="w-16 h-16 bg-red-500/10 flex items-center justify-center">
+              <XCircleIcon className="w-8 h-8 text-red-400" />
+            </div>
+            <h2 className="text-white font-black text-lg uppercase tracking-tight">Identity Not Found</h2>
+            <p className="text-white/40 text-xs text-center leading-relaxed max-w-[260px]">
+              This QR code does not match any registered student. The card may be expired or invalid.
             </p>
             <Link
               href="/"
-              className="mt-2 px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white text-sm rounded-xl transition-colors"
+              className="mt-2 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest transition-all"
             >
               Go to Homepage
             </Link>
@@ -81,84 +115,105 @@ export default function PublicStudentProfilePage() {
         )}
 
         {status === 'found' && student && (
-          <>
-            {/* Top accent band */}
-            <div className="h-2 bg-[#7a0606]" />
+          <div className="bg-white/[0.03] border border-white/10 backdrop-blur-sm overflow-hidden">
+            {/* Top accent */}
+            <div className="h-1.5 bg-gradient-to-r from-orange-500 via-orange-400 to-amber-500" />
 
-            <div className="p-6 flex flex-col items-center gap-4">
+            {/* Verified Banner */}
+            <div className={`flex items-center justify-center gap-2 py-2.5 text-[10px] font-black uppercase tracking-widest ${
+              student.is_active
+                ? 'bg-emerald-500/10 text-emerald-400 border-b border-emerald-500/10'
+                : 'bg-red-500/10 text-red-400 border-b border-red-500/10'
+            }`}>
+              {student.is_active ? (
+                <><ShieldCheckIcon className="w-3.5 h-3.5" /> Verified Active Student</>
+              ) : (
+                <><XCircleIcon className="w-3.5 h-3.5" /> Inactive Account</>
+              )}
+            </div>
+
+            <div className="p-6 flex flex-col items-center gap-5">
               {/* Avatar */}
               {student.avatar_url ? (
                 <img
                   src={student.avatar_url}
                   alt={student.full_name}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-white/10"
+                  className="w-20 h-20 rounded-full object-cover ring-4 ring-white/5 ring-offset-2 ring-offset-[#0a0a14]"
                 />
               ) : (
-                <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center border-4 border-white/10">
-                  <UserCircleIcon className="w-16 h-16 text-white/30" />
+                <div className="w-20 h-20 bg-gradient-to-br from-orange-500/20 to-amber-500/10 flex items-center justify-center ring-4 ring-white/5 ring-offset-2 ring-offset-[#0a0a14]">
+                  <UserCircleIcon className="w-12 h-12 text-orange-400/60" />
                 </div>
               )}
 
-              {/* Name & status badge */}
+              {/* Name & Code */}
               <div className="text-center">
-                <h1 className="text-white font-bold text-xl leading-tight">{student.full_name}</h1>
-                <p className="text-white/50 text-sm mt-1">{studentCode}</p>
-
-                <span
-                  className={`inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full text-xs font-semibold ${
-                    student.is_active
-                      ? 'bg-green-500/15 text-green-400'
-                      : 'bg-red-500/15 text-red-400'
-                  }`}
-                >
-                  {student.is_active ? (
-                    <CheckBadgeIcon className="w-4 h-4" />
-                  ) : (
-                    <XCircleIcon className="w-4 h-4" />
-                  )}
-                  {student.is_active ? 'Active Student' : 'Inactive'}
-                </span>
+                <h1 className="text-white font-black text-xl leading-tight uppercase tracking-tight">
+                  {student.full_name}
+                </h1>
+                <p className="text-orange-400 font-mono font-bold text-sm mt-1.5 tracking-wider">
+                  {studentCode}
+                </p>
               </div>
 
-              {/* Info rows */}
-              <div className="w-full mt-2 space-y-2.5">
-                <div className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3">
-                  <BuildingOffice2Icon className="w-4 h-4 text-white/40 flex-shrink-0" />
-                  <div>
-                    <p className="text-white/40 text-xs">School</p>
-                    <p className="text-white text-sm font-medium">{student.school_name || 'Rillcod Academy'}</p>
-                  </div>
-                </div>
-
-                {student.enrollment_type && (
-                  <div className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3">
-                    <AcademicCapIcon className="w-4 h-4 text-white/40 flex-shrink-0" />
-                    <div>
-                      <p className="text-white/40 text-xs">Programme</p>
-                      <p className="text-white text-sm font-medium capitalize">{student.enrollment_type}</p>
-                    </div>
-                  </div>
+              {/* Info Grid */}
+              <div className="w-full space-y-2">
+                <InfoRow
+                  icon={<BuildingOffice2Icon className="w-4 h-4" />}
+                  label="School"
+                  value={student.school_name || 'Rillcod Academy'}
+                />
+                {student.class_name && (
+                  <InfoRow
+                    icon={<BookOpenIcon className="w-4 h-4" />}
+                    label="Class"
+                    value={student.class_name}
+                  />
                 )}
-              </div>
-
-              {/* Verified seal */}
-              <div className="mt-2 flex items-center gap-2 text-white/30 text-xs">
-                <CheckBadgeIcon className="w-4 h-4 text-violet-400" />
-                Verified by Rillcod Academy
+                {student.enrollment_type && (
+                  <InfoRow
+                    icon={<AcademicCapIcon className="w-4 h-4" />}
+                    label="Programme"
+                    value={TYPE_LABELS[student.enrollment_type] || student.enrollment_type}
+                  />
+                )}
+                {enrolledDate && (
+                  <InfoRow
+                    icon={<CalendarIcon className="w-4 h-4" />}
+                    label="Enrolled"
+                    value={enrolledDate}
+                  />
+                )}
               </div>
             </div>
 
             {/* Footer */}
-            <div className="border-t border-white/5 px-6 py-4 bg-white/[0.02] text-center">
-              <p className="text-white/25 text-xs">rillcod.com &mdash; STEM &amp; AI Learning Platform</p>
+            <div className="border-t border-white/5 px-6 py-3 bg-white/[0.01] flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <CheckBadgeIcon className="w-3.5 h-3.5 text-orange-400" />
+                <span className="text-white/25 text-[9px] font-bold uppercase tracking-widest">Verified by Rillcod</span>
+              </div>
+              <span className="text-white/15 text-[9px] font-mono">{student.id.slice(0, 8)}</span>
             </div>
-          </>
+          </div>
         )}
       </div>
 
-      <p className="mt-6 text-white/20 text-xs text-center">
-        This page is automatically generated from a student ID card QR code.
+      <p className="mt-6 text-white/15 text-[9px] text-center relative z-10 font-bold uppercase tracking-widest">
+        Scan the QR code on any Rillcod student ID card to verify identity
       </p>
+    </div>
+  );
+}
+
+function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3 bg-white/[0.03] border border-white/5 px-4 py-3">
+      <div className="text-white/30 flex-shrink-0">{icon}</div>
+      <div className="min-w-0">
+        <p className="text-white/30 text-[9px] font-black uppercase tracking-widest">{label}</p>
+        <p className="text-white/90 text-sm font-bold truncate">{value}</p>
+      </div>
     </div>
   );
 }

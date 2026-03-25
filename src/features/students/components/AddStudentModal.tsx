@@ -144,6 +144,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                     body: JSON.stringify({
                         ...form,
                         name: form.full_name,
+                        enrollment_type: 'in_person',
                         status: 'pending',
                         school_id: schoolId || null,
                         created_by: profile?.id,

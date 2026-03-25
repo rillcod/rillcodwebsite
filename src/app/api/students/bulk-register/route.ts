@@ -218,9 +218,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // Strip internal userId from results before returning
-    const publicResults = results.map(({ userId: _uid, ...rest }) => ({
+    // Include portal_user_id so frontend can display RC-XXXXXXXX student codes
+    const publicResults = results.map(({ userId, ...rest }) => ({
       ...rest,
+      portal_user_id: userId || null,
       batch_id: body.batch_id || null
     }));
 

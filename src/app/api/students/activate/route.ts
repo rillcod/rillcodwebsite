@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
       role: 'student',
       is_active: true,
       school_id: student.school_id ?? null,
-      enrollment_type: student.enrollment_type ?? null,
+      enrollment_type: student.enrollment_type || 'in_person',
       created_at: new Date().toISOString(),
     });
 

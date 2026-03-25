@@ -2,7 +2,7 @@
   "name": "Rillcod Academy",
   "short_name": "Rillcod",
   "description": "Premier ICT & STEM Education Hub for Students",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0f0f1a",
   "theme_color": "#ea580c",
