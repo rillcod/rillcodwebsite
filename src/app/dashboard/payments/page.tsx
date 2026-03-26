@@ -375,7 +375,7 @@ export default function PaymentsPage() {
         pricing_mode: isFixed ? 'fixed_package' : 'per_student',
         manual_student_count: isFixed ? '' : String(item?.quantity ?? ''),
         rate_per_child: isFixed ? '' : String(item?.unit_price ?? ''),
-        fixed_package_price: isFixed ? String(inv.amount) : '',
+        fixed_package_price: isFixed ? String(item?.unit_price ?? inv.amount) : '',
         rillcod_quota_percent: String(sch?.rillcod_quota_percent ?? ''),
         notes: inv.notes ?? '',
         due_date: inv.due_date?.split('T')[0] ?? new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
@@ -532,10 +532,13 @@ export default function PaymentsPage() {
     if (subtotal === 0) { alert(isFixed ? 'Enter a fixed package price first.' : 'Enter a rate per child first.'); return; }
 
     const deposit = parseFloat(schoolInvForm.deposit_amount) || 0;
-    const balance = subtotal - deposit;
+    const revenueShareOn = schoolInvForm.show_revenue_share && quotaPct > 0;
     
     const rillcodShare = Math.round(subtotal * (quotaPct / 100));
     const schoolShare = subtotal - rillcodShare;
+
+    // Fix: Outstanding should be the figure after deducting school's share (commission)
+    const balance = revenueShareOn ? Math.max(0, rillcodShare - deposit) : Math.max(0, subtotal - deposit);
     
     const payToAcc = accounts.find(a => a.id === schoolInvForm.pay_to_account_id);
 
@@ -673,6 +676,12 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
     <span class="totals-label">${isFixed ? `Fixed Package Price` : `Total Fee (${count} students × ${fmtNGN(ratePerChild)})`}</span>
     <span class="totals-val">${fmtNGN(subtotal)}</span>
   </div>
+  ${revenueShareOn ? `
+  <div class="totals-row">
+    <span class="totals-label">Less School Commission / Share (${100 - quotaPct}%)</span>
+    <span class="totals-val" style="color:#f43f5e">(${fmtNGN(schoolShare)})</span>
+  </div>
+  ` : ''}
   <div class="totals-row"><span class="totals-label">Less Deposit / Previous Payment</span><span class="totals-val" style="color:#059669">(${fmtNGN(deposit)})</span></div>
   <hr/>
   <div class="totals-row"><span class="totals-grand-label">Total Payable Amount</span><span class="totals-grand-val">${fmtNGN(balance)}</span></div>
@@ -680,25 +689,27 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
 
 ${balance > 0 ? `
 <div class="balance-box">
-  <div class="balance-label">Outstanding Balance</div>
+  <div class="balance-label">${revenueShareOn ? 'Net Rillcod Balance' : 'Outstanding Balance'}</div>
   <div class="balance-val">${fmtNGN(balance)}</div>
 </div>
 ` : ''}
 
-${schoolInvForm.show_revenue_share ? `
+${revenueShareOn ? `
 <div style="font-size:11px;font-weight:800;color:#4c1d95;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Revenue Allocation &amp; Split</div>
 <div class="revenue-split">
   <div class="split-box split-rillcod">
     <div class="split-label" style="color:#7c3aed">RILLCOD TECHNOLOGIES</div>
-    <div class="split-pct" style="color:#7c3aed">${quotaPct}%</div>
+    <div class="split-pct" style="color:#7c3aed">${quotaPct}% Share</div>
     <div class="split-amount" style="color:#4c1d95">${fmtNGN(rillcodShare)}</div>
-    <div class="split-sub">To be remitted to RILLCOD TECHNOLOGIES upon collection</div>
+    ${deposit > 0 ? `<div style="font-size:9px; color:#7c3aed; margin-top:2px">Less Deposit: ${fmtNGN(deposit)}</div>
+    <div style="font-size:11px; font-weight:900; margin-top:4px; padding-top:4px; border-top:1px solid #7c3aed22">Net: ${fmtNGN(balance)}</div>` : ''}
+    <div class="split-sub" style="margin-top:6px">Final amount to be remitted</div>
   </div>
   <div class="split-box split-school">
     <div class="split-label" style="color:#059669">${sch.name}</div>
-    <div class="split-pct" style="color:#059669">${100 - quotaPct}%</div>
+    <div class="split-pct" style="color:#059669">${100 - quotaPct}% Share</div>
     <div class="split-amount" style="color:#065f46">${fmtNGN(schoolShare)}</div>
-    <div class="split-sub">School's share of the programme fee</div>
+    <div class="split-sub" style="margin-top:6px">School's retained portion</div>
   </div>
 </div>
 ` : ''}
@@ -747,11 +758,18 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
       db.from('invoices').insert({
         invoice_number: docRef,
         school_id: schoolInvForm.school_id,
-        amount: subtotal,
+        amount: balance,
         currency: 'NGN',
         status: 'sent',
         due_date: dueISO,
-        items: items2,
+        items: revenueShareOn ? [
+          ...items2,
+          { description: `School Commission / Share (${100 - quotaPct}%)`, quantity: 1, unit_price: -schoolShare, total: -schoolShare },
+          ...(deposit > 0 ? [{ description: `Less Previous Deposit / Payment`, quantity: 1, unit_price: -deposit, total: -deposit }] : [])
+        ] : [
+          ...items2,
+          ...(deposit > 0 ? [{ description: `Less Previous Deposit / Payment`, quantity: 1, unit_price: -deposit, total: -deposit }] : [])
+        ],
         notes: schoolInvForm.notes || null,
       }).then(() => { loadTransactions(); }, () => {/* silent */});
     }
