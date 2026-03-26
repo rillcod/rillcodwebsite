@@ -317,16 +317,16 @@ export default function BulkRegisterPage() {
     toast.success('Roster PDF generated successfully.');
   };
 
-  // ── Read Card Builder config from localStorage ──────────────────────────────
-  const getCardCfg = (): any | null => {
-    if (typeof window === 'undefined') return null;
+  // ── Read Card Builder config from DB ──────────────────────────────
+  const getCardCfg = async (): Promise<any | null> => {
     try {
-      const raw = localStorage.getItem('rillcod_card_builder_config');
-      return raw ? JSON.parse(raw) : null;
+      const res = await fetch('/api/admin/settings');
+      const data = await res.json();
+      return data.config || null;
     } catch { return null; }
   };
 
-  const handleExportCardsPDF = (resultsToPrint: any[]) => {
+  const handleExportCardsPDF = async (resultsToPrint: any[]) => {
     const validResults = resultsToPrint.filter(r => r.status !== 'failed');
     if (validResults.length === 0) {
       toast.error('No valid records found for PDF export.');
@@ -334,7 +334,7 @@ export default function BulkRegisterPage() {
     }
 
     // Pull saved Card Builder design (accent, header style, fields, text)
-    const cardCfg = getCardCfg();
+    const cardCfg = await getCardCfg();
     const acc = cardCfg?.accentColor || '#ea580c';
     const orgName = cardCfg?.orgName || 'RILLCOD TECHNOLOGIES';
     const orgWeb = cardCfg?.orgWebsite || 'www.rillcod.com';
@@ -533,14 +533,14 @@ export default function BulkRegisterPage() {
     win?.document.close();
   };
 
-  const handleMassPrint = (resultsToPrint: any[]) => {
+  const handleMassPrint = async (resultsToPrint: any[]) => {
     const validResults = resultsToPrint.filter(r => r.status !== 'failed');
     if (validResults.length === 0) {
       toast.error('No valid records found for printing.');
       return;
     }
 
-    const cardCfg = getCardCfg();
+    const cardCfg = await getCardCfg();
     const acc = cardCfg?.accentColor || '#ea580c';
     const orgName = cardCfg?.orgName || 'RILLCOD TECHNOLOGIES';
     const orgWeb = cardCfg?.orgWebsite || 'www.rillcod.com';
