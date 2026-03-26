@@ -8,7 +8,7 @@ import {
   CogIcon, BuildingOfficeIcon, ClipboardDocumentListIcon,
   PresentationChartLineIcon, ClockIcon, CheckCircleIcon,
   BellIcon, ArrowRightIcon, TrophyIcon, ArrowPathIcon,
-  ExclamationTriangleIcon, ShieldCheckIcon, DocumentTextIcon, 
+  ExclamationTriangleIcon, ShieldCheckIcon, DocumentTextIcon,
   BoltIcon, RocketLaunchIcon, EnvelopeIcon, UserIcon,
   ArrowRightOnRectangleIcon, Bars3Icon, XMarkIcon, SignalIcon,
   CodeBracketIcon, CalendarDaysIcon, BanknotesIcon, VideoCameraIcon,
@@ -49,8 +49,8 @@ async function loadAdminStats(supabase: ReturnType<typeof createClient>) {
   const totalTeachers = teachers.status === 'fulfilled' ? (teachers.value.count ?? 0) : 0;
   const totalStudents = students.status === 'fulfilled' ? (students.value.count ?? 0) : 0;
   const totalPartners = partnerships.status === 'fulfilled' ? (partnerships.value.count ?? 0) : 0;
-  const totalGraded = (asgnSubs.status === 'fulfilled' ? (asgnSubs.value.count ?? 0) : 0) + 
-                    (cbtSubs.status === 'fulfilled' ? (cbtSubs.value.count ?? 0) : 0);
+  const totalGraded = (asgnSubs.status === 'fulfilled' ? (asgnSubs.value.count ?? 0) : 0) +
+    (cbtSubs.status === 'fulfilled' ? (cbtSubs.value.count ?? 0) : 0);
 
   return [
     { label: 'Partner Schools', value: totalSchools, icon: BuildingOfficeIcon, gradient: 'from-orange-600 to-orange-400 from-orange-600 to-orange-400' },
@@ -122,9 +122,9 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
   const { data: teacherSchools } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', userId);
   // Also include schools from classes this teacher is currently instructing
   const { data: classSchools } = await supabase.from('classes').select('school_id').eq('teacher_id', userId);
-  
+
   const schoolIds = [...new Set([
-    profile?.school_id, 
+    profile?.school_id,
     ...(teacherSchools?.map(s => s.school_id) || []),
     ...(classSchools?.map(c => c.school_id) || [])
   ])].filter(Boolean) as string[];
@@ -206,7 +206,7 @@ async function loadTeacherStats(supabase: ReturnType<typeof createClient>, userI
   const pendingCbtCount = (pendingCbt.status === 'fulfilled' ? pendingCbt.value.count : 0) ?? 0;
   const pendingAsgnCount = (pendingAsgn.status === 'fulfilled' ? (pendingAsgn.value as any).count : 0) ?? 0;
   const pendingGrade = pendingAsgnCount + pendingCbtCount;
-  
+
   const asgnGrades = (subsAsgn.status === 'fulfilled' ? (subsAsgn.value as any).data : []) ?? [];
   const allGrades = asgnGrades.map((g: any) => g.grade).filter((g: any) => g != null);
   const avg = allGrades.length > 0
@@ -233,18 +233,18 @@ async function loadTeacherActionCenter(supabase: ReturnType<typeof createClient>
   const [ungradedSubs, ungradedCbt] = await Promise.allSettled([
     aIds.length > 0
       ? supabase
-          .from('assignment_submissions')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'submitted')
-          .is('grade', null)
-          .in('assignment_id', aIds)
+        .from('assignment_submissions')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'submitted')
+        .is('grade', null)
+        .in('assignment_id', aIds)
       : Promise.resolve({ count: 0 }),
     eIds.length > 0
       ? supabase
-          .from('cbt_sessions')
-          .select('id', { count: 'exact', head: true })
-          .eq('needs_grading', true)
-          .in('exam_id', eIds)
+        .from('cbt_sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('needs_grading', true)
+        .in('exam_id', eIds)
       : Promise.resolve({ count: 0 }),
   ]);
 
@@ -268,14 +268,14 @@ async function loadTeacherActivity(supabase: ReturnType<typeof createClient>, us
   const [asgnRes, cbtRes] = await Promise.all([
     aIds.length > 0
       ? supabase.from('assignment_submissions')
-          .select('id, status, submitted_at, assignment_id, portal_user_id, user_id')
-          .in('assignment_id', aIds).order('submitted_at', { ascending: false }).limit(5)
+        .select('id, status, submitted_at, assignment_id, portal_user_id, user_id')
+        .in('assignment_id', aIds).order('submitted_at', { ascending: false }).limit(5)
       : Promise.resolve({ data: [] }),
     eIdsAct.length > 0
       ? supabase.from('cbt_sessions')
-          .select('id, status, end_time, user_id, cbt_exams(title)')
-          .in('exam_id', eIdsAct)
-          .order('end_time', { ascending: false }).limit(5)
+        .select('id, status, end_time, user_id, cbt_exams(title)')
+        .in('exam_id', eIdsAct)
+        .order('end_time', { ascending: false }).limit(5)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -364,7 +364,7 @@ async function loadLeaderboard(supabase: ReturnType<typeof createClient>) {
     .select('portal_user_id, total_points, achievement_level, portal_users(full_name, profile_image_url)')
     .order('total_points', { ascending: false })
     .limit(5);
-  
+
   return (lpRes ?? []).map((item: any, idx: number) => ({
     rank: idx + 1,
     name: item.portal_users?.full_name || 'Anonymous',
@@ -413,7 +413,7 @@ async function loadSchoolStats(supabase: ReturnType<typeof createClient>, school
 
   const totalStudents = students.status === 'fulfilled' ? (students.value.count ?? 0) : 0;
   const totalTeachers = teachers.status === 'fulfilled' ? (teachers.value.count ?? 0) : 0;
-  
+
   // Enrich submissions with user data and filter by school
   let gradedData = graded.status === 'fulfilled' ? (graded.value.data ?? []) : [];
   if (gradedData.length > 0) {
@@ -536,7 +536,7 @@ export default function DashboardPage() {
     try {
       const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
       let query = supabase.from('timetable_slots').select('*, timetables(school_id, schools(name))').eq('day_of_week', today);
-      
+
       if (role === 'teacher') {
         query = query.eq('teacher_id', userId);
       } else if (role === 'school' && schoolId) {
@@ -547,7 +547,7 @@ export default function DashboardPage() {
         else { setUpcomingSlots([]); return; }
       }
       // For students, we'd need to link through classes, but for now we show school-wide if they are in a portal
-      
+
       const { data } = await query.order('start_time').limit(3);
       if (data) {
         setUpcomingSlots(data.map((s: any) => ({
@@ -739,52 +739,52 @@ export default function DashboardPage() {
           </div>
           <div className="h-8 w-px bg-muted hidden sm:block" />
           <div className="flex flex-col items-start gap-1">
-             <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
-                <span className="text-[8px] sm:text-[10px] text-emerald-400 font-black uppercase tracking-widest">Active</span>
-             </div>
-             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest ml-1">Live Feed</p>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
+              <span className="text-[8px] sm:text-[10px] text-emerald-400 font-black uppercase tracking-widest">Active</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest ml-1">Live Feed</p>
           </div>
         </div>
       </div>
 
       {/* ── Stats Grid (hidden for students — StudentDashboardWidget shows richer stats) ── */}
       <div className={role === 'student' ? 'hidden' : ''}>
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Live Stats</p>
-        <button
-          onClick={fetchDashData}
-          disabled={dataLoading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted border border-border rounded-none transition-all disabled:opacity-40"
-        >
-          <ArrowPathIcon className={`w-3.5 h-3.5 ${dataLoading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
-      </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-        {dataLoading
-          ? Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-6 animate-pulse">
-              <div className="h-10 w-10 bg-muted rounded-none mb-4" />
-              <div className="h-8 bg-muted rounded w-1/2 mb-2" />
-              <div className="h-4 bg-card shadow-sm rounded w-2/3" />
-            </div>
-          ))
-          : stats.map(({ label, value, icon: Icon, gradient }) => (
-            <div key={label} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-7 hover:bg-white/8 hover:border-border transition-all group relative overflow-hidden">
-              <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${gradient} opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
-              <div className="flex items-start justify-between mb-5 relative z-10">
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-none bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>
-                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-foreground" />
-                </div>
-                <span className="text-[8px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-card shadow-sm px-2 py-0.5 rounded-full border border-border">Live</span>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Live Stats</p>
+          <button
+            onClick={fetchDashData}
+            disabled={dataLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted border border-border rounded-none transition-all disabled:opacity-40"
+          >
+            <ArrowPathIcon className={`w-3.5 h-3.5 ${dataLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+          {dataLoading
+            ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-6 animate-pulse">
+                <div className="h-10 w-10 bg-muted rounded-none mb-4" />
+                <div className="h-8 bg-muted rounded w-1/2 mb-2" />
+                <div className="h-4 bg-card shadow-sm rounded w-2/3" />
               </div>
-              <p className="text-2xl sm:text-4xl font-black text-foreground tracking-tight tabular-nums relative z-10">{value}</p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest mt-1.5 relative z-10">{label}</p>
-            </div>
-          ))
-        }
-      </div>
+            ))
+            : stats.map(({ label, value, icon: Icon, gradient }) => (
+              <div key={label} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-7 hover:bg-white/8 hover:border-border transition-all group relative overflow-hidden">
+                <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${gradient} opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
+                <div className="flex items-start justify-between mb-5 relative z-10">
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-none bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>
+                    <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-foreground" />
+                  </div>
+                  <span className="text-[8px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-card shadow-sm px-2 py-0.5 rounded-full border border-border">Live</span>
+                </div>
+                <p className="text-2xl sm:text-4xl font-black text-foreground tracking-tight tabular-nums relative z-10">{value}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest mt-1.5 relative z-10">{label}</p>
+              </div>
+            ))
+          }
+        </div>
       </div>{/* end stats grid wrapper */}
 
       {/* ── Admin: School Billing Records ── */}
@@ -804,7 +804,7 @@ export default function DashboardPage() {
 
             {dataLoading ? (
               <div className="space-y-2">
-                {[1,2,3].map(i => (
+                {[1, 2, 3].map(i => (
                   <div key={i} className="h-14 bg-muted animate-pulse rounded-none" />
                 ))}
               </div>
@@ -847,11 +847,10 @@ export default function DashboardPage() {
                             <span className="text-sm font-black text-foreground">{sym}{inv.amount.toLocaleString()}</span>
                           </td>
                           <td className="py-3.5 text-center">
-                            <span className={`inline-flex items-center px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border ${
-                              isPaid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                              isOverdue ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                              'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                            }`}>
+                            <span className={`inline-flex items-center px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border ${isPaid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                isOverdue ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                                  'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              }`}>
                               {isPaid ? '✓ Paid' : isOverdue ? 'Overdue' : inv.status}
                             </span>
                           </td>
@@ -879,11 +878,10 @@ export default function DashboardPage() {
                 <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.4em]">Smart Command Center</p>
                 <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Grading Queue</h2>
               </div>
-              <div className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border rounded-none ${
-                (teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
+              <div className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border rounded-none ${(teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
                   ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 animate-pulse'
                   : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-              }`}>
+                }`}>
                 {(teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
                   ? `${teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams} Pending`
                   : 'All Clear ✓'
@@ -893,15 +891,13 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Link
                 href="/dashboard/assignments"
-                className={`group flex items-center gap-4 p-5 border rounded-none transition-all hover:scale-[1.01] ${
-                  teacherActionCenter.ungradedAssignments > 0
+                className={`group flex items-center gap-4 p-5 border rounded-none transition-all hover:scale-[1.01] ${teacherActionCenter.ungradedAssignments > 0
                     ? 'bg-rose-500/5 border-rose-500/20 hover:border-rose-500/40'
                     : 'bg-card border-border hover:border-border'
-                }`}
+                  }`}
               >
-                <div className={`w-12 h-12 flex items-center justify-center text-2xl font-black rounded-none ${
-                  teacherActionCenter.ungradedAssignments > 0 ? 'bg-rose-500/20' : 'bg-emerald-500/10'
-                }`}>
+                <div className={`w-12 h-12 flex items-center justify-center text-2xl font-black rounded-none ${teacherActionCenter.ungradedAssignments > 0 ? 'bg-rose-500/20' : 'bg-emerald-500/10'
+                  }`}>
                   {teacherActionCenter.ungradedAssignments > 0 ? '📋' : '✅'}
                 </div>
                 <div>
@@ -914,15 +910,13 @@ export default function DashboardPage() {
               </Link>
               <Link
                 href="/dashboard/cbt"
-                className={`group flex items-center gap-4 p-5 border rounded-none transition-all hover:scale-[1.01] ${
-                  teacherActionCenter.ungradedExams > 0
+                className={`group flex items-center gap-4 p-5 border rounded-none transition-all hover:scale-[1.01] ${teacherActionCenter.ungradedExams > 0
                     ? 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40'
                     : 'bg-card border-border hover:border-border'
-                }`}
+                  }`}
               >
-                <div className={`w-12 h-12 flex items-center justify-center text-2xl font-black rounded-none ${
-                  teacherActionCenter.ungradedExams > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/10'
-                }`}>
+                <div className={`w-12 h-12 flex items-center justify-center text-2xl font-black rounded-none ${teacherActionCenter.ungradedExams > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/10'
+                  }`}>
                   {teacherActionCenter.ungradedExams > 0 ? '📝' : '✅'}
                 </div>
                 <div>
@@ -1129,36 +1123,36 @@ export default function DashboardPage() {
 
           {role === 'student' && leaderboard.length > 0 && (
             <div className="bg-card shadow-sm border border-border rounded-none p-6 relative overflow-hidden group">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-amber-500/10 transition-all" />
-               <div className="flex items-center justify-between mb-8 relative z-10">
-                  <h2 className="text-lg font-black text-foreground uppercase tracking-tight flex items-center gap-3">
-                    <TrophyIcon className="w-6 h-6 text-amber-500" /> Hall of Fame
-                  </h2>
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Global Rank</span>
-               </div>
-               <div className="space-y-1 relative z-10">
-                  {leaderboard.map((u, i) => (
-                    <div key={i} className={`flex items-center justify-between p-3 rounded-none transition-all ${u.name === profile.full_name ? 'bg-orange-600/20 border border-orange-500/20' : 'hover:bg-card shadow-sm'}`}>
-                      <div className="flex items-center gap-4">
-                        <div className={`w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black ${i === 0 ? 'bg-amber-500 text-black' : i === 1 ? 'bg-slate-300 text-black' : i === 2 ? 'bg-orange-400 text-black' : 'text-muted-foreground'}`}>
-                          {u.rank}
-                        </div>
-                        <div className="w-8 h-8 rounded-full border border-border bg-background flex items-center justify-center text-[10px] font-bold text-muted-foreground overflow-hidden">
-                          {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" alt="" /> : u.name[0]}
-                        </div>
-                        <div className="min-w-0">
-                           <p className="text-xs font-black text-muted-foreground truncate max-w-[100px]">{u.name}</p>
-                           <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">{u.level}</p>
-                        </div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-amber-500/10 transition-all" />
+              <div className="flex items-center justify-between mb-8 relative z-10">
+                <h2 className="text-lg font-black text-foreground uppercase tracking-tight flex items-center gap-3">
+                  <TrophyIcon className="w-6 h-6 text-amber-500" /> Hall of Fame
+                </h2>
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Global Rank</span>
+              </div>
+              <div className="space-y-1 relative z-10">
+                {leaderboard.map((u, i) => (
+                  <div key={i} className={`flex items-center justify-between p-3 rounded-none transition-all ${u.name === profile.full_name ? 'bg-orange-600/20 border border-orange-500/20' : 'hover:bg-card shadow-sm'}`}>
+                    <div className="flex items-center gap-4">
+                      <div className={`w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-black ${i === 0 ? 'bg-amber-500 text-black' : i === 1 ? 'bg-slate-300 text-black' : i === 2 ? 'bg-orange-400 text-black' : 'text-muted-foreground'}`}>
+                        {u.rank}
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-black text-foreground tabular-nums">{u.points}</p>
-                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">XP</p>
+                      <div className="w-8 h-8 rounded-full border border-border bg-background flex items-center justify-center text-[10px] font-bold text-muted-foreground overflow-hidden">
+                        {u.avatar ? <img src={u.avatar} className="w-full h-full object-cover" alt="" /> : u.name[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-muted-foreground truncate max-w-[100px]">{u.name}</p>
+                        <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">{u.level}</p>
                       </div>
                     </div>
-                  ))}
-               </div>
-               <Link href="/dashboard/leaderboard" className="mt-8 w-full block text-center py-3 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-all">View All Champions</Link>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-foreground tabular-nums">{u.points}</p>
+                      <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">XP</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Link href="/dashboard/leaderboard" className="mt-8 w-full block text-center py-3 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-all">View All Champions</Link>
             </div>
           )}
 
