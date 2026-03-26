@@ -453,8 +453,13 @@ export default function SettingsPage() {
                       <button 
                         onClick={async () => {
                           const res = await fetch('/api/test-push', { method: 'POST' });
-                          if (res.ok) showToast('Test notification sent!');
-                          else showToast('Failed to send test notification', false);
+                          const data = await res.json();
+                          if (res.ok && data.debug?.success) {
+                            showToast('Server reports success! If no popup appears, check Windows Focus Assist.');
+                          } else {
+                            showToast(`Push failed: ${data.error || data.debug?.error || 'Unknown error'}`, false);
+                            console.error('Push test details:', data);
+                          }
                         }}
                         className="flex items-center gap-2 px-4 py-2 bg-orange-600/10 border border-orange-600/20 hover:bg-orange-600/20 text-orange-400 rounded-none text-xs font-bold transition-all mt-2">
                         <BellIcon className="w-4 h-4" /> Send Test Notification

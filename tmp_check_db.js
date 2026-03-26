@@ -1,25 +1,29 @@
 const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config({ path: '.env.local' });
 
-const supabaseUrl = 'https://akaorqukdoawacvxsdij.supabase.co';
-const supabaseKey = 'sb_secret_Vdui5JfPYV553qZwmCHPbw_JWXmcfvW'; // service role key
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-async function checkTables() {
-    const { data, error } = await supabase.rpc('get_table_count');
-    if (error) {
-        // If RPC doesn't exist, try a direct query via a function we might need to create
-        // Or just list tables via a known table if we have an edge function
-        console.error('Error calling rpc:', error);
-
-        // Alternative: query information_schema via a new migration if needed, 
-        // but we can just use the CLI to verify if we can.
-    } else {
-        console.log('Table count:', data);
+async function checkColumns() {
+    try {
+        const { data, error } = await supabase
+            .from('system_settings')
+            .select('*')
+            .limit(1);
+        
+        if (error) {
+            console.error('Error fetching from system_settings:', error);
+        } else if (data && data.length > 0) {
+            console.log('Columns found:', Object.keys(data[0]));
+        } else {
+            console.log('Table found but empty.');
+            // Try to add one row and delete it maybe? No, let's just try to select one.
+        }
+    } catch (err) {
+        console.error('Exception:', err);
     }
 }
 
-// Since I can't easily run arbitrary SQL via the JS client without a stored procedure,
-// I'll use the CLI to create a temporary function that returns the count.
-
-checkTables();
+checkColumns();
