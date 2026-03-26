@@ -281,23 +281,23 @@ export default function CardBuilderPage() {
   const [activeTab, setActiveTab] = useState<'templates' | 'design' | 'fields' | 'text' | 'typography'>('templates');
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        // Merge stored fields with defaults to ensure all keys present
-        if (parsed.fields) {
-          const mergedFields = DEFAULT_FIELDS.map(def => {
-            const stored = parsed.fields.find((f: FieldConfig) => f.key === def.key);
-            return stored ? { ...def, ...stored } : def;
-          });
-          parsed.fields = mergedFields;
+    fetch('/api/admin/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data.config) {
+          const parsed = data.config;
+          if (parsed.fields) {
+            const mergedFields = DEFAULT_FIELDS.map(def => {
+              const stored = parsed.fields.find((f: FieldConfig) => f.key === def.key);
+              return stored ? { ...def, ...stored } : def;
+            });
+            parsed.fields = mergedFields;
+          }
+          if (parsed.typo) parsed.typo = { ...DEFAULT_TYPO, ...parsed.typo };
+          setCfg({ ...DEFAULT_CONFIG, ...parsed });
         }
-        // Merge typo with defaults so new keys are always present
-        if (parsed.typo) parsed.typo = { ...DEFAULT_TYPO, ...parsed.typo };
-        setCfg({ ...DEFAULT_CONFIG, ...parsed });
-      }
-    } catch { /* ignore */ }
+      })
+      .catch(console.error);
   }, []);
 
   if (authLoading || !profile) {
@@ -346,15 +346,29 @@ export default function CardBuilderPage() {
     setCfg(prev => ({ ...prev, fields: arr }));
   };
 
-  const handleSave = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  const handleSave = async () => {
+    try {
+      await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: cfg }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      alert('Failed to save config');
+    }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     setCfg(DEFAULT_CONFIG);
-    localStorage.removeItem(STORAGE_KEY);
+    try {
+      await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: DEFAULT_CONFIG }),
+      });
+    } catch (err) { /* ignore */ }
   };
 
   const buildPrintHtml = (sample = true) => {

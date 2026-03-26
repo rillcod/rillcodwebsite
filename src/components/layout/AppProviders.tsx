@@ -6,6 +6,7 @@ import { AuthProvider } from "@/contexts/auth-context";
 import Navigation from "@/components/layout/Navigation";
 import PwaProvider from "@/components/pwa/PwaProvider";
 import PWAInstaller, { OfflineIndicator } from "@/components/PWAInstaller";
+import PushSubscriptionManager from "@/components/pwa/PushSubscriptionManager";
 import { Toaster } from "sonner";
 
 import { usePathname } from "next/navigation";
@@ -21,6 +22,7 @@ export default function AppProviders({ children }: { children: ReactNode }) {
         <Navigation />
         <PwaProvider />
         <PWAInstaller />
+        <PushSubscriptionManager />
         <OfflineIndicator />
         {children}
         {!isDashboard && <WhatsAppButton />}

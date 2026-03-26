@@ -24,6 +24,7 @@ export default function SettingsPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const [pushState, setPushState] = useState<string>('default');
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [schools, setSchools] = useState<any[]>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(false);
@@ -51,6 +52,9 @@ export default function SettingsPage() {
 
   // Populate from profile
   useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPushState(Notification.permission);
+    }
     if (profile) {
       setProfileData({
         full_name: profile.full_name ?? '',
@@ -103,6 +107,17 @@ export default function SettingsPage() {
       showToast(e.message ?? 'Failed to save profile', false);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const enablePush = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    const perm = await Notification.requestPermission();
+    setPushState(perm);
+    if (perm === 'granted') {
+      showToast('Push notifications enabled. Refresh to sync with the server!');
+    } else {
+      showToast('Push permission denied. Check your browser settings.', false);
     }
   };
 
@@ -418,6 +433,34 @@ export default function SettingsPage() {
                     className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 rounded-none text-sm font-bold transition-all mt-4">
                     <CheckIcon className="w-4 h-4" /> Save Preferences
                   </button>
+                  
+                  {/* Push Notifications Enable Box */}
+                  <div className="mt-8 pt-6 border-t border-border">
+                    <h3 className="font-bold text-foreground text-sm">Browser Push Notifications</h3>
+                    <p className="text-xs text-muted-foreground mt-1 mb-4">
+                      {pushState === 'granted' 
+                        ? 'Push notifications are currently enabled on this device.'
+                        : pushState === 'denied'
+                        ? 'Push notifications are blocked by your browser. Please change your browser settings to allow them.'
+                        : 'Receive instant alerts on this device even when the app is closed.'}
+                    </p>
+                    {pushState !== 'granted' && pushState !== 'denied' && (
+                      <button onClick={enablePush} className="flex items-center gap-2 px-4 py-2 bg-card border border-border hover:bg-muted text-foreground rounded-none text-xs font-bold transition-all">
+                        <BellIcon className="w-4 h-4 text-orange-400" /> Enable Push on this Device
+                      </button>
+                    )}
+                    {pushState === 'granted' && (
+                      <button 
+                        onClick={async () => {
+                          const res = await fetch('/api/test-push', { method: 'POST' });
+                          if (res.ok) showToast('Test notification sent!');
+                          else showToast('Failed to send test notification', false);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-orange-600/10 border border-orange-600/20 hover:bg-orange-600/20 text-orange-400 rounded-none text-xs font-bold transition-all mt-2">
+                        <BellIcon className="w-4 h-4" /> Send Test Notification
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

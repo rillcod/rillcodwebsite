@@ -541,12 +541,16 @@ export default function StudentsPage() {
     setTimeout(() => win.print(), 600);
   };
 
-  const getCardCfg = () => {
-    try { return JSON.parse(localStorage.getItem('rillcod_card_builder_config') || 'null'); } catch { return null; }
+  const getCardCfg = async () => {
+    try {
+      const res = await fetch('/api/admin/settings');
+      const data = await res.json();
+      return data.config || null;
+    } catch { return null; }
   };
 
-  const handlePrintLoginSlip = (s: any) => {
-    const cardCfg = getCardCfg();
+  const handlePrintLoginSlip = async (s: any) => {
+    const cardCfg = await getCardCfg();
     const acc = cardCfg?.accentColor || '#ea580c';
     const orgName = cardCfg?.orgName || 'RILLCOD TECHNOLOGIES';
     const orgWeb = cardCfg?.orgWebsite || 'www.rillcod.com';
