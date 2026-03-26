@@ -62,8 +62,8 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString(),
     };
 
-    // Optional fields that may not exist in older DB schemas — add only if provided
-    if (body.enrollment_type) newStudentData.enrollment_type = body.enrollment_type;
+    // Always include enrollment_type — the students table has a CHECK constraint
+    newStudentData.enrollment_type = body.enrollment_type || 'in_person';
     if (body.heard_about_us) newStudentData.heard_about_us = body.heard_about_us;
     if (body.parent_relationship) newStudentData.parent_relationship = body.parent_relationship;
     if (body.school_id) newStudentData.school_id = body.school_id;

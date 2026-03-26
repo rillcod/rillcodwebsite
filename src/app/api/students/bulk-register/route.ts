@@ -150,6 +150,7 @@ export async function POST(request: Request) {
             school_name: resolvedSchoolName,
             section_class: class_name || batchClassName || null,
             class_id: batchClassId || null,
+            enrollment_type: 'in_person',
             is_active: true,
             updated_at: new Date().toISOString(),
           },
