@@ -1088,6 +1088,37 @@ export default function BulkRegisterPage() {
         {activeTab === 'register' && (
           <div className="max-w-4xl mx-auto space-y-12">
 
+            {/* ── Step Progress (Bulk Import only) ─────────────────────── */}
+            {step !== 'single' && step !== 'registry' && (
+              <div className="max-w-4xl mx-auto mb-2">
+                <div className="flex items-center gap-0">
+                  {([
+                    { key: 'input', label: '1. Configure & Add Names' },
+                    { key: 'preview', label: '2. Review Students' },
+                    { key: 'done', label: '3. Done' },
+                  ] as { key: typeof step; label: string }[]).map((s, i, arr) => {
+                    const stepOrder = ['input', 'preview', 'done'];
+                    const currentIdx = stepOrder.indexOf(step);
+                    const sIdx = stepOrder.indexOf(s.key);
+                    const isActive = step === s.key;
+                    const isDone = sIdx < currentIdx;
+                    return (
+                      <div key={s.key} className="flex items-center flex-1 min-w-0">
+                        <div className={`flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap border-y border-l ${i === arr.length - 1 ? 'border-r' : ''} transition-all flex-shrink-0 ${isActive ? 'bg-orange-600 text-white border-orange-600' : isDone ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-card text-muted-foreground border-border'}`}>
+                          <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0 ${isActive ? 'bg-white/20' : isDone ? 'bg-emerald-500/30' : 'bg-muted'}`}>
+                            {isDone ? '✓' : i + 1}
+                          </span>
+                          <span className="hidden sm:inline">{s.label}</span>
+                          <span className="sm:hidden">{i + 1}</span>
+                        </div>
+                        {i < arr.length - 1 && <div className="flex-1 h-px bg-border" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* ══════════════════ STEP 1 — SINGLE ══════════════════════════ */}
             {step === 'single' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1104,10 +1135,11 @@ export default function BulkRegisterPage() {
                     onClick={() => setSettingsOpen((o) => !o)}
                     className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-white/[0.02] transition-colors"
                   >
-                    <div className="flex items-center gap-2 text-muted-foreground font-bold text-sm">
+                    <div className="flex items-center gap-2 font-bold text-sm">
                       <BuildingOffice2Icon className="w-4 h-4 text-orange-400" />
-                      Batch Settings
-                      <span className="text-muted-foreground font-normal text-xs ml-1">— school, programme &amp; default class</span>
+                      <span className="text-foreground">Setup</span>
+                      <span className="text-muted-foreground font-normal text-xs ml-1">— choose school, class &amp; programme</span>
+                      <span className="px-2 py-0.5 text-[9px] font-black bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-full uppercase tracking-widest ml-2">Required first</span>
                     </div>
                     <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
                   </button>
@@ -1179,7 +1211,7 @@ export default function BulkRegisterPage() {
                           <div className="flex items-center justify-between mb-1">
                             <label className="text-muted-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-1.5">
                               <AcademicCapIcon className="w-3.5 h-3.5" />
-                              My Class <span className="text-orange-400/70 ml-1 normal-case font-normal">(from class registry)</span>
+                              Place in Class
                             </label>
                             <Link
                               href="/dashboard/classes/add"
@@ -1190,7 +1222,7 @@ export default function BulkRegisterPage() {
                             </Link>
                           </div>
                           <p className="text-white/25 text-[11px] mb-2">
-                            Pick one of your created classes — registered students will be placed in it.
+                            Choose one of your classes — all students in this batch will be added to it.
                           </p>
                           {filteredRegistryClasses.length > 0 ? (
                             <select
@@ -1225,10 +1257,10 @@ export default function BulkRegisterPage() {
                         <div>
                           <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5">
                             <AcademicCapIcon className="w-3.5 h-3.5" />
-                            Default Class / Arm <span className="text-muted-foreground normal-case font-normal ml-1">(optional)</span>
+                            Class Code / Arm <span className="text-muted-foreground normal-case font-normal ml-1">(optional)</span>
                           </label>
                           <p className="text-white/25 text-[11px] mb-2">
-                            Select a class or arm — students without an inline class will be placed here (e.g. JSS2A, SS1B).
+                            Select the arm (e.g. JSS2A, SS1B) — applies to any student whose name doesn&apos;t include a class code.
                           </p>
                           <select
                             value={defaultClass}
@@ -1279,9 +1311,12 @@ export default function BulkRegisterPage() {
 
                 {/* ── Names textarea ──────────────────────────────────── */}
                 <div className="bg-card border border-border rounded-none p-6">
-                  <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-3">
-                    Student Names — one per line
-                  </label>
+                  <div className="flex items-center gap-3 mb-3">
+                    <label className="block text-foreground text-sm font-black uppercase tracking-widest">
+                      Paste Student Names
+                    </label>
+                    <span className="px-2 py-0.5 text-[9px] font-black bg-card border border-border text-muted-foreground rounded-full uppercase tracking-widest">one per line</span>
+                  </div>
                   <textarea
                     value={namesText}
                     onChange={(e) => setNamesText(e.target.value)}

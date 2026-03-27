@@ -140,6 +140,7 @@ export default function StudentDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'lesson-hook', topic: data.nextLesson.title, gradeLevel: 'JSS1–SS3' }),
       });
+      if (!res.ok) throw new Error('AI hook generation failed');
       const d = await res.json();
       if (d.data) setAiHook(d.data);
     } finally {
@@ -161,7 +162,7 @@ export default function StudentDashboard() {
       {/* Greeting */}
       <div className="bg-gradient-to-br from-card to-background border border-border p-6 sm:p-8">
         <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight leading-tight">
-          Welcome, <span className="text-orange-500">{profile?.full_name?.split(' ')[0]}!</span>
+          Welcome, <span className="text-orange-500">{profile?.full_name?.split(' ')?.[0] ?? 'there'}!</span>
         </h1>
         <p className="text-sm text-muted-foreground font-medium mt-2">You're not enrolled in any course yet. Get started by exploring available programmes below.</p>
       </div>

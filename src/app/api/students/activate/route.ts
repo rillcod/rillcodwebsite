@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     // Fetch the student record
     const { data: student, error: studErr } = await supabaseAdmin
       .from('students')
-      .select('id, name, full_name, student_email, parent_email, user_id, status, school_id, enrollment_type')
+      .select('id, name, full_name, student_email, parent_email, user_id, status, school_id, enrollment_type, section_class, grade_level')
       .eq('id', studentId)
       .single();
 
@@ -106,6 +106,7 @@ export async function POST(req: NextRequest) {
       is_active: true,
       school_id: student.school_id ?? null,
       enrollment_type: student.enrollment_type || 'in_person',
+      section_class: student.section_class || student.grade_level || null,
       created_at: new Date().toISOString(),
     });
 

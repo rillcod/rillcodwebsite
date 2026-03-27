@@ -44,11 +44,12 @@ export async function POST(request: Request) {
     // Verify all IDs are student accounts
     const { data: verified } = await supabaseAdmin
       .from('portal_users')
-      .select('id, school_id')
+      .select('id, school_id, school_name')
       .in('id', userIds)
       .eq('role', 'student');
 
-    let safeStudents = verified ?? [];
+    type PortalUserSlim = { id: string; school_id: string | null; school_name: string | null };
+    let safeStudents: PortalUserSlim[] = (verified ?? []) as PortalUserSlim[];
 
     // School boundary check — if a class_id is specified, enforce school scoping for non-admins
     if (caller.role !== 'admin' && class_id) {
@@ -59,10 +60,10 @@ export async function POST(request: Request) {
         .single();
 
       if (targetClass?.school_id) {
-        const clsSchoolName = (targetClass as any).schools?.name ?? null;
+        const clsSchoolName = (targetClass as unknown as { schools: { name: string } | null }).schools?.name ?? null;
         // Accept students linked by school_id OR by school_name (legacy records)
         safeStudents = safeStudents.filter(
-          (s: any) =>
+          s =>
             s.school_id === targetClass.school_id ||
             (clsSchoolName && s.school_name === clsSchoolName),
         );
@@ -80,13 +81,13 @@ export async function POST(request: Request) {
       const schoolName = schoolRow?.name ?? null;
 
       safeStudents = safeStudents.filter(
-        (s: any) =>
+        s =>
           s.school_id === school_id ||
           (schoolName && s.school_name === schoolName),
       );
     }
 
-    const safeIds = safeStudents.map((u: any) => u.id);
+    const safeIds = safeStudents.map(u => u.id);
     if (safeIds.length === 0) {
       // Don't fail hard — the class was already created. Return a 200 with a warning so
       // the caller can redirect and the teacher can manually add students.
@@ -130,7 +131,7 @@ export async function POST(request: Request) {
       .eq('program_id', program_id)
       .in('user_id', safeIds);
 
-    const enrolledIds = new Set((alreadyEnrolled ?? []).map((e: any) => e.user_id));
+    const enrolledIds = new Set((alreadyEnrolled ?? []).map(e => e.user_id));
     const toInsert = safeIds
       .filter((uid) => !enrolledIds.has(uid))
       .map((userId) => ({ user_id: userId, program_id, status: 'active', role: 'student' }));

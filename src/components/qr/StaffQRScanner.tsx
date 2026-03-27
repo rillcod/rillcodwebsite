@@ -337,7 +337,7 @@ export default function StaffQRScanner() {
                       <img src={student.avatar_url} alt={student.full_name} className="w-14 h-14 rounded-full object-cover border-2 border-white/10 flex-shrink-0" />
                     ) : (
                       <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 text-2xl">
-                        {student.full_name.charAt(0).toUpperCase()}
+                        {student.full_name?.charAt(0)?.toUpperCase() ?? '?'}
                       </div>
                     )}
                     <div className="min-w-0">

@@ -221,9 +221,9 @@ export default function LeaderboardPage() {
               <div key={e.id} className="flex flex-col items-center gap-2">
                 <div className="text-2xl">{MEDAL[idx]}</div>
                 <div className="w-12 h-12 bg-[#7a0606] flex items-center justify-center border-2 border-border">
-                  <span className="text-foreground font-black text-lg">{e.full_name.charAt(0)}</span>
+                  <span className="text-foreground font-black text-lg">{e.full_name?.charAt(0) ?? '?'}</span>
                 </div>
-                <p className="text-foreground text-xs font-bold truncate max-w-[80px] text-center">{e.full_name.split(' ')[0]}</p>
+                <p className="text-foreground text-xs font-bold truncate max-w-[80px] text-center">{e.full_name?.split(' ')?.[0] ?? 'User'}</p>
                 <p className="text-yellow-400 text-xs font-black">{e.xp} XP</p>
                 <div className={`w-20 ${heightMap[idx]} flex items-center justify-center ${idx === 0 ? 'bg-yellow-500/20 border-t-2 border-yellow-500/40' : idx === 1 ? 'bg-slate-400/10 border-t-2 border-slate-400/30' : 'bg-orange-500/10 border-t-2 border-orange-500/30'}`}>
                   <span className="text-2xl font-black text-muted-foreground">{idx + 1}</span>
@@ -254,7 +254,7 @@ export default function LeaderboardPage() {
 
                 {/* Avatar */}
                 <div className="w-9 h-9 bg-[#1a2b54] border border-border flex items-center justify-center flex-shrink-0">
-                  <span className="text-foreground text-sm font-black">{e.full_name.charAt(0)}</span>
+                  <span className="text-foreground text-sm font-black">{e.full_name?.charAt(0) ?? '?'}</span>
                 </div>
 
                 {/* Info */}

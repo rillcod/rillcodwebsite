@@ -993,8 +993,8 @@ export default function TimetablePage() {
                             const now = new Date();
                             const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
                             const currentTime = now.getHours() * 60 + now.getMinutes();
-                            const [h1, m1] = slot.start_time.split(':').map(Number);
-                            const [h2, m2] = slot.end_time.split(':').map(Number);
+                            const [h1 = 0, m1 = 0] = (slot.start_time ?? '').split(':').map(Number);
+                            const [h2 = 0, m2 = 0] = (slot.end_time ?? '').split(':').map(Number);
                             const start = h1 * 60 + m1;
                             const end = h2 * 60 + m2;
                             const isCurrent = day === currentDay && currentTime >= start && currentTime < end;

@@ -111,7 +111,7 @@ export async function PATCH(
     }
 
     for (const q of existingQs) {
-      await admin.from('cbt_questions').update({
+      const { error: uErr } = await admin.from('cbt_questions').update({
         question_text: q.question_text,
         question_type: q.question_type,
         options: q.options ?? null,
@@ -120,6 +120,7 @@ export async function PATCH(
         order_index: q.order_index,
         metadata: q.metadata ?? null,
       }).eq('id', q.id);
+      if (uErr) return NextResponse.json({ error: `Failed to update question: ${uErr.message}` }, { status: 500 });
     }
   }
 

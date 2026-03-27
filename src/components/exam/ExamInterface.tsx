@@ -99,10 +99,16 @@ export function ExamInterface({ exam, questions, attemptId, initialAnswers = {} 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ attemptId, answers })
             });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || 'Server error');
+            }
             const data = await res.json();
             if (data.success) {
                 toast.success('Exam submitted successfully!');
                 router.push(`/portal/student/exams/results/${attemptId}`);
+            } else {
+                toast.error(data.error || 'Submission failed. Please try again.');
             }
         } catch (err) {
             toast.error('Submission failed. Please try again.');

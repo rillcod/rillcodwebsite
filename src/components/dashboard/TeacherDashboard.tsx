@@ -1,155 +1,332 @@
 'use client';
 
 import {
-  UserGroupIcon, ClipboardDocumentListIcon, BookOpenIcon,
-  ChartBarIcon, CalendarDaysIcon, ClockIcon, ArrowRightIcon,
-  ArrowRightOnRectangleIcon
+  UserGroupIcon, AcademicCapIcon, BookOpenIcon,
+  ClipboardDocumentListIcon, ArrowRightIcon, ArrowPathIcon,
+  UserPlusIcon, ClipboardDocumentCheckIcon, DocumentChartBarIcon,
+  CogIcon
 } from '@/lib/icons';
 import Link from 'next/link';
 
+interface DashStats { label: string; value: string | number; icon: any; gradient: string }
+interface Activity { id: string; title: string; desc: string; time: string; icon: any; color: string }
+interface QuickAction { name: string; href: string; icon: any; desc: string }
+interface Slot { id: string; start_time: string; subject: string; room: string | null; school_name?: string }
+
 interface TeacherDashboardProps {
-  stats: any[];
-  activities: any[];
-  actionCenter: { ungradedAssignments: number; ungradedExams: number } | null;
-  upcomingSlots: any[];
+  profile: { full_name: string | null; email: string };
+  stats: DashStats[];
+  activities: Activity[];
+  upcomingSlots: Slot[];
+  teacherActionCenter: { ungradedAssignments: number; ungradedExams: number } | null;
+  quickActions: QuickAction[];
+  dataLoading: boolean;
+  onRefresh: () => void;
 }
 
-export default function TeacherDashboard({ stats, activities, actionCenter, upcomingSlots }: TeacherDashboardProps) {
+export default function TeacherDashboard({ profile, stats, activities, upcomingSlots, teacherActionCenter, quickActions, dataLoading, onRefresh }: TeacherDashboardProps) {
   return (
     <div className="space-y-6">
-      {/* Action Center - Urgent grading notifications */}
-      {(actionCenter?.ungradedAssignments || 0) + (actionCenter?.ungradedExams || 0) > 0 && (
-        <div className="bg-orange-600/10 border border-orange-500/20 p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-orange-600/20 border border-orange-500/30 flex items-center justify-center">
-              <ClipboardDocumentListIcon className="w-6 h-6 text-orange-400" />
+
+      {/* Stats Grid */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Live Stats</p>
+          <button onClick={onRefresh} disabled={dataLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground bg-card shadow-sm hover:bg-muted border border-border rounded-none transition-all disabled:opacity-40">
+            <ArrowPathIcon className={`w-3.5 h-3.5 ${dataLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+          {dataLoading
+            ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-6 animate-pulse">
+                <div className="h-10 w-10 bg-muted rounded-none mb-4" />
+                <div className="h-8 bg-muted rounded w-1/2 mb-2" />
+                <div className="h-4 bg-card shadow-sm rounded w-2/3" />
+              </div>
+            ))
+            : stats.map(({ label, value, icon: Icon, gradient }) => (
+              <div key={label} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-7 hover:bg-white/8 transition-all group relative overflow-hidden">
+                <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${gradient} opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
+                <div className="flex items-start justify-between mb-5 relative z-10">
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-none bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform`}>
+                    <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-foreground" />
+                  </div>
+                  <span className="text-[8px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-card shadow-sm px-2 py-0.5 rounded-full border border-border">Live</span>
+                </div>
+                <p className="text-2xl sm:text-4xl font-black text-foreground tracking-tight tabular-nums relative z-10">{value}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest mt-1.5 relative z-10">{label}</p>
+              </div>
+            ))}
+        </div>
+      </div>
+
+      {/* Grading Queue */}
+      {teacherActionCenter !== null && (
+        <div className="bg-card border border-border rounded-none p-6 sm:p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/5 blur-[80px] -mr-24 -mt-24 pointer-events-none" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.4em]">Smart Command Center</p>
+                <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Grading Queue</h2>
+              </div>
+              <div className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border rounded-none ${
+                (teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
+                  ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 animate-pulse'
+                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+              }`}>
+                {(teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams) > 0
+                  ? `${teacherActionCenter.ungradedAssignments + teacherActionCenter.ungradedExams} Pending`
+                  : 'All Clear ✓'}
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-black text-foreground uppercase tracking-tight">Grading Action Required</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                You have <span className="text-orange-400 font-bold">{actionCenter?.ungradedAssignments || 0}</span> assignments 
-                and <span className="text-orange-400 font-bold">{actionCenter?.ungradedExams || 0}</span> exams pending grading.
-              </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Link href="/dashboard/assignments"
+                className={`group flex items-center gap-4 p-5 border rounded-none transition-all hover:scale-[1.01] ${
+                  teacherActionCenter.ungradedAssignments > 0
+                    ? 'bg-rose-500/5 border-rose-500/20 hover:border-rose-500/40'
+                    : 'bg-card border-border hover:border-border'
+                }`}>
+                <div className={`w-12 h-12 flex items-center justify-center text-2xl font-black rounded-none ${teacherActionCenter.ungradedAssignments > 0 ? 'bg-rose-500/20' : 'bg-emerald-500/10'}`}>
+                  {teacherActionCenter.ungradedAssignments > 0 ? '📋' : '✅'}
+                </div>
+                <div>
+                  <p className={`text-2xl font-black tabular-nums ${teacherActionCenter.ungradedAssignments > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    {teacherActionCenter.ungradedAssignments}
+                  </p>
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Assignments</p>
+                </div>
+                <ArrowRightIcon className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+              </Link>
+              <Link href="/dashboard/cbt"
+                className={`group flex items-center gap-4 p-5 border rounded-none transition-all hover:scale-[1.01] ${
+                  teacherActionCenter.ungradedExams > 0
+                    ? 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40'
+                    : 'bg-card border-border hover:border-border'
+                }`}>
+                <div className={`w-12 h-12 flex items-center justify-center text-2xl font-black rounded-none ${teacherActionCenter.ungradedExams > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/10'}`}>
+                  {teacherActionCenter.ungradedExams > 0 ? '📝' : '✅'}
+                </div>
+                <div>
+                  <p className={`text-2xl font-black tabular-nums ${teacherActionCenter.ungradedExams > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    {teacherActionCenter.ungradedExams}
+                  </p>
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">CBT Exams</p>
+                </div>
+                <ArrowRightIcon className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+              </Link>
+              <Link href="/dashboard/lessons/add"
+                className="group flex items-center gap-4 p-5 bg-orange-500/5 border border-orange-500/20 hover:border-orange-500/40 rounded-none transition-all hover:scale-[1.01]">
+                <div className="w-12 h-12 bg-orange-500/20 flex items-center justify-center text-2xl rounded-none">✨</div>
+                <div>
+                  <p className="text-sm font-black text-orange-400 uppercase tracking-tight">AI Lesson</p>
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Generate Now</p>
+                </div>
+                <ArrowRightIcon className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+              </Link>
             </div>
           </div>
-          <Link href="/dashboard/assignments"
-            className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-900/40">
-            Grade Now →
-          </Link>
         </div>
       )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-        {stats.map(({ label, value, icon: Icon, gradient }) => (
-          <div key={label} className="bg-card shadow-sm border border-border p-5 sm:p-7 group relative overflow-hidden transition-all hover:bg-white/8">
-            <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${gradient} opacity-[0.03] blur-2xl -mr-12 -mt-12 group-hover:scale-150 transition-transform`} />
-            <div className="flex items-start justify-between mb-5 relative z-10">
-              <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br ${gradient} flex items-center justify-center shadow-xl`}>
-                <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-foreground" />
-              </div>
+      {/* Student Registration Hub */}
+      <div className="bg-card border border-border rounded-none p-6 sm:p-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/5 blur-[80px] -mr-24 -mt-24 pointer-events-none" />
+        <div className="relative z-10">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div>
+              <p className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.4em]">Students</p>
+              <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Register Students</h2>
             </div>
-            <p className="text-2xl sm:text-4xl font-black text-foreground tracking-tight tabular-nums relative z-10">{value}</p>
-            <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest mt-1.5 relative z-10">{label}</p>
+            <Link href="/dashboard/students"
+              className="px-4 py-2 text-[9px] font-black uppercase tracking-widest border border-border text-muted-foreground hover:text-foreground hover:border-emerald-500/40 rounded-none transition-all flex items-center gap-1.5">
+              <UserGroupIcon className="w-3.5 h-3.5" /> View All Students
+            </Link>
           </div>
-        ))}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Link href="/dashboard/students/bulk-register"
+              className="group flex flex-col gap-3 p-5 bg-emerald-500/5 border border-emerald-500/20 hover:border-emerald-500/40 rounded-none transition-all">
+              <div className="w-10 h-10 bg-emerald-500/20 flex items-center justify-center rounded-none">
+                <UserGroupIcon className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-foreground">Bulk Register</p>
+                <p className="text-xs text-muted-foreground mt-1">Paste a list of student names — fastest for a whole class</p>
+              </div>
+              <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mt-auto">Start →</span>
+            </Link>
+            <Link href="/dashboard/students/bulk-register?tab=single"
+              className="group flex flex-col gap-3 p-5 bg-card border border-border hover:border-emerald-500/30 rounded-none transition-all">
+              <div className="w-10 h-10 bg-muted flex items-center justify-center rounded-none">
+                <UserPlusIcon className="w-5 h-5 text-muted-foreground group-hover:text-emerald-400 transition-colors" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-foreground">Single Student</p>
+                <p className="text-xs text-muted-foreground mt-1">Fill in a form for one student — name, class, school</p>
+              </div>
+              <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mt-auto opacity-0 group-hover:opacity-100 transition-opacity">Start →</span>
+            </Link>
+            <Link href="/dashboard/students/import"
+              className="group flex flex-col gap-3 p-5 bg-card border border-border hover:border-emerald-500/30 rounded-none transition-all">
+              <div className="w-10 h-10 bg-muted flex items-center justify-center rounded-none">
+                <ClipboardDocumentCheckIcon className="w-5 h-5 text-muted-foreground group-hover:text-emerald-400 transition-colors" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-foreground">Import CSV</p>
+                <p className="text-xs text-muted-foreground mt-1">Upload a spreadsheet — best for large batches with full details</p>
+              </div>
+              <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mt-auto opacity-0 group-hover:opacity-100 transition-opacity">Start →</span>
+            </Link>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Recent Classes & Attendance */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-card shadow-sm border border-border p-6 sm:p-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.4em]">Instructor Focus</p>
-                <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Teaching Schedule</h2>
-              </div>
-              <Link href="/dashboard/classes" className="text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest flex items-center gap-1.5 transition-colors">
-                View All <ArrowRightIcon className="w-3 h-3" />
-              </Link>
-            </div>
+      {/* Main Grid: Quick Actions + Activity + Sidebar */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-            {upcomingSlots.length > 0 ? (
+        {/* Left: Quick Actions + Recent Activity */}
+        <div className="xl:col-span-2 space-y-6">
+          <div className="bg-card shadow-sm border border-border rounded-none p-6">
+            <h2 className="text-lg font-bold text-foreground mb-5">Quick Actions</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {quickActions.map(({ name, href, icon: Icon, desc }) => (
+                <Link key={name} href={href}
+                  className="group flex items-start gap-4 p-4 rounded-none border border-border hover:border-orange-500/40 hover:bg-orange-500/5 transition-all">
+                  <div className="w-10 h-10 rounded-none bg-orange-500/15 border border-orange-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-orange-500/25 transition-colors">
+                    <Icon className="h-5 w-5 text-orange-400" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground text-sm group-hover:text-orange-500 transition-colors">{name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-background border border-border rounded-none p-6 sm:p-8 shadow-2xl">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-xl font-black text-foreground tracking-tight">Recent Activity</h2>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">Live Platform Pulse</p>
+              </div>
+              <button onClick={onRefresh}
+                className="p-3 rounded-none bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-all group">
+                <ArrowPathIcon className={`w-4 h-4 ${dataLoading ? 'animate-spin' : 'group-active:rotate-180 transition-transform'}`} />
+              </button>
+            </div>
+            {dataLoading ? (
               <div className="space-y-4">
-                {upcomingSlots.map((slot) => (
-                  <div key={slot.id} className="group bg-background border border-border p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all hover:border-orange-500/20">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-muted border border-border flex flex-col items-center justify-center text-center">
-                        <ClockIcon className="w-5 h-5 text-orange-400 mb-0.5" />
-                        <span className="text-[8px] font-black uppercase tracking-widest">{slot.start_time.split(':')[0]}:{slot.start_time.split(':')[1]}</span>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-black text-foreground uppercase tracking-tight">{slot.subject}</h4>
-                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">
-                          {slot.school_name || 'Rillcod Portal'} · {slot.room || 'General Room'}
-                        </p>
-                      </div>
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="flex items-center gap-4 animate-pulse">
+                    <div className="w-11 h-11 bg-card shadow-sm rounded-none flex-shrink-0" />
+                    <div className="flex-1 space-y-3">
+                      <div className="h-4 bg-card shadow-sm rounded w-3/4" />
+                      <div className="h-3 bg-card shadow-sm rounded w-1/2 opacity-50" />
                     </div>
-                    <Link href={`/dashboard/attendance?class_id=${slot.id}`}
-                      className="px-5 py-2.5 bg-card shadow-sm hover:bg-muted border border-border text-[9px] font-black uppercase tracking-widest transition-all">
-                      Mark Attendance
-                    </Link>
                   </div>
                 ))}
               </div>
+            ) : activities.length === 0 ? (
+              <div className="text-center py-16 bg-white/[0.02] border border-dashed border-border rounded-none">
+                <div className="w-16 h-16 bg-card shadow-sm rounded-full flex items-center justify-center mx-auto mb-4 border border-border">
+                  <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">No recent activity yet</p>
+              </div>
             ) : (
-              <div className="py-12 border border-dashed border-border text-center">
-                <CalendarDaysIcon className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
-                <p className="text-xs text-muted-foreground font-medium">No sessions scheduled for today</p>
+              <div className="space-y-2">
+                {activities.map((a) => (
+                  <div key={a.id} className="group flex items-start gap-4 p-4 rounded-none hover:bg-white/[0.03] transition-all border border-transparent hover:border-border">
+                    <div className={`w-11 h-11 rounded-none flex items-center justify-center flex-shrink-0 shadow-lg ${a.color} group-hover:scale-110 transition-transform`}>
+                      <a.icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-foreground text-sm tracking-tight group-hover:text-orange-500 transition-colors uppercase leading-none mt-1">{a.title}</p>
+                      <p className="text-xs text-muted-foreground mt-2 font-medium truncate">{a.desc}</p>
+                    </div>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap mt-1 bg-card shadow-sm px-2 py-0.5 rounded-full border border-border">
+                      {a.time}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-
-          <div className="bg-card shadow-sm border border-border p-6 sm:p-8">
-             <div className="flex items-center justify-between mb-6">
-                <div>
-                  <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.4em]">Quick Tools</p>
-                  <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">Management Hub</h2>
-                </div>
-             </div>
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Link href="/dashboard/students" className="p-5 bg-background border border-border hover:border-orange-500/20 transition-all group">
-                   <UserGroupIcon className="w-6 h-6 text-orange-400 mb-3" />
-                   <h4 className="text-xs font-black text-foreground uppercase tracking-widest group-hover:text-orange-400">My Students</h4>
-                   <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">View roster, cards, and print login slips</p>
-                </Link>
-                <Link href="/dashboard/attendance" className="p-5 bg-background border border-border hover:border-orange-500/20 transition-all group">
-                   <ClipboardDocumentListIcon className="w-6 h-6 text-emerald-400 mb-3" />
-                   <h4 className="text-xs font-black text-foreground uppercase tracking-widest group-hover:text-emerald-400">Attendance Log</h4>
-                   <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">History records and participation reports</p>
-                </Link>
-             </div>
-          </div>
         </div>
 
-        {/* Right Column: Recent Activity Feed */}
-        <div className="bg-card shadow-sm border border-border p-6 sm:p-8 h-fit">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Latest Workflow</h3>
-            <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
+        {/* Right Sidebar */}
+        <div className="space-y-5">
+          <div className="bg-gradient-to-br from-orange-600/20 to-orange-400/20 border border-orange-500/20 rounded-none p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-none bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-xl font-black text-foreground">
+                {(profile.full_name ?? 'T')[0].toUpperCase()}
+              </div>
+              <div>
+                <p className="font-bold text-foreground truncate">{profile.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
+              </div>
+            </div>
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-orange-500/20 text-orange-400 border-orange-500/30">Teacher</span>
+            <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
+              <Link href="/dashboard/settings" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <CogIcon className="w-4 h-4" /> Account Settings
+              </Link>
+              <Link href="/dashboard/profile" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <AcademicCapIcon className="w-4 h-4" /> Edit Profile
+              </Link>
+            </div>
           </div>
 
-          {activities.length > 0 ? (
-            <div className="space-y-8 relative before:absolute before:left-[15px] before:top-2 before:bottom-2 before:w-px before:bg-muted">
-              {activities.map((act) => (
-                <div key={act.id} className="relative flex items-start gap-4">
-                  <div className={`w-8 h-8 ${act.color} flex items-center justify-center flex-shrink-0 z-10 relative`}>
-                    <act.icon className="w-4 h-4" />
+          {/* Upcoming Schedule */}
+          <div className="bg-card shadow-sm border border-border rounded-none p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-foreground text-sm">What's Next</h3>
+              <Link href="/dashboard/timetable" className="text-[10px] font-black text-orange-400 uppercase tracking-widest hover:underline">Full View</Link>
+            </div>
+            <div className="space-y-2">
+              {upcomingSlots.length > 0 ? upcomingSlots.map(slot => (
+                <div key={slot.id} className="p-3 bg-card shadow-sm border border-border rounded-none relative overflow-hidden">
+                  <div className="absolute top-0 left-0 bottom-0 w-1 bg-orange-600" />
+                  <div className="flex justify-between items-start gap-2">
+                    <p className="text-xs font-bold text-foreground truncate">{slot.subject}</p>
+                    <span className="text-[9px] font-black text-orange-400 bg-orange-400/10 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">{slot.start_time}</span>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-black text-foreground uppercase tracking-tight truncate">{act.title}</p>
-                    <p className="text-[10px] text-muted-foreground font-medium truncate mt-0.5">{act.desc}</p>
-                    <p className="text-[9px] font-black text-orange-500/60 uppercase tracking-widest mt-2">{act.time}</p>
-                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1 truncate">
+                    {slot.room ? `📍 ${slot.room}` : 'No room set'}
+                    {slot.school_name && ` · ${slot.school_name}`}
+                  </p>
                 </div>
+              )) : (
+                <div className="text-center py-6 border border-dashed border-border rounded-none">
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">No classes today</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Navigate To */}
+          <div className="bg-card shadow-sm border border-border rounded-none p-5">
+            <h3 className="font-bold text-foreground text-sm mb-4">Navigate To</h3>
+            <div className="space-y-1">
+              {[
+                { label: 'Progress Reports', href: '/dashboard/results', icon: DocumentChartBarIcon },
+                { label: 'Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
+                { label: 'CBT Centre', href: '/dashboard/cbt', icon: ClipboardDocumentCheckIcon },
+                { label: 'Profile', href: '/dashboard/profile', icon: AcademicCapIcon },
+              ].map(({ label, href, icon: Icon }) => (
+                <Link key={label} href={href}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-none text-sm text-muted-foreground hover:bg-card hover:text-foreground transition-all group">
+                  <Icon className="w-4 h-4 group-hover:text-orange-400 transition-colors" />
+                  {label}
+                  <ArrowRightIcon className="w-3.5 h-3.5 ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+                </Link>
               ))}
             </div>
-          ) : (
-            <div className="py-12 text-center">
-              <ArrowRightOnRectangleIcon className="w-8 h-8 mx-auto text-muted-foreground/20 mb-3" />
-              <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">No Recent Events</p>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
