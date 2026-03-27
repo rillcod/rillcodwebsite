@@ -267,7 +267,7 @@ export default function SchoolOverviewPage() {
         <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
           {filtered.slice(0, 20).map(s => (
             <div key={s.id} className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground w-28 truncate flex-shrink-0">{s.full_name.split(' ')[0]}</span>
+              <span className="text-xs text-muted-foreground w-28 truncate flex-shrink-0">{s.full_name?.split(' ')?.[0] ?? 'Student'}</span>
               <div className="flex-1 bg-card shadow-sm rounded-full h-3 overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-700"
@@ -327,7 +327,7 @@ export default function SchoolOverviewPage() {
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-[#7a0606] flex items-center justify-center flex-shrink-0">
-                        <span className="text-foreground text-xs font-black">{s.full_name.charAt(0)}</span>
+                        <span className="text-foreground text-xs font-black">{s.full_name?.charAt(0) ?? '?'}</span>
                       </div>
                       <div>
                         <p className="text-foreground font-semibold">{s.full_name}</p>

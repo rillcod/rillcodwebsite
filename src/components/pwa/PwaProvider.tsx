@@ -16,12 +16,6 @@ export default function PwaProvider() {
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {
-        // Silent: offline support is best-effort.
-      });
-    }
-
     const promptPushPermission = async () => {
       if (!("Notification" in window)) return;
       const asked = window.localStorage.getItem("push-permission-asked");

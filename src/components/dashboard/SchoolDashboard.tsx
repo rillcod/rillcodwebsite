@@ -1,33 +1,28 @@
 'use client';
 
 import {
-  AcademicCapIcon, ChartBarIcon,
-  BuildingOfficeIcon, ClipboardDocumentListIcon,
-  CheckCircleIcon, BanknotesIcon, ArrowRightIcon,
-  ArrowPathIcon, TrophyIcon, CogIcon
+  UserGroupIcon, AcademicCapIcon, ChartBarIcon,
+  ClipboardDocumentListIcon, TrophyIcon, DocumentTextIcon,
+  ArrowRightIcon, ArrowPathIcon, CogIcon
 } from '@/lib/icons';
 import Link from 'next/link';
 
 interface DashStats { label: string; value: string | number; icon: any; gradient: string }
 interface Activity { id: string; title: string; desc: string; time: string; icon: any; color: string }
 interface QuickAction { name: string; href: string; icon: any; desc: string }
-interface SchoolPayment {
-  id: string; invoice_number: string; amount: number; currency: string;
-  status: string; due_date: string; created_at: string;
-  schools: { name: string } | null;
-}
+interface Slot { id: string; start_time: string; subject: string; room: string | null; school_name?: string }
 
-interface AdminDashboardProps {
+interface SchoolDashboardProps {
   profile: { full_name: string | null; email: string };
   stats: DashStats[];
   activities: Activity[];
-  schoolPayments: SchoolPayment[];
+  upcomingSlots: Slot[];
   quickActions: QuickAction[];
   dataLoading: boolean;
   onRefresh: () => void;
 }
 
-export default function AdminDashboard({ profile, stats, activities, schoolPayments, quickActions, dataLoading, onRefresh }: AdminDashboardProps) {
+export default function SchoolDashboard({ profile, stats, activities, upcomingSlots, quickActions, dataLoading, onRefresh }: SchoolDashboardProps) {
   return (
     <div className="space-y-6">
 
@@ -41,9 +36,9 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
             Refresh
           </button>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {dataLoading
-            ? Array.from({ length: 5 }).map((_, i) => (
+            ? Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="bg-card shadow-sm border border-border rounded-none p-5 sm:p-6 animate-pulse">
                 <div className="h-10 w-10 bg-muted rounded-none mb-4" />
                 <div className="h-8 bg-muted rounded w-1/2 mb-2" />
@@ -63,85 +58,6 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
                 <p className="text-[10px] sm:text-xs text-muted-foreground font-black uppercase tracking-widest mt-1.5 relative z-10">{label}</p>
               </div>
             ))}
-        </div>
-      </div>
-
-      {/* School Billing Records */}
-      <div className="bg-card border border-border rounded-none p-6 sm:p-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/5 blur-[80px] -mr-24 -mt-24 pointer-events-none" />
-        <div className="relative z-10">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-            <div>
-              <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.4em]">Finance</p>
-              <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">School Billing Records</h2>
-            </div>
-            <Link href="/dashboard/payments?view=billing"
-              className="px-4 py-2 text-[9px] font-black uppercase tracking-widest border border-border text-muted-foreground hover:text-foreground hover:border-orange-500/40 rounded-none transition-all flex items-center gap-1.5">
-              <BanknotesIcon className="w-3.5 h-3.5" /> Full Billing View
-            </Link>
-          </div>
-
-          {dataLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map(i => <div key={i} className="h-14 bg-muted animate-pulse rounded-none" />)}
-            </div>
-          ) : schoolPayments.length === 0 ? (
-            <div className="text-center py-10 border border-dashed border-border rounded-none">
-              <BanknotesIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">No school invoices yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Generate school invoices from the Payments page</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[600px]">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="pb-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest">School</th>
-                    <th className="pb-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Invoice #</th>
-                    <th className="pb-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-right">Amount</th>
-                    <th className="pb-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest text-center">Status</th>
-                    <th className="pb-3 text-[9px] font-black text-muted-foreground uppercase tracking-widest">Due</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {schoolPayments.map(inv => {
-                    const sym = inv.currency === 'NGN' ? '₦' : inv.currency === 'USD' ? '$' : inv.currency;
-                    const isPaid = inv.status === 'paid';
-                    const isOverdue = inv.status === 'overdue';
-                    const dueDate = inv.due_date
-                      ? new Date(inv.due_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })
-                      : '—';
-                    return (
-                      <tr key={inv.id} className="group hover:bg-white/[0.02] transition-colors">
-                        <td className="py-3.5">
-                          <div className="flex items-center gap-2">
-                            <BuildingOfficeIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                            <span className="text-sm font-bold text-foreground truncate max-w-[160px]">
-                              {(inv.schools as any)?.name ?? 'Unknown School'}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3.5"><span className="text-xs font-mono text-muted-foreground">{inv.invoice_number}</span></td>
-                        <td className="py-3.5 text-right"><span className="text-sm font-black text-foreground">{sym}{inv.amount.toLocaleString()}</span></td>
-                        <td className="py-3.5 text-center">
-                          <span className={`inline-flex items-center px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border ${
-                            isPaid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                            isOverdue ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                            'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                          }`}>
-                            {isPaid ? '✓ Paid' : isOverdue ? 'Overdue' : inv.status}
-                          </span>
-                        </td>
-                        <td className="py-3.5">
-                          <span className={`text-xs font-bold ${isOverdue ? 'text-rose-400' : 'text-muted-foreground'}`}>{dueDate}</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       </div>
 
@@ -224,14 +140,14 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
           <div className="bg-gradient-to-br from-orange-600/20 to-orange-400/20 border border-orange-500/20 rounded-none p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-none bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center text-xl font-black text-foreground">
-                {(profile.full_name ?? 'A')[0].toUpperCase()}
+                {(profile.full_name ?? 'S')[0].toUpperCase()}
               </div>
               <div>
                 <p className="font-bold text-foreground truncate">{profile.full_name}</p>
                 <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
               </div>
             </div>
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-red-500/20 text-red-400 border-red-500/30">Admin</span>
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border bg-orange-500/20 text-orange-400 border-orange-500/30">School</span>
             <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
               <Link href="/dashboard/settings" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                 <CogIcon className="w-4 h-4" /> Account Settings
@@ -242,14 +158,42 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
             </div>
           </div>
 
+          {/* Upcoming Schedule */}
+          <div className="bg-card shadow-sm border border-border rounded-none p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-foreground text-sm">What's Next</h3>
+              <Link href="/dashboard/timetable" className="text-[10px] font-black text-orange-400 uppercase tracking-widest hover:underline">Full View</Link>
+            </div>
+            <div className="space-y-2">
+              {upcomingSlots.length > 0 ? upcomingSlots.map(slot => (
+                <div key={slot.id} className="p-3 bg-card shadow-sm border border-border rounded-none relative overflow-hidden">
+                  <div className="absolute top-0 left-0 bottom-0 w-1 bg-orange-600" />
+                  <div className="flex justify-between items-start gap-2">
+                    <p className="text-xs font-bold text-foreground truncate">{slot.subject}</p>
+                    <span className="text-[9px] font-black text-orange-400 bg-orange-400/10 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">{slot.start_time}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1 truncate">
+                    {slot.room ? `📍 ${slot.room}` : 'No room set'}
+                    {slot.school_name && ` · ${slot.school_name}`}
+                  </p>
+                </div>
+              )) : (
+                <div className="text-center py-6 border border-dashed border-border rounded-none">
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">No classes today</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Navigate To */}
           <div className="bg-card shadow-sm border border-border rounded-none p-5">
             <h3 className="font-bold text-foreground text-sm mb-4">Navigate To</h3>
             <div className="space-y-1">
               {[
-                { label: 'Approvals', href: '/dashboard/approvals', icon: CheckCircleIcon },
-                { label: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
+                { label: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
                 { label: 'Grades', href: '/dashboard/grades', icon: TrophyIcon },
-                { label: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
+                { label: 'Reports', href: '/dashboard/results', icon: DocumentTextIcon },
+                { label: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-none text-sm text-muted-foreground hover:bg-card hover:text-foreground transition-all group">

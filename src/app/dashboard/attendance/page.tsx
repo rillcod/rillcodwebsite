@@ -722,7 +722,7 @@ function AttendanceContent() {
                         <div className="space-y-3">
                           <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-none p-3">
                             <div className="w-10 h-10 bg-violet-500/20 border border-violet-500/30 rounded-none flex items-center justify-center text-base font-black text-violet-400 flex-shrink-0">
-                              {qrStudent.name.charAt(0)}
+                              {qrStudent.name?.charAt(0) ?? '?'}
                             </div>
                             <div>
                               <p className="font-bold text-foreground text-sm">{qrStudent.name}</p>

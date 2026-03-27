@@ -318,9 +318,9 @@ export default function EditExamPage() {
 
                         <div>
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Description</label>
-                            <textarea rows={2} value={form.description}
+                            <textarea rows={3} value={form.description}
                                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-y" />
                         </div>
                     </div>
 
@@ -387,10 +387,10 @@ export default function EditExamPage() {
                                 </div>
 
                                 <div className="p-5 space-y-4">
-                                    <textarea rows={2} value={q.question_text}
+                                    <textarea rows={4} value={q.question_text}
                                         onChange={e => updateQuestion(questions.indexOf(q), { question_text: e.target.value })}
                                         placeholder="Enter question text…"
-                                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
+                                        className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-y" />
 
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div>
@@ -412,11 +412,20 @@ export default function EditExamPage() {
                                         </div>
                                         {(q.question_type === 'fill_blank' || q.question_type === 'essay') && (
                                             <div className="sm:col-span-2">
-                                                <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Correct Answer / Scoring Guide</label>
-                                                <input type="text" value={q.correct_answer}
-                                                    onChange={e => updateQuestion(questions.indexOf(q), { correct_answer: e.target.value })}
-                                                    placeholder={q.question_type === 'fill_blank' ? "Exact answer..." : "Grading rubric or points guide..."}
-                                                    className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                                                <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">
+                                                    {q.question_type === 'essay' ? 'Grading Rubric / Model Answer' : 'Correct Answer'}
+                                                </label>
+                                                {q.question_type === 'essay' ? (
+                                                    <textarea rows={4} value={q.correct_answer}
+                                                        onChange={e => updateQuestion(questions.indexOf(q), { correct_answer: e.target.value })}
+                                                        placeholder="Describe what a full-marks answer should include…"
+                                                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-y" />
+                                                ) : (
+                                                    <input type="text" value={q.correct_answer}
+                                                        onChange={e => updateQuestion(questions.indexOf(q), { correct_answer: e.target.value })}
+                                                        placeholder="Exact answer…"
+                                                        className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+                                                )}
                                             </div>
                                         )}
                                     </div>

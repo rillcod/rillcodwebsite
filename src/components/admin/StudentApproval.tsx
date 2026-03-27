@@ -35,6 +35,11 @@ interface ProspectiveStudent {
   updated_at: string
 }
 
+// Row returned by Supabase when prospective_students is joined with schools(name)
+type ProspectiveStudentRow = Omit<ProspectiveStudent, 'school_name'> & {
+  schools: { name: string } | null
+}
+
 export default function StudentApproval() {
   const supabase = createClient()
   const [prospectiveStudents, setProspectiveStudents] = useState<ProspectiveStudent[]>([])
@@ -51,7 +56,7 @@ export default function StudentApproval() {
       setLoading(true)
       setError(null)
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('prospective_students')
         .select(`
           *,
@@ -63,14 +68,14 @@ export default function StudentApproval() {
         .order('created_at', { ascending: false })
 
       if (error) {
-        setError(`Error fetching students: ${(error as any).message}`)
+        setError(`Error fetching students: ${error.message}`)
         return
       }
 
-      // Transform the data to include school_name
-      const transformedData = (data as any[])?.map((student: any) => ({
+      // Transform the data to include school_name from the joined schools row
+      const transformedData = (data as unknown as ProspectiveStudentRow[])?.map(student => ({
         ...student,
-        school_name: student.schools?.name || 'Unknown School'
+        school_name: student.schools?.name || 'Unknown School',
       })) || []
 
       setProspectiveStudents(transformedData)
@@ -123,7 +128,7 @@ export default function StudentApproval() {
       }
 
       // Update prospective student status
-      const { error: updateError } = await (supabase as any)
+      const { error: updateError } = await supabase
         .from('prospective_students')
         .update({
           is_active: true,
@@ -150,7 +155,7 @@ export default function StudentApproval() {
       setApproving(studentId)
       setError(null)
 
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('prospective_students')
         .update({
           is_active: false,

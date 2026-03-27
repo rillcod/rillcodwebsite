@@ -283,7 +283,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return false;
         }
       },
-    } as any),
+    }),
     [user, session, profile, isLoading, profileLoading, signOut, refreshProfile, fetchProfile, invalidateCache],
   );
 

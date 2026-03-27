@@ -30,7 +30,7 @@ export interface AuthContextType {
     loading: boolean;
     /** True while the profile row is being fetched (user is known but profile not yet loaded) */
     profileLoading: boolean;
-    login: any;
+    login: (email: string, password: string) => Promise<boolean>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
 }

@@ -4467,6 +4467,7 @@ export type Database = {
           school_id: string | null
           school_name: string | null
           section: string | null
+          section_class: string | null
           state: string | null
           status: string | null
           student_email: string | null
@@ -4513,6 +4514,7 @@ export type Database = {
           school_id?: string | null
           school_name?: string | null
           section?: string | null
+          section_class?: string | null
           state?: string | null
           status?: string | null
           student_email?: string | null
@@ -4559,6 +4561,7 @@ export type Database = {
           school_id?: string | null
           school_name?: string | null
           section?: string | null
+          section_class?: string | null
           state?: string | null
           status?: string | null
           student_email?: string | null

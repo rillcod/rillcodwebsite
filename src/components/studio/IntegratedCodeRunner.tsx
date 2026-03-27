@@ -74,6 +74,7 @@ export default function IntegratedCodeRunner({
           language: lang === 'html' ? 'web' : lang
         })
       });
+      if (!res.ok) throw new Error('Generation failed');
       const d = await res.json();
       if (d.data) {
         setCode(d.data);
