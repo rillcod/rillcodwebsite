@@ -83,7 +83,7 @@ export default function PortalAccess({
     setError('')
 
     try {
-      const success = await login(email, password, role)
+      const success = await login(email, password)
       if (success) {
         setSuccess('Login successful!')
         onSuccess?.()

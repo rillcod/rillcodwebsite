@@ -253,7 +253,7 @@ function ResultsPageInner() {
                         parts.push(`class_id.in.(${teacherClassIds.join(',')})`);
 
                     if (parts.length > 0) {
-                        finalQuery = (finalQuery as any).or(parts.join(','));
+                        finalQuery = finalQuery.or(parts.join(','));
                     } else {
                         finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
                     }
@@ -590,8 +590,8 @@ function ResultsPageInner() {
 
         const rows = studentsToSheet.map((s, i) => {
             const r = fullRMap[s.id];
-            const cls = (s as any).classes?.name ?? s.section_class ?? '—';
-            const sch = (s as any).schools?.name ?? s.school_name ?? '—';
+            const cls = studentClassName(s) || '—';
+            const sch = studentSchoolName(s) || '—';
             const hasTh = r?.theory_score != null;
             const hasPr = r?.practical_score != null;
             const hasAt = r?.attendance_score != null;
@@ -818,7 +818,7 @@ tbody tr:hover{background:#f3f4f6}
                                     </select>
                                     <select
                                         value={filterStatus}
-                                        onChange={e => setFilterStatus(e.target.value as any)}
+                                        onChange={e => setFilterStatus(e.target.value as 'all' | 'published' | 'draft' | 'none')}
                                         className="px-3 py-2 bg-card shadow-sm border border-border rounded-none text-xs text-foreground focus:outline-none focus:border-orange-500 transition-colors"
                                     >
                                         <option value="all">All Status</option>
@@ -1013,7 +1013,7 @@ tbody tr:hover{background:#f3f4f6}
                                                     ].map((t) => (
                                                         <button 
                                                             key={t.id}
-                                                            onClick={() => setModernTemplateId(t.id as any)}
+                                                            onClick={() => setModernTemplateId(t.id as 'industrial' | 'executive' | 'futuristic')}
                                                             title={t.name}
                                                             className={cn(
                                                                 "relative w-7 h-5 flex items-center justify-center transition-all overflow-hidden border border-white/10",
@@ -1212,9 +1212,9 @@ tbody tr:hover{background:#f3f4f6}
                         return (
                           <tr key={s.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
                             <td style={{ padding: '6px 10px', color: '#9ca3af' }}>{i + 1}</td>
-                            <td style={{ padding: '6px 10px', fontWeight: 600 }}>{(s as any).full_name ?? '—'}</td>
-                            <td style={{ padding: '6px 10px', color: '#6b7280' }}>{(s as any).school_name ?? '—'}</td>
-                            <td style={{ padding: '6px 10px', color: '#6b7280' }}>{(s as any).section_class ?? '—'}</td>
+                            <td style={{ padding: '6px 10px', fontWeight: 600 }}>{s.full_name ?? '—'}</td>
+                            <td style={{ padding: '6px 10px', color: '#6b7280' }}>{studentSchoolName(s) || '—'}</td>
+                            <td style={{ padding: '6px 10px', color: '#6b7280' }}>{s.section_class ?? '—'}</td>
                             <td style={{ padding: '6px 10px', textAlign: 'center' }}>
                               {grade ? (
                                 <span style={{ fontWeight: 900, fontSize: '13px', color: gradeColors[grade] ?? '#374151' }}>{grade}</span>

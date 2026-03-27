@@ -82,7 +82,7 @@ export class CertificateService {
     async publishCertificate(id: string) {
         const admin = adminClient();
         const { data: cert } = await admin.from('certificates').select('metadata').eq('id', id).single();
-        const newMetadata = { ...(cert?.metadata as any ?? {}), is_published: true };
+        const newMetadata = { ...(cert?.metadata as Record<string, unknown> ?? {}), is_published: true };
 
         const { error } = await admin
             .from('certificates')
@@ -114,7 +114,7 @@ export class CertificateService {
         }
     }
 
-    private async generatePDFBuffer(userName: string, courseName: string, cert: any): Promise<Buffer> {
+    private async generatePDFBuffer(userName: string, courseName: string, cert: { issued_date: string; verification_code: string; certificate_number: string }): Promise<Buffer> {
         const fonts = {
             Helvetica: {
                 normal: 'Helvetica',
@@ -155,10 +155,10 @@ export class CertificateService {
 
         return new Promise((resolve, reject) => {
             const pdfDoc = printer.createPdfKitDocument(docDefinition);
-            const chunks: any[] = [];
-            pdfDoc.on('data', (chunk: any) => chunks.push(chunk));
+            const chunks: Buffer[] = [];
+            pdfDoc.on('data', (chunk: Buffer) => chunks.push(chunk));
             pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
-            pdfDoc.on('error', (err: any) => reject(err));
+            pdfDoc.on('error', (err: Error) => reject(err));
             pdfDoc.end();
         });
     }

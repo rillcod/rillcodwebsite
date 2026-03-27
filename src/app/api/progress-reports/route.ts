@@ -28,7 +28,23 @@ export async function POST(request: NextRequest) {
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
-  const { existing_id, ...payload } = body;
+  const { existing_id } = body;
+
+  // Whitelist allowed fields to prevent unintended column injection
+  const ALLOWED_FIELDS = [
+    'student_id', 'course_name', 'report_term', 'report_date',
+    'theory_score', 'practical_score', 'attendance_score', 'participation_score',
+    'overall_score', 'overall_grade', 'is_published',
+    'learning_milestones', 'instructor_name', 'template_id',
+    'key_strengths', 'areas_for_growth', 'projects_grade', 'homework_grade',
+    'fee_status', 'fee_amount', 'has_certificate', 'certificate_text',
+    'section_class', 'school_name',
+  ] as const;
+
+  const payload: Record<string, unknown> = {};
+  for (const field of ALLOWED_FIELDS) {
+    if (field in body) payload[field] = body[field];
+  }
 
   // Always set teacher_id to caller
   payload.teacher_id = caller.id;

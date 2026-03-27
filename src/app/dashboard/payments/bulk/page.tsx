@@ -56,6 +56,27 @@ type BatchRecord = {
   total_amount: number;
 };
 
+type BatchItem = {
+  invoice_number?: string;
+  receipt_number?: string;
+  amount: number;
+  currency?: string;
+  status?: string;
+  created_at?: string;
+  issued_at?: string;
+  notes?: string;
+  portal_users?: { full_name: string } | null;
+  metadata?: { payer_name?: string; batch_id?: string; [key: string]: unknown } | null;
+};
+
+type Batch = {
+  id: string;
+  type: 'invoice' | 'receipt';
+  created_at: string;
+  items: BatchItem[];
+  total: number;
+};
+
 // ── Step indicator ─────────────────────────────────────────────────────────
 
 function StepBar({ step }: { step: 1 | 2 | 3 }) {
@@ -90,7 +111,7 @@ function LineItemEditor({ items, onChange, accentColor = 'violet' }: {
   accentColor?: string;
 }) {
   const total = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
-  function update(idx: number, field: keyof LineItem, value: any) {
+  function update(idx: number, field: keyof LineItem, value: string) {
     const next = [...items];
     next[idx] = { ...next[idx], [field]: field === 'description' ? value : parseFloat(value) || 0 };
     onChange(next);
@@ -194,10 +215,10 @@ export default function BulkPaymentsPage() {
   const [currentBatchId, setCurrentBatchId] = useState('');
 
   // Archive
-  const [batches, setBatches] = useState<any[]>([]);
+  const [batches, setBatches] = useState<Batch[]>([]);
   const [loadingBatches, setLoadingBatches] = useState(false);
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
-  const [batchDetails, setBatchDetails] = useState<Record<string, any[]>>({});
+  const [batchDetails, setBatchDetails] = useState<Record<string, BatchItem[]>>({});
 
   const db = createClient();
 
@@ -215,14 +236,18 @@ export default function BulkPaymentsPage() {
 
   async function loadPortalStudents() {
     setLoadingStudents(true);
-    let q = db.from('portal_users')
+    const base = db.from('portal_users')
       .select('id, full_name, email, school_id, schools(name)')
       .eq('role', 'student')
       .eq('is_active', true);
-    if (isSchool && profile?.school_id) q = q.eq('school_id', profile.school_id);
-    const { data } = await q.order('full_name');
+    const { data } = await (
+      isSchool && profile?.school_id
+        ? base.eq('school_id', profile.school_id).order('full_name')
+        : base.order('full_name')
+    );
     if (data) {
-      setPortalStudents((data as any[]).map(s => ({
+      type Row = { id: string; full_name: string; email: string; school_id: string | null; schools: { name: string } | null };
+      setPortalStudents((data as unknown as Row[]).map(s => ({
         id: s.id, full_name: s.full_name, email: s.email,
         school_id: s.school_id, school_name: s.schools?.name, source: 'portal' as const,
       })));
@@ -231,36 +256,35 @@ export default function BulkPaymentsPage() {
   }
 
   async function loadNonPortalStudents() {
-    let q = db.from('students').select('id, full_name, school_name, status');
-    if (isSchool && profile?.school_id) {
-      // Filter by school name matching
-      const sch = schools.find(s => s.id === profile.school_id);
-      if (sch) q = (q as any).ilike('school_name', `%${sch.name}%`);
-    }
-    const { data } = await q.eq('status', 'active').order('full_name');
+    const base = db.from('students').select('id, full_name, school_name, status');
+    const sch = isSchool && profile?.school_id ? schools.find(s => s.id === profile.school_id) : null;
+    const { data } = await (
+      sch
+        ? base.ilike('school_name', `%${sch.name}%`).eq('status', 'active').order('full_name')
+        : base.eq('status', 'active').order('full_name')
+    );
     if (data) {
-      setNonPortalStudents((data as any[]).map(s => ({
-        id: s.id, full_name: s.full_name, school_name: s.school_name, source: 'non-portal' as const,
+      setNonPortalStudents(data.map(s => ({
+        id: s.id, full_name: s.full_name ?? '', school_name: s.school_name ?? undefined, source: 'non-portal' as const,
       })));
     }
   }
 
   async function loadSchools() {
     if (!isAdmin) return;
-    const { data } = await (db as any).from('schools').select('id, name').eq('status', 'approved').order('name');
-    if (data) setSchools(data);
+    const { data } = await db.from('schools').select('id, name').eq('status', 'approved').order('name');
+    if (data) setSchools(data as { id: string; name: string }[]);
   }
 
   async function loadAccounts() {
-    const { data } = await (db as any).from('payment_accounts').select('id, label, bank_name, account_number, account_name').eq('is_active', true);
-    if (data) setAccounts(data);
+    const { data } = await db.from('payment_accounts').select('id, label, bank_name, account_number, account_name').eq('is_active', true);
+    if (data) setAccounts(data as typeof accounts);
   }
 
   async function loadBatches() {
     setLoadingBatches(true);
-    // Load invoices and receipts that have a batch_id in metadata/notes
     const [invRes, rcptRes] = await Promise.all([
-      (db as any).from('invoices')
+      db.from('invoices')
         .select('invoice_number, amount, currency, status, created_at, notes, portal_users(full_name)')
         .ilike('notes', '%BULK-%')
         .order('created_at', { ascending: false })
@@ -268,24 +292,23 @@ export default function BulkPaymentsPage() {
       fetch('/api/receipts?limit=200').then(r => r.json()),
     ]);
 
-    // Group invoices by batch id (BULK-xxx in notes)
-    const invData: any[] = invRes.data ?? [];
-    const rcptData: any[] = (rcptRes.data ?? []).filter((r: any) => r.metadata?.batch_id);
+    const invData = (invRes.data ?? []) as unknown as BatchItem[];
+    const rcptData = ((rcptRes.data ?? []) as unknown as BatchItem[]).filter(r => r.metadata?.batch_id);
 
-    const batchMap: Record<string, any> = {};
+    const batchMap: Record<string, Batch> = {};
 
     invData.forEach(inv => {
       const match = (inv.notes || '').match(/BULK-([A-Z0-9]+)/);
       if (!match) return;
       const batchId = 'INV-' + match[1];
-      if (!batchMap[batchId]) batchMap[batchId] = { id: batchId, type: 'invoice', created_at: inv.created_at, items: [], total: 0 };
+      if (!batchMap[batchId]) batchMap[batchId] = { id: batchId, type: 'invoice', created_at: inv.created_at ?? '', items: [], total: 0 };
       batchMap[batchId].items.push(inv);
       batchMap[batchId].total += inv.amount;
     });
 
-    rcptData.forEach((rcpt: any) => {
-      const batchId = 'RCPT-' + rcpt.metadata.batch_id;
-      if (!batchMap[batchId]) batchMap[batchId] = { id: batchId, type: 'receipt', created_at: rcpt.issued_at, items: [], total: 0 };
+    rcptData.forEach(rcpt => {
+      const batchId = 'RCPT-' + rcpt.metadata!.batch_id;
+      if (!batchMap[batchId]) batchMap[batchId] = { id: batchId, type: 'receipt', created_at: rcpt.issued_at ?? '', items: [], total: 0 };
       batchMap[batchId].items.push(rcpt);
       batchMap[batchId].total += rcpt.amount;
     });
@@ -806,7 +829,7 @@ export default function BulkPaymentsPage() {
                   <button
                     onClick={() => {
                       setExpandedBatch(expandedBatch === batch.id ? null : batch.id);
-                      setBatchDetails(prev => ({ ...prev, [batch.id]: batch.items }));
+                      setBatchDetails(prev => ({ ...prev, [batch.id]: batch.items as BatchItem[] }));
                     }}
                     className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors text-left"
                   >
@@ -834,7 +857,7 @@ export default function BulkPaymentsPage() {
                   {expandedBatch === batch.id && (
                     <div className="border-t border-border">
                       <div className="divide-y divide-border max-h-64 overflow-y-auto">
-                        {batch.items.map((item: any, idx: number) => {
+                        {batch.items.map((item, idx) => {
                           const name = item.portal_users?.full_name || item.metadata?.payer_name || '—';
                           const ref = item.invoice_number || item.receipt_number || '—';
                           const amt = item.amount;

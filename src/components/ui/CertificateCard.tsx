@@ -7,7 +7,6 @@ import {
     Sparkles, Palette, Loader2, Award, Linkedin
 } from 'lucide-react';
 import { generateReportPDF } from '@/lib/pdf-utils';
-import { toast as showToast } from 'react-hot-toast';
 import { CertificateTemplates, TEMPLATES, type TemplateType } from '../certificates/shared/CertificateTemplates';
 
 interface CertificateProps {

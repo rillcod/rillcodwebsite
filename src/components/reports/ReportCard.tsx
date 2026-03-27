@@ -383,7 +383,7 @@ export default function ReportCard({ report, orgSettings }: {
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
                             <div style={{ height: 1, width: 32, background: 'linear-gradient(to right, transparent, #e4a817)', opacity: 0.6 }} />
                             <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #fef08a 0%, #fcd34d 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(234,168,23,0.3), inset 0 1px 0 rgba(255,255,255,0.6)' }}>
-                                <CrownIcon className="w-5 h-5" style={{ color: '#92400e' } as any} />
+                                <CrownIcon className="w-5 h-5" style={{ color: '#92400e' }} />
                             </div>
                             <div style={{ height: 1, width: 32, background: 'linear-gradient(to left, transparent, #e4a817)', opacity: 0.6 }} />
                         </div>
