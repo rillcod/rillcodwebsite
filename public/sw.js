@@ -68,7 +68,10 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  const data = event.data ? event.data.json() : {};
+  let data = {};
+  if (event.data) {
+    try { data = event.data.json(); } catch { data = { body: event.data.text() }; }
+  }
   const title = data.title || "Rillcod Academy";
   const options = {
     body: data.body || "You have a new notification.",
