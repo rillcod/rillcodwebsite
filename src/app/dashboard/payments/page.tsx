@@ -65,6 +65,18 @@ type Invoice = {
   schools?: { name: string } | null;
 };
 
+type ReceiptMeta = {
+  payer_name?: string;
+  payer_type?: string;
+  payment_method?: string;
+  payment_date?: string;
+  reference?: string;
+  received_by?: string;
+  notes?: string;
+  items?: { description: string; quantity: number; unit_price: number; total?: number }[];
+  deposit_account?: { bank_name: string; account_number: string; account_name: string } | null;
+};
+
 const NIGERIAN_BANKS = [
   'Access Bank', 'Citibank Nigeria', 'Ecobank Nigeria', 'Fidelity Bank',
   'First Bank of Nigeria', 'First City Monument Bank (FCMB)', 'Guaranty Trust Bank (GTB)',
@@ -169,9 +181,14 @@ export default function PaymentsPage() {
   const [accounts, setAccounts] = useState<PaymentAccount[]>([]);
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [savedReceipts, setSavedReceipts] = useState<any[]>([]);
+  const [savedReceipts, setSavedReceipts] = useState<{
+    id: string; receipt_number: string; amount: number; currency: string; issued_at: string;
+    metadata: ReceiptMeta | null;
+    portal_users?: { full_name: string; email: string } | null;
+    schools?: { name: string } | null;
+  }[]>([]);
   const [schools, setSchools] = useState<{ id: string; name: string; rillcod_quota_percent: number | null }[]>([]);
-  const [allStudents, setAllStudents] = useState<{ id: string; full_name: string; email: string; school_id: string }[]>([]);
+  const [allStudents, setAllStudents] = useState<{ id: string; full_name: string; email: string; school_id: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingTx, setLoadingTx] = useState(false);
   const [view, setView] = useState<'accounts' | 'monitoring' | 'billing'>('accounts');
@@ -234,33 +251,36 @@ export default function PaymentsPage() {
 
   async function load() {
     setLoading(true); setError(null);
-    const { data, error: err } = await (db as any).from('payment_accounts')
+    const { data, error: err } = await db.from('payment_accounts')
       .select('*, schools(name)')
-      .order('owner_type').order('created_at', { ascending: false });
+      .order('owner_type', { ascending: true }).order('created_at', { ascending: false });
     if (err) setError(err.message);
-    else setAccounts((data ?? []) as PaymentAccount[]);
+    else setAccounts((data ?? []) as unknown as PaymentAccount[]);
     setLoading(false);
   }
 
   async function loadTransactions() {
     setLoadingTx(true);
-    let q = (db as any).from('payment_transactions')
+    const txBase = db.from('payment_transactions')
       .select('*, portal_users(full_name, email), schools(name, rillcod_quota_percent), courses(title), receipts(receipt_number, pdf_url)')
       .order('created_at', { ascending: false });
+    const { data, error: err } = await (
+      isSchool && profile?.school_id
+        ? txBase.eq('school_id', profile.school_id).limit(100)
+        : txBase.limit(100)
+    );
+    if (!err) setTransactions((data ?? []) as unknown as PaymentTransaction[]);
 
-    if (isSchool && profile?.school_id) q = q.eq('school_id', profile.school_id as string);
-    
-    const { data, error: err } = await q.limit(100);
-    if (!err) setTransactions((data ?? []) as PaymentTransaction[]);
-    
     // Also load invoices
-    let qInv = (db as any).from('invoices')
+    const invBase = db.from('invoices')
       .select('*, portal_users(full_name, email), schools(name)')
       .order('created_at', { ascending: false });
-    
-    if (isSchool && profile?.school_id) qInv = qInv.eq('school_id', profile.school_id as string);
-    const { data: dInv } = await qInv.limit(50);
-    if (dInv) setInvoices(dInv as Invoice[]);
+    const { data: dInv } = await (
+      isSchool && profile?.school_id
+        ? invBase.eq('school_id', profile.school_id).limit(50)
+        : invBase.limit(50)
+    );
+    if (dInv) setInvoices(dInv as unknown as Invoice[]);
 
     setLoadingTx(false);
   }
@@ -269,7 +289,7 @@ export default function PaymentsPage() {
     let q = db.from('portal_users').select('id, full_name, email, school_id').eq('role', 'student').eq('is_active', true);
     if (isSchool && profile?.school_id) q = q.eq('school_id', profile.school_id as string);
     const { data } = await q.order('full_name');
-    if (data) setAllStudents(data as any[]);
+    if (data) setAllStudents(data);
   }
 
   async function approveTransaction(id: string) {
@@ -352,7 +372,7 @@ export default function PaymentsPage() {
   async function handleMarkInvoicePaid(invoiceId: string) {
     if (!confirm('Mark this invoice as paid?')) return;
     setLoadingTx(true);
-    const { error: err } = await (db as any).from('invoices').update({ status: 'paid' }).eq('id', invoiceId);
+    const { error: err } = await db.from('invoices').update({ status: 'paid' }).eq('id', invoiceId);
     if (err) setError(err.message);
     else {
       setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status: 'paid' } : inv));
@@ -399,7 +419,7 @@ export default function PaymentsPage() {
     e.preventDefault();
     if (!editingInv) return;
     setLoadingTx(true);
-    const { error: err } = await (db as any).from('invoices')
+    const { error: err } = await db.from('invoices')
       .update({ due_date: editInvForm.due_date, notes: editInvForm.notes, status: editInvForm.status })
       .eq('id', editingInv.id);
     if (err) { setError(err.message); }
@@ -416,7 +436,7 @@ export default function PaymentsPage() {
     e.stopPropagation();
     if (!confirm('Delete this invoice? This cannot be undone.')) return;
     setLoadingTx(true);
-    const { error: err } = await (db as any).from('invoices').delete().eq('id', invoiceId);
+    const { error: err } = await db.from('invoices').delete().eq('id', invoiceId);
     if (err) setError(err.message);
     else setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
     setLoadingTx(false);
@@ -981,7 +1001,9 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
     loadReceipts();
     if (isAdmin) {
       db.from('schools').select('id, name, rillcod_quota_percent').order('name')
-        .then(({ data }) => setSchools((data ?? []) as any));
+        .then(({ data }) => {
+          if (data) setSchools(data as { id: string; name: string; rillcod_quota_percent: number | null }[]);
+        });
     }
   }, [profile?.id, authLoading]); // eslint-disable-line
 
@@ -990,7 +1012,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
     setForm({
       ...BLANK,
       owner_type: isSchool ? 'school' : 'rillcod',
-      school_id: isSchool ? (profile as any)?.school_id ?? null : null,
+      school_id: isSchool ? (profile?.school_id ?? null) : null,
     });
     setShowForm(true);
   };
@@ -1069,10 +1091,10 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
           </div>
           <div className="flex gap-2">
             <div className="bg-card shadow-sm p-1 rounded-none flex border border-border">
-              {(['accounts', 'monitoring', ...(!isSchool ? ['billing'] : [])] as const).map(v => (
+              {(['accounts', 'monitoring', ...(!isSchool ? ['billing' as const] : [])] as const).map(v => (
                 <button
                   key={v}
-                  onClick={() => setView(v as any)}
+                  onClick={() => setView(v)}
                   className={`px-4 py-2 rounded-none font-bold text-[10px] uppercase tracking-widest transition-all ${view === v ? 'bg-primary text-black shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}>
                   {v}
                 </button>
@@ -1135,7 +1157,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                 <div className="h-px flex-1 bg-muted" />
                 {isSchool && (
                   <button
-                    onClick={() => { setForm({ ...BLANK, owner_type: 'school', school_id: (profile as any)?.school_id ?? null }); setEditing(null); setShowForm(true); }}
+                    onClick={() => { setForm({ ...BLANK, owner_type: 'school', school_id: profile?.school_id ?? null }); setEditing(null); setShowForm(true); }}
                     className="text-[10px] font-black text-muted-foreground hover:text-foreground flex items-center gap-1">
                     <PlusIcon className="w-3 h-3" /> Add
                   </button>
@@ -1152,7 +1174,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {schoolAccounts.map(a => (
                     <AccountCard key={a.id} account={a} onEdit={openEdit} onDelete={del}
-                      canManage={isAdmin || (isSchool && a.school_id === (profile as any)?.school_id)} />
+                      canManage={isAdmin || (isSchool && a.school_id === profile?.school_id)} />
                   ))}
                 </div>
               )}
@@ -1828,7 +1850,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Payer Type</label>
-                    <select value={receiptForm.payer_type} onChange={e => setReceiptForm(prev => ({ ...prev, payer_type: e.target.value as any }))}
+                    <select value={receiptForm.payer_type} onChange={e => setReceiptForm(prev => ({ ...prev, payer_type: e.target.value as 'school' | 'student' | 'other' }))}
                       className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary">
                       <option value="school">School / Institution</option>
                       <option value="student">Student / Parent</option>
@@ -1845,7 +1867,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Payment Method</label>
-                    <select value={receiptForm.payment_method} onChange={e => setReceiptForm(prev => ({ ...prev, payment_method: e.target.value as any }))}
+                    <select value={receiptForm.payment_method} onChange={e => setReceiptForm(prev => ({ ...prev, payment_method: e.target.value as 'bank_transfer' | 'cash' | 'pos' | 'cheque' | 'online' }))}
                       className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary">
                       <option value="bank_transfer">Bank Transfer</option>
                       <option value="cash">Cash</option>
@@ -2072,7 +2094,9 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   ) : (
                     filteredInvoices.map(inv => (
                       <div key={inv.id} className="bg-card shadow-sm border border-border rounded-none flex flex-col hover:border-primary/30 transition-all group">
-                        <div className="p-5 flex-1 cursor-pointer"
+                        {/* Clickable body */}
+                        <div
+                          className="p-5 flex-1 cursor-pointer space-y-4"
                           onClick={() => {
                             const total = calculateTotalWithFees(inv.amount);
                             setViewDoc({
@@ -2086,59 +2110,92 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                                 processingFee: total - inv.amount,
                                 currency: inv.currency,
                                 items: inv.items,
-                                studentName: inv.portal_users?.full_name || 'Student',
+                                studentName: inv.portal_users?.full_name || inv.schools?.name || 'Student',
                                 studentEmail: inv.portal_users?.email,
                                 notes: inv.notes,
-                                schoolName: inv.schools?.name || 'Rillcod Technologies'
+                                schoolName: inv.schools?.name || 'Rillcod Technologies',
                               }
                             });
-                          }}>
-                          <div className="flex justify-between items-start mb-4">
-                            <div>
-                              <p className="text-[10px] font-black text-primary uppercase tracking-widest">{inv.invoice_number}</p>
-                              <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors uppercase tracking-tight">{inv.portal_users?.full_name}</p>
+                          }}
+                        >
+                          {/* Top row: ref + status badge */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-0.5">{inv.invoice_number}</p>
+                              <p className="text-sm font-extrabold text-foreground group-hover:text-primary transition-colors leading-tight truncate">
+                                {inv.portal_users?.full_name || inv.schools?.name || 'Student'}
+                              </p>
+                              {inv.portal_users?.email && (
+                                <p className="text-[10px] text-muted-foreground truncate mt-0.5">{inv.portal_users.email}</p>
+                              )}
+                              {inv.schools?.name && !inv.portal_users && (
+                                <p className="text-[10px] text-muted-foreground truncate mt-0.5">{inv.schools.name}</p>
+                              )}
                             </div>
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                              inv.status === 'paid' ? 'bg-green-500/10 text-green-400' :
-                              inv.status === 'overdue' ? 'bg-rose-500/10 text-rose-400' :
-                              'bg-primary/10 text-primary'
+                            <span className={`flex-shrink-0 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider border ${
+                              inv.status === 'paid'      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+                              inv.status === 'overdue'   ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' :
+                              inv.status === 'cancelled' ? 'bg-slate-500/10 border-slate-500/20 text-slate-400' :
+                              inv.status === 'draft'     ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
+                                                           'bg-primary/10 border-primary/20 text-primary'
                             }`}>
                               {inv.status}
                             </span>
                           </div>
-                          <div className="flex justify-between items-end">
+
+                          {/* Bottom row: amount + due date */}
+                          <div className="flex items-end justify-between pt-1 border-t border-border/50">
                             <div>
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                                {inv.status === 'paid' ? 'Amount Paid' : 'Amount Due'}
+                              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">
+                                {inv.status === 'paid' ? 'Paid' : 'Due'}
                               </p>
-                              <p className="text-xl font-black text-foreground">₦{inv.amount.toLocaleString()}</p>
+                              <p className="text-xl font-black text-foreground tabular-nums">₦{inv.amount.toLocaleString()}</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Due Date</p>
-                              <p className="text-xs font-bold text-muted-foreground">{new Date(inv.due_date).toLocaleDateString()}</p>
+                              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Due Date</p>
+                              <p className={`text-xs font-bold ${
+                                inv.status === 'overdue' ? 'text-rose-400' : 'text-muted-foreground'
+                              }`}>
+                                {new Date(inv.due_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </p>
                             </div>
                           </div>
                         </div>
+
+                        {/* Action bar */}
                         {canManage && (
-                          <div className="flex border-t border-border" onClick={e => e.stopPropagation()}>
+                          <div className="flex border-t border-border divide-x divide-border" onClick={e => e.stopPropagation()}>
                             {inv.status !== 'paid' && inv.status !== 'cancelled' && (
                               <button
                                 onClick={() => handleMarkInvoicePaid(inv.id)}
                                 disabled={loadingTx}
-                                className="flex-1 py-2.5 text-[9px] font-black text-green-400 hover:bg-green-500/10 transition-colors uppercase tracking-widest disabled:opacity-40 border-r border-border"
+                                className="flex-1 py-2.5 flex items-center justify-center gap-1 text-[9px] font-black text-emerald-400 hover:bg-emerald-500/10 transition-colors uppercase tracking-widest disabled:opacity-40"
                               >
-                                ✓ Mark Paid
+                                <CheckIcon className="w-3 h-3" /> Paid
                               </button>
                             )}
                             <button
                               onClick={(e) => openEditInvoice(inv, e)}
-                              className="flex-1 py-2.5 text-[9px] font-black text-slate-400 hover:text-white hover:bg-white/[0.04] transition-colors uppercase tracking-widest border-r border-border flex items-center justify-center gap-1"
+                              className="flex-1 py-2.5 flex items-center justify-center gap-1 text-[9px] font-black text-muted-foreground hover:text-foreground hover:bg-muted transition-colors uppercase tracking-widest"
                             >
                               <PencilIcon className="w-3 h-3" /> Edit
                             </button>
                             <button
+                              onClick={(e) => {
+                                const invRow = invoices.find(i => i.invoice_number === inv.invoice_number);
+                                if (invRow) handleSendInvoiceEmail(invRow.id);
+                              }}
+                              disabled={loadingTx}
+                              className="flex-1 py-2.5 flex items-center justify-center gap-1 text-[9px] font-black text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors uppercase tracking-widest disabled:opacity-40"
+                              title="Send email to student"
+                            >
+                              <EnvelopeIcon className="w-3 h-3" /> Send
+                            </button>
+                            <button
                               onClick={(e) => handleDeleteInvoice(inv.id, e)}
-                              className="px-4 py-2.5 text-[9px] font-black text-rose-400 hover:bg-rose-500/10 transition-colors flex items-center justify-center"
+                              disabled={loadingTx}
+                              className="px-3.5 py-2.5 flex items-center justify-center text-[9px] font-black text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/10 transition-colors disabled:opacity-40"
+                              title="Delete invoice"
                             >
                               <TrashIcon className="w-3.5 h-3.5" />
                             </button>
@@ -2205,7 +2262,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                         </div>
                         {meta.payment_method && (
                           <p className="text-[10px] text-muted-foreground capitalize">
-                            via {(meta.payment_method as string).replace('_', ' ')}
+                            via {meta.payment_method!.replace('_', ' ')}
                             {rcpt.schools?.name ? ` • ${rcpt.schools.name}` : ''}
                           </p>
                         )}
@@ -2502,7 +2559,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Account Type</label>
-                  <select value={form.account_type} onChange={e => setForm(f => ({ ...f, account_type: e.target.value as any }))}
+                  <select value={form.account_type} onChange={e => setForm(f => ({ ...f, account_type: e.target.value as 'savings' | 'current' }))}
                     className="w-full bg-card shadow-sm border border-border rounded-none px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50">
                     <option value="savings">Savings</option>
                     <option value="current">Current</option>
@@ -2552,53 +2609,119 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
 
       {/* ── Edit Invoice Modal ─────────────────────────────────────────── */}
       {editingInv && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#111113] border border-white/[0.1] w-full max-w-md shadow-2xl">
-            <div className="p-5 border-b border-white/[0.05] flex items-center justify-between">
-              <h3 className="text-sm font-black text-white uppercase tracking-widest">Edit Invoice</h3>
-              <button onClick={() => setEditingInv(null)} className="p-1.5 text-slate-500 hover:text-white transition-all">
-                <XMarkIcon className="w-4 h-4" />
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <div className="bg-background border border-border w-full max-w-lg shadow-2xl flex flex-col">
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-border flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Edit Invoice</p>
+                <h3 className="text-lg font-extrabold text-foreground leading-none">{editingInv.invoice_number}</h3>
+              </div>
+              <button
+                onClick={() => setEditingInv(null)}
+                className="p-2 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex-shrink-0"
+              >
+                <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleUpdateInvoice} className="p-5 space-y-4">
+
+            {/* Invoice summary strip */}
+            <div className="px-6 py-4 bg-card border-b border-border grid grid-cols-3 gap-4">
               <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1.5">Status</label>
-                <select
-                  value={editInvForm.status}
-                  onChange={e => setEditInvForm(f => ({ ...f, status: e.target.value as Invoice['status'] }))}
-                  className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] text-white text-sm rounded-none focus:outline-none focus:border-primary/50"
-                >
-                  {(['draft', 'sent', 'paid', 'overdue', 'cancelled'] as const).map(s => (
-                    <option key={s} value={s} className="bg-[#111113]">{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                  ))}
-                </select>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Student</p>
+                <p className="text-sm font-bold text-foreground truncate">
+                  {editingInv.portal_users?.full_name || editingInv.schools?.name || '—'}
+                </p>
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1.5">Due Date</label>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Amount</p>
+                <p className="text-sm font-black text-foreground">₦{editingInv.amount.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Current Status</p>
+                <span className={`inline-block px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full ${
+                  editingInv.status === 'paid' ? 'bg-emerald-500/15 text-emerald-400' :
+                  editingInv.status === 'overdue' ? 'bg-rose-500/15 text-rose-400' :
+                  editingInv.status === 'cancelled' ? 'bg-slate-500/15 text-slate-400' :
+                  'bg-primary/15 text-primary'
+                }`}>
+                  {editingInv.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Form body */}
+            <form onSubmit={handleUpdateInvoice} className="p-6 space-y-5">
+              {/* Status */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">
+                  Update Status
+                </label>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {(['draft', 'sent', 'paid', 'overdue', 'cancelled'] as const).map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setEditInvForm(f => ({ ...f, status: s }))}
+                      className={`py-2 text-[9px] font-black uppercase tracking-wider border transition-all ${
+                        editInvForm.status === s
+                          ? s === 'paid' ? 'bg-emerald-600 border-emerald-600 text-white'
+                          : s === 'overdue' ? 'bg-rose-600 border-rose-600 text-white'
+                          : s === 'cancelled' ? 'bg-slate-600 border-slate-600 text-white'
+                          : 'bg-primary border-primary text-black'
+                          : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Due date */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">
+                  Due Date
+                </label>
                 <input
                   type="date"
                   value={editInvForm.due_date}
                   onChange={e => setEditInvForm(f => ({ ...f, due_date: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] text-white text-sm rounded-none focus:outline-none focus:border-primary/50"
+                  className="w-full px-4 py-2.5 bg-card border border-border text-foreground text-sm rounded-none focus:outline-none focus:border-primary/50 transition-colors"
                 />
               </div>
-              <div>
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1.5">Notes</label>
+
+              {/* Notes */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">
+                  Notes / Instructions
+                </label>
                 <textarea
                   value={editInvForm.notes}
                   onChange={e => setEditInvForm(f => ({ ...f, notes: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] text-white text-sm rounded-none focus:outline-none focus:border-primary/50 resize-none"
+                  placeholder="e.g. Payment due before resumption. Contact admin for payment plan."
+                  className="w-full px-4 py-2.5 bg-card border border-border text-foreground text-sm rounded-none focus:outline-none focus:border-primary/50 resize-none transition-colors placeholder-muted-foreground/50"
                 />
               </div>
+
+              {/* Actions */}
               <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setEditingInv(null)}
-                  className="flex-1 py-2.5 border border-white/[0.08] text-slate-400 text-[11px] font-black uppercase tracking-widest hover:text-white transition-all">
+                <button
+                  type="button"
+                  onClick={() => setEditingInv(null)}
+                  className="flex-1 py-2.5 border border-border text-muted-foreground text-[11px] font-black uppercase tracking-widest hover:text-foreground hover:border-foreground/20 transition-all"
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={loadingTx}
-                  className="flex-1 py-2.5 bg-primary hover:bg-primary/90 text-black text-[11px] font-black uppercase tracking-widest disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-                  {loadingTx ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
+                <button
+                  type="submit"
+                  disabled={loadingTx}
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary/90 text-black text-[11px] font-black uppercase tracking-widest disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+                >
+                  {loadingTx
+                    ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                    : <CheckIcon className="w-3.5 h-3.5" />}
                   Save Changes
                 </button>
               </div>

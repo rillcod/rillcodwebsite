@@ -15,9 +15,38 @@ import {
     ShieldCheckIcon
 } from '@/lib/icons';
 
+interface PrintableReportData {
+    id?: string | null;
+    student_name?: string | null;
+    course_name?: string | null;
+    report_term?: string | null;
+    report_date?: string | null;
+    section_class?: string | null;
+    school_name?: string | null;
+    overall_score?: number | null;
+    theory_score?: number | null;
+    practical_score?: number | null;
+    attendance_score?: number | null;
+    participation_score?: number | null;
+    projects_grade?: string | null;
+    homework_grade?: string | null;
+    key_strengths?: string | null;
+    areas_for_growth?: string | null;
+    fee_status?: string | null;
+    fee_amount?: number | null;
+    has_certificate?: boolean | null;
+    certificate_text?: string | null;
+}
+
+interface OrgSettingsData {
+    logo_url?: string | null;
+    org_name?: string | null;
+    org_tagline?: string | null;
+}
+
 interface PrintableReportProps {
-    report: any;
-    orgSettings?: any;
+    report: PrintableReportData;
+    orgSettings?: OrgSettingsData;
 }
 
 /**
@@ -57,7 +86,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
         };
         return styles[status] || null;
     };
-    const feeStyle = hasPayment ? getFeeStyle(report.fee_status) : null;
+    const feeStyle = hasPayment ? getFeeStyle(report.fee_status ?? '') : null;
 
     return (
         <div 

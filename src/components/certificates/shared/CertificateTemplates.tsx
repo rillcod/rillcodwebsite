@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { BadgeCheck, ShieldCheck, GraduationCap, Zap, Star, Trophy } from 'lucide-react';
+import { ShieldCheck, GraduationCap, Zap, Star, Trophy } from 'lucide-react';
 import QRCode from 'react-qr-code';
 
 export type TemplateType = 'prestige' | 'royal' | 'tech' | 'scholar' | 'elite' | 'spark';
