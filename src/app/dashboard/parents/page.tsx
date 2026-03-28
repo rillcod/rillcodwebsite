@@ -115,7 +115,7 @@ function StudentPicker({
           <span className="text-orange-400 font-bold">Selected: {selected.full_name}</span>
           {selected.school_name && <span className="text-muted-foreground ml-1">({selected.school_name})</span>}
           {selected.parent_email && (
-            <p className="text-amber-500 mt-0.5">⚠ Currently linked to {selected.parent_email} — will be replaced</p>
+            <p className="text-blue-400 mt-0.5">ℹ Student already has a parent linked ({selected.parent_email}). This will add the new parent as the primary contact.</p>
           )}
         </div>
       )}
