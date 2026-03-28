@@ -51,11 +51,6 @@ export default function MessagesPage() {
       .neq('id', profile.id)
       .order('full_name');
 
-    // Basic geographic filter for non-admins
-    if (!isAdmin && profile.school_id) {
-       // but wait, teachers might be in multiple schools. Let's fetch teacher_schools too.
-    }
-
     Promise.all([
       db.from('messages').select('*, portal_users!messages_sender_id_fkey(full_name, email, role, school_id)').eq('recipient_id', profile.id).order('created_at', { ascending: false }),
       db.from('messages').select('*, portal_users!messages_recipient_id_fkey(full_name, email, role, school_id)').eq('sender_id', profile.id).order('created_at', { ascending: false }),

@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { DocumentChartBarIcon, AcademicCapIcon, CheckCircleIcon } from '@/lib/icons';
 
-interface Child { id: string; full_name: string; school_name: string | null }
+interface Child { id: string; full_name: string; school_name: string | null; user_id: string | null }
 interface Report {
   id: string;
   course_name: string;
@@ -75,7 +75,7 @@ function ParentResultsContent() {
     const supabase = createClient();
     supabase
       .from('students')
-      .select('id, full_name, school_name')
+      .select('id, full_name, school_name, user_id')
       .eq('parent_email', profile.email)
       .then(({ data }) => {
         setChildren((data ?? []) as Child[]);
@@ -86,19 +86,22 @@ function ParentResultsContent() {
 
   useEffect(() => {
     if (!selectedId) return;
+    const child = children.find(c => c.id === selectedId);
+    // student_progress_reports.student_id = portal_users.id (user_id), not students.id
+    if (!child?.user_id) { setReports([]); setLoadingReports(false); return; }
     setLoadingReports(true);
     const supabase = createClient();
     supabase
       .from('student_progress_reports')
       .select('id, course_name, report_term, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, report_date, instructor_name, learning_milestones, key_strengths, areas_for_growth, participation_score')
-      .eq('student_id', selectedId)
+      .eq('student_id', child.user_id)
       .eq('is_published', true)
       .order('report_date', { ascending: false })
       .then(({ data }) => {
         setReports((data ?? []) as Report[]);
         setLoadingReports(false);
       });
-  }, [selectedId]);
+  }, [selectedId, children]);
 
   if (profile?.role !== 'parent') {
     return (
