@@ -4,10 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, ArrowRight, Loader2, CheckCircle, Building2, ArrowLeft } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, ArrowRight, Loader2, CheckCircle, Building2, ArrowLeft, HeartHandshake } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-type UserRole = 'admin' | 'teacher' | 'student';
+type UserRole = 'admin' | 'teacher' | 'student' | 'parent';
 
 const ROLES = [
   {
@@ -21,6 +21,16 @@ const ROLES = [
     ring: 'ring-indigo-500',
   },
   {
+    id: 'parent' as UserRole,
+    label: 'Parent',
+    desc: "Monitor your child's progress",
+    icon: HeartHandshake,
+    gradient: 'from-rose-600 to-pink-600',
+    border: 'border-rose-500/50',
+    glow: 'shadow-rose-500/20',
+    ring: 'ring-rose-500',
+  },
+  {
     id: 'teacher' as UserRole,
     label: 'Teacher',
     desc: 'Teach and manage classes',
@@ -31,7 +41,7 @@ const ROLES = [
     ring: 'ring-teal-500',
   },
   {
-    id: 'school' as any, // Adding school role
+    id: 'school' as any,
     label: 'School',
     desc: 'Manage institution',
     icon: Building2,
@@ -84,7 +94,7 @@ export default function SignUpPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRole) { toast.error("Please select a role to continue"); return; }
-    if (selectedRole === 'student' && !selectedSchoolId) {
+    if ((selectedRole === 'student') && !selectedSchoolId) {
       toast.error("Please select your school to continue");
       return;
     }
@@ -185,7 +195,7 @@ export default function SignUpPage() {
           {/* Role selection */}
           <div className="mb-6">
             <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">I am a…</p>
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {ROLES.map(r => (
                 <button
                   key={r.id}
@@ -293,7 +303,7 @@ export default function SignUpPage() {
             </div>
 
             {/* Submit */}
-            <button type="submit" disabled={loading || !selectedRole || (selectedRole === 'student' && !selectedSchoolId)}
+            <button type="submit" disabled={loading || !selectedRole || (selectedRole === 'student' && !selectedSchoolId) as boolean}
               className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-violet-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
               {loading ? 'Creating account…' : 'Create Account'}

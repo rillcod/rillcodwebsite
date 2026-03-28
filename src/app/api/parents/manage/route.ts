@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 // ── Auth guard helper ────────────────────────────────────────────────────────
 async function requireStaff(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -31,26 +32,71 @@ export async function POST(req: Request) {
     const guard = await requireStaff(supabase);
     if ('error' in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
-    const { email, full_name, phone, student_id, relationship = 'Guardian', send_invite } = await req.json();
+    const { email, full_name, phone, student_id, relationship = 'Guardian' } = await req.json();
 
     if (!email || !full_name || !student_id) {
       return NextResponse.json({ error: 'email, full_name, and student_id are required' }, { status: 400 });
     }
 
-    // Try to find or create Supabase Auth user via service role
-    // We use the DB function which handles portal_users upsert and student link
-    const { data, error } = await (supabase.rpc as any)('create_parent_and_link', {
-      p_email: email,
-      p_full_name: full_name,
-      p_phone: phone ?? null,
-      p_student_id: student_id,
-      p_relationship: relationship,
-      p_auth_user_id: null, // let DB gen a UUID; auth account handled separately
-    });
+    const admin = createAdminClient();
 
-    if (error) throw error;
+    // Check if auth user already exists for this email
+    const { data: existingList } = await admin.auth.admin.listUsers({ perPage: 1 });
+    // listUsers can't filter by email directly — use inviteUserByEmail which upserts
+    // First try to find existing user
+    let authUserId: string | null = null;
 
-    return NextResponse.json({ success: true, data });
+    // Check portal_users for existing parent with this email
+    const { data: existingPortal } = await supabase
+      .from('portal_users')
+      .select('id')
+      .eq('email', email.trim().toLowerCase())
+      .maybeSingle();
+
+    if (existingPortal?.id) {
+      // Already has a portal account — just link to student
+      authUserId = existingPortal.id;
+      const { error: linkErr } = await supabase
+        .from('students')
+        .update({
+          parent_email: email.trim().toLowerCase(),
+          parent_name: full_name,
+          parent_phone: phone ?? null,
+          parent_relationship: relationship,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', student_id);
+      if (linkErr) throw linkErr;
+
+      // Ensure role is parent
+      await supabase
+        .from('portal_users')
+        .update({ role: 'parent', updated_at: new Date().toISOString() })
+        .eq('id', authUserId)
+        .neq('role', 'parent');
+    } else {
+      // Create Supabase Auth user via invite (sends email with set-password link)
+      const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(
+        email.trim().toLowerCase(),
+        { data: { full_name, role: 'parent' } }
+      );
+      if (inviteErr) throw inviteErr;
+
+      authUserId = invited.user.id;
+
+      // Create portal_users record and link student via RPC
+      const { error: rpcErr } = await (supabase.rpc as any)('create_parent_and_link', {
+        p_email: email.trim().toLowerCase(),
+        p_full_name: full_name,
+        p_phone: phone ?? null,
+        p_student_id: student_id,
+        p_relationship: relationship,
+        p_auth_user_id: authUserId,
+      });
+      if (rpcErr) throw rpcErr;
+    }
+
+    return NextResponse.json({ success: true, invited: !existingPortal, auth_user_id: authUserId });
   } catch (err: any) {
     console.error('POST /api/parents/manage error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -214,18 +260,15 @@ export async function GET(req: Request) {
           .in('parent_email', emails)
       : null;
 
-    // Scope children list to effective school as well
     if (stuQuery && effectiveSchool) {
       stuQuery = stuQuery.eq('school_name', effectiveSchool);
     }
 
-    const { data: students } = stuQuery
-      ? await stuQuery
-      : { data: [] };
+    const { data: linkedStudents } = stuQuery ? await stuQuery : { data: [] };
 
     // Group students by parent email
     const childrenMap: Record<string, any[]> = {};
-    for (const s of students ?? []) {
+    for (const s of linkedStudents ?? []) {
       if (!s.parent_email) continue;
       if (!childrenMap[s.parent_email]) childrenMap[s.parent_email] = [];
       childrenMap[s.parent_email].push(s);
@@ -236,7 +279,18 @@ export async function GET(req: Request) {
       children: childrenMap[p.email] ?? [],
     }));
 
-    return NextResponse.json({ success: true, data });
+    // Also return all students for the picker (scoped to school for teachers)
+    let allStuQuery = supabase
+      .from('students')
+      .select('id, full_name, school_name, parent_email, grade_level')
+      .order('full_name')
+      .limit(2000);
+    if (effectiveSchool) {
+      allStuQuery = allStuQuery.eq('school_name', effectiveSchool);
+    }
+    const { data: allStudents } = await allStuQuery;
+
+    return NextResponse.json({ success: true, data, students: allStudents ?? [] });
   } catch (err: any) {
     console.error('GET /api/parents/manage error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
