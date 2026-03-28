@@ -99,12 +99,12 @@ export default function MyChildrenPage() {
             certificates: (certRes as any).count ?? 0,
           };
 
-          // Latest grade
+          // Latest grade — student_progress_reports.student_id = portal_users.id (user_id)
           if (child.user_id) {
             const gradeRes = await supabase
               .from('student_progress_reports')
               .select('overall_grade')
-              .eq('student_id', child.id)
+              .eq('student_id', child.user_id)
               .eq('is_published', true)
               .order('report_date', { ascending: false })
               .limit(1)
