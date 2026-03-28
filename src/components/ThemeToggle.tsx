@@ -2,25 +2,10 @@
 'use client'
 
 import { SunIcon, MoonIcon, ComputerDesktopIcon } from '@/lib/icons'
+import { useTheme } from '@/contexts/theme-context'
 
 export default function ThemeToggle() {
-  // Get theme context safely
-  let theme = 'light';
-  let mounted = false;
-  let toggleTheme = () => {};
-  
-  try {
-    const { useTheme } = require('@/contexts/theme-context');
-    const themeContext = useTheme();
-    theme = themeContext.theme;
-    mounted = themeContext.mounted;
-    toggleTheme = themeContext.toggleTheme;
-  } catch (error) {
-    // If theme context is not available, use defaults
-    theme = 'light';
-    mounted = false;
-    toggleTheme = () => {};
-  }
+  const { theme, mounted, toggleTheme } = useTheme();
 
   // Don't render until mounted to prevent hydration mismatch
   if (!mounted) {
@@ -66,4 +51,3 @@ export default function ThemeToggle() {
     </button>
   )
 }
- 
