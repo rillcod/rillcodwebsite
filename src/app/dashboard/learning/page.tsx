@@ -143,9 +143,9 @@ export default function StudentLearningPage() {
       // Fetch recent badges
       const { data: badgesData } = await db
         .from('user_badges')
-        .select('awarded_at, badges(name, description, icon_url)')
-        .eq('user_id', profile.id)
-        .order('awarded_at', { ascending: false })
+        .select('earned_at, badges(name, description, icon_url)')
+        .eq('portal_user_id', profile.id)
+        .order('earned_at', { ascending: false })
         .limit(4);
       setBadges((badgesData || []).map((b: any) => b.badges).filter(Boolean));
 
