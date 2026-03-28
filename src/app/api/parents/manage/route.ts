@@ -32,10 +32,13 @@ export async function POST(req: Request) {
     const guard = await requireStaff(supabase);
     if ('error' in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
-    const { email, full_name, phone, student_id, relationship = 'Guardian' } = await req.json();
+    const { email, full_name, phone, student_id, relationship = 'Guardian', password } = await req.json();
 
     if (!email || !full_name || !student_id) {
       return NextResponse.json({ error: 'email, full_name, and student_id are required' }, { status: 400 });
+    }
+    if (!password || password.length < 8) {
+      return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
     }
 
     const admin = createAdminClient();
@@ -49,29 +52,28 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     let authUserId: string;
+    const isExisting = !!existingPortal?.id;
 
-    if (existingPortal?.id) {
-      // Already has a portal account — just update role and link student
-      authUserId = existingPortal.id;
-      await supabase
-        .from('portal_users')
-        .update({ role: 'parent', full_name, phone: phone ?? null, updated_at: new Date().toISOString() })
-        .eq('id', authUserId);
+    if (isExisting) {
+      authUserId = existingPortal!.id;
+      // Update password and profile
+      await admin.auth.admin.updateUserById(authUserId, { password });
+      await admin.from('portal_users').update({
+        role: 'parent', full_name, phone: phone ?? null, updated_at: new Date().toISOString(),
+      }).eq('id', authUserId);
     } else {
-      // Create auth user directly (no invite email) using admin API
+      // Create auth user with the provided password
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email: cleanEmail,
+        password,
         email_confirm: true,
         user_metadata: { full_name, role: 'parent' },
       });
       if (createErr) throw createErr;
       authUserId = created.user.id;
-    }
 
-    // Upsert portal_users with the correct auth UUID
-    const { error: upsertErr } = await admin
-      .from('portal_users')
-      .upsert({
+      // Create portal_users record
+      const { error: upsertErr } = await admin.from('portal_users').upsert({
         id: authUserId,
         email: cleanEmail,
         full_name,
@@ -80,22 +82,20 @@ export async function POST(req: Request) {
         is_active: true,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
-    if (upsertErr) throw upsertErr;
+      if (upsertErr) throw upsertErr;
+    }
 
     // Link student to this parent
-    const { error: linkErr } = await admin
-      .from('students')
-      .update({
-        parent_email: cleanEmail,
-        parent_name: full_name,
-        parent_phone: phone ?? null,
-        parent_relationship: relationship,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', student_id);
+    const { error: linkErr } = await admin.from('students').update({
+      parent_email: cleanEmail,
+      parent_name: full_name,
+      parent_phone: phone ?? null,
+      parent_relationship: relationship,
+      updated_at: new Date().toISOString(),
+    }).eq('id', student_id);
     if (linkErr) throw linkErr;
 
-    return NextResponse.json({ success: true, auth_user_id: authUserId, existing: !!existingPortal });
+    return NextResponse.json({ success: true, auth_user_id: authUserId, existing: isExisting, email: cleanEmail });
   } catch (err: any) {
     console.error('POST /api/parents/manage error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
