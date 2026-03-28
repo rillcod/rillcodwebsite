@@ -195,11 +195,19 @@ export async function POST() {
     studentsNeedingDataFix,
   } = await runAudit(admin);
 
+  interface SyncCredential {
+    name: string;
+    email: string;
+    password: string;
+    portal_user_id?: string;
+    role?: string;
+  }
+
   const results = {
-    students_fixed: [] as any[],
-    schools_fixed: [] as any[],
+    students_fixed: [] as SyncCredential[],
+    schools_fixed: [] as SyncCredential[],
     portal_rows_created: [] as string[],
-    portal_auth_created: [] as any[],
+    portal_auth_created: [] as SyncCredential[],
     id_mismatches_fixed: [] as string[],
     data_fixes: [] as string[],
     errors: [] as string[],

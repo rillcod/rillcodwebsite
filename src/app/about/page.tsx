@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Users, Target, Award, Heart, Lightbulb, Shield, Globe, BookOpen, ChevronDown, ChevronUp, CheckCircle, Building, Mail, Brain } from "lucide-react";
+import { Users, Target, Award, Heart, Lightbulb, Shield, Globe, BookOpen, CheckCircle, Building, Mail, Brain } from "lucide-react";
 import Link from "next/link";
 
 const values = [
