@@ -47,19 +47,26 @@ export async function POST(req: Request) {
     // Check if a portal_users record already exists for this email
     const { data: existingPortal } = await supabase
       .from('portal_users')
-      .select('id')
+      .select('id, role')
       .eq('email', cleanEmail)
       .maybeSingle();
+
+    // Block if existing account belongs to a non-parent role (student, teacher, admin)
+    if (existingPortal && existingPortal.role !== 'parent') {
+      return NextResponse.json({
+        error: `This email is already registered as a ${existingPortal.role} account. Use a different email for the parent, or ask the ${existingPortal.role} to use a separate email.`,
+      }, { status: 409 });
+    }
 
     let authUserId: string;
     const isExisting = !!existingPortal?.id;
 
     if (isExisting) {
       authUserId = existingPortal!.id;
-      // Update password and profile
+      // Update password and profile (existing parent account)
       await admin.auth.admin.updateUserById(authUserId, { password });
       await admin.from('portal_users').update({
-        role: 'parent', full_name, phone: phone ?? null, updated_at: new Date().toISOString(),
+        full_name, phone: phone ?? null, updated_at: new Date().toISOString(),
       }).eq('id', authUserId);
     } else {
       // Create auth user with the provided password
@@ -219,9 +226,10 @@ export async function GET(req: Request) {
       : schoolParam;
 
     // If school-scoped, first find all parent_emails linked to students in that school
+    const adminClient = createAdminClient();
     let allowedEmails: string[] | null = null;
     if (effectiveSchool) {
-      const { data: scopedStudents } = await supabase
+      const { data: scopedStudents } = await adminClient
         .from('students')
         .select('parent_email')
         .eq('school_name', effectiveSchool)
@@ -250,10 +258,10 @@ export async function GET(req: Request) {
     const { data: parents, error } = await query.limit(200);
     if (error) throw error;
 
-    // Fetch linked students for each parent via parent_email match
+    // Fetch linked students for each parent via parent_email match (admin client bypasses RLS)
     const emails = (parents ?? []).map(p => p.email);
     let stuQuery = emails.length > 0
-      ? supabase
+      ? adminClient
           .from('students')
           .select('id, full_name, school_name, status, parent_email')
           .in('parent_email', emails)
@@ -278,8 +286,9 @@ export async function GET(req: Request) {
       children: childrenMap[p.email] ?? [],
     }));
 
-    // Also return all students for the picker (scoped to school for teachers)
-    let allStuQuery = supabase
+    // Also return all students for the picker (use admin client to bypass RLS)
+    const adminForStudents = createAdminClient();
+    let allStuQuery = adminForStudents
       .from('students')
       .select('id, full_name, school_name, parent_email, grade_level')
       .order('full_name')
