@@ -178,7 +178,7 @@ export default function CourseDetailPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? 'Failed to schedule session');
 
-      setSessions((prev) => [...prev, data.data].sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime()));
+      setSessions((prev) => [...prev, data.data].sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()));
       setSessionForm({
         title: '',
         description: '',
@@ -428,7 +428,7 @@ export default function CourseDetailPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-foreground truncate">{session.title}</p>
                           <p className="text-xs text-muted-foreground">
-                            {formatDateTime(session.scheduled_start)} · {session.status}
+                            {formatDateTime(session.scheduled_at)} · {session.status}
                           </p>
                         </div>
                         <button

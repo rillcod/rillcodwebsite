@@ -54,7 +54,7 @@ export default function StudentDashboard() {
           db.from('assignment_submissions').select('id', { count: 'exact', head: true })
             .eq('portal_user_id', profile.id).eq('status', 'submitted').is('grade', null),
           db.from('user_badges').select('badges(name, description, icon_url)')
-            .eq('user_id', profile.id).order('awarded_at', { ascending: false }).limit(4),
+            .eq('portal_user_id', profile.id).order('earned_at', { ascending: false }).limit(4),
           db.from('user_points').select('portal_user_id, total_points')
             .order('total_points', { ascending: false }).limit(100),
           db.from('assignment_submissions').select('status, submitted_at, assignments(title)')
