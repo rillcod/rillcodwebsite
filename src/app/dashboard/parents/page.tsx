@@ -38,47 +38,57 @@ interface Student {
 // ── Searchable student picker ─────────────────────────────────────────────────
 function StudentPicker({
   students,
+  schools,
   value,
   onChange,
-  placeholder,
-  schoolFilter,
 }: {
   students: Student[];
+  schools: string[];
   value: string;
   onChange: (id: string) => void;
-  placeholder?: string;
-  schoolFilter: string;
 }) {
   const [q, setQ] = useState('');
+  const [localSchool, setLocalSchool] = useState('');
 
   const filtered = useMemo(() => {
-    let list = schoolFilter
-      ? students.filter(s => s.school_name === schoolFilter)
+    let list = localSchool
+      ? students.filter(s => s.school_name === localSchool)
       : students;
     if (q.trim()) {
       const lower = q.toLowerCase();
       list = list.filter(s => s.full_name.toLowerCase().includes(lower));
     }
     return list;
-  }, [students, schoolFilter, q]);
+  }, [students, localSchool, q]);
 
   const selected = students.find(s => s.id === value);
 
   return (
     <div className="space-y-2">
+      {/* School filter inside picker */}
+      {schools.length > 0 && (
+        <select
+          value={localSchool}
+          onChange={e => { setLocalSchool(e.target.value); onChange(''); }}
+          className="w-full px-3 py-2 bg-background border border-border text-xs text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+        >
+          <option value="">All Schools</option>
+          {schools.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      )}
       <div className="relative">
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <input
           value={q}
           onChange={e => setQ(e.target.value)}
-          placeholder="Search students…"
+          placeholder="Search students by name…"
           className="w-full pl-9 pr-4 py-2 bg-background border border-border text-xs text-foreground focus:outline-none focus:border-orange-500 transition-colors"
         />
       </div>
-      <div className="border border-border max-h-44 overflow-y-auto bg-background">
+      <div className="border border-border max-h-48 overflow-y-auto bg-background">
         {filtered.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-4">
-            {q ? 'No students match.' : schoolFilter ? 'No students in this school.' : 'No students available.'}
+            {q ? 'No students match your search.' : localSchool ? 'No students in this school.' : 'No students found.'}
           </p>
         ) : (
           filtered.map(s => (
@@ -87,24 +97,27 @@ function StudentPicker({
               key={s.id}
               onClick={() => { onChange(s.id); setQ(''); }}
               className={`w-full text-left px-4 py-2.5 hover:bg-orange-500/5 transition-all border-b border-border last:border-b-0 ${
-                value === s.id ? 'bg-orange-500/10 text-orange-400' : 'text-foreground'
+                value === s.id ? 'bg-orange-500/10' : ''
               }`}
             >
-              <span className="text-xs font-bold">{s.full_name}</span>
+              <span className={`text-xs font-bold ${value === s.id ? 'text-orange-400' : 'text-foreground'}`}>{s.full_name}</span>
               <span className="text-[10px] text-muted-foreground ml-2">
                 {s.school_name ?? '—'}
                 {s.grade_level ? ` · ${s.grade_level}` : ''}
-                {s.parent_email ? ' · has parent' : ''}
+                {s.parent_email ? <span className="text-amber-500"> · parent linked</span> : null}
               </span>
             </button>
           ))
         )}
       </div>
       {selected && (
-        <p className="text-[10px] text-orange-400 font-bold">
-          Selected: {selected.full_name}
-          {selected.school_name ? ` (${selected.school_name})` : ''}
-        </p>
+        <div className="px-3 py-2 bg-orange-500/5 border border-orange-500/20 text-[10px]">
+          <span className="text-orange-400 font-bold">Selected: {selected.full_name}</span>
+          {selected.school_name && <span className="text-muted-foreground ml-1">({selected.school_name})</span>}
+          {selected.parent_email && (
+            <p className="text-amber-500 mt-0.5">⚠ Currently linked to {selected.parent_email} — will be replaced</p>
+          )}
+        </div>
       )}
     </div>
   );
@@ -114,13 +127,13 @@ function StudentPicker({
 function ParentFormModal({
   initialData,
   students,
-  schoolFilter,
+  schools,
   onClose,
   onSaved,
 }: {
   initialData?: Parent | null;
   students: Student[];
-  schoolFilter: string;
+  schools: string[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -134,9 +147,6 @@ function ParentFormModal({
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Only show unlinked students (or all if editing)
-  const available = useMemo(() => students.filter(s => !s.parent_email || isEdit), [students, isEdit]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,10 +244,10 @@ function ParentFormModal({
               {isEdit ? 'Link to Additional Student (optional)' : 'Link to Student *'}
             </label>
             <StudentPicker
-              students={available}
+              students={students}
+              schools={schools}
               value={form.student_id}
               onChange={id => setForm(f => ({ ...f, student_id: id }))}
-              schoolFilter={schoolFilter}
             />
           </div>
 
@@ -274,13 +284,13 @@ function ParentFormModal({
 function LinkStudentModal({
   parent,
   students,
-  schoolFilter,
+  schools,
   onClose,
   onSaved,
 }: {
   parent: Parent;
   students: Student[];
-  schoolFilter: string;
+  schools: string[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -288,8 +298,6 @@ function LinkStudentModal({
   const [relationship, setRelationship] = useState('Guardian');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const available = useMemo(() => students.filter(s => !s.parent_email), [students]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -325,10 +333,10 @@ function LinkStudentModal({
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Student</label>
             <StudentPicker
-              students={available}
+              students={students}
+              schools={schools}
               value={studentId}
               onChange={setStudentId}
-              schoolFilter={schoolFilter}
             />
           </div>
           <div>
@@ -393,30 +401,38 @@ export default function ParentsPage() {
       if (schoolFilter) params.set('school', schoolFilter);
       const parRes = await fetch(`/api/parents/manage${params.toString() ? '?' + params : ''}`, { cache: 'no-store' });
       const parJson = await parRes.json();
+      if (!parRes.ok) console.error('Parents load error:', parJson.error);
       setParents(parJson.data ?? []);
 
-      // Fetch students scoped by school for teachers; all for admins
+      // Fetch students — scoped to school for teachers, all for admins
       let stuQuery = supabase
         .from('students')
         .select('id, full_name, school_name, parent_email, grade_level')
-        .order('full_name');
+        .order('full_name')
+        .limit(2000);
 
       if (!isAdmin && profile?.school_name) {
         stuQuery = stuQuery.eq('school_name', profile.school_name);
-      } else {
-        stuQuery = stuQuery.limit(1000);
       }
 
-      const { data: stuData } = await stuQuery;
-      const stuList = (stuData ?? []) as Student[];
-      setStudents(stuList);
+      const { data: stuData, error: stuErr } = await stuQuery;
+      if (stuErr) console.error('Students load error:', stuErr.message);
+      setStudents((stuData ?? []) as Student[]);
 
-      // Derive unique school names for filter dropdown (admin only)
+      // Load schools from schools table (approved) for the filter dropdown
       if (isAdmin) {
-        const names = Array.from(new Set(stuList.map(s => s.school_name).filter(Boolean) as string[])).sort();
-        setSchools(names);
+        const { data: schoolData } = await supabase
+          .from('schools')
+          .select('name')
+          .eq('status', 'approved')
+          .order('name');
+        setSchools((schoolData ?? []).map((s: any) => s.name).filter(Boolean));
+      } else if (profile?.school_name) {
+        setSchools([profile.school_name]);
       }
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      console.error('Parents page load error:', err);
+    } finally {
       setLoading(false);
     }
   }, [isStaff, isAdmin, search, schoolFilter, profile?.school_name]);
@@ -690,7 +706,7 @@ export default function ParentsPage() {
         <ParentFormModal
           initialData={editTarget}
           students={students}
-          schoolFilter={schoolFilter}
+          schools={schools}
           onClose={() => { setShowForm(false); setEditTarget(null); }}
           onSaved={load}
         />
@@ -699,7 +715,7 @@ export default function ParentsPage() {
         <LinkStudentModal
           parent={linkTarget}
           students={students}
-          schoolFilter={schoolFilter}
+          schools={schools}
           onClose={() => setLinkTarget(null)}
           onSaved={load}
         />
