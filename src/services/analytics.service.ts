@@ -112,20 +112,22 @@ export class AnalyticsService {
 
     async exportData(type: 'performance' | 'engagement', filters: any) {
         const supabase = await createClient();
-        let query: any;
 
         if (type === 'performance') {
-            query = supabase.from('student_performance_summary').select('*');
+            let query = supabase.from('student_performance_summary').select('*');
+            if (filters.schoolId) query = query.eq('school_id', filters.schoolId);
+            
+            const { data, error } = await query;
+            if (error) throw new AppError(error.message, 500);
+            return data;
         } else {
-            query = supabase.from('activity_logs').select('*, portal_users(full_name)');
+            let query = supabase.from('activity_logs').select('*, portal_users(full_name)');
+            if (filters.schoolId) query = query.eq('school_id', filters.schoolId);
+            
+            const { data, error } = await query;
+            if (error) throw new AppError(error.message, 500);
+            return data;
         }
-
-        if (filters.schoolId) query = query.eq('school_id', filters.schoolId);
-
-        const { data, error } = await query;
-        if (error) throw new AppError(error.message, 500);
-
-        return data;
     }
 
     async getCohortAnalytics(programId: string) {
