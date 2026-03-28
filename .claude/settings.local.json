@@ -68,7 +68,11 @@
       "Bash(echo \"Exit: $?\")",
       "Bash(npm cache:*)",
       "Bash(npm view:*)",
-      "Bash(node_modules/.bin/next build:*)"
+      "Bash(node_modules/.bin/next build:*)",
+      "Bash(node -e \"console.log\\(require\\(''./node_modules/babel-preset-expo/package.json''\\).version\\)\")",
+      "Bash(dir \"C:\\\\Users\\\\USER\\\\.gradle\\\\wrapper\\\\dists\\\\gradle-9.3.1-bin\")",
+      "Bash(dir \"C:\\\\Users\\\\USER\\\\.gradle\\\\wrapper\\\\dists\\\\gradle-9.0.0-bin\\\\d6wjpkvcgsg3oed0qlfss3wgl\")",
+      "Bash(dir:*)"
     ]
   }
 }
