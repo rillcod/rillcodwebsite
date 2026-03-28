@@ -7,7 +7,7 @@ import { AppError, AuthenticationError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 
 export interface ApiContext {
-    params?: any;
+    params: any;
     user?: {
         id: string;
         role: string;

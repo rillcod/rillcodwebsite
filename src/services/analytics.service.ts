@@ -112,7 +112,7 @@ export class AnalyticsService {
 
     async exportData(type: 'performance' | 'engagement', filters: any) {
         const supabase = await createClient();
-        let query;
+        let query: any;
 
         if (type === 'performance') {
             query = supabase.from('student_performance_summary').select('*');
