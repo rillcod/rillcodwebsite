@@ -35,47 +35,35 @@ interface Student {
   grade_level: string | null;
 }
 
-// ── Searchable student picker ─────────────────────────────────────────────────
+// ── Searchable student picker (school filter controlled externally) ───────────
 function StudentPicker({
   students,
-  schools,
+  schoolFilter,
   value,
   onChange,
 }: {
   students: Student[];
-  schools: string[];
+  schoolFilter: string;
   value: string;
   onChange: (id: string) => void;
 }) {
   const [q, setQ] = useState('');
-  const [localSchool, setLocalSchool] = useState('');
 
   const filtered = useMemo(() => {
-    let list = localSchool
-      ? students.filter(s => s.school_name === localSchool)
+    let list = schoolFilter
+      ? students.filter(s => s.school_name === schoolFilter)
       : students;
     if (q.trim()) {
       const lower = q.toLowerCase();
       list = list.filter(s => s.full_name.toLowerCase().includes(lower));
     }
     return list;
-  }, [students, localSchool, q]);
+  }, [students, schoolFilter, q]);
 
   const selected = students.find(s => s.id === value);
 
   return (
     <div className="space-y-2">
-      {/* School filter inside picker */}
-      {schools.length > 0 && (
-        <select
-          value={localSchool}
-          onChange={e => { setLocalSchool(e.target.value); onChange(''); }}
-          className="w-full px-3 py-2 bg-background border border-border text-xs text-foreground focus:outline-none focus:border-orange-500 transition-colors"
-        >
-          <option value="">All Schools</option>
-          {schools.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-      )}
       <div className="relative">
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <input
@@ -85,10 +73,10 @@ function StudentPicker({
           className="w-full pl-9 pr-4 py-2 bg-background border border-border text-xs text-foreground focus:outline-none focus:border-orange-500 transition-colors"
         />
       </div>
-      <div className="border border-border max-h-48 overflow-y-auto bg-background">
+      <div className="border border-border max-h-40 overflow-y-auto bg-background">
         {filtered.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-4">
-            {q ? 'No students match your search.' : localSchool ? 'No students in this school.' : 'No students found.'}
+            {q ? 'No students match your search.' : schoolFilter ? 'No students in this school.' : 'Select a school to see students.'}
           </p>
         ) : (
           filtered.map(s => (
@@ -102,8 +90,7 @@ function StudentPicker({
             >
               <span className={`text-xs font-bold ${value === s.id ? 'text-orange-400' : 'text-foreground'}`}>{s.full_name}</span>
               <span className="text-[10px] text-muted-foreground ml-2">
-                {s.school_name ?? '—'}
-                {s.grade_level ? ` · ${s.grade_level}` : ''}
+                {s.grade_level ?? ''}
                 {s.parent_email ? <span className="text-amber-500"> · parent linked</span> : null}
               </span>
             </button>
@@ -114,8 +101,9 @@ function StudentPicker({
         <div className="px-3 py-2 bg-orange-500/5 border border-orange-500/20 text-[10px]">
           <span className="text-orange-400 font-bold">Selected: {selected.full_name}</span>
           {selected.school_name && <span className="text-muted-foreground ml-1">({selected.school_name})</span>}
+          {selected.grade_level && <span className="text-muted-foreground ml-1">· {selected.grade_level}</span>}
           {selected.parent_email && (
-            <p className="text-blue-400 mt-0.5">ℹ Student already has a parent linked ({selected.parent_email}). This will add the new parent as the primary contact.</p>
+            <p className="text-blue-400 mt-0.5">ℹ Already has a parent ({selected.parent_email}). New parent will become primary contact.</p>
           )}
         </div>
       )}
@@ -147,16 +135,19 @@ function ParentFormModal({
   initialData,
   students,
   schools,
+  defaultSchool,
   onClose,
   onSaved,
 }: {
   initialData?: Parent | null;
   students: Student[];
   schools: string[];
+  defaultSchool?: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const isEdit = !!initialData;
+  const [selectedSchool, setSelectedSchool] = useState(defaultSchool ?? '');
   const [form, setForm] = useState({
     email: initialData?.email ?? '',
     full_name: initialData?.full_name ?? '',
@@ -347,13 +338,29 @@ function ParentFormModal({
             </div>
           )}
 
+          {/* School selector — always visible, auto-filled for teachers */}
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
-              {isEdit ? 'Link to Additional Student (optional)' : 'Link to Student *'}
+              School {schools.length === 1 ? <span className="text-muted-foreground normal-case font-normal">(locked to your school)</span> : '*'}
+            </label>
+            <select
+              value={selectedSchool}
+              onChange={e => { setSelectedSchool(e.target.value); setForm(f => ({ ...f, student_id: '' })); }}
+              disabled={schools.length === 1}
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-60"
+            >
+              <option value="">— Select School —</option>
+              {schools.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
+              {isEdit ? 'Link to Student (optional)' : 'Select Student *'}
             </label>
             <StudentPicker
               students={students}
-              schools={schools}
+              schoolFilter={selectedSchool}
               value={form.student_id}
               onChange={id => setForm(f => ({ ...f, student_id: id }))}
             />
@@ -393,15 +400,18 @@ function LinkStudentModal({
   parent,
   students,
   schools,
+  defaultSchool,
   onClose,
   onSaved,
 }: {
   parent: Parent;
   students: Student[];
   schools: string[];
+  defaultSchool?: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const [selectedSchool, setSelectedSchool] = useState(defaultSchool ?? '');
   const [studentId, setStudentId] = useState('');
   const [relationship, setRelationship] = useState('Guardian');
   const [saving, setSaving] = useState(false);
@@ -439,10 +449,24 @@ function LinkStudentModal({
           </p>
           {error && <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{error}</p>}
           <div>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
+              School {schools.length === 1 ? <span className="text-muted-foreground normal-case font-normal">(locked)</span> : ''}
+            </label>
+            <select
+              value={selectedSchool}
+              onChange={e => { setSelectedSchool(e.target.value); setStudentId(''); }}
+              disabled={schools.length === 1}
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-60"
+            >
+              <option value="">— Select School —</option>
+              {schools.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Student</label>
             <StudentPicker
               students={students}
-              schools={schools}
+              schoolFilter={selectedSchool}
               value={studentId}
               onChange={setStudentId}
             />
@@ -800,6 +824,7 @@ export default function ParentsPage() {
           initialData={editTarget}
           students={students}
           schools={schools}
+          defaultSchool={!isAdmin ? (profile?.school_name ?? '') : schoolFilter}
           onClose={() => { setShowForm(false); setEditTarget(null); }}
           onSaved={load}
         />
@@ -809,6 +834,7 @@ export default function ParentsPage() {
           parent={linkTarget}
           students={students}
           schools={schools}
+          defaultSchool={!isAdmin ? (profile?.school_name ?? '') : schoolFilter}
           onClose={() => setLinkTarget(null)}
           onSaved={load}
         />
