@@ -49,7 +49,7 @@ export class CoursesService {
         }
 
         if (filters.isPublished !== undefined) {
-            query = query.eq('is_published', filters.isPublished);
+            query = query.eq('is_active', filters.isPublished);
         }
 
         const { data, error, count } = await query
