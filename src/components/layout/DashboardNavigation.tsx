@@ -97,6 +97,7 @@ export default function DashboardNavigation() {
           { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
           { name: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Parents', href: '/dashboard/parents', icon: UserPlusIcon },
           { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
           { name: 'Enrol Students', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon },
           { name: 'Wipe Students', href: '/dashboard/students/bulk-delete', icon: TrashIcon },
@@ -145,6 +146,7 @@ export default function DashboardNavigation() {
           { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
           { divider: true, label: 'Students' },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Parents', href: '/dashboard/parents', icon: UserPlusIcon },
           { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
           { name: 'Grades', href: '/dashboard/grades', icon: ClipboardDocumentCheckIcon },
           { divider: true, label: 'Reports' },
@@ -217,6 +219,23 @@ export default function DashboardNavigation() {
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ];
 
+      case 'parent':
+        return [
+          ...base,
+          { divider: true, label: 'My Children' },
+          { name: 'My Children', href: '/dashboard/my-children', icon: UserGroupIcon },
+          { divider: true, label: 'Academic Progress' },
+          { name: 'Report Cards', href: '/dashboard/parent-results', icon: DocumentChartBarIcon },
+          { name: 'Attendance', href: '/dashboard/parent-attendance', icon: ClipboardDocumentCheckIcon },
+          { name: 'Grades', href: '/dashboard/parent-grades', icon: ClipboardDocumentListIcon },
+          { name: 'Certificates', href: '/dashboard/parent-certificates', icon: TrophyIcon },
+          { divider: true, label: 'Finance' },
+          { name: 'Invoices & Payments', href: '/dashboard/parent-invoices', icon: BanknotesIcon },
+          { divider: true, label: 'More' },
+          { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
+        ];
+
       default:
         return base;
     }
@@ -235,7 +254,9 @@ export default function DashboardNavigation() {
           ? ['Dashboard', 'Students', 'Approvals', 'Progress Reports', 'Messages']
           : profile?.role === 'teacher'
             ? ['Dashboard', 'My Classes', 'Students', 'Progress Reports', 'Messages']
-            : ['Dashboard']
+            : profile?.role === 'parent'
+              ? ['Dashboard', 'My Children', 'Report Cards', 'Messages']
+              : ['Dashboard']
   );
   const bottomNavItems = navItems.filter(item => BOTTOM_NAV_NAMES.has(item.name)).slice(0, 4);
 

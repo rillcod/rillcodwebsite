@@ -13,7 +13,7 @@ const MODELS = [
   "deepseek/deepseek-chat",                   // DeepSeek V3
   "qwen/qwen-2.5-coder-32b-instruct",         // Qwen Coder
   "google/gemini-2.0-flash-lite-preview-02-05", // User requested
-  "google/gemini-flash-1.5",                  // Reliable
+  "google/gemini-2.0-flash-lite-001",                  // Reliable
   "meta-llama/llama-3.3-70b-instruct",        // High performance
   "mistralai/mistral-large-2411",             // Reasoning
   "meta-llama/llama-3.1-8b-instruct:free",    // Free fallback

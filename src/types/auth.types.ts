@@ -1,6 +1,6 @@
 // ─── Auth Types ───────────────────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'teacher' | 'student' | 'school';
+export type UserRole = 'admin' | 'teacher' | 'student' | 'school' | 'parent';
 
 export interface UserProfile {
     id: string;

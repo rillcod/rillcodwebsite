@@ -6,24 +6,31 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-async function checkColumns() {
+async function checkSchema() {
     try {
-        const { data, error } = await supabase
-            .from('system_settings')
-            .select('*')
-            .limit(1);
+        const tables = [
+            'academic_terms',
+            'payments',
+            'invoices',
+            'attendance',
+            'class_sessions',
+            'schools',
+            'enrollments'
+        ];
         
-        if (error) {
-            console.error('Error fetching from system_settings:', error);
-        } else if (data && data.length > 0) {
-            console.log('Columns found:', Object.keys(data[0]));
-        } else {
-            console.log('Table found but empty.');
-            // Try to add one row and delete it maybe? No, let's just try to select one.
+        for (const table of tables) {
+            const { data, error } = await supabase.from(table).select('*').limit(1);
+            if (error) {
+                console.log(`${table}: Not Found or Error: ${error.message}`);
+            } else if (data && data.length > 0) {
+                console.log(`${table} Columns:`, Object.keys(data[0]));
+            } else if (data) {
+                console.log(`${table}: Found but Empty`);
+            }
         }
     } catch (err) {
         console.error('Exception:', err);
     }
 }
 
-checkColumns();
+checkSchema();
