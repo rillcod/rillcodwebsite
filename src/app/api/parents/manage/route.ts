@@ -39,64 +39,63 @@ export async function POST(req: Request) {
     }
 
     const admin = createAdminClient();
+    const cleanEmail = email.trim().toLowerCase();
 
-    // Check if auth user already exists for this email
-    const { data: existingList } = await admin.auth.admin.listUsers({ perPage: 1 });
-    // listUsers can't filter by email directly — use inviteUserByEmail which upserts
-    // First try to find existing user
-    let authUserId: string | null = null;
-
-    // Check portal_users for existing parent with this email
+    // Check if a portal_users record already exists for this email
     const { data: existingPortal } = await supabase
       .from('portal_users')
       .select('id')
-      .eq('email', email.trim().toLowerCase())
+      .eq('email', cleanEmail)
       .maybeSingle();
 
-    if (existingPortal?.id) {
-      // Already has a portal account — just link to student
-      authUserId = existingPortal.id;
-      const { error: linkErr } = await supabase
-        .from('students')
-        .update({
-          parent_email: email.trim().toLowerCase(),
-          parent_name: full_name,
-          parent_phone: phone ?? null,
-          parent_relationship: relationship,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', student_id);
-      if (linkErr) throw linkErr;
+    let authUserId: string;
 
-      // Ensure role is parent
+    if (existingPortal?.id) {
+      // Already has a portal account — just update role and link student
+      authUserId = existingPortal.id;
       await supabase
         .from('portal_users')
-        .update({ role: 'parent', updated_at: new Date().toISOString() })
-        .eq('id', authUserId)
-        .neq('role', 'parent');
+        .update({ role: 'parent', full_name, phone: phone ?? null, updated_at: new Date().toISOString() })
+        .eq('id', authUserId);
     } else {
-      // Create Supabase Auth user via invite (sends email with set-password link)
-      const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(
-        email.trim().toLowerCase(),
-        { data: { full_name, role: 'parent' } }
-      );
-      if (inviteErr) throw inviteErr;
-
-      authUserId = invited.user.id;
-
-      // Create portal_users record and link student via RPC
-      const { error: rpcErr } = await (supabase.rpc as any)('create_parent_and_link', {
-        p_email: email.trim().toLowerCase(),
-        p_full_name: full_name,
-        p_phone: phone ?? null,
-        p_student_id: student_id,
-        p_relationship: relationship,
-        p_auth_user_id: authUserId,
+      // Create auth user directly (no invite email) using admin API
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+        email: cleanEmail,
+        email_confirm: true,
+        user_metadata: { full_name, role: 'parent' },
       });
-      if (rpcErr) throw rpcErr;
+      if (createErr) throw createErr;
+      authUserId = created.user.id;
     }
 
-    return NextResponse.json({ success: true, invited: !existingPortal, auth_user_id: authUserId });
+    // Upsert portal_users with the correct auth UUID
+    const { error: upsertErr } = await admin
+      .from('portal_users')
+      .upsert({
+        id: authUserId,
+        email: cleanEmail,
+        full_name,
+        phone: phone ?? null,
+        role: 'parent',
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+    if (upsertErr) throw upsertErr;
+
+    // Link student to this parent
+    const { error: linkErr } = await admin
+      .from('students')
+      .update({
+        parent_email: cleanEmail,
+        parent_name: full_name,
+        parent_phone: phone ?? null,
+        parent_relationship: relationship,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', student_id);
+    if (linkErr) throw linkErr;
+
+    return NextResponse.json({ success: true, auth_user_id: authUserId, existing: !!existingPortal });
   } catch (err: any) {
     console.error('POST /api/parents/manage error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
