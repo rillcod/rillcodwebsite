@@ -1,6 +1,7 @@
 // @refresh reset
 import { Metadata } from 'next';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   CodeBracketIcon,
   GlobeAltIcon,
@@ -356,12 +357,12 @@ export default function StudentProjectsPage() {
             Join our programs and start building amazing projects that could change the world.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
+            <Link
               href="/programs"
               className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 text-xl font-bold rounded-full shadow-lg hover:bg-gray-100 transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
             >
               Explore Programs
-            </a>
+            </Link>
             <a
               href="/contact"
               className="inline-flex items-center justify-center px-8 py-4 border-2 border-border text-white text-xl font-bold rounded-full hover:bg-white hover:text-blue-600 transform transition-all duration-300 hover:scale-105"

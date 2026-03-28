@@ -37,7 +37,7 @@ export class SearchService {
 
     async searchPrograms(query: string, tenantId?: string) {
         const supabase = await createClient();
-        let q = supabase
+        const q = supabase
             .from('programs')
             .select('*')
             .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
@@ -50,16 +50,15 @@ export class SearchService {
 
     async searchTeachers(query: string, tenantId?: string) {
         const supabase = await createClient();
-        let q = supabase
+        const q = supabase
             .from('portal_users')
             .select('id, full_name, profile_image_url')
             .eq('role', 'teacher')
             .ilike('full_name', `%${query}%`)
             .limit(5);
 
-        if (tenantId) {
-            // q = q.eq('tenant_id', tenantId);
-        }
+        // tenantId filter commented out pending schema confirmation:
+        // if (tenantId) { q = q.eq('tenant_id', tenantId); }
 
         const { data } = await q;
         return data || [];

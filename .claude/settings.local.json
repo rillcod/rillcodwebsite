@@ -67,7 +67,8 @@
       "Bash(sed -n '488,515p' /c/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/supabase/migrations/00000000000000_complete_schema.sql)",
       "Bash(echo \"Exit: $?\")",
       "Bash(npm cache:*)",
-      "Bash(npm view:*)"
+      "Bash(npm view:*)",
+      "Bash(node_modules/.bin/next build:*)"
     ]
   }
 }
