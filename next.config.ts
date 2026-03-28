@@ -11,9 +11,15 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
+  // ── ESLint: run separately (pre-commit / CI), not during next build ───────
+  eslint: { ignoreDuringBuilds: true },
+
+  // ── TypeScript: type errors still block builds ────────────────────────────
+  typescript: { ignoreBuildErrors: false },
+
   // ── Native App Export (Uncomment these for Capacitor Android/iOS builds) ──
   // output: 'export',
-  
+
   // ── Turbopack Compatibility ──────────────────────────────────────────────
   // silences warning for custom webpack used by next-pwa
   // @ts-ignore
