@@ -6,7 +6,8 @@ import {
   UserGroupIcon, MagnifyingGlassIcon, PlusIcon, XMarkIcon,
   EnvelopeIcon, PhoneIcon, UserIcon, AcademicCapIcon, CheckCircleIcon,
   XCircleIcon, PencilSquareIcon, ArrowPathIcon, LinkIcon, HeartIcon,
-  ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon,
+  ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon, EyeIcon, EyeSlashIcon,
+  ClipboardIcon, KeyIcon,
 } from '@/lib/icons';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -123,6 +124,25 @@ function StudentPicker({
 }
 
 // ── Create / Edit Modal ───────────────────────────────────────────────────────
+function genPassword() {
+  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789@#$!';
+  return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+      className="flex items-center gap-1 px-2 py-1 text-[10px] font-black uppercase tracking-widest border border-border hover:border-orange-500/50 text-muted-foreground hover:text-orange-400 transition-all"
+    >
+      <ClipboardIcon className="w-3 h-3" />
+      {copied ? 'Copied!' : 'Copy'}
+    </button>
+  );
+}
+
 function ParentFormModal({
   initialData,
   students,
@@ -143,9 +163,12 @@ function ParentFormModal({
     phone: initialData?.phone ?? '',
     student_id: '',
     relationship: 'Guardian',
+    password: genPassword(),
   });
+  const [showPw, setShowPw] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,6 +188,8 @@ function ParentFormModal({
           }),
         });
         if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+        onSaved();
+        onClose();
       } else {
         if (!form.student_id) { setError('Please select a student to link'); setSaving(false); return; }
         const res = await fetch('/api/parents/manage', {
@@ -176,18 +201,70 @@ function ParentFormModal({
             phone: form.phone || null,
             student_id: form.student_id,
             relationship: form.relationship,
+            password: form.password,
           }),
         });
         if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+        onSaved();
+        setCredentials({ email: form.email.trim().toLowerCase(), password: form.password });
       }
-      onSaved();
-      onClose();
     } catch (err: any) {
       setError(err.message ?? 'Save failed');
     } finally {
       setSaving(false);
     }
   };
+
+  // ── Credentials success screen ──────────────────────────────────────────────
+  if (credentials) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="w-full max-w-md bg-card border border-border shadow-2xl">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="flex items-center gap-2">
+              <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
+              <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Parent Account Created</h2>
+            </div>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            <p className="text-xs text-muted-foreground">Share these login credentials with the parent. They can change their password after first login.</p>
+
+            <div className="space-y-3">
+              <div className="bg-background border border-border p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Email / Username</p>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-bold text-foreground font-mono break-all">{credentials.email}</span>
+                  <CopyButton value={credentials.email} />
+                </div>
+              </div>
+
+              <div className="bg-background border border-orange-500/30 p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-2 flex items-center gap-1">
+                  <KeyIcon className="w-3 h-3" /> Generated Password
+                </p>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-bold text-orange-300 font-mono tracking-wider">{credentials.password}</span>
+                  <CopyButton value={credentials.password} />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/5 border border-amber-500/20 text-[10px] text-amber-400">
+                <span>⚠</span> Store this password securely — it cannot be retrieved after closing this window.
+              </div>
+            </div>
+
+            <button onClick={onClose}
+              className="w-full px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-black uppercase tracking-widest transition-all">
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -237,6 +314,38 @@ function ParentFormModal({
               className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
             />
           </div>
+
+          {!isEdit && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                  <KeyIcon className="w-3 h-3" /> Login Password *
+                </label>
+                <button type="button" onClick={() => setForm(f => ({ ...f, password: genPassword() }))}
+                  className="text-[10px] font-black uppercase tracking-widest text-orange-400 hover:text-orange-300 transition-colors">
+                  ↻ Regenerate
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  required
+                  type={showPw ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  minLength={8}
+                  className="w-full px-4 py-2.5 pr-20 bg-background border border-border text-sm text-foreground font-mono focus:outline-none focus:border-orange-500 transition-colors"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  <CopyButton value={form.password} />
+                  <button type="button" onClick={() => setShowPw(v => !v)}
+                    className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+                    {showPw ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">Auto-generated. Edit or regenerate as needed.</p>
+            </div>
+          )}
 
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
