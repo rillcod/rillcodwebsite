@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import {
   UserGroupIcon, MagnifyingGlassIcon, PlusIcon, XMarkIcon,
   EnvelopeIcon, PhoneIcon, UserIcon, AcademicCapIcon, CheckCircleIcon,
@@ -393,8 +392,6 @@ export default function ParentsPage() {
     if (!isStaff) return;
     setLoading(true);
     try {
-      const supabase = createClient();
-
       // Build parent search URL
       const params = new URLSearchParams();
       if (search) params.set('search', search);
@@ -404,29 +401,16 @@ export default function ParentsPage() {
       if (!parRes.ok) console.error('Parents load error:', parJson.error);
       setParents(parJson.data ?? []);
 
-      // Fetch students — scoped to school for teachers, all for admins
-      let stuQuery = supabase
-        .from('students')
-        .select('id, full_name, school_name, parent_email, grade_level')
-        .order('full_name')
-        .limit(2000);
+      // Students come from the API response (server-side, bypasses RLS)
+      setStudents((parJson.students ?? []) as Student[]);
 
-      if (!isAdmin && profile?.school_name) {
-        stuQuery = stuQuery.eq('school_name', profile.school_name);
-      }
-
-      const { data: stuData, error: stuErr } = await stuQuery;
-      if (stuErr) console.error('Students load error:', stuErr.message);
-      setStudents((stuData ?? []) as Student[]);
-
-      // Load schools from schools table (approved) for the filter dropdown
+      // Load schools from API (uses service role, bypasses RLS)
       if (isAdmin) {
-        const { data: schoolData } = await supabase
-          .from('schools')
-          .select('name')
-          .eq('status', 'approved')
-          .order('name');
-        setSchools((schoolData ?? []).map((s: any) => s.name).filter(Boolean));
+        const schoolRes = await fetch('/api/schools/public');
+        if (schoolRes.ok) {
+          const { schools: schoolList } = await schoolRes.json();
+          setSchools((schoolList ?? []).map((s: any) => s.name).filter(Boolean));
+        }
       } else if (profile?.school_name) {
         setSchools([profile.school_name]);
       }
