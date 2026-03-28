@@ -13,7 +13,7 @@ import {
   CalendarIcon, UserIcon, ExclamationTriangleIcon, StarIcon,
   BookOpenIcon, ClipboardDocumentListIcon, KeyIcon, ShieldCheckIcon,
   XMarkIcon, ClipboardIcon, PencilSquareIcon, BoltIcon, SparklesIcon,
-  PrinterIcon,
+  PrinterIcon, UserPlusIcon,
 } from '@/lib/icons';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 
@@ -42,6 +42,127 @@ function Chip({ icon: Icon, text }: { icon: any; text: string }) {
   );
 }
 
+// ─── Link Parent Modal (inline on students page) ──────────────
+function LinkParentModal({ student, onClose, onSaved }: {
+  student: any;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const hasParent = !!student.parent_email;
+  const [form, setForm] = useState({
+    email: student.parent_email ?? '',
+    full_name: student.parent_name ?? '',
+    phone: student.parent_phone ?? '',
+    relationship: student.parent_relationship ?? 'Guardian',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.email || !form.full_name) { setError('Email and full name are required'); return; }
+    setSaving(true); setError(null);
+    try {
+      const res = await fetch('/api/parents/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email,
+          full_name: form.full_name,
+          phone: form.phone || null,
+          student_id: student.id,
+          relationship: form.relationship,
+        }),
+      });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+      onSaved();
+    } catch (err: any) {
+      setError(err.message ?? 'Failed to save');
+      setSaving(false);
+    }
+  };
+
+  const handleUnlink = async () => {
+    if (!confirm(`Remove parent link from ${student.full_name}?`)) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/parents/manage?student_id=${student.id}`, { method: 'DELETE' });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+      onSaved();
+    } catch (err: any) {
+      setError(err.message ?? 'Failed');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-sm bg-card border border-border shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-widest text-foreground">
+              {hasParent ? 'Edit Parent' : 'Link Parent'}
+            </h2>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{student.full_name}</p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{error}</p>}
+          <div>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Parent Email *</label>
+            <input type="email" required value={form.email}
+              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              placeholder="parent@example.com"
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Full Name *</label>
+            <input required value={form.full_name}
+              onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
+              placeholder="Parent's full name"
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Phone</label>
+            <input type="tel" value={form.phone}
+              onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+              placeholder="+234 …"
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors" />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Relationship</label>
+            <select value={form.relationship} onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))}
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors">
+              {['Guardian', 'Father', 'Mother', 'Sibling', 'Uncle', 'Aunt', 'Other'].map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-3 pt-2">
+            {hasParent && (
+              <button type="button" onClick={handleUnlink} disabled={saving}
+                className="px-4 py-2.5 border border-rose-500/30 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:border-rose-500 transition-all disabled:opacity-50">
+                Unlink
+              </button>
+            )}
+            <button type="button" onClick={onClose}
+              className="flex-1 px-4 py-2.5 border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
+              {saving ? 'Saving…' : hasParent ? 'Update' : 'Link'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────
 export default function StudentsPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -57,6 +178,7 @@ export default function StudentsPage() {
   const [credentials, setCredentials] = useState<{ email: string; tempPassword: string; name: string } | null>(null);
   const [editingStudent, setEditingStudent] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [linkParentTarget, setLinkParentTarget] = useState<any | null>(null); // student for inline link-parent form
   const [gapCount, setGapCount] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<any | null>(null);
@@ -1653,6 +1775,14 @@ export default function StudentsPage() {
                                   <ClipboardDocumentListIcon className="w-4 h-4" /> Report
                                 </Link>
                               )}
+                              {(profile?.role === 'admin' || profile?.role === 'teacher') && (
+                                <button
+                                  onClick={() => setLinkParentTarget(s)}
+                                  className="flex items-center gap-2 text-[10px] font-black text-orange-400 hover:text-foreground uppercase tracking-widest transition-colors">
+                                  <UserPlusIcon className="w-4 h-4" />
+                                  {s.parent_email ? 'Edit Parent' : 'Link Parent'}
+                                </button>
+                              )}
                               {s.parent_email && (
                                 <a href={`mailto:${s.parent_email}`}
                                   className="flex items-center gap-2 text-[10px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors">
@@ -1684,6 +1814,15 @@ export default function StudentsPage() {
 
         </div>
       </div>
+
+      {/* ── Link Parent Modal ────────────────────────────── */}
+      {linkParentTarget && (
+        <LinkParentModal
+          student={linkParentTarget}
+          onClose={() => setLinkParentTarget(null)}
+          onSaved={() => { setLinkParentTarget(null); load(); }}
+        />
+      )}
 
       {/* ── Floating Bulk Enrol Bar ───────────────────────── */}
       {selectedForEnrol.size > 0 && profile?.role === 'admin' && (

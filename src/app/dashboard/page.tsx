@@ -22,6 +22,7 @@ import StudentDashboardWidget from '@/components/dashboard/StudentDashboard';
 import AdminDashboard from '@/components/dashboard/AdminDashboard';
 import TeacherDashboard from '@/components/dashboard/TeacherDashboard';
 import SchoolDashboard from '@/components/dashboard/SchoolDashboard';
+import ParentDashboard from '@/components/dashboard/ParentDashboard';
 
 /* ── Types ────────────────────────────────────────────── */
 interface DashStats { label: string; value: string | number; change?: string; icon: any; gradient: string }
@@ -531,6 +532,7 @@ export default function DashboardPage() {
   const [dataLoading, setDataLoading] = useState(false);
   const [teacherActionCenter, setTeacherActionCenter] = useState<{ ungradedAssignments: number; ungradedExams: number } | null>(null);
   const [schoolPayments, setSchoolPayments] = useState<Awaited<ReturnType<typeof loadAdminSchoolPayments>>>([]);
+  const [parentChildren, setParentChildren] = useState<any[]>([]);
   // Track how many auto-retries we've done before showing the "not found" error
   const profileRetryCount = useRef(0);
 
@@ -607,6 +609,13 @@ export default function DashboardPage() {
       if (role === 'admin') {
         const sp = await loadAdminSchoolPayments(supabase);
         setSchoolPayments(sp);
+      }
+      if (role === 'parent') {
+        const { data: kids } = await supabase
+          .from('students')
+          .select('id, full_name, school_name, grade_level, status')
+          .eq('parent_email', profile.email);
+        setParentChildren(kids ?? []);
       }
       await loadUpcomingSlots(supabase, role, profile.id, profile.school_id || undefined);
     } catch { /* silent */ } finally {
@@ -702,8 +711,8 @@ export default function DashboardPage() {
     );
   }
 
-  const role = profile.role as 'admin' | 'teacher' | 'student' | 'school';
-  const quickActions = QUICK_ACTIONS[role] ?? QUICK_ACTIONS.student;
+  const role = profile.role as 'admin' | 'teacher' | 'student' | 'school' | 'parent';
+  const quickActions = (QUICK_ACTIONS as Record<string, typeof QUICK_ACTIONS.student>)[role] ?? QUICK_ACTIONS.student;
 
   return (
     <div className="space-y-6">
@@ -787,6 +796,14 @@ export default function DashboardPage() {
         />
       )}
       {role === 'student' && <StudentDashboardWidget />}
+      {role === 'parent' && (
+        <ParentDashboard
+          profile={profile}
+          children={parentChildren}
+          dataLoading={dataLoading}
+          onRefresh={fetchDashData}
+        />
+      )}
     </div>
   );
 }

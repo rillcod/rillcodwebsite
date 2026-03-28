@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { createClient } from '@/lib/supabase/client';
 import { logger } from '@/lib/logger';
-import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, Building2, ArrowRight, Loader2, ArrowLeft, Sparkles } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, User, GraduationCap, Shield, Building2, Heart, ArrowRight, Loader2, ArrowLeft, Sparkles } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from 'next/link';
 import Image from 'next/image';
@@ -22,13 +22,13 @@ function LoginContent() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | "school" | null>(null);
+  const [selectedRole, setSelectedRole] = useState<"student" | "teacher" | "admin" | "school" | "parent" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const type = searchParams?.get("type");
-    if (type === "admin" || type === "teacher" || type === "student" || type === "school") setSelectedRole(type);
+    if (type === "admin" || type === "teacher" || type === "student" || type === "school" || type === "parent") setSelectedRole(type);
 
     if (searchParams?.get("clear") === "1") {
       supabase.auth.signOut().then(() => {
@@ -155,6 +155,7 @@ function LoginContent() {
             {[
               { id: "student", icon: GraduationCap, title: "Student" },
               { id: "teacher", icon: User,          title: "Teacher" },
+              { id: "parent",  icon: Heart,         title: "Parent"  },
               { id: "school",  icon: Building2,     title: "School"  },
               { id: "admin",   icon: Shield,        title: "Admin"   },
             ].map((role) => (

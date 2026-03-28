@@ -35,7 +35,7 @@ const MODELS = [
   // ── Tier 7: MiMo ──────────────────────────────────────────────
   "xiaomi/mimo-v2-flash:free",               // MiMo V2 Flash (free)
   // ── Tier 8: Reliability fallbacks ─────────────────────────────
-  "google/gemini-flash-1.5",
+  "google/gemini-2.0-flash-lite-001",
   "meta-llama/llama-3.3-70b-instruct",
   "mistralai/mistral-large-2411",
   "meta-llama/llama-3.1-8b-instruct:free",   // Fast free fallback
@@ -801,7 +801,7 @@ export async function POST(req: NextRequest) {
           "moonshotai/kimi-k2.5",                  // Deep synthesis
           "deepseek/deepseek-chat-v3-5",           // Strong writer
           "meta-llama/llama-3.3-70b-instruct",     // Solid free fallback
-          "google/gemini-flash-1.5",               // Reliable emergency fallback
+          "google/gemini-2.0-flash-lite-001",               // Reliable emergency fallback
           "meta-llama/llama-3.1-8b-instruct:free", // Last resort
         ];
         adaptiveTemperature = 0.6;
@@ -825,7 +825,7 @@ export async function POST(req: NextRequest) {
           "google/gemini-2.0-flash-001",          // Reliable JSON + fast
           "deepseek/deepseek-chat-v3-5",           // Strong analytical fallback
           "meta-llama/llama-3.3-70b-instruct",    // Solid fallback
-          "google/gemini-flash-1.5",               // Emergency fallback
+          "google/gemini-2.0-flash-lite-001",               // Emergency fallback
         ];
         adaptiveTemperature = 0.1; // Zero hallucination
         break;
@@ -855,7 +855,7 @@ export async function POST(req: NextRequest) {
           "google/gemini-2.0-flash-001",
           "deepseek/deepseek-chat-v3-5",
           "meta-llama/llama-3.3-70b-instruct",
-          "google/gemini-flash-1.5",
+          "google/gemini-2.0-flash-lite-001",
         ];
         adaptiveTemperature = 0.4; // Balanced — consistent but not rigid
         adaptiveMaxTokens = 3000;

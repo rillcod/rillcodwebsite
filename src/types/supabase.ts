@@ -5298,6 +5298,26 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_teacher: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      // ── Parent portal helpers ─────────────────────────────
+      current_user_email: { Args: never; Returns: string }
+      is_parent: { Args: never; Returns: boolean }
+      get_parent_student_ids: { Args: never; Returns: string[] }
+      get_parent_child_user_ids: { Args: never; Returns: string[] }
+      create_parent_and_link: {
+        Args: {
+          p_email: string
+          p_full_name: string
+          p_phone: string | null
+          p_student_id: string
+          p_relationship?: string
+          p_auth_user_id?: string | null
+        }
+        Returns: Json
+      }
+      unlink_parent_from_student: {
+        Args: { p_student_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
