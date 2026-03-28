@@ -62,8 +62,8 @@ export default function CourseDetailPage() {
       setLoading(true);
       setError(null);
       try {
-        // Load course + lessons + sessions in parallel first (need course.program_id for enrollments)
-        const [courseRes, lessonsRes, sessionsRes] = await Promise.allSettled([
+        // Load course + lessons in parallel first (need course.program_id for sessions/enrollments)
+        const [courseRes, lessonsRes] = await Promise.allSettled([
           supabase.from('courses')
             .select('*, programs(name, difficulty_level, description, duration_weeks), portal_users(full_name)')
             .eq('id', id)
@@ -72,21 +72,22 @@ export default function CourseDetailPage() {
             .select('id, title, lesson_type, status, order_index, duration_minutes')
             .eq('course_id', id)
             .order('order_index', { ascending: true }),
-          supabase.from('live_sessions')
-            .select('*')
-            .eq('course_id', id)
-            .order('scheduled_start', { ascending: true }),
         ]);
+
+        // live_sessions links via program_id, fetch after we have the course
+        const programId = courseRes.status === 'fulfilled' ? courseRes.value.data?.program_id : null;
+        const sessionsRes = await (programId
+          ? supabase.from('live_sessions').select('*').eq('program_id', programId).order('scheduled_at', { ascending: true })
+          : Promise.resolve({ data: [] }));
 
         if (!cancelled) {
           if (courseRes.status === 'fulfilled') setCourse(courseRes.value.data);
           else throw new Error('Course not found');
           if (lessonsRes.status === 'fulfilled') setLessons(lessonsRes.value.data ?? []);
-          if (sessionsRes.status === 'fulfilled') setSessions(sessionsRes.value.data ?? []);
+          setSessions((sessionsRes as any).data ?? []);
         }
 
-        // Enrollments are program-level (not course-level) — use program_id from course
-        const programId = courseRes.status === 'fulfilled' ? courseRes.value.data?.program_id : null;
+        // Enrollments are program-level (not course-level) — use program_id from course (already fetched above)
         if (programId && !cancelled) {
           let enrollRes;
           if (isStaff) {
