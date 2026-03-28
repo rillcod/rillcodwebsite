@@ -8,7 +8,7 @@ async function requireStaff(supabase: Awaited<ReturnType<typeof createClient>>) 
 
   const { data: profile } = await supabase
     .from('portal_users')
-    .select('id, role')
+    .select('id, role, school_name, school_id')
     .eq('id', user.id)
     .single();
 
@@ -167,6 +167,26 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const search = url.searchParams.get('search') ?? '';
+    // Admin can pass ?school=<name>; teachers are automatically scoped to their school
+    const schoolParam = url.searchParams.get('school') ?? '';
+    const effectiveSchool = guard.profile.role === 'teacher'
+      ? (guard.profile.school_name ?? '')
+      : schoolParam;
+
+    // If school-scoped, first find all parent_emails linked to students in that school
+    let allowedEmails: string[] | null = null;
+    if (effectiveSchool) {
+      const { data: scopedStudents } = await supabase
+        .from('students')
+        .select('parent_email')
+        .eq('school_name', effectiveSchool)
+        .not('parent_email', 'is', null);
+      allowedEmails = (scopedStudents ?? []).map((s: any) => s.parent_email).filter(Boolean);
+      // If no students have parents in this school, return empty
+      if (allowedEmails.length === 0) {
+        return NextResponse.json({ success: true, data: [] });
+      }
+    }
 
     let query = supabase
       .from('portal_users')
@@ -178,16 +198,29 @@ export async function GET(req: Request) {
       query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`);
     }
 
+    if (allowedEmails) {
+      query = query.in('email', allowedEmails);
+    }
+
     const { data: parents, error } = await query.limit(200);
     if (error) throw error;
 
     // Fetch linked students for each parent via parent_email match
     const emails = (parents ?? []).map(p => p.email);
-    const { data: students } = emails.length > 0
-      ? await supabase
+    let stuQuery = emails.length > 0
+      ? supabase
           .from('students')
           .select('id, full_name, school_name, status, parent_email')
           .in('parent_email', emails)
+      : null;
+
+    // Scope children list to effective school as well
+    if (stuQuery && effectiveSchool) {
+      stuQuery = stuQuery.eq('school_name', effectiveSchool);
+    }
+
+    const { data: students } = stuQuery
+      ? await stuQuery
       : { data: [] };
 
     // Group students by parent email

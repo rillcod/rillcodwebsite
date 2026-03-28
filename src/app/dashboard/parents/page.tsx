@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
   UserGroupIcon, MagnifyingGlassIcon, PlusIcon, XMarkIcon,
   EnvelopeIcon, PhoneIcon, UserIcon, AcademicCapIcon, CheckCircleIcon,
   XCircleIcon, PencilSquareIcon, ArrowPathIcon, LinkIcon, HeartIcon,
-  ChevronDownIcon, ChevronUpIcon,
+  ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon,
 } from '@/lib/icons';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -32,17 +32,95 @@ interface Student {
   full_name: string;
   school_name: string | null;
   parent_email: string | null;
+  grade_level: string | null;
+}
+
+// ── Searchable student picker ─────────────────────────────────────────────────
+function StudentPicker({
+  students,
+  value,
+  onChange,
+  placeholder,
+  schoolFilter,
+}: {
+  students: Student[];
+  value: string;
+  onChange: (id: string) => void;
+  placeholder?: string;
+  schoolFilter: string;
+}) {
+  const [q, setQ] = useState('');
+
+  const filtered = useMemo(() => {
+    let list = schoolFilter
+      ? students.filter(s => s.school_name === schoolFilter)
+      : students;
+    if (q.trim()) {
+      const lower = q.toLowerCase();
+      list = list.filter(s => s.full_name.toLowerCase().includes(lower));
+    }
+    return list;
+  }, [students, schoolFilter, q]);
+
+  const selected = students.find(s => s.id === value);
+
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <input
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          placeholder="Search students…"
+          className="w-full pl-9 pr-4 py-2 bg-background border border-border text-xs text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+        />
+      </div>
+      <div className="border border-border max-h-44 overflow-y-auto bg-background">
+        {filtered.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-4">
+            {q ? 'No students match.' : schoolFilter ? 'No students in this school.' : 'No students available.'}
+          </p>
+        ) : (
+          filtered.map(s => (
+            <button
+              type="button"
+              key={s.id}
+              onClick={() => { onChange(s.id); setQ(''); }}
+              className={`w-full text-left px-4 py-2.5 hover:bg-orange-500/5 transition-all border-b border-border last:border-b-0 ${
+                value === s.id ? 'bg-orange-500/10 text-orange-400' : 'text-foreground'
+              }`}
+            >
+              <span className="text-xs font-bold">{s.full_name}</span>
+              <span className="text-[10px] text-muted-foreground ml-2">
+                {s.school_name ?? '—'}
+                {s.grade_level ? ` · ${s.grade_level}` : ''}
+                {s.parent_email ? ' · has parent' : ''}
+              </span>
+            </button>
+          ))
+        )}
+      </div>
+      {selected && (
+        <p className="text-[10px] text-orange-400 font-bold">
+          Selected: {selected.full_name}
+          {selected.school_name ? ` (${selected.school_name})` : ''}
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ── Create / Edit Modal ───────────────────────────────────────────────────────
 function ParentFormModal({
   initialData,
   students,
+  schoolFilter,
   onClose,
   onSaved,
 }: {
   initialData?: Parent | null;
   students: Student[];
+  schoolFilter: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -57,8 +135,8 @@ function ParentFormModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Filter students that don't already have a parent linked (or show all if editing)
-  const available = students.filter(s => !s.parent_email || isEdit);
+  // Only show unlinked students (or all if editing)
+  const available = useMemo(() => students.filter(s => !s.parent_email || isEdit), [students, isEdit]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,8 +182,8 @@ function ParentFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-card border border-border shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+      <div className="w-full max-w-md bg-card border border-border shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="text-sm font-black uppercase tracking-widest text-foreground">
             {isEdit ? 'Edit Parent' : 'Add Parent Account'}
           </h2>
@@ -153,21 +231,14 @@ function ParentFormModal({
 
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
-              {isEdit ? 'Link to Student (optional)' : 'Link to Student *'}
+              {isEdit ? 'Link to Additional Student (optional)' : 'Link to Student *'}
             </label>
-            <select
+            <StudentPicker
+              students={available}
               value={form.student_id}
-              onChange={e => setForm(f => ({ ...f, student_id: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
-            >
-              <option value="">— Select student —</option>
-              {available.map(s => (
-                <option key={s.id} value={s.id}>
-                  {s.full_name}{s.school_name ? ` (${s.school_name})` : ''}
-                  {s.parent_email ? ' · has parent' : ''}
-                </option>
-              ))}
-            </select>
+              onChange={id => setForm(f => ({ ...f, student_id: id }))}
+              schoolFilter={schoolFilter}
+            />
           </div>
 
           <div>
@@ -199,15 +270,17 @@ function ParentFormModal({
   );
 }
 
-// ── Link-to-student modal (quick re-link from parent card) ────────────────────
+// ── Link-to-student modal ─────────────────────────────────────────────────────
 function LinkStudentModal({
   parent,
   students,
+  schoolFilter,
   onClose,
   onSaved,
 }: {
   parent: Parent;
   students: Student[];
+  schoolFilter: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -216,7 +289,7 @@ function LinkStudentModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const available = students.filter(s => !s.parent_email);
+  const available = useMemo(() => students.filter(s => !s.parent_email), [students]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,23 +312,24 @@ function LinkStudentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-card border border-border shadow-2xl">
+      <div className="w-full max-w-sm bg-card border border-border shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Link Student</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><XMarkIcon className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <p className="text-xs text-muted-foreground">Linking to: <span className="text-foreground font-bold">{parent.full_name}</span></p>
+          <p className="text-xs text-muted-foreground">
+            Linking to: <span className="text-foreground font-bold">{parent.full_name}</span>
+          </p>
           {error && <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{error}</p>}
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Student</label>
-            <select value={studentId} onChange={e => setStudentId(e.target.value)}
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500">
-              <option value="">— Select student —</option>
-              {available.map(s => (
-                <option key={s.id} value={s.id}>{s.full_name}{s.school_name ? ` (${s.school_name})` : ''}</option>
-              ))}
-            </select>
+            <StudentPicker
+              students={available}
+              value={studentId}
+              onChange={setStudentId}
+              schoolFilter={schoolFilter}
+            />
           </div>
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Relationship</label>
@@ -285,32 +359,67 @@ export default function ParentsPage() {
   const { profile, loading: authLoading } = useAuth();
   const [parents, setParents] = useState<Parent[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [schools, setSchools] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  // School filter: admin defaults to '' (all); teacher defaults to their school_name
+  const [schoolFilter, setSchoolFilter] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<Parent | null>(null);
   const [linkTarget, setLinkTarget] = useState<Parent | null>(null);
-  const [unlinking, setUnlinking] = useState<string | null>(null); // student_id being unlinked
+  const [unlinking, setUnlinking] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+  const isAdmin = profile?.role === 'admin';
+
+  // Set default school filter for teachers
+  useEffect(() => {
+    if (profile?.role === 'teacher' && profile.school_name && !schoolFilter) {
+      setSchoolFilter(profile.school_name);
+    }
+  }, [profile]);
 
   const load = useCallback(async () => {
     if (!isStaff) return;
     setLoading(true);
     try {
-      const [parRes, stuRes] = await Promise.all([
-        fetch(`/api/parents/manage${search ? `?search=${encodeURIComponent(search)}` : ''}`, { cache: 'no-store' }),
-        createClient().from('students').select('id, full_name, school_name, parent_email').limit(500),
-      ]);
+      const supabase = createClient();
+
+      // Build parent search URL
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      if (schoolFilter) params.set('school', schoolFilter);
+      const parRes = await fetch(`/api/parents/manage${params.toString() ? '?' + params : ''}`, { cache: 'no-store' });
       const parJson = await parRes.json();
       setParents(parJson.data ?? []);
-      setStudents((stuRes.data ?? []) as Student[]);
+
+      // Fetch students scoped by school for teachers; all for admins
+      let stuQuery = supabase
+        .from('students')
+        .select('id, full_name, school_name, parent_email, grade_level')
+        .order('full_name');
+
+      if (!isAdmin && profile?.school_name) {
+        stuQuery = stuQuery.eq('school_name', profile.school_name);
+      } else {
+        stuQuery = stuQuery.limit(1000);
+      }
+
+      const { data: stuData } = await stuQuery;
+      const stuList = (stuData ?? []) as Student[];
+      setStudents(stuList);
+
+      // Derive unique school names for filter dropdown (admin only)
+      if (isAdmin) {
+        const names = Array.from(new Set(stuList.map(s => s.school_name).filter(Boolean) as string[])).sort();
+        setSchools(names);
+      }
     } catch { /* ignore */ } finally {
       setLoading(false);
     }
-  }, [isStaff, search]);
+  }, [isStaff, isAdmin, search, schoolFilter, profile?.school_name]);
 
   useEffect(() => { if (!authLoading) load(); }, [authLoading, load]);
 
@@ -370,16 +479,45 @@ export default function ParentsPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && load()}
-          placeholder="Search by name or email…"
-          className="w-full pl-10 pr-4 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
-        />
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && load()}
+            placeholder="Search by name or email…"
+            className="w-full pl-10 pr-4 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+          />
+        </div>
+
+        {/* School filter — admin sees all schools; teacher sees their own school locked */}
+        <div className="relative">
+          <BuildingOfficeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          {isAdmin ? (
+            <select
+              value={schoolFilter}
+              onChange={e => setSchoolFilter(e.target.value)}
+              className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[200px]"
+            >
+              <option value="">All Schools</option>
+              {schools.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          ) : (
+            <div className="pl-9 pr-4 py-2.5 bg-card border border-border text-sm text-foreground min-w-[200px] flex items-center">
+              <span className="text-muted-foreground">{profile?.school_name ?? 'Your School'}</span>
+              <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-orange-500 border border-orange-500/30 px-1.5 py-0.5">Locked</span>
+            </div>
+          )}
+        </div>
+
+        {schoolFilter && isAdmin && (
+          <button onClick={() => setSchoolFilter('')}
+            className="flex items-center gap-1.5 px-3 py-2.5 border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <XMarkIcon className="w-3.5 h-3.5" /> Clear
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -398,6 +536,14 @@ export default function ParentsPage() {
         </div>
       </div>
 
+      {/* School context banner for teachers */}
+      {!isAdmin && profile?.school_name && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-orange-500/5 border border-orange-500/20 text-xs text-orange-400">
+          <BuildingOfficeIcon className="w-4 h-4" />
+          Showing parents and students for: <span className="font-black">{profile.school_name}</span>
+        </div>
+      )}
+
       {/* List */}
       {loading ? (
         <div className="space-y-3">
@@ -409,7 +555,9 @@ export default function ParentsPage() {
         <div className="bg-card border border-border p-12 text-center">
           <HeartIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-black text-foreground uppercase tracking-wider">No parent accounts found</p>
-          <p className="text-xs text-muted-foreground mt-1">Click "Add Parent" to create one.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {search || schoolFilter ? 'Try adjusting your filters.' : 'Click "Add Parent" to create one.'}
+          </p>
         </div>
       ) : (
         <div className="bg-card border border-border divide-y divide-border">
@@ -512,7 +660,7 @@ export default function ParentsPage() {
                       className="flex items-center gap-2 px-4 py-2 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-400 hover:border-orange-500 hover:text-orange-300 transition-all">
                       <LinkIcon className="w-3.5 h-3.5" /> Link Student
                     </button>
-                    {profile?.role === 'admin' && (
+                    {isAdmin && (
                       <button
                         onClick={() => handleToggleActive(parent)}
                         disabled={toggling === parent.id}
@@ -542,6 +690,7 @@ export default function ParentsPage() {
         <ParentFormModal
           initialData={editTarget}
           students={students}
+          schoolFilter={schoolFilter}
           onClose={() => { setShowForm(false); setEditTarget(null); }}
           onSaved={load}
         />
@@ -550,6 +699,7 @@ export default function ParentsPage() {
         <LinkStudentModal
           parent={linkTarget}
           students={students}
+          schoolFilter={schoolFilter}
           onClose={() => setLinkTarget(null)}
           onSaved={load}
         />
