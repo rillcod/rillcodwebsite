@@ -16,7 +16,7 @@ import {
   TrophyIcon, ShieldCheckIcon, CodeBracketIcon, RocketLaunchIcon,
   CalendarDaysIcon, BanknotesIcon, VideoCameraIcon, UserPlusIcon,
   TrashIcon, SunIcon, MoonIcon, FireIcon, ArchiveBoxIcon, CommandLineIcon,
-  CreditCardIcon
+  CreditCardIcon, ChatBubbleLeftEllipsisIcon,
 } from '@/lib/icons';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -98,6 +98,7 @@ export default function DashboardNavigation() {
           { name: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Parents', href: '/dashboard/parents', icon: UserPlusIcon },
+          { name: 'Parent Feedback', href: '/dashboard/parent-feedback', icon: ChatBubbleLeftEllipsisIcon },
           { name: 'Register Students', href: '/dashboard/students/bulk-register', icon: UserPlusIcon },
           { name: 'Enrol Students', href: '/dashboard/students/bulk-enroll', icon: AcademicCapIcon },
           { name: 'Wipe Students', href: '/dashboard/students/bulk-delete', icon: TrashIcon },
@@ -231,6 +232,8 @@ export default function DashboardNavigation() {
           { name: 'Certificates', href: '/dashboard/parent-certificates', icon: TrophyIcon },
           { divider: true, label: 'Finance' },
           { name: 'Invoices & Payments', href: '/dashboard/parent-invoices', icon: BanknotesIcon },
+          { divider: true, label: 'Community' },
+          { name: 'Share Feedback', href: '/dashboard/parent-feedback', icon: ChatBubbleLeftEllipsisIcon },
           { divider: true, label: 'More' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
