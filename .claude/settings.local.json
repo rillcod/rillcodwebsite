@@ -72,7 +72,28 @@
       "Bash(node -e \"console.log\\(require\\(''./node_modules/babel-preset-expo/package.json''\\).version\\)\")",
       "Bash(dir \"C:\\\\Users\\\\USER\\\\.gradle\\\\wrapper\\\\dists\\\\gradle-9.3.1-bin\")",
       "Bash(dir \"C:\\\\Users\\\\USER\\\\.gradle\\\\wrapper\\\\dists\\\\gradle-9.0.0-bin\\\\d6wjpkvcgsg3oed0qlfss3wgl\")",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(tasklist /FI 'IMAGENAME eq node.exe')",
+      "Bash(java -version)",
+      "Bash(\"C:/Program Files/Android/Android Studio/jbr/bin/java\" -version 2>&1)",
+      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew.bat app:assembleDebug -x lint -x test --configure-on-demand --build-cache -PreactNativeDevServerPort=8081)",
+      "Bash(echo \"checking JAVA_HOME=$JAVA_HOME\")",
+      "Bash(reg add:*)",
+      "Bash(powershell -Command \"Set-ItemProperty -Path 'HKLM:\\\\\\\\System\\\\\\\\CurrentControlSet\\\\\\\\Control\\\\\\\\FileSystem' -Name 'LongPathsEnabled' -Value 1\" 2>&1)",
+      "Bash(cmd /c \"mklink /J C:\\\\RM C:\\\\Users\\\\USER\\\\Downloads\\\\rillcod-academy-main\\\\rillcod-mobile\" 2>&1)",
+      "Bash(powershell -Command \"New-Item -ItemType Junction -Path 'C:\\\\RM' -Target 'C:\\\\Users\\\\USER\\\\Downloads\\\\rillcod-academy-main\\\\rillcod-mobile'\" 2>&1)",
+      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew.bat --stop)",
+      "Bash(tasklist /FI 'IMAGENAME eq java.exe')",
+      "Bash(powershell -Command \"Get-Process | Where-Object { \\\\$_.Name -like '*java*' -or \\\\$_.Name -like '*gradle*' }\" 2>&1)",
+      "Bash(powershell -Command \"Remove-Item -Recurse -Force 'C:\\\\rn' -ErrorAction SilentlyContinue; Write-Host 'done'\" 2>&1)",
+      "Bash(powershell -Command \"Remove-Item -Recurse -Force 'C:\\\\Users\\\\USER\\\\Downloads\\\\rillcod-academy-main\\\\rillcod-mobile\\\\android' -ErrorAction Stop; Write-Host 'Deleted'\" 2>&1)",
+      "Bash(powershell -Command \"Get-Process | Where-Object { \\\\$_.CPU -gt 0 } | Sort-Object CPU -Descending | Select-Object -First 10 Name, Id, CPU\" 2>&1)",
+      "Bash(xcopy \"C:\\\\Users\\\\USER\\\\Downloads\\\\rillcod-academy-main\\\\rillcod-mobile\" \"C:\\\\rillcod\" /E /I /H /Y)",
+      "Bash(cmd /c \"xcopy C:\\\\Users\\\\USER\\\\Downloads\\\\rillcod-academy-main\\\\rillcod-mobile C:\\\\rillcod /E /I /H /Y\")",
+      "Bash(cmd /c \"xcopy C:\\\\Users\\\\USER\\\\Downloads\\\\rillcod-academy-main\\\\rillcod-mobile C:\\\\rillcod /E /I /H /Y 2>&1\")",
+      "Bash(powershell -Command \"Copy-Item -Path ''C:\\\\Users\\\\USER\\\\Downloads\\\\rillcod-academy-main\\\\rillcod-mobile'' -Destination ''C:\\\\rillcod'' -Recurse -Force\")",
+      "Bash(echo \"exit:$?\")",
+      "Bash(powershell -Command \"[System.Environment]::SetEnvironmentVariable\\(''JAVA_HOME'', ''C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr'', ''Machine''\\); [System.Environment]::SetEnvironmentVariable\\(''Path'', [System.Environment]::GetEnvironmentVariable\\(''Path'',''Machine''\\) + '';C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\\\\bin'', ''Machine''\\)\")"
     ]
   }
 }
