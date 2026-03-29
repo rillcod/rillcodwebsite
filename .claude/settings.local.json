@@ -93,7 +93,20 @@
       "Bash(cmd /c \"xcopy C:\\\\Users\\\\USER\\\\Downloads\\\\rillcod-academy-main\\\\rillcod-mobile C:\\\\rillcod /E /I /H /Y 2>&1\")",
       "Bash(powershell -Command \"Copy-Item -Path ''C:\\\\Users\\\\USER\\\\Downloads\\\\rillcod-academy-main\\\\rillcod-mobile'' -Destination ''C:\\\\rillcod'' -Recurse -Force\")",
       "Bash(echo \"exit:$?\")",
-      "Bash(powershell -Command \"[System.Environment]::SetEnvironmentVariable\\(''JAVA_HOME'', ''C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr'', ''Machine''\\); [System.Environment]::SetEnvironmentVariable\\(''Path'', [System.Environment]::GetEnvironmentVariable\\(''Path'',''Machine''\\) + '';C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\\\\bin'', ''Machine''\\)\")"
+      "Bash(powershell -Command \"[System.Environment]::SetEnvironmentVariable\\(''JAVA_HOME'', ''C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr'', ''Machine''\\); [System.Environment]::SetEnvironmentVariable\\(''Path'', [System.Environment]::GetEnvironmentVariable\\(''Path'',''Machine''\\) + '';C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\\\\bin'', ''Machine''\\)\")",
+      "Bash(eas build:*)",
+      "Bash(eas:*)",
+      "WebFetch(domain:expo.dev)",
+      "Bash(npx eas-cli:*)",
+      "WebFetch(domain:job-logs.eascdn.net)",
+      "Bash(keytool:*)",
+      "Bash(.gradlew assembleRelease)",
+      "Bash(cmd /c \"cd /d C:\\\\rillcod\\\\android && gradlew.bat assembleRelease\" 2>&1)",
+      "Bash(powershell -Command \"Set-Location 'C:\\\\rillcod\\\\android'; .\\\\gradlew.bat assembleRelease\" 2>&1)",
+      "Bash(powershell -Command \"Get-Process -Name ''java'' -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(powershell -Command \"Set-Location ''C:\\\\rillcod\\\\android''; .\\\\gradlew.bat assembleRelease\")",
+      "Bash(powershell -Command \"Set-Location 'C:\\\\rillcod\\\\android'; .\\\\gradlew.bat ':react-native-screens:configureCMakeRelWithDebInfo' --stacktrace 2>&1 | Select-Object -Last 60\" 2>&1)",
+      "Bash(powershell -Command \"Set-Location ''C:\\\\rillcod\\\\android''; .\\\\gradlew.bat --stop\")"
     ]
   }
 }

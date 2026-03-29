@@ -486,18 +486,14 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
       .neq('is_deleted', true);
 
     if (schoolId) {
-      // If schoolId is provided, we only want teachers who are assigned to THIS school
-      // This requires a join filter or we fetch all and filter in JS for simplicity if the list is small.
-      // But let's try to do it via query if possible.
-      // Actually, filtered by relationship is tricky in one go without 'inner' join.
-      // Let's use simple approach: fetch teachers assigned to this school first.
+      // Fetch teachers assigned via teacher_schools junction table
       const { data: assignments } = await db.from('teacher_schools').select('teacher_id').eq('school_id', schoolId);
-      const tIds = assignments?.map(a => a.teacher_id) || [];
+      const tIds = (assignments ?? []).map((a: any) => a.teacher_id).filter(Boolean);
+      // Also include teachers whose school_id is directly set on portal_users
       if (tIds.length > 0) {
-          query = query.in('id', tIds);
+        query = query.or(`id.in.(${tIds.join(',')}),school_id.eq.${schoolId}`);
       } else {
-          // No teachers assigned
-          query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+        query = query.eq('school_id', schoolId);
       }
     }
 

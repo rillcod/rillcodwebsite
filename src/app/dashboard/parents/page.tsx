@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import {
   UserGroupIcon, MagnifyingGlassIcon, PlusIcon, XMarkIcon,
   EnvelopeIcon, PhoneIcon, UserIcon, AcademicCapIcon, CheckCircleIcon,
   XCircleIcon, PencilSquareIcon, ArrowPathIcon, LinkIcon, HeartIcon,
   ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon, EyeIcon, EyeSlashIcon,
-  ClipboardIcon, KeyIcon,
+  ClipboardIcon, KeyIcon, PrinterIcon, ArrowUpTrayIcon, CreditCardIcon,
 } from '@/lib/icons';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -494,6 +494,451 @@ function LinkStudentModal({
   );
 }
 
+// ── Print Registry Modal ─────────────────────────────────────────────────────
+function PrintRegistryModal({ parents, schoolFilter, onClose }: {
+  parents: Parent[];
+  schoolFilter: string;
+  onClose: () => void;
+}) {
+  const filtered = schoolFilter ? parents.filter(p =>
+    p.children.some(c => c.school_name === schoolFilter)
+  ) : parents;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-white text-black print:bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
+      {/* Screen-only header bar */}
+      <div className="print:hidden flex items-center justify-between px-6 py-4 bg-gray-100 border-b border-gray-200">
+        <h2 className="text-sm font-black uppercase tracking-widest">Parent Registry</h2>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white text-xs font-black uppercase tracking-widest"
+          >
+            <PrinterIcon className="w-4 h-4" /> Print
+          </button>
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 transition-colors">
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="p-8 max-w-5xl mx-auto">
+        {/* Print header */}
+        <div className="mb-6 pb-4 border-b-2 border-gray-800">
+          <h1 className="text-2xl font-black uppercase tracking-widest">Parent Registry</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            {schoolFilter ? `School: ${schoolFilter} · ` : ''}
+            {filtered.length} parent{filtered.length !== 1 ? 's' : ''} ·
+            Printed: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+          </p>
+        </div>
+
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #1f2937' }}>
+              <th style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px' }}>#</th>
+              <th style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px' }}>Parent Name</th>
+              <th style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px' }}>Email</th>
+              <th style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px' }}>Phone</th>
+              <th style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px' }}>Linked Children</th>
+              <th style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px' }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((parent, idx) => (
+              <tr key={parent.id} style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: idx % 2 === 0 ? '#f9fafb' : 'white' }}>
+                <td style={{ padding: '8px 6px', color: '#6b7280' }}>{idx + 1}</td>
+                <td style={{ padding: '8px 6px', fontWeight: 700 }}>{parent.full_name}</td>
+                <td style={{ padding: '8px 6px', color: '#374151' }}>{parent.email}</td>
+                <td style={{ padding: '8px 6px', color: '#374151' }}>{parent.phone ?? '—'}</td>
+                <td style={{ padding: '8px 6px', color: '#374151' }}>
+                  {parent.children.length > 0
+                    ? parent.children.map(c => c.full_name).join(', ')
+                    : '—'}
+                </td>
+                <td style={{ padding: '8px 6px' }}>
+                  <span style={{
+                    fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em',
+                    padding: '2px 6px', border: `1px solid ${parent.is_active ? '#059669' : '#dc2626'}`,
+                    color: parent.is_active ? '#059669' : '#dc2626',
+                  }}>
+                    {parent.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div style={{ marginTop: '32px', paddingTop: '12px', borderTop: '1px solid #e5e7eb', fontSize: '10px', color: '#9ca3af' }}>
+          Rillcod Technologies · Parent Registry · Generated {new Date().toISOString().slice(0, 10)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Bulk Import Modal ─────────────────────────────────────────────────────────
+interface ImportRow { full_name: string; email: string; phone: string; student_name: string; relationship: string }
+
+function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [step, setStep] = useState<'upload' | 'preview' | 'results'>('upload');
+  const [rows, setRows] = useState<ImportRow[]>([]);
+  const [results, setResults] = useState<any[]>([]);
+  const [summary, setSummary] = useState<{ created: number; skipped: number; errors: number } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const parseCSV = (text: string): ImportRow[] => {
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row.');
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, '').replace(/ /g, '_'));
+    return lines.slice(1).map(line => {
+      const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+      const get = (keys: string[]) => {
+        for (const k of keys) {
+          const idx = headers.indexOf(k);
+          if (idx >= 0 && cols[idx]) return cols[idx];
+        }
+        return '';
+      };
+      return {
+        full_name: get(['full_name', 'name', 'parent_name']),
+        email: get(['email', 'parent_email']),
+        phone: get(['phone', 'phone_number', 'mobile']),
+        student_name: get(['student_name', 'child_name', 'child']),
+        relationship: get(['relationship', 'relation']) || 'Guardian',
+      };
+    }).filter(r => r.email || r.full_name);
+  };
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setParseError(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = parseCSV(ev.target?.result as string);
+        if (parsed.length === 0) throw new Error('No valid rows found.');
+        setRows(parsed);
+        setStep('preview');
+      } catch (err: any) {
+        setParseError(err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImport = async () => {
+    setImporting(true);
+    try {
+      const res = await fetch('/api/parents/bulk-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setResults(json.results ?? []);
+      setSummary(json.summary);
+      setStep('results');
+      onDone();
+    } catch (err: any) {
+      setParseError(err.message ?? 'Import failed');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const csv = 'full_name,email,phone,student_name,relationship\nJohn Doe,john@example.com,+234 801 234 5678,Jane Doe,Father\nMary Smith,mary@example.com,,Tom Smith,Mother';
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'parent-import-template.csv'; a.click();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-2xl bg-card border border-border shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
+          <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Bulk Import Parents</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Step: Upload */}
+          {step === 'upload' && (
+            <div className="space-y-4">
+              <div className="bg-orange-500/5 border border-orange-500/20 p-4 space-y-2">
+                <p className="text-xs font-black text-orange-400 uppercase tracking-widest">CSV Format</p>
+                <p className="text-xs text-muted-foreground">
+                  Columns: <code className="bg-muted px-1 text-foreground text-[11px]">full_name</code>,{' '}
+                  <code className="bg-muted px-1 text-foreground text-[11px]">email</code>,{' '}
+                  <code className="bg-muted px-1 text-foreground text-[11px]">phone</code> (optional),{' '}
+                  <code className="bg-muted px-1 text-foreground text-[11px]">student_name</code> (optional),{' '}
+                  <code className="bg-muted px-1 text-foreground text-[11px]">relationship</code> (optional)
+                </p>
+                <button onClick={downloadTemplate}
+                  className="text-[10px] font-black uppercase tracking-widest text-orange-400 hover:text-orange-300 transition-colors underline underline-offset-2">
+                  Download Template CSV
+                </button>
+              </div>
+
+              {parseError && (
+                <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{parseError}</p>
+              )}
+
+              <div
+                onClick={() => fileRef.current?.click()}
+                className="border-2 border-dashed border-border hover:border-orange-500/50 p-10 text-center cursor-pointer transition-all group"
+              >
+                <ArrowUpTrayIcon className="w-8 h-8 text-muted-foreground mx-auto mb-3 group-hover:text-orange-400 transition-colors" />
+                <p className="text-sm font-black text-foreground uppercase tracking-wider">Click to upload CSV</p>
+                <p className="text-xs text-muted-foreground mt-1">Max 200 rows per import</p>
+                <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
+              </div>
+            </div>
+          )}
+
+          {/* Step: Preview */}
+          {step === 'preview' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-black text-foreground uppercase tracking-widest">
+                  Preview — {rows.length} row{rows.length !== 1 ? 's' : ''}
+                </p>
+                <button onClick={() => { setStep('upload'); setRows([]); if (fileRef.current) fileRef.current.value = ''; }}
+                  className="text-[10px] text-muted-foreground hover:text-foreground underline transition-colors">
+                  ← Back
+                </button>
+              </div>
+
+              <div className="border border-border overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted">
+                    <tr>
+                      {['Name', 'Email', 'Phone', 'Student', 'Relationship'].map(h => (
+                        <th key={h} className="text-left px-3 py-2 text-[9px] font-black uppercase tracking-widest text-muted-foreground">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {rows.slice(0, 20).map((row, i) => (
+                      <tr key={i} className="hover:bg-white/5">
+                        <td className="px-3 py-2 text-foreground font-medium">{row.full_name || <span className="text-rose-400">Missing</span>}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{row.email || <span className="text-rose-400">Missing</span>}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{row.phone || '—'}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{row.student_name || '—'}</td>
+                        <td className="px-3 py-2 text-muted-foreground">{row.relationship}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {rows.length > 20 && (
+                  <p className="text-[10px] text-muted-foreground text-center py-2">…and {rows.length - 20} more rows</p>
+                )}
+              </div>
+
+              {parseError && (
+                <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{parseError}</p>
+              )}
+
+              <div className="flex gap-3">
+                <button onClick={onClose}
+                  className="flex-1 px-4 py-2.5 border border-border text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
+                  Cancel
+                </button>
+                <button onClick={handleImport} disabled={importing}
+                  className="flex-1 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest transition-all">
+                  {importing ? 'Importing…' : `Import ${rows.length} Parent${rows.length !== 1 ? 's' : ''}`}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step: Results */}
+          {step === 'results' && summary && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-emerald-500/5 border border-emerald-500/20 p-4 text-center">
+                  <p className="text-2xl font-black text-emerald-400">{summary.created}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-1">Created</p>
+                </div>
+                <div className="bg-amber-500/5 border border-amber-500/20 p-4 text-center">
+                  <p className="text-2xl font-black text-amber-400">{summary.skipped}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-1">Skipped</p>
+                </div>
+                <div className="bg-rose-500/5 border border-rose-500/20 p-4 text-center">
+                  <p className="text-2xl font-black text-rose-400">{summary.errors}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-1">Errors</p>
+                </div>
+              </div>
+
+              {/* Credentials for created accounts */}
+              {results.filter(r => r.status === 'created' && r.password).length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-orange-400">
+                    New Account Credentials — Save These Now
+                  </p>
+                  <div className="border border-border max-h-48 overflow-y-auto divide-y divide-border">
+                    {results.filter(r => r.status === 'created').map((r, i) => (
+                      <div key={i} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-bold text-foreground">{r.email}</p>
+                          <p className="text-[11px] text-orange-300 font-mono">{r.password}</p>
+                        </div>
+                        <CopyButton value={`${r.email} / ${r.password}`} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {results.filter(r => r.status === 'error').length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-rose-400">Errors</p>
+                  {results.filter(r => r.status === 'error').map((r, i) => (
+                    <p key={i} className="text-xs text-rose-400">{r.email}: {r.message}</p>
+                  ))}
+                </div>
+              )}
+
+              <button onClick={onClose}
+                className="w-full px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-black uppercase tracking-widest transition-all">
+                Done
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Access Cards Modal ────────────────────────────────────────────────────────
+function AccessCardsModal({ parents, schoolFilter, onClose }: {
+  parents: Parent[];
+  schoolFilter: string;
+  onClose: () => void;
+}) {
+  const filtered = schoolFilter
+    ? parents.filter(p => p.children.some(c => c.school_name === schoolFilter))
+    : parents;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-white text-black" style={{ fontFamily: 'Arial, sans-serif' }}>
+      {/* Screen bar */}
+      <div className="print:hidden flex items-center justify-between px-6 py-4 bg-gray-100 border-b border-gray-200">
+        <h2 className="text-sm font-black uppercase tracking-widest">Parent Access Cards</h2>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-gray-500">{filtered.length} cards · Print on A4, cut along dotted lines</p>
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white text-xs font-black uppercase tracking-widest"
+          >
+            <PrinterIcon className="w-4 h-4" /> Print Cards
+          </button>
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 transition-colors">
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="p-6">
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: '16px',
+          maxWidth: '800px',
+          margin: '0 auto',
+        }}>
+          {filtered.map(parent => {
+            const initials = parent.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+            const childrenText = parent.children.map(c => c.full_name).join(', ') || 'No children linked';
+            const school = parent.children[0]?.school_name ?? schoolFilter ?? 'Rillcod Academy';
+
+            return (
+              <div key={parent.id} style={{
+                border: '1px dashed #d1d5db',
+                borderRadius: '0px',
+                overflow: 'hidden',
+                background: 'white',
+                breakInside: 'avoid',
+              }}>
+                {/* Card header */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #c2410c, #ea580c)',
+                  padding: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                }}>
+                  <div style={{
+                    width: '44px', height: '44px',
+                    background: 'rgba(255,255,255,0.2)',
+                    borderRadius: '0px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '18px', fontWeight: 900, color: 'white',
+                    flexShrink: 0,
+                  }}>
+                    {initials}
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '14px', fontWeight: 900, color: 'white', margin: 0 }}>{parent.full_name}</p>
+                    <p style={{ fontSize: '9px', fontWeight: 900, color: 'rgba(255,255,255,0.8)', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                      Parent / Guardian
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card body */}
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb' }}>
+                  <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ color: '#6b7280', padding: '3px 0', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', width: '80px' }}>School</td>
+                        <td style={{ color: '#1f2937', padding: '3px 0', fontWeight: 600 }}>{school}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ color: '#6b7280', padding: '3px 0', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</td>
+                        <td style={{ color: '#1f2937', padding: '3px 0', fontSize: '10px' }}>{parent.email}</td>
+                      </tr>
+                      {parent.phone && (
+                        <tr>
+                          <td style={{ color: '#6b7280', padding: '3px 0', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phone</td>
+                          <td style={{ color: '#1f2937', padding: '3px 0' }}>{parent.phone}</td>
+                        </tr>
+                      )}
+                      <tr>
+                        <td style={{ color: '#6b7280', padding: '3px 0', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', verticalAlign: 'top' }}>Children</td>
+                        <td style={{ color: '#1f2937', padding: '3px 0', fontSize: '10px' }}>{childrenText}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Card footer */}
+                <div style={{ padding: '8px 16px', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <p style={{ fontSize: '9px', color: '#9ca3af', margin: 0, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Rillcod Technologies
+                  </p>
+                  <p style={{ fontSize: '9px', color: '#9ca3af', margin: 0 }}>
+                    {parent.is_active ? '✓ Active Account' : '✗ Inactive'}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ParentsPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -510,6 +955,9 @@ export default function ParentsPage() {
   const [linkTarget, setLinkTarget] = useState<Parent | null>(null);
   const [unlinking, setUnlinking] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [showPrintRegistry, setShowPrintRegistry] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [showAccessCards, setShowAccessCards] = useState(false);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const isAdmin = profile?.role === 'admin';
@@ -599,11 +1047,31 @@ export default function ParentsPage() {
             Manage parent accounts and their links to students.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => load()}
-            className="p-2 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground transition-all">
+            className="p-2 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground transition-all" title="Refresh">
             <ArrowPathIcon className="w-4 h-4" />
           </button>
+          <button
+            onClick={() => setShowPrintRegistry(true)}
+            className="flex items-center gap-2 px-3 py-2.5 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest transition-all" title="Print Registry">
+            <PrinterIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">Registry</span>
+          </button>
+          <button
+            onClick={() => setShowAccessCards(true)}
+            className="flex items-center gap-2 px-3 py-2.5 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest transition-all" title="Access Cards">
+            <CreditCardIcon className="w-4 h-4" />
+            <span className="hidden sm:inline">Cards</span>
+          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setShowBulkImport(true)}
+              className="flex items-center gap-2 px-3 py-2.5 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest transition-all" title="Bulk Import">
+              <ArrowUpTrayIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Import</span>
+            </button>
+          )}
           <button
             onClick={() => { setEditTarget(null); setShowForm(true); }}
             className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-black uppercase tracking-widest transition-all">
@@ -837,6 +1305,26 @@ export default function ParentsPage() {
           defaultSchool={!isAdmin ? (profile?.school_name ?? '') : schoolFilter}
           onClose={() => setLinkTarget(null)}
           onSaved={load}
+        />
+      )}
+      {showPrintRegistry && (
+        <PrintRegistryModal
+          parents={parents}
+          schoolFilter={schoolFilter}
+          onClose={() => setShowPrintRegistry(false)}
+        />
+      )}
+      {showBulkImport && (
+        <BulkImportModal
+          onClose={() => setShowBulkImport(false)}
+          onDone={load}
+        />
+      )}
+      {showAccessCards && (
+        <AccessCardsModal
+          parents={parents}
+          schoolFilter={schoolFilter}
+          onClose={() => setShowAccessCards(false)}
         />
       )}
     </div>

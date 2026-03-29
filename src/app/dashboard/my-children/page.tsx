@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   AcademicCapIcon, DocumentChartBarIcon, ClipboardDocumentCheckIcon,
   ClipboardDocumentListIcon, BanknotesIcon, TrophyIcon,
-  BuildingOfficeIcon, UserIcon, ArrowRightIcon,
+  BuildingOfficeIcon, UserIcon, ArrowRightIcon, HeartIcon,
 } from '@/lib/icons';
 
 interface Child {
@@ -68,11 +68,13 @@ export default function MyChildrenPage() {
         const stats: Record<string, ChildStats> = {};
         await Promise.all(kids.map(async (child) => {
           const [attRes, invRes, certRes] = await Promise.all([
-            supabase
-              .from('attendance')
-              .select('status')
-              .eq('student_id', child.id)
-              .limit(60),
+            child.user_id
+              ? supabase
+                  .from('attendance')
+                  .select('status')
+                  .eq('user_id', child.user_id)
+                  .limit(60)
+              : Promise.resolve({ data: [] }),
             child.user_id
               ? supabase
                   .from('invoices')
@@ -128,9 +130,40 @@ export default function MyChildrenPage() {
 
   return (
     <div className="space-y-6">
+      {/* Welcome hero */}
+      <div className="relative bg-card border border-border overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 via-transparent to-transparent pointer-events-none" />
+        <div className="relative px-6 py-6 flex items-start gap-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center flex-shrink-0 shadow-lg">
+            <HeartIcon className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-foreground tracking-tight">
+              Welcome, {profile.full_name?.split(' ')[0] ?? 'Parent'}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1 max-w-lg">
+              You are an essential part of your child's learning journey. Your involvement, encouragement,
+              and support make a real difference in their success at Rillcod Academy.
+            </p>
+            <div className="flex flex-wrap gap-4 mt-4">
+              {[
+                { label: 'Children Enrolled', value: children.length },
+                { label: 'Average Attendance', value: (() => { const p = Object.values(statsMap).filter(s => s.attendancePct != null); return p.length > 0 ? `${Math.round(p.reduce((a, s) => a + (s.attendancePct ?? 0), 0) / p.length)}%` : '—'; })() },
+                { label: 'Unpaid Invoices', value: Object.values(statsMap).reduce((a, s) => a + s.unpaidInvoices, 0) },
+              ].map(({ label, value }) => (
+                <div key={label} className="text-center min-w-[80px]">
+                  <p className="text-xl font-black text-orange-400">{value}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div>
-        <h1 className="text-2xl font-black text-foreground tracking-tight">My Children</h1>
-        <p className="text-sm text-muted-foreground mt-1">All children linked to your parent account.</p>
+        <h2 className="text-base font-black text-foreground tracking-tight">My Children</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">All children linked to your parent account.</p>
       </div>
 
       {loading && (

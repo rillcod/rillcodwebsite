@@ -51,13 +51,25 @@ function ParentAttendanceContent() {
     if (!selectedId) return;
     setLoadingRecords(true);
     const supabase = createClient();
+
+    // First resolve the portal user_id for this student record
     supabase
-      .from('attendance')
-      .select('id, status, notes, created_at, class_sessions(session_date, topic, classes(name))')
-      .eq('student_id', selectedId)
-      .order('created_at', { ascending: false })
-      .limit(60)
-      .then(({ data }) => {
+      .from('students')
+      .select('user_id')
+      .eq('id', selectedId)
+      .maybeSingle()
+      .then(async ({ data: student }) => {
+        if (!student?.user_id) {
+          setRecords([]);
+          setLoadingRecords(false);
+          return;
+        }
+        const { data } = await supabase
+          .from('attendance')
+          .select('id, status, notes, created_at, class_sessions(session_date, topic, classes(name))')
+          .eq('user_id', student.user_id)
+          .order('created_at', { ascending: false })
+          .limit(60);
         setRecords((data ?? []).map((r: any) => ({
           id: r.id,
           date: r.class_sessions?.session_date ?? r.created_at?.slice(0, 10) ?? '',
