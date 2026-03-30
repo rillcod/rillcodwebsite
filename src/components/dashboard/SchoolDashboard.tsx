@@ -193,7 +193,6 @@ export default function SchoolDashboard({ profile, stats, activities, upcomingSl
                 { label: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
                 { label: 'Grades', href: '/dashboard/grades', icon: TrophyIcon },
                 { label: 'Reports', href: '/dashboard/results', icon: DocumentTextIcon },
-                { label: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-none text-sm text-muted-foreground hover:bg-card hover:text-foreground transition-all group">

@@ -50,22 +50,8 @@ export async function GET(_request: NextRequest) {
     }
 
     if (caller.role === 'teacher') {
-      // Get all school_ids for this teacher from teacher_schools junction table
-      const { data: ts } = await admin
-        .from('teacher_schools')
-        .select('school_id')
-        .eq('teacher_id', caller.id);
-      const schoolIds: string[] = (ts ?? []).map((r: any) => r.school_id).filter(Boolean);
-      if (caller.school_id && !schoolIds.includes(caller.school_id)) {
-        schoolIds.push(caller.school_id);
-      }
-
-      if (schoolIds.length > 0) {
-        // Classes where teacher is assigned OR school is in teacher's schools
-        query = query.or(`teacher_id.eq.${caller.id},school_id.in.(${schoolIds.join(',')})`) as any;
-      } else {
-        query = query.eq('teacher_id', caller.id) as any;
-      }
+      // Only show classes assigned to this specific teacher
+      query = query.eq('teacher_id', caller.id) as any;
     } else if (caller.role === 'school') {
       const sid = caller.school_id;
       if (sid) query = query.eq('school_id', sid) as any;

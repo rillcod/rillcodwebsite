@@ -214,6 +214,7 @@ export default function PaymentsPage() {
 
   // School Invoice Builder state
   const [showSchoolInvoice, setShowSchoolInvoice] = useState(false);
+  const [editingSchoolInvId, setEditingSchoolInvId] = useState<string | null>(null);
   const [schoolInvForm, setSchoolInvForm] = useState({
     school_id: '',
     pricing_mode: 'per_student' as 'per_student' | 'fixed_package',
@@ -404,6 +405,7 @@ export default function PaymentsPage() {
         show_revenue_share: true,
         show_whatsapp_option: true,
       });
+      setEditingSchoolInvId(inv.id);
       setShowSchoolInvoice(true);
       setShowReceiptBuilder(false);
       // Scroll to top of payments tab where the builder lives
@@ -775,9 +777,7 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
         ? [{ description: `STEM Programme — School Package (All Students) · Fixed Pricing`, quantity: 1, unit_price: subtotal, total: subtotal }]
         : [{ description: `STEM / AI / Coding Programme — ${sch2.name}`, quantity: count, unit_price: ratePerChild, total: subtotal }];
       const dueISO = schoolInvForm.due_date || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
-      db.from('invoices').insert({
-        invoice_number: docRef,
-        school_id: schoolInvForm.school_id,
+      const invPayload = {
         amount: balance,
         currency: 'NGN',
         status: 'sent',
@@ -791,7 +791,16 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
           ...(deposit > 0 ? [{ description: `Less Previous Deposit / Payment`, quantity: 1, unit_price: -deposit, total: -deposit }] : [])
         ],
         notes: schoolInvForm.notes || null,
-      }).then(() => { loadTransactions(); }, () => {/* silent */});
+      };
+
+      const dbOp = editingSchoolInvId
+        ? db.from('invoices').update(invPayload).eq('id', editingSchoolInvId)
+        : db.from('invoices').insert({ ...invPayload, invoice_number: docRef, school_id: schoolInvForm.school_id });
+
+      dbOp.then(() => {
+        setEditingSchoolInvId(null);
+        loadTransactions();
+      }, () => {/* silent */});
     }
   }
 
@@ -1540,7 +1549,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
               <div className="flex items-center gap-2 flex-wrap">
                 {isAdmin && schools.length > 0 && (
                   <button
-                    onClick={() => { setShowSchoolInvoice(v => !v); setShowReceiptBuilder(false); }}
+                    onClick={() => { setShowSchoolInvoice(v => !v); setShowReceiptBuilder(false); if (showSchoolInvoice) setEditingSchoolInvId(null); }}
                     className={`px-5 py-2.5 font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg hover:scale-105 active:scale-95 ${showSchoolInvoice ? 'bg-primary text-black shadow-primary/30' : 'bg-primary/10 border border-primary/20 text-primary'}`}>
                     {showSchoolInvoice ? '✕ Close' : 'School Invoice'}
                   </button>
