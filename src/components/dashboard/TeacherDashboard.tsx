@@ -207,50 +207,43 @@ export default function TeacherDashboard({ profile, stats, activities, upcomingS
             </div>
           </div>
 
-          <div className="bg-background border border-border rounded-none p-6 sm:p-8 shadow-2xl">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h2 className="text-xl font-black text-foreground tracking-tight">Recent Activity</h2>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest mt-1">Live Platform Pulse</p>
+          <div className="bg-card border border-border rounded-none p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-black text-foreground uppercase tracking-widest">Recent Activity</h2>
+                <span className="text-[9px] font-black text-orange-500/60 uppercase tracking-widest hidden sm:inline">· Live Pulse</span>
               </div>
               <button onClick={onRefresh}
-                className="p-3 rounded-none bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-all group">
-                <ArrowPathIcon className={`w-4 h-4 ${dataLoading ? 'animate-spin' : 'group-active:rotate-180 transition-transform'}`} />
+                className="p-1.5 rounded-none bg-background hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-all group">
+                <ArrowPathIcon className={`w-3.5 h-3.5 ${dataLoading ? 'animate-spin' : 'group-active:rotate-180 transition-transform'}`} />
               </button>
             </div>
             {dataLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="flex items-center gap-4 animate-pulse">
-                    <div className="w-11 h-11 bg-card shadow-sm rounded-none flex-shrink-0" />
-                    <div className="flex-1 space-y-3">
-                      <div className="h-4 bg-card shadow-sm rounded w-3/4" />
-                      <div className="h-3 bg-card shadow-sm rounded w-1/2 opacity-50" />
+              <div className="space-y-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="flex items-center gap-3 animate-pulse py-1.5">
+                    <div className="w-6 h-6 bg-muted rounded-full flex-shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3 bg-muted rounded w-3/4" />
+                      <div className="h-2.5 bg-muted rounded w-1/2 opacity-50" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : activities.length === 0 ? (
-              <div className="text-center py-16 bg-white/[0.02] border border-dashed border-border rounded-none">
-                <div className="w-16 h-16 bg-card shadow-sm rounded-full flex items-center justify-center mx-auto mb-4 border border-border">
-                  <ClipboardDocumentListIcon className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">No recent activity yet</p>
-              </div>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest py-3 text-center border border-dashed border-border">No recent activity</p>
             ) : (
-              <div className="space-y-2">
-                {activities.map((a) => (
-                  <div key={a.id} className="group flex items-start gap-4 p-4 rounded-none hover:bg-white/[0.03] transition-all border border-transparent hover:border-border">
-                    <div className={`w-11 h-11 rounded-none flex items-center justify-center flex-shrink-0 shadow-lg ${a.color} group-hover:scale-110 transition-transform`}>
-                      <a.icon className="h-5 w-5" />
+              <div className="divide-y divide-border">
+                {activities.slice(0, 3).map((a) => (
+                  <div key={a.id} className="flex items-center gap-3 py-2.5">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${a.color}`}>
+                      <a.icon className="h-3 w-3" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-foreground text-sm tracking-tight group-hover:text-orange-500 transition-colors uppercase leading-none mt-1">{a.title}</p>
-                      <p className="text-xs text-muted-foreground mt-2 font-medium truncate">{a.desc}</p>
+                      <p className="text-xs font-bold text-foreground truncate">{a.title}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{a.desc}</p>
                     </div>
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap mt-1 bg-card shadow-sm px-2 py-0.5 rounded-full border border-border">
-                      {a.time}
-                    </span>
+                    <span className="text-[9px] font-black text-muted-foreground whitespace-nowrap">{a.time}</span>
                   </div>
                 ))}
               </div>

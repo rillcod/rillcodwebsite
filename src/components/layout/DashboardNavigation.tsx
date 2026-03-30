@@ -261,7 +261,7 @@ export default function DashboardNavigation() {
               ? ['Dashboard', 'My Children', 'Report Cards', 'Messages']
               : ['Dashboard']
   );
-  const bottomNavItems = navItems.filter(item => BOTTOM_NAV_NAMES.has(item.name)).slice(0, 4);
+  const bottomNavItems = navItems.filter(item => BOTTOM_NAV_NAMES.has(item.name)).slice(0, 5);
 
   const handleLogout = () => signOut();
 
@@ -417,41 +417,44 @@ export default function DashboardNavigation() {
       </nav>
 
       {/* ── Mobile Bottom Navigation ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/95 backdrop-blur-xl border-t border-sidebar-foreground/[0.08] pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))] flex items-center justify-around shadow-[0_-4px_30px_rgba(0,0,0,0.3)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/97 backdrop-blur-xl border-t border-sidebar-foreground/[0.08] flex items-center justify-around px-1 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_30px_rgba(0,0,0,0.4)]">
         {bottomNavItems.map(({ name, href, icon: Icon }) => {
           const active = pathname === href || pathname?.startsWith(href + '/');
           const shortName =
             name === 'My Courses' ? 'Courses' :
             name === 'My Classes' ? 'Classes' :
             name === 'My Report Card' ? 'Report' :
-            name === 'Code Playground' ? 'Play' :
+            name === 'Code Playground' ? 'Code' :
             name === 'Progress Reports' ? 'Reports' :
             name === 'Student Reports' ? 'Reports' :
             name === 'My Students' ? 'Students' :
             name === 'School Overview' ? 'Overview' :
             name === 'Learning Center' ? 'Learn' :
+            name === 'My Children' ? 'Children' :
+            name === 'Report Cards' ? 'Reports' :
             name;
           return (
             <Link
               key={`mobile-${name}`}
               href={href}
               onClick={() => setMobileOpen(false)}
-              className={`flex flex-col items-center gap-1 px-2 py-1.5 min-w-[3.5rem] transition-all duration-200 relative ${
-                active ? 'text-orange-400' : 'text-sidebar-foreground/30 hover:text-sidebar-foreground/60'
-              }`}
+              className="flex flex-col items-center gap-0.5 py-1 flex-1 min-w-0 transition-all duration-200"
             >
-              {active && (
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-[2px] bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
-              )}
-              <div className={`relative p-1.5 transition-all ${active ? 'bg-orange-500/10' : ''}`}>
-                <Icon className={`w-5 h-5 ${active ? 'text-orange-400' : 'text-sidebar-foreground/30'}`} />
+              <div className={`relative flex items-center justify-center w-10 h-7 rounded-xl transition-all duration-200 ${
+                active
+                  ? 'bg-orange-500/15 shadow-[0_0_12px_rgba(249,115,22,0.25)]'
+                  : ''
+              }`}>
+                <Icon className={`w-5 h-5 transition-colors ${active ? 'text-orange-400' : 'text-sidebar-foreground/35'}`} />
                 {name === 'Messages' && unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 text-white text-[7px] font-black flex items-center justify-center ring-2 ring-sidebar">
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 text-white text-[7px] font-black flex items-center justify-center rounded-full ring-2 ring-sidebar">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </div>
-              <span className={`text-[10px] font-black uppercase tracking-[0.1em] leading-none ${active ? 'text-orange-400' : 'text-sidebar-foreground/25'}`}>
+              <span className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none truncate max-w-full px-0.5 transition-colors ${
+                active ? 'text-orange-400' : 'text-sidebar-foreground/25'
+              }`}>
                 {shortName}
               </span>
             </Link>
@@ -459,12 +462,12 @@ export default function DashboardNavigation() {
         })}
         <button
           onClick={handleLogout}
-          className="flex flex-col items-center gap-1 px-2 py-1.5 min-w-[3.5rem] text-rose-500/40 hover:text-rose-400 transition-all group"
+          className="flex flex-col items-center gap-0.5 py-1 flex-1 min-w-0 text-rose-500/30 hover:text-rose-400 transition-all group"
         >
-          <div className="p-1.5 group-active:bg-rose-500/10 transition-all">
+          <div className="flex items-center justify-center w-10 h-7 rounded-xl group-active:bg-rose-500/10 transition-all">
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
           </div>
-          <span className="text-[9px] font-black uppercase tracking-[0.15em] leading-none">Exit</span>
+          <span className="text-[9px] font-black uppercase tracking-[0.08em] leading-none">Exit</span>
         </button>
       </div>
     </>
