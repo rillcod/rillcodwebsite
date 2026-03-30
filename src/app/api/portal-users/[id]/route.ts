@@ -146,6 +146,9 @@ export async function DELETE(
   // Unlink students whose user_id points here (preserve the student records)
   await admin.from('students').update({ user_id: null }).eq('user_id', id);
 
+  // Nullify created_by on students created by this user (keeps student records intact)
+  await admin.from('students').update({ created_by: null }).eq('created_by', id);
+
   // Delete enrollments belonging to this user
   await admin.from('enrollments').delete().eq('user_id', id);
 
