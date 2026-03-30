@@ -461,13 +461,18 @@ export default function DashboardNavigation() {
           );
         })}
         <button
-          onClick={handleLogout}
-          className="flex flex-col items-center gap-0.5 py-1 flex-1 min-w-0 text-rose-500/30 hover:text-rose-400 transition-all group"
+          onClick={() => setMobileOpen(v => !v)}
+          className="flex flex-col items-center gap-0.5 py-1 flex-1 min-w-0 transition-all group"
         >
-          <div className="flex items-center justify-center w-10 h-7 rounded-xl group-active:bg-rose-500/10 transition-all">
-            <ArrowRightOnRectangleIcon className="w-5 h-5" />
+          <div className={`flex items-center justify-center w-10 h-7 rounded-xl transition-all duration-200 ${mobileOpen ? 'bg-orange-500/15' : ''}`}>
+            {mobileOpen
+              ? <XMarkIcon className="w-5 h-5 text-orange-400" />
+              : <Bars3Icon className="w-5 h-5 text-sidebar-foreground/35" />
+            }
           </div>
-          <span className="text-[9px] font-black uppercase tracking-[0.08em] leading-none">Exit</span>
+          <span className={`text-[9px] font-black uppercase tracking-[0.08em] leading-none transition-colors ${mobileOpen ? 'text-orange-400' : 'text-sidebar-foreground/25'}`}>
+            Menu
+          </span>
         </button>
       </div>
     </>
