@@ -59,7 +59,7 @@ export default function TeacherDashboardPage() {
   }
 
   // ── ADMIN VIEW: Separate Manager View ──
-  if (profile?.role === 'admin' || profile?.role === 'school') return <AdminTeacherView schoolId={profile?.school_id || undefined} />;
+  if (profile?.role === 'admin') return <AdminTeacherView schoolId={profile?.school_id || undefined} />;
 
   // ── TEACHER VIEW: Separate Personal View ──
   if (profile?.role === 'teacher') return <TeacherPersonalDashboard />;

@@ -1440,7 +1440,7 @@ export default function ParentsPage() {
           students={students}
           teachers={teachers}
           schools={schools}
-          defaultSchool={!isAdmin ? (profile?.school_name ?? '') : schoolFilter}
+          defaultSchool={!isAdmin ? (profile?.school_name ?? '') : (editTarget?.children[0]?.school_name ?? schoolFilter)}
           onClose={() => { setShowForm(false); setEditTarget(null); }}
           onSaved={load}
         />
@@ -1451,7 +1451,7 @@ export default function ParentsPage() {
           students={students}
           teachers={teachers}
           schools={schools}
-          defaultSchool={!isAdmin ? (profile?.school_name ?? '') : schoolFilter}
+          defaultSchool={!isAdmin ? (profile?.school_name ?? '') : (linkTarget?.children[0]?.school_name ?? schoolFilter)}
           onClose={() => setLinkTarget(null)}
           onSaved={load}
         />
