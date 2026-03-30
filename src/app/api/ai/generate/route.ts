@@ -805,7 +805,7 @@ export async function POST(req: NextRequest) {
           "meta-llama/llama-3.1-8b-instruct:free", // Last resort
         ];
         adaptiveTemperature = 0.6;
-        adaptiveMaxTokens = 4000; // Reduced from 16000 — prevents timeouts while keeping good quality
+        adaptiveMaxTokens = 2000; // Reduced to stay within free-tier credit limits
         break;
 
       case 'code-generation':
@@ -858,7 +858,7 @@ export async function POST(req: NextRequest) {
           "google/gemini-2.0-flash-lite-001",
         ];
         adaptiveTemperature = 0.4; // Balanced — consistent but not rigid
-        adaptiveMaxTokens = 3000;
+        adaptiveMaxTokens = 2000;
         break;
 
       case 'lesson-plan':
@@ -869,7 +869,7 @@ export async function POST(req: NextRequest) {
           "meta-llama/llama-3.3-70b-instruct",
         ];
         adaptiveTemperature = 0.5; // Structured and pedagogically sound
-        adaptiveMaxTokens = 3500;
+        adaptiveMaxTokens = 2000;
         break;
 
       case 'report-feedback':
