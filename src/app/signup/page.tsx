@@ -74,10 +74,20 @@ export default function SignUpPage() {
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState("");
   const [schoolsLoading, setSchoolsLoading] = useState(false);
+  const [childName, setChildName] = useState("");
+
+  const loadSchools = async () => {
+    if (schools.length > 0) return;
+    setSchoolsLoading(true);
+    try {
+      const res = await fetch('/api/schools/public');
+      if (res.ok) { const { schools: list } = await res.json(); setSchools(list ?? []); }
+    } finally { setSchoolsLoading(false); }
+  };
 
   const handleRoleSelect = async (role: UserRole) => {
     setRole(role);
-    if (role === 'student' && schools.length === 0) {
+    if ((role === 'student' || role === 'parent') && schools.length === 0) {
       setSchoolsLoading(true);
       try {
         const res = await fetch('/api/schools/public');
@@ -134,6 +144,28 @@ export default function SignUpPage() {
             updated_at: new Date().toISOString(),
           }, { onConflict: 'id' });
         }
+      }
+
+      // For parents, save school + child name so admin can link them
+      if (selectedRole === 'parent') {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const school = schools.find(s => s.id === selectedSchoolId);
+          await supabase.from('portal_users').upsert({
+            id: user.id,
+            email: email.trim().toLowerCase(),
+            full_name: fullName,
+            role: 'parent',
+            school_id: selectedSchoolId || null,
+            school_name: school?.name ?? null,
+            bio: childName.trim() ? `Child: ${childName.trim()}` : null,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+        }
+        toast.success("Account created! An admin will link your child's account shortly.");
+        router.push('/dashboard');
+        return;
       }
 
       toast.success("Account created! Welcome to Rillcod Technologies.");
@@ -260,6 +292,46 @@ export default function SignUpPage() {
                 {!schoolsLoading && schools.length === 0 && (
                   <p className="text-[11px] text-amber-400/80 mt-1">No schools found. Contact your administrator.</p>
                 )}
+              </div>
+            )}
+
+            {/* Parent-specific fields */}
+            {selectedRole === 'parent' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
+                    Child&apos;s Full Name <span className="text-white/30 font-normal normal-case">(helps admin link your account)</span>
+                  </label>
+                  <div className="relative">
+                    <GraduationCap className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+                    <input type="text" value={childName} onChange={e => setChildName(e.target.value)}
+                      placeholder="e.g. Amina Bello"
+                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-border rounded-xl text-white text-sm placeholder-muted-foreground focus:outline-none focus:border-violet-500 focus:bg-white/8 transition-all" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">Child&apos;s School</label>
+                  {schoolsLoading ? (
+                    <div className="flex items-center gap-2 py-3 px-4 bg-white/5 border border-border rounded-xl text-white/30 text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin" /> Loading schools…
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25 pointer-events-none" />
+                      <select
+                        value={selectedSchoolId}
+                        onChange={e => setSelectedSchoolId(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-white/5 border border-border rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 focus:bg-white/8 transition-all appearance-none"
+                      >
+                        <option value="">— Select school —</option>
+                        {schools.map(s => (
+                          <option key={s.id} value={s.id} className="bg-[#0a0a14] text-white">{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <p className="text-[11px] text-rose-400/70 px-1">After signing up, an admin will link your child&apos;s account to yours.</p>
               </div>
             )}
 

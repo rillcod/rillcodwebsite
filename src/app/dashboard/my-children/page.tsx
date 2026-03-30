@@ -15,6 +15,8 @@ interface Child {
   full_name: string;
   school_name: string | null;
   grade_level: string | null;
+  current_class: string | null;
+  section: string | null;
   status: string;
   gender: string | null;
   date_of_birth: string | null;
@@ -29,6 +31,8 @@ interface ChildStats {
   lastGrade: string | null;
   unpaidInvoices: number;
   certificates: number;
+  teacherName: string | null;
+  teacherPhone: string | null;
 }
 
 function calcAge(dob: string | null): string | null {
@@ -57,10 +61,26 @@ export default function MyChildrenPage() {
     const supabase = createClient();
     supabase
       .from('students')
-      .select('id, full_name, school_name, grade_level, status, gender, date_of_birth, enrollment_type, parent_relationship, created_at, user_id')
+      .select('id, full_name, school_name, grade_level, current_class, section, status, gender, date_of_birth, enrollment_type, parent_relationship, created_at, user_id')
       .eq('parent_email', profile.email)
       .then(async ({ data }) => {
         const kids = (data ?? []) as Child[];
+
+        // Pre-load teachers for all unique schools at once
+        const uniqueSchools = [...new Set(kids.map(k => k.school_name).filter(Boolean))] as string[];
+        const teachersBySchool: Record<string, Array<{ full_name: string; phone: string | null; section_class: string | null }>> = {};
+        if (uniqueSchools.length > 0) {
+          const { data: tData } = await supabase
+            .from('portal_users')
+            .select('full_name, phone, section_class, school_name')
+            .eq('role', 'teacher')
+            .in('school_name', uniqueSchools);
+          for (const t of (tData ?? [])) {
+            if (!t.school_name) continue;
+            if (!teachersBySchool[t.school_name]) teachersBySchool[t.school_name] = [];
+            teachersBySchool[t.school_name].push(t);
+          }
+        }
         setChildren(kids);
         setLoading(false);
 
@@ -94,11 +114,23 @@ export default function MyChildrenPage() {
           const present = att.filter((a: any) => a.status === 'present').length;
           const attendancePct = att.length > 0 ? Math.round((present / att.length) * 100) : null;
 
+          // Find class teacher by matching section_class to child's current_class/section
+          const childClass = (child.current_class || child.section || child.grade_level || '').toLowerCase().replace(/\s+/g, '');
+          const schoolTeachers = child.school_name ? (teachersBySchool[child.school_name] ?? []) : [];
+          const matchedTeacher = childClass
+            ? schoolTeachers.find(t => {
+                const tc = (t.section_class || '').toLowerCase().replace(/\s+/g, '');
+                return tc && (tc === childClass || tc.startsWith(childClass) || childClass.startsWith(tc));
+              }) ?? null
+            : null;
+
           stats[child.id] = {
             attendancePct,
             lastGrade: null, // populated below if user_id exists
             unpaidInvoices: (invRes as any).count ?? 0,
             certificates: (certRes as any).count ?? 0,
+            teacherName: matchedTeacher?.full_name ?? null,
+            teacherPhone: matchedTeacher?.phone ?? null,
           };
 
           // Latest grade — student_progress_reports.student_id = portal_users.id (user_id)
@@ -227,6 +259,11 @@ export default function MyChildrenPage() {
                       )}
                       {child.parent_relationship && (
                         <span className="text-xs text-orange-400 font-bold">{child.parent_relationship}</span>
+                      )}
+                      {s?.teacherName && (
+                        <span className="text-xs text-violet-400 flex items-center gap-1" title={s.teacherPhone ?? undefined}>
+                          <UserIcon className="w-3 h-3" /> Teacher: {s.teacherName}
+                        </span>
                       )}
                     </div>
                   </div>

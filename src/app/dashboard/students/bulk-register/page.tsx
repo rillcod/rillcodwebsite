@@ -107,7 +107,7 @@ interface GeneratedStudent {
 }
 
 interface RegisterResult extends GeneratedStudent {
-  status: 'created' | 'updated' | 'failed';
+  status: 'created' | 'updated' | 'skipped' | 'failed';
   error?: string;
   batch_id?: string;
   portal_user_id?: string;
@@ -247,6 +247,9 @@ export default function BulkRegisterPage() {
   const [editingResultId, setEditingResultId] = useState<string | null>(null);
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
   const [selectedResultIds, setSelectedResultIds] = useState<string[]>([]);
+  const [dbDupNames, setDbDupNames] = useState<Set<string>>(new Set()); // names already in DB at selected school
+  const [checkingDups, setCheckingDups] = useState(false);
+  const [dupOverride, setDupOverride] = useState(false); // user confirmed they want to proceed despite name matches
   const [activeTab, setActiveTab] = useState<'register' | 'vault'>('register');
   const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
 
@@ -897,15 +900,40 @@ export default function BulkRegisterPage() {
   }
 
   // ── Build preview ────────────────────────────────────────────────────────
-  const handlePreview = useCallback(() => {
+  const handlePreview = useCallback(async () => {
     // Use only the standard class code (defaultClass) as the fallback arm label.
     // The registry class (Hilltop etc.) is an internal grouping — it must NOT
     // bleed into the printed credentials or the class_name field.
     const built = buildStudentList(namesText.split('\n'), defaultClass.trim() || undefined);
     if (!built.length) return;
     setPreview(built);
+    setDbDupNames(new Set());
+    setDupOverride(false);
     setStep('preview');
-  }, [namesText, defaultClass]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ── Check DB for existing students at this school by name ────────────
+    if (selectedSchoolId) {
+      setCheckingDups(true);
+      try {
+        const { data } = await supabase
+          .from('portal_users')
+          .select('full_name')
+          .eq('school_id', selectedSchoolId)
+          .eq('role', 'student');
+        if (data) {
+          const existingNames = new Set(data.map((s: any) => s.full_name.trim().toLowerCase()));
+          const dupSet = new Set<string>(
+            built
+              .map(s => s.full_name.trim().toLowerCase())
+              .filter(n => existingNames.has(n))
+          );
+          setDbDupNames(dupSet);
+        }
+      } catch { /* non-blocking */ } finally {
+        setCheckingDups(false);
+      }
+    }
+  }, [namesText, defaultClass, selectedSchoolId, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Register ─────────────────────────────────────────────────────────────
   const handleRegister = async () => {
@@ -939,7 +967,8 @@ export default function BulkRegisterPage() {
           batch_id: persistentBatchId,
           students: batch,
           class_id: selectedRegistryClass || null,
-          class_name: effectiveClassCode || null
+          class_name: effectiveClassCode || null,
+          allow_same_name: dupOverride, // user confirmed different students with same name
         };
         if (selectedSchoolId) {
           body.school_id = selectedSchoolId;
@@ -1036,7 +1065,8 @@ export default function BulkRegisterPage() {
   const validCount = preview.length - incompleteRows.length;
   const previewClasses = [...new Set(preview.map((s) => s.class_name).filter(Boolean))];
 
-  const successCount = results?.filter((r) => r.status !== 'failed').length ?? 0;
+  const successCount = results?.filter((r) => r.status === 'created' || r.status === 'updated').length ?? 0;
+  const skipCount = results?.filter((r) => r.status === 'skipped').length ?? 0;
   const failCount = results?.filter((r) => r.status === 'failed').length ?? 0;
 
   const selectedProgLabel = programmes.find((p) => p.id === selectedProgramId)?.name ?? '';
@@ -1429,6 +1459,33 @@ Yusuf Ibrahim SS1A`}
                       <span className="text-rose-400 font-bold">Duplicate emails — fix before registering</span>
                     </div>
                   )}
+                  {checkingDups && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-none border border-border text-xs text-muted-foreground">
+                      <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                      <span>Checking for existing students…</span>
+                    </div>
+                  )}
+                  {!checkingDups && dbDupNames.size > 0 && (
+                    <div className="px-4 py-3 bg-amber-500/10 rounded-none border border-amber-500/30 text-xs space-y-2">
+                      <div className="flex items-start gap-2">
+                        <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="text-amber-400 font-bold">{dbDupNames.size} name{dbDupNames.size !== 1 ? 's' : ''} already exist at this school:</p>
+                          <p className="text-amber-400/70 font-mono">{[...dbDupNames].map(n => preview.find(s => s.full_name.trim().toLowerCase() === n)?.full_name ?? n).join(', ')}</p>
+                          <p className="text-amber-300/60">If these are different students who happen to share a name, tick the box below to register them anyway. If they are the same students, remove those rows first.</p>
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-2 pl-6 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={dupOverride}
+                          onChange={(e) => setDupOverride(e.target.checked)}
+                          className="accent-amber-500 w-3.5 h-3.5"
+                        />
+                        <span className="text-amber-400 font-bold">These are different students — register anyway</span>
+                      </label>
+                    </div>
+                  )}
                   {incompleteRows.length > 0 && (
                     <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-none border border-amber-500/20 text-xs">
                       <ExclamationTriangleIcon className="w-4 h-4 text-amber-400" />
@@ -1464,10 +1521,11 @@ Yusuf Ibrahim SS1A`}
                         {preview.map((s, i) => {
                           const emailDup = dups.has(s.email.toLowerCase());
                           const incomplete = !s.full_name.trim() || !s.email.trim();
+                          const dbDup = dbDupNames.has(s.full_name.trim().toLowerCase());
                           return (
                             <tr
                               key={s.id}
-                              className={`group border-b border-border transition-colors ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : 'hover:bg-white/[0.02]'
+                              className={`group border-b border-border transition-colors ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : dbDup ? 'bg-amber-500/5' : 'hover:bg-white/[0.02]'
                                 }`}
                             >
                               {/* # */}
@@ -1475,13 +1533,18 @@ Yusuf Ibrahim SS1A`}
 
                               {/* Full Name */}
                               <td className="px-2 py-1.5 align-middle">
-                                <input
-                                  className={inp}
-                                  value={s.full_name}
-                                  onChange={(e) => updateField(s.id, 'full_name', e.target.value)}
-                                  onBlur={(e) => onNameBlur(s.id, e.target.value)}
-                                  placeholder="Full name"
-                                />
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    className={inp}
+                                    value={s.full_name}
+                                    onChange={(e) => updateField(s.id, 'full_name', e.target.value)}
+                                    onBlur={(e) => onNameBlur(s.id, e.target.value)}
+                                    placeholder="Full name"
+                                  />
+                                  {dbDup && (
+                                    <span className="shrink-0 px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[9px] font-black uppercase tracking-tight rounded-none" title="Already registered at this school">EXISTS</span>
+                                  )}
+                                </div>
                               </td>
 
                               {/* Class */}
@@ -1536,8 +1599,9 @@ Yusuf Ibrahim SS1A`}
                       {preview.map((s, i) => {
                         const emailDup = dups.has(s.email.toLowerCase());
                         const incomplete = !s.full_name.trim() || !s.email.trim();
+                        const dbDup = dbDupNames.has(s.full_name.trim().toLowerCase());
                         return (
-                          <div key={s.id} className={`p-4 space-y-3 ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : ''}`}>
+                          <div key={s.id} className={`p-4 space-y-3 ${incomplete ? 'bg-amber-500/5' : emailDup ? 'bg-rose-500/5' : dbDup ? 'bg-amber-500/5' : ''}`}>
                             <div className="flex items-center justify-between">
                               <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Student #{i + 1}</span>
                               <button onClick={() => removeRow(s.id)} className="text-muted-foreground hover:text-rose-400 p-1"><XMarkIcon className="w-4 h-4" /></button>
@@ -1587,14 +1651,18 @@ Yusuf Ibrahim SS1A`}
                   <div className="flex-1 flex flex-col gap-2">
                     <button
                       onClick={handleRegister}
-                      disabled={registering || dups.size > 0 || validCount === 0}
+                      disabled={registering || dups.size > 0 || (dbDupNames.size > 0 && !dupOverride) || checkingDups || validCount === 0}
                       className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-bold rounded-none transition-colors text-sm"
                     >
                       {registering
                         ? `Registering ${registerProgress?.done ?? 0} / ${registerProgress?.total ?? validCount}...`
-                        : dups.size > 0
-                          ? 'Fix duplicate emails first'
-                          : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
+                        : checkingDups
+                          ? 'Checking for duplicates…'
+                          : dups.size > 0
+                            ? 'Fix duplicate emails first'
+                            : dbDupNames.size > 0 && !dupOverride
+                              ? `Tick the box above to continue`
+                              : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
                     </button>
                     {registering && registerProgress && (
                       <div className="space-y-1">
@@ -1628,10 +1696,20 @@ Yusuf Ibrahim SS1A`}
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
                   <div className="relative z-10">
                     <h2 className="text-3xl font-black text-foreground mb-2 uppercase tracking-tighter italic">Process Complete</h2>
-                    <div className="flex items-center justify-center gap-4 text-emerald-400/80 font-black tracking-widest uppercase text-[10px]">
-                      <span>Success: {results.filter(r => r.status !== 'failed').length}</span>
-                      <div className="w-1 h-1 bg-white/20 rounded-none" />
-                      <span>All records saved</span>
+                    <div className="flex items-center justify-center gap-4 font-black tracking-widest uppercase text-[10px] flex-wrap">
+                      <span className="text-emerald-400/80">Created: {successCount}</span>
+                      {skipCount > 0 && (
+                        <>
+                          <div className="w-1 h-1 bg-white/20 rounded-none" />
+                          <span className="text-amber-400/80">Skipped (already exist): {skipCount}</span>
+                        </>
+                      )}
+                      {failCount > 0 && (
+                        <>
+                          <div className="w-1 h-1 bg-white/20 rounded-none" />
+                          <span className="text-rose-400/80">Failed: {failCount}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1699,7 +1777,7 @@ Yusuf Ibrahim SS1A`}
                       </thead>
                       <tbody className="divide-y divide-white/5">
                         {results.map((r, i) => (
-                          <tr key={i} className={`group transition-colors ${r.status === 'failed' ? 'bg-rose-500/5' : 'hover:bg-white/[0.01]'}`}>
+                          <tr key={i} className={`group transition-colors ${r.status === 'failed' ? 'bg-rose-500/5' : r.status === 'skipped' ? 'bg-amber-500/5' : 'hover:bg-white/[0.01]'}`}>
                             <td className="px-6 py-4 text-muted-foreground font-mono">{String(i + 1).padStart(2, '0')}</td>
                             <td className="px-4 py-4">
                               <span className="font-mono font-black text-orange-400 text-[10px] tracking-wide">
@@ -1719,7 +1797,7 @@ Yusuf Ibrahim SS1A`}
                             <td className="px-4 py-4 font-mono text-muted-foreground">{r.email}</td>
                             <td className="px-4 py-4 font-mono font-bold text-orange-400 text-[11px]">{r.password || '—'}</td>
                             <td className="px-6 py-4 text-right transform group-hover:scale-105 transition-transform">
-                              <span className={`px-2 py-1 rounded-none text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+                              <span className={`px-2 py-1 rounded-none text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : r.status === 'skipped' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
                                 {r.status}
                               </span>
                             </td>
