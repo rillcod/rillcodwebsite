@@ -32,10 +32,15 @@ export async function POST(req: Request) {
     const guard = await requireStaff(supabase);
     if ('error' in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
-    const { email, full_name, phone, student_id, relationship = 'Guardian', password } = await req.json();
+    const { email, full_name, phone, student_id, student_ids, relationship = 'Guardian', password } = await req.json();
 
-    if (!email || !full_name || !student_id) {
-      return NextResponse.json({ error: 'email, full_name, and student_id are required' }, { status: 400 });
+    // Support both single student_id and array of student_ids (multi-child)
+    const studentIdList: string[] = Array.isArray(student_ids) && student_ids.length > 0
+      ? student_ids
+      : student_id ? [student_id] : [];
+
+    if (!email || !full_name || studentIdList.length === 0) {
+      return NextResponse.json({ error: 'email, full_name, and at least one student are required' }, { status: 400 });
     }
     if (!password || password.length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
@@ -92,17 +97,19 @@ export async function POST(req: Request) {
       if (upsertErr) throw upsertErr;
     }
 
-    // Link student to this parent
-    const { error: linkErr } = await admin.from('students').update({
-      parent_email: cleanEmail,
-      parent_name: full_name,
-      parent_phone: phone ?? null,
-      parent_relationship: relationship,
-      updated_at: new Date().toISOString(),
-    }).eq('id', student_id);
-    if (linkErr) throw linkErr;
+    // Link ALL selected students to this parent
+    for (const sid of studentIdList) {
+      const { error: linkErr } = await admin.from('students').update({
+        parent_email: cleanEmail,
+        parent_name: full_name,
+        parent_phone: phone ?? null,
+        parent_relationship: relationship,
+        updated_at: new Date().toISOString(),
+      }).eq('id', sid);
+      if (linkErr) console.error(`[parents/manage] Failed to link student ${sid}:`, linkErr);
+    }
 
-    return NextResponse.json({ success: true, auth_user_id: authUserId, existing: isExisting, email: cleanEmail });
+    return NextResponse.json({ success: true, auth_user_id: authUserId, existing: isExisting, email: cleanEmail, linked_count: studentIdList.length });
   } catch (err: any) {
     console.error('POST /api/parents/manage error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -119,8 +126,21 @@ export async function PATCH(req: Request) {
     const guard = await requireStaff(supabase);
     if ('error' in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
-    const { parent_id, full_name, phone, student_id, relationship, is_active } = await req.json();
+    const { parent_id, full_name, phone, student_id, relationship, is_active, reset_password } = await req.json();
     if (!parent_id) return NextResponse.json({ error: 'parent_id is required' }, { status: 400 });
+
+    // Password reset shortcut — generate, update auth, return new password
+    if (reset_password) {
+      const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789@#$!';
+      const newPw = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      const adminPw = createAdminClient();
+      const { error: pwErr } = await adminPw.auth.admin.updateUserById(parent_id, {
+        password: newPw,
+        user_metadata: { must_change_password: true },
+      });
+      if (pwErr) throw pwErr;
+      return NextResponse.json({ success: true, new_password: newPw });
+    }
 
     // Update portal_users record
     const updates: Record<string, any> = { updated_at: new Date().toISOString() };
@@ -290,7 +310,7 @@ export async function GET(req: Request) {
     const adminForStudents = createAdminClient();
     let allStuQuery = adminForStudents
       .from('students')
-      .select('id, full_name, school_name, parent_email, grade_level')
+      .select('id, full_name, school_name, parent_email, grade_level, section, current_class')
       .order('full_name')
       .limit(2000);
     if (effectiveSchool) {
@@ -298,7 +318,18 @@ export async function GET(req: Request) {
     }
     const { data: allStudents } = await allStuQuery;
 
-    return NextResponse.json({ success: true, data, students: allStudents ?? [] });
+    // Return teachers for the school so the form can show a teacher filter
+    let teachersQuery = adminForStudents
+      .from('portal_users')
+      .select('id, full_name, section_class')
+      .eq('role', 'teacher')
+      .order('full_name');
+    if (effectiveSchool) {
+      teachersQuery = teachersQuery.eq('school_name', effectiveSchool);
+    }
+    const { data: allTeachers } = await teachersQuery;
+
+    return NextResponse.json({ success: true, data, students: allStudents ?? [], teachers: allTeachers ?? [] });
   } catch (err: any) {
     console.error('GET /api/parents/manage error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });

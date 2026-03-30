@@ -71,22 +71,48 @@ export async function POST(request: Request) {
     const programId: string | null = (body.program_id as string | undefined) ?? null;
     const batchClassId: string | null = (body.class_id as string | undefined) ?? null;
     const batchClassName: string | null = (body.class_name as string | undefined) ?? null;
+    const allowSameName: boolean = body.allow_same_name === true; // user confirmed different students share a name
 
     const results: Array<{
       full_name: string;
       email: string;
       password: string;
       class_name?: string;
-      status: 'created' | 'updated' | 'failed';
+      status: 'created' | 'updated' | 'skipped' | 'failed';
       error?: string;
       userId?: string;
     }> = [];
+
+    // ── Duplicate barricade: fetch all existing students at this school by name ──
+    const { data: existingStudents } = await supabaseAdmin
+      .from('portal_users')
+      .select('id, full_name, email')
+      .eq('school_id', resolvedSchoolId)
+      .eq('role', 'student');
+
+    const existingByName = new Map<string, { id: string; email: string }>();
+    for (const s of (existingStudents ?? [])) {
+      existingByName.set(s.full_name.trim().toLowerCase(), { id: s.id, email: s.email });
+    }
 
     for (const student of students) {
       const { full_name, email, password, class_name } = student;
 
       if (!full_name?.trim() || !email?.trim() || !password) {
         results.push({ full_name, email, password, class_name, status: 'failed', error: 'Missing fields' });
+        continue;
+      }
+
+      // Block duplicate by name at same school (unless admin confirmed different students share a name)
+      const nameKey = full_name.trim().toLowerCase();
+      const existingMatch = existingByName.get(nameKey);
+      if (existingMatch && !allowSameName) {
+        results.push({
+          full_name, email, password, class_name,
+          status: 'skipped',
+          error: `Already registered at this school (existing login: ${existingMatch.email})`,
+          userId: existingMatch.id,
+        });
         continue;
       }
 
@@ -175,7 +201,8 @@ export async function POST(request: Request) {
     // Auto-enroll into programme if one was selected
     if (programId) {
       const successIds = results
-        .filter((r) => r.status !== 'failed' && r.userId)
+        .filter((r) => r.status === 'created' || r.status === 'updated')
+        .filter((r) => r.userId)
         .map((r) => r.userId as string);
 
       if (successIds.length > 0) {

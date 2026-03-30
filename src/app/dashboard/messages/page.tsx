@@ -36,6 +36,17 @@ export default function MessagesPage() {
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
   const isAdmin = profile?.role === 'admin';
 
+  // Handle ?to=<userId> deep-link from admin parent list → open compose pre-filled
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const to = params.get('to');
+    if (to) {
+      setTab('compose');
+      setCompose(f => ({ ...f, recipient_id: to }));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [classFilter, setClassFilter] = useState('all');
   const [userSearch, setUserSearch] = useState('');
   const [openNewsletter, setOpenNewsletter] = useState<any>(null);

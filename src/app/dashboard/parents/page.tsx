@@ -33,19 +33,34 @@ interface Student {
   school_name: string | null;
   parent_email: string | null;
   grade_level: string | null;
+  section: string | null;
+  current_class: string | null;
+}
+interface Teacher {
+  id: string;
+  full_name: string;
+  section_class: string | null;
 }
 
 // ── Searchable student picker (school filter controlled externally) ───────────
 function StudentPicker({
   students,
   schoolFilter,
+  classFilter,
   value,
   onChange,
+  values,
+  onChangeMulti,
+  multi = false,
 }: {
   students: Student[];
   schoolFilter: string;
-  value: string;
-  onChange: (id: string) => void;
+  classFilter?: string;
+  value?: string;
+  onChange?: (id: string) => void;
+  values?: string[];
+  onChangeMulti?: (ids: string[]) => void;
+  multi?: boolean;
 }) {
   const [q, setQ] = useState('');
 
@@ -53,14 +68,35 @@ function StudentPicker({
     let list = schoolFilter
       ? students.filter(s => s.school_name === schoolFilter)
       : students;
+    // Narrow by teacher class if provided
+    if (classFilter) {
+      const cf = classFilter.toLowerCase().replace(/\s+/g, '');
+      const classMatched = list.filter(s => {
+        const fields = [s.current_class, s.section, s.grade_level].map(v => (v ?? '').toLowerCase().replace(/\s+/g, ''));
+        return fields.some(f => f === cf || f.startsWith(cf) || cf.startsWith(f));
+      });
+      // Only narrow if we got matches — avoids empty list when data doesn't line up perfectly
+      if (classMatched.length > 0) list = classMatched;
+    }
     if (q.trim()) {
       const lower = q.toLowerCase();
       list = list.filter(s => s.full_name.toLowerCase().includes(lower));
     }
     return list;
-  }, [students, schoolFilter, q]);
+  }, [students, schoolFilter, classFilter, q]);
 
-  const selected = students.find(s => s.id === value);
+  const selected = !multi ? students.find(s => s.id === value) : null;
+  const selectedMulti = multi && values ? students.filter(s => values.includes(s.id)) : [];
+
+  const handleClick = (s: Student) => {
+    if (multi && values !== undefined && onChangeMulti) {
+      const next = values.includes(s.id) ? values.filter(id => id !== s.id) : [...values, s.id];
+      onChangeMulti(next);
+    } else if (onChange) {
+      onChange(s.id);
+      setQ('');
+    }
+  };
 
   return (
     <div className="space-y-2">
@@ -69,35 +105,44 @@ function StudentPicker({
         <input
           value={q}
           onChange={e => setQ(e.target.value)}
-          placeholder="Search students by name…"
+          placeholder={multi ? 'Search and tick to select multiple…' : 'Search students by name…'}
           className="w-full pl-9 pr-4 py-2 bg-background border border-border text-xs text-foreground focus:outline-none focus:border-orange-500 transition-colors"
         />
       </div>
       <div className="border border-border max-h-40 overflow-y-auto bg-background">
         {filtered.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-4">
-            {q ? 'No students match your search.' : schoolFilter ? 'No students in this school.' : 'Select a school to see students.'}
+            {q ? 'No students match your search.' : classFilter ? 'No students in this class — try clearing the teacher filter.' : schoolFilter ? 'No students in this school.' : 'Select a school to see students.'}
           </p>
         ) : (
-          filtered.map(s => (
-            <button
-              type="button"
-              key={s.id}
-              onClick={() => { onChange(s.id); setQ(''); }}
-              className={`w-full text-left px-4 py-2.5 hover:bg-orange-500/5 transition-all border-b border-border last:border-b-0 ${
-                value === s.id ? 'bg-orange-500/10' : ''
-              }`}
-            >
-              <span className={`text-xs font-bold ${value === s.id ? 'text-orange-400' : 'text-foreground'}`}>{s.full_name}</span>
-              <span className="text-[10px] text-muted-foreground ml-2">
-                {s.grade_level ?? ''}
-                {s.parent_email ? <span className="text-amber-500"> · parent linked</span> : null}
-              </span>
-            </button>
-          ))
+          filtered.map(s => {
+            const isSelected = multi ? (values?.includes(s.id) ?? false) : value === s.id;
+            return (
+              <button
+                type="button"
+                key={s.id}
+                onClick={() => handleClick(s)}
+                className={`w-full text-left px-4 py-2.5 hover:bg-orange-500/5 transition-all border-b border-border last:border-b-0 flex items-center gap-2 ${isSelected ? 'bg-orange-500/10' : ''}`}
+              >
+                {multi && (
+                  <span className={`w-3.5 h-3.5 border rounded-none flex-shrink-0 flex items-center justify-center text-[8px] font-black ${isSelected ? 'bg-orange-500 border-orange-500 text-white' : 'border-border'}`}>
+                    {isSelected ? '✓' : ''}
+                  </span>
+                )}
+                <span className="flex-1 min-w-0">
+                  <span className={`text-xs font-bold ${isSelected ? 'text-orange-400' : 'text-foreground'}`}>{s.full_name}</span>
+                  <span className="text-[10px] text-muted-foreground ml-2">
+                    {s.grade_level ?? ''}
+                    {s.parent_email ? <span className="text-amber-500"> · parent linked</span> : null}
+                  </span>
+                </span>
+              </button>
+            );
+          })
         )}
       </div>
-      {selected && (
+      {/* Single-mode selected display */}
+      {!multi && selected && (
         <div className="px-3 py-2 bg-orange-500/5 border border-orange-500/20 text-[10px]">
           <span className="text-orange-400 font-bold">Selected: {selected.full_name}</span>
           {selected.school_name && <span className="text-muted-foreground ml-1">({selected.school_name})</span>}
@@ -105,6 +150,13 @@ function StudentPicker({
           {selected.parent_email && (
             <p className="text-blue-400 mt-0.5">ℹ Already has a parent ({selected.parent_email}). New parent will become primary contact.</p>
           )}
+        </div>
+      )}
+      {/* Multi-mode selected summary */}
+      {multi && selectedMulti.length > 0 && (
+        <div className="px-3 py-2 bg-orange-500/5 border border-orange-500/20 text-[10px] space-y-1">
+          <span className="text-orange-400 font-bold">{selectedMulti.length} student{selectedMulti.length !== 1 ? 's' : ''} selected:</span>
+          <p className="text-muted-foreground">{selectedMulti.map(s => s.full_name).join(', ')}</p>
         </div>
       )}
     </div>
@@ -134,6 +186,7 @@ function CopyButton({ value }: { value: string }) {
 function ParentFormModal({
   initialData,
   students,
+  teachers,
   schools,
   defaultSchool,
   onClose,
@@ -141,6 +194,7 @@ function ParentFormModal({
 }: {
   initialData?: Parent | null;
   students: Student[];
+  teachers: Teacher[];
   schools: string[];
   defaultSchool?: string;
   onClose: () => void;
@@ -148,11 +202,13 @@ function ParentFormModal({
 }) {
   const isEdit = !!initialData;
   const [selectedSchool, setSelectedSchool] = useState(defaultSchool ?? '');
+  const [selectedTeacherId, setSelectedTeacherId] = useState('');
   const [form, setForm] = useState({
     email: initialData?.email ?? '',
     full_name: initialData?.full_name ?? '',
     phone: initialData?.phone ?? '',
-    student_id: '',
+    student_id: '',       // used in edit mode (single)
+    student_ids: [] as string[], // used in create mode (multi)
     relationship: 'Guardian',
     password: genPassword(),
   });
@@ -182,7 +238,7 @@ function ParentFormModal({
         onSaved();
         onClose();
       } else {
-        if (!form.student_id) { setError('Please select a student to link'); setSaving(false); return; }
+        if (form.student_ids.length === 0) { setError('Please select at least one student to link'); setSaving(false); return; }
         const res = await fetch('/api/parents/manage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -190,7 +246,7 @@ function ParentFormModal({
             email: form.email,
             full_name: form.full_name,
             phone: form.phone || null,
-            student_id: form.student_id,
+            student_ids: form.student_ids,
             relationship: form.relationship,
             password: form.password,
           }),
@@ -345,7 +401,7 @@ function ParentFormModal({
             </label>
             <select
               value={selectedSchool}
-              onChange={e => { setSelectedSchool(e.target.value); setForm(f => ({ ...f, student_id: '' })); }}
+              onChange={e => { setSelectedSchool(e.target.value); setSelectedTeacherId(''); setForm(f => ({ ...f, student_id: '' })); }}
               disabled={schools.length === 1}
               className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-60"
             >
@@ -354,16 +410,61 @@ function ParentFormModal({
             </select>
           </div>
 
+          {/* Teacher filter — narrows student list to that teacher's class */}
+          {(() => {
+            const schoolTeachers = selectedSchool
+              ? teachers.filter(t => true) // already scoped server-side; show all loaded teachers
+              : teachers;
+            if (schoolTeachers.length === 0) return null;
+            return (
+              <div>
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
+                  Assigned Teacher <span className="text-muted-foreground normal-case font-normal">(optional — filters students by class)</span>
+                </label>
+                <select
+                  value={selectedTeacherId}
+                  onChange={e => { setSelectedTeacherId(e.target.value); setForm(f => ({ ...f, student_id: '' })); }}
+                  className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                >
+                  <option value="">— All Teachers / All Students —</option>
+                  {schoolTeachers.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.full_name}{t.section_class ? ` · ${t.section_class}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {selectedTeacherId && (() => {
+                  const t = schoolTeachers.find(x => x.id === selectedTeacherId);
+                  return t?.section_class ? (
+                    <p className="text-[10px] text-orange-400/70 mt-1">Showing students in class: <span className="font-bold text-orange-400">{t.section_class}</span></p>
+                  ) : null;
+                })()}
+              </div>
+            );
+          })()}
+
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
               {isEdit ? 'Link to Student (optional)' : 'Select Student *'}
             </label>
-            <StudentPicker
-              students={students}
-              schoolFilter={selectedSchool}
-              value={form.student_id}
-              onChange={id => setForm(f => ({ ...f, student_id: id }))}
-            />
+            {isEdit ? (
+              <StudentPicker
+                students={students}
+                schoolFilter={selectedSchool}
+                classFilter={teachers.find(t => t.id === selectedTeacherId)?.section_class ?? undefined}
+                value={form.student_id}
+                onChange={id => setForm(f => ({ ...f, student_id: id }))}
+              />
+            ) : (
+              <StudentPicker
+                students={students}
+                schoolFilter={selectedSchool}
+                classFilter={teachers.find(t => t.id === selectedTeacherId)?.section_class ?? undefined}
+                multi
+                values={form.student_ids}
+                onChangeMulti={ids => setForm(f => ({ ...f, student_ids: ids }))}
+              />
+            )}
           </div>
 
           <div>
@@ -399,6 +500,7 @@ function ParentFormModal({
 function LinkStudentModal({
   parent,
   students,
+  teachers,
   schools,
   defaultSchool,
   onClose,
@@ -406,12 +508,14 @@ function LinkStudentModal({
 }: {
   parent: Parent;
   students: Student[];
+  teachers: Teacher[];
   schools: string[];
   defaultSchool?: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [selectedSchool, setSelectedSchool] = useState(defaultSchool ?? '');
+  const [selectedTeacherId, setSelectedTeacherId] = useState('');
   const [studentId, setStudentId] = useState('');
   const [relationship, setRelationship] = useState('Guardian');
   const [saving, setSaving] = useState(false);
@@ -454,7 +558,7 @@ function LinkStudentModal({
             </label>
             <select
               value={selectedSchool}
-              onChange={e => { setSelectedSchool(e.target.value); setStudentId(''); }}
+              onChange={e => { setSelectedSchool(e.target.value); setSelectedTeacherId(''); setStudentId(''); }}
               disabled={schools.length === 1}
               className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-60"
             >
@@ -462,11 +566,29 @@ function LinkStudentModal({
               {schools.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
+          {teachers.length > 0 && (
+            <div>
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
+                Assigned Teacher <span className="text-muted-foreground normal-case font-normal">(optional)</span>
+              </label>
+              <select
+                value={selectedTeacherId}
+                onChange={e => { setSelectedTeacherId(e.target.value); setStudentId(''); }}
+                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+              >
+                <option value="">— All Teachers —</option>
+                {teachers.map(t => (
+                  <option key={t.id} value={t.id}>{t.full_name}{t.section_class ? ` · ${t.section_class}` : ''}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Student</label>
             <StudentPicker
               students={students}
               schoolFilter={selectedSchool}
+              classFilter={teachers.find(t => t.id === selectedTeacherId)?.section_class ?? undefined}
               value={studentId}
               onChange={setStudentId}
             />
@@ -944,6 +1066,7 @@ export default function ParentsPage() {
   const { profile, loading: authLoading } = useAuth();
   const [parents, setParents] = useState<Parent[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [schools, setSchools] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -958,6 +1081,8 @@ export default function ParentsPage() {
   const [showPrintRegistry, setShowPrintRegistry] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [showAccessCards, setShowAccessCards] = useState(false);
+  const [resetting, setResetting] = useState<string | null>(null);
+  const [resetResult, setResetResult] = useState<{ email: string; password: string } | null>(null);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const isAdmin = profile?.role === 'admin';
@@ -982,8 +1107,9 @@ export default function ParentsPage() {
       if (!parRes.ok) console.error('Parents load error:', parJson.error);
       setParents(parJson.data ?? []);
 
-      // Students come from the API response (server-side, bypasses RLS)
+      // Students and teachers come from the API response (server-side, bypasses RLS)
       setStudents((parJson.students ?? []) as Student[]);
+      setTeachers((parJson.teachers ?? []) as Teacher[]);
 
       // Load schools from API (uses service role, bypasses RLS)
       if (isAdmin) {
@@ -1025,6 +1151,21 @@ export default function ParentsPage() {
       if (!res.ok) { const j = await res.json(); alert(j.error || 'Failed'); return; }
       setParents(prev => prev.map(p => p.id === parent.id ? { ...p, is_active: !p.is_active } : p));
     } catch { alert('Failed'); } finally { setToggling(null); }
+  };
+
+  const handleResetPassword = async (parent: Parent) => {
+    if (!confirm(`Reset password for ${parent.full_name}? A new temporary password will be generated.`)) return;
+    setResetting(parent.id);
+    try {
+      const res = await fetch('/api/parents/manage', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent_id: parent.id, reset_password: true }),
+      });
+      const j = await res.json();
+      if (!res.ok) { alert(j.error || 'Failed to reset password'); return; }
+      setResetResult({ email: parent.email, password: j.new_password });
+    } catch { alert('Failed to reset password'); } finally { setResetting(null); }
   };
 
   if (authLoading) return null;
@@ -1274,9 +1415,15 @@ export default function ParentsPage() {
                         {toggling === parent.id ? '…' : parent.is_active ? 'Deactivate' : 'Activate'}
                       </button>
                     )}
-                    <a href={`mailto:${parent.email}`}
+                    <button
+                      onClick={() => handleResetPassword(parent)}
+                      disabled={resetting === parent.id}
+                      className="flex items-center gap-2 px-4 py-2 border border-amber-500/30 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:border-amber-500 hover:text-amber-300 transition-all disabled:opacity-50">
+                      <KeyIcon className="w-3.5 h-3.5" /> {resetting === parent.id ? '…' : 'Reset PW'}
+                    </button>
+                    <a href={`/dashboard/messages?to=${parent.id}`}
                       className="flex items-center gap-2 px-4 py-2 border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all ml-auto">
-                      <EnvelopeIcon className="w-3.5 h-3.5" /> Email Parent
+                      <EnvelopeIcon className="w-3.5 h-3.5" /> Message
                     </a>
                   </div>
                 </div>
@@ -1291,6 +1438,7 @@ export default function ParentsPage() {
         <ParentFormModal
           initialData={editTarget}
           students={students}
+          teachers={teachers}
           schools={schools}
           defaultSchool={!isAdmin ? (profile?.school_name ?? '') : schoolFilter}
           onClose={() => { setShowForm(false); setEditTarget(null); }}
@@ -1301,6 +1449,7 @@ export default function ParentsPage() {
         <LinkStudentModal
           parent={linkTarget}
           students={students}
+          teachers={teachers}
           schools={schools}
           defaultSchool={!isAdmin ? (profile?.school_name ?? '') : schoolFilter}
           onClose={() => setLinkTarget(null)}
@@ -1319,6 +1468,44 @@ export default function ParentsPage() {
           onClose={() => setShowBulkImport(false)}
           onDone={load}
         />
+      )}
+      {resetResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-card border border-border shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <KeyIcon className="w-4 h-4 text-amber-400" />
+                <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Password Reset</h2>
+              </div>
+              <button onClick={() => setResetResult(null)} className="text-muted-foreground hover:text-foreground">
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-muted-foreground">Share these new credentials with the parent. They should change their password on next login.</p>
+              <div className="bg-background border border-border p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Email</p>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-bold text-foreground font-mono break-all">{resetResult.email}</span>
+                  <CopyButton value={resetResult.email} />
+                </div>
+              </div>
+              <div className="bg-background border border-amber-500/30 p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-2 flex items-center gap-1">
+                  <KeyIcon className="w-3 h-3" /> New Temporary Password
+                </p>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-bold text-amber-300 font-mono tracking-wider">{resetResult.password}</span>
+                  <CopyButton value={resetResult.password} />
+                </div>
+              </div>
+              <button onClick={() => setResetResult(null)}
+                className="w-full px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-black uppercase tracking-widest transition-all">
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {showAccessCards && (
         <AccessCardsModal
