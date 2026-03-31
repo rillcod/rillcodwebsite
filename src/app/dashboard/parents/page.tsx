@@ -40,6 +40,7 @@ interface Teacher {
   id: string;
   full_name: string;
   section_class: string | null;
+  school_name: string | null;
 }
 
 // ── Searchable student picker (school filter controlled externally) ───────────
@@ -200,9 +201,11 @@ function ParentFormModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { profile } = useAuth(); // Added to detect current teacher
   const isEdit = !!initialData;
   const [selectedSchool, setSelectedSchool] = useState(defaultSchool ?? '');
-  const [selectedTeacherId, setSelectedTeacherId] = useState('');
+  // Auto-select current user in teacher dropdown if they are a teacher
+  const [selectedTeacherId, setSelectedTeacherId] = useState(profile?.role === 'teacher' ? profile.id : '');
   const [form, setForm] = useState({
     email: initialData?.email ?? '',
     full_name: initialData?.full_name ?? '',
@@ -413,7 +416,7 @@ function ParentFormModal({
           {/* Teacher filter — narrows student list to that teacher's class */}
           {(() => {
             const schoolTeachers = selectedSchool
-              ? teachers.filter(t => true) // already scoped server-side; show all loaded teachers
+              ? teachers.filter(t => t.school_name === selectedSchool)
               : teachers;
             if (schoolTeachers.length === 0) return null;
             return (
@@ -429,7 +432,7 @@ function ParentFormModal({
                   <option value="">— All Teachers / All Students —</option>
                   {schoolTeachers.map(t => (
                     <option key={t.id} value={t.id}>
-                      {t.full_name}{t.section_class ? ` · ${t.section_class}` : ''}
+                      {t.full_name}{t.id === profile?.id ? ' (You)' : ''}{t.section_class ? ` · ${t.section_class}` : ''}
                     </option>
                   ))}
                 </select>
@@ -514,8 +517,10 @@ function LinkStudentModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { profile } = useAuth();
   const [selectedSchool, setSelectedSchool] = useState(defaultSchool ?? '');
-  const [selectedTeacherId, setSelectedTeacherId] = useState('');
+  // Auto-select current user in teacher dropdown if they are a teacher
+  const [selectedTeacherId, setSelectedTeacherId] = useState(profile?.role === 'teacher' ? profile.id : '');
   const [studentId, setStudentId] = useState('');
   const [relationship, setRelationship] = useState('Guardian');
   const [saving, setSaving] = useState(false);
@@ -577,9 +582,13 @@ function LinkStudentModal({
                 className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
               >
                 <option value="">— All Teachers —</option>
-                {teachers.map(t => (
-                  <option key={t.id} value={t.id}>{t.full_name}{t.section_class ? ` · ${t.section_class}` : ''}</option>
-                ))}
+                {teachers
+                  .filter(t => !selectedSchool || t.school_name === selectedSchool)
+                  .map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.full_name}{t.id === profile?.id ? ' (You)' : ''}{t.section_class ? ` · ${t.section_class}` : ''}
+                    </option>
+                  ))}
               </select>
             </div>
           )}
