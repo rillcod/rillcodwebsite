@@ -453,30 +453,59 @@ export default function PaymentsPage() {
   async function handleUpdateInvoice(e: React.FormEvent) {
     e.preventDefault();
     if (!editingInv) return;
-    setLoadingTx(true);
-    const recalcItems = editInvForm.items.map(it => ({
-      ...it,
-      total: Number((it.quantity * it.unit_price).toFixed(2)),
-    }));
-    const newAmount = recalcItems.reduce((sum, it) => sum + it.total, 0);
-    const { error: err } = await db.from('invoices')
-      .update({
-        due_date: editInvForm.due_date,
-        notes: editInvForm.notes,
-        status: editInvForm.status,
-        portal_user_id: editInvForm.portal_user_id || null, // Allow updating student
-        items: recalcItems,
-        amount: newAmount,
-      })
-      .eq('id', editingInv.id);
-    if (err) { setError(err.message); }
-    else {
-      setInvoices(prev => prev.map(inv => inv.id === editingInv.id
-        ? { ...inv, due_date: editInvForm.due_date, notes: editInvForm.notes, status: editInvForm.status, items: recalcItems, amount: newAmount }
-        : inv));
-      setEditingInv(null);
+    
+    // Validation
+    const validItems = editInvForm.items.filter(it => it.description.trim() !== '' && it.unit_price > 0);
+    if (validItems.length === 0) {
+      alert('Please add at least one valid line item with a description and price.');
+      return;
     }
-    setLoadingTx(false);
+
+    setLoadingTx(true);
+    try {
+      const recalcItems = validItems.map(it => ({
+        ...it,
+        total: Number((it.quantity * it.unit_price).toFixed(2)),
+      }));
+      const newAmount = recalcItems.reduce((sum, it) => sum + it.total, 0);
+      
+      const { error: err } = await db.from('invoices')
+        .update({
+          due_date: editInvForm.due_date,
+          notes: editInvForm.notes,
+          status: editInvForm.status,
+          portal_user_id: editInvForm.portal_user_id || null,
+          items: recalcItems,
+          amount: newAmount,
+        })
+        .eq('id', editingInv.id);
+
+      if (err) throw err;
+
+      // Update local state robustly - find the student info if it changed
+      const updatedStudent = allStudents.find(s => s.id === editInvForm.portal_user_id);
+      
+      setInvoices(prev => prev.map(inv => inv.id === editingInv.id
+        ? { 
+            ...inv, 
+            due_date: editInvForm.due_date, 
+            notes: editInvForm.notes, 
+            status: editInvForm.status, 
+            items: recalcItems, 
+            amount: newAmount,
+            portal_user_id: editInvForm.portal_user_id || null,
+            portal_users: updatedStudent ? { full_name: updatedStudent.full_name, email: updatedStudent.email } : inv.portal_users
+          }
+        : inv));
+      
+      setEditingInv(null);
+      // Optional: show success toast/alert if you have one, or just silent success
+    } catch (err: any) {
+      console.error('Update failed:', err);
+      setError(err.message || 'Failed to update invoice');
+    } finally {
+      setLoadingTx(false);
+    }
   }
 
   async function handleDeleteInvoice(invoiceId: string, e: React.MouseEvent) {
@@ -815,37 +844,75 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
     w.focus();
     setTimeout(() => w.print(), 700);
 
-    // Save invoice record to DB (fire-and-forget — don't block print)
-    const sch2 = schools.find(s => s.id === schoolInvForm.school_id);
-    if (sch2) {
-      const items2 = isFixed
+    // Robust Save/Update logic
+    handleSaveSchoolInvoice(false); // Silent save
+  }
+
+  async function handleSaveSchoolInvoice(showFeedback = true) {
+    const sch = schools.find(s => s.id === schoolInvForm.school_id);
+    if (!sch) { if (showFeedback) alert('Select a school first.'); return; }
+    
+    const isFixed = schoolInvForm.pricing_mode === 'fixed_package';
+    const count = parseInt(schoolInvForm.manual_student_count) || schoolInvStudentCount || 0;
+    const ratePerChild = parseFloat(schoolInvForm.rate_per_child) || 0;
+    const fixedPrice = parseFloat(schoolInvForm.fixed_package_price) || 0;
+    const subtotal = isFixed ? fixedPrice : ratePerChild * count;
+    const quotaPct = parseFloat(schoolInvForm.rillcod_quota_percent) || 0;
+    const deposit = parseFloat(schoolInvForm.deposit_amount) || 0;
+    const revenueShareOn = schoolInvForm.show_revenue_share && quotaPct > 0;
+    const rillcodShare = Math.round(subtotal * (quotaPct / 100));
+    const schoolShare = subtotal - rillcodShare;
+    const balance = revenueShareOn ? Math.max(0, rillcodShare - deposit) : Math.max(0, subtotal - deposit);
+
+    if (showFeedback) setLoadingTx(true);
+    
+    try {
+      const items = isFixed
         ? [{ description: `STEM Programme — School Package (All Students) · Fixed Pricing`, quantity: 1, unit_price: subtotal, total: subtotal }]
-        : [{ description: `STEM / AI / Coding Programme — ${sch2.name}`, quantity: count, unit_price: ratePerChild, total: subtotal }];
+        : [{ description: `STEM / AI / Coding Programme — ${sch.name}`, quantity: count, unit_price: ratePerChild, total: subtotal }];
+      
       const dueISO = schoolInvForm.due_date || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+      
       const invPayload = {
         amount: balance,
         currency: 'NGN',
-        status: 'sent',
+        status: 'sent' as const,
         due_date: dueISO,
         items: revenueShareOn ? [
-          ...items2,
+          ...items,
           { description: `School Commission / Share (${100 - quotaPct}%)`, quantity: 1, unit_price: -schoolShare, total: -schoolShare },
           ...(deposit > 0 ? [{ description: `Less Previous Deposit / Payment`, quantity: 1, unit_price: -deposit, total: -deposit }] : [])
         ] : [
-          ...items2,
+          ...items,
           ...(deposit > 0 ? [{ description: `Less Previous Deposit / Payment`, quantity: 1, unit_price: -deposit, total: -deposit }] : [])
         ],
         notes: schoolInvForm.notes || null,
       };
 
-      const dbOp = editingSchoolInvId
-        ? db.from('invoices').update(invPayload).eq('id', editingSchoolInvId)
-        : db.from('invoices').insert({ ...invPayload, invoice_number: docRef, school_id: schoolInvForm.school_id });
+      if (editingSchoolInvId) {
+        const { error: err } = await db.from('invoices').update(invPayload).eq('id', editingSchoolInvId);
+        if (err) throw err;
+        if (showFeedback) alert('Invoice updated successfully.');
+      } else {
+        const docRef = `SINV-${Date.now().toString(36).toUpperCase()}`;
+        const { error: err } = await db.from('invoices').insert({ 
+          ...invPayload, 
+          invoice_number: docRef, 
+          school_id: schoolInvForm.school_id 
+        });
+        if (err) throw err;
+        if (showFeedback) alert('New invoice generated and saved.');
+      }
 
-      dbOp.then(() => {
-        setEditingSchoolInvId(null);
-        loadTransactions();
-      }, () => {/* silent */});
+      setEditingSchoolInvId(null);
+      setShowSchoolInvoice(false);
+      await loadTransactions();
+    } catch (err: any) {
+      console.error('School Invoice Save Error:', err);
+      setError(err.message || 'Failed to save school invoice');
+      if (showFeedback) alert('Error: ' + (err.message || 'Failed to save'));
+    } finally {
+      if (showFeedback) setLoadingTx(false);
     }
   }
 
@@ -1870,11 +1937,21 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   </div>
                 )}
 
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-3">
                   <button
+                    type="button"
+                    onClick={() => handleSaveSchoolInvoice(true)}
+                    disabled={!schoolInvForm.school_id || (schoolInvForm.pricing_mode === 'per_student' ? !(parseFloat(schoolInvForm.rate_per_child) > 0) : !(parseFloat(schoolInvForm.fixed_package_price) > 0)) || loadingTx}
+                    className="flex items-center gap-2 px-6 py-3 border border-primary/40 hover:bg-primary/10 disabled:opacity-40 disabled:cursor-not-allowed text-primary font-black text-[10px] uppercase tracking-widest rounded-none transition-all"
+                  >
+                    {loadingTx ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ShieldCheckIcon className="w-4 h-4" />}
+                    {editingSchoolInvId ? 'Update Record Only' : 'Generate & Save Record'}
+                  </button>
+                  <button
+                    type="button"
                     onClick={handlePrintSchoolInvoice}
-                    disabled={!schoolInvForm.school_id || (schoolInvForm.pricing_mode === 'per_student' ? !(parseFloat(schoolInvForm.rate_per_child) > 0) : !(parseFloat(schoolInvForm.fixed_package_price) > 0))}
-                    className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg shadow-primary/20"
+                    disabled={!schoolInvForm.school_id || (schoolInvForm.pricing_mode === 'per_student' ? !(parseFloat(schoolInvForm.rate_per_child) > 0) : !(parseFloat(schoolInvForm.fixed_package_price) > 0)) || loadingTx}
+                    className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-black font-black text-[10px] uppercase tracking-widest rounded-none transition-all shadow-lg shadow-primary/20"
                   >
                     <DocumentTextIcon className="w-4 h-4" /> 
                     {editingSchoolInvId ? 'Update & Print Invoice' : 'Generate & Print Invoice'}
