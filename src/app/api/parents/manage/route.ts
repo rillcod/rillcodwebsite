@@ -321,7 +321,7 @@ export async function GET(req: Request) {
     // Return teachers for the school so the form can show a teacher filter
     let teachersQuery = adminForStudents
       .from('portal_users')
-      .select('id, full_name, section_class')
+      .select('id, full_name, section_class, school_name')
       .eq('role', 'teacher')
       .order('full_name');
     if (effectiveSchool) {
