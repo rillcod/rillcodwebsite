@@ -210,7 +210,12 @@ export default function PaymentsPage() {
   const [saving, setSaving] = useState(false);
   const [filterInvStatus, setFilterInvStatus] = useState<'all' | 'sent' | 'paid' | 'overdue' | 'draft'>('all');
   const [editingInv, setEditingInv] = useState<Invoice | null>(null);
-  const [editInvForm, setEditInvForm] = useState({ due_date: '', notes: '', status: 'sent' as Invoice['status'] });
+  const [editInvForm, setEditInvForm] = useState<{
+    due_date: string;
+    notes: string;
+    status: Invoice['status'];
+    items: { description: string; quantity: number; unit_price: number; total: number }[];
+  }>({ due_date: '', notes: '', status: 'sent', items: [] });
 
   // School Invoice Builder state
   const [showSchoolInvoice, setShowSchoolInvoice] = useState(false);
@@ -386,48 +391,45 @@ export default function PaymentsPage() {
 
   function openEditInvoice(inv: Invoice, e: React.MouseEvent) {
     e.stopPropagation();
-    // School invoices → open the builder pre-populated for re-generation
-    if (inv.school_id && isAdmin) {
-      const item = inv.items?.[0];
-      const isFixed = !item || (item.quantity === 1 && String(item.description ?? '').toLowerCase().includes('fixed'));
-      const sch = schools.find(s => s.id === inv.school_id);
-      setSchoolInvForm({
-        school_id: inv.school_id,
-        pricing_mode: isFixed ? 'fixed_package' : 'per_student',
-        manual_student_count: isFixed ? '' : String(item?.quantity ?? ''),
-        rate_per_child: isFixed ? '' : String(item?.unit_price ?? ''),
-        fixed_package_price: isFixed ? String(item?.unit_price ?? inv.amount) : '',
-        rillcod_quota_percent: String(sch?.rillcod_quota_percent ?? ''),
-        notes: inv.notes ?? '',
-        due_date: inv.due_date?.split('T')[0] ?? new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-        deposit_amount: '',
-        pay_to_account_id: '',
-        show_revenue_share: true,
-        show_whatsapp_option: true,
-      });
-      setEditingSchoolInvId(inv.id);
-      setShowSchoolInvoice(true);
-      setShowReceiptBuilder(false);
-      // Scroll to top of payments tab where the builder lives
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-    // Non-school invoices → use the simple edit modal
+    // ALL invoices (school and non-school) → use the proper edit modal
+    const rawItems: any[] = Array.isArray(inv.items) ? inv.items : [];
+    const items = rawItems.map(it => ({
+      description: String(it.description ?? ''),
+      quantity: Number(it.quantity ?? 1),
+      unit_price: Number(it.unit_price ?? 0),
+      total: Number(it.total ?? it.unit_price ?? 0),
+    }));
     setEditingInv(inv);
-    setEditInvForm({ due_date: inv.due_date?.split('T')[0] ?? '', notes: inv.notes ?? '', status: inv.status });
+    setEditInvForm({
+      due_date: inv.due_date?.split('T')[0] ?? '',
+      notes: inv.notes ?? '',
+      status: inv.status,
+      items: items.length > 0 ? items : [{ description: '', quantity: 1, unit_price: 0, total: 0 }],
+    });
   }
 
   async function handleUpdateInvoice(e: React.FormEvent) {
     e.preventDefault();
     if (!editingInv) return;
     setLoadingTx(true);
+    const recalcItems = editInvForm.items.map(it => ({
+      ...it,
+      total: Number((it.quantity * it.unit_price).toFixed(2)),
+    }));
+    const newAmount = recalcItems.reduce((sum, it) => sum + it.total, 0);
     const { error: err } = await db.from('invoices')
-      .update({ due_date: editInvForm.due_date, notes: editInvForm.notes, status: editInvForm.status })
+      .update({
+        due_date: editInvForm.due_date,
+        notes: editInvForm.notes,
+        status: editInvForm.status,
+        items: recalcItems,
+        amount: newAmount,
+      })
       .eq('id', editingInv.id);
     if (err) { setError(err.message); }
     else {
       setInvoices(prev => prev.map(inv => inv.id === editingInv.id
-        ? { ...inv, due_date: editInvForm.due_date, notes: editInvForm.notes, status: editInvForm.status }
+        ? { ...inv, due_date: editInvForm.due_date, notes: editInvForm.notes, status: editInvForm.status, items: recalcItems, amount: newAmount }
         : inv));
       setEditingInv(null);
     }
@@ -2618,60 +2620,35 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
 
       {/* ── Edit Invoice Modal ─────────────────────────────────────────── */}
       {editingInv && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-          <div className="bg-background border border-border w-full max-w-lg shadow-2xl flex flex-col">
+        <div className="fixed inset-0 z-[120] flex items-start justify-center p-4 pt-8 bg-black/70 backdrop-blur-md overflow-y-auto">
+          <div className="bg-background border border-border w-full max-w-2xl shadow-2xl flex flex-col mb-8">
+
             {/* Header */}
-            <div className="px-6 py-5 border-b border-border flex items-start justify-between gap-4">
+            <div className="px-6 py-5 border-b border-border flex items-start justify-between gap-4 bg-card">
               <div>
                 <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Edit Invoice</p>
                 <h3 className="text-lg font-extrabold text-foreground leading-none">{editingInv.invoice_number}</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {editingInv.schools?.name
+                    ? <span className="text-violet-400 font-bold">{editingInv.schools.name}</span>
+                    : editingInv.portal_users?.full_name
+                      ? <span className="text-blue-400 font-bold">{editingInv.portal_users.full_name}</span>
+                      : '—'}
+                </p>
               </div>
-              <button
-                onClick={() => setEditingInv(null)}
-                className="p-2 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex-shrink-0"
-              >
+              <button onClick={() => setEditingInv(null)} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex-shrink-0">
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Invoice summary strip */}
-            <div className="px-6 py-4 bg-card border-b border-border grid grid-cols-3 gap-4">
-              <div>
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Student</p>
-                <p className="text-sm font-bold text-foreground truncate">
-                  {editingInv.portal_users?.full_name || editingInv.schools?.name || '—'}
-                </p>
-              </div>
-              <div>
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Amount</p>
-                <p className="text-sm font-black text-foreground">₦{editingInv.amount.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Current Status</p>
-                <span className={`inline-block px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full ${
-                  editingInv.status === 'paid' ? 'bg-emerald-500/15 text-emerald-400' :
-                  editingInv.status === 'overdue' ? 'bg-rose-500/15 text-rose-400' :
-                  editingInv.status === 'cancelled' ? 'bg-slate-500/15 text-slate-400' :
-                  'bg-primary/15 text-primary'
-                }`}>
-                  {editingInv.status}
-                </span>
-              </div>
-            </div>
+            <form onSubmit={handleUpdateInvoice} className="flex flex-col">
 
-            {/* Form body */}
-            <form onSubmit={handleUpdateInvoice} className="p-6 space-y-5">
-              {/* Status */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">
-                  Update Status
-                </label>
+              {/* ── Status ─────────────────────────────────────────────── */}
+              <div className="px-6 pt-5 pb-4 border-b border-border space-y-2">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Status</label>
                 <div className="grid grid-cols-5 gap-1.5">
                   {(['draft', 'sent', 'paid', 'overdue', 'cancelled'] as const).map(s => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setEditInvForm(f => ({ ...f, status: s }))}
+                    <button key={s} type="button" onClick={() => setEditInvForm(f => ({ ...f, status: s }))}
                       className={`py-2 text-[9px] font-black uppercase tracking-wider border transition-all ${
                         editInvForm.status === s
                           ? s === 'paid' ? 'bg-emerald-600 border-emerald-600 text-white'
@@ -2679,59 +2656,122 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                           : s === 'cancelled' ? 'bg-slate-600 border-slate-600 text-white'
                           : 'bg-primary border-primary text-black'
                           : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
-                      }`}
-                    >
+                      }`}>
                       {s}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Due date */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">
-                  Due Date
-                </label>
-                <input
-                  type="date"
-                  value={editInvForm.due_date}
-                  onChange={e => setEditInvForm(f => ({ ...f, due_date: e.target.value }))}
-                  className="w-full px-4 py-2.5 bg-card border border-border text-foreground text-sm rounded-none focus:outline-none focus:border-primary/50 transition-colors"
-                />
+              {/* ── Line Items ─────────────────────────────────────────── */}
+              <div className="px-6 pt-5 pb-4 border-b border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Line Items</label>
+                  <button type="button"
+                    onClick={() => setEditInvForm(f => ({ ...f, items: [...f.items, { description: '', quantity: 1, unit_price: 0, total: 0 }] }))}
+                    className="text-[9px] font-black uppercase tracking-wider text-primary hover:text-primary/80 flex items-center gap-1 transition-colors">
+                    <PlusIcon className="w-3 h-3" /> Add Line
+                  </button>
+                </div>
+
+                {/* Column headers */}
+                <div className="grid grid-cols-12 gap-1.5 text-[8px] font-black text-muted-foreground uppercase tracking-widest px-1">
+                  <div className="col-span-5">Description</div>
+                  <div className="col-span-2 text-right">Qty</div>
+                  <div className="col-span-2 text-right">Unit Price</div>
+                  <div className="col-span-2 text-right">Total</div>
+                  <div className="col-span-1" />
+                </div>
+
+                <div className="space-y-1.5">
+                  {editInvForm.items.map((item, idx) => {
+                    const lineTotal = item.quantity * item.unit_price;
+                    return (
+                      <div key={idx} className="grid grid-cols-12 gap-1.5 items-center">
+                        <input
+                          className="col-span-5 px-2 py-1.5 bg-card border border-border text-foreground text-xs rounded-none focus:outline-none focus:border-primary/50"
+                          placeholder="Description"
+                          value={item.description}
+                          onChange={e => setEditInvForm(f => {
+                            const items = [...f.items];
+                            items[idx] = { ...items[idx], description: e.target.value };
+                            return { ...f, items };
+                          })}
+                        />
+                        <input
+                          type="number" min="0" step="1"
+                          className="col-span-2 px-2 py-1.5 bg-card border border-border text-foreground text-xs text-right rounded-none focus:outline-none focus:border-primary/50"
+                          value={item.quantity}
+                          onChange={e => setEditInvForm(f => {
+                            const items = [...f.items];
+                            const qty = Number(e.target.value) || 0;
+                            items[idx] = { ...items[idx], quantity: qty, total: qty * items[idx].unit_price };
+                            return { ...f, items };
+                          })}
+                        />
+                        <input
+                          type="number" min="0" step="0.01"
+                          className="col-span-2 px-2 py-1.5 bg-card border border-border text-foreground text-xs text-right rounded-none focus:outline-none focus:border-primary/50"
+                          value={item.unit_price}
+                          onChange={e => setEditInvForm(f => {
+                            const items = [...f.items];
+                            const up = Number(e.target.value) || 0;
+                            items[idx] = { ...items[idx], unit_price: up, total: items[idx].quantity * up };
+                            return { ...f, items };
+                          })}
+                        />
+                        <div className="col-span-2 text-right text-xs font-bold text-foreground tabular-nums pr-1">
+                          {lineTotal < 0 ? '-' : ''}₦{Math.abs(lineTotal).toLocaleString()}
+                        </div>
+                        <button type="button"
+                          disabled={editInvForm.items.length === 1}
+                          onClick={() => setEditInvForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }))}
+                          className="col-span-1 flex items-center justify-center text-muted-foreground hover:text-rose-400 transition-colors disabled:opacity-20">
+                          <TrashIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Total row */}
+                <div className="flex items-center justify-between pt-2 border-t border-border">
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total</span>
+                  <span className="text-lg font-black text-primary tabular-nums">
+                    ₦{editInvForm.items.reduce((s, it) => s + it.quantity * it.unit_price, 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                  </span>
+                </div>
               </div>
 
-              {/* Notes */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">
-                  Notes / Instructions
-                </label>
-                <textarea
-                  value={editInvForm.notes}
-                  onChange={e => setEditInvForm(f => ({ ...f, notes: e.target.value }))}
-                  rows={3}
-                  placeholder="e.g. Payment due before resumption. Contact admin for payment plan."
-                  className="w-full px-4 py-2.5 bg-card border border-border text-foreground text-sm rounded-none focus:outline-none focus:border-primary/50 resize-none transition-colors placeholder-muted-foreground/50"
-                />
+              {/* ── Due Date + Notes ────────────────────────────────────── */}
+              <div className="px-6 pt-5 pb-4 border-b border-border grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Due Date</label>
+                  <input type="date" value={editInvForm.due_date}
+                    onChange={e => setEditInvForm(f => ({ ...f, due_date: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-card border border-border text-foreground text-sm rounded-none focus:outline-none focus:border-primary/50 transition-colors" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Notes</label>
+                  <textarea value={editInvForm.notes}
+                    onChange={e => setEditInvForm(f => ({ ...f, notes: e.target.value }))}
+                    rows={2} placeholder="Payment instructions, notes…"
+                    className="w-full px-4 py-2.5 bg-card border border-border text-foreground text-sm rounded-none focus:outline-none focus:border-primary/50 resize-none transition-colors placeholder-muted-foreground/50" />
+                </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setEditingInv(null)}
-                  className="flex-1 py-2.5 border border-border text-muted-foreground text-[11px] font-black uppercase tracking-widest hover:text-foreground hover:border-foreground/20 transition-all"
-                >
+              {/* ── Actions ────────────────────────────────────────────── */}
+              <div className="px-6 py-4 flex gap-3">
+                <button type="button" onClick={() => setEditingInv(null)}
+                  className="flex-1 py-2.5 border border-border text-muted-foreground text-[11px] font-black uppercase tracking-widest hover:text-foreground hover:border-foreground/20 transition-all">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={loadingTx}
-                  className="flex-1 py-2.5 bg-primary hover:bg-primary/90 text-black text-[11px] font-black uppercase tracking-widest disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
-                >
+                <button type="submit" disabled={loadingTx}
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary/90 text-black text-[11px] font-black uppercase tracking-widest disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
                   {loadingTx
                     ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
                     : <CheckIcon className="w-3.5 h-3.5" />}
-                  Save Changes
+                  Save Invoice
                 </button>
               </div>
             </form>
