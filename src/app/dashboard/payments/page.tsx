@@ -214,8 +214,9 @@ export default function PaymentsPage() {
     due_date: string;
     notes: string;
     status: Invoice['status'];
+    portal_user_id: string; // Added to match Create form
     items: { description: string; quantity: number; unit_price: number; total: number }[];
-  }>({ due_date: '', notes: '', status: 'sent', items: [] });
+  }>({ due_date: '', notes: '', status: 'sent', portal_user_id: '', items: [] });
 
   // School Invoice Builder state
   const [showSchoolInvoice, setShowSchoolInvoice] = useState(false);
@@ -391,7 +392,47 @@ export default function PaymentsPage() {
 
   function openEditInvoice(inv: Invoice, e: React.MouseEvent) {
     e.stopPropagation();
-    // ALL invoices (school and non-school) → use the proper edit modal
+    
+    // If it's a school invoice (has school_id and no portal_user_id), use the specialized builder
+    if (isAdmin && inv.school_id && !inv.portal_user_id) {
+      const items = Array.isArray(inv.items) ? inv.items : [];
+      const mainItem = items[0] || {};
+      const isFixed = String(mainItem.description || '').includes('Fixed Pricing');
+
+      // Try to parse out the metadata from line items
+      const shareItem = items.find(it => String(it.description || '').includes('School Commission / Share'));
+      const depositItem = items.find(it => String(it.description || '').includes('Deposit'));
+
+      let quota = '';
+      if (shareItem) {
+        const match = String(shareItem.description).match(/\((\d+)%\)/);
+        if (match) {
+          quota = String(100 - parseInt(match[1]));
+        }
+      }
+
+      setSchoolInvForm({
+        school_id: inv.school_id,
+        pricing_mode: isFixed ? 'fixed_package' : 'per_student',
+        rate_per_child: isFixed ? '' : String(mainItem.unit_price || ''),
+        fixed_package_price: isFixed ? String(mainItem.unit_price || '') : '',
+        rillcod_quota_percent: quota,
+        notes: inv.notes || '',
+        due_date: inv.due_date?.split('T')[0] ?? '',
+        deposit_amount: depositItem ? String(Math.abs(Number(depositItem.unit_price || 0))) : '',
+        pay_to_account_id: '', // Not stored in DB, user will have to re-select
+        manual_student_count: String(mainItem.quantity || 1),
+        show_revenue_share: !!shareItem,
+        show_whatsapp_option: true,
+      });
+
+      setEditingSchoolInvId(inv.id);
+      setShowSchoolInvoice(true);
+      setShowReceiptBuilder(false);
+      return;
+    }
+
+    // Standard Invoice (Student) logic
     const rawItems: any[] = Array.isArray(inv.items) ? inv.items : [];
     const items = rawItems.map(it => ({
       description: String(it.description ?? ''),
@@ -404,6 +445,7 @@ export default function PaymentsPage() {
       due_date: inv.due_date?.split('T')[0] ?? '',
       notes: inv.notes ?? '',
       status: inv.status,
+      portal_user_id: inv.portal_user_id || '',
       items: items.length > 0 ? items : [{ description: '', quantity: 1, unit_price: 0, total: 0 }],
     });
   }
@@ -422,6 +464,7 @@ export default function PaymentsPage() {
         due_date: editInvForm.due_date,
         notes: editInvForm.notes,
         status: editInvForm.status,
+        portal_user_id: editInvForm.portal_user_id || null, // Allow updating student
         items: recalcItems,
         amount: newAmount,
       })
@@ -1833,7 +1876,8 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                     disabled={!schoolInvForm.school_id || (schoolInvForm.pricing_mode === 'per_student' ? !(parseFloat(schoolInvForm.rate_per_child) > 0) : !(parseFloat(schoolInvForm.fixed_package_price) > 0))}
                     className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all shadow-lg shadow-primary/20"
                   >
-                    <DocumentTextIcon className="w-4 h-4" /> Generate &amp; Print Invoice
+                    <DocumentTextIcon className="w-4 h-4" /> 
+                    {editingSchoolInvId ? 'Update & Print Invoice' : 'Generate & Print Invoice'}
                   </button>
                 </div>
               </div>
@@ -2663,6 +2707,21 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                 </div>
               </div>
 
+              {/* ── Student Selection (Optional for reassignment) ─────────────── */}
+              {editInvForm.portal_user_id && (
+                <div className="px-6 pt-5 pb-4 border-b border-border space-y-2">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Assign to Student</label>
+                  <select
+                    value={editInvForm.portal_user_id}
+                    onChange={e => setEditInvForm(f => ({ ...f, portal_user_id: e.target.value }))}
+                    className="w-full px-3 py-2 bg-card border border-border text-foreground text-xs rounded-none focus:outline-none focus:border-primary/50"
+                  >
+                    <option value="">— Choose Student —</option>
+                    {allStudents.map(s => <option key={s.id} value={s.id}>{s.full_name} ({s.email})</option>)}
+                  </select>
+                </div>
+              )}
+
               {/* ── Line Items ─────────────────────────────────────────── */}
               <div className="px-6 pt-5 pb-4 border-b border-border space-y-3">
                 <div className="flex items-center justify-between">
@@ -2762,12 +2821,37 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
 
               {/* ── Actions ────────────────────────────────────────────── */}
               <div className="px-6 py-4 flex gap-3">
+                <button type="button" onClick={() => {
+                  const items = editInvForm.items.filter(i => i.description && i.unit_price > 0);
+                  const total = items.reduce((s, i) => s + i.total, 0);
+                  const selectedStudent = allStudents.find(s => s.id === editInvForm.portal_user_id);
+                  setViewDoc({
+                    type: 'invoice',
+                    data: {
+                      number: editingInv.invoice_number,
+                      date: new Date(editingInv.created_at).toLocaleDateString(),
+                      dueDate: new Date(editInvForm.due_date).toLocaleDateString(),
+                      status: editInvForm.status,
+                      items,
+                      amount: total,
+                      currency: 'NGN',
+                      studentName: selectedStudent?.full_name || editingInv.portal_users?.full_name || 'Student',
+                      studentEmail: selectedStudent?.email || editingInv.portal_users?.email,
+                      notes: editInvForm.notes,
+                      schoolName: 'RILLCOD TECHNOLOGIES',
+                    }
+                  });
+                }}
+                  className="px-5 py-2.5 border border-border text-muted-foreground text-[11px] font-black uppercase tracking-widest hover:text-foreground hover:border-foreground/20 transition-all flex items-center justify-center gap-2">
+                  <DocumentTextIcon className="w-3.5 h-3.5" /> Preview
+                </button>
+                <div className="flex-1" />
                 <button type="button" onClick={() => setEditingInv(null)}
-                  className="flex-1 py-2.5 border border-border text-muted-foreground text-[11px] font-black uppercase tracking-widest hover:text-foreground hover:border-foreground/20 transition-all">
+                  className="px-5 py-2.5 border border-border text-muted-foreground text-[11px] font-black uppercase tracking-widest hover:text-foreground hover:border-foreground/20 transition-all">
                   Cancel
                 </button>
                 <button type="submit" disabled={loadingTx}
-                  className="flex-1 py-2.5 bg-primary hover:bg-primary/90 text-black text-[11px] font-black uppercase tracking-widest disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
+                  className="px-8 py-2.5 bg-primary hover:bg-primary/90 text-black text-[11px] font-black uppercase tracking-widest disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
                   {loadingTx
                     ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
                     : <CheckIcon className="w-3.5 h-3.5" />}
