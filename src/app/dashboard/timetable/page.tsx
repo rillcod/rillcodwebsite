@@ -545,7 +545,7 @@ export default function TimetablePage() {
       <div style="flex:1;">
         <div style="font-size:20px;font-weight:900;color:#7c3aed;letter-spacing:-0.5px;line-height:1.1;">RILLCOD TECHNOLOGIES</div>
         <div style="font-size:11px;color:#6b7280;margin-top:2px;">Coding Today, Innovating Tomorrow</div>
-        <div style="font-size:10px;color:#9ca3af;margin-top:2px;">26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; rillcod@gmail.com</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px;">26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; support@rillcod.com</div>
       </div>
       <div style="text-align:right;flex-shrink:0;">
         <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;">Official Document</div>

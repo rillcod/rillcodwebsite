@@ -176,7 +176,7 @@ CREATE TABLE schools (
 ## 📞 Support
 
 For technical support or questions:
-- Email: info@rillcod.com
+- Email: support@rillcod.com
 - Phone: +234 811 660 0091
 - WhatsApp: [Chat with us](https://wa.me/2348116600091)
 

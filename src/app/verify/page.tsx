@@ -156,7 +156,7 @@ export default function VerifyLandingPage() {
                         © {new Date().getFullYear()} Rillcod Technologies · All Rights Reserved
                     </p>
                     <div className="flex gap-8">
-                        <a href="mailto:rillcod@gmail.com" className="text-[10px] font-bold text-white/20 hover:text-white uppercase tracking-widest transition-colors">Contact Support</a>
+                        <a href="mailto:support@rillcod.com" className="text-[10px] font-bold text-white/20 hover:text-white uppercase tracking-widest transition-colors">Contact Support</a>
                         <Link href="/privacy-policy" className="text-[10px] font-bold text-white/20 hover:text-white uppercase tracking-widest transition-colors">Privacy Policy</Link>
                         <Link href="/terms-of-service" className="text-[10px] font-bold text-white/20 hover:text-white uppercase tracking-widest transition-colors">Terms of Service</Link>
                     </div>

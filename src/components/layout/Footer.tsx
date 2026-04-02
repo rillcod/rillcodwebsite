@@ -113,7 +113,7 @@ const Footer = () => {
                </div>
                <div className="flex items-center gap-4 group">
                   <EnvelopeIcon className="w-5 h-5 text-orange-500 flex-shrink-0" />
-                  <p className="text-xs font-black text-foreground lowercase tracking-widest">info@rillcod.tech</p>
+                  <p className="text-xs font-black text-foreground lowercase tracking-widest">support@rillcod.com</p>
                </div>
             </div>
           </div>

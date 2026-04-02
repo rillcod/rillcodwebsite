@@ -44,7 +44,7 @@ export const brandAssets = {
 // Contact information
 export const contactInfo = {
   phone: '+234 811 660 0091',
-  email: 'info@rillcod.com',
+  email: 'support@rillcod.com',
   address: 'No 26 Ogiesoba Avenue, Benin City',
   whatsapp: 'https://wa.me/2348116600091'
 };

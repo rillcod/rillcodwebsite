@@ -177,7 +177,7 @@ export default function StudentProgressReportPage() {
                   Coding Today, Innovating Tomorrow
                 </div>
                 <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>
-                  26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; rillcod@gmail.com
+                  26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; support@rillcod.com
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>

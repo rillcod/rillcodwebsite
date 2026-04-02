@@ -83,7 +83,7 @@ export async function POST(req: Request) {
             subject,
             html,
             fromName: 'Rillcod Technologies',
-            fromEmail: 'rillcod@gmail.com',
+            fromEmail: 'support@rillcod.com',
         });
 
         // Update status to 'sent' if it was 'draft'

@@ -1374,7 +1374,7 @@ CREATE TABLE IF NOT EXISTS "public"."report_settings" (
     "org_tagline" "text" DEFAULT 'Excellence in Educational Technology'::"text",
     "org_address" "text" DEFAULT '26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City'::"text",
     "org_phone" "text" DEFAULT '08116600091'::"text",
-    "org_email" "text" DEFAULT 'rillcod@gmail.com'::"text",
+    "org_email" "text" DEFAULT 'support@rillcod.com'::"text",
     "org_website" "text" DEFAULT 'www.rillcod.com'::"text",
     "logo_url" "text",
     "default_term" "text" DEFAULT 'Termly'::"text",
