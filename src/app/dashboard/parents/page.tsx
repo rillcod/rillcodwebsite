@@ -405,10 +405,12 @@ function ParentFormModal({
             <select
               value={selectedSchool}
               onChange={e => { setSelectedSchool(e.target.value); setSelectedTeacherId(''); setForm(f => ({ ...f, student_id: '' })); }}
-              disabled={schools.length === 1}
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-60"
+              // Disable if only one school for non-admins, but ensure it's selectable if it's the only option
+              disabled={schools.length <= 1 && profile?.role !== 'admin'}
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-80"
             >
-              <option value="">— Select School —</option>
+              {schools.length === 0 && <option value="">— No Schools Available —</option>}
+              {schools.length !== 1 && <option value="">— Select School —</option>}
               {schools.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
@@ -1096,12 +1098,13 @@ export default function ParentsPage() {
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const isAdmin = profile?.role === 'admin';
 
-  // Set default school filter for teachers
+  // Set default school filter and pre-populate schools list for teachers
   useEffect(() => {
-    if (profile?.role === 'teacher' && profile.school_name && !schoolFilter) {
-      setSchoolFilter(profile.school_name);
+    if (profile?.role === 'teacher' && profile.school_name) {
+      if (!schoolFilter) setSchoolFilter(profile.school_name);
+      setSchools([profile.school_name]);
     }
-  }, [profile]);
+  }, [profile, schoolFilter]);
 
   const load = useCallback(async () => {
     if (!isStaff) return;
@@ -1128,6 +1131,7 @@ export default function ParentsPage() {
           setSchools((schoolList ?? []).map((s: any) => s.name).filter(Boolean));
         }
       } else if (profile?.school_name) {
+        // Teacher or staff with an assigned school — use it
         setSchools([profile.school_name]);
       }
     } catch (err) {
