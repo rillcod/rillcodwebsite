@@ -71,17 +71,52 @@ export default function NewslettersPage() {
   const pdfRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (profile?.role === 'admin' || profile?.role === 'teacher') {
+    if (profile?.role) {
       loadNewsletters();
     }
   }, [profile]);
 
   async function loadNewsletters() {
     setLoading(true);
-    const res = await supabase.from('newsletters')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setNewsletters(res.data ?? []);
+    let data: Newsletter[] = [];
+
+    if (profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school') {
+      const res = await supabase.from('newsletters')
+        .select('*')
+        .order('created_at', { ascending: false });
+      data = res.data ?? [];
+    } else {
+      // For Students and Parents, they see newsletters delivered to them
+      if (!profile?.id) {
+        setLoading(false);
+        return;
+      }
+      const userId = profile.id;
+      const { data: deliveries } = await supabase
+        .from('newsletter_delivery')
+        .select('newsletter_id, is_viewed')
+        .eq('user_id', userId);
+      
+      if (deliveries && deliveries.length > 0) {
+        const ids = deliveries.map(d => d.newsletter_id);
+        const { data: nls } = await supabase
+          .from('newsletters')
+          .select('*')
+          .in('id', ids)
+          .eq('status', 'published')
+          .order('published_at', { ascending: false });
+        data = nls ?? [];
+
+        // Mark them as viewed
+        await supabase
+          .from('newsletter_delivery')
+          .update({ is_viewed: true })
+          .eq('user_id', userId)
+          .in('newsletter_id', ids);
+      }
+    }
+
+    setNewsletters(data);
     setLoading(false);
   }
 
@@ -193,7 +228,7 @@ export default function NewslettersPage() {
 
   const isManager = profile?.role === 'admin' || profile?.role === 'teacher';
 
-  if (profile?.role !== 'admin' && profile?.role !== 'school' && profile?.role !== 'teacher' && profile?.role !== 'student') {
+  if (profile?.role !== 'admin' && profile?.role !== 'school' && profile?.role !== 'teacher' && profile?.role !== 'student' && profile?.role !== 'parent') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-900/10 via-transparent to-transparent">
         <div className="max-w-md w-full text-center space-y-6">
@@ -541,7 +576,7 @@ export default function NewslettersPage() {
         {/* Push Modal */}
         {showPushModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="bg-[#161625] border border-border rounded-[40px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95">
+            <div className="bg-popover border border-border rounded-[40px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95">
               <div className="p-8 space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold">Push to Recipients</h3>

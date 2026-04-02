@@ -640,10 +640,10 @@ robot = Robot()
   if (authLoading) return null;
 
   return (
-    <div className="h-screen bg-[#020617] text-foreground flex flex-col overflow-hidden selection:bg-orange-500/30">
+    <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden selection:bg-orange-500/30">
       
       {/* ─── Top Bar ─── */}
-      <header className="h-8 border-b border-border flex items-center justify-between px-3 bg-[#0d1526]/80 backdrop-blur-xl z-[45] sticky top-0">
+      <header className="h-8 border-b border-border flex items-center justify-between px-3 bg-card/80 backdrop-blur-xl z-[45] sticky top-0">
         <div className="flex items-center gap-2">
           {!sidebarOpen && (
             <button onClick={() => setSidebarOpen(true)} className="p-1 hover:bg-card shadow-sm rounded-none text-muted-foreground">
@@ -731,12 +731,12 @@ robot = Robot()
               exit={{ x: -400, opacity: 0 }}
               className={`
                 fixed inset-y-0 left-0 w-full sm:w-80 md:relative md:w-72 
-                border-r border-border bg-[#0d1526] md:bg-[#0d1526]/95 backdrop-blur-xl 
+                border-r border-border bg-card md:bg-card/95 backdrop-blur-xl 
                 flex flex-col z-[60] md:z-[50]
                 ${view !== 'explorer' && 'hidden md:flex'}
               `}
             >
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-black/20">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
                 <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">Studio Explorer</span>
                 <button onClick={() => setSidebarOpen(false)} className="p-1.5 hover:bg-card shadow-sm rounded-none text-muted-foreground transition-all">
                   <ChevronLeftIcon className="w-4 h-4" />
@@ -751,17 +751,17 @@ robot = Robot()
                       <ClipboardDocumentListIcon className="w-4 h-4 text-amber-400 shrink-0" />
                       <p className="text-[9px] font-black text-amber-400 uppercase tracking-[0.3em]">Active Assignment</p>
                     </div>
-                    <h3 className="text-sm font-black text-white leading-tight">{assignmentData.title}</h3>
+                    <h3 className="text-sm font-black text-foreground leading-tight">{assignmentData.title}</h3>
                     {assignmentData.description && (
-                      <p className="text-[10px] text-white/40 font-medium leading-relaxed line-clamp-3">{assignmentData.description}</p>
+                      <p className="text-[10px] text-foreground/40 font-medium leading-relaxed line-clamp-3">{assignmentData.description}</p>
                     )}
                     {assignmentData.instructions && (
                       <div className="p-3 bg-amber-500/10 border border-amber-500/10">
                         <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-1">Instructions</p>
-                        <p className="text-[10px] text-white/50 leading-relaxed">{assignmentData.instructions}</p>
+                        <p className="text-[10px] text-foreground/50 leading-relaxed">{assignmentData.instructions}</p>
                       </div>
                     )}
-                    <div className="flex items-center justify-between text-[9px] font-black text-white/30 uppercase tracking-widest">
+                    <div className="flex items-center justify-between text-[9px] font-black text-foreground/30 uppercase tracking-widest">
                       {assignmentData.due_date && (
                         <span className="flex items-center gap-1">
                           <CalendarIcon className="w-3 h-3" />
@@ -777,7 +777,7 @@ robot = Robot()
                       <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 text-center">
                         <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Score</p>
                         <p className="text-xl font-black text-emerald-400">{mySubmission.grade}/{assignmentData.max_points || 100}</p>
-                        {mySubmission.feedback && <p className="text-[9px] text-white/40 mt-1 italic">"{mySubmission.feedback}"</p>}
+                        {mySubmission.feedback && <p className="text-[9px] text-foreground/40 mt-1 italic">"{mySubmission.feedback}"</p>}
                       </div>
                     )}
                     <a href={`/dashboard/assignments/${assignmentId}`} className="block text-center text-[9px] font-black text-amber-400/50 hover:text-amber-400 uppercase tracking-widest transition-colors">
@@ -800,14 +800,14 @@ robot = Robot()
                         >
                           <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${overdue ? 'bg-rose-500' : 'bg-amber-500'}`} />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-bold text-white/70 group-hover:text-amber-400 truncate transition-colors">{task.title}</p>
+                            <p className="text-[10px] font-bold text-muted-foreground group-hover:text-amber-400 truncate transition-colors">{task.title}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                               {task.due_date && (
-                                <span className={`text-[8px] font-black uppercase tracking-widest ${overdue ? 'text-rose-400' : 'text-white/30'}`}>
+                                <span className={`text-[8px] font-black uppercase tracking-widest ${overdue ? 'text-rose-400' : 'text-muted-foreground/40'}`}>
                                   {overdue ? '⚠ Overdue' : `Due ${new Date(task.due_date).toLocaleDateString()}`}
                                 </span>
                               )}
-                              <span className="text-[8px] font-black text-white/20 uppercase">{task.max_points}pts</span>
+                              <span className="text-[8px] font-black text-muted-foreground/30 uppercase">{task.max_points}pts</span>
                             </div>
                           </div>
                         </a>
@@ -903,22 +903,22 @@ robot = Robot()
         </AnimatePresence>
 
         {/* ─── Editor Canvas ─── */}
-        <div className={`flex-1 flex flex-col min-w-0 bg-[#020617] relative ${view !== 'editor' && view !== 'canvas' && 'hidden md:flex'}`}>
+        <div className={`flex-1 flex flex-col min-w-0 bg-background relative ${view !== 'editor' && view !== 'canvas' && 'hidden md:flex'}`}>
           {view === 'canvas' && lang === 'robotics' && (
-            <div className="flex-1 p-4 sm:p-6 flex flex-col bg-[#020617] md:hidden">
+            <div className="flex-1 p-4 sm:p-6 flex flex-col bg-background md:hidden">
               <div className="flex items-center gap-2 mb-4">
                 <RocketLaunchIcon className="w-4 h-4 text-emerald-400" />
                 <h3 className="text-[10px] font-black uppercase tracking-widest italic text-emerald-400/80">Flight Dynamics</h3>
               </div>
               <RobotSimulator code={code} isRunning={running} onFinish={() => setRunning(false)} commands={robotCommands} />
-              <div className="mt-4 p-4 bg-[#0d1526] border border-border">
+              <div className="mt-4 p-4 bg-card border border-border">
                 <p className="text-[8px] text-muted-foreground uppercase font-black leading-relaxed">Visualizing kinematic trace on mobile uplink. Switch to terminal for logs.</p>
               </div>
             </div>
           )}
           <div className="flex-1 flex flex-col overflow-hidden">
              {/* Tab Headers */}
-            <div className="h-8 bg-[#0d1526]/50 border-b border-border flex items-center px-4 justify-between">
+            <div className="h-8 bg-card/50 border-b border-border flex items-center px-4 justify-between">
               <div className="flex gap-1">
                 {lang !== 'scratch' && (
                   <button onClick={() => setEditorMode('code')}
@@ -993,7 +993,7 @@ robot = Robot()
               )}
 
               {lang === 'html' && (
-                <div className="hidden xl:block w-56 border-l border-border bg-[#0d1526]/40 p-3 overflow-y-auto">
+                <div className="hidden xl:block w-56 border-l border-border bg-card/40 p-3 overflow-y-auto">
                   <div className="flex items-center gap-2 mb-4 pl-1">
                     <SparklesIcon className="w-4 h-4 text-orange-400" />
                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">UI Builder</p>
@@ -1039,7 +1039,7 @@ robot = Robot()
                <div className="w-16 h-1 bg-border rounded-full group-hover:bg-orange-600 transition-colors opacity-0 group-hover:opacity-100" />
              </div>
 
-             <div className="h-7 border-b border-border flex items-center px-3 justify-between bg-black/20 shrink-0">
+             <div className="h-7 border-b border-border flex items-center px-3 justify-between bg-muted/20 shrink-0">
               <div className="flex items-center gap-2">
                 <CommandLineIcon className="w-3.5 h-3.5 text-emerald-400" />
                 <span className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-400/80">
@@ -1054,7 +1054,7 @@ robot = Robot()
                  )}
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar bg-black/40 font-mono text-[10px] sm:text-xs">
+            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar bg-background/60 font-mono text-[10px] sm:text-xs">
                <div className="space-y-1 h-full">
                   {lang === 'html' ? (
                     <div className="w-full h-full bg-slate-900 rounded-none overflow-hidden relative border-2 border-border shadow-2xl p-2 sm:p-4">
@@ -1068,7 +1068,7 @@ robot = Robot()
                         <p className="text-muted-foreground italic">Process standby. Transmit code to begin.</p>
                       )}
                       {consoleLogs.map((log, i) => (
-                        <div key={i} className={`py-0.5 border-l-2 pl-3 ${log.startsWith('Error') || log.startsWith('Runtime Error') ? 'border-rose-500 text-rose-400 font-bold' : 'border-emerald-500/30 text-emerald-50/90'}`}>
+                        <div key={i} className={`py-0.5 border-l-2 pl-3 ${log.startsWith('Error') || log.startsWith('Runtime Error') ? 'border-rose-500 text-rose-400 font-bold' : 'border-emerald-500/30 text-foreground/90'}`}>
                           {log}
                         </div>
                       ))}
@@ -1083,7 +1083,7 @@ robot = Robot()
         {/* ─── Right Sidebar: Robotics Simulator ─── */}
         {lang === 'robotics' && (
           <aside className={`
-            hidden lg:flex w-80 lg:w-96 border-l border-border bg-[#0d1526]/30 flex flex-col
+            hidden lg:flex w-80 lg:w-96 border-l border-border bg-card/30 flex flex-col
             ${view !== 'output' && 'hidden lg:flex'}
           `}>
             <div className="p-4 border-b border-border flex items-center justify-between">
@@ -1124,7 +1124,7 @@ robot = Robot()
       {/* AI Prompt Modal (Shared) */}
       <AnimatePresence>
         {showAIModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#06060c]/80 backdrop-blur-xl">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xl">
              <motion.div 
                initial={{ y: 20, opacity: 0 }}
                animate={{ y: 0, opacity: 1 }}
@@ -1153,7 +1153,7 @@ robot = Robot()
                        value={aiPrompt}
                        onChange={(e) => setAiPrompt(e.target.value)}
                        placeholder={`Describe the ${lang} module logic...`}
-                       className="w-full h-40 bg-black/40 border border-border group-hover:border-orange-500/30 rounded-[2rem] p-5 text-sm font-medium focus:ring-2 focus:ring-orange-500/40 outline-none resize-none transition-all"
+                       className="w-full h-40 bg-muted/30 border border-border group-hover:border-orange-500/30 rounded-[2rem] p-5 text-sm font-medium text-foreground focus:ring-2 focus:ring-orange-500/40 outline-none resize-none transition-all"
                      />
                      <div className="absolute bottom-5 right-5 text-[9px] text-muted-foreground font-mono uppercase tracking-[0.3em]">Synapse-2.4</div>
                    </div>
@@ -1176,7 +1176,7 @@ robot = Robot()
        </AnimatePresence>
  
       {/* ─── Mobile Bottom Tab Bar ─── */}
-      <div className="md:hidden h-20 border-t border-border bg-[#0d1526] flex items-center justify-around px-4 z-[70] pb-[env(safe-area-inset-bottom)]">
+      <div className="md:hidden h-20 border-t border-border bg-card flex items-center justify-around px-4 z-[70] pb-[env(safe-area-inset-bottom)]">
         <button 
           onClick={() => setView('explorer')}
           className={`flex flex-col items-center gap-1.5 transition-all ${view === 'explorer' ? 'text-orange-500' : 'text-muted-foreground'}`}
@@ -1221,8 +1221,8 @@ robot = Robot()
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.1); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(var(--muted) / 0.2); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(var(--muted) / 0.35); border-radius: 10px; }
       `}} />
     </div>
   );

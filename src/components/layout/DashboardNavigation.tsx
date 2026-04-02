@@ -196,6 +196,7 @@ export default function DashboardNavigation() {
           { name: 'My Report Card', href: '/dashboard/results', icon: DocumentChartBarIcon },
           { divider: true, label: 'More' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ];
 
@@ -236,6 +237,7 @@ export default function DashboardNavigation() {
           { name: 'Share Feedback', href: '/dashboard/parent-feedback', icon: ChatBubbleLeftEllipsisIcon },
           { divider: true, label: 'More' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ];
 

@@ -36,7 +36,7 @@ function CodingBlocksChallenge({
 
   return (
     <div className="space-y-6">
-      <div className="p-6 bg-white/[0.03] border border-border rounded-[2rem] flex flex-wrap items-center gap-x-3 gap-y-4 leading-[3rem]">
+      <div className="p-6 bg-muted/30 border border-border rounded-[2rem] flex flex-wrap items-center gap-x-3 gap-y-4 leading-[3rem]">
         {parts.map((p: string, pi: number) => (
           <div key={pi} className="contents">
             <span className="text-lg font-medium text-muted-foreground">{p}</span>
@@ -306,13 +306,13 @@ export default function TakeExamPage() {
     const isAiGraded = result.status === 'pending_grading' && result.score > 0;
 
     return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center text-foreground p-6 relative overflow-hidden">
+      <div className="min-h-screen bg-background flex items-center justify-center text-foreground p-6 relative overflow-hidden">
         {/* Animated Background Accents */}
         <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[120px] rounded-full animate-pulse delay-700" />
 
         <div className="max-w-xl w-full relative z-10">
-          <div className="bg-white/[0.03] backdrop-blur-3xl border border-border rounded-[2.5rem] p-12 shadow-2xl space-y-8 text-center">
+          <div className="bg-card/80 backdrop-blur-3xl border border-border rounded-[2.5rem] p-12 shadow-2xl space-y-8 text-center">
             <div className={`w-32 h-32 mx-auto rounded-[2rem] flex items-center justify-center border-2 rotate-3 transition-transform hover:rotate-0 duration-500 ${isPending ? 'border-amber-500/50 bg-amber-500/10' : (result.passed ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-rose-500/50 bg-rose-500/10')}`}>
               {isPending ? <ClockIcon className="w-16 h-16 text-amber-400" /> : (result.passed ? <CheckCircleIcon className="w-16 h-16 text-emerald-400" /> : <XCircleIcon className="w-16 h-16 text-rose-400" />)}
             </div>
@@ -390,9 +390,9 @@ export default function TakeExamPage() {
   const answered = Object.keys(answers).length;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-foreground flex flex-col font-sans selection:bg-emerald-500/30">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-emerald-500/30">
       {/* Cinematic Header */}
-      <div className="sticky top-0 z-50 bg-[#050505]/60 backdrop-blur-2xl border-b border-border px-6 py-4">
+      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-2xl border-b border-border px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-8">
           <div className="flex-1 flex items-center gap-6">
             <div className="flex-shrink-0">
@@ -407,7 +407,7 @@ export default function TakeExamPage() {
             </div>
           </div>
 
-          <div className={`flex items-center gap-3 px-5 py-2.5 rounded-none border transition-all duration-500 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 animate-pulse' : 'bg-white/3 border-border text-muted-foreground'}`}>
+          <div className={`flex items-center gap-3 px-5 py-2.5 rounded-none border transition-all duration-500 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 animate-pulse' : 'bg-muted/30 border-border text-muted-foreground'}`}>
             <ClockIcon className={`w-4 h-4 ${timeLeft < 120 ? 'text-rose-500' : 'text-emerald-500/50'}`} />
             <span className="text-lg font-black tracking-widest leading-none">{formatTime(timeLeft)}</span>
           </div>
@@ -426,7 +426,7 @@ export default function TakeExamPage() {
                 <span className="px-3 py-1 rounded-none bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 tracking-widest uppercase">Question {current + 1}</span>
                 <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{q?.points} Points</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-br from-white to-border bg-clip-text text-transparent leading-tight">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">
                 {q?.question_text}
               </h1>
             </div>
@@ -439,7 +439,7 @@ export default function TakeExamPage() {
                       onClick={() => setAnswers(a => ({ ...a, [q.id]: opt }))}
                       className={`group relative flex items-center gap-5 p-5 rounded-[1.5rem] border-2 transition-all duration-300 ${answers[q.id] === opt
                         ? 'bg-emerald-500/10 border-emerald-500/50 scale-[1.02]'
-                        : 'bg-white/3 border-border hover:bg-card shadow-sm hover:border-border'
+                        : 'bg-muted/20 border-border hover:bg-muted hover:border-border'
                         }`}>
                       <div className={`w-10 h-10 rounded-none border-2 flex items-center justify-center text-xs font-black transition-all ${answers[q.id] === opt ? 'bg-emerald-500 border-emerald-500 text-foreground rotate-6' : 'bg-card shadow-sm border-border text-muted-foreground'}`}>
                         {String.fromCharCode(65 + oi)}
@@ -459,7 +459,7 @@ export default function TakeExamPage() {
                       onClick={() => setAnswers(a => ({ ...a, [q.id]: val }))}
                       className={`h-32 rounded-[2rem] border-2 flex flex-col items-center justify-center gap-3 transition-all duration-300 ${answers[q.id] === val
                         ? 'bg-emerald-500/10 border-emerald-500/50 scale-[1.05]'
-                        : 'bg-white/3 border-border hover:bg-card shadow-sm'
+                        : 'bg-muted/20 border-border hover:bg-muted'
                         }`}>
                       <div className={`w-3 h-3 rounded-full transition-all ${answers[q.id] === val ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-muted'}`} />
                       <span className={`text-xl font-black italic tracking-tighter uppercase transition-all ${answers[q.id] === val ? 'text-emerald-400' : 'text-muted-foreground'}`}>
@@ -478,7 +478,7 @@ export default function TakeExamPage() {
                     value={answers[q?.id] ?? ''}
                     onChange={e => setAnswers(a => ({ ...a, [q.id]: e.target.value }))}
                     placeholder={q.question_type === 'essay' ? 'Compose your comprehensive response here…' : 'Provide the specific answer…'}
-                    className="relative w-full px-8 py-6 bg-white/3 border-2 border-border rounded-[2rem] text-lg text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500/50 focus:bg-white/[0.05] transition-all resize-none shadow-2xl"
+                    className="relative w-full px-8 py-6 bg-muted/20 border-2 border-border rounded-[2rem] text-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500/50 focus:bg-muted/30 transition-all resize-none shadow-2xl"
                   />
                 </div>
               )}
@@ -527,17 +527,17 @@ export default function TakeExamPage() {
       </div>
 
       {/* Persistent Question Grid Footer */}
-      <div className="bg-[#050505]/80 backdrop-blur-xl border-t border-border p-6">
+      <div className="bg-background/80 backdrop-blur-xl border-t border-border p-6">
         <div className="max-w-5xl mx-auto flex items-center gap-6 overflow-x-auto pb-2 no-scrollbar">
           <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex-shrink-0">Jump To</span>
           <div className="flex gap-2">
             {questions.map((_, i) => (
               <button key={i} onClick={() => setCurrent(i)}
                 className={`w-10 h-10 rounded-none text-xs font-black transition-all duration-300 flex-shrink-0 ${i === current
-                  ? 'bg-emerald-500 text-foreground shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-110'
+                  ? 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-110'
                   : answers[questions[i]?.id]
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-white/3 text-muted-foreground border border-border hover:border-border'
+                    ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30'
+                    : 'bg-muted/30 text-muted-foreground border border-border hover:border-emerald-500/30'
                   }`}>
                 {i + 1}
               </button>

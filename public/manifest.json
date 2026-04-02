@@ -1,11 +1,19 @@
 {
+  "id": "/dashboard",
   "name": "Rillcod Academy",
   "short_name": "Rillcod",
   "description": "Premier ICT & STEM Education Hub for Students",
   "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
   "background_color": "#0f0f1a",
   "theme_color": "#0f0f1a",
+  "categories": ["education", "productivity"],
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/favicon.ico",
@@ -35,6 +43,44 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Home",
+      "description": "Go to your dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Newsletters",
+      "short_name": "News",
+      "description": "View official newsletters",
+      "url": "/dashboard/newsletters",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-narrow.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Rillcod Academy Dashboard on mobile"
+    },
+    {
+      "src": "/screenshot-wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Rillcod Academy on desktop"
     }
   ]
 }
