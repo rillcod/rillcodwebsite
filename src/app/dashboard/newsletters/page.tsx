@@ -98,7 +98,7 @@ export default function NewslettersPage() {
         .eq('user_id', userId);
       
       if (deliveries && deliveries.length > 0) {
-        const ids = deliveries.map(d => d.newsletter_id);
+        const ids = deliveries.map(d => d.newsletter_id).filter((id): id is string => id !== null);
         const { data: nls } = await supabase
           .from('newsletters')
           .select('*')
