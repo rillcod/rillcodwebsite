@@ -106,7 +106,14 @@
       "Bash(powershell -Command \"Get-Process -Name ''java'' -ErrorAction SilentlyContinue | Stop-Process -Force\")",
       "Bash(powershell -Command \"Set-Location ''C:\\\\rillcod\\\\android''; .\\\\gradlew.bat assembleRelease\")",
       "Bash(powershell -Command \"Set-Location 'C:\\\\rillcod\\\\android'; .\\\\gradlew.bat ':react-native-screens:configureCMakeRelWithDebInfo' --stacktrace 2>&1 | Select-Object -Last 60\" 2>&1)",
-      "Bash(powershell -Command \"Set-Location ''C:\\\\rillcod\\\\android''; .\\\\gradlew.bat --stop\")"
+      "Bash(powershell -Command \"Set-Location ''C:\\\\rillcod\\\\android''; .\\\\gradlew.bat --stop\")",
+      "Bash(for dir:*)",
+      "Bash(do echo:*)",
+      "Read(//c/rillcod/**)",
+      "Bash(npm dedupe:*)",
+      "Bash(npx --prefix \"C:/rillcod\" expo install --check)",
+      "Bash(find C:UsersUSERDownloadsrillcod-academy-mainrillcod-academy-main/src -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.jsx -o -name *.js \\\\\\))",
+      "Bash(find /c/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/supabase -type f \\\\\\(-name *.sql \\\\\\))"
     ]
   }
 }

@@ -434,13 +434,17 @@ img[alt="Official Signature"] {
 }
 
 /* Dark theme select options — fixes white dropdown on dark backgrounds */
-select option {
+.dark select option {
   background-color: #0f0f1a;
   color: #ffffff;
 }
 
-select {
+.dark select {
   color-scheme: dark;
+}
+
+.light select {
+  color-scheme: light;
 }
 
 /* Mobile touch targets */
@@ -522,7 +526,7 @@ select {
   animation: scanline 8s linear infinite;
 }
 
-/* Sidebar custom scrollbar — slimmer, matches dark theme */
+/* Sidebar custom scrollbar — slimmer, matches design tokens */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -533,12 +537,12 @@ select {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Custom scrollbar */

@@ -204,7 +204,31 @@ export class CoursesService {
             throw new AppError('User is already enrolled in this course/program', 400);
         }
 
-        // TODO: Payment check for Paid Courses
+        // Payment check for Paid Courses
+        const { data: program } = await supabase
+            .from('programs')
+            .select('price, name')
+            .eq('id', programId)
+            .single();
+
+        if (program && (program.price ?? 0) > 0) {
+            // Check for a paid invoice for this student that includes the program name
+            const { data: invoices } = await supabase
+                .from('invoices')
+                .select('items, status')
+                .eq('portal_user_id', userId)
+                .eq('status', 'paid');
+            
+            const hasPaid = invoices?.some(inv => 
+                Array.isArray(inv.items) && inv.items.some((item: any) => 
+                    String(item.description).toLowerCase().includes(program.name.toLowerCase())
+                )
+            );
+
+            if (!hasPaid) {
+                throw new AppError(`This is a paid course (${program.price}). Please pay the invoice to enroll.`, 402);
+            }
+        }
 
         const { data, error } = await supabase
             .from('enrollments')

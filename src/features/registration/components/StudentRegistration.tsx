@@ -75,10 +75,10 @@ function Field({ label, icon: Icon, children }: { label: string; icon?: any; chi
 }
 
 const inputCls = (hasIcon = true) =>
-  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-orange-500 transition-all shadow-inner`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-6 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all`;
 
 const selectCls = (hasIcon = false) =>
-  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer shadow-inner`;
+  `w-full ${hasIcon ? 'pl-14' : 'pl-6'} pr-10 py-5 bg-background border border-border rounded-none text-sm font-bold text-foreground focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all appearance-none cursor-pointer`;
 
 // ─── Default form state ────────────────────────────────────────────
 const defaultForm = {
@@ -282,8 +282,14 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
                 <button
                   key={t.id} type="button"
                   onClick={() => { setForm(p => ({ ...p, enrollmentType: t.id, preferredSchedule: '' })); setErr(''); }}
-                  className={`group flex flex-col items-center gap-4 p-8 border rounded-none transition-all ${active ? t.color + ' shadow-2xl' : 'border-border bg-card hover:bg-muted hover:border-border shadow-sm'}`}>
-                  <div className={`w-12 h-12 flex items-center justify-center rounded-none ${active ? 'bg-white/10 border border-border' : 'bg-background border border-border'}`}>
+                  className={`group flex flex-col items-center gap-4 p-8 border rounded-none transition-all ${
+                    active
+                      ? t.color + ' shadow-2xl scale-[1.02]'
+                      : 'border-border bg-card hover:bg-muted hover:border-border shadow-sm'
+                  }`}>
+                  <div className={`w-12 h-12 flex items-center justify-center rounded-none border ${
+                    active ? 'bg-white/20 border-white/30' : 'bg-background border-border'
+                  }`}>
                     <t.icon className={`w-6 h-6 ${active ? 'text-white' : 'text-muted-foreground'}`} />
                   </div>
                   <p className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-white' : 'text-muted-foreground'}`}>{t.title}</p>

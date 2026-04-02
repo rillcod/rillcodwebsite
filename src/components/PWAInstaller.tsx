@@ -4,7 +4,6 @@
 import { useState, useEffect } from 'react';
 import { 
   DevicePhoneMobileIcon,
-  ComputerDesktopIcon,
   XMarkIcon,
   ArrowDownTrayIcon
 } from '@/lib/icons';
@@ -13,110 +12,110 @@ export default function PWAInstaller() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
+  // Track if user dismissed so we don't keep bugging them this session
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    // Check if app is already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    // Check if already running as standalone PWA
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true;
+    if (isStandalone) {
       setIsInstalled(true);
+      return;
     }
 
-    // Listen for beforeinstallprompt event
+    // Delay the install prompt slightly so it doesn't distract on first load
+    let showTimer: ReturnType<typeof setTimeout>;
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShowInstallPrompt(true);
+      showTimer = setTimeout(() => {
+        setShowInstallPrompt(true);
+      }, 4000);
     };
 
-    // Listen for app installed event
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setShowInstallPrompt(false);
     };
 
-    // Listen for online/offline status
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    // Register service worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then((registration) => {
-          console.log('SW registered: ', registration);
-        })
-        .catch((registrationError) => {
-          console.log('SW registration failed: ', registrationError);
-        });
-    }
 
     return () => {
+      clearTimeout(showTimer);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
-
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    
     if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
-    } else {
-      console.log('User dismissed the install prompt');
+      setIsInstalled(true);
     }
-    
     setDeferredPrompt(null);
     setShowInstallPrompt(false);
   };
 
   const handleDismiss = () => {
+    setDismissed(true);
     setShowInstallPrompt(false);
   };
 
-  if (isInstalled || !showInstallPrompt) {
+  if (isInstalled || !showInstallPrompt || dismissed) {
     return null;
   }
 
   return (
-    <div className="fixed bottom-32 left-4 right-4 z-20 lg:left-6 lg:right-6 lg:bottom-6 lg:max-w-sm lg:mx-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 lg:p-6">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mr-3">
-              <DevicePhoneMobileIcon className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">Install Rillcod Technologies</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Get quick access to your dashboard</p>
-            </div>
+    // Sits above bottom nav on mobile (bottom-20 = 5rem), anchored to right on desktop
+    <div className="fixed bottom-20 left-4 right-4 z-40 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-xs animate-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-popover border border-border/80 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden backdrop-blur-xl">
+        {/* Accent stripe */}
+        <div className="h-1 w-full bg-gradient-to-r from-orange-500 via-indigo-500 to-orange-500" />
+
+        <div className="p-4 flex items-start gap-3">
+          {/* Icon */}
+          <div className="w-11 h-11 bg-gradient-to-br from-orange-500 to-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/20">
+            <DevicePhoneMobileIcon className="w-6 h-6 text-white" />
           </div>
+
+          {/* Text */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-black text-foreground uppercase tracking-tight leading-none">
+              Install App
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 leading-snug">
+              Add Rillcod Academy to your home screen for quick, offline access.
+            </p>
+          </div>
+
+          {/* Dismiss */}
           <button
             onClick={handleDismiss}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors shrink-0 -mt-0.5 -mr-0.5"
+            aria-label="Dismiss install prompt"
           >
-            <XMarkIcon className="w-5 h-5" />
+            <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-            <ComputerDesktopIcon className="w-4 h-4" />
-            <span>Add to home screen</span>
-          </div>
+
+        <div className="px-4 pb-4 flex gap-2">
+          <button
+            onClick={handleDismiss}
+            className="flex-1 py-2 text-xs font-bold text-muted-foreground bg-muted/60 hover:bg-muted rounded-lg transition-colors uppercase tracking-widest"
+          >
+            Later
+          </button>
           <button
             onClick={handleInstallClick}
-            className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-200 font-medium text-sm"
+            className="flex-1 py-2 text-xs font-black text-white bg-gradient-to-r from-orange-600 to-indigo-600 hover:from-orange-500 hover:to-indigo-500 rounded-lg transition-all shadow-lg shadow-orange-900/30 flex items-center justify-center gap-1.5 uppercase tracking-widest"
           >
-            <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+            <ArrowDownTrayIcon className="w-3.5 h-3.5" />
             Install
           </button>
         </div>
@@ -125,37 +124,32 @@ export default function PWAInstaller() {
   );
 }
 
-// Offline indicator component
+// ── Offline indicator ─────────────────────────────────────────────
 export function OfflineIndicator() {
   const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
+    setIsOnline(navigator.onLine);
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
-  if (isOnline) {
-    return null;
-  }
+  if (isOnline) return null;
 
   return (
-    <div className="fixed top-4 left-4 right-4 z-50 lg:left-6 lg:right-6">
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 max-w-sm mx-auto">
-        <div className="flex items-center">
-          <div className="w-2 h-2 bg-yellow-500 rounded-full mr-3"></div>
-          <span className="text-sm font-medium text-yellow-800">
-            You're offline. Some features may be limited.
-          </span>
-        </div>
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] max-w-xs w-[calc(100%-2rem)] animate-in slide-in-from-top-4 duration-300">
+      <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl backdrop-blur-xl shadow-xl">
+        <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse shrink-0" />
+        <p className="text-xs font-bold text-amber-400 uppercase tracking-wide">
+          You're offline — some features may be limited
+        </p>
       </div>
     </div>
   );
-} 
+}

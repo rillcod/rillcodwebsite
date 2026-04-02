@@ -104,9 +104,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f0f1a",
-  width: "device-width",
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#0f0f1a' },
+    { media: '(prefers-color-scheme: light)', color: '#F8F9FA' },
+  ],
+  width: 'device-width',
   initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -115,7 +121,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" dir="ltr" >
+    <html lang="en" dir="ltr">
       <head>
         <OrganizationJsonLd />
         <WebSiteJsonLd />
@@ -124,6 +130,34 @@ export default function RootLayout({
         <link rel="shortcut icon" href="/favicon.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png" />
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png" />
+        {/* iOS standalone PWA meta tags */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Rillcod" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        {/**
+         * Anti-flash theme script: runs synchronously before React hydration.
+         * Prevents the white flash when a user has dark mode saved and the page loads.
+         */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var t = localStorage.getItem('theme') || 'dark';
+                  var effective = t === 'system'
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : t;
+                  document.documentElement.classList.add(effective);
+                  document.documentElement.style.colorScheme = effective;
+                } catch(e) {
+                  document.documentElement.classList.add('dark');
+                  document.documentElement.style.colorScheme = 'dark';
+                }
+              })();
+            `,
+          }}
+        />
       </head>
       <body className={`${inter.className} bg-background text-foreground`}>
         <AppProviders>{children}</AppProviders>
