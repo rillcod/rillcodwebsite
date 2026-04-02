@@ -78,8 +78,8 @@ export default function DashboardNavigation() {
         </a>
         <button
           onClick={signOut}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 text-xs font-bold rounded-xl border border-rose-600/20 transition-all">
-          <ArrowRightOnRectangleIcon className="w-3.5 h-3.5" /> Sign Out
+          className="flex items-center gap-1.5 px-4 py-2 bg-rose-500/10 hover:bg-rose-600 text-rose-500 hover:text-white text-sm font-black rounded-xl border border-rose-500/20 transition-all shadow-lg shadow-rose-500/5 active:scale-95">
+          <ArrowRightOnRectangleIcon className="w-4 h-4" /> Sign Out
         </button>
       </div>
     </div>
@@ -410,9 +410,9 @@ export default function DashboardNavigation() {
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] text-rose-400/60 hover:text-rose-400 hover:bg-rose-500/[0.05] transition-all group"
+            className="flex items-center gap-3 w-full px-5 py-4 text-[12px] font-black uppercase tracking-[0.25em] text-rose-500 hover:text-white hover:bg-rose-600 transition-all group active:scale-[0.98]"
           >
-            <ArrowRightOnRectangleIcon className="w-4 h-4 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+            <ArrowRightOnRectangleIcon className="w-5 h-5 flex-shrink-0 group-hover:translate-x-1 transition-transform" />
             Sign Out
           </button>
         </div>
