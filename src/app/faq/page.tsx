@@ -419,7 +419,7 @@ export default function FAQ() {
                 <Mail className="w-6 h-6" />
               </div>
               <h3 className="font-semibold mb-2">Email Us</h3>
-              <p className="opacity-90">info@rillcod.com</p>
+              <p className="opacity-90">support@rillcod.com</p>
             </div>
             
             <div className="text-center">

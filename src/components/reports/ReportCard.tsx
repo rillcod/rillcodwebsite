@@ -154,7 +154,7 @@ export default function ReportCard({ report, orgSettings }: {
         org_tagline: orgSettings?.org_tagline || 'Excellence in Educational Technology',
         org_address: orgSettings?.org_address || '26 Ogiesoba Avenue, GRA, Benin City',
         org_phone: orgSettings?.org_phone || '08116600091',
-        org_email: orgSettings?.org_email || 'rillcod@gmail.com',
+        org_email: orgSettings?.org_email || 'support@rillcod.com',
         logo_url: orgSettings?.logo_url || '/logo.png',
     };
 

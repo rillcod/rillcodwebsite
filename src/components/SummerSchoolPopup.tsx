@@ -265,7 +265,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
               </div>
               <div className="flex items-center gap-2 text-foreground">
                 <Mail className="w-3.5 h-3.5 text-orange-500" />
-                <span className="uppercase tracking-widest">info@rillcod.com</span>
+                <span className="uppercase tracking-widest">support@rillcod.com</span>
               </div>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground text-[9px] uppercase tracking-widest">

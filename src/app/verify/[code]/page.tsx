@@ -295,7 +295,7 @@ export default function VerifyCodePage() {
                   Institutional Disclosure
                 </p>
                 <p className="text-[11px] leading-relaxed font-medium">
-                  This verification portal validates Rillcod Technologies credentials. Any attempt to forge, alter, or misrepresent these records is a violation of international academic standards. For legal inquiries or discrepancies, contact <a href="mailto:rillcod@gmail.com" className="underline hover:text-white transition-colors">rillcod@gmail.com</a>.
+                  This verification portal validates Rillcod Technologies credentials. Any attempt to forge, alter, or misrepresent these records is a violation of international academic standards. For legal inquiries or discrepancies, contact <a href="mailto:support@rillcod.com" className="underline hover:text-white transition-colors">support@rillcod.com</a>.
                 </p>
               </div>
 

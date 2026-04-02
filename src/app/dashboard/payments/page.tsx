@@ -715,7 +715,7 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
     <div>
       <div class="org-name">RILLCOD TECHNOLOGIES</div>
       <div class="org-sub">STEM, Robotics &amp; AI Education Partner</div>
-      <div style="font-size:9px;color:#7c3aed;margin-top:2px;font-weight:700">www.rillcod.com · rillcod@gmail.com · 08116600091</div>
+      <div style="font-size:9px;color:#7c3aed;margin-top:2px;font-weight:700">www.rillcod.com · support@rillcod.com · 08116600091</div>
     </div>
   </div>
   <div class="inv-badge">
@@ -992,7 +992,7 @@ hr{border:none;border-top:1px solid #05966922;margin:8px 0}
     <div>
       <div class="org-name">RILLCOD TECHNOLOGIES</div>
       <div class="org-sub">STEM, Robotics &amp; AI Education Partner</div>
-      <div style="font-size:9px;color:#059669;margin-top:2px;font-weight:700">www.rillcod.com · rillcod@gmail.com · 08116600091</div>
+      <div style="font-size:9px;color:#059669;margin-top:2px;font-weight:700">www.rillcod.com · support@rillcod.com · 08116600091</div>
     </div>
   </div>
   <div class="rcpt-badge">

@@ -100,7 +100,7 @@ export default function AnalyticsPage() {
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '18px', fontWeight: 900, color: '#1e3a8a', letterSpacing: '-0.3px', lineHeight: 1.1 }}>RILLCOD TECHNOLOGIES</div>
               <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '2px' }}>Coding Today, Innovating Tomorrow</div>
-              <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '2px' }}>26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; rillcod@gmail.com</div>
+              <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '2px' }}>26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City &nbsp;·&nbsp; 08116600091 &nbsp;·&nbsp; support@rillcod.com</div>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
               <div style={{ fontSize: '9px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1.2px' }}>Official Document</div>

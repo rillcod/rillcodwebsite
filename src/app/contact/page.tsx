@@ -30,10 +30,10 @@ export default function Contact() {
     {
       icon: <Mail className="w-6 h-6" />,
       title: "Email Addresses",
-      details: ["info@rillcod.tech", "rillcod@gmail.com"],
+      details: ["support@rillcod.com"],
       color: "text-green-600",
       bgColor: "bg-green-50",
-      action: "mailto:info@rillcod.tech",
+      action: "mailto:support@rillcod.com",
       actionText: "Send Email"
     },
     {
@@ -69,9 +69,9 @@ export default function Contact() {
       icon: <Mail className="w-8 h-8" />,
       title: "Email",
       description: "Detailed inquiries and documentation",
-      contact: "info@rillcod.tech",
+      contact: "support@rillcod.com",
       color: "from-blue-500 to-blue-600",
-      action: "mailto:info@rillcod.tech"
+      action: "mailto:support@rillcod.com"
     },
     {
       icon: <Building className="w-8 h-8" />,
