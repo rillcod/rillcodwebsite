@@ -116,62 +116,68 @@ function LoginContent() {
   const activeRole = ROLES.find(r => r.id === selectedRole);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-3 sm:p-6 lg:p-8 relative overflow-hidden font-sans">
-      {/* ── Background Effects ── */}
+    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-3 sm:p-6 lg:p-10 relative overflow-hidden font-sans transition-colors duration-500">
+      {/* ── Background Effects (Theme-aware) ── */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute top-1/4 -left-20 w-[400px] h-[400px] rounded-full bg-orange-600/10 blur-[120px] animate-pulse" />
-        <div className="absolute bottom-1/4 -right-20 w-[300px] h-[300px] rounded-full bg-orange-500/5 blur-[100px] animate-pulse [animation-delay:2s]" />
+        <div className="absolute top-1/4 -left-20 w-[600px] h-[600px] rounded-full bg-orange-500/10 dark:bg-orange-600/5 blur-[160px] animate-pulse" />
+        <div className="absolute bottom-1/4 -right-20 w-[500px] h-[500px] rounded-full bg-indigo-500/10 dark:bg-indigo-600/5 blur-[140px] animate-pulse [animation-delay:2s]" />
       </div>
 
-      <div className="w-full max-w-5xl mx-auto relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8 items-center">
+      <div className="w-full max-w-7xl mx-auto relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-20 items-center">
           
-          {/* ── Left Section: Brand & Intro ── */}
-          <div className="lg:col-span-5 flex flex-col justify-center py-4 lg:py-6 text-center lg:text-left">
-            <Link href="/" className="flex items-center gap-3 group w-fit mx-auto lg:mx-0 mb-6 lg:mb-10 transition-transform hover:scale-[0.98]">
-              <div className="w-12 h-12 bg-white/5 backdrop-blur-xl rounded-xl flex items-center justify-center border border-white/10 shadow-xl border-orange-500/10 group-hover:border-orange-500/30 transition-all">
-                <Image src="/images/logo.png" alt="Rillcod" width={32} height={32} className="object-contain" />
+          {/* ── Left Section: Brand & Narrative ── */}
+          <div className="lg:col-span-5 flex flex-col justify-center py-6 lg:py-12 text-center lg:text-left animate-in fade-in slide-in-from-left-8 duration-700">
+            <Link href="/" className="flex items-center gap-4 group w-fit mx-auto lg:mx-0 mb-8 lg:mb-16 transition-all hover:scale-[0.98]">
+              <div className="w-14 h-14 bg-card/40 backdrop-blur-xl rounded-2xl flex items-center justify-center border border-border shadow-2xl group-hover:border-orange-500/30 transition-all">
+                <Image src="/images/logo.png" alt="Rillcod" width={38} height={38} className="object-contain" />
               </div>
               <div className="leading-tight">
-                <span className="text-xl font-black uppercase tracking-tighter block italic text-white">
+                <span className="text-2xl font-black uppercase tracking-tighter block italic text-foreground">
                   RILLCOD<span className="not-italic text-orange-500">.</span>
                 </span>
-                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Technologies</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground">Technologies</span>
               </div>
             </Link>
 
-            <div className="space-y-4 lg:space-y-6">
-              <div className="inline-flex items-center gap-2.5 px-3 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-full">
-                <Sparkles className="w-3 h-3 text-orange-400" />
-                <span className="text-[9px] font-black text-orange-400 uppercase tracking-widest">Learning Portal</span>
+            <div className="space-y-6 lg:space-y-10">
+              <div className="inline-flex items-center gap-3 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-full">
+                <Sparkles className="w-4 h-4 text-orange-500" />
+                <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest leading-none">Learning Ecosystem</span>
               </div>
 
-              <h1 className="text-4xl sm:text-6xl font-black leading-[0.85] tracking-tighter uppercase italic">
+              <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black leading-[0.85] tracking-tighter uppercase italic text-foreground">
                 GATEWAY<br />
                 <span className="text-orange-500">FUTURE.</span>
               </h1>
 
-              <p className="text-sm text-white/30 font-medium leading-relaxed max-w-sm hidden sm:block mx-auto lg:mx-0">
-                Secure access to the ecosystem. Your journey into advanced STEM education continues here.
-              </p>
+              <div className="hidden lg:block space-y-4 max-w-md">
+                <p className="text-lg text-muted-foreground font-medium leading-relaxed">
+                  Join the next generation of engineers, designers, and innovators. Authenticate your credentials to access the laboratory.
+                </p>
+                <div className="flex items-center gap-4 pt-4">
+                  <div className="h-[1px] flex-1 bg-gradient-to-r from-orange-500/50 to-transparent" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground">Level 4 Clearance</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* ── Right Section: Interface ── */}
-          <div className="lg:col-span-7 w-full">
-            <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl">
+          {/* ── Right Section: Terminal UI ── */}
+          <div className="lg:col-span-7 w-full animate-in fade-in slide-in-from-right-8 duration-700 delay-150">
+            <div className="bg-card/40 backdrop-blur-3xl border border-border rounded-[2.5rem] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.1)] dark:shadow-[0_40px_100px_rgba(0,0,0,0.3)]">
               <div className="grid grid-cols-1 md:grid-cols-2">
                 
-                {/* Role Picker Column */}
-                <div className="p-5 lg:p-7 border-b md:border-b-0 md:border-r border-white/5 bg-white/[0.01]">
-                  <div className="mb-6 flex items-center justify-between md:block">
+                {/* Protocol Section */}
+                <div className="p-6 lg:p-10 border-b md:border-b-0 md:border-r border-border bg-muted/5">
+                  <div className="mb-8 flex items-center justify-between md:block">
                     <div>
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-0.5">Authorization</h3>
-                      <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Protocol Type</p>
+                      <h3 className="text-xs font-black uppercase tracking-[0.25em] text-muted-foreground mb-1">Security Terminal</h3>
+                      <p className="text-[11px] font-bold text-muted-foreground/30 uppercase tracking-[0.2em] whitespace-nowrap">Identify Credentials</p>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-1 gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-1 gap-2.5">
                     {ROLES.map((role) => {
                       const Icon = role.icon;
                       const isActive = selectedRole === role.id;
@@ -180,60 +186,60 @@ function LoginContent() {
                           key={role.id}
                           type="button"
                           onClick={() => { setSelectedRole(role.id as Role); setError(null); }}
-                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all duration-300 group ${
+                          className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-300 group ${
                             isActive
-                              ? 'bg-orange-600 border-orange-500 text-white shadow-lg'
-                              : 'bg-white/5 border-white/5 text-white/40 hover:bg-white/10'
+                              ? 'bg-orange-600 border-orange-500 text-white shadow-lg shadow-orange-500/20'
+                              : 'bg-background border-border text-muted-foreground hover:bg-muted/50 hover:border-orange-500/20'
                           }`}
                         >
-                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-white/40'}`} />
-                          <span className="text-[9px] font-black uppercase tracking-[0.15em] truncate">{role.title}</span>
-                          {isActive && <div className="ml-auto w-1 h-1 rounded-full bg-white animate-pulse" />}
+                          <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-muted-foreground group-hover:text-foreground'}`} />
+                          <span className="text-[11px] font-black uppercase tracking-widest truncate">{role.title}</span>
+                          {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
                         </button>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Login Form Column */}
-                <div className="p-5 lg:p-7 flex flex-col justify-center">
+                {/* Form Section */}
+                <div className="p-6 lg:p-10 flex flex-col justify-center bg-card">
                   {error && (
-                    <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-start gap-2.5">
-                      <AlertCircle className="w-3 h-3 text-red-400 shrink-0 mt-0.5" />
-                      <p className="text-[9px] font-bold text-red-400 leading-tight uppercase tracking-widest">{error}</p>
+                    <div className="mb-6 bg-destructive/10 border border-destructive/20 rounded-2xl p-4 flex items-start gap-3">
+                      <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                      <p className="text-[10px] font-bold text-destructive leading-tight uppercase tracking-widest">{error}</p>
                     </div>
                   )}
 
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] pl-1">ID KEY</label>
+                  <form onSubmit={handleLogin} className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] pl-1">Identifier</label>
                       <div className="relative group">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/10 group-focus-within:text-orange-500 transition-colors" />
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-orange-500 transition-colors pointer-events-none" />
                         <input
                           type="email"
                           required
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          placeholder="••••@DOMAIN"
-                          className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-orange-500 transition-all font-mono placeholder:text-white/5"
+                          placeholder="EMAIL_ADRESS"
+                          className="w-full bg-background border border-border rounded-2xl pl-12 pr-4 py-4 text-sm focus:outline-none focus:border-orange-500 transition-all font-mono placeholder:text-muted-foreground/20 text-foreground"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] pl-1">PASSWORD</label>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] pl-1">Access Pass</label>
                       <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/10 group-focus-within:text-orange-500 transition-colors" />
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-orange-500 transition-colors pointer-events-none" />
                         <input
                           type={showPassword ? "text" : "password"}
                           required
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder="••••••••"
-                          className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-11 py-3 text-sm focus:outline-none focus:border-orange-500 transition-all font-mono placeholder:text-white/5"
+                          className="w-full bg-background border border-border rounded-2xl pl-12 pr-12 py-4 text-sm focus:outline-none focus:border-orange-500 transition-all font-mono placeholder:text-muted-foreground/20 text-foreground"
                         />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/10 hover:text-white">
-                          {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                     </div>
@@ -241,19 +247,19 @@ function LoginContent() {
                     <button
                       type="submit"
                       disabled={loading || !selectedRole}
-                      className="w-full py-3.5 bg-white text-black font-black text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-orange-500 hover:text-white transition-all transform active:scale-95 disabled:opacity-20 flex items-center justify-center gap-2"
+                      className="w-full py-5 bg-foreground text-background font-black text-xs uppercase tracking-[0.3em] rounded-2xl hover:bg-orange-600 hover:text-white transition-all transform active:scale-[0.98] disabled:opacity-20 flex items-center justify-center gap-3 shadow-2xl"
                     >
-                      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>AUTH ACCESS <ArrowRight className="w-3 h-3" /></>}
+                      {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>EXECUTE LOGIN <ArrowRight className="w-4 h-4" /></>}
                     </button>
                   </form>
 
-                  <div className="mt-6 pt-5 border-t border-white/5 flex items-center justify-between">
-                    <Link href="/" className="text-[9px] font-black text-white/20 hover:text-orange-500 uppercase tracking-widest transition-all flex items-center gap-2">
+                  <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
+                    <Link href="/" className="text-[10px] font-black text-muted-foreground hover:text-orange-500 uppercase tracking-widest transition-all flex items-center gap-2">
                        Back to Home Page
                     </Link>
-                    <div className="flex items-center gap-1 opacity-40">
-                      <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse" />
-                      <span className="text-[8px] font-black uppercase tracking-widest">Secure</span>
+                    <div className="flex items-center gap-2 opacity-50">
+                       <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Security</span>
+                       <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                     </div>
                   </div>
                 </div>
@@ -262,11 +268,14 @@ function LoginContent() {
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-white/10 text-[8px] font-black uppercase tracking-[0.4em]">
-           <span>© RILLCOD SYSTEM</span>
-           <div className="flex gap-6">
+        <div className="mt-12 flex flex-col md:flex-row items-center justify-between gap-6 text-muted-foreground/30 text-[9px] font-black uppercase tracking-[0.4em]">
+           <div className="flex items-center gap-8">
+              <span>© RILLCOD SYSTEM</span>
+              <span className="hidden sm:block">ENCRYPTED_CHANNEL_ENABLED</span>
+           </div>
+           <div className="flex gap-10">
               <span>NIGERIA</span>
-              <span>V4.0</span>
+              <span>4.01.2</span>
            </div>
         </div>
       </div>
