@@ -138,8 +138,8 @@ function LoginContent() {
 
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 mb-10 group w-fit">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/30 shadow-lg group-hover:scale-105 transition-transform">
-                <Image src="/images/logo.png" alt="Rillcod" width={32} height={32} className="object-contain filter brightness-0 invert" />
+              <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 shadow-lg group-hover:scale-105 transition-transform">
+                <Image src="/images/logo.png" alt="Rillcod" width={32} height={32} className="object-contain" />
               </div>
               <div className="leading-none">
                 <span className="text-xl font-black uppercase tracking-tight block text-white italic">
@@ -264,7 +264,7 @@ function LoginContent() {
                   Email Address
                 </label>
                 <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-orange-500 transition-colors pointer-events-none" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-orange-600 transition-colors pointer-events-none" />
                   <input
                     id="login-email"
                     type="email"
@@ -273,7 +273,7 @@ function LoginContent() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="your.email@example.com"
-                    className="w-full bg-background border border-border rounded-xl pl-11 pr-4 py-3.5 text-foreground font-medium text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500 transition-all placeholder:text-muted-foreground/50"
+                    className="w-full bg-background border border-border rounded-xl pl-11 pr-4 py-3.5 text-foreground font-medium text-sm focus:outline-none focus:ring-2 focus:ring-orange-600/30 focus:border-orange-600 transition-all placeholder:text-muted-foreground/50"
                   />
                 </div>
               </div>
@@ -284,7 +284,7 @@ function LoginContent() {
                   Password
                 </label>
                 <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-orange-500 transition-colors pointer-events-none" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-orange-600 transition-colors pointer-events-none" />
                   <input
                     id="login-password"
                     type={showPassword ? "text" : "password"}
@@ -293,7 +293,7 @@ function LoginContent() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-background border border-border rounded-xl pl-11 pr-12 py-3.5 text-foreground font-medium text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500 transition-all placeholder:text-muted-foreground/50"
+                    className="w-full bg-background border border-border rounded-xl pl-11 pr-12 py-3.5 text-foreground font-medium text-sm focus:outline-none focus:ring-2 focus:ring-orange-600/30 focus:border-orange-600 transition-all placeholder:text-muted-foreground/50"
                   />
                   <button
                     type="button"
@@ -311,7 +311,7 @@ function LoginContent() {
                 type="submit"
                 id="login-submit"
                 disabled={loading || !selectedRole}
-                className="group mt-2 flex items-center justify-center gap-3 w-full py-4 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl"
+                className="group mt-2 flex items-center justify-center gap-3 w-full py-4 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-orange-600/20 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl"
               >
                 {loading ? (
                   <>
@@ -336,7 +336,7 @@ function LoginContent() {
                 </Link>
                 <Link
                   href="/reset-password"
-                  className="text-[10px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest transition-colors"
+                  className="text-[10px] font-black text-orange-600 hover:text-orange-500 uppercase tracking-widest transition-colors"
                 >
                   Forgot Password?
                 </Link>
