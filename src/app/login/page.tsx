@@ -168,8 +168,8 @@ function LoginContent() {
 
             {/* ── Role selector (Desktop inside left panel) ── */}
             <div className="mt-8 hidden lg:block">
-              <p className="text-[9px] font-black text-white/50 uppercase tracking-[0.2em] mb-3">I am a...</p>
-              <div className="grid grid-cols-3 gap-2">
+              <p className="text-[10px] font-black text-white uppercase tracking-[0.2em] mb-4">I am signing in as a...</p>
+              <div className="grid grid-cols-1 gap-2.5">
                 {ROLES.map((role) => {
                   const Icon = role.icon;
                   const isActive = selectedRole === role.id;
@@ -178,16 +178,28 @@ function LoginContent() {
                       key={role.id}
                       type="button"
                       onClick={() => { setSelectedRole(role.id as Role); setError(null); }}
-                      className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all duration-200 text-center ${
+                      className={`flex items-center gap-4 px-5 py-4 rounded-2xl border-2 transition-all duration-300 text-left group ${
                         isActive
-                          ? 'bg-white/20 border-white/40 shadow-lg scale-[1.04]'
-                          : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/25'
+                          ? 'bg-white text-orange-600 border-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)] scale-[1.02]'
+                          : 'bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-white/40'
                       }`}
                     >
-                      <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-white' : 'text-white/50'}`} />
-                      <span className={`text-[9px] font-black uppercase tracking-widest leading-none ${isActive ? 'text-white' : 'text-white/50'}`}>
-                        {role.title}
-                      </span>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isActive ? 'bg-orange-500/10' : 'bg-white/10 group-hover:bg-white/20'}`}>
+                        <Icon className={`w-5 h-5 ${isActive ? 'text-orange-600' : 'text-white'}`} />
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-xs font-black uppercase tracking-widest block leading-none mb-1">
+                          {role.title}
+                        </span>
+                        <span className={`text-[9px] font-medium uppercase tracking-wider opacity-60 ${isActive ? 'text-orange-600' : 'text-white'}`}>
+                          {role.id === 'student' && 'Access curriculum & labs'}
+                          {role.id === 'teacher' && 'Manage classes & grading'}
+                          {role.id === 'parent' && 'Track student performance'}
+                          {role.id === 'school' && 'Administrative controls'}
+                          {role.id === 'admin' && 'System configuration'}
+                        </span>
+                      </div>
+                      {isActive && <div className="w-2 h-2 rounded-full bg-orange-600 animate-pulse" />}
                     </button>
                   );
                 })}
@@ -199,9 +211,9 @@ function LoginContent() {
           <div className="flex flex-col p-8 sm:p-10 lg:p-12">
 
             {/* ── Role selector (Mobile — above form) ── */}
-            <div className="lg:hidden mb-8">
-              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-3">I am a...</p>
-              <div className="grid grid-cols-5 gap-2">
+            <div className="lg:hidden mb-10">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4">I am a...</p>
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3">
                 {ROLES.map((role) => {
                   const Icon = role.icon;
                   const isActive = selectedRole === role.id;
@@ -210,14 +222,14 @@ function LoginContent() {
                       key={role.id}
                       type="button"
                       onClick={() => { setSelectedRole(role.id as Role); setError(null); }}
-                      className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border transition-all duration-200 ${
+                      className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 transition-all duration-200 text-left ${
                         isActive
-                          ? 'bg-orange-500/10 border-orange-500/50 shadow-sm'
-                          : 'bg-muted/50 border-border hover:bg-muted hover:border-border'
+                          ? 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20'
+                          : 'bg-card border-border text-muted-foreground hover:border-orange-500/30'
                       }`}
                     >
-                      <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-orange-500' : 'text-muted-foreground'}`} />
-                      <span className={`text-[8px] font-black uppercase tracking-wide leading-none ${isActive ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                      <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-orange-500/60'}`} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">
                         {role.title}
                       </span>
                     </button>
