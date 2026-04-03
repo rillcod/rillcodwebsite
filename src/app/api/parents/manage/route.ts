@@ -99,14 +99,40 @@ export async function POST(req: Request) {
 
     // Link ALL selected students to this parent
     for (const sid of studentIdList) {
-      const { error: linkErr } = await admin.from('students').update({
-        parent_email: cleanEmail,
-        parent_name: full_name,
-        parent_phone: phone ?? null,
-        parent_relationship: relationship,
-        updated_at: new Date().toISOString(),
-      }).eq('id', sid);
-      if (linkErr) console.error(`[parents/manage] Failed to link student ${sid}:`, linkErr);
+      // Find student profile to ensure we have their school/class info for the upsert
+      const { data: ps } = await admin
+        .from('portal_users')
+        .select('full_name, school_id, school_name, section_class, email')
+        .eq('id', sid)
+        .single();
+
+      if (ps) {
+        const { error: linkErr } = await admin.from('students').upsert({
+          user_id: sid,
+          name: ps.full_name,
+          full_name: ps.full_name,
+          student_email: ps.email,
+          school_id: ps.school_id,
+          school_name: ps.school_name,
+          current_class: ps.section_class,
+          parent_email: cleanEmail,
+          parent_name: full_name,
+          parent_phone: phone ?? null,
+          parent_relationship: relationship,
+          enrollment_type: 'school', // default for staff-linked students
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+        if (linkErr) console.error(`[parents/manage] Failed to link student ${sid}:`, linkErr);
+      } else {
+        // Fallback to update if portal_user session not found (unlikely)
+        await admin.from('students').update({
+          parent_email: cleanEmail,
+          parent_name: full_name,
+          parent_phone: phone ?? null,
+          parent_relationship: relationship,
+          updated_at: new Date().toISOString(),
+        }).eq('user_id', sid);
+      }
     }
 
     return NextResponse.json({ success: true, auth_user_id: authUserId, existing: isExisting, email: cleanEmail, linked_count: studentIdList.length });
@@ -169,7 +195,7 @@ export async function PATCH(req: Request) {
         // Find current student profile to get their school/class info if they exist
         const { data: ps } = await supabase
           .from('portal_users')
-          .select('full_name, school_id, school_name, section_class')
+          .select('full_name, school_id, school_name, section_class, email')
           .eq('id', student_id)
           .single();
 
@@ -180,6 +206,7 @@ export async function PATCH(req: Request) {
             user_id: student_id,
             name: ps?.full_name || 'Student',
             full_name: ps?.full_name || undefined,
+            student_email: ps?.email || undefined,
             school_id: ps?.school_id || undefined,
             school_name: ps?.school_name || undefined,
             current_class: ps?.section_class || undefined,
@@ -187,6 +214,7 @@ export async function PATCH(req: Request) {
             parent_name: full_name ?? parent.full_name,
             parent_phone: phone ?? parent.phone,
             parent_relationship: relationship ?? 'Guardian',
+            enrollment_type: 'school',
             updated_at: new Date().toISOString(),
           }, { onConflict: 'user_id' });
 
