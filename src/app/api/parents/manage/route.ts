@@ -156,25 +156,39 @@ export async function PATCH(req: Request) {
 
     if (updateErr) throw updateErr;
 
-    // If re-linking to a student, fetch parent email then update student
+    // If linking/re-linking to a student, fetch parent info then upsert into 'students' table
     if (student_id) {
       const { data: parent } = await supabase
         .from('portal_users')
         .select('email, full_name, phone')
         .eq('id', parent_id)
+        .eq('role', 'parent')
         .single();
 
       if (parent) {
+        // Find current student profile to get their school/class info if they exist
+        const { data: ps } = await supabase
+          .from('portal_users')
+          .select('full_name, school_id, school_name, section_class')
+          .eq('id', student_id)
+          .single();
+
+        // Use upsert to handle cases where student is in portal_users but not students table yet
         const { error: linkErr } = await supabase
           .from('students')
-          .update({
+          .upsert({
+            user_id: student_id,
+            name: ps?.full_name || 'Student',
+            full_name: ps?.full_name || undefined,
+            school_id: ps?.school_id || undefined,
+            school_name: ps?.school_name || undefined,
+            current_class: ps?.section_class || undefined,
             parent_email: parent.email,
             parent_name: full_name ?? parent.full_name,
             parent_phone: phone ?? parent.phone,
             parent_relationship: relationship ?? 'Guardian',
             updated_at: new Date().toISOString(),
-          })
-          .eq('id', student_id);
+          }, { onConflict: 'user_id' });
 
         if (linkErr) throw linkErr;
       }
@@ -349,16 +363,46 @@ export async function GET(req: Request) {
     }));
 
     // Also return all students for the picker (use admin client to bypass RLS)
+    // We query portal_users to catch everyone with 'student' role (including bulk-registered ones)
+    // and left-join with the 'students' table to get parent linking info.
     const adminForStudents = createAdminClient();
-    let allStuQuery = adminForStudents
-      .from('students')
-      .select('id, full_name, school_name, parent_email, grade_level, section, current_class')
+    
+    // Fetch all students from portal_users
+    let portalStudentsQuery = adminForStudents
+      .from('portal_users')
+      .select('id, full_name, school_name, section_class, email')
+      .eq('role', 'student')
       .order('full_name')
       .limit(2000);
+    
     if (effectiveSchool) {
-      allStuQuery = allStuQuery.eq('school_name', effectiveSchool);
+      portalStudentsQuery = portalStudentsQuery.eq('school_name', effectiveSchool);
     }
-    const { data: allStudents } = await allStuQuery;
+    
+    const { data: portalStudents } = await portalStudentsQuery;
+
+    // Fetch matching records from students table to get parent_email and grade info
+    const studentEmails = (portalStudents ?? []).map(s => s.email).filter(Boolean);
+    const { data: studentRecords } = studentEmails.length > 0 
+      ? await adminForStudents
+          .from('students')
+          .select('id, user_id, student_email, parent_email, grade_level, section, current_class')
+          .or(`student_email.in.(${studentEmails.join(',')}),parent_email.in.(${studentEmails.join(',')})`)
+      : { data: [] };
+
+    // Merge: portal_users is the primary list, students table provides the extra fields
+    const allStudents = (portalStudents ?? []).map(ps => {
+      const sr = (studentRecords ?? []).find(r => r.user_id === ps.id || r.student_email === ps.email);
+      return {
+        id: ps.id, // Auth User ID is the primary ID for linking in the UI
+        full_name: ps.full_name,
+        school_name: ps.school_name,
+        parent_email: sr?.parent_email ?? null,
+        grade_level: sr?.grade_level ?? ps.section_class ?? null,
+        section: sr?.section ?? null,
+        current_class: sr?.current_class ?? ps.section_class ?? null
+      };
+    });
 
     // Return teachers for the school so the form can show a teacher filter
     let teachersQuery = adminForStudents
