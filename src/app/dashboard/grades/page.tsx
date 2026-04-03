@@ -61,6 +61,124 @@ function Badge({ status }: { status: string }) {
     );
 }
 
+// ─── Batch Sync Modal ─────────────────────────────────────────
+function BatchSyncModal({ programs, allCourses, onClose, onSynced }: { 
+    programs: any[]; 
+    allCourses: any[];
+    onClose: () => void;
+    onSynced: () => void;
+}) {
+    const { profile } = useAuth();
+    const [programId, setProgramId] = useState('');
+    const [courseId, setCourseId] = useState('');
+    const [className, setClassName] = useState('');
+    const [term, setTerm] = useState('First Term');
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [instructor, setInstructor] = useState(profile?.full_name || '');
+    const [syncing, setSyncing] = useState(false);
+    const [error, setError] = useState('');
+
+    const courses = programId ? allCourses.filter(c => c.program_id === programId) : [];
+
+    const handleSync = async () => {
+        if (!courseId || !className || !term || !date) {
+            setError('Please fill in all required fields');
+            return;
+        }
+        setSyncing(true);
+        setError('');
+        try {
+            const course = allCourses.find(c => c.id === courseId);
+            const res = await fetch('/api/reports/batch-sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    course_id: courseId,
+                    course_name: course?.title,
+                    class_name: className,
+                    report_term: term,
+                    report_date: date,
+                    instructor_name: instructor,
+                    school_id: profile?.school_id,
+                    school_name: profile?.school_name
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to sync');
+            toast.success(`Succesfully synced ${data.results.length} student reports`);
+            onSynced();
+            onClose();
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-[#161628] border border-white/10 w-full max-w-md shadow-2xl p-8 space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-xl font-black text-foreground uppercase tracking-tight">Batch-Sync Reports</h3>
+                        <p className="text-xs text-muted-foreground mt-1">Push current grades for a whole class into report card drafts.</p>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Programme *</label>
+                        <select value={programId} onChange={e => {setProgramId(e.target.value); setCourseId('');}} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-orange-500">
+                            <option value="">Select Programme</option>
+                            {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Course *</label>
+                        <select value={courseId} onChange={e => setCourseId(e.target.value)} disabled={!programId} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-orange-500 disabled:opacity-30">
+                            <option value="">Select Course</option>
+                            {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Class / Section *</label>
+                        <input value={className} onChange={e => setClassName(e.target.value)} placeholder="e.g. Basic 4" className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-orange-500" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Term *</label>
+                            <select value={term} onChange={e => setTerm(e.target.value)} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-orange-500">
+                                <option value="First Term">First Term</option>
+                                <option value="Second Term">Second Term</option>
+                                <option value="Third Term">Third Term</option>
+                                <option value="Annual">Annual</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Report Date *</label>
+                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-orange-500" />
+                        </div>
+                    </div>
+                </div>
+
+                {error && <p className="text-xs text-rose-500 bg-rose-500/10 p-3 border border-rose-500/20">{error}</p>}
+
+                <div className="flex gap-3">
+                    <button onClick={onClose} className="flex-1 py-3.5 text-xs font-bold text-muted-foreground border border-white/10 hover:bg-white/5 transition-all">Cancel</button>
+                    <button onClick={handleSync} disabled={syncing || !courseId || !className} className="flex-1 py-3.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest shadow-lg shadow-orange-900/40">
+                        {syncing ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                                Syncing...
+                            </div>
+                        ) : 'Start Magic Sync'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Grade Ring ───────────────────────────────────────────────
 function GradeRing({ pct, letter, color, size = 'md' }: { pct: number; letter: string; color: string; size?: 'sm' | 'md' | 'lg' }) {
     const r = size === 'lg' ? 44 : size === 'md' ? 32 : 22;
@@ -680,6 +798,7 @@ export default function GradesPage() {
     const [grading, setGrading] = useState<any | null>(null);
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [refreshKey, setRefreshKey] = useState(0);
+    const [showSyncModal, setShowSyncModal] = useState(false);
 
     const role = profile?.role ?? '';
     const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
@@ -825,6 +944,14 @@ export default function GradesPage() {
     return (
         <div className="min-h-screen bg-background text-foreground">
             {grading && <GradeModal sub={grading} onClose={() => setGrading(null)} onSaved={handleGraded} />}
+            {showSyncModal && (
+                <BatchSyncModal 
+                    programs={programs} 
+                    allCourses={allCourses} 
+                    onClose={() => setShowSyncModal(false)} 
+                    onSynced={handleGraded} 
+                />
+            )}
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
@@ -852,6 +979,13 @@ export default function GradesPage() {
                                     <DocumentTextIcon className="w-4 h-4" />
                                     <span className="hidden sm:inline">Export PDF</span>
                                 </button>
+                                {isStaff && (
+                                    <button onClick={() => setShowSyncModal(true)}
+                                        className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-none text-sm font-bold text-foreground transition-all shadow-lg shadow-indigo-900/20 group">
+                                        <SparklesIcon className="w-4 h-4 group-hover:scale-125 transition-transform" />
+                                        Batch-Sync Reports
+                                    </button>
+                                )}
                                 <button onClick={() => exportCSV(items, isStaff)}
                                     className="flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-none text-sm font-bold text-muted-foreground hover:text-foreground transition-all">
                                     <ArrowDownTrayIcon className="w-4 h-4" />
@@ -1246,3 +1380,4 @@ export default function GradesPage() {
         </div>
     );
 }
+
