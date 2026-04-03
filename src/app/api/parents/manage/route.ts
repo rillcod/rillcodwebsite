@@ -415,11 +415,33 @@ export async function GET(req: Request) {
     }
     const { data: allTeachers } = await teachersQuery;
 
+    // --- NEW: Fetch all defined classes for this school ---
+    // This solves the issue where classes (like "Python Class") might not show up 
+    // if no students are assigned to them yet.
+    let classesQuery = adminForStudents
+      .from('classes')
+      .select('id, name')
+      .order('name');
+    
+    if (effectiveSchool) {
+      // Find school_id for the effectiveSchool name to filter correctly
+      const { data: schoolRow } = await adminForStudents
+        .from('schools')
+        .select('id')
+        .eq('name', effectiveSchool)
+        .maybeSingle();
+      if (schoolRow?.id) {
+        classesQuery = classesQuery.eq('school_id', schoolRow.id);
+      }
+    }
+    const { data: officialClasses } = await classesQuery;
+
     return NextResponse.json({ 
       success: true, 
       data, 
       students: allStudents ?? [], 
       teachers: allTeachers ?? [],
+      classes: (officialClasses ?? []).map(c => c.name),
       assigned_schools: guard.profile.role === 'teacher' ? allowedSchools : undefined
     });
   } catch (err: any) {
