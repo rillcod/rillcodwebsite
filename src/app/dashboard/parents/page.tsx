@@ -189,6 +189,7 @@ function ParentFormModal({
   students,
   teachers,
   schools,
+  officialClasses,
   defaultSchool,
   onClose,
   onSaved,
@@ -197,6 +198,7 @@ function ParentFormModal({
   students: Student[];
   teachers: Teacher[];
   schools: string[];
+  officialClasses?: string[];
   defaultSchool?: string;
   onClose: () => void;
   onSaved: () => void;
@@ -231,13 +233,16 @@ function ParentFormModal({
   }, [selectedTeacherId, teachers, selectedClass]);
   const classList = useMemo(() => {
     const set = new Set<string>();
+    // Add official classes from database
+    if (officialClasses) officialClasses.forEach(c => set.add(c));
+    // Fallback to students data
     students.filter(s => !selectedSchool || s.school_name === selectedSchool).forEach(s => {
       if (s.current_class) set.add(s.current_class);
       if (s.section) set.add(s.section);
       if (s.grade_level) set.add(s.grade_level);
     });
     return Array.from(set).sort();
-  }, [students, selectedSchool]);
+  }, [students, selectedSchool, officialClasses]);
 
   const [showPw, setShowPw] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -544,6 +549,7 @@ function LinkStudentModal({
   students,
   teachers,
   schools,
+  officialClasses,
   defaultSchool,
   onClose,
   onSaved,
@@ -552,6 +558,7 @@ function LinkStudentModal({
   students: Student[];
   teachers: Teacher[];
   schools: string[];
+  officialClasses?: string[];
   defaultSchool?: string;
   onClose: () => void;
   onSaved: () => void;
@@ -577,13 +584,16 @@ function LinkStudentModal({
   }, [selectedTeacherId, teachers, selectedClass]);
   const classList = useMemo(() => {
     const set = new Set<string>();
+    // Add official classes from database
+    if (officialClasses) officialClasses.forEach(c => set.add(c));
+    // Fallback to students data
     students.filter(s => !selectedSchool || s.school_name === selectedSchool).forEach(s => {
       if (s.current_class) set.add(s.current_class);
       if (s.section) set.add(s.section);
       if (s.grade_level) set.add(s.grade_level);
     });
     return Array.from(set).sort();
-  }, [students, selectedSchool]);
+  }, [students, selectedSchool, officialClasses]);
 
   const [relationship, setRelationship] = useState('Guardian');
   const [saving, setSaving] = useState(false);
@@ -1159,6 +1169,7 @@ export default function ParentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [schools, setSchools] = useState<string[]>([]);
+  const [classes, setClasses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   // Keep a ref so `load` always reads the latest search without being recreated
@@ -1211,9 +1222,10 @@ export default function ParentsPage() {
       if (!parRes.ok) console.error('Parents load error:', parJson.error);
       setParents(parJson.data ?? []);
 
-      // Students and teachers come from the API response (server-side, bypasses RLS)
+      // Students, teachers and official classes come from the API response
       setStudents((parJson.students ?? []) as Student[]);
       setTeachers((parJson.teachers ?? []) as Teacher[]);
+      setClasses((parJson.classes ?? []) as string[]);
 
       // Use assigned schools from API if available (for teachers), else load public list
       if (parJson.assigned_schools && parJson.assigned_schools.length > 0) {
@@ -1557,6 +1569,7 @@ export default function ParentsPage() {
           students={students}
           teachers={teachers}
           schools={schools}
+          officialClasses={classes}
           defaultSchool={!isAdmin ? (schoolFilter || profile?.school_name || '') : (editTarget?.children[0]?.school_name ?? schoolFilter)}
           onClose={() => { setShowForm(false); setEditTarget(null); }}
           onSaved={load}
@@ -1568,6 +1581,7 @@ export default function ParentsPage() {
           students={students}
           teachers={teachers}
           schools={schools}
+          officialClasses={classes}
           defaultSchool={!isAdmin ? (schoolFilter || profile?.school_name || '') : (linkTarget?.children[0]?.school_name ?? schoolFilter)}
           onClose={() => setLinkTarget(null)}
           onSaved={load}
