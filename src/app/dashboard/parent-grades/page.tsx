@@ -39,14 +39,17 @@ function ParentGradesContent() {
 
   useEffect(() => {
     if (!profile) return;
-    const supabase = createClient();
-    supabase
-      .from('students')
-      .select('id, full_name, school_name')
-      .eq('parent_email', profile.email)
-      .then(({ data }) => {
-        setChildren((data ?? []) as Child[]);
-        if (!selectedId && data && data.length > 0) setSelectedId(data[0].id);
+    setLoadingChildren(true);
+    fetch('/api/parents/portal?section=children')
+      .then(res => res.json())
+      .then(data => {
+        const list = (data.children ?? []) as Child[];
+        setChildren(list);
+        if (!selectedId && list.length > 0) setSelectedId(list[0].id);
+        setLoadingChildren(false);
+      })
+      .catch(err => {
+        console.error('Failed to load children:', err);
         setLoadingChildren(false);
       });
   }, [profile]);
@@ -54,58 +57,14 @@ function ParentGradesContent() {
   useEffect(() => {
     if (!selectedId) return;
     setLoadingGrades(true);
-    const supabase = createClient();
-
-    // Get the portal_user linked to this student
-    supabase
-      .from('students')
-      .select('user_id')
-      .eq('id', selectedId)
-      .maybeSingle()
-      .then(async ({ data: student }) => {
-        if (!student?.user_id) { setGrades([]); setLoadingGrades(false); return; }
-
-        const [asgnRes, cbtRes] = await Promise.all([
-          supabase
-            .from('assignment_submissions')
-            .select('id, status, grade, feedback, submitted_at, assignments(title, max_points)')
-            .eq('portal_user_id', student.user_id)
-            .not('grade', 'is', null)
-            .order('submitted_at', { ascending: false })
-            .limit(30),
-          supabase
-            .from('cbt_sessions')
-            .select('id, status, score, end_time, cbt_exams(title, total_marks)')
-            .eq('user_id', student.user_id)
-            .not('score', 'is', null)
-            .order('end_time', { ascending: false })
-            .limit(30),
-        ]);
-
-        const items: GradeItem[] = [
-          ...(asgnRes.data ?? []).map((r: any) => ({
-            id: r.id,
-            type: 'assignment' as const,
-            title: r.assignments?.title ?? 'Assignment',
-            grade: r.grade,
-            max_score: r.assignments?.max_points ?? null,
-            status: r.status,
-            submitted_at: r.submitted_at,
-            feedback: r.feedback,
-          })),
-          ...(cbtRes.data ?? []).map((r: any) => ({
-            id: r.id,
-            type: 'exam' as const,
-            title: r.cbt_exams?.title ?? 'CBT Exam',
-            grade: r.score,
-            max_score: r.cbt_exams?.total_marks ?? null,
-            status: r.status,
-            submitted_at: r.end_time,
-            feedback: null,
-          })),
-        ].sort((a, b) => new Date(b.submitted_at ?? 0).getTime() - new Date(a.submitted_at ?? 0).getTime());
-
-        setGrades(items);
+    fetch(`/api/parents/portal?section=grades&child_id=${selectedId}`)
+      .then(res => res.json())
+      .then(data => {
+        setGrades((data.grades ?? []) as GradeItem[]);
+        setLoadingGrades(false);
+      })
+      .catch(err => {
+        console.error('Failed to load grades:', err);
         setLoadingGrades(false);
       });
   }, [selectedId]);

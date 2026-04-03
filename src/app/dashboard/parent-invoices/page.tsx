@@ -245,41 +245,36 @@ function ParentInvoicesContent() {
 
   useEffect(() => {
     if (!profile) return;
-    const supabase = createClient();
-    supabase
-      .from('students')
-      .select('id, full_name, user_id')
-      .eq('parent_email', profile.email)
-      .then(({ data }) => {
-        setChildren((data ?? []) as Child[]);
-        if (!selectedId && data && data.length > 0) setSelectedId(data[0].id);
+    setLoadingChildren(true);
+    fetch('/api/parents/portal?section=children')
+      .then(res => res.json())
+      .then(data => {
+        const list = (data.children ?? []) as Child[];
+        setChildren(list);
+        if (!selectedId && list.length > 0) setSelectedId(list[0].id);
+        setLoadingChildren(false);
+      })
+      .catch(err => {
+        console.error('Failed to load children:', err);
         setLoadingChildren(false);
       });
   }, [profile]);
 
   useEffect(() => {
     if (!selectedId) return;
-    const child = children.find(c => c.id === selectedId);
     setLoadingData(true);
-    const supabase = createClient();
-
-    const invoiceQuery = child?.user_id
-      ? supabase.from('invoices').select('id, invoice_number, amount, currency, status, due_date, notes, payment_link, items, created_at').eq('portal_user_id', child.user_id).order('created_at', { ascending: false })
-      : Promise.resolve({ data: [] });
-
-    const paymentQuery = supabase
-      .from('payments')
-      .select('id, amount, payment_method, payment_status, transaction_reference, payment_date, notes')
-      .eq('student_id', selectedId)
-      .order('payment_date', { ascending: false })
-      .limit(30);
-
-    Promise.all([invoiceQuery, paymentQuery]).then(([invRes, payRes]) => {
-      setInvoices((invRes as any).data ?? []);
-      setPayments((payRes as any).data ?? []);
-      setLoadingData(false);
-    });
-  }, [selectedId, children]);
+    fetch(`/api/parents/portal?section=invoices&child_id=${selectedId}`)
+      .then(res => res.json())
+      .then(data => {
+        setInvoices((data.invoices ?? []) as Invoice[]);
+        setPayments((data.payments ?? []) as Payment[]);
+        setLoadingData(false);
+      })
+      .catch(err => {
+        console.error('Failed to load invoice data:', err);
+        setLoadingData(false);
+      });
+  }, [selectedId]);
 
   if (profile?.role !== 'parent') {
     return (

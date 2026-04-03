@@ -255,28 +255,35 @@ export async function GET(req: Request) {
         .eq('school_name', effectiveSchool)
         .not('parent_email', 'is', null);
       allowedEmails = (scopedStudents ?? []).map((s: any) => s.parent_email).filter(Boolean);
-      // If no students have parents in this school, return empty
-      if (allowedEmails.length === 0) {
-        return NextResponse.json({ success: true, data: [] });
+      // NOTE: if allowedEmails is empty we still continue so that the student+teacher
+      // picker arrays are returned (needed by the "Add Parent" modal even when no
+      // parents exist yet for this school).
+    }
+
+    // If school-scoped with no linked parents yet, skip the parents query entirely
+    // (passing an empty array to .in() is unreliable across Supabase versions)
+    let parents: any[] = [];
+    if (allowedEmails !== null && allowedEmails.length === 0) {
+      // No parents for this school yet — parents stays []
+    } else {
+      let query = supabase
+        .from('portal_users')
+        .select('id, email, full_name, phone, is_active, created_at')
+        .eq('role', 'parent')
+        .order('created_at', { ascending: false });
+
+      if (search) {
+        query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`);
       }
+
+      if (allowedEmails && allowedEmails.length > 0) {
+        query = query.in('email', allowedEmails);
+      }
+
+      const { data: parentsData, error } = await query.limit(200);
+      if (error) throw error;
+      parents = parentsData ?? [];
     }
-
-    let query = supabase
-      .from('portal_users')
-      .select('id, email, full_name, phone, is_active, created_at')
-      .eq('role', 'parent')
-      .order('created_at', { ascending: false });
-
-    if (search) {
-      query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`);
-    }
-
-    if (allowedEmails) {
-      query = query.in('email', allowedEmails);
-    }
-
-    const { data: parents, error } = await query.limit(200);
-    if (error) throw error;
 
     // Fetch linked students for each parent via parent_email match (admin client bypasses RLS)
     const emails = (parents ?? []).map(p => p.email);

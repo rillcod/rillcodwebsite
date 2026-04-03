@@ -103,18 +103,19 @@ export async function POST(req: Request) {
         if (row.student_name) {
           const studentName = (row.student_name ?? '').trim();
           if (studentName) {
-            const { data: student } = await supabase
+            const { data: student } = await admin
               .from('students')
               .select('id')
               .ilike('full_name', studentName)
               .limit(1)
               .maybeSingle();
             if (student) {
-              await supabase.from('students').update({
+              await admin.from('students').update({
                 parent_email: email,
                 parent_name: full_name,
                 parent_phone: phone,
                 parent_relationship: relationship,
+                updated_at: new Date().toISOString(),
               }).eq('id', student.id);
             }
           }

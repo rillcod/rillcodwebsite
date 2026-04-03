@@ -201,11 +201,20 @@ function ParentFormModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const { profile } = useAuth(); // Added to detect current teacher
+  const { profile } = useAuth();
   const isEdit = !!initialData;
+  // Sync selectedSchool whenever defaultSchool arrives (profile may load async)
   const [selectedSchool, setSelectedSchool] = useState(defaultSchool ?? '');
+  useEffect(() => {
+    if (defaultSchool && !selectedSchool) setSelectedSchool(defaultSchool);
+  }, [defaultSchool]); // eslint-disable-line react-hooks/exhaustive-deps
   // Auto-select current user in teacher dropdown if they are a teacher
-  const [selectedTeacherId, setSelectedTeacherId] = useState(profile?.role === 'teacher' ? profile.id : '');
+  const [selectedTeacherId, setSelectedTeacherId] = useState('');
+  useEffect(() => {
+    if (profile?.role === 'teacher' && profile.id && !selectedTeacherId) {
+      setSelectedTeacherId(profile.id);
+    }
+  }, [profile?.role, profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [form, setForm] = useState({
     email: initialData?.email ?? '',
     full_name: initialData?.full_name ?? '',
@@ -404,13 +413,13 @@ function ParentFormModal({
             </label>
             <select
               value={selectedSchool}
-              onChange={e => { setSelectedSchool(e.target.value); setSelectedTeacherId(''); setForm(f => ({ ...f, student_id: '' })); }}
-              // Disable if only one school for non-admins, but ensure it's selectable if it's the only option
+              onChange={e => { setSelectedSchool(e.target.value); setSelectedTeacherId(''); setForm(f => ({ ...f, student_id: '', student_ids: [] })); }}
               disabled={schools.length <= 1 && profile?.role !== 'admin'}
               className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-80"
             >
               {schools.length === 0 && <option value="">— No Schools Available —</option>}
-              {schools.length !== 1 && <option value="">— Select School —</option>}
+              {/* Only show blank placeholder when admin has multiple schools to choose from */}
+              {profile?.role === 'admin' && schools.length > 1 && <option value="">— Select School —</option>}
               {schools.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
@@ -520,9 +529,18 @@ function LinkStudentModal({
   onSaved: () => void;
 }) {
   const { profile } = useAuth();
+  // Sync selectedSchool whenever defaultSchool arrives (profile may load async)
   const [selectedSchool, setSelectedSchool] = useState(defaultSchool ?? '');
+  useEffect(() => {
+    if (defaultSchool && !selectedSchool) setSelectedSchool(defaultSchool);
+  }, [defaultSchool]); // eslint-disable-line react-hooks/exhaustive-deps
   // Auto-select current user in teacher dropdown if they are a teacher
-  const [selectedTeacherId, setSelectedTeacherId] = useState(profile?.role === 'teacher' ? profile.id : '');
+  const [selectedTeacherId, setSelectedTeacherId] = useState('');
+  useEffect(() => {
+    if (profile?.role === 'teacher' && profile.id && !selectedTeacherId) {
+      setSelectedTeacherId(profile.id);
+    }
+  }, [profile?.role, profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [studentId, setStudentId] = useState('');
   const [relationship, setRelationship] = useState('Guardian');
   const [saving, setSaving] = useState(false);
@@ -566,10 +584,11 @@ function LinkStudentModal({
             <select
               value={selectedSchool}
               onChange={e => { setSelectedSchool(e.target.value); setSelectedTeacherId(''); setStudentId(''); }}
-              disabled={schools.length === 1}
+              disabled={schools.length <= 1 && profile?.role !== 'admin'}
               className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-60"
             >
-              <option value="">— Select School —</option>
+              {schools.length === 0 && <option value="">— No Schools Available —</option>}
+              {profile?.role === 'admin' && schools.length > 1 && <option value="">— Select School —</option>}
               {schools.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
@@ -1081,6 +1100,16 @@ export default function ParentsPage() {
   const [schools, setSchools] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  // Keep a ref so `load` always reads the latest search without being recreated
+  const searchRef = useRef('');
+  // Debounce search so we don't fire a request on every keystroke
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    searchRef.current = val;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => load(), 400);
+  };
   // School filter: admin defaults to '' (all); teacher defaults to their school_name
   const [schoolFilter, setSchoolFilter] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -1099,20 +1128,22 @@ export default function ParentsPage() {
   const isAdmin = profile?.role === 'admin';
 
   // Set default school filter and pre-populate schools list for teachers
+  // Depend only on profile identity fields — not on schoolFilter — to avoid loops
   useEffect(() => {
     if (profile?.role === 'teacher' && profile.school_name) {
-      if (!schoolFilter) setSchoolFilter(profile.school_name);
+      setSchoolFilter(profile.school_name);
       setSchools([profile.school_name]);
     }
-  }, [profile, schoolFilter]);
+  }, [profile?.role, profile?.school_name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = useCallback(async () => {
     if (!isStaff) return;
     setLoading(true);
     try {
-      // Build parent search URL
+      // Build parent search URL — read latest search from ref (avoids stale closure)
       const params = new URLSearchParams();
-      if (search) params.set('search', search);
+      const currentSearch = searchRef.current;
+      if (currentSearch) params.set('search', currentSearch);
       if (schoolFilter) params.set('school', schoolFilter);
       const parRes = await fetch(`/api/parents/manage${params.toString() ? '?' + params : ''}`, { cache: 'no-store' });
       const parJson = await parRes.json();
@@ -1139,7 +1170,7 @@ export default function ParentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [isStaff, isAdmin, search, schoolFilter, profile?.school_name]);
+  }, [isStaff, isAdmin, schoolFilter, profile?.school_name]); // search intentionally omitted — read from ref
 
   useEffect(() => { if (!authLoading) load(); }, [authLoading, load]);
 
@@ -1240,8 +1271,8 @@ export default function ParentsPage() {
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && load()}
+            onChange={e => handleSearchChange(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); load(); } }}
             placeholder="Search by name or email…"
             className="w-full pl-10 pr-4 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
           />
