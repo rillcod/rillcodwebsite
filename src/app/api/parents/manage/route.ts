@@ -330,16 +330,24 @@ export async function GET(req: Request) {
     if (effectiveSchool) {
       let stuQuery = adminClient
         .from('students')
-        .select('parent_email')
-        .eq('school_name', effectiveSchool)
+        .select('parent_email, current_class, grade_level, section')
+        .ilike('school_name', effectiveSchool)
         .not('parent_email', 'is', null);
 
       if (classParam) {
-        stuQuery = stuQuery.eq('current_class', classParam);
+        const cp = classParam.toLowerCase();
+        // Since we can't easily do complex OR filters across multiple columns with 'in', 
+        // we fetch the emails first and filter them in memory if class is provided.
+        const { data: allScoped } = await stuQuery;
+        const filteredScoped = (allScoped ?? []).filter((s: any) => {
+          const fields = [s.current_class, s.grade_level, s.section].map(v => (v ?? '').toLowerCase());
+          return fields.some(f => f === cp || f.includes(cp));
+        });
+        allowedEmails = filteredScoped.map((s: any) => s.parent_email).filter(Boolean);
+      } else {
+        const { data: scopedStudents } = await stuQuery;
+        allowedEmails = (scopedStudents ?? []).map((s: any) => s.parent_email).filter(Boolean);
       }
-
-      const { data: scopedStudents } = await stuQuery;
-      allowedEmails = (scopedStudents ?? []).map((s: any) => s.parent_email).filter(Boolean);
     }
 
     // If school-scoped with no linked parents yet, skip the parents query entirely
@@ -421,24 +429,25 @@ export async function GET(req: Request) {
     
     const { data: portalStudents } = await portalStudentsQuery;
 
-    const studentEmails = (portalStudents ?? []).map(s => s.email).filter(Boolean);
-    const { data: studentRecords } = studentEmails.length > 0 
+    const studentIds = (portalStudents ?? []).map(s => s.id);
+    const { data: studentRecords } = studentIds.length > 0 
       ? await adminForStudents
           .from('students')
           .select('id, user_id, student_email, parent_email, grade_level, section, current_class')
-          .or(`student_email.in.(${studentEmails.join(',')}),parent_email.in.(${studentEmails.join(',')})`)
+          .in('user_id', studentIds)
       : { data: [] };
 
     const allStudents = (portalStudents ?? []).map(ps => {
-      const sr = (studentRecords ?? []).find(r => r.user_id === ps.id || r.student_email === ps.email);
+      // Find matching student record using user_id first (most reliable)
+      const sr = (studentRecords ?? []).find(r => r.user_id === ps.id || (ps.email && r.student_email === ps.email));
       return {
         id: ps.id,
         full_name: ps.full_name,
         school_name: ps.school_name,
         parent_email: sr?.parent_email ?? null,
-        grade_level: sr?.grade_level ?? ps.section_class ?? null,
-        section: sr?.section ?? null,
-        current_class: sr?.current_class ?? ps.section_class ?? null
+        grade_level: sr?.grade_level || ps.section_class || null,
+        section: sr?.section || null,
+        current_class: sr?.current_class || ps.section_class || null
       };
     });
 
