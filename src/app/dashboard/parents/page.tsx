@@ -730,22 +730,22 @@ function PrintRegistryModal({ parents, schoolFilter, onClose }: {
   return (
     <div className="fixed inset-0 z-50 bg-white text-black print:bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
       {/* Screen-only header bar */}
-      <div className="print:hidden flex items-center justify-between px-6 py-4 bg-gray-100 border-b border-gray-200">
-        <h2 className="text-sm font-black uppercase tracking-widest">Parent Registry</h2>
-        <div className="flex items-center gap-3">
+      <div className="print:hidden flex items-center justify-between px-4 sm:px-6 py-4 bg-gray-100 border-b border-gray-200 sticky top-0 z-10 w-full overflow-x-auto">
+        <h2 className="text-[10px] sm:text-sm font-black uppercase tracking-widest truncate shrink-0">Parent Registry</h2>
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white text-xs font-black uppercase tracking-widest"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-orange-600 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap"
           >
-            <PrinterIcon className="w-4 h-4" /> Print
+            <PrinterIcon className="w-4 h-4 shrink-0" /> Print
           </button>
-          <button onClick={onClose} className="p-2 hover:bg-gray-200 transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 transition-colors shrink-0">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-5xl mx-auto overflow-x-auto">
         {/* Print header */}
         <div className="mb-6 pb-4 border-b-2 border-gray-800">
           <h1 className="text-2xl font-black uppercase tracking-widest">Parent Registry</h1>
@@ -1055,30 +1055,24 @@ function AccessCardsModal({ parents, schoolFilter, onClose }: {
   return (
     <div className="fixed inset-0 z-50 bg-white text-black" style={{ fontFamily: 'Arial, sans-serif' }}>
       {/* Screen bar */}
-      <div className="print:hidden flex items-center justify-between px-6 py-4 bg-gray-100 border-b border-gray-200">
-        <h2 className="text-sm font-black uppercase tracking-widest">Parent Access Cards</h2>
-        <div className="flex items-center gap-3">
-          <p className="text-xs text-gray-500">{filtered.length} cards · Print on A4, cut along dotted lines</p>
+      <div className="print:hidden flex items-center justify-between px-4 sm:px-6 py-4 bg-gray-100 border-b border-gray-200 sticky top-0 z-10">
+        <h2 className="text-[10px] sm:text-sm font-black uppercase tracking-widest truncate">Parent Access Cards</h2>
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <p className="hidden md:block text-[10px] text-gray-500">{filtered.length} cards · Print on A4</p>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white text-xs font-black uppercase tracking-widest"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-orange-600 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap"
           >
-            <PrinterIcon className="w-4 h-4" /> Print Cards
+            <PrinterIcon className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Print Cards</span><span className="sm:hidden">Print</span>
           </button>
-          <button onClick={onClose} className="p-2 hover:bg-gray-200 transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 transition-colors shrink-0">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      <div className="p-6">
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: '16px',
-          maxWidth: '800px',
-          margin: '0 auto',
-        }}>
+      <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(100vh-64px)]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-[800px] mx-auto print:grid-cols-2">
           {filtered.map(parent => {
             const initials = parent.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
             const childrenText = parent.children.map(c => c.full_name).join(', ') || 'No children linked';
@@ -1316,35 +1310,35 @@ export default function ParentsPage() {
             Manage parent accounts and their links to students.
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
           <button onClick={() => load()}
-            className="p-2 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground transition-all" title="Refresh">
+            className="p-2.5 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground transition-all shrink-0" title="Refresh">
             <ArrowPathIcon className="w-4 h-4" />
           </button>
           <button
             onClick={() => setShowPrintRegistry(true)}
-            className="flex items-center gap-2 px-3 py-2.5 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest transition-all" title="Print Registry">
+            className="flex items-center gap-2 px-3 py-2.5 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest transition-all shrink-0" title="Print Registry">
             <PrinterIcon className="w-4 h-4" />
             <span className="hidden sm:inline">Registry</span>
           </button>
           <button
             onClick={() => setShowAccessCards(true)}
-            className="flex items-center gap-2 px-3 py-2.5 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest transition-all" title="Access Cards">
+            className="flex items-center gap-2 px-3 py-2.5 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest transition-all shrink-0" title="Access Cards">
             <CreditCardIcon className="w-4 h-4" />
             <span className="hidden sm:inline">Cards</span>
           </button>
           {isAdmin && (
             <button
               onClick={() => setShowBulkImport(true)}
-              className="flex items-center gap-2 px-3 py-2.5 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest transition-all" title="Bulk Import">
+              className="flex items-center gap-2 px-3 py-2.5 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest transition-all shrink-0" title="Bulk Import">
               <ArrowUpTrayIcon className="w-4 h-4" />
               <span className="hidden sm:inline">Import</span>
             </button>
           )}
           <button
             onClick={() => { setEditTarget(null); setShowForm(true); }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-black uppercase tracking-widest transition-all">
-            <PlusIcon className="w-4 h-4" /> Add Parent
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
+            <PlusIcon className="w-4 h-4" /> <span className="whitespace-nowrap">Add Parent</span>
           </button>
         </div>
       </div>
@@ -1434,53 +1428,54 @@ export default function ParentsPage() {
         <div className="bg-card border border-border divide-y divide-border">
           {parents.map(parent => (
             <div key={parent.id}>
-              {/* Parent row */}
-              <div
-                className="flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-all cursor-pointer"
-                onClick={() => setExpanded(expanded === parent.id ? null : parent.id)}
-              >
-                {/* Avatar */}
-                <div className="w-9 h-9 rounded-none bg-orange-500/10 border border-orange-500/20 flex items-center justify-center flex-shrink-0">
-                  <UserIcon className="w-4 h-4 text-orange-400" />
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-bold text-foreground">{parent.full_name}</span>
-                    {!parent.is_active && (
-                      <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-400">
-                        Inactive
-                      </span>
-                    )}
+                {/* Parent row */}
+                <div
+                  className="flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3 sm:py-4 hover:bg-white/5 transition-all cursor-pointer"
+                  onClick={() => setExpanded(expanded === parent.id ? null : parent.id)}
+                >
+                  {/* Avatar */}
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-none bg-orange-500/10 border border-orange-500/20 flex items-center justify-center flex-shrink-0">
+                    <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-400" />
                   </div>
-                  <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <EnvelopeIcon className="w-3 h-3" /> {parent.email}
-                    </span>
-                    {parent.phone && (
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <PhoneIcon className="w-3 h-3" /> {parent.phone}
+  
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs sm:text-sm font-bold text-foreground truncate max-w-[150px] sm:max-w-none">{parent.full_name}</span>
+                      {!parent.is_active && (
+                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                          Inactive
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-0.5">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 truncate">
+                        <EnvelopeIcon className="w-3 h-3 shrink-0" /> <span className="truncate">{parent.email}</span>
                       </span>
-                    )}
+                      {parent.phone && (
+                        <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1">
+                          <PhoneIcon className="w-3 h-3 shrink-0" /> {parent.phone}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
                 {/* Children count */}
-                <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground flex-shrink-0">
+                <div className="hidden xs:flex items-center gap-1.5 text-xs text-muted-foreground flex-shrink-0 px-2 py-1 bg-muted/30 border border-border sm:border-transparent sm:bg-transparent">
                   <AcademicCapIcon className="w-3.5 h-3.5" />
-                  {parent.children.length} {parent.children.length === 1 ? 'child' : 'children'}
+                  <span className="hidden sm:inline">{parent.children.length} {parent.children.length === 1 ? 'child' : 'children'}</span>
+                  <span className="sm:hidden">{parent.children.length}</span>
                 </div>
 
                 {/* Expand icon */}
-                <div className="flex-shrink-0 text-muted-foreground">
+                <div className="flex-shrink-0 text-muted-foreground ml-1">
                   {expanded === parent.id ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
                 </div>
               </div>
 
               {/* Expanded detail */}
               {expanded === parent.id && (
-                <div className="px-5 pb-6 pt-2 bg-background/50 border-t border-border space-y-5">
+                <div className="px-4 sm:px-5 pb-6 pt-2 bg-background/50 border-t border-border space-y-5">
 
                   {/* Linked children */}
                   <div>
@@ -1520,22 +1515,22 @@ export default function ParentsPage() {
                   </div>
 
                   {/* Action bar */}
-                  <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border">
+                  <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 pt-3 border-t border-border">
                     <button
                       onClick={() => { setEditTarget(parent); setShowForm(true); }}
-                      className="flex items-center gap-2 px-4 py-2 border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all">
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 border border-border text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all">
                       <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                     </button>
                     <button
                       onClick={() => setLinkTarget(parent)}
-                      className="flex items-center gap-2 px-4 py-2 border border-orange-500/40 text-[10px] font-black uppercase tracking-widest text-orange-400 hover:border-orange-500 hover:text-orange-300 transition-all">
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 border border-orange-500/40 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-orange-400 hover:border-orange-500 hover:text-orange-300 transition-all">
                       <LinkIcon className="w-3.5 h-3.5" /> Link Student
                     </button>
                     {isAdmin && (
                       <button
                         onClick={() => handleToggleActive(parent)}
                         disabled={toggling === parent.id}
-                        className={`flex items-center gap-2 px-4 py-2 border text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 ${
+                        className={`flex items-center justify-center gap-2 px-4 py-2.5 border text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 ${
                           parent.is_active
                             ? 'border-rose-500/30 text-rose-400 hover:border-rose-500 hover:text-rose-300'
                             : 'border-emerald-500/30 text-emerald-400 hover:border-emerald-500 hover:text-emerald-300'
@@ -1547,11 +1542,11 @@ export default function ParentsPage() {
                     <button
                       onClick={() => handleResetPassword(parent)}
                       disabled={resetting === parent.id}
-                      className="flex items-center gap-2 px-4 py-2 border border-amber-500/30 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:border-amber-500 hover:text-amber-300 transition-all disabled:opacity-50">
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 border border-amber-500/30 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-amber-400 hover:border-amber-500 hover:text-amber-300 transition-all disabled:opacity-50">
                       <KeyIcon className="w-3.5 h-3.5" /> {resetting === parent.id ? '…' : 'Reset PW'}
                     </button>
                     <a href={`/dashboard/messages?to=${parent.id}`}
-                      className="flex items-center gap-2 px-4 py-2 border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all ml-auto">
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 border border-border text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all ms-auto">
                       <EnvelopeIcon className="w-3.5 h-3.5" /> Message
                     </a>
                   </div>
