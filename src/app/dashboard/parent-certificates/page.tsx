@@ -29,42 +29,35 @@ function ParentCertificatesContent() {
 
   useEffect(() => {
     if (!profile) return;
-    const supabase = createClient();
-    supabase
-      .from('students')
-      .select('id, full_name, user_id')
-      .eq('parent_email', profile.email)
-      .then(({ data }) => {
-        setChildren((data ?? []) as Child[]);
-        if (!selectedId && data && data.length > 0) setSelectedId(data[0].id);
+    setLoadingChildren(true);
+    fetch('/api/parents/portal?section=children')
+      .then(res => res.json())
+      .then(data => {
+        const list = (data.children ?? []) as Child[];
+        setChildren(list);
+        if (!selectedId && list.length > 0) setSelectedId(list[0].id);
+        setLoadingChildren(false);
+      })
+      .catch(err => {
+        console.error('Failed to load children:', err);
         setLoadingChildren(false);
       });
   }, [profile]);
 
   useEffect(() => {
     if (!selectedId) return;
-    const child = children.find(c => c.id === selectedId);
-    if (!child?.user_id) { setCerts([]); return; }
-
     setLoadingCerts(true);
-    const supabase = createClient();
-    supabase
-      .from('certificates')
-      .select('id, certificate_number, verification_code, issued_date, pdf_url, courses(title)')
-      .eq('portal_user_id', child.user_id)
-      .order('issued_date', { ascending: false })
-      .then(({ data }) => {
-        setCerts((data ?? []).map((c: any) => ({
-          id: c.id,
-          certificate_number: c.certificate_number,
-          verification_code: c.verification_code,
-          issued_date: c.issued_date,
-          pdf_url: c.pdf_url,
-          course_title: c.courses?.title ?? null,
-        })));
+    fetch(`/api/parents/portal?section=certificates&child_id=${selectedId}`)
+      .then(res => res.json())
+      .then(data => {
+        setCerts((data.certs ?? []) as Certificate[]);
+        setLoadingCerts(false);
+      })
+      .catch(err => {
+        console.error('Failed to load certificates:', err);
         setLoadingCerts(false);
       });
-  }, [selectedId, children]);
+  }, [selectedId]);
 
   if (profile?.role !== 'parent') {
     return (

@@ -35,14 +35,17 @@ function ParentAttendanceContent() {
 
   useEffect(() => {
     if (!profile) return;
-    const supabase = createClient();
-    supabase
-      .from('students')
-      .select('id, full_name, school_name')
-      .eq('parent_email', profile.email)
-      .then(({ data }) => {
-        setChildren((data ?? []) as Child[]);
-        if (!selectedId && data && data.length > 0) setSelectedId(data[0].id);
+    setLoadingChildren(true);
+    fetch('/api/parents/portal?section=children')
+      .then(res => res.json())
+      .then(data => {
+        const list = (data.children ?? []) as Child[];
+        setChildren(list);
+        if (!selectedId && list.length > 0) setSelectedId(list[0].id);
+        setLoadingChildren(false);
+      })
+      .catch(err => {
+        console.error('Failed to load children:', err);
         setLoadingChildren(false);
       });
   }, [profile]);
@@ -50,33 +53,14 @@ function ParentAttendanceContent() {
   useEffect(() => {
     if (!selectedId) return;
     setLoadingRecords(true);
-    const supabase = createClient();
-
-    // First resolve the portal user_id for this student record
-    supabase
-      .from('students')
-      .select('user_id')
-      .eq('id', selectedId)
-      .maybeSingle()
-      .then(async ({ data: student }) => {
-        if (!student?.user_id) {
-          setRecords([]);
-          setLoadingRecords(false);
-          return;
-        }
-        const { data } = await supabase
-          .from('attendance')
-          .select('id, status, notes, created_at, class_sessions(session_date, topic, classes(name))')
-          .eq('user_id', student.user_id)
-          .order('created_at', { ascending: false })
-          .limit(60);
-        setRecords((data ?? []).map((r: any) => ({
-          id: r.id,
-          date: r.class_sessions?.session_date ?? r.created_at?.slice(0, 10) ?? '',
-          status: r.status,
-          note: r.notes,
-          course_name: r.class_sessions?.classes?.name ?? r.class_sessions?.topic ?? null,
-        })));
+    fetch(`/api/parents/portal?section=attendance&child_id=${selectedId}`)
+      .then(res => res.json())
+      .then(data => {
+        setRecords((data.records ?? []) as AttendanceRecord[]);
+        setLoadingRecords(false);
+      })
+      .catch(err => {
+        console.error('Failed to load attendance:', err);
         setLoadingRecords(false);
       });
   }, [selectedId]);

@@ -72,36 +72,35 @@ function ParentResultsContent() {
 
   useEffect(() => {
     if (!profile) return;
-    const supabase = createClient();
-    supabase
-      .from('students')
-      .select('id, full_name, school_name, user_id')
-      .eq('parent_email', profile.email)
-      .then(({ data }) => {
-        setChildren((data ?? []) as Child[]);
-        if (!selectedId && data && data.length > 0) setSelectedId(data[0].id);
+    setLoadingChildren(true);
+    fetch('/api/parents/portal?section=children')
+      .then(res => res.json())
+      .then(data => {
+        const list = (data.children ?? []) as Child[];
+        setChildren(list);
+        if (!selectedId && list.length > 0) setSelectedId(list[0].id);
+        setLoadingChildren(false);
+      })
+      .catch(err => {
+        console.error('Failed to load children:', err);
         setLoadingChildren(false);
       });
   }, [profile]); // eslint-disable-line
 
   useEffect(() => {
     if (!selectedId) return;
-    const child = children.find(c => c.id === selectedId);
-    // student_progress_reports.student_id = portal_users.id (user_id), not students.id
-    if (!child?.user_id) { setReports([]); setLoadingReports(false); return; }
     setLoadingReports(true);
-    const supabase = createClient();
-    supabase
-      .from('student_progress_reports')
-      .select('id, course_name, report_term, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, report_date, instructor_name, learning_milestones, key_strengths, areas_for_growth, participation_score')
-      .eq('student_id', child.user_id)
-      .eq('is_published', true)
-      .order('report_date', { ascending: false })
-      .then(({ data }) => {
-        setReports((data ?? []) as Report[]);
+    fetch(`/api/parents/portal?section=results&child_id=${selectedId}`)
+      .then(res => res.json())
+      .then(data => {
+        setReports((data.reports ?? []) as Report[]);
+        setLoadingReports(false);
+      })
+      .catch(err => {
+        console.error('Failed to load reports:', err);
         setLoadingReports(false);
       });
-  }, [selectedId, children]);
+  }, [selectedId]);
 
   if (profile?.role !== 'parent') {
     return (
