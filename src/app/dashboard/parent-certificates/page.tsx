@@ -5,6 +5,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { TrophyIcon, AcademicCapIcon, ShieldCheckIcon } from '@/lib/icons';
+import { toast } from 'sonner';
 
 interface Child { id: string; full_name: string; user_id: string | null }
 interface Certificate {
@@ -33,12 +34,14 @@ function ParentCertificatesContent() {
     fetch('/api/parents/portal?section=children')
       .then(res => res.json())
       .then(data => {
+        if (!data.success) throw new Error(data.error || 'Failed to load children');
         const list = (data.children ?? []) as Child[];
         setChildren(list);
         if (!selectedId && list.length > 0) setSelectedId(list[0].id);
         setLoadingChildren(false);
       })
       .catch(err => {
+        toast.error('Could not load student list. Please try again.');
         console.error('Failed to load children:', err);
         setLoadingChildren(false);
       });
@@ -50,10 +53,12 @@ function ParentCertificatesContent() {
     fetch(`/api/parents/portal?section=certificates&child_id=${selectedId}`)
       .then(res => res.json())
       .then(data => {
+        if (!data.success) throw new Error(data.error || 'Failed to load certificates');
         setCerts((data.certs ?? []) as Certificate[]);
         setLoadingCerts(false);
       })
       .catch(err => {
+        toast.error('Could not load certificates for this student.');
         console.error('Failed to load certificates:', err);
         setLoadingCerts(false);
       });

@@ -427,6 +427,15 @@ img[alt="Official Signature"] {
   }
 }
 
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
 /* Focus styles for accessibility */
 .focus-ring:focus {
   outline: none;

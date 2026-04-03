@@ -9,6 +9,7 @@ import {
   ClockIcon, ExclamationTriangleIcon, ArrowTopRightOnSquareIcon,
   PrinterIcon,
 } from '@/lib/icons';
+import { toast } from 'sonner';
 
 interface Child { id: string; full_name: string; user_id: string | null }
 interface Invoice {
@@ -249,12 +250,14 @@ function ParentInvoicesContent() {
     fetch('/api/parents/portal?section=children')
       .then(res => res.json())
       .then(data => {
+        if (!data.success) throw new Error(data.error || 'Failed to load children');
         const list = (data.children ?? []) as Child[];
         setChildren(list);
         if (!selectedId && list.length > 0) setSelectedId(list[0].id);
         setLoadingChildren(false);
       })
       .catch(err => {
+        toast.error('Could not load student list. Please try again.');
         console.error('Failed to load children:', err);
         setLoadingChildren(false);
       });
@@ -266,11 +269,13 @@ function ParentInvoicesContent() {
     fetch(`/api/parents/portal?section=invoices&child_id=${selectedId}`)
       .then(res => res.json())
       .then(data => {
+        if (!data.success) throw new Error(data.error || 'Failed to load invoices');
         setInvoices((data.invoices ?? []) as Invoice[]);
         setPayments((data.payments ?? []) as Payment[]);
         setLoadingData(false);
       })
       .catch(err => {
+        toast.error('Could not load billing data for this student.');
         console.error('Failed to load invoice data:', err);
         setLoadingData(false);
       });
@@ -367,14 +372,17 @@ function ParentInvoicesContent() {
 
           {/* Loading */}
           {loadingData && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="bg-card border border-border rounded-none p-5 animate-pulse">
-                  <div className="flex justify-between mb-3">
-                    <div className="h-4 bg-muted rounded w-1/3" />
-                    <div className="h-6 bg-muted rounded w-20" />
+                <div key={i} className="bg-card border border-border p-6 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 bg-muted rounded w-1/4 animate-pulse" />
+                      <div className="h-3 bg-muted rounded w-1/2 animate-pulse opacity-50" />
+                    </div>
+                    <div className="h-8 w-20 bg-muted rounded animate-pulse" />
                   </div>
-                  <div className="h-3 bg-muted rounded w-1/2" />
                 </div>
               ))}
             </div>

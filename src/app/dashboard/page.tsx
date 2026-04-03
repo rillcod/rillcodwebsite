@@ -611,11 +611,12 @@ export default function DashboardPage() {
         setSchoolPayments(sp);
       }
       if (role === 'parent') {
-        const { data: kids } = await supabase
-          .from('students')
-          .select('id, full_name, school_name, grade_level, status')
-          .eq('parent_email', profile.email);
-        setParentChildren(kids ?? []);
+        fetch('/api/parents/portal?section=summary')
+          .then(res => res.json())
+          .then(data => {
+            setParentChildren(data.children ?? []);
+          })
+          .catch(err => console.error('Failed to load parent dashboard data:', err));
       }
       await loadUpcomingSlots(supabase, role, profile.id, profile.school_id || undefined);
     } catch { /* silent */ } finally {
