@@ -224,6 +224,21 @@ function ParentFormModal({
     relationship: 'Guardian',
     password: genPassword(),
   });
+  const [selectedClass, setSelectedClass] = useState('');
+  useEffect(() => {
+    const t = teachers.find(x => x.id === selectedTeacherId);
+    if (t?.section_class && !selectedClass) setSelectedClass(t.section_class);
+  }, [selectedTeacherId, teachers, selectedClass]);
+  const classList = useMemo(() => {
+    const set = new Set<string>();
+    students.filter(s => !selectedSchool || s.school_name === selectedSchool).forEach(s => {
+      if (s.current_class) set.add(s.current_class);
+      if (s.section) set.add(s.section);
+      if (s.grade_level) set.add(s.grade_level);
+    });
+    return Array.from(set).sort();
+  }, [students, selectedSchool]);
+
   const [showPw, setShowPw] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -448,15 +463,24 @@ function ParentFormModal({
                     </option>
                   ))}
                 </select>
-                {selectedTeacherId && (() => {
-                  const t = schoolTeachers.find(x => x.id === selectedTeacherId);
-                  return t?.section_class ? (
-                    <p className="text-[10px] text-orange-400/70 mt-1">Showing students in class: <span className="font-bold text-orange-400">{t.section_class}</span></p>
-                  ) : null;
-                })()}
               </div>
             );
           })()}
+
+          {/* Class Filter */}
+          <div>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
+              Filter by Class / Category <span className="text-muted-foreground normal-case font-normal">(optional)</span>
+            </label>
+            <select
+              value={selectedClass}
+              onChange={e => { setSelectedClass(e.target.value); setForm(f => ({ ...f, student_id: '', student_ids: [] })); }}
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+            >
+              <option value="">— All Classes / All Students —</option>
+              {classList.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
 
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
@@ -466,7 +490,7 @@ function ParentFormModal({
               <StudentPicker
                 students={students}
                 schoolFilter={selectedSchool}
-                classFilter={teachers.find(t => t.id === selectedTeacherId)?.section_class ?? undefined}
+                classFilter={selectedClass || teachers.find(t => t.id === selectedTeacherId)?.section_class || undefined}
                 value={form.student_id}
                 onChange={id => setForm(f => ({ ...f, student_id: id }))}
               />
@@ -474,7 +498,7 @@ function ParentFormModal({
               <StudentPicker
                 students={students}
                 schoolFilter={selectedSchool}
-                classFilter={teachers.find(t => t.id === selectedTeacherId)?.section_class ?? undefined}
+                classFilter={selectedClass || teachers.find(t => t.id === selectedTeacherId)?.section_class || undefined}
                 multi
                 values={form.student_ids}
                 onChangeMulti={ids => setForm(f => ({ ...f, student_ids: ids }))}
@@ -543,6 +567,21 @@ function LinkStudentModal({
     }
   }, [profile?.role, profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [studentId, setStudentId] = useState('');
+  const [selectedClass, setSelectedClass] = useState('');
+  useEffect(() => {
+    const t = teachers.find(x => x.id === selectedTeacherId);
+    if (t?.section_class && !selectedClass) setSelectedClass(t.section_class);
+  }, [selectedTeacherId, teachers, selectedClass]);
+  const classList = useMemo(() => {
+    const set = new Set<string>();
+    students.filter(s => !selectedSchool || s.school_name === selectedSchool).forEach(s => {
+      if (s.current_class) set.add(s.current_class);
+      if (s.section) set.add(s.section);
+      if (s.grade_level) set.add(s.grade_level);
+    });
+    return Array.from(set).sort();
+  }, [students, selectedSchool]);
+
   const [relationship, setRelationship] = useState('Guardian');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -616,11 +655,25 @@ function LinkStudentModal({
             </div>
           )}
           <div>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
+              Filter by Class / Category <span className="text-muted-foreground normal-case font-normal">(optional)</span>
+            </label>
+            <select
+              value={selectedClass}
+              onChange={e => { setSelectedClass(e.target.value); setStudentId(''); }}
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+            >
+              <option value="">— All Classes —</option>
+              {classList.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Student</label>
             <StudentPicker
               students={students}
               schoolFilter={selectedSchool}
-              classFilter={teachers.find(t => t.id === selectedTeacherId)?.section_class ?? undefined}
+              classFilter={selectedClass || teachers.find(t => t.id === selectedTeacherId)?.section_class || undefined}
               value={studentId}
               onChange={setStudentId}
             />
@@ -1159,6 +1212,10 @@ export default function ParentsPage() {
       // Use assigned schools from API if available (for teachers), else load public list
       if (parJson.assigned_schools && parJson.assigned_schools.length > 0) {
         setSchools(parJson.assigned_schools);
+        // If teacher has no school filter set yet, default to their first assigned school
+        if (!isAdmin && !schoolFilter && parJson.assigned_schools[0]) {
+          setSchoolFilter(parJson.assigned_schools[0]);
+        }
       } else if (isStaff) {
         const schoolRes = await fetch('/api/schools/public');
         if (schoolRes.ok) {
