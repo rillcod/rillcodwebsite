@@ -427,8 +427,8 @@ function ParentFormModal({
           {/* Teacher filter — narrows student list to that teacher's class */}
           {(() => {
             const schoolTeachers = selectedSchool
-              ? teachers.filter(t => t.school_name === selectedSchool)
-              : teachers;
+              ? teachers.filter(t => t.school_name === selectedSchool && (profile?.role !== 'teacher' || t.id === profile?.id))
+              : teachers.filter(t => profile?.role !== 'teacher' || t.id === profile?.id);
             if (schoolTeachers.length === 0) return null;
             return (
               <div>
@@ -437,10 +437,11 @@ function ParentFormModal({
                 </label>
                 <select
                   value={selectedTeacherId}
+                  disabled={profile?.role === 'teacher'}
                   onChange={e => { setSelectedTeacherId(e.target.value); setForm(f => ({ ...f, student_id: '' })); }}
-                  className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                  className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-60"
                 >
-                  <option value="">— All Teachers / All Students —</option>
+                  {profile?.role === 'admin' && <option value="">— All Teachers / All Students —</option>}
                   {schoolTeachers.map(t => (
                     <option key={t.id} value={t.id}>
                       {t.full_name}{t.id === profile?.id ? ' (You)' : ''}{t.section_class ? ` · ${t.section_class}` : ''}
@@ -599,12 +600,13 @@ function LinkStudentModal({
               </label>
               <select
                 value={selectedTeacherId}
+                disabled={profile?.role === 'teacher'}
                 onChange={e => { setSelectedTeacherId(e.target.value); setStudentId(''); }}
-                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-60"
               >
-                <option value="">— All Teachers —</option>
+                {profile?.role === 'admin' && <option value="">— All Teachers —</option>}
                 {teachers
-                  .filter(t => !selectedSchool || t.school_name === selectedSchool)
+                  .filter(t => (!selectedSchool || t.school_name === selectedSchool) && (profile?.role !== 'teacher' || t.id === profile?.id))
                   .map(t => (
                     <option key={t.id} value={t.id}>
                       {t.full_name}{t.id === profile?.id ? ' (You)' : ''}{t.section_class ? ` · ${t.section_class}` : ''}
@@ -1154,16 +1156,23 @@ export default function ParentsPage() {
       setStudents((parJson.students ?? []) as Student[]);
       setTeachers((parJson.teachers ?? []) as Teacher[]);
 
-      // Load schools from API (uses service role, bypasses RLS)
-      if (isAdmin) {
+      // Use assigned schools from API if available (for teachers), else load public list
+      if (parJson.assigned_schools && parJson.assigned_schools.length > 0) {
+        setSchools(parJson.assigned_schools);
+      } else if (isStaff) {
         const schoolRes = await fetch('/api/schools/public');
         if (schoolRes.ok) {
           const { schools: schoolList } = await schoolRes.json();
-          setSchools((schoolList ?? []).map((s: any) => s.name).filter(Boolean));
+          const names = (schoolList ?? []).map((s: any) => s.name).filter(Boolean);
+          setSchools(names);
+          
+          // Ensure teacher's primary school is always present even if missing from public list
+          if (!isAdmin && profile?.school_name && !names.includes(profile.school_name)) {
+            setSchools(prev => [...prev, profile.school_name!]);
+          }
+        } else if (profile?.school_name) {
+          setSchools([profile.school_name]);
         }
-      } else if (profile?.school_name) {
-        // Teacher or staff with an assigned school — use it
-        setSchools([profile.school_name]);
       }
     } catch (err) {
       console.error('Parents page load error:', err);
@@ -1281,18 +1290,19 @@ export default function ParentsPage() {
         {/* School filter — admin sees all schools; teacher sees their own school locked */}
         <div className="relative">
           <BuildingOfficeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          {isAdmin ? (
+          {isAdmin || (schools.length > 1) ? (
             <select
               value={schoolFilter}
               onChange={e => setSchoolFilter(e.target.value)}
               className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[200px]"
             >
-              <option value="">All Schools</option>
+              {!isAdmin && schools.length === 0 && <option value="">— No Schools Assigned —</option>}
+              {isAdmin && <option value="">All Schools</option>}
               {schools.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           ) : (
             <div className="pl-9 pr-4 py-2.5 bg-card border border-border text-sm text-foreground min-w-[200px] flex items-center">
-              <span className="text-muted-foreground">{profile?.school_name ?? 'Your School'}</span>
+              <span className="text-muted-foreground">{schoolFilter || profile?.school_name || 'Your School'}</span>
               <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-orange-500 border border-orange-500/30 px-1.5 py-0.5">Locked</span>
             </div>
           )}
@@ -1484,7 +1494,7 @@ export default function ParentsPage() {
           students={students}
           teachers={teachers}
           schools={schools}
-          defaultSchool={!isAdmin ? (profile?.school_name ?? '') : (editTarget?.children[0]?.school_name ?? schoolFilter)}
+          defaultSchool={!isAdmin ? (schoolFilter || profile?.school_name || '') : (editTarget?.children[0]?.school_name ?? schoolFilter)}
           onClose={() => { setShowForm(false); setEditTarget(null); }}
           onSaved={load}
         />
@@ -1495,7 +1505,7 @@ export default function ParentsPage() {
           students={students}
           teachers={teachers}
           schools={schools}
-          defaultSchool={!isAdmin ? (profile?.school_name ?? '') : (linkTarget?.children[0]?.school_name ?? schoolFilter)}
+          defaultSchool={!isAdmin ? (schoolFilter || profile?.school_name || '') : (linkTarget?.children[0]?.school_name ?? schoolFilter)}
           onClose={() => setLinkTarget(null)}
           onSaved={load}
         />
