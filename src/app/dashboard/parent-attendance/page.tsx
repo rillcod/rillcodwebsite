@@ -5,6 +5,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { ClipboardDocumentCheckIcon, AcademicCapIcon } from '@/lib/icons';
+import { toast } from 'sonner';
 
 interface Child { id: string; full_name: string; school_name: string | null }
 interface AttendanceRecord {
@@ -39,12 +40,14 @@ function ParentAttendanceContent() {
     fetch('/api/parents/portal?section=children')
       .then(res => res.json())
       .then(data => {
+        if (!data.success) throw new Error(data.error || 'Failed to load children');
         const list = (data.children ?? []) as Child[];
         setChildren(list);
         if (!selectedId && list.length > 0) setSelectedId(list[0].id);
         setLoadingChildren(false);
       })
       .catch(err => {
+        toast.error('Could not load student list. Please try again.');
         console.error('Failed to load children:', err);
         setLoadingChildren(false);
       });
@@ -56,10 +59,12 @@ function ParentAttendanceContent() {
     fetch(`/api/parents/portal?section=attendance&child_id=${selectedId}`)
       .then(res => res.json())
       .then(data => {
+        if (!data.success) throw new Error(data.error || 'Failed to load attendance');
         setRecords((data.records ?? []) as AttendanceRecord[]);
         setLoadingRecords(false);
       })
       .catch(err => {
+        toast.error('Could not load attendance logs for this student.');
         console.error('Failed to load attendance:', err);
         setLoadingRecords(false);
       });

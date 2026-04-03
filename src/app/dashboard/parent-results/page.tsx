@@ -1,10 +1,14 @@
 'use client';
 
 import { useAuth } from '@/contexts/auth-context';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { DocumentChartBarIcon, AcademicCapIcon, CheckCircleIcon } from '@/lib/icons';
+import { 
+  DocumentChartBarIcon, AcademicCapIcon, ClipboardDocumentCheckIcon, 
+  TrophyIcon, UserIcon, HeartIcon, CheckCircleIcon 
+} from '@/lib/icons';
+import { toast } from 'sonner';
 
 interface Child { id: string; full_name: string; school_name: string | null; user_id: string | null }
 interface Report {
@@ -76,12 +80,14 @@ function ParentResultsContent() {
     fetch('/api/parents/portal?section=children')
       .then(res => res.json())
       .then(data => {
+        if (!data.success) throw new Error(data.error || 'Failed to load children');
         const list = (data.children ?? []) as Child[];
         setChildren(list);
         if (!selectedId && list.length > 0) setSelectedId(list[0].id);
         setLoadingChildren(false);
       })
       .catch(err => {
+        toast.error('Could not load student list. Please try again.');
         console.error('Failed to load children:', err);
         setLoadingChildren(false);
       });
@@ -93,10 +99,12 @@ function ParentResultsContent() {
     fetch(`/api/parents/portal?section=results&child_id=${selectedId}`)
       .then(res => res.json())
       .then(data => {
+        if (!data.success) throw new Error(data.error || 'Failed to load report cards');
         setReports((data.reports ?? []) as Report[]);
         setLoadingReports(false);
       })
       .catch(err => {
+        toast.error('Could not load progress reports for this student.');
         console.error('Failed to load reports:', err);
         setLoadingReports(false);
       });
@@ -162,9 +170,21 @@ function ParentResultsContent() {
           </div>
 
           {loadingReports && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="bg-card border border-border p-5 animate-pulse h-28" />
+                <div key={i} className="bg-card border border-border p-6 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-3 flex-1">
+                      <div className="h-4 bg-muted rounded w-1/3 animate-pulse" />
+                      <div className="h-3 bg-muted rounded w-2/3 animate-pulse opacity-50" />
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
+                      <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           )}
