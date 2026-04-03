@@ -67,7 +67,7 @@ function StudentPicker({
 
   const filtered = useMemo(() => {
     let list = schoolFilter
-      ? students.filter(s => s.school_name === schoolFilter)
+      ? students.filter(s => s.school_name?.toLowerCase() === schoolFilter.toLowerCase())
       : students;
     // Narrow by teacher class if provided
     if (classFilter) {
