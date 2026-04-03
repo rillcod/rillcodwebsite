@@ -239,11 +239,46 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const search = url.searchParams.get('search') ?? '';
-    // Admin can pass ?school=<name>; teachers are automatically scoped to their school
+    // Admin can pass ?school=<name>; teachers are automatically scoped to their assigned schools
     const schoolParam = url.searchParams.get('school') ?? '';
-    const effectiveSchool = guard.profile.role === 'teacher'
-      ? (guard.profile.school_name ?? '')
-      : schoolParam;
+    
+    // Retrieve all schools this teacher is assigned to (including their primary school_name)
+    let assignedSchools: string[] = [];
+    if (guard.profile.role === 'teacher') {
+      const admin = createAdminClient();
+      const { data: teacherAssignments } = await admin
+        .from('teacher_schools')
+        .select('schools(name)')
+        .eq('teacher_id', guard.profile.id);
+      
+      assignedSchools = (teacherAssignments ?? [])
+        .map((a: any) => a.schools?.name)
+        .filter(Boolean);
+        
+      if (guard.profile.school_name && !assignedSchools.includes(guard.profile.school_name)) {
+        assignedSchools.push(guard.profile.school_name);
+      }
+    }
+
+    // Determine the school filter to apply for data fetching
+    let effectiveSchool = '';
+    let allowedSchools: string[] = [];
+
+    if (guard.profile.role === 'teacher') {
+      // If teacher has assigned schools, they can only see those.
+      // If they passed a 'school' param and it's one of theirs, use it.
+      if (schoolParam && assignedSchools.includes(schoolParam)) {
+        effectiveSchool = schoolParam;
+      } else if (assignedSchools.length > 0) {
+        effectiveSchool = assignedSchools[0]; // Default to first assignment if no specific filter
+      } else {
+        effectiveSchool = guard.profile.school_name ?? '';
+      }
+      allowedSchools = assignedSchools;
+    } else {
+      // Admin
+      effectiveSchool = schoolParam;
+    }
 
     // If school-scoped, first find all parent_emails linked to students in that school
     const adminClient = createAdminClient();
@@ -336,7 +371,13 @@ export async function GET(req: Request) {
     }
     const { data: allTeachers } = await teachersQuery;
 
-    return NextResponse.json({ success: true, data, students: allStudents ?? [], teachers: allTeachers ?? [] });
+    return NextResponse.json({ 
+      success: true, 
+      data, 
+      students: allStudents ?? [], 
+      teachers: allTeachers ?? [],
+      assigned_schools: guard.profile.role === 'teacher' ? allowedSchools : undefined
+    });
   } catch (err: any) {
     console.error('GET /api/parents/manage error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
