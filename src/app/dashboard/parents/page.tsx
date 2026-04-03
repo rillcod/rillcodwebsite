@@ -1178,6 +1178,7 @@ export default function ParentsPage() {
   };
   // School filter: admin defaults to '' (all); teacher defaults to their school_name
   const [schoolFilter, setSchoolFilter] = useState('');
+  const [classFilter, setClassFilter] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<Parent | null>(null);
@@ -1189,6 +1190,8 @@ export default function ParentsPage() {
   const [showAccessCards, setShowAccessCards] = useState(false);
   const [resetting, setResetting] = useState<string | null>(null);
   const [resetResult, setResetResult] = useState<{ email: string; password: string } | null>(null);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerLoaded, setPickerLoaded] = useState(false);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const isAdmin = profile?.role === 'admin';
@@ -1202,55 +1205,69 @@ export default function ParentsPage() {
     }
   }, [profile?.role, profile?.school_name]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (includePickers = false) => {
     if (!isStaff) return;
     setLoading(true);
+    if (includePickers) setPickerLoading(true);
+
     try {
       // Build parent search URL — read latest search from ref (avoids stale closure)
       const params = new URLSearchParams();
       const currentSearch = searchRef.current;
       if (currentSearch) params.set('search', currentSearch);
       if (schoolFilter) params.set('school', schoolFilter);
-      const parRes = await fetch(`/api/parents/manage${params.toString() ? '?' + params : ''}`, { cache: 'no-store' });
+      if (classFilter) params.set('class', classFilter);
+      if (includePickers) params.set('include_picker_data', 'true');
+
+      const parRes = await fetch(`/api/parents/manage?${params.toString()}`, { cache: 'no-store' });
       const parJson = await parRes.json();
-      if (!parRes.ok) console.error('Parents load error:', parJson.error);
+      if (!parRes.ok) throw new Error(parJson.error);
+
       setParents(parJson.data ?? []);
+      
+      // Update picker data if it was returned
+      if (includePickers || parJson.classes) {
+        setStudents((parJson.students ?? []) as Student[]);
+        setTeachers((parJson.teachers ?? []) as Teacher[]);
+        setClasses((parJson.classes ?? []) as string[]);
+        setPickerLoaded(true);
+      }
 
-      // Students, teachers and official classes come from the API response
-      setStudents((parJson.students ?? []) as Student[]);
-      setTeachers((parJson.teachers ?? []) as Teacher[]);
-      setClasses((parJson.classes ?? []) as string[]);
-
-      // Use assigned schools from API if available (for teachers), else load public list
+      // Handle assigned schools
       if (parJson.assigned_schools && parJson.assigned_schools.length > 0) {
         setSchools(parJson.assigned_schools);
-        // If teacher has no school filter set yet, default to their first assigned school
         if (!isAdmin && !schoolFilter && parJson.assigned_schools[0]) {
           setSchoolFilter(parJson.assigned_schools[0]);
         }
-      } else if (isStaff) {
+      } else if (isStaff && schools.length === 0) {
+        // Only fetch public schools once if not provided by the parent API
         const schoolRes = await fetch('/api/schools/public');
         if (schoolRes.ok) {
           const { schools: schoolList } = await schoolRes.json();
           const names = (schoolList ?? []).map((s: any) => s.name).filter(Boolean);
           setSchools(names);
-          
-          // Ensure teacher's primary school is always present even if missing from public list
-          if (!isAdmin && profile?.school_name && !names.includes(profile.school_name)) {
-            setSchools(prev => [...prev, profile.school_name!]);
-          }
-        } else if (profile?.school_name) {
-          setSchools([profile.school_name]);
         }
       }
     } catch (err) {
-      console.error('Parents page load error:', err);
+      console.error('Parents load error:', err);
     } finally {
       setLoading(false);
+      setPickerLoading(false);
     }
-  }, [isStaff, isAdmin, schoolFilter, profile?.school_name]); // search intentionally omitted — read from ref
+  }, [isStaff, isAdmin, schoolFilter, classFilter, schools.length]); // search via ref
 
-  useEffect(() => { if (!authLoading) load(); }, [authLoading, load]);
+  // Helper to ensure picker data is ready before showing modals
+  const ensurePickerData = async () => {
+    if (pickerLoaded) return;
+    await load(true);
+  };
+
+  useEffect(() => { 
+    if (!authLoading) {
+      // Fetch initial data (including pickers/classes for filtering)
+      load(true); 
+    }
+  }, [authLoading]); // Run once on auth ready
 
   const handleUnlink = async (studentId: string) => {
     if (!confirm('Remove parent link from this student?')) return;
@@ -1336,9 +1353,10 @@ export default function ParentsPage() {
             </button>
           )}
           <button
-            onClick={() => { setEditTarget(null); setShowForm(true); }}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
-            <PlusIcon className="w-4 h-4" /> <span className="whitespace-nowrap">Add Parent</span>
+            onClick={async () => { await ensurePickerData(); setEditTarget(null); setShowForm(true); }}
+            disabled={pickerLoading}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
+            <PlusIcon className="w-4 h-4" /> <span className="whitespace-nowrap">{pickerLoading ? 'Loading…' : 'Add Parent'}</span>
           </button>
         </div>
       </div>
@@ -1356,31 +1374,39 @@ export default function ParentsPage() {
           />
         </div>
 
-        {/* School filter — admin sees all schools; teacher sees their own school locked */}
+        {/* School filter */}
         <div className="relative">
           <BuildingOfficeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          {isAdmin || (schools.length > 1) ? (
-            <select
-              value={schoolFilter}
-              onChange={e => setSchoolFilter(e.target.value)}
-              className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[200px]"
-            >
-              {!isAdmin && schools.length === 0 && <option value="">— No Schools Assigned —</option>}
-              {isAdmin && <option value="">All Schools</option>}
-              {schools.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          ) : (
-            <div className="pl-9 pr-4 py-2.5 bg-card border border-border text-sm text-foreground min-w-[200px] flex items-center">
-              <span className="text-muted-foreground">{schoolFilter || profile?.school_name || 'Your School'}</span>
-              <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-orange-500 border border-orange-500/30 px-1.5 py-0.5">Locked</span>
-            </div>
-          )}
+          <select
+            value={schoolFilter}
+            onChange={e => { setSchoolFilter(e.target.value); setClassFilter(''); load(); }}
+            disabled={!isAdmin && schools.length <= 1}
+            className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[180px] appearance-none disabled:opacity-70"
+          >
+            {isAdmin && <option value="">All Schools</option>}
+            {schools.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
         </div>
 
-        {schoolFilter && isAdmin && (
-          <button onClick={() => setSchoolFilter('')}
+        {/* Class filter — shown only if a school is selected */}
+        {schoolFilter && (
+          <div className="relative">
+            <AcademicCapIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <select
+              value={classFilter}
+              onChange={e => { setClassFilter(e.target.value); load(); }}
+              className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[180px] appearance-none"
+            >
+              <option value="">All My Classes</option>
+              {classes.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        )}
+
+        {(schoolFilter || classFilter) && isAdmin && (
+          <button onClick={() => { setSchoolFilter(''); setClassFilter(''); load(); }}
             className="flex items-center gap-1.5 px-3 py-2.5 border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
-            <XMarkIcon className="w-3.5 h-3.5" /> Clear
+            <XMarkIcon className="w-3.5 h-3.5" /> Clear Filters
           </button>
         )}
       </div>

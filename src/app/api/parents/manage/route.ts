@@ -255,6 +255,8 @@ export async function GET(req: Request) {
     const search = url.searchParams.get('search') ?? '';
     // Admin can pass ?school=<name>; teachers are automatically scoped to their assigned schools
     const schoolParam = url.searchParams.get('school') ?? '';
+    const classParam = url.searchParams.get('class') ?? '';
+    const includePickerData = url.searchParams.get('include_picker_data') === 'true';
     
     // Retrieve all schools this teacher is assigned to (including their primary school_name)
     let assignedSchools: string[] = [];
@@ -298,15 +300,18 @@ export async function GET(req: Request) {
     const adminClient = createAdminClient();
     let allowedEmails: string[] | null = null;
     if (effectiveSchool) {
-      const { data: scopedStudents } = await adminClient
+      let stuQuery = adminClient
         .from('students')
         .select('parent_email')
         .eq('school_name', effectiveSchool)
         .not('parent_email', 'is', null);
+
+      if (classParam) {
+        stuQuery = stuQuery.eq('current_class', classParam);
+      }
+
+      const { data: scopedStudents } = await stuQuery;
       allowedEmails = (scopedStudents ?? []).map((s: any) => s.parent_email).filter(Boolean);
-      // NOTE: if allowedEmails is empty we still continue so that the student+teacher
-      // picker arrays are returned (needed by the "Add Parent" modal even when no
-      // parents exist yet for this school).
     }
 
     // If school-scoped with no linked parents yet, skip the parents query entirely
@@ -362,9 +367,16 @@ export async function GET(req: Request) {
       children: childrenMap[p.email] ?? [],
     }));
 
+    // --- OPTIMIZATION: Only return picker data if requested ---
+    if (!includePickerData) {
+      return NextResponse.json({ 
+        success: true, 
+        data, 
+        assigned_schools: guard.profile.role === 'teacher' ? allowedSchools : undefined
+      });
+    }
+
     // Also return all students for the picker (use admin client to bypass RLS)
-    // We query portal_users to catch everyone with 'student' role (including bulk-registered ones)
-    // and left-join with the 'students' table to get parent linking info.
     const adminForStudents = createAdminClient();
     
     // Fetch all students from portal_users
@@ -381,7 +393,6 @@ export async function GET(req: Request) {
     
     const { data: portalStudents } = await portalStudentsQuery;
 
-    // Fetch matching records from students table to get parent_email and grade info
     const studentEmails = (portalStudents ?? []).map(s => s.email).filter(Boolean);
     const { data: studentRecords } = studentEmails.length > 0 
       ? await adminForStudents
@@ -390,11 +401,10 @@ export async function GET(req: Request) {
           .or(`student_email.in.(${studentEmails.join(',')}),parent_email.in.(${studentEmails.join(',')})`)
       : { data: [] };
 
-    // Merge: portal_users is the primary list, students table provides the extra fields
     const allStudents = (portalStudents ?? []).map(ps => {
       const sr = (studentRecords ?? []).find(r => r.user_id === ps.id || r.student_email === ps.email);
       return {
-        id: ps.id, // Auth User ID is the primary ID for linking in the UI
+        id: ps.id,
         full_name: ps.full_name,
         school_name: ps.school_name,
         parent_email: sr?.parent_email ?? null,
@@ -404,7 +414,6 @@ export async function GET(req: Request) {
       };
     });
 
-    // Return teachers for the school so the form can show a teacher filter
     let teachersQuery = adminForStudents
       .from('portal_users')
       .select('id, full_name, section_class, school_name')
@@ -415,16 +424,12 @@ export async function GET(req: Request) {
     }
     const { data: allTeachers } = await teachersQuery;
 
-    // --- NEW: Fetch all defined classes for this school ---
-    // This solves the issue where classes (like "Python Class") might not show up 
-    // if no students are assigned to them yet.
     let classesQuery = adminForStudents
       .from('classes')
       .select('id, name')
       .order('name');
     
     if (effectiveSchool) {
-      // Find school_id for the effectiveSchool name to filter correctly
       const { data: schoolRow } = await adminForStudents
         .from('schools')
         .select('id')
