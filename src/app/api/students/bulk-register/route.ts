@@ -191,6 +191,29 @@ export async function POST(request: Request) {
           continue;
         }
 
+        // --- NEW: Also ensure a record exists in the 'students' table ---
+        // This is crucial because the parents management logic and other dashboard features
+        // expect students to have a record in the 'students' table for linkage.
+        const { error: studentErr } = await supabaseAdmin.from('students').upsert({
+          user_id: authUserId,
+          name: full_name.trim(),
+          full_name: full_name.trim(),
+          student_email: email.trim().toLowerCase(),
+          school_id: resolvedSchoolId,
+          school_name: resolvedSchoolName,
+          current_class: class_name || batchClassName || null,
+          grade_level: class_name || batchClassName || null,
+          enrollment_type: 'in_person',
+          status: 'approved', // Bulk-registered students are pre-approved
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' }); // Use user_id as conflict target
+
+        if (studentErr) {
+           console.error('[BulkRegister] Student table sync error:', studentErr);
+           // We don't fail the registration if students table sync fails, 
+           // but we log it for admin review.
+        }
+
         const effectiveClass = class_name || batchClassName || undefined;
         results.push({ full_name, email, password, class_name: effectiveClass, status, userId: authUserId });
       } catch (err: any) {

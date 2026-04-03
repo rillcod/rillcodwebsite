@@ -467,19 +467,22 @@ function ParentFormModal({
             );
           })()}
 
-          {/* Class Filter */}
+          {/* Class Filter (now compulsory) */}
           <div>
-            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
-              Filter by Class / Category <span className="text-muted-foreground normal-case font-normal">(optional)</span>
+            <label className="text-[10px] font-black text-orange-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
+              Select Your Class / Category * <span className="text-muted-foreground normal-case font-normal">(compulsory)</span>
             </label>
             <select
+              required
               value={selectedClass}
               onChange={e => { setSelectedClass(e.target.value); setForm(f => ({ ...f, student_id: '', student_ids: [] })); }}
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+              className={`w-full px-4 py-2.5 bg-background border text-sm text-foreground focus:outline-none transition-colors ${!selectedClass ? 'border-orange-500/50 bg-orange-500/5' : 'border-border focus:border-orange-500'}`}
             >
-              <option value="">— All Classes / All Students —</option>
+              <option value="">— Select Class (e.g. Python Class, JSS 1) —</option>
               {classList.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
+            {!selectedClass && <p className="text-[9px] text-orange-400/80 mt-1 font-bold uppercase tracking-tighter">Please select a class first to narrow down the student list.</p>}
           </div>
 
           <div>
@@ -655,17 +658,20 @@ function LinkStudentModal({
             </div>
           )}
           <div>
-            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
-              Filter by Class / Category <span className="text-muted-foreground normal-case font-normal">(optional)</span>
+            <label className="text-[10px] font-black text-orange-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
+              Select Your Class / Category * <span className="text-muted-foreground normal-case font-normal">(compulsory)</span>
             </label>
             <select
+              required
               value={selectedClass}
               onChange={e => { setSelectedClass(e.target.value); setStudentId(''); }}
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
+              className={`w-full px-4 py-2.5 bg-background border text-sm text-foreground focus:outline-none transition-colors ${!selectedClass ? 'border-orange-500/50 bg-orange-500/5' : 'border-border focus:border-orange-500'}`}
             >
-              <option value="">— All Classes —</option>
+              <option value="">— Select Class —</option>
               {classList.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
+            {!selectedClass && <p className="text-[9px] text-orange-400/80 mt-1 font-bold uppercase tracking-tighter">Select a class first.</p>}
           </div>
 
           <div>
