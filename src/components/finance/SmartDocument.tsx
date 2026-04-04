@@ -268,7 +268,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
               <div className={`p-4 rounded-2xl border max-w-[240px] ${template === 'bold' ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'}`}>
                 <p className={`text-xs font-black mb-1 ${template === 'bold' ? 'text-white' : 'text-slate-900'}`}>{data.schoolName}</p>
                 <p className={`text-[10px] leading-relaxed font-medium ${template === 'bold' ? 'text-white/50' : 'text-slate-500'}`}>
-                  {data.schoolAddress || 'Digital Learning Center, Abuja, Nigeria'}
+                  {data.schoolAddress || 'Digital Learning Hub, Benin City, Edo State, Nigeria'}
                 </p>
               </div>
             </div>

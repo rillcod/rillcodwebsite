@@ -264,7 +264,7 @@ export class PaymentsService {
                             stack: [
                                 { text: 'RILLCOD TECHNOLOGIES', style: 'brand' },
                                 { text: 'STEM & Coding Education', style: 'tagline' },
-                                { text: '12, Digital Learning Hub, Abuja, Nigeria', style: 'address' },
+                                { text: '12, Digital Learning Hub, Benin City, Edo State, Nigeria', style: 'address' },
                                 { text: 'RC: 1892341 | www.rillcod.com', style: 'address' },
                             ]
                         },
