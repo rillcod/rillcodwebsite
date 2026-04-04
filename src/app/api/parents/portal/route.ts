@@ -16,7 +16,7 @@ async function requireParent(supabase: Awaited<ReturnType<typeof createClient>>)
   if (!profile || profile.role !== 'parent') {
     return { error: 'Forbidden: parent accounts only', status: 403 as const };
   }
-  if (!profile.is_active) {
+  if (profile.is_active === false) {
     return { error: 'Account deactivated. Contact your school admin.', status: 403 as const };
   }
   return { profile };
@@ -113,7 +113,7 @@ export async function GET(req: Request) {
     if (section === 'children') {
       const { data: children, error } = await admin
         .from('students')
-        .select('id, full_name, school_name, grade_level, section, current_class, status, user_id, profile_image_url')
+        .select('id, full_name, school_name, grade_level, section, current_class, status, user_id')
         .eq('parent_email', profile.email)
         .order('full_name');
 
