@@ -7,7 +7,7 @@ import {
   EnvelopeIcon, PhoneIcon, UserIcon, AcademicCapIcon, CheckCircleIcon,
   XCircleIcon, PencilSquareIcon, ArrowPathIcon, LinkIcon, HeartIcon,
   ChevronDownIcon, ChevronUpIcon, BuildingOfficeIcon, EyeIcon, EyeSlashIcon,
-  ClipboardIcon, KeyIcon, PrinterIcon, ArrowUpTrayIcon, CreditCardIcon,
+  ClipboardIcon, KeyIcon, PrinterIcon, ArrowUpTrayIcon, CreditCardIcon, TrashIcon,
 } from '@/lib/icons';
 
 import { useRouter } from 'next/navigation';
@@ -796,6 +796,56 @@ export default function ParentsPage() {
     } catch { alert('Failed'); } finally { setToggling(null); }
   };
 
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === parents.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(parents.map(p => p.id)));
+    }
+  };
+
+  const handleDeleteParent = async (parent: Parent) => {
+    if (!confirm(`Permanently delete ${parent.full_name}'s account? This removes them from the database and cannot be undone.`)) return;
+    setDeleting(parent.id);
+    try {
+      const res = isAdmin
+        ? await fetch(`/api/portal-users/${parent.id}`, { method: 'DELETE' })
+        : await fetch(`/api/portal-users/${parent.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_deleted: true, is_active: false }) });
+      if (!res.ok) { const j = await res.json(); alert(j.error || 'Failed to delete'); return; }
+      setParents(prev => prev.filter(p => p.id !== parent.id));
+      setSelectedIds(prev => { const n = new Set(prev); n.delete(parent.id); return n; });
+    } catch { alert('Failed to delete'); } finally { setDeleting(null); }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!confirm(`Permanently delete ${ids.length} parent account${ids.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    setBulkDeleting(true);
+    try {
+      const res = await fetch('/api/portal-users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) { const j = await res.json(); alert(j.error || 'Bulk delete failed'); return; }
+      setParents(prev => prev.filter(p => !selectedIds.has(p.id)));
+      setSelectedIds(new Set());
+    } catch { alert('Bulk delete failed'); } finally { setBulkDeleting(false); }
+  };
+
   const handleResetPassword = async (parent: Parent) => {
     if (!confirm(`Reset password for ${parent.full_name}? A new temporary password will be generated.`)) return;
     setResetting(parent.id);
@@ -914,6 +964,12 @@ export default function ParentsPage() {
             <XMarkIcon className="w-3.5 h-3.5" /> Clear Filters
           </button>
         )}
+        {classFilter && !isAdmin && (
+          <button onClick={() => { classFilterRef.current = ''; setClassFilter(''); load(); }}
+            className="flex items-center gap-1.5 px-3 py-2.5 border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <XMarkIcon className="w-3.5 h-3.5" /> Clear Class
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -940,6 +996,24 @@ export default function ParentsPage() {
         </div>
       )}
 
+      {/* Bulk action bar — admin only, shown when items are selected */}
+      {isAdmin && selectedIds.size > 0 && (
+        <div className="flex items-center justify-between gap-4 px-4 py-3 bg-rose-500/10 border border-rose-500/30">
+          <div className="flex items-center gap-3">
+            <button onClick={toggleSelectAll} className="w-4 h-4 border border-rose-500/50 bg-rose-500/20 flex items-center justify-center text-rose-400 text-[8px] font-black flex-shrink-0">✓</button>
+            <span className="text-xs font-black text-rose-400">{selectedIds.size} selected</span>
+            <button onClick={() => setSelectedIds(new Set())} className="text-[10px] text-muted-foreground hover:text-foreground underline">Clear</button>
+          </div>
+          <button
+            onClick={handleBulkDelete}
+            disabled={bulkDeleting}
+            className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest transition-all">
+            <TrashIcon className="w-3.5 h-3.5" />
+            {bulkDeleting ? 'Deleting…' : `Delete ${selectedIds.size}`}
+          </button>
+        </div>
+      )}
+
       {/* List */}
       {loading ? (
         <div className="space-y-3">
@@ -957,13 +1031,36 @@ export default function ParentsPage() {
         </div>
       ) : (
         <div className="bg-card border border-border divide-y divide-border">
+          {/* Select-all header — admin only */}
+          {isAdmin && parents.length > 0 && (
+            <div className="flex items-center gap-3 px-4 sm:px-5 py-2 border-b border-border bg-background/40">
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center text-[8px] font-black transition-all ${selectedIds.size === parents.length && parents.length > 0 ? 'bg-rose-500 border-rose-500 text-white' : 'border-border hover:border-rose-500/50'}`}>
+                {selectedIds.size === parents.length && parents.length > 0 ? '✓' : ''}
+              </button>
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                {selectedIds.size === parents.length && parents.length > 0 ? 'Deselect all' : `Select all ${parents.length}`}
+              </span>
+            </div>
+          )}
           {parents.map(parent => (
             <div key={parent.id}>
                 {/* Parent row */}
                 <div
-                  className="flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3 sm:py-4 hover:bg-white/5 transition-all cursor-pointer"
+                  className={`flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3 sm:py-4 hover:bg-white/5 transition-all cursor-pointer ${selectedIds.has(parent.id) ? 'bg-rose-500/5' : ''}`}
                   onClick={() => setExpanded(expanded === parent.id ? null : parent.id)}
                 >
+                  {/* Checkbox — admin only, stops row expand */}
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); toggleSelect(parent.id); }}
+                      className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center text-[8px] font-black transition-all ${selectedIds.has(parent.id) ? 'bg-rose-500 border-rose-500 text-white' : 'border-border hover:border-rose-500/50'}`}>
+                      {selectedIds.has(parent.id) ? '✓' : ''}
+                    </button>
+                  )}
                   {/* Avatar */}
                   <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-none bg-orange-500/10 border border-orange-500/20 flex items-center justify-center flex-shrink-0">
                     <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-400" />
@@ -1057,19 +1154,24 @@ export default function ParentsPage() {
                       className="flex items-center justify-center gap-2 px-4 py-2.5 border border-orange-500/40 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-orange-400 hover:border-orange-500 hover:text-orange-300 transition-all">
                       <LinkIcon className="w-3.5 h-3.5" /> Link Student
                     </button>
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleToggleActive(parent)}
-                        disabled={toggling === parent.id}
-                        className={`flex items-center justify-center gap-2 px-4 py-2.5 border text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 ${
-                          parent.is_active
-                            ? 'border-rose-500/30 text-rose-400 hover:border-rose-500 hover:text-rose-300'
-                            : 'border-emerald-500/30 text-emerald-400 hover:border-emerald-500 hover:text-emerald-300'
-                        }`}>
-                        {parent.is_active ? <XCircleIcon className="w-3.5 h-3.5" /> : <CheckCircleIcon className="w-3.5 h-3.5" />}
-                        {toggling === parent.id ? '…' : parent.is_active ? 'Deactivate' : 'Activate'}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleToggleActive(parent)}
+                      disabled={toggling === parent.id}
+                      className={`flex items-center justify-center gap-2 px-4 py-2.5 border text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 ${
+                        parent.is_active
+                          ? 'border-rose-500/30 text-rose-400 hover:border-rose-500 hover:text-rose-300'
+                          : 'border-emerald-500/30 text-emerald-400 hover:border-emerald-500 hover:text-emerald-300'
+                      }`}>
+                      {parent.is_active ? <XCircleIcon className="w-3.5 h-3.5" /> : <CheckCircleIcon className="w-3.5 h-3.5" />}
+                      {toggling === parent.id ? '…' : parent.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteParent(parent)}
+                      disabled={deleting === parent.id}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 border border-rose-500/20 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-rose-400 hover:border-rose-500 hover:text-rose-300 transition-all disabled:opacity-50">
+                      <TrashIcon className="w-3.5 h-3.5" />
+                      {deleting === parent.id ? '…' : 'Delete'}
+                    </button>
                     <button
                       onClick={() => handleResetPassword(parent)}
                       disabled={resetting === parent.id}

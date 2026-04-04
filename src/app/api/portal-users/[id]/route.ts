@@ -106,10 +106,10 @@ export async function DELETE(
 
   const admin = adminClient();
 
-  // Fetch target user info
+  // Fetch target user info (including email for parent cleanup)
   const { data: pu } = await admin
     .from('portal_users')
-    .select('role, school_id')
+    .select('role, school_id, email')
     .eq('id', id)
     .single();
 
@@ -133,6 +133,11 @@ export async function DELETE(
     if (!pu.school_id || !assignedIds.includes(pu.school_id)) {
       return NextResponse.json({ error: 'You can only delete students from your assigned school' }, { status: 403 });
     }
+  }
+
+  // ── Step 0: If this is a parent, clear linked student records ────────
+  if (pu?.role === 'parent' && pu?.email) {
+    await admin.from('students').update({ parent_email: null, parent_name: null }).eq('parent_email', pu.email);
   }
 
   // ── Step 1: Remove all child records that FK-reference this portal user ──

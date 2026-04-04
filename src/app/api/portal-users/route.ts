@@ -177,3 +177,64 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
 }
+
+// DELETE /api/portal-users — bulk hard-delete (admin only)
+// Body: { ids: string[] }
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createServerClient();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const admin = adminClient();
+    const { data: caller } = await admin.from('portal_users').select('role, id').eq('id', user.id).single();
+    if (!caller || caller.role !== 'admin') {
+      return NextResponse.json({ error: 'Admin access required for bulk delete' }, { status: 403 });
+    }
+
+    const { ids } = await request.json();
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: 'ids array is required' }, { status: 400 });
+    }
+    // Prevent self-deletion
+    const safeIds = ids.filter((id: string) => id !== caller.id);
+    if (safeIds.length === 0) return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
+
+    // Fetch all targets (role + email for cleanup)
+    const { data: targets } = await admin.from('portal_users').select('id, role, school_id, email').in('id', safeIds);
+    const parentEmails = (targets ?? []).filter(t => t.role === 'parent' && t.email).map(t => t.email as string);
+
+    // ── Cleanup dependent records ──────────────────────────────────────
+    if (parentEmails.length > 0) {
+      await admin.from('students').update({ parent_email: null, parent_name: null }).in('parent_email', parentEmails);
+    }
+    await admin.from('teacher_schools').delete().in('teacher_id', safeIds);
+    await admin.from('student_progress_reports').update({ teacher_id: null }).in('teacher_id', safeIds);
+    await admin.from('students').update({ user_id: null }).in('user_id', safeIds);
+    await admin.from('students').update({ created_by: null }).in('created_by', safeIds);
+    await admin.from('enrollments').delete().in('user_id', safeIds);
+    await admin.from('assignment_submissions').delete().in('portal_user_id', safeIds);
+    await admin.from('assignment_submissions').update({ graded_by: null }).in('graded_by', safeIds);
+    await admin.from('classes').update({ teacher_id: null }).in('teacher_id', safeIds);
+    await admin.from('timetable_slots').update({ teacher_id: null }).in('teacher_id', safeIds);
+
+    // Handle school-role accounts
+    const schoolAccounts = (targets ?? []).filter(t => t.role === 'school' && t.school_id);
+    for (const t of schoolAccounts) {
+      await admin.from('students').update({ school_id: null, school_name: null }).eq('school_id', t.school_id);
+      await admin.from('teacher_schools').delete().eq('school_id', t.school_id);
+      await admin.from('schools').delete().eq('id', t.school_id);
+    }
+
+    // ── Delete portal_users rows ───────────────────────────────────────
+    const { error: dbErr } = await admin.from('portal_users').delete().in('id', safeIds);
+    if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 });
+
+    // ── Delete auth accounts (best-effort) ────────────────────────────
+    await Promise.allSettled(safeIds.map((id: string) => admin.auth.admin.deleteUser(id)));
+
+    return NextResponse.json({ success: true, deleted: safeIds.length });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

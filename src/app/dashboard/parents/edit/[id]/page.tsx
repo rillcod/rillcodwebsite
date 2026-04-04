@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { ParentForm, Student, Teacher, Parent } from '@/components/parents/ParentForm';
@@ -19,6 +19,7 @@ export default function EditParentPage() {
   const [parent, setParent] = useState<Parent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const schoolFetchedRef = useRef('');
 
   const fetchData = useCallback(async (schoolOverride?: string) => {
     if (!profile || !id) return;
@@ -54,6 +55,15 @@ export default function EditParentPage() {
   useEffect(() => {
     if (!authLoading && profile && id) fetchData();
   }, [authLoading, profile, id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // After initial load: for admin, re-fetch picker data filtered by the parent's school
+  useEffect(() => {
+    const school = parent?.children[0]?.school_name;
+    if (school && profile?.role === 'admin' && school !== schoolFetchedRef.current) {
+      schoolFetchedRef.current = school;
+      fetchData(school);
+    }
+  }, [parent, profile?.role]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSchoolChange = useCallback(async (school: string) => {
     await fetchData(school);
@@ -98,7 +108,7 @@ export default function EditParentPage() {
           teachers={teachers}
           schools={schools}
           officialClasses={classes}
-          defaultSchool={parent.children[0]?.school_name || profile?.school_name || ''}
+          defaultSchool={parent.children[0]?.school_name || (profile?.role === 'teacher' ? profile?.school_name || '' : '')}
           onSchoolChange={handleSchoolChange}
           onCancel={() => router.push('/dashboard/parents')}
           onSaved={() => router.push('/dashboard/parents')}
