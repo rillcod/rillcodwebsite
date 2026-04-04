@@ -17,6 +17,24 @@ import {
     PhotoIcon, RocketLaunchIcon, CloudArrowUpIcon, ChevronRightIcon,
     CheckCircleIcon, PrinterIcon, SparklesIcon, PlusIcon,
 } from '@/lib/icons';
+
+function WhatsAppIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.533 5.849L.057 23.852a.5.5 0 0 0 .611.611l6.003-1.476A11.952 11.952 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.89 0-3.663-.523-5.176-1.432l-.372-.22-3.849.946.964-3.849-.24-.381A9.953 9.953 0 0 1 2 12C2 6.478 6.478 2 12 2s10 4.478 10 10-4.478 10-10 10z"/>
+        </svg>
+    );
+}
+
+function fmtWaPhone(raw: string | null | undefined): string | null {
+    if (!raw) return null;
+    const d = raw.replace(/\D/g, '');
+    if (!d) return null;
+    if (d.startsWith('234')) return d;
+    if (d.startsWith('0'))   return '234' + d.slice(1);
+    return d.length >= 10 ? d : null;
+}
 import { cn } from '@/lib/utils';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
@@ -2502,6 +2520,36 @@ function ReportBuilderInner() {
                             {isGeneratingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}
                             {isGeneratingPdf ? 'Processing...' : 'Export PDF'}
                         </button>
+                        {/* WhatsApp share */}
+                        {(() => {
+                            const phone = fmtWaPhone((selectedStudent as any)?.phone);
+                            const lines: string[] = [
+                                `Hello, please find below the ${sessionConfig.report_term || 'term'} progress report for *${form.student_name || 'your child'}*.`,
+                                '',
+                                `📚 *Course:* ${sessionConfig.course_name || '—'}`,
+                                `🏫 *Class:* ${form.section_class || sessionConfig.section_class || '—'}`,
+                                `📅 *Term:* ${sessionConfig.report_term || '—'}`,
+                                '',
+                                form.theory_score     ? `Theory:      ${form.theory_score}/100` : '',
+                                form.practical_score  ? `Practical:   ${form.practical_score}/100` : '',
+                                form.attendance_score ? `Attendance:  ${form.attendance_score}/100` : '',
+                                overallScore          ? `\n*Overall Score: ${overallScore}/100*` : '',
+                                overallGradeLetter    ? `*Grade: ${overallGradeLetter}*` : '',
+                                '',
+                                '— Rillcod Academy',
+                            ].filter(l => l !== '');
+                            const msg = lines.join('\n');
+                            const waUrl = phone
+                                ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+                                : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+                            return (
+                                <a href={waUrl} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 text-white text-sm font-black rounded-none shadow-xl shadow-green-900/30 transition-all whitespace-nowrap">
+                                    <WhatsAppIcon className="w-4 h-4" />
+                                    {phone ? 'Send via WhatsApp' : 'Share on WhatsApp'}
+                                </a>
+                            );
+                        })()}
                     </div>
                     <div ref={previewContainerRef} className="flex-1 overflow-auto p-2 sm:p-6 bg-black/40">
                         {/* Outer wrapper sized to scaled A4 dimensions so scroll area is correct */}
