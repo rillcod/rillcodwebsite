@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -1186,6 +1186,60 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
   const rillcodAccounts = accounts.filter(a => a.owner_type === 'rillcod');
   const schoolAccounts  = accounts.filter(a => a.owner_type === 'school');
 
+  // ── Live preview data for School Invoice Builder ──
+  const schoolInvPreviewData = useMemo(() => {
+    const sch = schools.find(s => s.id === schoolInvForm.school_id);
+    const isFixed = schoolInvForm.pricing_mode === 'fixed_package';
+    const count = parseInt(schoolInvForm.manual_student_count) || schoolInvStudentCount || 0;
+    const ratePerChild = parseFloat(schoolInvForm.rate_per_child) || 0;
+    const fixedPrice = parseFloat(schoolInvForm.fixed_package_price) || 0;
+    const subtotal = isFixed ? fixedPrice : ratePerChild * count;
+    const payToAcc = accounts.find(a => a.id === schoolInvForm.pay_to_account_id);
+    return {
+      number: 'PREVIEW',
+      date: new Date().toLocaleDateString('en-NG'),
+      dueDate: schoolInvForm.due_date ? new Date(schoolInvForm.due_date).toLocaleDateString('en-NG') : '—',
+      status: 'sent',
+      amount: subtotal,
+      currency: 'NGN',
+      items: isFixed
+        ? [{ description: 'STEM / AI / Coding — Fixed School Package', quantity: 1, unit_price: fixedPrice, total: fixedPrice }]
+        : [{ description: 'STEM / AI / Coding Programme Fee', quantity: Math.max(count, 1), unit_price: ratePerChild, total: subtotal }],
+      studentName: sch?.name || '— Select school —',
+      schoolName: 'RILLCOD TECHNOLOGIES',
+      notes: schoolInvForm.notes || undefined,
+      depositAccount: payToAcc ? { bank_name: payToAcc.bank_name, account_number: payToAcc.account_number, account_name: payToAcc.account_name } : undefined,
+    };
+  }, [schoolInvForm, schoolInvStudentCount, schools, accounts]);
+
+  // ── Live preview data for Receipt Builder ──
+  const receiptPreviewData = useMemo(() => {
+    const sch = receiptForm.school_id ? schools.find(s => s.id === receiptForm.school_id) : null;
+    const payToAcc = receiptForm.pay_to_account_id ? accounts.find(a => a.id === receiptForm.pay_to_account_id) : null;
+    const items = receiptForm.items.map(i => ({
+      description: i.description || 'Payment',
+      quantity: i.quantity,
+      unit_price: i.unit_price,
+      total: i.quantity * i.unit_price,
+    }));
+    const totalAmount = items.reduce((s, i) => s + i.total, 0);
+    return {
+      number: receiptForm.reference || 'PREVIEW',
+      date: receiptForm.payment_date || new Date().toISOString().split('T')[0],
+      status: 'paid',
+      items,
+      amount: totalAmount,
+      currency: 'NGN',
+      studentName: receiptForm.payer_name || sch?.name || '— Enter payer name —',
+      schoolName: 'RILLCOD TECHNOLOGIES',
+      notes: receiptForm.notes || undefined,
+      transactionRef: receiptForm.reference || undefined,
+      paymentMethod: receiptForm.payment_method,
+      receivedBy: receiptForm.received_by || 'Accounts Department',
+      depositAccount: payToAcc ? { bank_name: payToAcc.bank_name, account_number: payToAcc.account_number, account_name: payToAcc.account_name } : undefined,
+    };
+  }, [receiptForm, schools, accounts]);
+
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -1410,7 +1464,14 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                                 number: rcpt.receipt_number,
                                 date: new Date(rcpt.issued_at).toLocaleDateString(),
                                 status: 'paid',
-                                items: meta.items || [{ description: 'Payment', quantity: 1, unit_price: rcpt.amount, total: rcpt.amount }],
+                                items: (meta.items && meta.items.length > 0
+                                  ? meta.items.map((it: any) => ({
+                                      description: String(it.description ?? 'Payment'),
+                                      quantity: Number(it.quantity ?? 1),
+                                      unit_price: Number(it.unit_price ?? 0),
+                                      total: Number(it.total ?? (Number(it.quantity ?? 1) * Number(it.unit_price ?? 0))),
+                                    }))
+                                  : [{ description: 'Payment', quantity: 1, unit_price: rcpt.amount, total: rcpt.amount }]),
                                 amount: rcpt.amount,
                                 currency: rcpt.currency || 'NGN',
                                 studentName: meta.payer_name || rcpt.portal_users?.full_name || rcpt.schools?.name || 'Client',
@@ -1692,13 +1753,16 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
             
             {/* ── School Invoice Builder ── */}
             {showSchoolInvoice && isAdmin && (
-              <div className="bg-primary/5 border border-primary/20 rounded-none p-6 space-y-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-black text-primary uppercase tracking-widest mb-0.5">School Invoice Builder</p>
-                    <p className="text-foreground font-bold text-sm">Generate a school invoice — per-student rate or fixed package deal</p>
-                  </div>
+              <div className="bg-primary/5 border border-primary/20 rounded-none">
+                {/* Header */}
+                <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-primary/20">
+                  <p className="text-xs font-black text-primary uppercase tracking-widest mb-0.5">School Invoice Builder</p>
+                  <p className="text-foreground font-bold text-sm">Generate a school invoice — per-student rate or fixed package deal</p>
                 </div>
+                {/* Split-view: form left + preview right */}
+                <div className="flex flex-col lg:flex-row">
+                {/* Form column */}
+                <div className="flex-1 min-w-0 p-4 sm:p-6 space-y-5">
 
                 {/* Pricing mode toggle */}
                 <div className="flex items-center gap-2 p-1 bg-card shadow-sm border border-border rounded-none w-fit">
@@ -1810,7 +1874,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       className="w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary/50"
                     />
                   </div>
-                  <div className="sm:col-span-2 lg:col-span-3">
+                  <div className="sm:col-span-2 lg:col-span-4">
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Notes (optional)</label>
                     <input
                       type="text"
@@ -1938,7 +2002,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   </div>
                 )}
 
-                <div className="flex justify-end gap-3">
+                <div className="flex flex-wrap justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => handleSaveSchoolInvoice(true)}
@@ -1958,18 +2022,31 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                     {editingSchoolInvId ? 'Update & Print Invoice' : 'Generate & Print Invoice'}
                   </button>
                 </div>
+                </div>{/* end form column */}
+                {/* Preview column */}
+                <div className="lg:w-[460px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-primary/20 bg-white/[0.02] p-4 sm:p-5 lg:self-start lg:sticky lg:top-6">
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-3">Live Invoice Preview</p>
+                  <div className="overflow-auto max-h-[80vh] lg:max-h-[calc(100vh-120px)]">
+                    <SmartDocument type="invoice" data={schoolInvPreviewData} defaultTemplate="classic" />
+                  </div>
+                </div>
+                </div>{/* end flex row */}
               </div>
             )}
 
             {/* ── Receipt Builder ── */}
             {showReceiptBuilder && canManage && (
-              <div className="bg-primary/5 border border-primary/20 rounded-none p-6 space-y-5">
-                <div>
+              <div className="bg-primary/5 border border-primary/20 rounded-none">
+                {/* Header */}
+                <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-primary/20">
                   <p className="text-xs font-black text-primary uppercase tracking-widest mb-0.5">Receipt Builder</p>
                   <p className="text-foreground font-bold text-sm">Build and print an official payment receipt for a school or student</p>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Split-view: form left + preview right */}
+                <div className="flex flex-col lg:flex-row">
+                {/* Form column */}
+                <div className="flex-1 min-w-0 p-4 sm:p-6 space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
                   {/* Payer */}
                   <div>
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Received From (Payer)</label>
@@ -2035,7 +2112,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                       {accounts.map(a => <option key={a.id} value={a.id}>{a.label} — {a.bank_name}</option>)}
                     </select>
                   </div>
-                  <div className="sm:col-span-2 lg:col-span-3">
+                  <div className="sm:col-span-2">
                     <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Notes (optional)</label>
                     <input type="text" placeholder="e.g. First term 2025/2026 coding club payment" value={receiptForm.notes}
                       onChange={e => setReceiptForm(prev => ({ ...prev, notes: e.target.value }))}
@@ -2052,23 +2129,25 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                   </div>
                   <div className="space-y-2">
                     {receiptForm.items.map((item, idx) => (
-                      <div key={idx} className="flex gap-2 items-center">
-                        <input type="text" placeholder="Description (e.g. Coding Club Fee Q1)" value={item.description}
+                      <div key={idx} className="flex flex-col sm:flex-row gap-2">
+                        <input type="text" placeholder="Description" value={item.description}
                           onChange={e => setReceiptForm(prev => { const it = [...prev.items]; it[idx] = { ...it[idx], description: e.target.value }; return { ...prev, items: it }; })}
                           className="flex-1 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
-                        <input type="number" placeholder="Qty" min="1" value={item.quantity}
-                          onChange={e => setReceiptForm(prev => { const it = [...prev.items]; it[idx] = { ...it[idx], quantity: parseInt(e.target.value) || 1 }; return { ...prev, items: it }; })}
-                          className="w-16 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary text-center" />
-                        <input type="number" placeholder="Unit ₦" min="0" value={item.unit_price || ''}
-                          onChange={e => setReceiptForm(prev => { const it = [...prev.items]; it[idx] = { ...it[idx], unit_price: parseFloat(e.target.value) || 0 }; return { ...prev, items: it }; })}
-                          className="w-32 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
-                        <span className="text-sm font-black text-emerald-400 w-28 text-right flex-shrink-0">
-                          ₦{(item.quantity * item.unit_price).toLocaleString()}
-                        </span>
-                        {receiptForm.items.length > 1 && (
-                          <button type="button" onClick={() => setReceiptForm(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}
-                            className="text-rose-400 hover:text-rose-300 font-black text-xs flex-shrink-0">✕</button>
-                        )}
+                        <div className="flex gap-2 items-center">
+                          <input type="number" placeholder="Qty" min="1" value={item.quantity}
+                            onChange={e => setReceiptForm(prev => { const it = [...prev.items]; it[idx] = { ...it[idx], quantity: parseInt(e.target.value) || 1 }; return { ...prev, items: it }; })}
+                            className="w-16 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary text-center" />
+                          <input type="number" placeholder="Unit ₦" min="0" value={item.unit_price || ''}
+                            onChange={e => setReceiptForm(prev => { const it = [...prev.items]; it[idx] = { ...it[idx], unit_price: parseFloat(e.target.value) || 0 }; return { ...prev, items: it }; })}
+                            className="w-28 px-3 py-2 bg-card shadow-sm border border-border rounded-none text-sm text-foreground focus:outline-none focus:border-primary" />
+                          <span className="text-sm font-black text-emerald-400 w-24 text-right flex-shrink-0">
+                            ₦{(item.quantity * item.unit_price).toLocaleString()}
+                          </span>
+                          {receiptForm.items.length > 1 && (
+                            <button type="button" onClick={() => setReceiptForm(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}
+                              className="text-rose-400 hover:text-rose-300 font-black text-xs flex-shrink-0">✕</button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2083,43 +2162,6 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-3">
-                  <button
-                    onClick={() => {
-                      const items = receiptForm.items.filter(i => i.description && i.unit_price > 0);
-                      const totalAmount = items.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
-                      if (totalAmount === 0) { alert('Add at least one line item with an amount.'); return; }
-                      const sch = receiptForm.school_id ? schools.find(s => s.id === receiptForm.school_id) : null;
-                      const docRef = receiptForm.reference || `RCPT-${Date.now().toString(36).toUpperCase()}`;
-                      const payToAcc = receiptForm.pay_to_account_id ? accounts.find(a => a.id === receiptForm.pay_to_account_id) : null;
-                      setViewDoc({
-                        type: 'receipt',
-                        data: {
-                          number: docRef,
-                          date: receiptForm.payment_date || new Date().toISOString().split('T')[0],
-                          status: 'paid',
-                          items: items.map(i => ({ description: i.description, quantity: i.quantity, unit_price: i.unit_price, total: i.quantity * i.unit_price })),
-                          amount: totalAmount,
-                          currency: 'NGN',
-                          studentName: receiptForm.payer_name || sch?.name || 'Client',
-                          schoolName: 'RILLCOD TECHNOLOGIES',
-                          notes: receiptForm.notes,
-                          transactionRef: docRef,
-                          instructorName: receiptForm.received_by || 'Accounts Department',
-                          paymentMethod: receiptForm.payment_method,
-                          receivedBy: receiptForm.received_by || 'Accounts Department',
-                          depositAccount: payToAcc ? {
-                            bank_name: payToAcc.bank_name,
-                            account_number: payToAcc.account_number,
-                            account_name: payToAcc.account_name,
-                          } : undefined,
-                        }
-                      });
-                    }}
-                    disabled={!receiptForm.payer_name || receiptForm.items.every(i => i.unit_price === 0)}
-                    className="flex items-center gap-2 px-6 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-black text-xs uppercase tracking-widest rounded-none transition-all"
-                  >
-                    <DocumentTextIcon className="w-4 h-4" /> Preview Receipt
-                  </button>
                   <button
                     onClick={handlePrintReceipt}
                     disabled={!receiptForm.payer_name || receiptForm.items.every(i => i.unit_price === 0)}
@@ -2136,6 +2178,15 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                     Save to Portal
                   </button>
                 </div>
+                </div>{/* end form column */}
+                {/* Preview column */}
+                <div className="lg:w-[460px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-primary/20 bg-white/[0.02] p-4 sm:p-5 lg:self-start lg:sticky lg:top-6">
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-3">Live Receipt Preview</p>
+                  <div className="overflow-auto max-h-[80vh] lg:max-h-[calc(100vh-120px)]">
+                    <SmartDocument type="receipt" data={receiptPreviewData} defaultTemplate="classic" />
+                  </div>
+                </div>
+                </div>{/* end flex row */}
               </div>
             )}
 
@@ -2361,7 +2412,14 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                             number: rcpt.receipt_number,
                             date: new Date(rcpt.issued_at).toLocaleDateString(),
                             status: 'paid',
-                            items: meta.items || [{ description: 'Payment', quantity: 1, unit_price: rcpt.amount, total: rcpt.amount }],
+                            items: (meta.items && meta.items.length > 0
+                              ? meta.items.map((it: any) => ({
+                                  description: String(it.description ?? 'Payment'),
+                                  quantity: Number(it.quantity ?? 1),
+                                  unit_price: Number(it.unit_price ?? 0),
+                                  total: Number(it.total ?? (Number(it.quantity ?? 1) * Number(it.unit_price ?? 0))),
+                                }))
+                              : [{ description: 'Payment', quantity: 1, unit_price: rcpt.amount, total: rcpt.amount }]),
                             amount: rcpt.amount,
                             currency: rcpt.currency || 'NGN',
                             studentName: meta.payer_name || rcpt.portal_users?.full_name || rcpt.schools?.name || 'Client',

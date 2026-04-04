@@ -313,10 +313,10 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
                       <p className={`text-sm font-bold ${template === 'bold' ? 'text-white/50' : 'text-slate-500'}`}>{item.quantity}</p>
                     </td>
                     <td className="py-5 text-right">
-                      <p className={`text-sm font-bold ${template === 'bold' ? 'text-white/50' : 'text-slate-500'}`}>{currencySymbol}{item.unit_price.toLocaleString()}</p>
+                      <p className={`text-sm font-bold ${template === 'bold' ? 'text-white/50' : 'text-slate-500'}`}>{currencySymbol}{(item.unit_price ?? 0).toLocaleString()}</p>
                     </td>
                     <td className="py-5 text-right">
-                      <p className={`text-sm font-black ${template === 'bold' ? 'text-white' : 'text-slate-900'}`}>{currencySymbol}{item.total.toLocaleString()}</p>
+                      <p className={`text-sm font-black ${template === 'bold' ? 'text-white' : 'text-slate-900'}`}>{currencySymbol}{(item.total ?? 0).toLocaleString()}</p>
                     </td>
                   </tr>
                 ))}
