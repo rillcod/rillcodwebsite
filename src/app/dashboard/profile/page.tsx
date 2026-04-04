@@ -141,8 +141,8 @@ export default function ProfilePage() {
   const statCards: { label: string; value: number; icon: any; color: string }[] = [];
   if (profile.role === 'student') {
     statCards.push(
-      { label: 'Enrolled', value: stats.enrolled ?? 0, icon: BookOpenIcon, color: 'text-indigo-400' },
-      { label: 'Submissions', value: stats.submissions ?? 0, icon: ClipboardDocumentListIcon, color: 'text-amber-400' },
+      { label: 'Courses', value: stats.enrolled ?? 0, icon: BookOpenIcon, color: 'text-indigo-400' },
+      { label: 'Work Submitted', value: stats.submissions ?? 0, icon: ClipboardDocumentListIcon, color: 'text-amber-400' },
       { label: 'Avg Score', value: stats.avgScore ?? 0, icon: ChartBarIcon, color: 'text-emerald-400' },
     );
   } else if (profile.role === 'teacher') {
@@ -233,7 +233,7 @@ export default function ProfilePage() {
                         rows={3}
                         value={form.bio}
                         onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
-                        placeholder="Share your journey..."
+                        placeholder="Write a short bio about yourself..."
                         className="w-full bg-card shadow-sm border border-border rounded-none p-6 text-foreground outline-none focus:border-indigo-500 resize-none text-lg"
                     />
                 )}
@@ -331,11 +331,11 @@ export default function ProfilePage() {
 
                 {profile.role === 'student' && programmes.length > 0 && (
                   <div className="space-y-4">
-                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] px-4">Active Learning Paths</h3>
+                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] px-4">My Courses</h3>
                     <div className="flex flex-wrap gap-3">
                       {programmes.map((name, i) => (
-                        <div key={i} className="px-6 py-3 rounded-none bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-black text-xs uppercase tracking-widest flex items-center gap-3">
-                          <div className="w-2 h-2 rounded-full bg-indigo-400" />
+                        <div key={i} className="px-5 py-2.5 rounded-none bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold text-sm flex items-center gap-2">
+                          <BookOpenIcon className="w-4 h-4 flex-shrink-0" />
                           {name}
                         </div>
                       ))}
@@ -360,24 +360,39 @@ export default function ProfilePage() {
                         </Link>
                         {(profile.role === 'teacher' || profile.role === 'admin') && (
                           <Link href="/dashboard/students" className="flex items-center justify-between p-4 bg-card shadow-sm rounded-none font-bold text-sm hover:bg-muted transition-all group">
-                            <span>Manage Roster</span>
+                            <span>My Students</span>
                             <ChevronRightIcon className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                           </Link>
                         )}
                         {profile.role === 'student' && (
                           <Link href="/dashboard/courses" className="flex items-center justify-between p-4 bg-card shadow-sm rounded-none font-bold text-sm hover:bg-muted transition-all group">
-                            <span>My Curriculum</span>
+                            <span>My Courses</span>
                             <ChevronRightIcon className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                           </Link>
                         )}
                     </div>
                 </div>
 
-                <div className="p-8 bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20 rounded-none space-y-4">
+                {profile.role === 'student' ? (
+                  <div className="p-8 bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20 rounded-none space-y-3">
                     <RocketLaunchIcon className="w-8 h-8 text-indigo-400" />
-                    <h4 className="font-black text-foreground">Unlock New Skills</h4>
-                    <p className="text-xs font-medium text-muted-foreground leading-relaxed">Your progress is being tracked across all programmes. Keep pushing boundaries to reach of your full potential.</p>
-                </div>
+                    <h4 className="font-black text-foreground">Keep Going</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Your scores and submitted work are saved here. Open any course to continue where you left off.
+                    </p>
+                    <Link href="/dashboard/courses" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-colors pt-1">
+                      Go to my courses <ChevronRightIcon className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="p-8 bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20 rounded-none space-y-3">
+                    <RocketLaunchIcon className="w-8 h-8 text-indigo-400" />
+                    <h4 className="font-black text-foreground">Learning Center</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Manage classes, lessons, and student progress from your dashboard.
+                    </p>
+                  </div>
+                )}
             </div>
         </div>
       </div>
