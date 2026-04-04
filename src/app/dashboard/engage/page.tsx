@@ -15,7 +15,7 @@ import {
 
 const CodeEditor = dynamic(() => import('@/components/studio/IntegratedCodeRunner'), {
   ssr: false,
-  loading: () => <div className="h-[150px] bg-black/20 animate-pulse" />,
+  loading: () => <div className="h-[150px] bg-muted/50 animate-pulse" />,
 });
 
 interface EngagePost {
@@ -44,7 +44,7 @@ function AuthorAvatar({ name }: { name: string }) {
   const initial = (name || 'A')[0].toUpperCase();
   const colors = ['bg-violet-600','bg-indigo-600','bg-emerald-600','bg-amber-600','bg-rose-600','bg-cyan-600'];
   return (
-    <div className={`w-9 h-9 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 ${colors[initial.charCodeAt(0) % colors.length]}`}>
+    <div className={`w-9 h-9 flex items-center justify-center text-foreground text-sm font-bold flex-shrink-0 ${colors[initial.charCodeAt(0) % colors.length]}`}>
       {initial}
     </div>
   );
@@ -189,28 +189,28 @@ export default function CommunityPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-black bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-950/40 via-background to-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
 
       {/* ── Hero header ──────────────────────────────────────────────────────── */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden bg-white/[0.02] border-b border-white/10 backdrop-blur-xl">
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden bg-card border-b border-border">
         <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-transparent to-violet-500/10 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-[100px] pointer-events-none -translate-y-1/2" />
 
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 md:px-10 py-10">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
             <div className="flex items-center gap-5">
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-[0_0_30px_rgba(249,115,22,0.3)] border border-white/10">
-                <UserGroupIcon className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-[0_0_30px_rgba(249,115,22,0.3)] border border-border">
+                <UserGroupIcon className="w-8 h-8 text-foreground" />
               </div>
               <div>
                 <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1 drop-shadow-md">Rillcod Academy</p>
                 <h1 className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 uppercase tracking-tight mb-2 drop-shadow-sm">Student Hub</h1>
-                <p className="text-sm text-white/50 font-medium">Share ideas, post code, ask questions, and grow together</p>
+                <p className="text-sm text-muted-foreground font-medium">Share ideas, post code, ask questions, and grow together</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-5 py-3 rounded-2xl backdrop-blur-md shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+            <div className="flex items-center gap-3 bg-muted border border-border px-5 py-3 rounded-2xl backdrop-blur-md shadow-[0_0_20px_rgba(0,0,0,0.5)]">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
-              <span className="text-xs font-black uppercase tracking-widest text-white/70">{posts.length} Post{posts.length !== 1 ? 's' : ''} Shared</span>
+              <span className="text-xs font-black uppercase tracking-widest text-foreground/70">{posts.length} Post{posts.length !== 1 ? 's' : ''} Shared</span>
             </div>
           </div>
         </div>
@@ -226,16 +226,16 @@ export default function CommunityPage() {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="bg-gradient-to-r from-violet-600/20 to-indigo-600/20 border border-violet-500/30 p-6 md:p-8 rounded-3xl relative overflow-hidden backdrop-blur-xl group hover:border-violet-500/50 transition-colors shadow-[0_0_30px_rgba(139,92,246,0.15)]">
               <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/20 rounded-full blur-[80px] pointer-events-none translate-x-1/3 -translate-y-1/3 group-hover:bg-violet-500/30 transition-colors" />
               <div className="relative flex items-start gap-5">
-                <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-[0_0_20px_rgba(139,92,246,0.4)] border border-white/10">
-                  <BoltIcon className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-[0_0_20px_rgba(139,92,246,0.4)] border border-border">
+                  <BoltIcon className="w-6 h-6 text-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2 flex-wrap">
                     <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest drop-shadow-md">{WEEKLY_CHALLENGE.badge}</p>
-                    <span className="text-[9px] text-white/70 bg-white/10 border border-white/20 px-2.5 py-1 rounded-full uppercase tracking-widest font-black">{WEEKLY_CHALLENGE.forPrograms}</span>
+                    <span className="text-[9px] text-foreground/70 bg-muted border border-border px-2.5 py-1 rounded-full uppercase tracking-widest font-black">{WEEKLY_CHALLENGE.forPrograms}</span>
                   </div>
-                  <h3 className="text-xl font-black text-white mb-2 tracking-tight">{WEEKLY_CHALLENGE.title}</h3>
-                  <p className="text-sm text-white/60 leading-relaxed mb-4 font-medium">{WEEKLY_CHALLENGE.description}</p>
+                  <h3 className="text-xl font-black text-foreground mb-2 tracking-tight">{WEEKLY_CHALLENGE.title}</h3>
+                  <p className="text-sm text-foreground/60 leading-relaxed mb-4 font-medium">{WEEKLY_CHALLENGE.description}</p>
                   <div className="flex flex-wrap gap-2">
                     {WEEKLY_CHALLENGE.tags.map(t => (
                       <span key={t} className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 bg-violet-500/10 border border-violet-500/30 rounded-lg text-violet-300">{t}</span>
@@ -245,7 +245,7 @@ export default function CommunityPage() {
               </div>
               <button
                 onClick={() => setMessage('🏆 My solution to the Weekly Challenge:\n\n')}
-                className="mt-6 w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 rounded-xl text-white text-[11px] font-black uppercase tracking-widest transition-all"
+                className="mt-6 w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 bg-muted border border-border hover:bg-muted hover:border-primary/30 rounded-xl text-foreground text-[11px] font-black uppercase tracking-widest transition-all"
               >
                 <RocketLaunchIcon className="w-4 h-4" /> Submit My Solution
               </button>
@@ -260,18 +260,18 @@ export default function CommunityPage() {
             )}
 
             {/* Post Composer */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-white/[0.02] border border-white/10 p-6 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-md relative overflow-hidden group">
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-muted/30 border border-border p-6 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur-md relative overflow-hidden group">
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
               
               <div className="flex items-center gap-2 mb-4">
                 <ChatBubbleLeftRightIcon className="w-4 h-4 text-orange-400" />
-                <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">Share with the community</span>
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Share with the community</span>
               </div>
 
               <div className="flex items-start gap-4 mb-4">
                 <AuthorAvatar name={profile.full_name || 'You'} />
                 <textarea
-                  className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 resize-none transition-all shadow-inner"
+                  className="flex-1 bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-white/30 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 resize-none transition-all shadow-inner"
                   placeholder="Ask a question, share your project, post a challenge, or celebrate a win..."
                   rows={3}
                   value={message}
@@ -284,7 +284,7 @@ export default function CommunityPage() {
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-4 pl-12 overflow-hidden">
                     <div className="flex items-center gap-2 mb-2">
                       <select
-                        className="px-3 py-1.5 bg-black/60 border border-white/10 rounded-lg text-[11px] font-bold tracking-wider text-white focus:outline-none focus:border-orange-500 transition-colors uppercase"
+                        className="px-3 py-1.5 bg-muted border border-border rounded-lg text-[11px] font-bold tracking-wider text-foreground focus:outline-none focus:border-orange-500 transition-colors uppercase"
                         value={language}
                         onChange={e => setLanguage(e.target.value as Language)}
                       >
@@ -293,11 +293,11 @@ export default function CommunityPage() {
                         <option value="html">HTML / CSS</option>
                         <option value="robotics">Robotics / Arduino</option>
                       </select>
-                      <button className="ml-auto p-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/40 hover:text-white transition-all" onClick={() => { setShowCode(false); setCodeSnippet(''); }}>
+                      <button className="ml-auto p-1.5 bg-muted hover:bg-muted/80 border border-border rounded-lg text-muted-foreground hover:text-foreground transition-all" onClick={() => { setShowCode(false); setCodeSnippet(''); }}>
                         <XMarkIcon className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="border border-white/10 rounded-xl overflow-hidden shadow-inner bg-black/50">
+                    <div className="border border-border rounded-xl overflow-hidden shadow-inner bg-muted">
                       <CodeEditor value={codeSnippet} onChange={v => setCodeSnippet(v || '')} language={language} height={180} title="Code Snippet" showHeader={false} />
                     </div>
                   </motion.div>
@@ -306,12 +306,12 @@ export default function CommunityPage() {
 
               <div className="flex items-center gap-2 flex-wrap pt-2 pl-12">
                 <button onClick={() => setShowCode(v => !v)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-indigo-400 bg-white/5 hover:bg-white/10 border border-transparent hover:border-indigo-500/30 transition-all">
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-indigo-400 bg-muted hover:bg-muted/80 border border-transparent hover:border-indigo-500/30 transition-all">
                   <CodeBracketIcon className="w-3.5 h-3.5" />
                   {showCode ? 'Remove Code' : 'Attach Code Snippet'}
                 </button>
                 <button onClick={handleGetInspired} disabled={aiGenerating}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-amber-400 bg-white/5 hover:bg-white/10 border border-transparent hover:border-amber-500/30 transition-all disabled:opacity-50">
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-amber-400 bg-muted hover:bg-muted/80 border border-transparent hover:border-amber-500/30 transition-all disabled:opacity-50">
                   <LightBulbIcon className="w-3.5 h-3.5" />
                   {aiGenerating ? 'Finding idea...' : 'Get Inspired'}
                 </button>
@@ -323,19 +323,19 @@ export default function CommunityPage() {
             </motion.div>
 
             {/* Filter Tabs */}
-            <div className="flex gap-2 border-b border-white/[0.06] pb-5">
+            <div className="flex gap-2 border-b border-border pb-5">
               {FILTER_TABS.map(tab => (
                 <button key={tab.key} onClick={() => setFilter(tab.key)}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
-                    filter === tab.key ? 'bg-orange-500/10 border border-orange-500/30 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.1)]' : 'bg-white/[0.02] border border-white/5 text-white/40 hover:text-white/80 hover:bg-white/[0.05]'
+                    filter === tab.key ? 'bg-orange-500/10 border border-orange-500/30 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.1)]' : 'bg-muted/30 border border-border text-muted-foreground hover:text-foreground/80 hover:bg-muted'
                   }`}>
                   {tab.label}
-                  <span className={`text-[9px] px-2 py-0.5 rounded-full ${filter === tab.key ? 'bg-orange-500/20 text-orange-400' : 'bg-white/10 text-white/40'}`}>
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full ${filter === tab.key ? 'bg-orange-500/20 text-orange-400' : 'bg-muted text-muted-foreground'}`}>
                     {tab.count}
                   </span>
                 </button>
               ))}
-              <button onClick={fetchPosts} className="ml-auto p-3 bg-white/[0.02] border border-white/5 rounded-xl text-white/30 hover:text-white hover:bg-white/[0.05] transition-all shadow-inner" title="Refresh">
+              <button onClick={fetchPosts} className="ml-auto p-3 bg-muted/30 border border-border rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-inner" title="Refresh">
                 <ArrowPathIcon className="w-4 h-4" />
               </button>
             </div>
@@ -346,26 +346,26 @@ export default function CommunityPage() {
                 <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
               </div>
             ) : filteredPosts.length === 0 ? (
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-16 bg-white/[0.01] border border-dashed border-white/10 rounded-3xl backdrop-blur-sm">
-                <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                  <UserGroupIcon className="w-10 h-10 text-white/20" />
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-16 bg-card border border-dashed border-border rounded-3xl backdrop-blur-sm">
+                <div className="w-20 h-20 bg-muted border border-border rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                  <UserGroupIcon className="w-10 h-10 text-muted-foreground/50" />
                 </div>
-                <p className="text-white text-xl font-black tracking-tight mb-2">
+                <p className="text-foreground text-xl font-black tracking-tight mb-2">
                   {filter === 'all' ? 'No posts yet — be the first!' : filter === 'code' ? 'No code shared yet' : 'No discussions started yet'}
                 </p>
-                <p className="text-white/40 text-sm mb-10 font-medium">
+                <p className="text-muted-foreground text-sm mb-10 font-medium">
                   {filter === 'all' ? 'Ask a question, share your project or start a discussion' : 'Use the composer above to share one'}
                 </p>
                 {/* Starter prompt suggestion */}
                 <div className="max-w-md mx-auto text-left space-y-3">
-                  <p className="text-[10px] font-black text-white/20 uppercase tracking-widest text-center mb-4">Try posting one of these:</p>
+                  <p className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-widest text-center mb-4">Try posting one of these:</p>
                   {[...YOUNG_INNOVATORS_PROMPTS.slice(0, 2), ...TEEN_DEVELOPER_PROMPTS.slice(0, 2)].map((p, i) => {
                     const Icon = p.icon;
                     return (
                       <motion.button initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }} key={i} onClick={() => setMessage(p.text)}
-                        className="w-full flex items-center gap-4 px-5 py-4 bg-white/[0.02] border border-white/5 hover:border-orange-500/30 hover:bg-orange-500/10 rounded-xl text-left transition-all group shadow-sm hover:shadow-[0_0_20px_rgba(249,115,22,0.1)]">
-                        <span style={{ color: p.color }} className="flex-shrink-0 bg-black/20 p-2 rounded-lg border border-white/5 group-hover:border-current transition-colors"><Icon className="w-5 h-5" /></span>
-                        <span className="text-sm font-medium text-white/50 group-hover:text-white/90 transition-colors leading-relaxed">{p.text}</span>
+                        className="w-full flex items-center gap-4 px-5 py-4 bg-muted/30 border border-border hover:border-orange-500/30 hover:bg-orange-500/10 rounded-xl text-left transition-all group shadow-sm hover:shadow-[0_0_20px_rgba(249,115,22,0.1)]">
+                        <span style={{ color: p.color }} className="flex-shrink-0 bg-muted/50 p-2 rounded-lg border border-border group-hover:border-current transition-colors"><Icon className="w-5 h-5" /></span>
+                        <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground/90 transition-colors leading-relaxed">{p.text}</span>
                       </motion.button>
                     );
                   })}
@@ -374,24 +374,24 @@ export default function CommunityPage() {
             ) : (
               <div className="space-y-4">
                 {filteredPosts.map((post, idx) => (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }} key={post.id} className="bg-white/[0.02] backdrop-blur-md rounded-2xl border border-white/5 hover:border-white/10 transition-all p-6 shadow-sm hover:shadow-[0_5px_20px_rgba(0,0,0,0.5)]">
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }} key={post.id} className="bg-card rounded-2xl border border-border hover:border-primary/20 transition-all p-6 shadow-sm hover:shadow-md">
                     <div className="flex items-start gap-3 mb-3">
                       <AuthorAvatar name={post.author_name} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-black text-sm text-white">{post.author_name}</span>
+                          <span className="font-black text-sm text-foreground">{post.author_name}</span>
                           {post.code_snippet && (
                             <span className="px-1.5 py-0.5 bg-indigo-500/15 text-indigo-400 text-[9px] font-black uppercase tracking-widest">Code Share</span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1 text-[10px] text-white/30 mt-0.5">
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
                           <ClockIcon className="w-3 h-3" />
                           <span>{timeAgo(post.created_at || '')}</span>
                         </div>
                       </div>
                     </div>
 
-                    <p className="text-sm text-white/70 leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>
+                    <p className="text-sm text-foreground/70 leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>
 
                     {post.code_snippet && (
                       <div className="mb-3">
@@ -399,24 +399,24 @@ export default function CommunityPage() {
                           <div>
                             <CodeEditor value={post.code_snippet} language={(post.language as Language) || 'python'} height={150} readOnly showHeader={false} />
                             <button onClick={() => setExpandedCode(p => { const n = new Set(p); n.delete(post.id); return n; })}
-                              className="text-xs text-white/30 hover:text-white/60 mt-1.5 underline">
+                              className="text-xs text-muted-foreground hover:text-foreground/60 mt-1.5 underline">
                               Hide code
                             </button>
                           </div>
                         ) : (
                           <button onClick={() => setExpandedCode(p => new Set([...p, post.id]))}
-                            className="flex items-center gap-2 w-full px-3 py-2.5 bg-black/30 border border-white/[0.06] hover:border-indigo-500/40 text-sm text-white/30 hover:text-indigo-400 transition-all">
+                            className="flex items-center gap-2 w-full px-3 py-2.5 bg-muted border border-border hover:border-indigo-500/40 text-sm text-muted-foreground hover:text-indigo-400 transition-all">
                             <CodeBracketIcon className="w-4 h-4" />
                             <span>View {post.language || 'code'} snippet</span>
-                            <span className="ml-auto text-[10px] text-white/20">tap to expand</span>
+                            <span className="ml-auto text-[10px] text-muted-foreground/50">tap to expand</span>
                           </button>
                         )}
                       </div>
                     )}
 
-                    <div className="flex items-center gap-4 pt-2.5 border-t border-white/[0.06]">
+                    <div className="flex items-center gap-4 pt-2.5 border-t border-border">
                       <button onClick={() => handleLike(post)}
-                        className={`flex items-center gap-1.5 text-sm transition-colors ${likedPosts.has(post.id) ? 'text-orange-400' : 'text-white/30 hover:text-orange-400'}`}>
+                        className={`flex items-center gap-1.5 text-sm transition-colors ${likedPosts.has(post.id) ? 'text-orange-400' : 'text-muted-foreground hover:text-orange-400'}`}>
                         <FireIcon className="w-4 h-4" />
                         <span className="font-bold">{post.likes || 0}</span>
                       </button>
@@ -426,7 +426,7 @@ export default function CommunityPage() {
                         </span>
                       )}
                       <button onClick={() => setMessage(`Replying to ${post.author_name}: `)}
-                        className="flex items-center gap-1.5 text-xs text-white/20 hover:text-white/50 transition-colors ml-auto">
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors ml-auto">
                         <ChatBubbleLeftRightIcon className="w-3.5 h-3.5" /> Reply
                       </button>
                     </div>
@@ -440,23 +440,23 @@ export default function CommunityPage() {
           <div className="space-y-5">
 
             {/* Young Innovators */}
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="bg-white/[0.02] backdrop-blur-md rounded-2xl border border-amber-500/20 overflow-hidden shadow-sm">
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="bg-muted/30 backdrop-blur-md rounded-2xl border border-amber-500/20 overflow-hidden shadow-sm">
               <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/5 border-b border-amber-500/15">
                 <StarIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
                 <div>
                   <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Young Innovators</p>
-                  <p className="text-[9px] text-white/30">Basic 1 – JSS 1 · Ages 6–12</p>
+                  <p className="text-[9px] text-muted-foreground">Basic 1 – JSS 1 · Ages 6–12</p>
                 </div>
               </div>
               <div className="p-3 space-y-1.5">
-                <p className="text-[9px] font-black text-white/20 uppercase tracking-widest px-1 mb-2">Suggested discussion starters</p>
+                <p className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest px-1 mb-2">Suggested discussion starters</p>
                 {YOUNG_INNOVATORS_PROMPTS.map((p, i) => {
                   const Icon = p.icon;
                   return (
                     <button key={i} onClick={() => setMessage(p.text)}
-                      className="w-full flex items-start gap-2.5 px-3 py-2.5 bg-white/[0.02] border border-white/[0.04] hover:border-amber-500/30 hover:bg-amber-500/5 text-left transition-all group">
+                      className="w-full flex items-start gap-2.5 px-3 py-2.5 bg-muted/30 border border-border hover:border-amber-500/30 hover:bg-amber-500/5 text-left transition-all group">
                       <span style={{ color: p.color }} className="flex-shrink-0 mt-0.5"><Icon className="w-3.5 h-3.5" /></span>
-                      <span className="text-[10px] text-white/40 group-hover:text-white/70 leading-snug transition-colors">{p.text}</span>
+                      <span className="text-[10px] text-muted-foreground group-hover:text-foreground/70 leading-snug transition-colors">{p.text}</span>
                     </button>
                   );
                 })}
@@ -464,23 +464,23 @@ export default function CommunityPage() {
             </motion.div>
 
             {/* Teen Developers */}
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="bg-white/[0.02] backdrop-blur-md rounded-2xl border border-violet-500/20 overflow-hidden shadow-sm">
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="bg-muted/30 backdrop-blur-md rounded-2xl border border-violet-500/20 overflow-hidden shadow-sm">
               <div className="flex items-center gap-3 px-4 py-3 bg-violet-500/5 border-b border-violet-500/15">
                 <RocketLaunchIcon className="w-4 h-4 text-violet-400 flex-shrink-0" />
                 <div>
                   <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">Teen Developers</p>
-                  <p className="text-[9px] text-white/30">JSS 2 – SS 3 · Ages 12–18</p>
+                  <p className="text-[9px] text-muted-foreground">JSS 2 – SS 3 · Ages 12–18</p>
                 </div>
               </div>
               <div className="p-3 space-y-1.5">
-                <p className="text-[9px] font-black text-white/20 uppercase tracking-widest px-1 mb-2">Suggested discussion starters</p>
+                <p className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest px-1 mb-2">Suggested discussion starters</p>
                 {TEEN_DEVELOPER_PROMPTS.map((p, i) => {
                   const Icon = p.icon;
                   return (
                     <button key={i} onClick={() => setMessage(p.text)}
-                      className="w-full flex items-start gap-2.5 px-3 py-2.5 bg-white/[0.02] border border-white/[0.04] hover:border-violet-500/30 hover:bg-violet-500/5 text-left transition-all group">
+                      className="w-full flex items-start gap-2.5 px-3 py-2.5 bg-muted/30 border border-border hover:border-violet-500/30 hover:bg-violet-500/5 text-left transition-all group">
                       <span style={{ color: p.color }} className="flex-shrink-0 mt-0.5"><Icon className="w-3.5 h-3.5" /></span>
-                      <span className="text-[10px] text-white/40 group-hover:text-white/70 leading-snug transition-colors">{p.text}</span>
+                      <span className="text-[10px] text-muted-foreground group-hover:text-foreground/70 leading-snug transition-colors">{p.text}</span>
                     </button>
                   );
                 })}
@@ -488,23 +488,23 @@ export default function CommunityPage() {
             </motion.div>
 
             {/* STEM Explorers — All Students */}
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="bg-white/[0.02] backdrop-blur-md rounded-2xl border border-emerald-500/20 overflow-hidden shadow-sm">
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="bg-muted/30 backdrop-blur-md rounded-2xl border border-emerald-500/20 overflow-hidden shadow-sm">
               <div className="flex items-center gap-3 px-4 py-3 bg-emerald-500/5 border-b border-emerald-500/15">
                 <BeakerIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                 <div>
                   <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">STEM Explorers</p>
-                  <p className="text-[9px] text-white/30">All students · All courses</p>
+                  <p className="text-[9px] text-muted-foreground">All students · All courses</p>
                 </div>
               </div>
               <div className="p-3 space-y-1.5">
-                <p className="text-[9px] font-black text-white/20 uppercase tracking-widest px-1 mb-2">General community starters</p>
+                <p className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest px-1 mb-2">General community starters</p>
                 {STEM_EXPLORER_PROMPTS.map((p, i) => {
                   const Icon = p.icon;
                   return (
                     <button key={i} onClick={() => setMessage(p.text)}
-                      className="w-full flex items-start gap-2.5 px-3 py-2.5 bg-white/[0.02] border border-white/[0.04] hover:border-emerald-500/30 hover:bg-emerald-500/5 text-left transition-all group">
+                      className="w-full flex items-start gap-2.5 px-3 py-2.5 bg-muted/30 border border-border hover:border-emerald-500/30 hover:bg-emerald-500/5 text-left transition-all group">
                       <span style={{ color: p.color }} className="flex-shrink-0 mt-0.5"><Icon className="w-3.5 h-3.5" /></span>
-                      <span className="text-[10px] text-white/40 group-hover:text-white/70 leading-snug transition-colors">{p.text}</span>
+                      <span className="text-[10px] text-muted-foreground group-hover:text-foreground/70 leading-snug transition-colors">{p.text}</span>
                     </button>
                   );
                 })}
@@ -512,9 +512,9 @@ export default function CommunityPage() {
             </motion.div>
 
             {/* Per-course prompts */}
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="bg-white/[0.02] backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden shadow-sm">
-              <div className="px-5 py-4 border-b border-white/5">
-                <p className="text-[10px] font-black text-white/50 uppercase tracking-widest leading-none">Discuss Your Course</p>
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="bg-muted/30 backdrop-blur-md rounded-2xl border border-border overflow-hidden shadow-sm">
+              <div className="px-5 py-4 border-b border-border">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">Discuss Your Course</p>
               </div>
               <div className="p-4 space-y-3">
                 {Object.entries(COURSE_PROMPTS).map(([course, { color, prompts }]) => (
@@ -523,8 +523,8 @@ export default function CommunityPage() {
                     <div className="space-y-1">
                       {prompts.map((prompt, i) => (
                         <button key={i} onClick={() => setMessage(`[${course}] ${prompt}`)}
-                          className="w-full text-left px-3 py-2 bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-all group">
-                          <span className="text-[10px] text-white/30 group-hover:text-white/60 leading-snug transition-colors">{prompt}</span>
+                          className="w-full text-left px-3 py-2 bg-muted/30 border border-border hover:bg-muted/50 transition-all group">
+                          <span className="text-[10px] text-muted-foreground group-hover:text-foreground/60 leading-snug transition-colors">{prompt}</span>
                         </button>
                       ))}
                     </div>
@@ -534,8 +534,8 @@ export default function CommunityPage() {
             </motion.div>
 
             {/* Community rules */}
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="bg-white/[0.02] backdrop-blur-md rounded-2xl border border-white/10 p-5 shadow-sm">
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-4 leading-none">Community Guidelines</p>
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="bg-muted/30 backdrop-blur-md rounded-2xl border border-border p-5 shadow-sm">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 leading-none">Community Guidelines</p>
               <div className="space-y-3">
                 {[
                   { icon: '✅', text: 'Be kind and respectful to every student' },
@@ -546,15 +546,15 @@ export default function CommunityPage() {
                 ].map((r, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <span className="text-sm flex-shrink-0">{r.icon}</span>
-                    <span className="text-[10px] text-white/30 leading-snug">{r.text}</span>
+                    <span className="text-[10px] text-muted-foreground leading-snug">{r.text}</span>
                   </div>
                 ))}
               </div>
             </motion.div>
 
             {/* Course topics to explore */}
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.7 }} className="bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-md rounded-2xl border border-white/10 p-5 shadow-[0_0_20px_rgba(255,255,255,0.02)]">
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-4 leading-none">Topics Covered</p>
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.7 }} className="bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-md rounded-2xl border border-border p-5 shadow-[0_0_20px_rgba(255,255,255,0.02)]">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 leading-none">Topics Covered</p>
               <div className="flex flex-wrap gap-2">
                 {[
                   { label: 'Python', color: '#3572A5' },
@@ -572,7 +572,7 @@ export default function CommunityPage() {
                 ].map(t => (
                   <button key={t.label}
                     onClick={() => setMessage(`Let's talk about ${t.label}! `)}
-                    className="text-[10px] font-bold px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 transition-all text-white/50 hover:text-white cursor-pointer"
+                    className="text-[10px] font-bold px-3 py-1.5 rounded-lg border border-border hover:bg-muted/50 transition-all text-muted-foreground hover:text-foreground cursor-pointer"
                     style={{ '--tw-border-opacity': 0.3 } as any}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = t.color + '80')}
                     onMouseLeave={e => (e.currentTarget.style.borderColor = '')}>

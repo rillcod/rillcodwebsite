@@ -182,6 +182,10 @@ export default function StudentsPage() {
   const [gapCount, setGapCount] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<any | null>(null);
+  const [resetPwTarget, setResetPwTarget] = useState<{ id: string; name: string } | null>(null);
+  const [resetPwValue, setResetPwValue] = useState('');
+  const [resettingPw, setResettingPw] = useState(false);
+  const [resetPwMsg, setResetPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Enrolled portal students (portal_users role=student)
   const [sourceFilter, setSourceFilter] = useState<'all' | 'applications' | 'enrolled'>('all');
@@ -471,6 +475,25 @@ export default function StudentsPage() {
     } finally {
       setDeleting(null);
     }
+  };
+
+  const handleResetStudentPw = async () => {
+    if (!resetPwTarget || resetPwValue.length < 8) return;
+    setResettingPw(true); setResetPwMsg(null);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: resetPwTarget.id, newPassword: resetPwValue }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? 'Failed');
+      setResetPwMsg({ ok: true, text: `Password updated for ${resetPwTarget.name}` });
+      setResetPwValue('');
+      setTimeout(() => { setResetPwTarget(null); setResetPwMsg(null); }, 2500);
+    } catch (err: any) {
+      setResetPwMsg({ ok: false, text: err.message });
+    } finally { setResettingPw(false); }
   };
 
   const startEdit = (s: any) => {
@@ -1248,6 +1271,46 @@ export default function StudentsPage() {
         </div>
       )}
 
+      {/* ── Reset Password Modal ──────────────────────────── */}
+      {resetPwTarget && (
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-3">
+                <KeyIcon className="w-5 h-5 text-blue-400" />
+                <h3 className="font-black text-foreground text-sm uppercase tracking-widest">Reset Password</h3>
+              </div>
+              <button onClick={() => { setResetPwTarget(null); setResetPwMsg(null); }} className="text-muted-foreground hover:text-foreground transition-colors">
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-muted-foreground">Set a new password for <span className="text-foreground font-bold">{resetPwTarget.name}</span>.</p>
+              {resetPwMsg && (
+                <p className={`text-xs px-3 py-2 border ${resetPwMsg.ok ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border-rose-500/20'}`}>{resetPwMsg.text}</p>
+              )}
+              <input
+                type="password"
+                placeholder="New password (min 8 chars)"
+                value={resetPwValue}
+                onChange={e => setResetPwValue(e.target.value)}
+                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-blue-500 transition-colors"
+              />
+              <div className="flex gap-3">
+                <button onClick={() => { setResetPwTarget(null); setResetPwMsg(null); }}
+                  className="flex-1 px-4 py-2.5 border border-border text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
+                  Cancel
+                </button>
+                <button onClick={handleResetStudentPw} disabled={resettingPw || resetPwValue.length < 8}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-foreground text-xs font-black uppercase tracking-widest transition-all">
+                  {resettingPw ? 'Saving…' : 'Reset Password'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Credentials Modal ─────────────────────────────── */}
       {credentials && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
@@ -1618,6 +1681,15 @@ export default function StudentsPage() {
                                 disabled={deleting === s.id}
                                 className="p-2 rounded-none bg-rose-500/5 border border-rose-500/20 hover:border-rose-500/40 text-rose-400/60 hover:text-rose-400 transition-all disabled:opacity-50">
                                 <XMarkIcon className="w-4 h-4" />
+                              </button>
+                            )}
+                            {/* Enrolled student: reset password */}
+                            {isEnrolled && (profile?.role === 'admin' || profile?.role === 'teacher') && (
+                              <button
+                                onClick={e => { e.stopPropagation(); setResetPwTarget({ id: s.id, name: s.full_name ?? 'Student' }); setResetPwValue(''); setResetPwMsg(null); }}
+                                title="Reset student password"
+                                className="p-2 rounded-none bg-blue-500/5 border border-blue-500/20 hover:border-blue-500/40 text-blue-400/60 hover:text-blue-400 transition-all">
+                                <KeyIcon className="w-4 h-4" />
                               </button>
                             )}
                             {/* Enrolled student delete — teacher (own school) or admin */}
