@@ -34,7 +34,7 @@ export async function GET(req: Request) {
           assignments(id, title),
           project_group_members(
             id, individual_score, individual_feedback,
-            portal_users(id, full_name, email, section_class)
+            portal_users(id, full_name, email, phone, section_class)
           )
         `)
         .order('created_at', { ascending: false });

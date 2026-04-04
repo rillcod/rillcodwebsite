@@ -13,8 +13,17 @@ import {
     ExclamationTriangleIcon, CheckIcon, SparklesIcon, BeakerIcon,
     GlobeAltIcon, CpuChipIcon, PaintBrushIcon, PresentationChartBarIcon,
     CalendarDaysIcon, ChartBarIcon, TrophyIcon, FireIcon,
-    UsersIcon, XMarkIcon, TrashIcon, AcademicCapIcon,
+    UsersIcon, XMarkIcon, TrashIcon, AcademicCapIcon, ShareIcon,
 } from '@/lib/icons';
+
+function WhatsAppIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.533 5.849L.057 23.852a.5.5 0 0 0 .611.611l6.003-1.476A11.952 11.952 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.89 0-3.663-.523-5.176-1.432l-.372-.22-3.849.946.964-3.849-.24-.381A9.953 9.953 0 0 1 2 12C2 6.478 6.478 2 12 2s10 4.478 10 10-4.478 10-10 10z"/>
+        </svg>
+    );
+}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -256,8 +265,33 @@ export default function ProjectsPage() {
         setGroups(g => g.filter(x => x.id !== groupId));
     }
 
+    // WhatsApp sharing
+    const [sharingGroupId, setSharingGroupId] = useState<string | null>(null);
+
     // Unique classes from loaded students (for staff group creation)
     const classOptions = [...new Set(students.map((s: any) => s.section_class).filter(Boolean))].sort();
+
+    /** Format phone number to international format for wa.me (strips + and leading zeros, adds 234 for Nigerian numbers) */
+    function fmtPhone(raw: string | null | undefined): string | null {
+        if (!raw) return null;
+        const digits = raw.replace(/\D/g, '');
+        if (digits.length === 0) return null;
+        if (digits.startsWith('234'))  return digits;          // already has country code
+        if (digits.startsWith('0'))    return '234' + digits.slice(1); // Nigerian local format
+        if (digits.length >= 10)       return digits;          // assume already international
+        return null;
+    }
+
+    function buildResultMsg(memberName: string, groupName: string, assignmentTitle: string | undefined, score: number | null, feedback: string | null | undefined, evalType: 'group' | 'individual'): string {
+        const scoreStr = score != null ? `${score}/100` : 'not yet scored';
+        const evalNote = evalType === 'group' ? 'group score' : 'individual score';
+        let msg = `Hello ${memberName},\n\nYour ${evalNote} for the *${groupName}* project`;
+        if (assignmentTitle) msg += ` (${assignmentTitle})`;
+        msg += ` is: *${scoreStr}*.`;
+        if (feedback) msg += `\n\nTeacher's feedback: "${feedback}"`;
+        msg += '\n\n— Rillcod Academy';
+        return msg;
+    }
 
     if (authLoading || (!isStudent && !isStaff)) {
         return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
@@ -1141,6 +1175,12 @@ export default function ProjectsPage() {
                                                             <AcademicCapIcon className="w-3.5 h-3.5" /> {group.is_graded ? 'Re-grade' : 'Grade'}
                                                         </button>
                                                     )}
+                                                    {group.is_graded && (
+                                                        <button onClick={() => setSharingGroupId(sharingGroupId === group.id ? null : group.id)}
+                                                            className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all rounded-lg ${sharingGroupId === group.id ? 'bg-green-600/30 border-green-500/50 text-green-300' : 'bg-green-600/10 border-green-500/20 text-green-400 hover:bg-green-600/20'}`}>
+                                                            <WhatsAppIcon className="w-3.5 h-3.5" /> Share
+                                                        </button>
+                                                    )}
                                                     <button onClick={() => handleDeleteGroup(group.id)}
                                                         className="p-1.5 text-rose-400/40 hover:text-rose-400 border border-transparent hover:border-rose-500/30 transition-all rounded-lg">
                                                         <TrashIcon className="w-4 h-4" />
@@ -1166,6 +1206,70 @@ export default function ProjectsPage() {
                                                     ))}
                                                 </div>
                                             </div>
+
+                                            {/* WhatsApp Share Panel */}
+                                            {sharingGroupId === group.id && (
+                                                <div className="border-t border-green-500/20 bg-green-500/5 px-6 py-5">
+                                                    <div className="flex items-center gap-2 mb-4">
+                                                        <WhatsAppIcon className="w-4 h-4 text-green-400" />
+                                                        <p className="text-[11px] font-black text-green-400 uppercase tracking-widest">Send Results via WhatsApp</p>
+                                                        <span className="text-[9px] text-muted-foreground ml-auto">Opens WhatsApp with pre-filled message</span>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        {members.map((m: any) => {
+                                                            const name  = m.portal_users?.full_name || 'Student';
+                                                            const phone = fmtPhone(m.portal_users?.phone);
+                                                            const score = isGroupEval ? group.group_score : m.individual_score;
+                                                            const feedback = isGroupEval ? group.group_feedback : m.individual_feedback;
+                                                            const msg   = buildResultMsg(name, group.name, group.assignments?.title, score, feedback, group.evaluation_type);
+                                                            const waUrl = phone
+                                                                ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+                                                                : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+                                                            return (
+                                                                <div key={m.id} className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.06] rounded-xl px-4 py-3">
+                                                                    <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center text-[10px] font-black text-green-300 flex-shrink-0">
+                                                                        {name[0].toUpperCase()}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-[12px] font-bold text-foreground">{name}</p>
+                                                                        {phone
+                                                                            ? <p className="text-[10px] text-muted-foreground">{m.portal_users?.phone}</p>
+                                                                            : <p className="text-[10px] text-amber-400/70">No phone on file — will open pick-contact</p>
+                                                                        }
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                                                        {score != null && (
+                                                                            <span className="text-sm font-black text-emerald-400">{score}</span>
+                                                                        )}
+                                                                        <a href={waUrl} target="_blank" rel="noopener noreferrer"
+                                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 transition-colors text-white text-[10px] font-black uppercase tracking-widest rounded-lg">
+                                                                            <WhatsAppIcon className="w-3.5 h-3.5" /> Send
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    {/* Send to all (group eval only — same message) */}
+                                                    {isGroupEval && members.length > 1 && (
+                                                        <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                                                            <p className="text-[10px] text-muted-foreground mb-2">Or send to all at once (opens each chat in sequence):</p>
+                                                            <button onClick={() => {
+                                                                members.forEach((m: any, i: number) => {
+                                                                    const name = m.portal_users?.full_name || 'Student';
+                                                                    const phone = fmtPhone(m.portal_users?.phone);
+                                                                    const msg = buildResultMsg(name, group.name, group.assignments?.title, group.group_score, group.group_feedback, 'group');
+                                                                    const waUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+                                                                    setTimeout(() => window.open(waUrl, '_blank'), i * 600);
+                                                                });
+                                                            }}
+                                                                className="flex items-center gap-2 px-4 py-2 bg-green-600/20 border border-green-500/30 text-green-400 text-[10px] font-black uppercase tracking-widest hover:bg-green-600/30 transition-all rounded-xl">
+                                                                <WhatsAppIcon className="w-3.5 h-3.5" /> Send to All ({members.length})
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
 
                                             {/* Grading panel */}
                                             {isGrading && (
