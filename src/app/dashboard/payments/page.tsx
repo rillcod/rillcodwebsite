@@ -2308,7 +2308,7 @@ ${receiptForm.notes ? `<div class="notes-box"><b>Notes:</b> ${receiptForm.notes}
                               </button>
                             )}
                             <Link
-                              href={`/dashboard/payments/invoices/${invoices.find(i => i.invoice_number === inv.number)?.id ?? inv.id ?? ''}/edit`}
+                              href={`/dashboard/payments/invoices/${inv.id}/edit`}
                               onClick={e => e.stopPropagation()}
                               className="flex-1 py-2.5 flex items-center justify-center gap-1 text-[9px] font-black text-muted-foreground hover:text-foreground hover:bg-muted transition-colors uppercase tracking-widest"
                             >
