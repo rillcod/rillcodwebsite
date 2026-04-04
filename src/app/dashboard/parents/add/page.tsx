@@ -98,7 +98,7 @@ export default function AddParentPage() {
           defaultSchool={profile?.role === 'teacher' ? (profile?.school_name || '') : (schools.length === 1 ? schools[0] : '')}
           onSchoolChange={handleSchoolChange}
           onCancel={() => router.push('/dashboard/parents')}
-          onSaved={() => {}}
+          onSaved={() => router.push('/dashboard/parents')}
         />
       )}
     </div>

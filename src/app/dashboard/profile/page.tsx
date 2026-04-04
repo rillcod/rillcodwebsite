@@ -64,11 +64,17 @@ export default function ProfilePage() {
       });
     } else if (profile.role === 'school' && profile.school_id) {
       Promise.all([
+        // Students: count from applications table + portal_users with student role, take the max
         db.from('students').select('id', { count: 'exact', head: true }).eq('school_id', profile.school_id),
+        db.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student').eq('school_id', profile.school_id),
+        // Teachers: count from junction table + directly assigned portal teachers
         db.from('teacher_schools').select('id', { count: 'exact', head: true }).eq('school_id', profile.school_id),
+        db.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'teacher').eq('school_id', profile.school_id),
         db.from('programs').select('id', { count: 'exact', head: true }).eq('is_active', true),
-      ]).then(([stu, tea, prog]) => {
-        setStats({ students: stu.count ?? 0, teachers: tea.count ?? 0, programmes: prog.count ?? 0 });
+      ]).then(([stuApps, stuPortal, teaJunction, teaDirect, prog]) => {
+        const students = Math.max(stuApps.count ?? 0, stuPortal.count ?? 0);
+        const teachers = Math.max(teaJunction.count ?? 0, teaDirect.count ?? 0);
+        setStats({ students, teachers, programmes: prog.count ?? 0 });
       });
     }
   }, [profile?.id]);

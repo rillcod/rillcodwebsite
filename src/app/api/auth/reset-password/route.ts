@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
 
     const caller = callerData as { role: string } | null;
 
-    if (caller?.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    if (!caller || !['admin', 'teacher'].includes(caller.role)) {
+      return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
 
     const { userId, newPassword } = await req.json();
