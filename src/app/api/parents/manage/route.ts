@@ -414,23 +414,42 @@ export async function GET(req: Request) {
 
     // Also return all students for the picker (use admin client to bypass RLS)
     const adminForStudents = createAdminClient();
-    
-    // Fetch all students from portal_users
+
+    // Build all queries before awaiting so they run in parallel
     let portalStudentsQuery = adminForStudents
       .from('portal_users')
       .select('id, full_name, school_name, section_class, email')
       .eq('role', 'student')
       .order('full_name')
       .limit(2000);
-    
     if (effectiveSchool) {
-      portalStudentsQuery = portalStudentsQuery.eq('school_name', effectiveSchool);
+      portalStudentsQuery = portalStudentsQuery.ilike('school_name', effectiveSchool);
     }
-    
-    const { data: portalStudents } = await portalStudentsQuery;
 
+    let teachersQuery = adminForStudents
+      .from('portal_users')
+      .select('id, full_name, section_class, school_name')
+      .eq('role', 'teacher')
+      .order('full_name');
+    if (effectiveSchool) {
+      teachersQuery = teachersQuery.ilike('school_name', effectiveSchool);
+    }
+
+    // School ID lookup for classes filter (needed in parallel with students/teachers)
+    const schoolIdPromise = effectiveSchool
+      ? adminForStudents.from('schools').select('id').ilike('name', effectiveSchool).maybeSingle()
+      : Promise.resolve({ data: null });
+
+    // Run all three in parallel
+    const [
+      { data: portalStudents },
+      { data: allTeachers },
+      { data: schoolRow },
+    ] = await Promise.all([portalStudentsQuery, teachersQuery, schoolIdPromise]);
+
+    // Fetch student records (needs student IDs from portalStudents)
     const studentIds = (portalStudents ?? []).map(s => s.id);
-    const { data: studentRecords } = studentIds.length > 0 
+    const { data: studentRecords } = studentIds.length > 0
       ? await adminForStudents
           .from('students')
           .select('id, user_id, student_email, parent_email, grade_level, section, current_class')
@@ -451,30 +470,12 @@ export async function GET(req: Request) {
       };
     });
 
-    let teachersQuery = adminForStudents
-      .from('portal_users')
-      .select('id, full_name, section_class, school_name')
-      .eq('role', 'teacher')
-      .order('full_name');
-    if (effectiveSchool) {
-      teachersQuery = teachersQuery.eq('school_name', effectiveSchool);
-    }
-    const { data: allTeachers } = await teachersQuery;
-
     let classesQuery = adminForStudents
       .from('classes')
       .select('id, name')
       .order('name');
-    
-    if (effectiveSchool) {
-      const { data: schoolRow } = await adminForStudents
-        .from('schools')
-        .select('id')
-        .eq('name', effectiveSchool)
-        .maybeSingle();
-      if (schoolRow?.id) {
-        classesQuery = classesQuery.eq('school_id', schoolRow.id);
-      }
+    if ((schoolRow as any)?.id) {
+      classesQuery = classesQuery.eq('school_id', (schoolRow as any).id);
     }
     const { data: officialClasses } = await classesQuery;
 

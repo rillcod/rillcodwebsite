@@ -74,6 +74,9 @@ function StudentPicker({
       const cf = classFilter.toLowerCase().replace(/\s+/g, '');
       const classMatched = list.filter(s => {
         const fields = [s.current_class, s.section, s.grade_level].map(v => (v ?? '').toLowerCase().replace(/\s+/g, ''));
+        const hasClassData = fields.some(f => f.length > 0);
+        // Always include students with no class data (unclassified/new accounts)
+        if (!hasClassData) return true;
         return fields.some(f => f === cf || f.startsWith(cf) || cf.startsWith(f));
       });
       // Only narrow if we got matches — avoids empty list when data doesn't line up perfectly
@@ -208,7 +211,7 @@ function ParentFormModal({
   // Sync selectedSchool whenever defaultSchool arrives (profile may load async)
   const [selectedSchool, setSelectedSchool] = useState(defaultSchool ?? '');
   useEffect(() => {
-    if (defaultSchool && !selectedSchool) setSelectedSchool(defaultSchool);
+    if (defaultSchool) setSelectedSchool(defaultSchool);
   }, [defaultSchool]); // eslint-disable-line react-hooks/exhaustive-deps
   // Auto-select current user in teacher dropdown if they are a teacher
   const [selectedTeacherId, setSelectedTeacherId] = useState('');
@@ -236,7 +239,7 @@ function ParentFormModal({
     // Add official classes from database
     if (officialClasses) officialClasses.forEach(c => set.add(c));
     // Fallback to students data
-    students.filter(s => !selectedSchool || s.school_name === selectedSchool).forEach(s => {
+    students.filter(s => !selectedSchool || s.school_name?.toLowerCase() === selectedSchool.toLowerCase()).forEach(s => {
       if (s.current_class) set.add(s.current_class);
       if (s.section) set.add(s.section);
       if (s.grade_level) set.add(s.grade_level);
@@ -567,7 +570,7 @@ function LinkStudentModal({
   // Sync selectedSchool whenever defaultSchool arrives (profile may load async)
   const [selectedSchool, setSelectedSchool] = useState(defaultSchool ?? '');
   useEffect(() => {
-    if (defaultSchool && !selectedSchool) setSelectedSchool(defaultSchool);
+    if (defaultSchool) setSelectedSchool(defaultSchool);
   }, [defaultSchool]); // eslint-disable-line react-hooks/exhaustive-deps
   // Auto-select current user in teacher dropdown if they are a teacher
   const [selectedTeacherId, setSelectedTeacherId] = useState('');
@@ -587,7 +590,7 @@ function LinkStudentModal({
     // Add official classes from database
     if (officialClasses) officialClasses.forEach(c => set.add(c));
     // Fallback to students data
-    students.filter(s => !selectedSchool || s.school_name === selectedSchool).forEach(s => {
+    students.filter(s => !selectedSchool || s.school_name?.toLowerCase() === selectedSchool.toLowerCase()).forEach(s => {
       if (s.current_class) set.add(s.current_class);
       if (s.section) set.add(s.section);
       if (s.grade_level) set.add(s.grade_level);
@@ -1166,8 +1169,10 @@ export default function ParentsPage() {
   const [classes, setClasses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  // Keep a ref so `load` always reads the latest search without being recreated
+  // Keep refs so `load` always reads the latest values without stale closures
   const searchRef = useRef('');
+  const schoolFilterRef = useRef('');
+  const classFilterRef = useRef('');
   // Debounce search so we don't fire a request on every keystroke
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleSearchChange = (val: string) => {
@@ -1200,6 +1205,7 @@ export default function ParentsPage() {
   // Depend only on profile identity fields — not on schoolFilter — to avoid loops
   useEffect(() => {
     if (profile?.role === 'teacher' && profile.school_name) {
+      schoolFilterRef.current = profile.school_name;
       setSchoolFilter(profile.school_name);
       setSchools([profile.school_name]);
     }
@@ -1211,12 +1217,14 @@ export default function ParentsPage() {
     if (includePickers) setPickerLoading(true);
 
     try {
-      // Build parent search URL — read latest search from ref (avoids stale closure)
+      // Read all filter values from refs to avoid stale closures
       const params = new URLSearchParams();
       const currentSearch = searchRef.current;
+      const currentSchool = schoolFilterRef.current;
+      const currentClass = classFilterRef.current;
       if (currentSearch) params.set('search', currentSearch);
-      if (schoolFilter) params.set('school', schoolFilter);
-      if (classFilter) params.set('class', classFilter);
+      if (currentSchool) params.set('school', currentSchool);
+      if (currentClass) params.set('class', currentClass);
       if (includePickers) params.set('include_picker_data', 'true');
 
       const parRes = await fetch(`/api/parents/manage?${params.toString()}`, { cache: 'no-store' });
@@ -1236,7 +1244,8 @@ export default function ParentsPage() {
       // Handle assigned schools
       if (parJson.assigned_schools && parJson.assigned_schools.length > 0) {
         setSchools(parJson.assigned_schools);
-        if (!isAdmin && !schoolFilter && parJson.assigned_schools[0]) {
+        if (!isAdmin && !schoolFilterRef.current && parJson.assigned_schools[0]) {
+          schoolFilterRef.current = parJson.assigned_schools[0];
           setSchoolFilter(parJson.assigned_schools[0]);
         }
       } else if (isStaff && schools.length === 0) {
@@ -1254,7 +1263,7 @@ export default function ParentsPage() {
       setLoading(false);
       setPickerLoading(false);
     }
-  }, [isStaff, isAdmin, schoolFilter, classFilter, schools.length]); // search via ref
+  }, [isStaff, isAdmin, schools.length]); // filter values read from refs to avoid stale closures
 
   // Helper to ensure picker data is ready before showing modals
   const ensurePickerData = async () => {
@@ -1262,10 +1271,10 @@ export default function ParentsPage() {
     await load(true);
   };
 
-  useEffect(() => { 
+  useEffect(() => {
     if (!authLoading) {
-      // Fetch initial data (including pickers/classes for filtering)
-      load(true); 
+      // Load parents list only on mount; picker data is loaded lazily when modal opens
+      load(false);
     }
   }, [authLoading]); // Run once on auth ready
 
@@ -1379,7 +1388,7 @@ export default function ParentsPage() {
           <BuildingOfficeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <select
             value={schoolFilter}
-            onChange={e => { setSchoolFilter(e.target.value); setClassFilter(''); load(); }}
+            onChange={e => { schoolFilterRef.current = e.target.value; classFilterRef.current = ''; setSchoolFilter(e.target.value); setClassFilter(''); load(); }}
             disabled={!isAdmin && schools.length <= 1}
             className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[180px] appearance-none disabled:opacity-70"
           >
@@ -1394,7 +1403,7 @@ export default function ParentsPage() {
             <AcademicCapIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <select
               value={classFilter}
-              onChange={e => { setClassFilter(e.target.value); load(); }}
+              onChange={e => { classFilterRef.current = e.target.value; setClassFilter(e.target.value); load(); }}
               className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[180px] appearance-none"
             >
               <option value="">All My Classes</option>
@@ -1404,7 +1413,7 @@ export default function ParentsPage() {
         )}
 
         {(schoolFilter || classFilter) && isAdmin && (
-          <button onClick={() => { setSchoolFilter(''); setClassFilter(''); load(); }}
+          <button onClick={() => { schoolFilterRef.current = ''; classFilterRef.current = ''; setSchoolFilter(''); setClassFilter(''); load(); }}
             className="flex items-center gap-1.5 px-3 py-2.5 border border-border text-xs text-muted-foreground hover:text-foreground transition-colors">
             <XMarkIcon className="w-3.5 h-3.5" /> Clear Filters
           </button>
