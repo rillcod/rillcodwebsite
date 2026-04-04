@@ -59,6 +59,57 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
+// Donut ring chart — pure SVG, no library
+function DonutChart({ segments, label, center }: {
+  segments: { value: number; color: string; label: string }[];
+  label: string;
+  center: string;
+}) {
+  const r = 38;
+  const cx = 50;
+  const cy = 50;
+  const circ = 2 * Math.PI * r;
+  const total = segments.reduce((s, x) => s + x.value, 0) || 1;
+  let offset = 0;
+  const arcs = segments.map(seg => {
+    const dash = (seg.value / total) * circ;
+    const gap = circ - dash;
+    const arc = { dash, gap, offset, ...seg };
+    offset += dash;
+    return arc;
+  });
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="relative w-24 h-24">
+        <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+          {total === 0 && (
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke="currentColor" strokeWidth="10" className="text-border" />
+          )}
+          {arcs.map((arc, i) => arc.value > 0 && (
+            <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+              stroke={arc.color} strokeWidth="10"
+              strokeDasharray={`${arc.dash} ${arc.gap}`}
+              strokeDashoffset={-arc.offset}
+            />
+          ))}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-sm font-black text-foreground leading-none">{center}</span>
+        </div>
+      </div>
+      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest text-center">{label}</p>
+      <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
+        {segments.map(seg => (
+          <div key={seg.label} className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: seg.color }} />
+            <span className="text-[10px] text-muted-foreground">{seg.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function SchoolOverviewPage() {
   const { profile, loading: authLoading } = useAuth();
   const [students, setStudents] = useState<StudentRow[]>([]);
@@ -261,14 +312,70 @@ export default function SchoolOverviewPage() {
           sub="active learners" color="bg-blue-500/20 text-blue-400" />
       </div>
 
-      {/* Performance Chart (bar) */}
+      {/* Analytics Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* Score Distribution Donut */}
+        <div className="bg-[#0d1526] border border-border rounded-none p-5 flex flex-col items-center justify-center">
+          <DonutChart
+            label="Score Distribution"
+            center={`${stats.avgScore.toFixed(0)}%`}
+            segments={[
+              { label: 'Excellent (75+)', color: '#10b981', value: students.filter(s => s.avgGrade >= 75).length },
+              { label: 'Good (50–74)', color: '#f59e0b', value: students.filter(s => s.avgGrade >= 50 && s.avgGrade < 75).length },
+              { label: 'At Risk (<50)', color: '#ef4444', value: students.filter(s => s.avgGrade > 0 && s.avgGrade < 50).length },
+              { label: 'No Data', color: '#374151', value: students.filter(s => s.avgGrade === 0).length },
+            ]}
+          />
+        </div>
+
+        {/* Attendance Distribution Donut */}
+        <div className="bg-[#0d1526] border border-border rounded-none p-5 flex flex-col items-center justify-center">
+          <DonutChart
+            label="Attendance Distribution"
+            center={`${stats.avgAttendance.toFixed(0)}%`}
+            segments={[
+              { label: 'High (75+)', color: '#3b82f6', value: students.filter(s => s.attendance >= 75).length },
+              { label: 'Mid (50–74)', color: '#a855f7', value: students.filter(s => s.attendance >= 50 && s.attendance < 75).length },
+              { label: 'Low (<50)', color: '#f97316', value: students.filter(s => s.attendance > 0 && s.attendance < 50).length },
+              { label: 'No Record', color: '#374151', value: students.filter(s => s.attendance === 0).length },
+            ]}
+          />
+        </div>
+
+        {/* Top Performers */}
+        <div className="bg-[#0d1526] border border-border rounded-none p-5">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Top Performers</p>
+          {students.length === 0 ? (
+            <p className="text-muted-foreground text-sm text-center py-4">No data</p>
+          ) : (
+            <div className="space-y-2.5">
+              {[...students].sort((a, b) => b.avgGrade - a.avgGrade).slice(0, 5).map((s, i) => (
+                <div key={s.id} className="flex items-center gap-3">
+                  <span className={`text-xs font-black w-5 text-center flex-shrink-0 ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                    {i + 1}
+                  </span>
+                  <div className="w-7 h-7 rounded-full bg-[#7a0606] flex items-center justify-center flex-shrink-0">
+                    <span className="text-foreground text-[10px] font-black">{s.full_name?.charAt(0) ?? '?'}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-foreground truncate">{s.full_name?.split(' ')[0]}</p>
+                  </div>
+                  <ScoreBadge score={s.avgGrade} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Performance Bar Chart */}
       <div className="bg-[#0d1526] border border-border rounded-none p-5 mb-6">
-        <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Student Performance</h2>
-        <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
+        <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Class Performance Overview</h2>
+        <div className="flex flex-col gap-2.5 max-h-64 overflow-y-auto pr-1">
           {filtered.slice(0, 20).map(s => (
             <div key={s.id} className="flex items-center gap-3">
               <span className="text-xs text-muted-foreground w-28 truncate flex-shrink-0">{s.full_name?.split(' ')?.[0] ?? 'Student'}</span>
-              <div className="flex-1 bg-card shadow-sm rounded-full h-3 overflow-hidden">
+              <div className="flex-1 bg-card shadow-sm rounded-full h-2.5 overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-700"
                   style={{

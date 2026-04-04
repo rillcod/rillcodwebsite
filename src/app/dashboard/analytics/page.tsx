@@ -235,30 +235,47 @@ export default function AnalyticsPage() {
           <div className="lg:col-span-2 space-y-8">
             {/* Program Enrollment */}
             <div className="bg-card shadow-sm border border-border rounded-none p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <AcademicCapIcon className="w-5 h-5 text-blue-400" />
-                <h3 className="text-lg font-bold">Program Enrollment</h3>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <AcademicCapIcon className="w-5 h-5 text-blue-400" />
+                  <h3 className="text-lg font-bold">Program Enrollment</h3>
+                </div>
+                <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">{programs.length} programs</span>
               </div>
               {programs.length === 0 ? (
                 <p className="text-muted-foreground text-sm">No programs found in the database.</p>
               ) : (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {programs.map((prog: any, i: number) => {
                     const count = prog.enrollments?.length ?? 0;
-                    const pct = Math.round((count / maxEnrollment) * 100);
-                    const colors = ['bg-orange-500', 'bg-blue-500', 'bg-cyan-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500'];
+                    const totalEnrolled = programs.reduce((s: number, p: any) => s + (p.enrollments?.length ?? 0), 0) || 1;
+                    const pct = Math.round((count / totalEnrolled) * 100);
+                    const palettes = [
+                      { border: 'border-orange-500/40', bg: 'bg-orange-500/10', text: 'text-orange-400', bar: '#f97316' },
+                      { border: 'border-blue-500/40', bg: 'bg-blue-500/10', text: 'text-blue-400', bar: '#3b82f6' },
+                      { border: 'border-cyan-500/40', bg: 'bg-cyan-500/10', text: 'text-cyan-400', bar: '#06b6d4' },
+                      { border: 'border-emerald-500/40', bg: 'bg-emerald-500/10', text: 'text-emerald-400', bar: '#10b981' },
+                      { border: 'border-amber-500/40', bg: 'bg-amber-500/10', text: 'text-amber-400', bar: '#f59e0b' },
+                      { border: 'border-rose-500/40', bg: 'bg-rose-500/10', text: 'text-rose-400', bar: '#f43f5e' },
+                      { border: 'border-violet-500/40', bg: 'bg-violet-500/10', text: 'text-violet-400', bar: '#8b5cf6' },
+                    ];
+                    const p = palettes[i % palettes.length];
                     return (
-                      <div key={prog.id}>
-                        <div className="flex justify-between text-sm mb-1.5">
-                          <span className="text-muted-foreground truncate pr-4">{prog.name}</span>
-                          <span className="text-foreground font-bold flex-shrink-0">{count} enrolled</span>
+                      <div key={prog.id} className={`border ${p.border} ${p.bg} p-4 rounded-none flex flex-col gap-3 hover:opacity-90 transition-opacity`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-bold text-foreground leading-tight line-clamp-2">{prog.name}</p>
+                          <span className={`text-2xl font-black ${p.text} flex-shrink-0 leading-none`}>{count}</span>
                         </div>
-                        <div className="w-full h-7 bg-card shadow-sm rounded-none overflow-hidden">
-                          <div
-                            className={`h-full rounded-none ${colors[i % colors.length]} flex items-center justify-end pr-3 transition-all duration-500`}
-                            style={{ width: `${Math.max(pct, 8)}%` }}
-                          >
-                            {count > 0 && <span className="text-xs font-bold text-foreground">{count}</span>}
+                        <div>
+                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                            <span>Enrolled</span>
+                            <span>{pct}% of total</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-border rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${Math.max(pct, 4)}%`, background: p.bar }}
+                            />
                           </div>
                         </div>
                       </div>
