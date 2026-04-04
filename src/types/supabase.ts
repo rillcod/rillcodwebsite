@@ -3662,6 +3662,128 @@ export type Database = {
           },
         ]
       }
+      project_group_members: {
+        Row: {
+          group_id: string
+          id: string
+          individual_feedback: string | null
+          individual_score: number | null
+          joined_at: string
+          student_id: string
+        }
+        Insert: {
+          group_id: string
+          id?: string
+          individual_feedback?: string | null
+          individual_score?: number | null
+          joined_at?: string
+          student_id: string
+        }
+        Update: {
+          group_id?: string
+          id?: string
+          individual_feedback?: string | null
+          individual_score?: number | null
+          joined_at?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "project_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_group_members_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_groups: {
+        Row: {
+          assignment_id: string | null
+          class_id: string | null
+          class_name: string | null
+          created_at: string
+          created_by: string | null
+          evaluation_type: string
+          group_feedback: string | null
+          group_score: number | null
+          id: string
+          is_graded: boolean
+          name: string
+          school_id: string | null
+          school_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          assignment_id?: string | null
+          class_id?: string | null
+          class_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          evaluation_type?: string
+          group_feedback?: string | null
+          group_score?: number | null
+          id?: string
+          is_graded?: boolean
+          name: string
+          school_id?: string | null
+          school_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assignment_id?: string | null
+          class_id?: string | null
+          class_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          evaluation_type?: string
+          group_feedback?: string | null
+          group_score?: number | null
+          id?: string
+          is_graded?: boolean
+          name?: string
+          school_id?: string | null
+          school_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_groups_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_groups_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_groups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_groups_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       programs: {
         Row: {
           created_at: string | null

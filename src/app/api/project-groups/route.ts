@@ -18,9 +18,7 @@ export async function GET(req: Request) {
     const profile  = await getCallerProfile(supabase);
     if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const adminRaw = createAdminClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const admin = adminRaw as any;
+    const admin = createAdminClient();
     const url   = new URL(req.url);
     const assignmentId = url.searchParams.get('assignment_id') ?? '';
 
@@ -59,7 +57,7 @@ export async function GET(req: Request) {
         .eq('student_id', profile.id);
 
       if (mErr) throw mErr;
-      const groupIds = (memberRows ?? []).map((r: any) => r.group_id);
+      const groupIds = (memberRows ?? []).map(r => r.group_id);
 
       if (groupIds.length === 0) {
         return NextResponse.json({ success: true, groups: [] });
@@ -84,8 +82,9 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message ?? 'Server error' }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Server error';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -107,8 +106,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Select at least 2 students for a group' }, { status: 400 });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const admin = createAdminClient() as any;
+    const admin = createAdminClient();
 
     const { data: group, error: gErr } = await admin
       .from('project_groups')
@@ -125,13 +123,14 @@ export async function POST(req: Request) {
 
     if (gErr) throw gErr;
 
-    const members = student_ids.map((sid: string) => ({ group_id: group.id, student_id: sid }));
+    const members = (student_ids as string[]).map(sid => ({ group_id: group.id, student_id: sid }));
     const { error: mErr } = await admin.from('project_group_members').insert(members);
     if (mErr) throw mErr;
 
     return NextResponse.json({ success: true, group });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message ?? 'Server error' }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Server error';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -149,11 +148,18 @@ export async function PATCH(req: Request) {
     const { id, group_score, group_feedback, individual_scores, is_graded, evaluation_type, name } = body;
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const admin = createAdminClient() as any;
+    const admin = createAdminClient();
 
-    // Update group row
-    const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+    // Build typed update object
+    const updates: {
+      updated_at: string;
+      name?: string;
+      evaluation_type?: string;
+      group_score?: number | null;
+      group_feedback?: string | null;
+      is_graded?: boolean;
+    } = { updated_at: new Date().toISOString() };
+
     if (name            !== undefined) updates.name            = name;
     if (evaluation_type !== undefined) updates.evaluation_type = evaluation_type;
     if (group_score     !== undefined) updates.group_score     = group_score;
@@ -165,7 +171,7 @@ export async function PATCH(req: Request) {
 
     // Apply per-member scores (individual evaluation type)
     if (Array.isArray(individual_scores)) {
-      for (const s of individual_scores) {
+      for (const s of individual_scores as { student_id: string; score: number; feedback?: string | null }[]) {
         await admin.from('project_group_members')
           .update({ individual_score: s.score, individual_feedback: s.feedback ?? null })
           .eq('group_id', id)
@@ -174,8 +180,9 @@ export async function PATCH(req: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message ?? 'Server error' }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Server error';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -192,13 +199,13 @@ export async function DELETE(req: Request) {
     const id  = url.searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const admin = createAdminClient() as any;
+    const admin = createAdminClient();
     const { error } = await admin.from('project_groups').delete().eq('id', id);
     if (error) throw error;
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message ?? 'Server error' }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Server error';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
