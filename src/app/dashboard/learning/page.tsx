@@ -36,7 +36,7 @@ export default function StudentLearningPage() {
   const [greeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set());
   const [badges, setBadges] = useState<any[]>([]);
-  const [coursesByProgram, setCoursesByProgram] = useState<Record<string, any[]>>({});
+  const [coursesByProgram, setCoursesByProgram] = useState<Record<string, { id: string; title: string; description: string | null; duration_hours: number | null; program_id: string }[]>>({});
   const [pendingAssignments, setPendingAssignments] = useState(0);
   const [dailyMissions, setDailyMissions] = useState<any[]>([]);
 
@@ -62,14 +62,16 @@ export default function StudentLearningPage() {
       const pIds = enrolledPrograms.map(p => p.id);
 
       // 1b. Fetch courses for each enrolled program
+      type ProgramCourse = { id: string; title: string; description: string | null; duration_hours: number | null; program_id: string };
       if (pIds.length) {
-        const { data: progCourses } = await db.from('courses')
+        const { data: rawCourses } = await db.from('courses')
           .select('id, title, description, duration_hours, program_id')
           .in('program_id', pIds)
           .eq('is_active', true)
           .order('created_at', { ascending: true });
-        const cmap: Record<string, any[]> = {};
-        for (const c of (progCourses ?? []) as any[]) {
+        const progCourses = (rawCourses ?? []) as unknown as ProgramCourse[];
+        const cmap: Record<string, ProgramCourse[]> = {};
+        for (const c of progCourses) {
           if (!cmap[c.program_id]) cmap[c.program_id] = [];
           cmap[c.program_id].push(c);
         }
@@ -650,7 +652,7 @@ export default function StudentLearningPage() {
                        {(coursesByProgram[prog.id] ?? []).length > 0 && (
                          <div className="relative z-10 space-y-1.5 mb-4">
                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">Courses</p>
-                           {(coursesByProgram[prog.id] ?? []).slice(0, 4).map((c: any) => (
+                           {(coursesByProgram[prog.id] ?? []).slice(0, 4).map((c) => (
                              <Link key={c.id} href={`/dashboard/courses/${c.id}`}
                                className="flex items-center gap-2.5 px-3 py-2 bg-muted/30 border border-border hover:border-blue-500/30 hover:bg-blue-500/5 transition-all group/c">
                                <BookOpenIcon className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
