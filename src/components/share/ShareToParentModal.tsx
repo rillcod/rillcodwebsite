@@ -1,8 +1,8 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect } from 'react';
-import { XMarkIcon, ClipboardIcon, CheckIcon, PlusIcon, TrashIcon } from '@/lib/icons';
+import { useState, useEffect, useCallback } from 'react';
+import { XMarkIcon, ClipboardIcon, CheckIcon, PlusIcon, TrashIcon, ArrowPathIcon } from '@/lib/icons';
 
 const WA_ICON = (
   <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
@@ -10,15 +10,7 @@ const WA_ICON = (
   </svg>
 );
 
-type SavedGroup = { id: string; name: string; link: string };
-const STORAGE_KEY = 'rillcod_wa_groups';
-
-function loadGroups(): SavedGroup[] {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
-}
-function saveGroups(groups: SavedGroup[]) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(groups)); } catch {}
-}
+type SavedGroup = { id: string; name: string; link: string; created_by?: string };
 
 interface ShareToParentModalProps {
   open: boolean;
@@ -36,12 +28,33 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
 
   // Group state
   const [groups, setGroups] = useState<SavedGroup[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [savingGroup, setSavingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupLink, setNewGroupLink] = useState('');
   const [addingGroup, setAddingGroup] = useState(false);
+  const [groupError, setGroupError] = useState<string | null>(null);
 
   useEffect(() => { setMessage(defaultMessage); }, [defaultMessage]);
-  useEffect(() => { if (open) setGroups(loadGroups()); }, [open]);
+
+  const fetchGroups = useCallback(async () => {
+    setLoadingGroups(true);
+    setGroupError(null);
+    try {
+      const res = await fetch('/api/whatsapp-groups');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to load groups');
+      setGroups(json.data ?? []);
+    } catch (e: any) {
+      setGroupError(e.message);
+    } finally {
+      setLoadingGroups(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open && tab === 'group') fetchGroups();
+  }, [open, tab, fetchGroups]);
 
   if (!open) return null;
 
@@ -63,12 +76,10 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
   };
 
   const handleGroupShare = (group: SavedGroup) => {
-    // Copy message then open the group link
     navigator.clipboard?.writeText(message).then(() => {
       setCopiedGroup(true);
-      setTimeout(() => setCopiedGroup(false), 3000);
+      setTimeout(() => setCopiedGroup(false), 4000);
     });
-    // Open the group link after a short delay so copy registers first
     setTimeout(() => window.open(group.link, '_blank'), 150);
   };
 
@@ -79,25 +90,38 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
     });
   };
 
-  const handleSaveGroup = () => {
+  const handleSaveGroup = async () => {
     if (!newGroupName.trim() || !newGroupLink.trim()) return;
-    const link = newGroupLink.trim();
-    if (!link.startsWith('https://chat.whatsapp.com/') && !link.startsWith('https://wa.me/')) {
-      alert('Paste a valid WhatsApp group invite link (starts with chat.whatsapp.com)');
-      return;
+    setSavingGroup(true);
+    setGroupError(null);
+    try {
+      const res = await fetch('/api/whatsapp-groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newGroupName.trim(), link: newGroupLink.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to save group');
+      setGroups(prev => [...prev, json.data]);
+      setNewGroupName('');
+      setNewGroupLink('');
+      setAddingGroup(false);
+    } catch (e: any) {
+      setGroupError(e.message);
+    } finally {
+      setSavingGroup(false);
     }
-    const updated = [...groups, { id: Date.now().toString(), name: newGroupName.trim(), link }];
-    setGroups(updated);
-    saveGroups(updated);
-    setNewGroupName('');
-    setNewGroupLink('');
-    setAddingGroup(false);
   };
 
-  const handleDeleteGroup = (id: string) => {
-    const updated = groups.filter(g => g.id !== id);
-    setGroups(updated);
-    saveGroups(updated);
+  const handleDeleteGroup = async (id: string) => {
+    if (!confirm('Remove this group?')) return;
+    try {
+      const res = await fetch(`/api/whatsapp-groups?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error); }
+      setGroups(prev => prev.filter(g => g.id !== id));
+    } catch (e: any) {
+      setGroupError(e.message);
+    }
   };
 
   return (
@@ -157,14 +181,32 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
           {/* ── Group tab ── */}
           {tab === 'group' && (
             <>
-              {/* Saved groups */}
-              {groups.length > 0 && (
+              {groupError && (
+                <div className="px-3 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold flex items-center justify-between">
+                  {groupError}
+                  <button onClick={() => setGroupError(null)}><XMarkIcon className="w-3.5 h-3.5" /></button>
+                </div>
+              )}
+
+              {/* Saved groups list */}
+              {loadingGroups ? (
+                <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
+                  <ArrowPathIcon className="w-4 h-4 animate-spin" /> Loading groups…
+                </div>
+              ) : groups.length > 0 ? (
                 <div className="space-y-2">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Saved Groups</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                      Saved Groups <span className="text-[#25D366]">({groups.length})</span>
+                    </p>
+                    <button onClick={fetchGroups} className="text-muted-foreground hover:text-foreground transition-colors">
+                      <ArrowPathIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                   {groups.map(g => (
                     <div key={g.id} className="flex items-center gap-2 p-3 bg-white/[0.04] border border-border">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-foreground truncate">{g.name}</p>
+                        <p className="text-sm font-bold text-foreground">{g.name}</p>
                         <p className="text-[10px] text-muted-foreground truncate">{g.link}</p>
                       </div>
                       <button
@@ -174,26 +216,28 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
                         {WA_ICON} Send
                       </button>
                       <button onClick={() => handleDeleteGroup(g.id)}
-                        className="p-2 text-rose-400/60 hover:text-rose-400 transition-colors flex-shrink-0">
+                        className="p-2 text-rose-400/50 hover:text-rose-400 transition-colors flex-shrink-0">
                         <TrashIcon className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}
-                  {copiedGroup && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] text-xs font-bold">
-                      <CheckIcon className="w-4 h-4" />
-                      Message copied — paste it in the WhatsApp group after it opens
-                    </div>
-                  )}
+                </div>
+              ) : !addingGroup && (
+                <div className="bg-white/[0.03] border border-border p-4 space-y-1.5">
+                  <p className="font-bold text-foreground text-xs">No groups saved yet</p>
+                  <p className="text-xs text-muted-foreground">
+                    Groups saved here are <strong>shared with all teachers and admin</strong> at your school — add once, everyone can use it.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    To get a group invite link: open the group in WhatsApp → tap the group name → <strong>Invite via link</strong> → Copy link.
+                  </p>
                 </div>
               )}
 
-              {/* How to get group link hint */}
-              {groups.length === 0 && !addingGroup && (
-                <div className="bg-white/[0.03] border border-border p-4 text-sm text-muted-foreground space-y-1">
-                  <p className="font-bold text-foreground text-xs">No saved groups yet</p>
-                  <p className="text-xs">To get your WhatsApp group link: open the group → tap the group name → <strong>Invite via link</strong> → Copy link.</p>
-                  <p className="text-xs mt-1">Paste it below and save — it stays on this device so you only do this once per group.</p>
+              {copiedGroup && (
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] text-xs font-bold">
+                  <CheckIcon className="w-4 h-4 flex-shrink-0" />
+                  Message copied to clipboard — just paste it in the group after WhatsApp opens
                 </div>
               )}
 
@@ -216,20 +260,21 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
                     className="w-full px-4 py-2.5 bg-white/5 border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-[#25D366]/50 font-mono text-xs"
                   />
                   <div className="flex gap-2">
-                    <button onClick={() => setAddingGroup(false)}
-                      className="flex-1 py-2 border border-border text-muted-foreground text-xs font-black uppercase tracking-widest hover:text-foreground transition-colors">
+                    <button onClick={() => { setAddingGroup(false); setNewGroupName(''); setNewGroupLink(''); }}
+                      className="flex-1 py-2.5 border border-border text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground transition-colors">
                       Cancel
                     </button>
                     <button onClick={handleSaveGroup}
-                      disabled={!newGroupName.trim() || !newGroupLink.trim()}
-                      className="flex-1 py-2 bg-[#25D366] hover:bg-[#20ba59] disabled:opacity-40 text-white text-xs font-black uppercase tracking-widest transition-colors">
-                      Save Group
+                      disabled={!newGroupName.trim() || !newGroupLink.trim() || savingGroup}
+                      className="flex-1 py-2.5 bg-[#25D366] hover:bg-[#20ba59] disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+                      {savingGroup ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : null}
+                      {savingGroup ? 'Saving…' : 'Save Group'}
                     </button>
                   </div>
                 </div>
               ) : (
                 <button onClick={() => setAddingGroup(true)}
-                  className="flex items-center gap-2 w-full py-3 border border-dashed border-[#25D366]/30 text-[#25D366] text-xs font-black uppercase tracking-widest hover:bg-[#25D366]/5 transition-colors justify-center">
+                  className="flex items-center gap-2 w-full py-3 border border-dashed border-[#25D366]/30 text-[#25D366] text-[10px] font-black uppercase tracking-widest hover:bg-[#25D366]/5 transition-colors justify-center">
                   <PlusIcon className="w-3.5 h-3.5" /> Add WhatsApp Group
                 </button>
               )}
@@ -239,7 +284,7 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
           )}
         </div>
 
-        {/* Actions footer */}
+        {/* Footer actions */}
         <div className="flex gap-2 p-4 border-t border-border flex-shrink-0">
           <button onClick={handleCopy}
             className="flex items-center gap-2 px-4 py-3 bg-white/[0.06] border border-border text-muted-foreground hover:text-foreground font-black text-[10px] uppercase tracking-widest transition-all flex-shrink-0">
@@ -251,8 +296,8 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
               {WA_ICON} Open in WhatsApp
             </button>
           )}
-          {tab === 'group' && groups.length === 0 && (
-            <div className="flex-1 flex items-center justify-center py-3 bg-white/[0.04] border border-border text-muted-foreground text-xs font-bold uppercase tracking-widest">
+          {tab === 'group' && !loadingGroups && groups.length === 0 && (
+            <div className="flex-1 flex items-center justify-center py-3 bg-white/[0.04] border border-border text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
               Add a group above to share
             </div>
           )}
@@ -266,7 +311,7 @@ function MessageEditor({ message, onChange }: { message: string; onChange: (v: s
   return (
     <div>
       <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">
-        Message <span className="normal-case font-normal">(tap to edit)</span>
+        Message <span className="normal-case font-normal">(tap to edit before sending)</span>
       </label>
       <textarea
         value={message}
