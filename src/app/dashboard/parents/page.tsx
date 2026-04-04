@@ -1213,7 +1213,7 @@ export default function ParentsPage() {
 
   const load = useCallback(async (includePickers = false) => {
     if (!isStaff) return;
-    setLoading(true);
+    if (!includePickers) setLoading(true); // Don't show list skeleton when only loading picker data
     if (includePickers) setPickerLoading(true);
 
     try {
@@ -1266,10 +1266,10 @@ export default function ParentsPage() {
   }, [isStaff, isAdmin, schools.length]); // filter values read from refs to avoid stale closures
 
   // Helper to ensure picker data is ready before showing modals
-  const ensurePickerData = async () => {
+  const ensurePickerData = useCallback(async () => {
     if (pickerLoaded) return;
     await load(true);
-  };
+  }, [pickerLoaded, load]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -1552,12 +1552,12 @@ export default function ParentsPage() {
                   {/* Action bar */}
                   <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 pt-3 border-t border-border">
                     <button
-                      onClick={() => { setEditTarget(parent); setShowForm(true); }}
+                      onClick={async () => { await ensurePickerData(); setEditTarget(parent); setShowForm(true); }}
                       className="flex items-center justify-center gap-2 px-4 py-2.5 border border-border text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all">
                       <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                     </button>
                     <button
-                      onClick={() => setLinkTarget(parent)}
+                      onClick={async () => { await ensurePickerData(); setLinkTarget(parent); }}
                       className="flex items-center justify-center gap-2 px-4 py-2.5 border border-orange-500/40 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-orange-400 hover:border-orange-500 hover:text-orange-300 transition-all">
                       <LinkIcon className="w-3.5 h-3.5" /> Link Student
                     </button>
