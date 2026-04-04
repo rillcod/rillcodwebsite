@@ -453,19 +453,45 @@ export default function AssignmentDetailPage() {
         return () => { cancelled = true; };
     }, [authLoading, profile, id, isStaff, refreshKey]);
 
+    // Compress image via Canvas API — reduces phone photos from 8-15 MB down to ~300 KB
+    const compressImage = (file: File): Promise<File> => new Promise((resolve) => {
+        if (!file.type.startsWith('image/')) { resolve(file); return; }
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            const MAX = 1280;
+            let { width, height } = img;
+            if (width > MAX || height > MAX) {
+                if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+                else { width = Math.round(width * MAX / height); height = MAX; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+            canvas.toBlob(blob => {
+                if (!blob) { resolve(file); return; }
+                resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+            }, 'image/jpeg', 0.82);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+        img.src = url;
+    });
+
     const handleFileChange = async (file: File | null) => {
         setAttachedFile(file);
         setFileUrl(null);
         setFileError(null);
         if (!file || !profile) return;
-        // Validate size (10 MB) and type
         if (file.size > 10 * 1024 * 1024) { setFileError('File too large (max 10 MB)'); return; }
         setUploadingFile(true);
         try {
             const db = createClient();
-            const ext = file.name.split('.').pop();
+            // Compress images before upload — phone photos can be 10+ MB
+            const toUpload = await compressImage(file);
+            const ext = toUpload.name.split('.').pop();
             const path = `submissions/${profile.id}/${assignment?.id ?? 'misc'}/${Date.now()}.${ext}`;
-            const { error: uploadErr } = await db.storage.from('assignments').upload(path, file, { upsert: true });
+            const { error: uploadErr } = await db.storage.from('assignments').upload(path, toUpload, { upsert: true });
             if (uploadErr) throw uploadErr;
             const { data: urlData } = db.storage.from('assignments').getPublicUrl(path);
             setFileUrl(urlData.publicUrl);
