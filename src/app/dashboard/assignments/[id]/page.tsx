@@ -15,6 +15,7 @@ import {
 } from '@/lib/icons';
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 import BlockSequencer from '@/components/assignments/BlockSequencer';
+import ShareToParentModal from '@/components/share/ShareToParentModal';
 
 function pctInfo(grade: number, max: number) {
     const pct = Math.round((grade / max) * 100);
@@ -408,6 +409,7 @@ export default function AssignmentDetailPage() {
     const [fileUrl, setFileUrl] = useState<string | null>(null);
     const [fileError, setFileError] = useState<string | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [shareOpen, setShareOpen] = useState(false);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
@@ -534,6 +536,30 @@ export default function AssignmentDetailPage() {
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const buildShareMessage = () => {
+        if (!assignment) return '';
+        const course = assignment.courses?.title || 'STEM / AI / Coding';
+        const due = assignment.due_date
+            ? new Date(assignment.due_date).toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+            : null;
+        const pts = assignment.max_points ?? 100;
+        const type = (assignment.assignment_type || 'Assignment').charAt(0).toUpperCase() + (assignment.assignment_type || 'assignment').slice(1);
+        let msg = `📚 *${type}: ${assignment.title}*\n`;
+        msg += `📖 Course: ${course}\n`;
+        if (due) msg += `📅 Due: *${due}*\n`;
+        msg += `🏆 Total marks: ${pts}\n`;
+        if (assignment.instructions) {
+            const brief = assignment.instructions.length > 200
+                ? assignment.instructions.slice(0, 200).trimEnd() + '…'
+                : assignment.instructions;
+            msg += `\n📝 *Instructions:*\n${brief}\n`;
+        }
+        msg += `\nDear Parent/Guardian, please ensure your child completes and submits this assignment before the due date.\n`;
+        msg += `\n🔗 View on portal: ${typeof window !== 'undefined' ? window.location.origin : 'https://rillcod.com'}/dashboard/assignments/${assignment.id}`;
+        msg += `\n\n_Rillcod Technologies — www.rillcod.com_`;
+        return msg;
     };
 
     const handlePrintAssignment = () => {
@@ -748,6 +774,12 @@ export default function AssignmentDetailPage() {
 
     return (
         <div className="min-h-screen bg-background text-foreground">
+            <ShareToParentModal
+                open={shareOpen}
+                onClose={() => setShareOpen(false)}
+                defaultMessage={buildShareMessage()}
+                title={assignment?.title}
+            />
             {grading && (
                 <GradeModal
                     sub={grading}
@@ -795,9 +827,18 @@ export default function AssignmentDetailPage() {
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-none transition-colors border border-emerald-500/20">
                                 <RocketLaunchIcon className="w-3.5 h-3.5" /> Playground
                             </Link>
-                            {/* Staff edit + print buttons */}
+                            {/* Staff edit + print + share buttons */}
                             {isStaff && (
                                 <>
+                                    <button
+                                        onClick={() => setShareOpen(true)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] text-xs font-bold rounded-none transition-colors border border-[#25D366]/30"
+                                        title="Share assignment to parents via WhatsApp">
+                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                        </svg>
+                                        Share
+                                    </button>
                                     <button
                                         onClick={handlePrintAssignment}
                                         className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-xs font-bold rounded-none transition-colors border border-orange-500/20">
