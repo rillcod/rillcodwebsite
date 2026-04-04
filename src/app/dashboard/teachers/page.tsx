@@ -639,6 +639,26 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
     }
   };
 
+  const [promoting, setPromoting] = useState<string | null>(null);
+
+  const handlePromoteToAdmin = async (t: any) => {
+    if (!confirm(`Promote ${t.full_name} to Admin? They will have full platform access and will no longer appear in the teachers list.`)) return;
+    setPromoting(t.id);
+    try {
+      const res = await fetch(`/api/portal-users/${t.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'admin' }),
+      });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to promote'); }
+      setTeachers(prev => prev.filter(x => x.id !== t.id));
+    } catch (err: any) {
+      alert(err.message ?? 'Failed to promote');
+    } finally {
+      setPromoting(null);
+    }
+  };
+
   const startEdit = (t: any) => {
     setEditingTeacher(t);
     setInviteForm({
@@ -847,6 +867,11 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                           className="p-2.5 rounded-none hover:bg-amber-500/10 text-amber-400/40 hover:text-amber-400 transition-all"
                           title="Reset Password">
                           <KeyIcon className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handlePromoteToAdmin(t)} disabled={promoting === t.id}
+                          className="p-2.5 rounded-none hover:bg-orange-500/10 text-orange-400/40 hover:text-orange-400 transition-all disabled:opacity-50"
+                          title="Promote to Admin">
+                          {promoting === t.id ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ShieldCheckIcon className="w-4 h-4" />}
                         </button>
                         <button onClick={() => handleDeleteTeacher(t.id)} disabled={deleting === t.id}
                           className="p-2.5 rounded-none hover:bg-rose-500/10 text-rose-400/40 hover:text-rose-400 transition-all disabled:opacity-50"
