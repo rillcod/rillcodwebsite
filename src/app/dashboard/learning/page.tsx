@@ -69,7 +69,7 @@ export default function StudentLearningPage() {
           .eq('is_active', true)
           .order('created_at', { ascending: true });
         const cmap: Record<string, any[]> = {};
-        for (const c of progCourses ?? []) {
+        for (const c of (progCourses ?? []) as any[]) {
           if (!cmap[c.program_id]) cmap[c.program_id] = [];
           cmap[c.program_id].push(c);
         }
