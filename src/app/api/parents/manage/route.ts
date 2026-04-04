@@ -412,13 +412,15 @@ export async function GET(req: Request) {
       });
     }
 
-    // Also return all students for the picker (use admin client to bypass RLS)
+    // Return picker data: students (with class via FK join), teachers, classes
     const adminForStudents = createAdminClient();
 
-    // Build all queries before awaiting so they run in parallel
+    // ── Query 1: students — join classes via class_id FK (eliminates cross-ref round trip)
+    // Load ALL schools for admin (no school filter) so switching schools in modal works.
+    // Teachers are always scoped to their school.
     let portalStudentsQuery = adminForStudents
       .from('portal_users')
-      .select('id, full_name, school_name, section_class, email')
+      .select('id, full_name, school_name, school_id, section_class, classes!portal_users_class_id_fkey(name)')
       .eq('role', 'student')
       .order('full_name')
       .limit(2000);
@@ -426,6 +428,7 @@ export async function GET(req: Request) {
       portalStudentsQuery = portalStudentsQuery.ilike('school_name', effectiveSchool);
     }
 
+    // ── Query 2: teachers (scoped to school as before)
     let teachersQuery = adminForStudents
       .from('portal_users')
       .select('id, full_name, section_class, school_name')
@@ -435,57 +438,69 @@ export async function GET(req: Request) {
       teachersQuery = teachersQuery.ilike('school_name', effectiveSchool);
     }
 
-    // School ID lookup for classes filter (needed in parallel with students/teachers)
-    const schoolIdPromise = effectiveSchool
-      ? adminForStudents.from('schools').select('id').ilike('name', effectiveSchool).maybeSingle()
-      : Promise.resolve({ data: null });
+    // ── Query 3: all classes with school_name (no school filter — modal filters client-side)
+    const classesQuery = adminForStudents
+      .from('classes')
+      .select('id, name, schools!classes_school_id_fkey(name)')
+      .order('name');
 
-    // Run all three in parallel
+    // ── Query 4: lightweight — just user_ids of students that already have a parent
+    let linkedQuery = adminForStudents
+      .from('students')
+      .select('user_id')
+      .not('parent_email', 'is', null)
+      .not('user_id', 'is', null);
+    if (effectiveSchool) {
+      linkedQuery = linkedQuery.ilike('school_name', effectiveSchool);
+    }
+
+    // Run all four in parallel
     const [
       { data: portalStudents },
       { data: allTeachers },
-      { data: schoolRow },
-    ] = await Promise.all([portalStudentsQuery, teachersQuery, schoolIdPromise]);
+      { data: officialClasses },
+      { data: linkedStudentIds },
+    ] = await Promise.all([portalStudentsQuery, teachersQuery, classesQuery, linkedQuery]);
 
-    // Fetch student records (needs student IDs from portalStudents)
-    const studentIds = (portalStudents ?? []).map(s => s.id);
-    const { data: studentRecords } = studentIds.length > 0
-      ? await adminForStudents
-          .from('students')
-          .select('id, user_id, student_email, parent_email, grade_level, section, current_class')
-          .in('user_id', studentIds)
-      : { data: [] };
+    // Build set of already-linked student IDs (fast O(1) lookups)
+    const linkedSet = new Set(
+      (linkedStudentIds ?? []).map((s: any) => s.user_id).filter(Boolean)
+    );
 
-    const allStudents = (portalStudents ?? []).map(ps => {
-      // Find matching student record using user_id first (most reliable)
-      const sr = (studentRecords ?? []).find(r => r.user_id === ps.id || (ps.email && r.student_email === ps.email));
+    const allStudents = (portalStudents ?? []).map((ps: any) => {
+      const classFromFK = (ps.classes as any)?.name ?? null;
       return {
         id: ps.id,
         full_name: ps.full_name,
         school_name: ps.school_name,
-        parent_email: sr?.parent_email ?? null,
-        grade_level: sr?.grade_level || ps.section_class || null,
-        section: sr?.section || null,
-        current_class: sr?.current_class || ps.section_class || null
+        parent_email: linkedSet.has(ps.id) ? 'linked' : null,
+        grade_level: classFromFK || ps.section_class || null,
+        section: null,
+        current_class: classFromFK || ps.section_class || null,
       };
     });
 
-    let classesQuery = adminForStudents
-      .from('classes')
-      .select('id, name')
-      .order('name');
-    if ((schoolRow as any)?.id) {
-      classesQuery = classesQuery.eq('school_id', (schoolRow as any).id);
+    // Build schools list: teachers get their assigned schools; admins get all approved schools
+    let schoolsList: string[];
+    if (guard.profile.role === 'teacher') {
+      schoolsList = allowedSchools;
+    } else {
+      const { data: allSchools } = await adminForStudents
+        .from('schools').select('name').eq('status', 'approved').order('name');
+      schoolsList = (allSchools ?? []).map((s: any) => s.name).filter(Boolean);
     }
-    const { data: officialClasses } = await classesQuery;
 
-    return NextResponse.json({ 
-      success: true, 
-      data, 
-      students: allStudents ?? [], 
+    return NextResponse.json({
+      success: true,
+      data,
+      students: allStudents ?? [],
       teachers: allTeachers ?? [],
-      classes: (officialClasses ?? []).map(c => c.name),
-      assigned_schools: guard.profile.role === 'teacher' ? allowedSchools : undefined
+      // { name, school_name } so the form can filter classes by selected school
+      classes: (officialClasses ?? []).map((c: any) => ({
+        name: c.name,
+        school_name: (c.schools as any)?.name ?? null,
+      })),
+      assigned_schools: schoolsList,
     });
   } catch (err: any) {
     console.error('GET /api/parents/manage error:', err);
