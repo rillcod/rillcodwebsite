@@ -198,7 +198,7 @@ export default function EditInvoicePage() {
         </div>
         <button
           onClick={() => setShowPreview(v => !v)}
-          className={`hidden lg:flex items-center gap-2 px-4 py-2 border text-[10px] font-black uppercase tracking-widest transition-all ${showPreview ? 'border-orange-500/50 text-orange-400' : 'border-border text-muted-foreground hover:text-foreground'}`}>
+          className={`flex items-center gap-2 px-4 py-2 border text-[10px] font-black uppercase tracking-widest transition-all ${showPreview ? 'border-orange-500/50 text-orange-400' : 'border-border text-muted-foreground hover:text-foreground'}`}>
           <EyeIcon className="w-4 h-4" /> {showPreview ? 'Hide' : 'Show'} Preview
         </button>
       </div>
@@ -216,7 +216,7 @@ export default function EditInvoicePage() {
       )}
 
       {/* Split layout */}
-      <div className={`gap-6 ${showPreview ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]' : ''}`}>
+      <div className={`gap-6 ${showPreview ? 'flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]' : ''}`}>
 
         {/* ── Left: Form ── */}
         <form onSubmit={handleSave} className="space-y-6">
@@ -363,8 +363,8 @@ export default function EditInvoicePage() {
 
         {/* ── Right: Live Canvas Preview ── */}
         {showPreview && (
-          <div className="hidden lg:block">
-            <div className="sticky top-6">
+          <div>
+            <div className="lg:sticky lg:top-6">
               <div className="flex items-center gap-2 mb-4">
                 <span className="w-1 h-4 bg-orange-500 flex-shrink-0" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Live Preview</p>
