@@ -652,7 +652,7 @@ export default function StudentLearningPage() {
                        {(coursesByProgram[prog.id] ?? []).length > 0 && (
                          <div className="relative z-10 space-y-1.5 mb-4">
                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">Courses</p>
-                           {(coursesByProgram[prog.id] ?? []).slice(0, 4).map((c) => (
+                           {(coursesByProgram[prog.id] ?? []).map((c) => (
                              <Link key={c.id} href={`/dashboard/courses/${c.id}`}
                                className="flex items-center gap-2.5 px-3 py-2 bg-muted/30 border border-border hover:border-blue-500/30 hover:bg-blue-500/5 transition-all group/c">
                                <BookOpenIcon className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
@@ -660,9 +660,6 @@ export default function StudentLearningPage() {
                                {c.duration_hours && <span className="text-[9px] text-muted-foreground ml-auto flex-shrink-0">{c.duration_hours}h</span>}
                              </Link>
                            ))}
-                           {(coursesByProgram[prog.id] ?? []).length > 4 && (
-                             <p className="text-[9px] text-muted-foreground pl-3">+{(coursesByProgram[prog.id] ?? []).length - 4} more courses</p>
-                           )}
                          </div>
                        )}
                        <div className="mt-4 flex items-center justify-between relative z-10 pt-4 border-t border-border">
