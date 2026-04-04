@@ -13,6 +13,7 @@ import {
     ExclamationTriangleIcon, CheckIcon, SparklesIcon, BeakerIcon,
     GlobeAltIcon, CpuChipIcon, PaintBrushIcon, PresentationChartBarIcon,
     CalendarDaysIcon, ChartBarIcon, TrophyIcon, FireIcon,
+    UsersIcon, XMarkIcon, TrashIcon, AcademicCapIcon,
 } from '@/lib/icons';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -73,7 +74,7 @@ const CAT_COLOR: Record<string, string> = {
     game: '#f59e0b', iot: '#10b981', other: '#64748b',
 };
 
-type Tab       = 'work' | 'activities';
+type Tab       = 'work' | 'activities' | 'groups';
 type ActFilter = 'all' | 'active' | 'pending_review' | 'overdue' | 'draft';
 
 // ── page ─────────────────────────────────────────────────────────────────────
@@ -104,6 +105,25 @@ export default function ProjectsPage() {
     const [labMap, setLabMap]         = useState<Record<string, any[]>>({});
     const [portfolioMap, setPortfolioMap] = useState<Record<string, any[]>>({});
     const [activities, setActivities] = useState<any[]>([]);
+
+    // Groups state (shared — student sees own groups; staff manages all)
+    const [groups, setGroups]           = useState<any[]>([]);
+    const [groupsLoading, setGroupsLoading] = useState(false);
+    const [groupsError, setGroupsError] = useState<string | null>(null);
+    // Staff group creator
+    const [showCreateGroup, setShowCreateGroup] = useState(false);
+    const [newGroupName, setNewGroupName]       = useState('');
+    const [newGroupClass, setNewGroupClass]     = useState('');
+    const [newGroupEval, setNewGroupEval]       = useState<'individual' | 'group'>('group');
+    const [newGroupStudents, setNewGroupStudents] = useState<string[]>([]);
+    const [savingGroup, setSavingGroup]         = useState(false);
+    // Staff grading
+    const [gradingGroupId, setGradingGroupId]   = useState<string | null>(null);
+    const [gradingGroup, setGradingGroup]       = useState<any | null>(null);
+    const [gradeScore, setGradeScore]           = useState('');
+    const [gradeFeedback, setGradeFeedback]     = useState('');
+    const [individualScores, setIndividualScores] = useState<Record<string, { score: string; feedback: string }>>({});
+    const [savingGrade, setSavingGrade]         = useState(false);
 
     // ── Load work data ────────────────────────────────────────────────────────
     useEffect(() => {
@@ -159,14 +179,102 @@ export default function ProjectsPage() {
         loadActs();
     }, [tab, profile?.id, authLoading]); // eslint-disable-line
 
+    // ── Load groups (lazy on tab switch) ─────────────────────────────────────
+    useEffect(() => {
+        if (tab !== 'groups' || !profile || authLoading) return;
+        loadGroups();
+    }, [tab, profile?.id, authLoading]); // eslint-disable-line
+
+    async function loadGroups() {
+        setGroupsLoading(true); setGroupsError(null);
+        try {
+            const res = await fetch('/api/project-groups', { cache: 'no-store' });
+            const json = res.ok ? await res.json() : { error: 'Failed' };
+            if (!json.success) throw new Error(json.error);
+            setGroups(json.groups ?? []);
+        } catch (e: any) {
+            setGroupsError(e.message);
+        } finally { setGroupsLoading(false); }
+    }
+
+    async function handleCreateGroup() {
+        if (!newGroupName.trim() || newGroupStudents.length < 2) return;
+        setSavingGroup(true);
+        try {
+            const res = await fetch('/api/project-groups', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: newGroupName.trim(),
+                    class_name: newGroupClass || null,
+                    evaluation_type: newGroupEval,
+                    student_ids: newGroupStudents,
+                }),
+            });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error);
+            setShowCreateGroup(false);
+            setNewGroupName(''); setNewGroupClass(''); setNewGroupStudents([]);
+            loadGroups();
+        } catch (e: any) {
+            setGroupsError(e.message);
+        } finally { setSavingGroup(false); }
+    }
+
+    async function handleGradeGroup(group: any) {
+        setSavingGrade(true);
+        try {
+            const body: any = { id: group.id, is_graded: true, group_feedback: gradeFeedback || null };
+            if (group.evaluation_type === 'group') {
+                const score = parseFloat(gradeScore);
+                if (isNaN(score)) throw new Error('Enter a valid score');
+                body.group_score = score;
+            } else {
+                body.individual_scores = Object.entries(individualScores).map(([student_id, v]) => ({
+                    student_id,
+                    score: parseFloat(v.score) || 0,
+                    feedback: v.feedback || null,
+                }));
+            }
+            const res = await fetch('/api/project-groups', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error);
+            setGradingGroupId(null); setGradingGroup(null); setGradeScore(''); setGradeFeedback(''); setIndividualScores({});
+            loadGroups();
+        } catch (e: any) {
+            setGroupsError(e.message);
+        } finally { setSavingGrade(false); }
+    }
+
+    async function handleDeleteGroup(groupId: string) {
+        if (!confirm('Delete this group?')) return;
+        await fetch(`/api/project-groups?id=${groupId}`, { method: 'DELETE' });
+        setGroups(g => g.filter(x => x.id !== groupId));
+    }
+
+    // Unique classes from loaded students (for staff group creation)
+    const classOptions = [...new Set(students.map((s: any) => s.section_class).filter(Boolean))].sort();
+
     if (authLoading || (!isStudent && !isStaff)) {
         return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
     }
 
     // ── Shared tab bar ────────────────────────────────────────────────────────
     const TABS = isStudent
-        ? [{ id: 'work' as Tab, label: 'My Work', icon: CodeBracketIcon }, { id: 'activities' as Tab, label: 'Activities', icon: ClipboardDocumentListIcon }]
-        : [{ id: 'work' as Tab, label: 'Student Overview', icon: UserGroupIcon }, { id: 'activities' as Tab, label: 'Activities', icon: ClipboardDocumentListIcon }];
+        ? [
+            { id: 'work' as Tab, label: 'My Work', icon: CodeBracketIcon },
+            { id: 'activities' as Tab, label: 'Activities', icon: ClipboardDocumentListIcon },
+            { id: 'groups' as Tab, label: 'My Group', icon: UsersIcon },
+          ]
+        : [
+            { id: 'work' as Tab, label: 'Student Overview', icon: UserGroupIcon },
+            { id: 'activities' as Tab, label: 'Activities', icon: ClipboardDocumentListIcon },
+            { id: 'groups' as Tab, label: 'Groups', icon: UsersIcon },
+          ];
 
     function TabBar() {
         return (
@@ -346,6 +454,122 @@ export default function ProjectsPage() {
                             </section>
                         </div>
                     )
+                )}
+
+                {/* STUDENT GROUPS TAB */}
+                {tab === 'groups' && (
+                    <div className="px-4 sm:px-6 md:px-10 py-8">
+                        {groupsLoading ? (
+                            <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-violet-400 animate-spin" /></div>
+                        ) : groupsError ? (
+                            <div className="text-center py-20">
+                                <p className="text-rose-400 text-sm mb-4">{groupsError}</p>
+                                <button onClick={loadGroups} className="px-4 py-2 bg-violet-600/20 border border-violet-500/30 text-violet-400 text-xs font-black uppercase tracking-widest hover:bg-violet-600/30 transition-all">Try Again</button>
+                            </div>
+                        ) : groups.length === 0 ? (
+                            <div className="border border-dashed border-white/10 p-16 text-center">
+                                <UsersIcon className="w-12 h-12 text-white/10 mx-auto mb-4" />
+                                <p className="text-white/30 text-sm font-semibold">You haven't been assigned to a group yet</p>
+                                <p className="text-white/20 text-xs mt-1">Your teacher will create project groups and add you</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-6 max-w-3xl mx-auto">
+                                {groups.map((group: any) => {
+                                    const members: any[] = group.project_group_members || [];
+                                    const myMember = members.find((m: any) => m.student_id === profile!.id);
+                                    const assignment = group.assignments;
+                                    const isGroupEval = group.evaluation_type === 'group';
+                                    const myScore = isGroupEval ? group.group_score : myMember?.individual_score;
+                                    const myFeedback = isGroupEval ? group.group_feedback : myMember?.individual_feedback;
+
+                                    return (
+                                        <div key={group.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                                            {/* Group header */}
+                                            <div className="bg-violet-500/10 border-b border-violet-500/20 px-6 py-4 flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-violet-500/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0 rounded-xl">
+                                                    <UsersIcon className="w-5 h-5 text-violet-400" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="text-base font-black text-white truncate">{group.name}</h3>
+                                                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                                                        {group.class_name && <span className="text-[10px] text-white/40 font-semibold">{group.class_name}</span>}
+                                                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full"
+                                                            style={{ backgroundColor: isGroupEval ? '#6366f120' : '#10b98120', color: isGroupEval ? '#818cf8' : '#34d399' }}>
+                                                            {isGroupEval ? 'Group Score' : 'Individual Score'}
+                                                        </span>
+                                                        {group.is_graded && <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">Graded</span>}
+                                                    </div>
+                                                </div>
+                                                {group.is_graded && myScore != null && (
+                                                    <div className="text-center flex-shrink-0">
+                                                        <p className="text-3xl font-black text-emerald-400">{myScore}</p>
+                                                        <p className="text-[9px] text-white/30 uppercase tracking-widest font-black">Your Score</p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="p-6 space-y-5">
+                                                {/* Assignment */}
+                                                {assignment && (
+                                                    <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3">
+                                                        <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">Assigned Activity</p>
+                                                        <p className="text-sm font-bold text-white">{assignment.title}</p>
+                                                        {assignment.description && <p className="text-[11px] text-white/40 mt-1 line-clamp-2">{assignment.description}</p>}
+                                                        {assignment.due_date && (
+                                                            <div className={`flex items-center gap-1.5 mt-2 ${deadlineLabel(assignment.due_date).overdue ? 'text-rose-400' : deadlineLabel(assignment.due_date).urgent ? 'text-amber-400' : 'text-white/30'}`}>
+                                                                <ClockIcon className="w-3 h-3" />
+                                                                <span className="text-[10px] font-bold">{deadlineLabel(assignment.due_date).text}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* Group members */}
+                                                <div>
+                                                    <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-3">Your Group Members ({members.length})</p>
+                                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                        {members.map((m: any) => {
+                                                            const isMe = m.student_id === profile!.id;
+                                                            const name = m.portal_users?.full_name || 'Unknown';
+                                                            const memberScore = isGroupEval ? group.group_score : m.individual_score;
+                                                            return (
+                                                                <div key={m.id} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all ${isMe ? 'bg-violet-500/10 border-violet-500/30' : 'bg-white/[0.03] border-white/[0.06]'}`}>
+                                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-black ${isMe ? 'bg-violet-500/30 text-violet-300' : 'bg-white/10 text-white/50'}`}>
+                                                                        {(name || '?')[0].toUpperCase()}
+                                                                    </div>
+                                                                    <div className="min-w-0">
+                                                                        <p className={`text-[11px] font-bold truncate ${isMe ? 'text-violet-300' : 'text-white/70'}`}>{name}{isMe && ' (You)'}</p>
+                                                                        {group.is_graded && memberScore != null && (
+                                                                            <p className="text-[10px] text-emerald-400 font-black">{memberScore} pts</p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                {/* Feedback */}
+                                                {group.is_graded && myFeedback && (
+                                                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-4 py-3">
+                                                        <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Teacher Feedback</p>
+                                                        <p className="text-sm text-emerald-300/70 italic">"{myFeedback}"</p>
+                                                    </div>
+                                                )}
+
+                                                {!group.is_graded && (
+                                                    <div className="flex items-center gap-2 text-amber-400/60">
+                                                        <ClockIcon className="w-3.5 h-3.5" />
+                                                        <span className="text-[10px] font-bold">Awaiting evaluation from your teacher</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {/* STUDENT ACTIVITIES TAB */}
@@ -756,6 +980,262 @@ export default function ProjectsPage() {
                     )}
                 </>
             )}
+
+            {/* STAFF — GROUPS TAB */}
+            {tab === 'groups' && (() => {
+                const classFiltered = newGroupClass
+                    ? students.filter((s: any) => s.section_class === newGroupClass)
+                    : students;
+
+                return (
+                    <div>
+                        {/* Header */}
+                        <div className="px-6 md:px-10 py-4 border-b border-border bg-card flex items-center justify-between gap-4 flex-wrap">
+                            <div>
+                                <p className="text-sm font-black text-foreground">Project Groups</p>
+                                <p className="text-[11px] text-muted-foreground mt-0.5">{groups.length} group{groups.length !== 1 ? 's' : ''} · assign students from the same class</p>
+                            </div>
+                            <button onClick={() => { setShowCreateGroup(true); setGroupsError(null); }}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 transition-colors text-white text-xs font-black uppercase tracking-widest">
+                                <PlusIcon className="w-4 h-4" /> Create Group
+                            </button>
+                        </div>
+
+                        {groupsError && (
+                            <div className="mx-6 md:mx-10 mt-4 px-4 py-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm rounded-xl">{groupsError}</div>
+                        )}
+
+                        {/* Create Group panel */}
+                        {showCreateGroup && (
+                            <div className="mx-6 md:mx-10 mt-6 bg-card border border-border rounded-2xl overflow-hidden">
+                                <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+                                    <h3 className="text-sm font-black text-foreground uppercase tracking-widest">New Group</h3>
+                                    <button onClick={() => setShowCreateGroup(false)} className="text-muted-foreground hover:text-foreground transition-colors"><XMarkIcon className="w-5 h-5" /></button>
+                                </div>
+                                <div className="p-6 space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">Group Name *</label>
+                                            <input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="e.g. Team Alpha"
+                                                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-violet-500/50 transition-colors" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">Class</label>
+                                            <select value={newGroupClass} onChange={e => { setNewGroupClass(e.target.value); setNewGroupStudents([]); }}
+                                                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50 transition-colors">
+                                                <option value="">All Classes</option>
+                                                {classOptions.map((c: string) => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Evaluation type */}
+                                    <div>
+                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2 block">Evaluation Type</label>
+                                        <div className="flex gap-3">
+                                            {(['group', 'individual'] as const).map(et => (
+                                                <button key={et} onClick={() => setNewGroupEval(et)}
+                                                    className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest border rounded-xl transition-all ${newGroupEval === et ? 'bg-violet-500/20 border-violet-500/40 text-violet-400' : 'bg-white/[0.02] border-white/[0.06] text-muted-foreground hover:text-foreground'}`}>
+                                                    {et === 'group' ? 'One Score for All' : 'Score Each Member'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground mt-1.5">
+                                            {newGroupEval === 'group' ? 'All members receive the same group score.' : 'You assign an individual score to each member.'}
+                                        </p>
+                                    </div>
+
+                                    {/* Student picker */}
+                                    <div>
+                                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2 block">
+                                            Select Students * ({newGroupStudents.length} selected — minimum 2)
+                                            {newGroupClass && <span className="ml-2 text-violet-400">· Class: {newGroupClass}</span>}
+                                        </label>
+                                        {classFiltered.length === 0 ? (
+                                            <p className="text-muted-foreground text-xs italic">No students in this class</p>
+                                        ) : (
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-60 overflow-y-auto pr-1">
+                                                {classFiltered.map((s: any) => {
+                                                    const sel = newGroupStudents.includes(s.id);
+                                                    return (
+                                                        <button key={s.id} onClick={() => setNewGroupStudents(prev =>
+                                                            sel ? prev.filter(id => id !== s.id) : [...prev, s.id]
+                                                        )}
+                                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all ${sel ? 'bg-violet-500/20 border-violet-500/40' : 'bg-white/[0.03] border-white/[0.06] hover:border-violet-500/20'}`}>
+                                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] font-black ${sel ? 'bg-violet-500 text-white' : 'bg-white/10 text-white/50'}`}>
+                                                                {sel ? <CheckIcon className="w-3 h-3" /> : (s.full_name || '?')[0].toUpperCase()}
+                                                            </div>
+                                                            <span className={`text-[11px] font-bold truncate ${sel ? 'text-violet-300' : 'text-muted-foreground'}`}>{s.full_name}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center gap-3 pt-2">
+                                        <button onClick={handleCreateGroup} disabled={savingGroup || !newGroupName.trim() || newGroupStudents.length < 2}
+                                            className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-white text-xs font-black uppercase tracking-widest rounded-xl">
+                                            {savingGroup ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <UsersIcon className="w-4 h-4" />}
+                                            {savingGroup ? 'Creating...' : 'Create Group'}
+                                        </button>
+                                        <button onClick={() => setShowCreateGroup(false)} className="px-4 py-2.5 text-muted-foreground text-xs font-black uppercase tracking-widest hover:text-foreground transition-colors">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Groups list */}
+                        <div className="px-6 md:px-10 py-6 space-y-4">
+                            {groupsLoading ? (
+                                <div className="flex items-center justify-center py-20"><ArrowPathIcon className="w-8 h-8 text-violet-400 animate-spin" /></div>
+                            ) : groups.length === 0 ? (
+                                <div className="border border-dashed border-border p-16 text-center rounded-2xl">
+                                    <UsersIcon className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
+                                    <p className="text-muted-foreground text-sm font-semibold">No groups created yet</p>
+                                    <p className="text-muted-foreground/60 text-xs mt-1">Create a group to distribute students and assign project work</p>
+                                </div>
+                            ) : (
+                                groups.map((group: any) => {
+                                    const members: any[] = group.project_group_members || [];
+                                    const assignment = group.assignments;
+                                    const isGroupEval = group.evaluation_type === 'group';
+                                    const isGrading = gradingGroupId === group.id;
+
+                                    return (
+                                        <div key={group.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                                            {/* Group header */}
+                                            <div className="px-6 py-4 flex items-center gap-4 flex-wrap">
+                                                <div className="w-10 h-10 bg-violet-500/10 border border-violet-500/30 flex items-center justify-center flex-shrink-0 rounded-xl">
+                                                    <UsersIcon className="w-5 h-5 text-violet-400" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <h3 className="text-sm font-black text-foreground">{group.name}</h3>
+                                                        {group.class_name && <span className="text-[9px] font-bold text-muted-foreground bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">{group.class_name}</span>}
+                                                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full"
+                                                            style={{ backgroundColor: isGroupEval ? '#6366f118' : '#10b98118', color: isGroupEval ? '#818cf8' : '#34d399' }}>
+                                                            {isGroupEval ? 'Group Score' : 'Individual'}
+                                                        </span>
+                                                        {group.is_graded
+                                                            ? <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircleIcon className="w-3 h-3" /> Graded</span>
+                                                            : <span className="text-[9px] font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">Pending</span>
+                                                        }
+                                                    </div>
+                                                    {assignment && <p className="text-[10px] text-muted-foreground mt-0.5">Activity: {assignment.title}</p>}
+                                                </div>
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    {!isGrading && (
+                                                        <button onClick={() => {
+                                                            setGradingGroupId(group.id);
+                                                            setGradingGroup(group);
+                                                            setGradeScore(group.group_score?.toString() || '');
+                                                            setGradeFeedback(group.group_feedback || '');
+                                                            const initScores: Record<string, { score: string; feedback: string }> = {};
+                                                            members.forEach((m: any) => {
+                                                                initScores[m.student_id] = { score: m.individual_score?.toString() || '', feedback: m.individual_feedback || '' };
+                                                            });
+                                                            setIndividualScores(initScores);
+                                                        }}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/20 border border-violet-500/30 text-violet-400 text-[10px] font-black uppercase tracking-widest hover:bg-violet-600/30 transition-all rounded-lg">
+                                                            <AcademicCapIcon className="w-3.5 h-3.5" /> {group.is_graded ? 'Re-grade' : 'Grade'}
+                                                        </button>
+                                                    )}
+                                                    <button onClick={() => handleDeleteGroup(group.id)}
+                                                        className="p-1.5 text-rose-400/40 hover:text-rose-400 border border-transparent hover:border-rose-500/30 transition-all rounded-lg">
+                                                        <TrashIcon className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Members list */}
+                                            <div className="border-t border-border px-6 py-4">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    {members.map((m: any) => (
+                                                        <div key={m.id} className="flex items-center gap-2 bg-white/[0.03] border border-border px-3 py-1.5 rounded-full">
+                                                            <div className="w-5 h-5 rounded-full bg-violet-500/20 flex items-center justify-center text-[9px] font-black text-violet-300">
+                                                                {(m.portal_users?.full_name || '?')[0].toUpperCase()}
+                                                            </div>
+                                                            <span className="text-[11px] font-semibold text-muted-foreground">{m.portal_users?.full_name || '—'}</span>
+                                                            {group.is_graded && (
+                                                                <span className="text-[10px] font-black text-emerald-400 ml-1">
+                                                                    {isGroupEval ? group.group_score : m.individual_score ?? '—'}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Grading panel */}
+                                            {isGrading && (
+                                                <div className="border-t border-violet-500/20 bg-violet-500/5 px-6 py-5 space-y-4">
+                                                    <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">Grade: {group.name}</p>
+
+                                                    {isGroupEval ? (
+                                                        /* Group score */
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                            <div>
+                                                                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">Group Score (0–100)</label>
+                                                                <input type="number" min={0} max={100} value={gradeScore} onChange={e => setGradeScore(e.target.value)} placeholder="e.g. 85"
+                                                                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-violet-500/50 transition-colors" />
+                                                                <p className="text-[10px] text-muted-foreground mt-1">This score applies to all {members.length} members</p>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 block">Feedback (optional)</label>
+                                                                <textarea value={gradeFeedback} onChange={e => setGradeFeedback(e.target.value)} rows={2} placeholder="Comments for the group..."
+                                                                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-violet-500/50 transition-colors resize-none" />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        /* Individual scores */
+                                                        <div className="space-y-3">
+                                                            {members.map((m: any) => {
+                                                                const name = m.portal_users?.full_name || '—';
+                                                                const key = m.student_id;
+                                                                return (
+                                                                    <div key={key} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start bg-white/[0.02] border border-border rounded-xl px-4 py-3">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-6 h-6 rounded-full bg-violet-500/20 flex items-center justify-center text-[9px] font-black text-violet-300">{(name)[0].toUpperCase()}</div>
+                                                                            <span className="text-[11px] font-bold text-foreground">{name}</span>
+                                                                        </div>
+                                                                        <div>
+                                                                            <input type="number" min={0} max={100} value={individualScores[key]?.score || ''}
+                                                                                onChange={e => setIndividualScores(prev => ({ ...prev, [key]: { ...prev[key], score: e.target.value } }))}
+                                                                                placeholder="Score"
+                                                                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-violet-500/50 transition-colors" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <input value={individualScores[key]?.feedback || ''}
+                                                                                onChange={e => setIndividualScores(prev => ({ ...prev, [key]: { ...prev[key], feedback: e.target.value } }))}
+                                                                                placeholder="Feedback (optional)"
+                                                                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-violet-500/50 transition-colors" />
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex items-center gap-3">
+                                                        <button onClick={() => handleGradeGroup(gradingGroup)} disabled={savingGrade}
+                                                            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 transition-colors text-white text-xs font-black uppercase tracking-widest rounded-xl">
+                                                            {savingGrade ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                                                            {savingGrade ? 'Saving...' : 'Save Grades'}
+                                                        </button>
+                                                        <button onClick={() => { setGradingGroupId(null); setGradingGroup(null); setGradeScore(''); setGradeFeedback(''); setIndividualScores({}); }}
+                                                            className="px-4 py-2.5 text-muted-foreground text-xs font-black uppercase tracking-widest hover:text-foreground transition-colors">Cancel</button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* STAFF — ACTIVITIES TAB */}
             {tab === 'activities' && (
