@@ -22,7 +22,8 @@ export default function EditParentPage() {
 
   const fetchData = useCallback(async (schoolOverride?: string) => {
     if (!profile || !id) return;
-    setLoading(true);
+    const isInitial = schoolOverride === undefined;
+    if (isInitial) setLoading(true); // Only show full-page spinner on first load
     setError(null);
     try {
       const params = new URLSearchParams({ include_picker_data: 'true' });
@@ -33,8 +34,7 @@ export default function EditParentPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to load parent');
 
-      // Only set parent on first load (we have the id)
-      if (!parent) {
+      if (isInitial) {
         const found = json.data?.find((p: any) => p.id === id);
         if (!found) throw new Error('Parent record not found');
         setParent(found);
@@ -47,7 +47,7 @@ export default function EditParentPage() {
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   }, [profile, id]); // eslint-disable-line react-hooks/exhaustive-deps
 
