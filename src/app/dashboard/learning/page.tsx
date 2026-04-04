@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import {
   RocketLaunchIcon, BookOpenIcon, ClockIcon,
-  AcademicCapIcon, PlayCircleIcon, CheckBadgeIcon,
+  AcademicCapIcon, PlayCircleIcon, CheckBadgeIcon, ClipboardDocumentListIcon,
   SparklesIcon, ArrowRightIcon, TrophyIcon,
   FireIcon, BoltIcon, ChartBarIcon, StarIcon,
   PlayIcon, MapPinIcon, LockClosedIcon,
@@ -36,7 +36,7 @@ export default function StudentLearningPage() {
   const [greeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set());
   const [badges, setBadges] = useState<any[]>([]);
-  const [coursesByProgram, setCoursesByProgram] = useState<Record<string, { id: string; title: string; description: string | null; duration_hours: number | null; program_id: string }[]>>({});
+  const [coursesByProgram, setCoursesByProgram] = useState<Record<string, { id: string; title: string; description: string | null; duration_hours: number | null; program_id: string; lessons: { id: string }[]; assignments: { id: string }[] }[]>>({});
   const [pendingAssignments, setPendingAssignments] = useState(0);
   const [dailyMissions, setDailyMissions] = useState<any[]>([]);
 
@@ -61,11 +61,16 @@ export default function StudentLearningPage() {
 
       const pIds = enrolledPrograms.map(p => p.id);
 
-      // 1b. Fetch courses for each enrolled program
-      type ProgramCourse = { id: string; title: string; description: string | null; duration_hours: number | null; program_id: string };
+      // 1b. Fetch courses (with lesson + assignment counts) for each enrolled program
+      type ProgramCourse = {
+        id: string; title: string; description: string | null;
+        duration_hours: number | null; program_id: string;
+        lessons: { id: string }[];
+        assignments: { id: string }[];
+      };
       if (pIds.length) {
         const { data: rawCourses } = await db.from('courses')
-          .select('id, title, description, duration_hours, program_id')
+          .select('id, title, description, duration_hours, program_id, lessons(id), assignments(id)')
           .in('program_id', pIds)
           .eq('is_active', true)
           .order('created_at', { ascending: true });
@@ -674,23 +679,59 @@ export default function StudentLearningPage() {
                             <div className="px-6 pb-6">
                               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Courses in this program</p>
                               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {courses.map((c, ci) => (
-                                  <Link key={c.id} href={`/dashboard/courses/${c.id}`}
-                                    className="group flex flex-col gap-2 p-4 bg-background border border-border hover:border-orange-500/40 hover:bg-orange-500/5 transition-all">
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div className={`w-7 h-7 ${accent.light} flex items-center justify-center flex-shrink-0`}>
-                                        <span className={`text-xs font-black ${accent.text}`}>{ci + 1}</span>
+                                {courses.map((c, ci) => {
+                                  const totalLessons = c.lessons?.length ?? 0;
+                                  const doneLessons = (c.lessons ?? []).filter(l => completedLessonIds.has(l.id)).length;
+                                  const totalAssignments = c.assignments?.length ?? 0;
+                                  const coursePct = totalLessons > 0 ? Math.round((doneLessons / totalLessons) * 100) : 0;
+                                  return (
+                                    <Link key={c.id} href={`/dashboard/courses/${c.id}`}
+                                      className="group flex flex-col gap-3 p-4 bg-background border border-border hover:border-orange-500/40 hover:bg-orange-500/5 transition-all">
+                                      {/* Top row: number badge + arrow */}
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className={`w-7 h-7 ${accent.light} flex items-center justify-center flex-shrink-0`}>
+                                          <span className={`text-xs font-black ${accent.text}`}>{ci + 1}</span>
+                                        </div>
+                                        <ArrowRightIcon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
                                       </div>
-                                      <ArrowRightIcon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-0.5" />
-                                    </div>
-                                    <p className="text-sm font-bold text-foreground group-hover:text-orange-500 transition-colors leading-snug">{c.title}</p>
-                                    {c.duration_hours && (
-                                      <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                        <ClockIcon className="w-3 h-3" />{c.duration_hours}h
-                                      </p>
-                                    )}
-                                  </Link>
-                                ))}
+                                      {/* Title */}
+                                      <p className="text-sm font-bold text-foreground group-hover:text-orange-500 transition-colors leading-snug">{c.title}</p>
+                                      {/* Stats row */}
+                                      <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
+                                        {totalLessons > 0 && (
+                                          <span className="flex items-center gap-1">
+                                            <PlayCircleIcon className="w-3 h-3" />{totalLessons} lesson{totalLessons !== 1 ? 's' : ''}
+                                          </span>
+                                        )}
+                                        {totalAssignments > 0 && (
+                                          <span className="flex items-center gap-1">
+                                            <ClipboardDocumentListIcon className="w-3 h-3" />{totalAssignments} task{totalAssignments !== 1 ? 's' : ''}
+                                          </span>
+                                        )}
+                                        {c.duration_hours && (
+                                          <span className="flex items-center gap-1">
+                                            <ClockIcon className="w-3 h-3" />{c.duration_hours}h
+                                          </span>
+                                        )}
+                                      </div>
+                                      {/* Per-course progress bar */}
+                                      {totalLessons > 0 && (
+                                        <div>
+                                          <div className="flex justify-between text-[9px] text-muted-foreground mb-1">
+                                            <span>{doneLessons}/{totalLessons} lessons done</span>
+                                            <span className={coursePct === 100 ? 'text-emerald-500 font-bold' : ''}>{coursePct}%</span>
+                                          </div>
+                                          <div className="h-1 bg-muted/30 overflow-hidden">
+                                            <div
+                                              className={`h-full transition-all duration-700 ${coursePct === 100 ? 'bg-emerald-500' : `bg-gradient-to-r ${accent.bar}`}`}
+                                              style={{ width: `${coursePct}%` }}
+                                            />
+                                          </div>
+                                        </div>
+                                      )}
+                                    </Link>
+                                  );
+                                })}
                               </div>
                             </div>
                           ) : (
