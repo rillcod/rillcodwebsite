@@ -214,6 +214,59 @@ function LinkStudentModal({
 }
 
 // ── Print Registry Modal ─────────────────────────────────────────────────────
+function buildRegistryHTML(parents: Parent[], schoolFilter: string): string {
+  const filtered = schoolFilter
+    ? parents.filter(p => p.children.some(c => c.school_name === schoolFilter))
+    : parents;
+  const printDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  const genDate = new Date().toISOString().slice(0, 10);
+
+  const rows = filtered.map((parent, idx) => `
+    <tr style="border-bottom:1px solid #e5e7eb;background:${idx % 2 === 0 ? '#f9fafb' : '#fff'}">
+      <td style="padding:8px 6px;color:#6b7280">${idx + 1}</td>
+      <td style="padding:8px 6px;font-weight:700">${parent.full_name ?? ''}</td>
+      <td style="padding:8px 6px;color:#374151">${parent.email ?? ''}</td>
+      <td style="padding:8px 6px;color:#374151">${parent.phone ?? '—'}</td>
+      <td style="padding:8px 6px;color:#374151">${parent.children.length > 0 ? parent.children.map(c => c.full_name).join(', ') : '—'}</td>
+      <td style="padding:8px 6px">
+        <span style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;padding:2px 6px;
+          border:1px solid ${parent.is_active ? '#059669' : '#dc2626'};color:${parent.is_active ? '#059669' : '#dc2626'}">
+          ${parent.is_active ? 'Active' : 'Inactive'}
+        </span>
+      </td>
+    </tr>`).join('');
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>Parent Registry</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:12px;color:#111;background:#fff;padding:32px}
+    h1{font-size:22px;font-weight:900;text-transform:uppercase;letter-spacing:0.08em}
+    .meta{font-size:12px;color:#6b7280;margin-top:4px;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #1f2937}
+    table{width:100%;border-collapse:collapse}
+    th{text-align:left;padding:8px 6px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;font-size:10px;border-bottom:2px solid #1f2937}
+    td{vertical-align:top}
+    .footer{margin-top:32px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af}
+    @media print{body{padding:16px}}
+  </style>
+</head><body>
+  <h1>Parent Registry</h1>
+  <div class="meta">
+    ${schoolFilter ? `School: ${schoolFilter} &nbsp;·&nbsp; ` : ''}
+    ${filtered.length} parent${filtered.length !== 1 ? 's' : ''} &nbsp;·&nbsp; Printed: ${printDate}
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Parent Name</th><th>Email</th><th>Phone</th><th>Linked Children</th><th>Status</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="footer">Rillcod Technologies &nbsp;·&nbsp; Parent Registry &nbsp;·&nbsp; Generated ${genDate}</div>
+</body></html>`;
+}
+
 function PrintRegistryModal({ parents, schoolFilter, onClose }: {
   parents: Parent[];
   schoolFilter: string;
@@ -223,74 +276,89 @@ function PrintRegistryModal({ parents, schoolFilter, onClose }: {
     p.children.some(c => c.school_name === schoolFilter)
   ) : parents;
 
+  const handlePrint = () => {
+    const html = buildRegistryHTML(parents, schoolFilter);
+    const w = window.open('', '_blank', 'width=960,height=800');
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); }, 400);
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-white text-black print:bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
-      {/* Screen-only header bar */}
-      <div className="print:hidden flex items-center justify-between px-4 sm:px-6 py-4 bg-gray-100 border-b border-gray-200 sticky top-0 z-10 w-full overflow-x-auto">
-        <h2 className="text-[10px] sm:text-sm font-black uppercase tracking-widest truncate shrink-0">Parent Registry</h2>
-        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background text-foreground" style={{ fontFamily: 'Arial, sans-serif' }}>
+      {/* Header bar */}
+      <div className="flex items-center justify-between px-4 sm:px-6 py-4 bg-muted border-b border-border sticky top-0 z-10">
+        <div>
+          <h2 className="text-sm font-black uppercase tracking-widest">Parent Registry</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {schoolFilter ? `${schoolFilter} · ` : ''}{filtered.length} parent{filtered.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-orange-600 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap"
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all"
           >
-            <PrinterIcon className="w-4 h-4 shrink-0" /> Print
+            <PrinterIcon className="w-4 h-4 shrink-0" /> Print / Save PDF
           </button>
-          <button onClick={onClose} className="p-2 hover:bg-gray-200 transition-colors shrink-0">
+          <button onClick={onClose} className="p-2 hover:bg-muted/80 transition-colors">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      <div className="p-4 sm:p-8 max-w-5xl mx-auto overflow-x-auto">
-        {/* Print header */}
-        <div className="mb-6 pb-4 border-b-2 border-gray-800">
-          <h1 className="text-2xl font-black uppercase tracking-widest">Parent Registry</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            {schoolFilter ? `School: ${schoolFilter} · ` : ''}
-            {filtered.length} parent{filtered.length !== 1 ? 's' : ''} ·
-            Printed: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
-          </p>
-        </div>
+      {/* Preview */}
+      <div className="flex-1 overflow-auto p-4 sm:p-8">
+        <div className="max-w-5xl mx-auto bg-white text-black rounded border border-border shadow-sm p-6 sm:p-8">
+          {/* Print header */}
+          <div className="mb-6 pb-4 border-b-2 border-gray-800">
+            <h1 className="text-2xl font-black uppercase tracking-widest">Parent Registry</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              {schoolFilter ? `School: ${schoolFilter} · ` : ''}
+              {filtered.length} parent{filtered.length !== 1 ? 's' : ''} ·
+              Printed: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+            </p>
+          </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #1f2937' }}>
-              <th style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px' }}>#</th>
-              <th style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px' }}>Parent Name</th>
-              <th style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px' }}>Email</th>
-              <th style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px' }}>Phone</th>
-              <th style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px' }}>Linked Children</th>
-              <th style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px' }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((parent, idx) => (
-              <tr key={parent.id} style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: idx % 2 === 0 ? '#f9fafb' : 'white' }}>
-                <td style={{ padding: '8px 6px', color: '#6b7280' }}>{idx + 1}</td>
-                <td style={{ padding: '8px 6px', fontWeight: 700 }}>{parent.full_name}</td>
-                <td style={{ padding: '8px 6px', color: '#374151' }}>{parent.email}</td>
-                <td style={{ padding: '8px 6px', color: '#374151' }}>{parent.phone ?? '—'}</td>
-                <td style={{ padding: '8px 6px', color: '#374151' }}>
-                  {parent.children.length > 0
-                    ? parent.children.map(c => c.full_name).join(', ')
-                    : '—'}
-                </td>
-                <td style={{ padding: '8px 6px' }}>
-                  <span style={{
-                    fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em',
-                    padding: '2px 6px', border: `1px solid ${parent.is_active ? '#059669' : '#dc2626'}`,
-                    color: parent.is_active ? '#059669' : '#dc2626',
-                  }}>
-                    {parent.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          <div className="overflow-x-auto">
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #1f2937' }}>
+                  {['#', 'Parent Name', 'Email', 'Phone', 'Linked Children', 'Status'].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '8px 6px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '10px' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((parent, idx) => (
+                  <tr key={parent.id} style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: idx % 2 === 0 ? '#f9fafb' : 'white' }}>
+                    <td style={{ padding: '8px 6px', color: '#6b7280' }}>{idx + 1}</td>
+                    <td style={{ padding: '8px 6px', fontWeight: 700 }}>{parent.full_name}</td>
+                    <td style={{ padding: '8px 6px', color: '#374151' }}>{parent.email}</td>
+                    <td style={{ padding: '8px 6px', color: '#374151' }}>{parent.phone ?? '—'}</td>
+                    <td style={{ padding: '8px 6px', color: '#374151' }}>
+                      {parent.children.length > 0 ? parent.children.map(c => c.full_name).join(', ') : '—'}
+                    </td>
+                    <td style={{ padding: '8px 6px' }}>
+                      <span style={{
+                        fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em',
+                        padding: '2px 6px', border: `1px solid ${parent.is_active ? '#059669' : '#dc2626'}`,
+                        color: parent.is_active ? '#059669' : '#dc2626',
+                      }}>
+                        {parent.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-        <div style={{ marginTop: '32px', paddingTop: '12px', borderTop: '1px solid #e5e7eb', fontSize: '10px', color: '#9ca3af' }}>
-          Rillcod Technologies · Parent Registry · Generated {new Date().toISOString().slice(0, 10)}
+          <div style={{ marginTop: '32px', paddingTop: '12px', borderTop: '1px solid #e5e7eb', fontSize: '10px', color: '#9ca3af' }}>
+            Rillcod Technologies · Parent Registry · Generated {new Date().toISOString().slice(0, 10)}
+          </div>
         </div>
       </div>
     </div>
