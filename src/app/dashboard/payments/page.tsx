@@ -894,11 +894,30 @@ ${schoolInvForm.notes ? `<div class="notes-box"><b>Notes:</b> ${schoolInvForm.no
         if (err) throw err;
         if (showFeedback) alert('Invoice updated successfully.');
       } else {
+        // ── Duplicate check: warn if school already has an open invoice ──
+        const { data: existing } = await db
+          .from('invoices')
+          .select('id, invoice_number, amount, status, due_date, created_at')
+          .eq('school_id', schoolInvForm.school_id)
+          .in('status', ['sent', 'overdue', 'draft'])
+          .order('created_at', { ascending: false })
+          .limit(3);
+
+        if (existing && existing.length > 0) {
+          const list = existing.map(inv =>
+            `• ${inv.invoice_number} — ₦${Number(inv.amount).toLocaleString()} — ${inv.status.toUpperCase()} (due ${new Date(inv.due_date).toLocaleDateString('en-NG')})`
+          ).join('\n');
+          const proceed = confirm(
+            `⚠️ This school already has ${existing.length} open invoice(s):\n\n${list}\n\nCreate another invoice anyway?`
+          );
+          if (!proceed) { if (showFeedback) setLoadingTx(false); return; }
+        }
+
         const docRef = `SINV-${Date.now().toString(36).toUpperCase()}`;
-        const { error: err } = await db.from('invoices').insert({ 
-          ...invPayload, 
-          invoice_number: docRef, 
-          school_id: schoolInvForm.school_id 
+        const { error: err } = await db.from('invoices').insert({
+          ...invPayload,
+          invoice_number: docRef,
+          school_id: schoolInvForm.school_id
         });
         if (err) throw err;
         if (showFeedback) alert('New invoice generated and saved.');
