@@ -1510,13 +1510,12 @@ export default function PaymentsPage() {
                                   Mark Paid
                                 </button>
                               )}
-                              <Link
-                                href={`/dashboard/payments/invoices/${inv.id}/edit`}
-                                onClick={e => e.stopPropagation()}
+                              <button
+                                onClick={e => openEditInvoice(inv, e)}
                                 className="flex-1 py-1.5 bg-white/[0.04] border border-white/[0.08] text-slate-400 text-[9px] font-black uppercase tracking-widest hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-1"
                               >
                                 <PencilIcon className="w-3 h-3" /> Edit
-                              </Link>
+                              </button>
                               <button
                                 onClick={(e) => handleDeleteInvoice(inv.id, e)}
                                 className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[9px] font-black uppercase hover:bg-rose-500/20 transition-all flex items-center justify-center"
@@ -2442,13 +2441,12 @@ export default function PaymentsPage() {
                                 <CheckIcon className="w-3 h-3" /> Paid
                               </button>
                             )}
-                            <Link
-                              href={`/dashboard/payments/invoices/${inv.id}/edit`}
-                              onClick={e => e.stopPropagation()}
+                            <button
+                              onClick={e => openEditInvoice(inv, e)}
                               className="flex-1 py-2.5 flex items-center justify-center gap-1 text-[9px] font-black text-muted-foreground hover:text-foreground hover:bg-muted transition-colors uppercase tracking-widest"
                             >
                               <PencilIcon className="w-3 h-3" /> Edit
-                            </Link>
+                            </button>
                             <button
                               onClick={(e) => {
                                 const invRow = invoices.find(i => i.invoice_number === inv.invoice_number);
