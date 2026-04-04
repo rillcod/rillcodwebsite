@@ -1105,7 +1105,7 @@ export default function PaymentsPage() {
 
         if (existing && existing.length > 0) {
           const list = existing.map(inv =>
-            `• ${inv.invoice_number} — ₦${Number(inv.amount).toLocaleString()} — ${inv.status.toUpperCase()} (due ${new Date(inv.due_date).toLocaleDateString('en-NG')})`
+            `• ${inv.invoice_number} — ₦${Number(inv.amount).toLocaleString()} — ${(inv.status ?? '').toUpperCase()} (due ${inv.due_date ? new Date(inv.due_date).toLocaleDateString('en-NG') : '—'})`
           ).join('\n');
           const proceed = confirm(
             `⚠️ This school already has ${existing.length} open invoice(s):\n\n${list}\n\nCreate another invoice anyway?`
