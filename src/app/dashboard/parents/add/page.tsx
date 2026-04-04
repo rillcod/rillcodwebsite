@@ -20,11 +20,11 @@ export default function AddParentPage() {
 
   const fetchData = useCallback(async (schoolOverride?: string) => {
     if (!profile) return;
-    setLoading(true);
+    const isInitial = schoolOverride === undefined;
+    if (isInitial) setLoading(true); // Only show full-page spinner on first load
     setError(null);
     try {
       const params = new URLSearchParams({ include_picker_data: 'true' });
-      // Teachers are always scoped to their school; admins can override per school
       const school = schoolOverride ?? (profile.role === 'teacher' ? profile.school_name ?? '' : '');
       if (school) params.set('school', school);
 
@@ -39,7 +39,7 @@ export default function AddParentPage() {
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
