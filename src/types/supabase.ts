@@ -3670,6 +3670,7 @@ export type Database = {
           individual_score: number | null
           joined_at: string
           student_id: string
+          task_description: string | null
         }
         Insert: {
           group_id: string
@@ -3678,6 +3679,7 @@ export type Database = {
           individual_score?: number | null
           joined_at?: string
           student_id: string
+          task_description?: string | null
         }
         Update: {
           group_id?: string
@@ -3686,6 +3688,7 @@ export type Database = {
           individual_score?: number | null
           joined_at?: string
           student_id?: string
+          task_description?: string | null
         }
         Relationships: [
           {
