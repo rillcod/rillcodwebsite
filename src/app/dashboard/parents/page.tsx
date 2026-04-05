@@ -853,8 +853,9 @@ export default function ParentsPage() {
   }, [pickerLoaded, load]);
 
   // Re-fetch students/teachers/classes for a specific school (used inside the slide-over)
+  // NOTE: do NOT set slidePickerLoading here — that unmounts ParentForm and resets all typed data.
+  // The form's own schoolChanging state handles the inline "loading students…" indicator.
   const handleSlideSchoolChange = useCallback(async (school: string) => {
-    setSlidePickerLoading(true);
     try {
       const params = new URLSearchParams({ include_picker_data: 'true' });
       if (school) params.set('school', school);
@@ -865,9 +866,7 @@ export default function ParentsPage() {
         setTeachers(json.teachers || []);
         setClasses(json.classes || []);
       }
-    } finally {
-      setSlidePickerLoading(false);
-    }
+    } catch { /* silent — form shows its own inline error */ }
   }, []);
 
   useEffect(() => {
@@ -1241,7 +1240,7 @@ export default function ParentsPage() {
                   </div>
 
                   {/* Children count badge */}
-                  <div className="hidden xs:flex items-center gap-1.5 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
                     <div className="flex items-center gap-1 px-2 py-1.5 bg-orange-500/5 border border-orange-500/15">
                       <AcademicCapIcon className="w-3.5 h-3.5 text-orange-400" />
                       <span className="text-xs font-black text-orange-400">{parent.children.length}</span>
