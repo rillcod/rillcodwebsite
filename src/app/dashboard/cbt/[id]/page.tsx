@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeftIcon, AcademicCapIcon, ClockIcon, CheckCircleIcon,
   XCircleIcon, UserGroupIcon, ChartBarIcon, PencilIcon, PrinterIcon,
+  CheckIcon, XMarkIcon,
 } from '@/lib/icons';
 
 export default function ExamDetailPage() {
@@ -21,6 +22,7 @@ export default function ExamDetailPage() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
+  const [showReview, setShowReview] = useState(false);
   const [printFilter, setPrintFilter] = useState<'all' | 'mcq' | 'theory'>('all');
   const [printMcqCount, setPrintMcqCount] = useState<string>('');      // '' = all
   const [printTheoryCount, setPrintTheoryCount] = useState<string>(''); // '' = all
@@ -586,7 +588,171 @@ ${mode === 'staff' ? `
               )}
             </div>
           )}
+          {!isStaff && mySession && mySession.answers && questions.length > 0 && (
+            <div className="mt-3">
+              <button
+                onClick={() => setShowReview(v => !v)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-border text-xs font-bold text-foreground rounded-none transition-colors"
+              >
+                {showReview ? 'Hide Review' : 'Review Answers'}
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Student: answer review */}
+        {!isStaff && mySession && mySession.answers && questions.length > 0 && showReview && (() => {
+          const answers: Record<string, string> = mySession.answers ?? {};
+          const essayTypes = new Set(['essay']);
+          type ReviewQ = {
+            q: any;
+            studentAnswer: string;
+            isEssay: boolean;
+            isCorrect: boolean | null; // null = essay / pending
+            pts: number;
+            earnedPts: number | null;
+          };
+          const reviewed: ReviewQ[] = questions.map((q: any) => {
+            const studentAnswer = answers[q.id] ?? '';
+            const isEssay = essayTypes.has(q.question_type);
+            const pts = q.points ?? 0;
+            if (isEssay) {
+              return { q, studentAnswer, isEssay: true, isCorrect: null, pts, earnedPts: null };
+            }
+            const correct = (q.correct_answer ?? '').toString().trim().toLowerCase();
+            const given = studentAnswer.trim().toLowerCase();
+            const isCorrect = correct.length > 0 && given === correct;
+            return { q, studentAnswer, isEssay: false, isCorrect, pts, earnedPts: isCorrect ? pts : 0 };
+          });
+
+          const correctCount   = reviewed.filter(r => r.isCorrect === true).length;
+          const incorrectCount = reviewed.filter(r => r.isCorrect === false).length;
+          const pendingCount   = reviewed.filter(r => r.isCorrect === null).length;
+          const autoTotal      = reviewed.filter(r => !r.isEssay).length;
+          const scorePct       = mySession.score ?? 0;
+          const passing        = exam.passing_score ?? 70;
+
+          return (
+            <div className="space-y-4">
+              {/* Summary stats bar */}
+              <div className="bg-card border border-border rounded-none p-4 flex flex-wrap gap-4 items-center">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mr-auto">Answer Review</p>
+                <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                  <CheckIcon className="w-3.5 h-3.5" />
+                  Correct: {correctCount}/{autoTotal}
+                </span>
+                <span className="flex items-center gap-1.5 text-xs font-bold text-rose-400">
+                  <XMarkIcon className="w-3.5 h-3.5" />
+                  Incorrect: {incorrectCount}
+                </span>
+                {pendingCount > 0 && (
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
+                    Pending Review: {pendingCount}
+                  </span>
+                )}
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-none border ${scorePct >= passing ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
+                  Score: {scorePct}%
+                </span>
+              </div>
+
+              {/* Per-question cards */}
+              <div className="space-y-3">
+                {reviewed.map((r, i) => {
+                  const { q, studentAnswer, isEssay, isCorrect, pts, earnedPts } = r;
+                  const isMCQ = q.options && Array.isArray(q.options) && q.options.length > 0;
+                  const isFillOrCode = !isMCQ && !isEssay;
+
+                  const badgeCls = isEssay
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                    : isCorrect
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-400';
+                  const badgeLabel = isEssay ? 'Pending' : isCorrect ? 'Correct' : 'Incorrect';
+
+                  const ptsCls = isEssay
+                    ? 'text-amber-400'
+                    : isCorrect ? 'text-emerald-400' : 'text-rose-400';
+                  const ptsLabel = isEssay ? `?/${pts} pts` : `${earnedPts}/${pts} pts`;
+
+                  return (
+                    <div key={q.id} className="bg-card border border-border p-5 space-y-4 rounded-none">
+                      {/* Card header */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pt-0.5 flex-shrink-0">
+                            Q{i + 1}
+                          </span>
+                          <p className="text-sm text-foreground leading-relaxed">{q.question_text}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                          <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border rounded-none ${badgeCls}`}>
+                            {badgeLabel}
+                          </span>
+                          <span className={`text-[10px] font-bold ${ptsCls}`}>{ptsLabel}</span>
+                        </div>
+                      </div>
+
+                      {/* MCQ options */}
+                      {isMCQ && (
+                        <div className="space-y-1.5 pl-8">
+                          {(q.options as string[]).map((opt: string, oi: number) => {
+                            const isAnswer = opt.trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase();
+                            const isSelected = opt.trim().toLowerCase() === studentAnswer.trim().toLowerCase();
+                            const isWrong = isSelected && !isAnswer;
+
+                            let optCls = 'border-border text-muted-foreground';
+                            if (isAnswer) optCls = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400';
+                            if (isWrong)  optCls = 'bg-rose-500/10 border-rose-500/30 text-rose-400';
+
+                            return (
+                              <div key={oi} className={`flex items-center gap-2.5 px-3 py-2 border rounded-none text-xs font-medium ${optCls}`}>
+                                <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center border border-current rounded-full text-[10px] font-black">
+                                  {String.fromCharCode(65 + oi)}
+                                </span>
+                                <span className="flex-1">{opt}</span>
+                                {isAnswer && <CheckIcon className="w-3.5 h-3.5 flex-shrink-0" />}
+                                {isWrong  && <XMarkIcon className="w-3.5 h-3.5 flex-shrink-0" />}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Fill blank / coding — side-by-side comparison */}
+                      {isFillOrCode && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-8">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Your Answer</p>
+                            <div className={`px-3 py-2.5 border rounded-none text-xs font-mono ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
+                              {studentAnswer || <span className="italic opacity-60">No answer</span>}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Correct Answer</p>
+                            <div className="px-3 py-2.5 border rounded-none text-xs font-mono bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
+                              {q.correct_answer || <span className="italic opacity-60">N/A</span>}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Essay */}
+                      {isEssay && (
+                        <div className="pl-8 space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Your Answer</p>
+                          <div className="px-3 py-2.5 border border-border bg-white/5 rounded-none text-xs text-foreground leading-relaxed whitespace-pre-wrap">
+                            {studentAnswer || <span className="italic text-muted-foreground">No answer submitted</span>}
+                          </div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-400">Awaiting manual review</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Staff: sessions */}
         {isStaff && sessions.length > 0 && (
