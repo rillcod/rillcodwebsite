@@ -213,9 +213,12 @@ export function ParentForm({
 }) {
   const { profile } = useAuth();
   const isEdit = !!initialData;
+  // For new parents: default to '' (show "Select School") unless teacher (locked to their school)
+  // For edit: default to parent's school
   const [selectedSchool, setSelectedSchool] = useState(defaultSchool ?? '');
   const [schoolChanging, setSchoolChanging] = useState(false);
   useEffect(() => {
+    // Only auto-set school if it's meaningful (non-empty)
     if (defaultSchool) setSelectedSchool(defaultSchool);
   }, [defaultSchool]);
 
@@ -465,9 +468,15 @@ export function ParentForm({
                 className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-80"
               >
                 {schools.length === 0 && <option value="">— No Schools Available —</option>}
-                {profile?.role === 'admin' && schools.length > 1 && <option value="">— Select School —</option>}
+                {/* Always show a placeholder for admin or when no school is pre-selected */}
+                {(profile?.role === 'admin' || !selectedSchool) && (
+                  <option value="">— Select School —</option>
+                )}
                 {schools.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
+              {!selectedSchool && profile?.role !== 'teacher' && (
+                <p className="text-[10px] text-orange-400/80 mt-1 font-bold">Select a school to load students for that school.</p>
+              )}
               {schoolChanging && (
                 <p className="text-[10px] text-orange-400 mt-1.5 animate-pulse flex items-center gap-1">
                   <span className="w-2 h-2 border border-orange-400 border-t-transparent rounded-full animate-spin inline-block" />

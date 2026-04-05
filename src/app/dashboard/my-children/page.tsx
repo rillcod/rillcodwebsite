@@ -43,11 +43,11 @@ function calcAge(dob: string | null): string | null {
 }
 
 const QUICK_LINKS = (id: string) => [
-  { label: 'Report Cards',  href: `/dashboard/parent-results?student=${id}`,    icon: DocumentChartBarIcon       },
-  { label: 'Attendance',    href: `/dashboard/parent-attendance?student=${id}`, icon: ClipboardDocumentCheckIcon  },
-  { label: 'Grades',        href: `/dashboard/parent-grades?student=${id}`,     icon: ClipboardDocumentListIcon   },
-  { label: 'Invoices',      href: `/dashboard/parent-invoices?student=${id}`,   icon: BanknotesIcon               },
-  { label: 'Certificates',  href: `/dashboard/parent-certificates?student=${id}`, icon: TrophyIcon               },
+  { label: 'Report Cards',  href: `/dashboard/parent-results?student=${id}`,      icon: DocumentChartBarIcon,      color: 'bg-violet-500/20 text-violet-400', hover: 'group-hover/link:bg-violet-500/30' },
+  { label: 'Attendance',    href: `/dashboard/parent-attendance?student=${id}`,   icon: ClipboardDocumentCheckIcon, color: 'bg-emerald-500/20 text-emerald-400', hover: 'group-hover/link:bg-emerald-500/30' },
+  { label: 'Grades',        href: `/dashboard/parent-grades?student=${id}`,       icon: ClipboardDocumentListIcon,  color: 'bg-blue-500/20 text-blue-400', hover: 'group-hover/link:bg-blue-500/30' },
+  { label: 'Invoices',      href: `/dashboard/parent-invoices?student=${id}`,     icon: BanknotesIcon,              color: 'bg-rose-500/20 text-rose-400', hover: 'group-hover/link:bg-rose-500/30' },
+  { label: 'Certificates',  href: `/dashboard/parent-certificates?student=${id}`, icon: TrophyIcon,                 color: 'bg-amber-500/20 text-amber-400', hover: 'group-hover/link:bg-amber-500/30' },
 ];
 
 export default function MyChildrenPage() {
@@ -230,11 +230,13 @@ export default function MyChildrenPage() {
 
                 {/* Quick links */}
                 <div className="grid grid-cols-5 border-t border-border">
-                  {QUICK_LINKS(child.id).map(({ label, href, icon: Icon }) => (
+                  {QUICK_LINKS(child.id).map(({ label, href, icon: Icon, color, hover }) => (
                     <Link key={label} href={href}
-                      className="flex flex-col items-center gap-1.5 py-3 px-2 hover:bg-orange-500/5 hover:text-orange-400 text-muted-foreground transition-all border-r border-border last:border-r-0 group/link">
-                      <Icon className="w-4 h-4 group-hover/link:scale-110 transition-transform" />
-                      <span className="text-[8px] font-black uppercase tracking-wider text-center leading-tight">{label}</span>
+                      className="flex flex-col items-center gap-2 py-3 px-1.5 hover:bg-white/5 transition-all border-r border-border last:border-r-0 group/link">
+                      <span className={`w-8 h-8 rounded-sm flex items-center justify-center ${color} ${hover} transition-colors`}>
+                        <Icon className="w-4 h-4" />
+                      </span>
+                      <span className="text-[8px] font-black uppercase tracking-wider text-center leading-tight text-muted-foreground group-hover/link:text-foreground transition-colors">{label}</span>
                     </Link>
                   ))}
                 </div>
