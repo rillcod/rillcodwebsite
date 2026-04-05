@@ -68,58 +68,54 @@ function parseParts(raw: string): MsgPart[] {
     return parts;
 }
 
+// Render inline markdown: **bold**, `code`, *italic*
+function renderInline(text: string): React.ReactNode[] {
+    const out: React.ReactNode[] = [];
+    const re = /\*\*(.+?)\*\*|`([^`]+)`|\*(.+?)\*/g;
+    let last = 0; let m: RegExpExecArray | null; let ki = 0;
+    while ((m = re.exec(text)) !== null) {
+        if (m.index > last) out.push(<React.Fragment key={ki++}>{text.slice(last, m.index)}</React.Fragment>);
+        if (m[1] !== undefined) out.push(<strong key={ki++} style={{ color: '#fff', fontWeight: 700 }}>{m[1]}</strong>);
+        else if (m[2] !== undefined) out.push(<code key={ki++} style={{ padding: '1px 5px', background: 'rgba(255,150,50,0.15)', color: '#fb923c', fontFamily: 'monospace', fontSize: 10, borderRadius: 3 }}>{m[2]}</code>);
+        else if (m[3] !== undefined) out.push(<em key={ki++} style={{ color: 'rgba(255,255,255,0.5)', fontStyle: 'italic' }}>{m[3]}</em>);
+        last = m.index + m[0].length;
+    }
+    if (last < text.length) out.push(<React.Fragment key={ki++}>{text.slice(last)}</React.Fragment>);
+    return out;
+}
+
 // Render AI text: convert markdown to styled JSX
 function AiTextBlock({ text }: { text: string }) {
     const lines = text.split('\n');
     return (
-        <div className="space-y-1 text-xs leading-relaxed">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, lineHeight: 1.6 }}>
             {lines.map((line, i) => {
                 const trimmed = line.trimStart();
-                // h1/h2/h3
                 const h3 = trimmed.match(/^###\s+(.*)/);
                 const h2 = trimmed.match(/^##\s+(.*)/);
                 const h1 = trimmed.match(/^#\s+(.*)/);
-                if (h3) return <p key={i} className="font-black text-white/90 text-[11px] uppercase tracking-widest mt-2">{h3[1]}</p>;
-                if (h2) return <p key={i} className="font-black text-orange-400 text-[11px] uppercase tracking-widest mt-2">{h2[1]}</p>;
-                if (h1) return <p key={i} className="font-black text-orange-300 text-xs uppercase tracking-wider mt-2">{h1[1]}</p>;
-                // bullet/numbered
+                if (h3) return <div key={i} style={{ fontWeight: 900, color: 'rgba(255,255,255,0.9)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.15em', marginTop: 8 }}>{h3[1]}</div>;
+                if (h2) return <div key={i} style={{ fontWeight: 900, color: '#fb923c', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 8 }}>{h2[1]}</div>;
+                if (h1) return <div key={i} style={{ fontWeight: 900, color: '#fdba74', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 10 }}>{h1[1]}</div>;
                 const bullet = trimmed.match(/^[-*]\s+(.*)/);
                 const numbered = trimmed.match(/^(\d+)\.\s+(.*)/);
                 if (bullet) return (
-                    <div key={i} className="flex gap-1.5 text-white/75">
-                        <span className="text-orange-400 flex-shrink-0 mt-0.5">▸</span>
+                    <div key={i} style={{ display: 'flex', gap: 8, color: 'rgba(255,255,255,0.75)', paddingLeft: 4 }}>
+                        <span style={{ color: '#f97316', flexShrink: 0, marginTop: 1 }}>▸</span>
                         <span>{renderInline(bullet[1])}</span>
                     </div>
                 );
                 if (numbered) return (
-                    <div key={i} className="flex gap-1.5 text-white/75">
-                        <span className="text-orange-400/70 flex-shrink-0 font-bold">{numbered[1]}.</span>
+                    <div key={i} style={{ display: 'flex', gap: 8, color: 'rgba(255,255,255,0.75)', paddingLeft: 4 }}>
+                        <span style={{ color: 'rgba(249,115,22,0.7)', flexShrink: 0, fontWeight: 700, minWidth: 16 }}>{numbered[1]}.</span>
                         <span>{renderInline(numbered[2])}</span>
                     </div>
                 );
-                // blank line
-                if (!trimmed) return <div key={i} className="h-1" />;
-                // plain
-                return <p key={i} className="text-white/75">{renderInline(line)}</p>;
+                if (!trimmed) return <div key={i} style={{ height: 4 }} />;
+                return <div key={i} style={{ color: 'rgba(255,255,255,0.75)' }}>{renderInline(line)}</div>;
             })}
         </div>
     );
-}
-
-// Render inline markdown: **bold**, `code`, *italic*
-function renderInline(text: string): React.ReactNode {
-    const parts: React.ReactNode[] = [];
-    const re = /(\*\*(.+?)\*\*|`([^`]+)`|\*(.+?)\*)/g;
-    let last = 0; let m: RegExpExecArray | null; let ki = 0;
-    while ((m = re.exec(text)) !== null) {
-        if (m.index > last) parts.push(<span key={ki++}>{text.slice(last, m.index)}</span>);
-        if (m[2]) parts.push(<strong key={ki++} className="text-white font-bold">{m[2]}</strong>);
-        else if (m[3]) parts.push(<code key={ki++} className="px-1 py-0.5 bg-white/10 text-orange-300 font-mono text-[10px]">{m[3]}</code>);
-        else if (m[4]) parts.push(<em key={ki++} className="text-white/60 italic">{m[4]}</em>);
-        last = m.index + m[0].length;
-    }
-    if (last < text.length) parts.push(<span key={ki++}>{text.slice(last)}</span>);
-    return parts;
 }
 
 // Quick AI action prompts
@@ -182,6 +178,15 @@ export default function ProjectBuilderPage() {
     const [feedbackInput, setFeedbackInput]= useState('');
     const [savingGrade, setSavingGrade]    = useState(false);
     const [expandedSub, setExpandedSub]    = useState<string | null>(null);
+
+    // edit activity
+    const [editMode, setEditMode]          = useState(false);
+    const [editTitle, setEditTitle]        = useState('');
+    const [editDesc, setEditDesc]          = useState('');
+    const [editInstructions, setEditInstructions] = useState('');
+    const [editDueDate, setEditDueDate]    = useState('');
+    const [editPoints, setEditPoints]      = useState('');
+    const [savingEdit, setSavingEdit]      = useState(false);
 
     // ── Load ─────────────────────────────────────────────────────────────────
 
@@ -385,6 +390,40 @@ export default function ProjectBuilderPage() {
         finally { setSavingGrade(false); }
     }
 
+    // ── Edit activity ─────────────────────────────────────────────────────────
+
+    function openEdit() {
+        setEditTitle(activity.title || '');
+        setEditDesc(activity.description || '');
+        setEditInstructions(activity.instructions || '');
+        setEditDueDate(activity.due_date ? activity.due_date.slice(0, 16) : '');
+        setEditPoints(String(activity.max_points ?? ''));
+        setEditMode(true);
+    }
+
+    async function saveEdit() {
+        setSavingEdit(true); setError('');
+        try {
+            const res = await fetch(`/api/assignments/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: editTitle.trim(),
+                    description: editDesc.trim(),
+                    instructions: editInstructions.trim(),
+                    due_date: editDueDate || null,
+                    max_points: editPoints ? Number(editPoints) : null,
+                }),
+            });
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.error || 'Save failed');
+            setEditMode(false);
+            setSuccessMsg('Activity updated!');
+            loadActivity();
+        } catch (err: any) { setError(err.message); }
+        finally { setSavingEdit(false); }
+    }
+
     // ── Render guards ─────────────────────────────────────────────────────────
 
     if (authLoading || loading) return (
@@ -448,9 +487,13 @@ export default function ProjectBuilderPage() {
                         <div className="flex items-center gap-3 flex-shrink-0">
                             {isStudent && mySubmission && <StatusBadge status={mySubmission.status} grade={mySubmission.grade} />}
                             {isStaff && (
-                                <div className="flex items-center gap-2 text-[10px]">
+                                <div className="flex items-center gap-3 text-[10px]">
                                     <span className="text-emerald-400 font-bold">{gradedCount} graded</span>
                                     {pendingCount > 0 && <span className="text-amber-400 font-bold">{pendingCount} pending</span>}
+                                    <button onClick={openEdit}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.05] border border-white/[0.1] hover:border-orange-500/40 hover:bg-orange-500/10 text-white/60 hover:text-orange-400 transition-all font-black uppercase tracking-widest">
+                                        <PencilSquareIcon className="w-3 h-3" /> Edit
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -477,6 +520,71 @@ export default function ProjectBuilderPage() {
                                 <p className="text-emerald-400 text-sm font-semibold">{successMsg}</p>
                             </div>
                         )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ── Edit Activity Panel (staff) ─────────────────────────────── */}
+            <AnimatePresence>
+                {editMode && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                        style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)' }}>
+                        <motion.div initial={{ scale: 0.96, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 16 }}
+                            className="w-full max-w-xl bg-[#0d0d18] border border-orange-500/20 overflow-hidden"
+                            style={{ boxShadow: '0 0 60px rgba(249,115,22,0.12)' }}>
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]"
+                                style={{ background: 'rgba(249,115,22,0.06)' }}>
+                                <div className="flex items-center gap-3">
+                                    <PencilSquareIcon className="w-4 h-4 text-orange-400" />
+                                    <p className="text-xs font-black text-white uppercase tracking-widest">Edit Activity</p>
+                                </div>
+                                <button onClick={() => setEditMode(false)} className="text-white/30 hover:text-white text-lg leading-none">✕</button>
+                            </div>
+                            {/* Form */}
+                            <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                                <div>
+                                    <label className={LABEL}>Title</label>
+                                    <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                                        className={INPUT} placeholder="Activity title" />
+                                </div>
+                                <div>
+                                    <label className={LABEL}>Description</label>
+                                    <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)}
+                                        rows={3} className={TEXTAREA} placeholder="Short description shown to students" />
+                                </div>
+                                <div>
+                                    <label className={LABEL}>Instructions</label>
+                                    <textarea value={editInstructions} onChange={e => setEditInstructions(e.target.value)}
+                                        rows={5} className={TEXTAREA} placeholder="Step-by-step instructions for students" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={LABEL}>Due Date</label>
+                                        <input type="datetime-local" value={editDueDate} onChange={e => setEditDueDate(e.target.value)}
+                                            className={INPUT} />
+                                    </div>
+                                    <div>
+                                        <label className={LABEL}>Max Points</label>
+                                        <input type="number" value={editPoints} onChange={e => setEditPoints(e.target.value)}
+                                            className={INPUT} placeholder="100" min={0} max={1000} />
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Footer */}
+                            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/[0.06]">
+                                <button onClick={() => setEditMode(false)}
+                                    className="px-5 py-2 text-xs font-black text-white/40 hover:text-white uppercase tracking-widest transition-colors">
+                                    Cancel
+                                </button>
+                                <button onClick={saveEdit} disabled={savingEdit || !editTitle.trim()}
+                                    className="flex items-center gap-2 px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50">
+                                    {savingEdit ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
+                                    {savingEdit ? 'Saving…' : 'Save Changes'}
+                                </button>
+                            </div>
+                        </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -569,13 +677,12 @@ export default function ProjectBuilderPage() {
                                                     }
                                                     // code block
                                                     return (
-                                                        <div key={pi} className="overflow-hidden" style={{ boxShadow: '0 0 20px rgba(86,156,214,0.08)' }}>
+                                                        <div key={pi} className="overflow-hidden" style={{ boxShadow: '0 0 24px rgba(86,156,214,0.15), 0 0 48px rgba(86,156,214,0.05)' }}>
                                                             <SyntaxHighlight
                                                                 code={part.content.slice(0, 3000) + (part.content.length > 3000 ? '\n# … truncated' : '')}
                                                                 language={part.language || 'python'}
                                                                 showLineNumbers
                                                                 maxLines={30}
-                                                                animate
                                                             />
                                                             <div className="flex items-center gap-2 px-3 py-1.5"
                                                                 style={{ background: 'rgba(255,255,255,0.03)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
@@ -752,18 +859,26 @@ export default function ProjectBuilderPage() {
 
                                 {/* Code preview from builder */}
                                 {editorCode.trim() && (
-                                    <div>
-                                        <div className="flex items-center justify-between px-4 py-2 bg-emerald-500/5 border border-emerald-500/20 border-b-0">
+                                    <div style={{ borderRadius: 0, overflow: 'hidden', boxShadow: '0 0 40px rgba(249,115,22,0.1), 0 0 80px rgba(249,115,22,0.04)' }}>
+                                        <div className="flex items-center justify-between px-4 py-2.5"
+                                            style={{ background: 'linear-gradient(90deg, rgba(249,115,22,0.12), rgba(249,115,22,0.04))', borderBottom: '1px solid rgba(249,115,22,0.2)' }}>
                                             <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
                                                 <CheckCircleIcon className="w-3.5 h-3.5" /> Code Ready to Submit
                                             </p>
-                                            <span className="text-[9px] text-white/30">{editorCode.split('\n').length} lines</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] text-white/30">{editorCode.split('\n').length} lines</span>
+                                                <button onClick={() => setActiveTab('code')}
+                                                    className="text-[9px] font-black text-orange-400 uppercase tracking-widest px-2 py-0.5 bg-orange-500/15 border border-orange-500/25 hover:bg-orange-500/25 transition-all">
+                                                    Edit Code
+                                                </button>
+                                            </div>
                                         </div>
                                         <SyntaxHighlight
                                             code={editorCode}
                                             language={editorLang}
                                             showLineNumbers
                                             maxLines={12}
+                                            animate
                                         />
                                     </div>
                                 )}
@@ -932,7 +1047,7 @@ export default function ProjectBuilderPage() {
                                                                 language={detectLang(activity?.category ?? '')}
                                                                 showLineNumbers
                                                                 maxLines={25}
-                                                                className="mt-1"
+                                                                animate
                                                             />
                                                         </div>
                                                     )}
