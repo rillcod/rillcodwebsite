@@ -5,7 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 async function requireStaff(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Unauthorized', status: 401 };
-  const { data: profile } = await supabase
+  const admin = createAdminClient();
+  const { data: profile } = await admin
     .from('portal_users')
     .select('id, role, school_name')
     .eq('id', user.id)
@@ -52,8 +53,8 @@ export async function POST(req: Request) {
       }
 
       try {
-        // Check existing portal user
-        const { data: existing } = await supabase
+        // Check existing portal user (admin bypasses RLS)
+        const { data: existing } = await admin
           .from('portal_users')
           .select('id, role')
           .eq('email', email)
@@ -69,8 +70,8 @@ export async function POST(req: Request) {
 
         if (existing) {
           portalUserId = existing.id;
-          // Update name/phone if already exists as parent
-          await supabase.from('portal_users').update({ full_name, phone }).eq('id', portalUserId);
+          // Update name/phone if already exists as parent (admin bypasses RLS)
+          await admin.from('portal_users').update({ full_name, phone }).eq('id', portalUserId);
           results.push({ email, status: 'skipped', message: 'Parent account already exists — updated name/phone' });
         } else {
           // Create auth account
