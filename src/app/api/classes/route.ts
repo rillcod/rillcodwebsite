@@ -63,59 +63,57 @@ export async function GET(_request: NextRequest) {
 
     const classData = classes ?? [];
 
-    // Get live enrolled student counts via portal_users.class_id
+    // Get live enrolled student counts — run direct + enrollment queries in parallel
     const classIds = classData.map((c: any) => c.id).filter(Boolean);
-    // Pre-seed all class IDs with 0 so classes with no enrolled students show 0 (not stale stored count)
+    const programIds = [...new Set(classData.map((c: any) => c.program_id).filter(Boolean))] as string[];
+
     const countMap: Record<string, number> = {};
     classIds.forEach((cid: string) => { countMap[cid] = 0; });
 
     if (classIds.length > 0) {
-      // Primary: students directly assigned via class_id FK
-      const { data: directStudents } = await admin
-        .from('portal_users')
-        .select('class_id')
-        .eq('role', 'student')
-        .in('class_id', classIds);
+      // Run both count queries in parallel
+      const [{ data: directStudents }, { data: enrolledRows }] = await Promise.all([
+        // Direct: students with class_id assigned
+        admin
+          .from('portal_users')
+          .select('class_id')
+          .eq('role', 'student')
+          .in('class_id', classIds),
+        // Fallback: program-enrolled students (class_id may be null)
+        programIds.length > 0
+          ? admin
+              .from('enrollments')
+              .select('user_id, program_id')
+              .in('program_id', programIds)
+              .eq('status', 'active')
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
       (directStudents ?? []).forEach((s: any) => {
         if (s.class_id) countMap[s.class_id] = (countMap[s.class_id] ?? 0) + 1;
       });
 
-      // Fallback: also count program-enrolled students (class_id IS NULL) per class
-      const programIds = [...new Set(classData.map((c: any) => c.program_id).filter(Boolean))] as string[];
-      if (programIds.length > 0) {
-        const { data: enrolledRows } = await admin
-          .from('enrollments')
-          .select('user_id, program_id')
-          .in('program_id', programIds)
-          .eq('status', 'active');
+      if (enrolledRows && enrolledRows.length > 0) {
+        const candidateIds = [...new Set(enrolledRows.map((e: any) => e.user_id).filter(Boolean))] as string[];
+        const { data: unassigned } = await admin
+          .from('portal_users')
+          .select('id')
+          .in('id', candidateIds)
+          .is('class_id', null)
+          .eq('role', 'student');
 
-        if (enrolledRows && enrolledRows.length > 0) {
-          const candidateIds = [...new Set(enrolledRows.map((e: any) => e.user_id).filter(Boolean))] as string[];
-          // Only count students who have NO class_id assigned yet
-          const { data: unassigned } = await admin
-            .from('portal_users')
-            .select('id')
-            .in('id', candidateIds)
-            .is('class_id', null)
-            .eq('role', 'student');
-
-          const unassignedIds = new Set((unassigned ?? []).map((u: any) => u.id));
-
-          // Build a map: program_id → count of unassigned enrolled students
-          const programFallbackCount: Record<string, number> = {};
-          (enrolledRows ?? []).forEach((e: any) => {
-            if (e.user_id && unassignedIds.has(e.user_id)) {
-              programFallbackCount[e.program_id] = (programFallbackCount[e.program_id] ?? 0) + 1;
-            }
-          });
-
-          // Add fallback counts to classes with matching program_id
-          classData.forEach((c: any) => {
-            if (c.program_id && programFallbackCount[c.program_id]) {
-              countMap[c.id] = (countMap[c.id] ?? 0) + programFallbackCount[c.program_id];
-            }
-          });
-        }
+        const unassignedIds = new Set((unassigned ?? []).map((u: any) => u.id));
+        const programFallbackCount: Record<string, number> = {};
+        enrolledRows.forEach((e: any) => {
+          if (e.user_id && unassignedIds.has(e.user_id)) {
+            programFallbackCount[e.program_id] = (programFallbackCount[e.program_id] ?? 0) + 1;
+          }
+        });
+        classData.forEach((c: any) => {
+          if (c.program_id && programFallbackCount[c.program_id]) {
+            countMap[c.id] = (countMap[c.id] ?? 0) + programFallbackCount[c.program_id];
+          }
+        });
       }
     }
 
