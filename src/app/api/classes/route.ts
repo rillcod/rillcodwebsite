@@ -45,14 +45,20 @@ export async function GET(_request: NextRequest) {
       `)
       .order('created_at', { ascending: false });
 
-    if (schoolFilter) {
+    if (caller.role === 'teacher') {
+      if (schoolFilter) {
+        // Browsing a specific school's classes — show all classes at that school
+        // (teacher must be assigned to it via teacher_schools; trust the UI)
+        query = query.eq('school_id', schoolFilter) as any;
+      } else {
+        // Default: only their own classes
+        query = query.eq('teacher_id', caller.id) as any;
+      }
+    } else if (schoolFilter) {
       query = query.eq('school_id', schoolFilter) as any;
     }
 
-    if (caller.role === 'teacher') {
-      // Only show classes assigned to this specific teacher
-      query = query.eq('teacher_id', caller.id) as any;
-    } else if (caller.role === 'school') {
+    if (caller.role === 'school') {
       const sid = caller.school_id;
       if (sid) query = query.eq('school_id', sid) as any;
     }
