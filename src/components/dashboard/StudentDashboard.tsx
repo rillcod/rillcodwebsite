@@ -28,10 +28,12 @@ export default function StudentDashboard() {
     xp: number; streak: number; level: string; lessonsDone: number; avgScore: number;
     nextLesson: any; pendingAssignments: number; badges: any[]; leaderboardRank: number | null;
     recentActivity: any[]; isEnrolled: boolean;
+    upcomingDue: { id: string; title: string; due_date: string; course: string | null }[];
+    recentGrades: { id: string; title: string; grade: number | null; max_points: number | null; submitted_at: string | null }[];
   }>({
     xp: 0, streak: 0, level: 'Bronze', lessonsDone: 0, avgScore: 0,
     nextLesson: null, pendingAssignments: 0, badges: [], leaderboardRank: null, recentActivity: [],
-    isEnrolled: false,
+    isEnrolled: false, upcomingDue: [], recentGrades: [],
   });
   const [loading, setLoading] = useState(true);
   const [aiHook, setAiHook] = useState<{ hook_title: string; real_world_example: string; challenge_question: string } | null>(null);
@@ -43,8 +45,10 @@ export default function StudentDashboard() {
       setLoading(true);
       const db = createClient();
       try {
+        const now = new Date().toISOString();
         const [
-          pointsRes, progressRes, subsRes, pendingRes, badgesRes, lbRes, activityRes, enrollRes
+          pointsRes, progressRes, subsRes, pendingRes, badgesRes, lbRes, activityRes, enrollRes,
+          upcomingRes, recentGradesRes
         ] = await Promise.allSettled([
           db.from('user_points').select('*').eq('portal_user_id', profile.id).maybeSingle(),
           db.from('lesson_progress').select('id', { count: 'exact', head: true })
@@ -60,6 +64,13 @@ export default function StudentDashboard() {
           db.from('assignment_submissions').select('status, submitted_at, assignments(title)')
             .eq('portal_user_id', profile.id).order('submitted_at', { ascending: false }).limit(3),
           db.from('enrollments').select('program_id, programs(id, name)').eq('user_id', profile.id).limit(1) as any,
+          // Upcoming due assignments (not submitted, due_date in future)
+          db.from('assignments').select('id, title, due_date, courses(title)')
+            .gte('due_date', now).is('status', null).order('due_date', { ascending: true }).limit(5) as any,
+          // Recent graded submissions
+          db.from('assignment_submissions').select('id, grade, submitted_at, assignments(title, max_points)')
+            .eq('portal_user_id', profile.id).eq('status', 'graded').not('grade', 'is', null)
+            .order('submitted_at', { ascending: false }).limit(4),
         ]);
 
         const pts = pointsRes.status === 'fulfilled' ? (pointsRes.value as any).data : null;
@@ -107,6 +118,25 @@ export default function StudentDashboard() {
 
         const isEnrolled = enrollRes.status === 'fulfilled' && (enrollRes.value.data?.length ?? 0) > 0;
 
+        const upcomingDue = upcomingRes.status === 'fulfilled'
+          ? (upcomingRes.value.data ?? []).map((a: any) => ({
+              id: a.id,
+              title: a.title,
+              due_date: a.due_date,
+              course: a.courses?.title ?? null,
+            }))
+          : [];
+
+        const recentGrades = recentGradesRes.status === 'fulfilled'
+          ? (recentGradesRes.value.data ?? []).map((s: any) => ({
+              id: s.id,
+              title: s.assignments?.title ?? '—',
+              grade: s.grade,
+              max_points: s.assignments?.max_points ?? 100,
+              submitted_at: s.submitted_at,
+            }))
+          : [];
+
         setData({
           xp: pts?.total_points ?? 0,
           streak: pts?.current_streak ?? 0,
@@ -119,6 +149,8 @@ export default function StudentDashboard() {
           leaderboardRank,
           recentActivity,
           isEnrolled,
+          upcomingDue,
+          recentGrades,
         });
       } finally {
         setLoading(false);
@@ -399,6 +431,76 @@ export default function StudentDashboard() {
           </Link>
         ))}
       </div>
+
+      {/* Upcoming Due + Recent Grades */}
+      {(data.upcomingDue.length > 0 || data.recentGrades.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+          {/* Upcoming Due Assignments */}
+          {data.upcomingDue.length > 0 && (
+            <div className="bg-card border border-border p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Due Soon</h3>
+                <Link href="/dashboard/assignments" className="text-[9px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest transition-colors">
+                  View All →
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {data.upcomingDue.map((a) => {
+                  const due = new Date(a.due_date);
+                  const daysLeft = Math.ceil((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  const urgency = daysLeft <= 1 ? 'text-rose-400 bg-rose-500/10 border-rose-500/20'
+                                : daysLeft <= 3 ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                                : 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+                  return (
+                    <div key={a.id} className="flex items-center gap-3 p-3 bg-background border border-border">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-black text-foreground truncate">{a.title}</p>
+                        {a.course && <p className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">{a.course}</p>}
+                      </div>
+                      <span className={`shrink-0 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border ${urgency}`}>
+                        {daysLeft <= 0 ? 'Today' : daysLeft === 1 ? '1 day' : `${daysLeft}d`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Recent Grades */}
+          {data.recentGrades.length > 0 && (
+            <div className="bg-card border border-border p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Recent Grades</h3>
+                <Link href="/dashboard/assignments" className="text-[9px] font-black text-orange-500 hover:text-orange-400 uppercase tracking-widest transition-colors">
+                  View All →
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {data.recentGrades.map((g) => {
+                  const pct = g.max_points && g.max_points > 0 && g.grade != null
+                    ? Math.min(100, Math.round((g.grade / g.max_points) * 100))
+                    : g.grade ?? 0;
+                  const color = pct >= 70 ? 'text-emerald-400' : pct >= 55 ? 'text-amber-400' : 'text-rose-400';
+                  const bar   = pct >= 70 ? 'bg-emerald-500'   : pct >= 55 ? 'bg-amber-500'   : 'bg-rose-500';
+                  return (
+                    <div key={g.id} className="p-3 bg-background border border-border">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-xs font-black text-foreground truncate flex-1 mr-3">{g.title}</p>
+                        <span className={`shrink-0 text-sm font-black tabular-nums ${color}`}>{pct}%</span>
+                      </div>
+                      <div className="h-1 bg-muted overflow-hidden">
+                        <div className={`h-full ${bar} transition-all`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Recent Activity */}
       {data.recentActivity.length > 0 && (
