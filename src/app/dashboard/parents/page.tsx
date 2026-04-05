@@ -871,8 +871,17 @@ export default function ParentsPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      // Load parents list only on mount; picker data is loaded lazily when modal opens
-      load(false);
+      if (!isAdmin) {
+        // Teacher: school is pre-set, load immediately
+        load(false);
+      } else {
+        // Admin: just load the schools list for the dropdown, don't fetch parents yet
+        setLoading(false);
+        fetch('/api/schools/public')
+          .then(r => r.ok ? r.json() : null)
+          .then(j => { if (j?.schools) setSchools(j.schools.map((s: any) => s.name).filter(Boolean)); })
+          .catch(() => {});
+      }
     }
   }, [authLoading]); // Run once on auth ready
 
@@ -1038,11 +1047,20 @@ export default function ParentsPage() {
           <BuildingOfficeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <select
             value={schoolFilter}
-            onChange={e => { schoolFilterRef.current = e.target.value; classFilterRef.current = ''; setSchoolFilter(e.target.value); setClassFilter(''); setPickerLoaded(false); load(); }}
+            onChange={e => {
+              const val = e.target.value;
+              schoolFilterRef.current = val;
+              classFilterRef.current = '';
+              setSchoolFilter(val);
+              setClassFilter('');
+              setPickerLoaded(false);
+              if (val) load(); // don't fetch if placeholder selected
+              else { setParents([]); setLoading(false); }
+            }}
             disabled={!isAdmin && schools.length <= 1}
             className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[180px] appearance-none disabled:opacity-70"
           >
-            {isAdmin && <option value="">All Schools</option>}
+            <option value="">— Select School —</option>
             {schools.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
@@ -1154,10 +1172,12 @@ export default function ParentsPage() {
         <div className="bg-card border border-border p-12 text-center">
           <HeartIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-black text-foreground uppercase tracking-wider">
-            {parents.length === 0 ? 'No parent accounts found' : `No ${statusFilter} accounts`}
+            {isAdmin && !schoolFilter ? 'Select a school above' : parents.length === 0 ? 'No parent accounts found' : `No ${statusFilter} accounts`}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            {search || schoolFilter ? 'Try adjusting your filters.' : parents.length === 0 ? 'Click "Add Parent" to create one.' : `All ${parents.length} parents are ${statusFilter === 'active' ? 'inactive' : 'active'}.`}
+            {isAdmin && !schoolFilter
+              ? 'Choose a school from the dropdown to view its parent accounts.'
+              : search || schoolFilter ? 'Try adjusting your filters.' : parents.length === 0 ? 'Click "Add Parent" to create one.' : `All ${parents.length} parents are ${statusFilter === 'active' ? 'inactive' : 'active'}.`}
           </p>
         </div>
       ) : (
