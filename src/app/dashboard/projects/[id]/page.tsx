@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { SyntaxHighlight } from '@/components/ui/SyntaxHighlight';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
     CheckCircleIcon, PencilSquareIcon, ChevronDownIcon, ChevronUpIcon,
@@ -516,25 +517,26 @@ export default function ProjectBuilderPage() {
                                                     }
                                                     // code block
                                                     return (
-                                                        <div key={pi} className="bg-black/60 border border-white/10 overflow-hidden">
-                                                            <div className="flex items-center justify-between px-3 py-1.5 bg-white/[0.04] border-b border-white/[0.06]">
-                                                                <span className="text-[9px] font-black text-orange-400/70 uppercase tracking-widest">{part.language}</span>
-                                                                <div className="flex items-center gap-2">
-                                                                    <button
-                                                                        onClick={() => { setEditorCode(part.content); setActiveTab('code'); }}
-                                                                        className="text-[9px] font-black text-orange-400 hover:text-orange-300 uppercase tracking-widest px-2 py-0.5 bg-orange-500/15 border border-orange-500/25 hover:bg-orange-500/25 transition-all">
-                                                                        ↑ Insert to Editor
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => navigator.clipboard.writeText(part.content)}
-                                                                        className="text-[9px] text-white/30 hover:text-white transition-colors uppercase tracking-widest">
-                                                                        Copy
-                                                                    </button>
-                                                                </div>
+                                                        <div key={pi} className="overflow-hidden" style={{ boxShadow: '0 0 20px rgba(86,156,214,0.08)' }}>
+                                                            <SyntaxHighlight
+                                                                code={part.content.slice(0, 3000) + (part.content.length > 3000 ? '\n# … truncated' : '')}
+                                                                language={part.language || 'python'}
+                                                                showLineNumbers
+                                                                maxLines={30}
+                                                            />
+                                                            <div className="flex items-center gap-2 px-3 py-1.5"
+                                                                style={{ background: 'rgba(255,255,255,0.03)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                                                <button
+                                                                    onClick={() => { setEditorCode(part.content); setActiveTab('code'); }}
+                                                                    className="text-[9px] font-black text-orange-400 hover:text-orange-300 uppercase tracking-widest px-2 py-0.5 bg-orange-500/15 border border-orange-500/25 hover:bg-orange-500/25 transition-all flex items-center gap-1">
+                                                                    <CodeBracketIcon className="w-2.5 h-2.5" /> Insert to Editor
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => navigator.clipboard.writeText(part.content)}
+                                                                    className="text-[9px] text-white/30 hover:text-white/70 transition-colors uppercase tracking-widest px-2 py-0.5 bg-white/[0.03] border border-white/[0.06] hover:border-white/20">
+                                                                    Copy
+                                                                </button>
                                                             </div>
-                                                            <pre className="text-[10px] text-white/70 font-mono overflow-x-auto p-3 max-h-52 leading-relaxed">
-                                                                {part.content.slice(0, 3000)}{part.content.length > 3000 ? '\n... (truncated)' : ''}
-                                                            </pre>
                                                         </div>
                                                     );
                                                 })}
@@ -697,12 +699,19 @@ export default function ProjectBuilderPage() {
 
                                 {/* Code preview from builder */}
                                 {editorCode.trim() && (
-                                    <div className="bg-emerald-500/5 border border-emerald-500/20 px-4 py-3">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">✅ Code from Builder Ready</p>
-                                            <span className="text-[9px] text-white/30">{editorCode.length} chars</span>
+                                    <div>
+                                        <div className="flex items-center justify-between px-4 py-2 bg-emerald-500/5 border border-emerald-500/20 border-b-0">
+                                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                                                <CheckCircleIcon className="w-3.5 h-3.5" /> Code Ready to Submit
+                                            </p>
+                                            <span className="text-[9px] text-white/30">{editorCode.split('\n').length} lines</span>
                                         </div>
-                                        <p className="text-[10px] text-white/40">Your code from the editor will be submitted automatically.</p>
+                                        <SyntaxHighlight
+                                            code={editorCode}
+                                            language={editorLang}
+                                            showLineNumbers
+                                            maxLines={12}
+                                        />
                                     </div>
                                 )}
 
@@ -864,10 +873,14 @@ export default function ProjectBuilderPage() {
                                                     )}
                                                     {subCode && (
                                                         <div>
-                                                            <p className={LABEL}>💻 Code ({subCode.length} chars)</p>
-                                                            <pre className="text-xs text-white/60 bg-black/40 border border-white/10 p-3 overflow-auto max-h-56 font-mono leading-relaxed">
-                                                                {subCode.slice(0, 2500)}{subCode.length > 2500 ? '\n...' : ''}
-                                                            </pre>
+                                                            <p className={LABEL}>💻 Code Submitted</p>
+                                                            <SyntaxHighlight
+                                                                code={subCode.slice(0, 3000) + (subCode.length > 3000 ? '\n# … truncated' : '')}
+                                                                language={detectLang(project?.category ?? '')}
+                                                                showLineNumbers
+                                                                maxLines={25}
+                                                                className="mt-1"
+                                                            />
                                                         </div>
                                                     )}
                                                     {(answers.screenshot_url) && (
