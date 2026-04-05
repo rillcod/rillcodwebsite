@@ -328,6 +328,25 @@ export default function AssignmentsPage() {
           </div>
         )}
 
+        {/* ── NEEDS GRADING ALERT (staff) ── */}
+        {isStaff && pendingCount > 0 && (
+          <div className="bg-amber-500/5 border border-amber-500/20 p-4 flex items-center gap-4">
+            <ClipboardDocumentListIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-black text-amber-400 uppercase tracking-tight">
+                {pendingCount} submission{pendingCount > 1 ? 's' : ''} awaiting your review
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">Open each submission to grade and leave feedback.</p>
+            </div>
+            <button
+              onClick={() => setStaffTab('needs_grading')}
+              className="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/20 text-amber-400 text-[9px] font-black uppercase tracking-widest transition-all flex-shrink-0"
+            >
+              Show Pending
+            </button>
+          </div>
+        )}
+
         {/* ── OVERDUE ALERT STRIP ── */}
         {!isStaff && overdueCount > 0 && (
           <div className="bg-rose-500/5 border border-rose-500/20 p-4 flex items-center gap-4">

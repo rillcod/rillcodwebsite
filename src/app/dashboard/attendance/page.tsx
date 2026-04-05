@@ -871,6 +871,40 @@ function AttendanceContent() {
                     </div>
                 </div>
 
+                {/* ── Session Attendance Stats ── */}
+                {(() => {
+                  const vals = Object.values(attendance);
+                  const present = vals.filter((a: any) => a.status === 'present').length;
+                  const absent  = vals.filter((a: any) => a.status === 'absent').length;
+                  const late    = vals.filter((a: any) => a.status === 'late').length;
+                  const excused = vals.filter((a: any) => a.status === 'excused').length;
+                  const total   = vals.length;
+                  const rate    = total > 0 ? Math.round((present / total) * 100) : 0;
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-5 border-b border-border">
+                      <div className="bg-background border border-border p-3">
+                        <p className={`text-xl font-black ${rate >= 80 ? 'text-emerald-400' : rate >= 60 ? 'text-amber-400' : 'text-rose-400'}`}>{rate}%</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">Attendance Rate</p>
+                      </div>
+                      <div className="bg-background border border-border p-3">
+                        <p className="text-xl font-black text-emerald-400">{present}</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">Present</p>
+                      </div>
+                      <div className="bg-background border border-border p-3">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xl font-black text-rose-400">{absent}</p>
+                          {absent > 0 && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />}
+                        </div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">Absent</p>
+                      </div>
+                      <div className="bg-background border border-border p-3">
+                        <p className="text-xl font-black text-amber-400">{late + excused}</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">Late / Excused</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="divide-y divide-white/5">
                   {students.map((student: any, i: number) => {
                     const att = attendance[student.id] ?? { status: 'present', notes: '' };
