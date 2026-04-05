@@ -215,6 +215,7 @@ function GradeModal({ sub, onClose, onSaved }: {
     const [subText, setSubText] = useState(sub.submission_text ?? '');
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
     const [err, setErr] = useState('');
     const [showContent, setShowContent] = useState(false);
     const [isAIThinking, setIsAIThinking] = useState(false);
@@ -291,7 +292,6 @@ function GradeModal({ sub, onClose, onSaved }: {
     };
 
     const handleDelete = async () => {
-        if (!window.confirm('Are you sure you want to delete this submission? The student will need to submit again.')) return;
         setDeleting(true); setErr('');
         try {
             const res = await fetch(`/api/submissions/${sub.id}`, { method: 'DELETE' });
@@ -301,6 +301,7 @@ function GradeModal({ sub, onClose, onSaved }: {
             onClose();
         } catch (e: any) {
             setErr(e.message ?? 'Failed to delete submission');
+            setConfirmDelete(false);
         } finally {
             setDeleting(false);
         }
@@ -425,11 +426,31 @@ function GradeModal({ sub, onClose, onSaved }: {
                                                 <PaperClipIcon className="w-3 h-3" /> View attached file
                                             </a>
                                         )}
-                                        <button onClick={handleDelete} disabled={deleting}
-                                            className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-rose-400/40 hover:text-rose-400 hover:bg-rose-400/10 rounded-none transition-all flex items-center justify-center gap-2 border border-transparent hover:border-rose-400/20">
-                                            <TrashIcon className="w-3 h-3" />
-                                            {deleting ? 'Deleting...' : 'Delete Submission'}
-                                        </button>
+                                        {confirmDelete ? (
+                                            <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-rose-500/10 border border-rose-500/30">
+                                                <span className="text-[11px] font-bold text-rose-400">Delete submission?</span>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={handleDelete}
+                                                        disabled={deleting}
+                                                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
+                                                        {deleting ? 'Deleting…' : 'Yes, delete'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setConfirmDelete(false)}
+                                                        disabled={deleting}
+                                                        className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors px-2">
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <button onClick={() => setConfirmDelete(true)}
+                                                className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-rose-400/40 hover:text-rose-400 hover:bg-rose-400/10 rounded-none transition-all flex items-center justify-center gap-2 border border-transparent hover:border-rose-400/20">
+                                                <TrashIcon className="w-3 h-3" />
+                                                Delete Submission
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>

@@ -25,13 +25,19 @@ export default function ClassesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete class "${name}"? This cannot be undone.`)) return;
-    setDeleting(id);
-    const res = await fetch(`/api/classes/${id}`, { method: 'DELETE' });
-    if (!res.ok) { const j = await res.json(); alert(j.error || 'Delete failed'); }
-    else setClasses(prev => prev.filter(c => c.id !== id));
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(deleteTarget.id);
+    setDeleteTarget(null);
+    const res = await fetch(`/api/classes/${deleteTarget.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const j = await res.json();
+      setError(j.error || 'Delete failed');
+    } else {
+      setClasses(prev => prev.filter(c => c.id !== deleteTarget.id));
+    }
     setDeleting(null);
   };
 
@@ -278,7 +284,7 @@ export default function ClassesPage() {
                       Edit
                     </Link>
                     <button
-                      onClick={() => handleDelete(cls.id, cls.name)}
+                      onClick={() => setDeleteTarget({ id: cls.id, name: cls.name })}
                       disabled={deleting === cls.id}
                       className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold text-muted-foreground hover:text-rose-400 hover:bg-rose-500/5 transition-colors disabled:opacity-40"
                     >
@@ -320,6 +326,38 @@ export default function ClassesPage() {
                 </div>
               </Link>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDeleteTarget(null)}>
+          <div className="bg-card border border-border w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="h-1 w-full bg-rose-600" />
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-rose-500/10 border border-rose-500/20 flex items-center justify-center flex-shrink-0">
+                  <ExclamationTriangleIcon className="w-5 h-5 text-rose-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-foreground uppercase tracking-tight">Delete Class</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Delete <span className="text-foreground font-bold">"{deleteTarget.name}"</span>? All sessions, enrolments, and related data will be permanently removed.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setDeleteTarget(null)}
+                  className="flex-1 py-2.5 text-xs font-black uppercase tracking-widest text-muted-foreground border border-border hover:bg-muted transition-all">
+                  Cancel
+                </button>
+                <button onClick={handleDelete}
+                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-widest transition-all">
+                  Delete Permanently
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

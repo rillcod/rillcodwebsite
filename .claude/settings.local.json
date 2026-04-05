@@ -115,7 +115,8 @@
       "Bash(find C:UsersUSERDownloadsrillcod-academy-mainrillcod-academy-main/src -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.jsx -o -name *.js \\\\\\))",
       "Bash(find /c/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/supabase -type f \\\\\\(-name *.sql \\\\\\))",
       "Bash(mkdir -p \"C:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/src/app/api/invoices/[id]\")",
-      "Bash(mkdir -p \"C:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/src/app/dashboard/payments/invoices/[id]/edit\")"
+      "Bash(mkdir -p \"C:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main/src/app/dashboard/payments/invoices/[id]/edit\")",
+      "Bash(SUPABASE_ACCESS_TOKEN=\"\" npx supabase gen types typescript --db-url \"postgresql://postgres:$\\(grep SUPABASE_SERVICE_ROLE_KEY .env.local)"
     ]
   }
 }
