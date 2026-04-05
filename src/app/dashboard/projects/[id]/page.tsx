@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -65,6 +65,60 @@ function parseParts(raw: string): MsgPart[] {
         last = m.index + m[0].length;
     }
     if (last < raw.length) parts.push({ type: 'text', content: raw.slice(last) });
+    return parts;
+}
+
+// Render AI text: convert markdown to styled JSX
+function AiTextBlock({ text }: { text: string }) {
+    const lines = text.split('\n');
+    return (
+        <div className="space-y-1 text-xs leading-relaxed">
+            {lines.map((line, i) => {
+                const trimmed = line.trimStart();
+                // h1/h2/h3
+                const h3 = trimmed.match(/^###\s+(.*)/);
+                const h2 = trimmed.match(/^##\s+(.*)/);
+                const h1 = trimmed.match(/^#\s+(.*)/);
+                if (h3) return <p key={i} className="font-black text-white/90 text-[11px] uppercase tracking-widest mt-2">{h3[1]}</p>;
+                if (h2) return <p key={i} className="font-black text-orange-400 text-[11px] uppercase tracking-widest mt-2">{h2[1]}</p>;
+                if (h1) return <p key={i} className="font-black text-orange-300 text-xs uppercase tracking-wider mt-2">{h1[1]}</p>;
+                // bullet/numbered
+                const bullet = trimmed.match(/^[-*]\s+(.*)/);
+                const numbered = trimmed.match(/^(\d+)\.\s+(.*)/);
+                if (bullet) return (
+                    <div key={i} className="flex gap-1.5 text-white/75">
+                        <span className="text-orange-400 flex-shrink-0 mt-0.5">▸</span>
+                        <span>{renderInline(bullet[1])}</span>
+                    </div>
+                );
+                if (numbered) return (
+                    <div key={i} className="flex gap-1.5 text-white/75">
+                        <span className="text-orange-400/70 flex-shrink-0 font-bold">{numbered[1]}.</span>
+                        <span>{renderInline(numbered[2])}</span>
+                    </div>
+                );
+                // blank line
+                if (!trimmed) return <div key={i} className="h-1" />;
+                // plain
+                return <p key={i} className="text-white/75">{renderInline(line)}</p>;
+            })}
+        </div>
+    );
+}
+
+// Render inline markdown: **bold**, `code`, *italic*
+function renderInline(text: string): React.ReactNode {
+    const parts: React.ReactNode[] = [];
+    const re = /(\*\*(.+?)\*\*|`([^`]+)`|\*(.+?)\*)/g;
+    let last = 0; let m: RegExpExecArray | null; let ki = 0;
+    while ((m = re.exec(text)) !== null) {
+        if (m.index > last) parts.push(<span key={ki++}>{text.slice(last, m.index)}</span>);
+        if (m[2]) parts.push(<strong key={ki++} className="text-white font-bold">{m[2]}</strong>);
+        else if (m[3]) parts.push(<code key={ki++} className="px-1 py-0.5 bg-white/10 text-orange-300 font-mono text-[10px]">{m[3]}</code>);
+        else if (m[4]) parts.push(<em key={ki++} className="text-white/60 italic">{m[4]}</em>);
+        last = m.index + m[0].length;
+    }
+    if (last < text.length) parts.push(<span key={ki++}>{text.slice(last)}</span>);
     return parts;
 }
 
@@ -510,9 +564,7 @@ export default function ProjectBuilderPage() {
                                                 {parseParts(msg.content).map((part, pi) => {
                                                     if (part.type === 'text') {
                                                         return (
-                                                            <div key={pi} className="text-white/75 whitespace-pre-wrap">
-                                                                {part.content.replace(/\*\*(.*?)\*\*/g, '$1')}
-                                                            </div>
+                                                            <AiTextBlock key={pi} text={part.content} />
                                                         );
                                                     }
                                                     // code block
@@ -523,6 +575,7 @@ export default function ProjectBuilderPage() {
                                                                 language={part.language || 'python'}
                                                                 showLineNumbers
                                                                 maxLines={30}
+                                                                animate
                                                             />
                                                             <div className="flex items-center gap-2 px-3 py-1.5"
                                                                 style={{ background: 'rgba(255,255,255,0.03)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>

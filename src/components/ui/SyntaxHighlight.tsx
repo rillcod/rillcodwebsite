@@ -201,6 +201,26 @@ function tokenizeLine(line: string, lang: string): Token[] {
   return [{ type: 'plain', value: line }];
 }
 
+// ── Keyframe injection (once) ─────────────────────────────────────────────────
+const ANIM_STYLE = `
+@keyframes shFadeIn {
+  from { opacity: 0; transform: translateX(-4px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes shCursor {
+  0%,100% { opacity: 1; } 50% { opacity: 0; }
+}
+`;
+
+let styleInjected = false;
+function ensureStyles() {
+  if (styleInjected || typeof document === 'undefined') return;
+  styleInjected = true;
+  const el = document.createElement('style');
+  el.textContent = ANIM_STYLE;
+  document.head.appendChild(el);
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 const LANG_COLOR: Record<string, string> = {
   python: '#3b82f6', py: '#3b82f6',
@@ -215,17 +235,24 @@ export function SyntaxHighlight({
   language = 'python',
   showLineNumbers = true,
   maxLines,
+  animate = false,
+  streaming = false,
   className = '',
 }: {
   code: string;
   language?: string;
   showLineNumbers?: boolean;
   maxLines?: number;
+  /** Stagger-fade each line in on mount */
+  animate?: boolean;
+  /** Show a blinking cursor on the last line (for AI streaming) */
+  streaming?: boolean;
   className?: string;
 }) {
+  if (animate || streaming) ensureStyles();
+
   const lang = language.toLowerCase().trim();
   const allLines = code.split('\n');
-  // Strip trailing empty line
   if (allLines[allLines.length - 1] === '') allLines.pop();
   const displayLines = maxLines ? allLines.slice(0, maxLines) : allLines;
   const truncated = maxLines ? allLines.length > maxLines : false;
@@ -239,6 +266,8 @@ export function SyntaxHighlight({
         border: '1px solid rgba(255,255,255,0.07)',
         overflow: 'hidden',
         fontFamily: 'JetBrains Mono, Fira Code, Menlo, Consolas, monospace',
+        // subtle glow matching language
+        boxShadow: `0 0 24px ${accentColor}12, inset 0 1px 0 rgba(255,255,255,0.04)`,
       }}
     >
       {/* Header bar */}
@@ -249,20 +278,23 @@ export function SyntaxHighlight({
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {/* Traffic light dots */}
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff5f57', display: 'inline-block' }} />
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#febc2e', display: 'inline-block' }} />
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#28c840', display: 'inline-block' }} />
           <span style={{
-            marginLeft: 8,
-            fontSize: 9, fontWeight: 900,
-            color: accentColor,
-            letterSpacing: '0.15em',
-            textTransform: 'uppercase' as const,
-            opacity: 0.9,
+            marginLeft: 8, fontSize: 9, fontWeight: 900,
+            color: accentColor, letterSpacing: '0.15em',
+            textTransform: 'uppercase' as const, opacity: 0.9,
           }}>
             {lang || 'code'}
           </span>
+          {streaming && (
+            <span style={{
+              marginLeft: 6, fontSize: 8, color: '#28c840', fontWeight: 900,
+              letterSpacing: '0.1em', textTransform: 'uppercase' as const,
+              animation: 'shCursor 1s infinite',
+            }}>● generating</span>
+          )}
         </div>
         <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em' }}>
           {allLines.length} line{allLines.length !== 1 ? 's' : ''}
@@ -276,7 +308,13 @@ export function SyntaxHighlight({
             {displayLines.map((line, idx) => (
               <tr
                 key={idx}
-                style={{ verticalAlign: 'top' }}
+                style={{
+                  verticalAlign: 'top',
+                  ...(animate ? {
+                    animation: `shFadeIn 0.25s ease both`,
+                    animationDelay: `${Math.min(idx * 0.018, 0.6)}s`,
+                  } : {}),
+                }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.025)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
               >
@@ -298,6 +336,14 @@ export function SyntaxHighlight({
                   {tokenizeLine(line, lang).map((tok, ti) => (
                     <span key={ti} style={{ color: TOK_COLOR[tok.type] }}>{tok.value}</span>
                   ))}
+                  {/* Blinking cursor on last visible line during streaming */}
+                  {streaming && idx === displayLines.length - 1 && (
+                    <span style={{
+                      display: 'inline-block', width: 2, height: '1em',
+                      background: accentColor, marginLeft: 1, verticalAlign: 'text-bottom',
+                      animation: 'shCursor 0.8s infinite',
+                    }} />
+                  )}
                   {line === '' && <span>&nbsp;</span>}
                 </td>
               </tr>
