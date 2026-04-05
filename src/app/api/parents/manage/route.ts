@@ -409,10 +409,17 @@ export async function GET(req: Request) {
       teachersQuery = teachersQuery.ilike('school_name', effectiveSchool);
     }
 
-    const classesQuery = admin
+    // Classes: scope to teacher's own classes; admin gets all (filters client-side per school)
+    let classesQuery = admin
       .from('classes')
       .select('id, name, schools!classes_school_id_fkey(name)')
       .order('name');
+    if (guard.profile.role === 'teacher') {
+      classesQuery = classesQuery.eq('teacher_id', guard.profile.id) as any;
+      if (guard.profile.school_id) {
+        classesQuery = classesQuery.eq('school_id', guard.profile.school_id) as any;
+      }
+    }
 
     let linkedQuery = admin
       .from('students')
