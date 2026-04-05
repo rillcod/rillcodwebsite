@@ -770,15 +770,7 @@ export default function ParentsPage() {
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const isAdmin = profile?.role === 'admin';
 
-  // Set default school filter and pre-populate schools list for teachers
-  // Depend only on profile identity fields — not on schoolFilter — to avoid loops
-  useEffect(() => {
-    if (profile?.role === 'teacher' && profile.school_name) {
-      schoolFilterRef.current = profile.school_name;
-      setSchoolFilter(profile.school_name);
-      setSchools([profile.school_name]);
-    }
-  }, [profile?.role, profile?.school_name]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Intentionally empty — teacher school init is handled in the combined mount effect below
 
   const load = useCallback(async (includePickers = false) => {
     if (!isStaff) return;
@@ -870,20 +862,24 @@ export default function ParentsPage() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!isAdmin) {
-        // Teacher: school is pre-set, load immediately
-        load(false);
-      } else {
-        // Admin: just load the schools list for the dropdown, don't fetch parents yet
-        setLoading(false);
-        fetch('/api/schools/public')
-          .then(r => r.ok ? r.json() : null)
-          .then(j => { if (j?.schools) setSchools(j.schools.map((s: any) => s.name).filter(Boolean)); })
-          .catch(() => {});
-      }
+    if (authLoading || !profile) return;
+
+    if (profile.role === 'teacher') {
+      // Set school synchronously in the ref before calling load so the API gets the right filter
+      const school = profile.school_name ?? '';
+      schoolFilterRef.current = school;
+      setSchoolFilter(school);
+      if (school) setSchools(prev => (prev.length ? prev : [school]));
+      load(false);
+    } else if (profile.role === 'admin') {
+      // Admin: populate the schools dropdown without loading parents yet
+      setLoading(false);
+      fetch('/api/schools/public')
+        .then(r => r.ok ? r.json() : null)
+        .then(j => { if (j?.schools) setSchools(j.schools.map((s: any) => s.name).filter(Boolean)); })
+        .catch(() => {});
     }
-  }, [authLoading]); // Run once on auth ready
+  }, [authLoading, profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUnlink = async (studentId: string) => {
     if (!confirm('Remove parent link from this student?')) return;
@@ -1043,27 +1039,39 @@ export default function ParentsPage() {
         </div>
 
         {/* School filter */}
-        <div className="relative">
-          <BuildingOfficeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <select
-            value={schoolFilter}
-            onChange={e => {
-              const val = e.target.value;
-              schoolFilterRef.current = val;
-              classFilterRef.current = '';
-              setSchoolFilter(val);
-              setClassFilter('');
-              setPickerLoaded(false);
-              if (val) load(); // don't fetch if placeholder selected
-              else { setParents([]); setLoading(false); }
-            }}
-            disabled={!isAdmin && schools.length <= 1}
-            className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[180px] appearance-none disabled:opacity-70"
-          >
-            <option value="">— Select School —</option>
-            {schools.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
+        {(() => {
+          // For teacher: use profile.school_name as immediate fallback so the select
+          // never shows "— Select School —" even before the effect sets schoolFilter state.
+          const teacherSchool = profile?.role === 'teacher' ? (profile.school_name ?? '') : '';
+          const selectValue = schoolFilter || teacherSchool;
+          return (
+            <div className="relative">
+              <BuildingOfficeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <select
+                value={selectValue}
+                onChange={e => {
+                  const val = e.target.value;
+                  schoolFilterRef.current = val;
+                  classFilterRef.current = '';
+                  setSchoolFilter(val);
+                  setClassFilter('');
+                  setPickerLoaded(false);
+                  if (val) load();
+                  else { setParents([]); setLoading(false); }
+                }}
+                disabled={!isAdmin && schools.length <= 1}
+                className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[180px] appearance-none disabled:opacity-70"
+              >
+                {isAdmin && <option value="">— Select School —</option>}
+                {/* Guarantee teacher's school is always an option before schools[] loads */}
+                {teacherSchool && !schools.includes(teacherSchool) && (
+                  <option value={teacherSchool}>{teacherSchool}</option>
+                )}
+                {schools.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          );
+        })()}
 
         {/* Class filter — shown only if a school is selected */}
         {schoolFilter && (
