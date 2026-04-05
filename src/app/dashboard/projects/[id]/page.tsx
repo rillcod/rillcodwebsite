@@ -929,7 +929,7 @@ export default function ProjectBuilderPage() {
                                                             <p className={LABEL}>💻 Code Submitted</p>
                                                             <SyntaxHighlight
                                                                 code={subCode.slice(0, 3000) + (subCode.length > 3000 ? '\n# … truncated' : '')}
-                                                                language={detectLang(project?.category ?? '')}
+                                                                language={detectLang(activity?.category ?? '')}
                                                                 showLineNumbers
                                                                 maxLines={25}
                                                                 className="mt-1"
