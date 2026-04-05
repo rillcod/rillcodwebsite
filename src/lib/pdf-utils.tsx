@@ -214,14 +214,14 @@ export const OKLCH_HEX_OVERRIDES = `
 // ─── Shared PDF generation ─────────────────────────────────────────────────────
 // Uses html-to-image which renders via the browser's native foreignObject SVG
 // renderer — no custom CSS parser, so oklch/lab/lch/display-p3 all work natively.
-export async function generateReportPDF(element: HTMLElement, filename: string, isLandscape = false): Promise<void> {
-    // Lazy-load browser-only libs to prevent SSR crash
+
+/** Internal: renders element → jsPDF instance (shared by save + blob variants) */
+async function buildPdf(element: HTMLElement, isLandscape = false) {
     const [{ toPng }, { default: jsPDF }] = await Promise.all([
         import('html-to-image'),
         import('jspdf'),
     ]);
 
-    // Wait for all images to finish loading
     const imgs = element.querySelectorAll('img');
     await Promise.allSettled(
         Array.from(imgs).map(img =>
@@ -231,7 +231,6 @@ export async function generateReportPDF(element: HTMLElement, filename: string, 
         )
     );
 
-    // A4 landscape: 1122 × 794 px at 96 dpi; portrait: 794 × dynamic height
     const W = isLandscape ? 1122 : 794;
     const H = isLandscape ? 794 : element.scrollHeight;
 
@@ -246,7 +245,53 @@ export async function generateReportPDF(element: HTMLElement, filename: string, 
 
     const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'px', format: [W, H] });
     pdf.addImage(dataUrl, 'PNG', 0, 0, W, H);
+    return pdf;
+}
+
+/** Download the report as a PDF file */
+export async function generateReportPDF(element: HTMLElement, filename: string, isLandscape = false): Promise<void> {
+    const pdf = await buildPdf(element, isLandscape);
     pdf.save(filename);
+}
+
+/** Return the report as a Blob (for Web Share API / attachment sending) */
+export async function generateReportPDFBlob(element: HTMLElement, isLandscape = false): Promise<Blob> {
+    const pdf = await buildPdf(element, isLandscape);
+    return pdf.output('blob');
+}
+
+/**
+ * Share the report card as a PDF attachment via the Web Share API.
+ * On Android/iOS this shows the native share sheet which includes WhatsApp.
+ * Falls back to direct download on browsers that don't support file sharing.
+ * Returns 'shared' | 'downloaded' | 'unsupported'.
+ */
+export async function shareReportCard(
+    element: HTMLElement,
+    filename: string,
+    shareText?: string,
+): Promise<'shared' | 'downloaded' | 'unsupported'> {
+    const blob = await generateReportPDFBlob(element);
+    const file = new File([blob], filename, { type: 'application/pdf' });
+
+    // Web Share API with files — works on Android Chrome, iOS Safari ≥15.1
+    if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+            files: [file],
+            title: filename.replace('.pdf', '').replace(/_/g, ' '),
+            text: shareText ?? 'Please find the attached progress report from Rillcod Academy.',
+        });
+        return 'shared';
+    }
+
+    // Desktop / unsupported browser — fall back to download
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href    = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    return 'downloaded';
 }
 
 // ─── Responsive scaled preview of a ReportCard ───────────────────────────────
