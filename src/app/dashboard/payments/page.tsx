@@ -610,6 +610,7 @@ export default function PaymentsPage() {
   // School Invoice Builder state
   const [showSchoolInvoice, setShowSchoolInvoice] = useState(false);
   const [editingSchoolInvId, setEditingSchoolInvId] = useState<string | null>(null);
+  const schoolInvRef = useRef<HTMLDivElement>(null);
   const [schoolInvForm, setSchoolInvForm] = useState({
     school_id: '',
     pricing_mode: 'per_student' as 'per_student' | 'fixed_package',
@@ -818,6 +819,8 @@ export default function PaymentsPage() {
       setEditingSchoolInvId(inv.id);
       setShowSchoolInvoice(true);
       setShowReceiptBuilder(false);
+      // Scroll to the builder after state update renders
+      setTimeout(() => schoolInvRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
       return;
     }
 
@@ -1840,7 +1843,7 @@ export default function PaymentsPage() {
             
             {/* ── School Invoice Builder ── */}
             {showSchoolInvoice && isAdmin && (
-              <div className="bg-primary/5 border border-primary/20 rounded-none">
+              <div ref={schoolInvRef} className="bg-primary/5 border border-primary/20 rounded-none">
                 {/* Header */}
                 <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-primary/20">
                   <p className="text-xs font-black text-primary uppercase tracking-widest mb-0.5">School Invoice Builder</p>

@@ -1070,27 +1070,30 @@ tbody tr:hover{background:#f3f4f6}
                                                     </>
                                                 )}
                                                 {selectedReport && (
-                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                    <div className="flex items-center gap-1">
+                                                        {/* Print */}
                                                         <button
                                                             onClick={() => window.print()}
-                                                            className="h-full inline-flex items-center gap-2 px-4 py-1.5 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest rounded-none border border-border transition-all"
+                                                            title="Print"
+                                                            className="w-8 h-8 flex items-center justify-center bg-card hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-all rounded-none"
                                                         >
-                                                            <PrinterIcon className="w-3.5 h-3.5" />
-                                                            Print
+                                                            <PrinterIcon className="w-4 h-4" />
                                                         </button>
+                                                        {/* Download PDF */}
                                                         <button
                                                             onClick={downloadSinglePDF}
                                                             disabled={isDownloadingPdf}
-                                                            className="h-full inline-flex items-center gap-2 px-4 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest rounded-none transition-all shadow-lg shadow-orange-900/40 whitespace-nowrap"
+                                                            title="Download PDF"
+                                                            className="w-8 h-8 flex items-center justify-center bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white transition-all rounded-none shadow-lg shadow-orange-900/40"
                                                         >
                                                             {isDownloadingPdf
-                                                                ? <div className="w-3 h-3 border-2 border-border border-t-transparent rounded-full animate-spin" />
-                                                                : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
-                                                            {isDownloadingPdf ? 'Downloading…' : 'Download PDF'}
+                                                                ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                                : <ArrowDownTrayIcon className="w-4 h-4" />}
                                                         </button>
-                                                        {/* Share report card as PDF attachment */}
+                                                        {/* Share via WhatsApp */}
                                                         <button
                                                             disabled={isSharingPdf}
+                                                            title="Share via WhatsApp"
                                                             onClick={async () => {
                                                                 if (!printableRef.current || !reportToDisplay) return;
                                                                 setIsSharingPdf(true);
@@ -1107,7 +1110,6 @@ tbody tr:hover{background:#f3f4f6}
                                                                         alert('Web Share not supported on this browser. The PDF has been downloaded instead.');
                                                                     }
                                                                 } catch (err: unknown) {
-                                                                    // User cancelled share — ignore
                                                                     const msg = err instanceof Error ? err.message : '';
                                                                     if (!msg.toLowerCase().includes('cancel') && !msg.toLowerCase().includes('abort')) {
                                                                         alert('Could not share PDF. Try downloading instead.');
@@ -1116,12 +1118,11 @@ tbody tr:hover{background:#f3f4f6}
                                                                     setIsSharingPdf(false);
                                                                 }
                                                             }}
-                                                            className="h-full inline-flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-none transition-all whitespace-nowrap shadow-lg shadow-green-900/40"
+                                                            className="w-8 h-8 flex items-center justify-center bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white transition-all rounded-none shadow-lg shadow-green-900/40"
                                                         >
                                                             {isSharingPdf
                                                                 ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                                : <WhatsAppIcon className="w-3.5 h-3.5" />}
-                                                            {isSharingPdf ? 'Preparing…' : 'Share Report'}
+                                                                : <WhatsAppIcon className="w-4 h-4" />}
                                                         </button>
                                                     </div>
                                                 )}

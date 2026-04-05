@@ -509,20 +509,19 @@ export function ParentForm({
 
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5 flex items-center gap-1.5">
-              Class / Category *
-              <span className="text-orange-400 normal-case font-normal text-[9px]">— required to filter students</span>
+              Class / Category
+              <span className="text-muted-foreground normal-case font-normal text-[9px]">— optional filter</span>
             </label>
             <select
-              required
               value={selectedClass}
               onChange={e => { setSelectedClass(e.target.value); setForm(f => ({ ...f, student_id: '', student_ids: [] })); }}
-              className={`w-full px-4 py-2.5 bg-background border text-sm text-foreground focus:outline-none transition-colors ${!selectedClass ? 'border-orange-500/50' : 'border-border focus:border-orange-500'}`}
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors"
             >
-              <option value="">— Select Class (e.g. Python Class, JSS 1) —</option>
+              <option value="">— All Students in School —</option>
               {classList.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            {!selectedClass && (
-              <p className="text-[10px] text-orange-400/80 mt-1.5 font-bold">Select a class to narrow the student list below.</p>
+            {!selectedClass && selectedSchool && (
+              <p className="text-[10px] text-muted-foreground mt-1.5">Showing all students for this school. Pick a class to narrow down.</p>
             )}
           </div>
         </div>

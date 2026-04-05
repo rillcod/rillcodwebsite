@@ -1092,6 +1092,44 @@ export default function GradesPage() {
                     </div>
                 )}
 
+                {/* ── Top / Bottom performers (staff) ──────────────── */}
+                {isStaff && (() => {
+                    const graded = items.filter((s: any) => s.grade != null && s.assignments?.max_points);
+                    if (graded.length < 2) return null;
+                    const withPct = graded.map((s: any) => ({ ...s, _pct: Math.round((s.grade / s.assignments.max_points) * 100) }));
+                    const top = withPct.reduce((a: any, b: any) => b._pct > a._pct ? b : a);
+                    const bot = withPct.reduce((a: any, b: any) => b._pct < a._pct ? b : a);
+                    const passRate = Math.round((withPct.filter((s: any) => s._pct >= 70).length / withPct.length) * 100);
+                    return (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="bg-emerald-500/5 border border-emerald-500/20 p-4 flex items-center gap-3">
+                                <TrophyIcon className="w-7 h-7 text-emerald-400 flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-emerald-400 mb-0.5">Top Performer</p>
+                                    <p className="text-sm font-black text-foreground truncate">{top.portal_users?.full_name ?? '—'}</p>
+                                    <p className="text-xs text-emerald-400 font-bold">{top._pct}% · {pctInfo(top.grade, top.assignments.max_points).letter}</p>
+                                </div>
+                            </div>
+                            <div className="bg-rose-500/5 border border-rose-500/20 p-4 flex items-center gap-3">
+                                <FireIcon className="w-7 h-7 text-rose-400 flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-rose-400 mb-0.5">Needs Attention</p>
+                                    <p className="text-sm font-black text-foreground truncate">{bot.portal_users?.full_name ?? '—'}</p>
+                                    <p className="text-xs text-rose-400 font-bold">{bot._pct}% · {pctInfo(bot.grade, bot.assignments.max_points).letter}</p>
+                                </div>
+                            </div>
+                            <div className="bg-blue-500/5 border border-blue-500/20 p-4 flex items-center gap-3">
+                                <BoltIcon className="w-7 h-7 text-blue-400 flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-blue-400 mb-0.5">Pass Rate</p>
+                                    <p className={`text-2xl font-black ${passRate >= 70 ? 'text-emerald-400' : passRate >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{passRate}%</p>
+                                    <p className="text-xs text-muted-foreground">{withPct.filter((s: any) => s._pct >= 70).length}/{withPct.length} passed</p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
+
                 {/* ── Distribution (staff) ───────────────────────── */}
                 {isStaff && items.some(s => s.grade != null) && <DistBar items={items} />}
 
