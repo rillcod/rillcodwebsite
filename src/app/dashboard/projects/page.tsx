@@ -125,7 +125,16 @@ export default function ProjectsPage() {
     const [newGroupClass, setNewGroupClass]     = useState('');
     const [newGroupEval, setNewGroupEval]       = useState<'individual' | 'group'>('group');
     const [newGroupStudents, setNewGroupStudents] = useState<string[]>([]);
+    const [newGroupMemberTasks, setNewGroupMemberTasks] = useState<Record<string, string>>({});
     const [savingGroup, setSavingGroup]         = useState(false);
+    // Group submissions (lazy load)
+    const [groupSubmissions, setGroupSubmissions] = useState<Record<string, any[]>>({});
+    const [loadingSubsId, setLoadingSubsId]       = useState<string | null>(null);
+    const [expandedSubsId, setExpandedSubsId]     = useState<string | null>(null);
+    // Inline task editing for existing groups
+    const [editingTasksGroupId, setEditingTasksGroupId] = useState<string | null>(null);
+    const [editingTasks, setEditingTasks]               = useState<Record<string, string>>({});
+    const [savingTasks, setSavingTasks]                 = useState(false);
     // Staff grading
     const [gradingGroupId, setGradingGroupId]   = useState<string | null>(null);
     const [gradingGroup, setGradingGroup]       = useState<any | null>(null);
@@ -220,12 +229,13 @@ export default function ProjectsPage() {
                     class_name: newGroupClass || null,
                     evaluation_type: newGroupEval,
                     student_ids: newGroupStudents,
+                    member_tasks: newGroupMemberTasks,
                 }),
             });
             const json = await res.json();
             if (!json.success) throw new Error(json.error);
             setShowCreateGroup(false);
-            setNewGroupName(''); setNewGroupClass(''); setNewGroupStudents([]);
+            setNewGroupName(''); setNewGroupClass(''); setNewGroupStudents([]); setNewGroupMemberTasks({});
             loadGroups();
         } catch (e: any) {
             setGroupsError(e.message);
@@ -259,6 +269,43 @@ export default function ProjectsPage() {
         } catch (e: any) {
             setGroupsError(e.message);
         } finally { setSavingGrade(false); }
+    }
+
+    async function loadGroupSubmissions(group: any) {
+        if (!group.assignment_id) return;
+        const memberIds = (group.project_group_members || []).map((m: any) => m.student_id);
+        if (memberIds.length === 0) return;
+        setLoadingSubsId(group.id);
+        try {
+            const db = createClient();
+            const { data } = await db.from('assignment_submissions')
+                .select('id, portal_user_id, status, grade, submission_text, feedback, submitted_at, file_url')
+                .eq('assignment_id', group.assignment_id)
+                .in('portal_user_id', memberIds);
+            setGroupSubmissions(prev => ({ ...prev, [group.id]: data || [] }));
+        } finally {
+            setLoadingSubsId(null);
+        }
+    }
+
+    async function saveGroupTasks(groupId: string) {
+        setSavingTasks(true);
+        try {
+            const res = await fetch('/api/project-groups', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: groupId, member_tasks: editingTasks }),
+            });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error);
+            setEditingTasksGroupId(null);
+            setEditingTasks({});
+            loadGroups();
+        } catch (e: any) {
+            setGroupsError(e.message);
+        } finally {
+            setSavingTasks(false);
+        }
     }
 
     async function confirmDeleteGroup() {
@@ -548,10 +595,23 @@ export default function ProjectsPage() {
                                             </div>
 
                                             <div className="p-6 space-y-5">
+                                                {/* My assigned task — shown prominently if set */}
+                                                {myMember?.task_description && (
+                                                    <div className="bg-orange-500/8 border border-orange-500/30 rounded-xl px-5 py-4">
+                                                        <p className="text-[9px] font-black text-orange-400 uppercase tracking-[0.25em] mb-2 flex items-center gap-1.5">
+                                                            <ClipboardDocumentListIcon className="w-3.5 h-3.5" /> Your Assigned Task
+                                                        </p>
+                                                        <p className="text-sm font-bold text-white leading-relaxed">{myMember.task_description}</p>
+                                                        {assignment && (
+                                                            <p className="text-[10px] text-white/40 mt-2">Part of: <span className="text-orange-300/70">{assignment.title}</span></p>
+                                                        )}
+                                                    </div>
+                                                )}
+
                                                 {/* Assignment */}
                                                 {assignment && (
                                                     <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3">
-                                                        <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">Assigned Activity</p>
+                                                        <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1">Main Activity</p>
                                                         <p className="text-sm font-bold text-white">{assignment.title}</p>
                                                         {assignment.description && <p className="text-[11px] text-white/40 mt-1 line-clamp-2">{assignment.description}</p>}
                                                         {assignment.due_date && (
@@ -559,6 +619,12 @@ export default function ProjectsPage() {
                                                                 <ClockIcon className="w-3 h-3" />
                                                                 <span className="text-[10px] font-bold">{deadlineLabel(assignment.due_date).text}</span>
                                                             </div>
+                                                        )}
+                                                        {assignment.id && (
+                                                            <Link href={`/dashboard/projects/${assignment.id}`}
+                                                                className="inline-flex items-center gap-1 mt-2 text-[10px] font-black text-orange-400 hover:text-orange-300 uppercase tracking-widest transition-colors">
+                                                                Submit My Work <ArrowRightIcon className="w-3 h-3" />
+                                                            </Link>
                                                         )}
                                                     </div>
                                                 )}
@@ -578,6 +644,7 @@ export default function ProjectsPage() {
                                                                     </div>
                                                                     <div className="min-w-0">
                                                                         <p className={`text-[11px] font-bold truncate ${isMe ? 'text-orange-300' : 'text-white/70'}`}>{name}{isMe && ' (You)'}</p>
+                                                                        {m.task_description && <p className="text-[9px] text-white/40 truncate italic">{m.task_description}</p>}
                                                                         {group.is_graded && memberScore != null && (
                                                                             <p className="text-[10px] text-emerald-400 font-black">{memberScore} pts</p>
                                                                         )}
@@ -1113,6 +1180,37 @@ export default function ProjectsPage() {
                                         )}
                                     </div>
 
+                                    {/* ── Task assignment per selected student ── */}
+                                    {newGroupStudents.length >= 2 && (
+                                        <div>
+                                            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 block flex items-center gap-1.5">
+                                                <ClipboardDocumentListIcon className="w-3.5 h-3.5 text-orange-400" />
+                                                Assign Tasks to Each Member
+                                                <span className="text-muted-foreground normal-case font-normal text-[9px]">(optional — student will see this)</span>
+                                            </label>
+                                            <div className="space-y-2">
+                                                {newGroupStudents.map(sid => {
+                                                    const s = students.find((x: any) => x.id === sid);
+                                                    if (!s) return null;
+                                                    return (
+                                                        <div key={sid} className="flex items-center gap-3 bg-white/[0.02] border border-border rounded-xl px-4 py-2.5">
+                                                            <div className="w-7 h-7 bg-orange-500/20 border border-orange-500/30 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-black text-orange-300">
+                                                                {(s.full_name || '?')[0].toUpperCase()}
+                                                            </div>
+                                                            <span className="text-xs font-bold text-foreground w-28 flex-shrink-0 truncate">{s.full_name}</span>
+                                                            <input
+                                                                value={newGroupMemberTasks[sid] || ''}
+                                                                onChange={e => setNewGroupMemberTasks(prev => ({ ...prev, [sid]: e.target.value }))}
+                                                                placeholder="e.g. Design the UI wireframe…"
+                                                                className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors"
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {groupCreateError && (
                                         <div className="px-4 py-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs rounded-xl flex items-center gap-2">
                                             <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" />
@@ -1165,7 +1263,7 @@ export default function ProjectsPage() {
                                                         </span>
                                                         {group.is_graded
                                                             ? <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircleIcon className="w-3 h-3" /> Graded</span>
-                                                            : <span className="text-[9px] font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">Pending</span>
+                                                            : <span className="text-[9px] font-black text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full flex items-center gap-1"><BoltIcon className="w-2.5 h-2.5" /> Active</span>
                                                         }
                                                     </div>
                                                     {assignment && <p className="text-[10px] text-muted-foreground mt-0.5">Activity: {assignment.title}</p>}
@@ -1200,23 +1298,150 @@ export default function ProjectsPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Members list */}
-                                            <div className="border-t border-border px-6 py-4">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    {members.map((m: any) => (
-                                                        <div key={m.id} className="flex items-center gap-2 bg-white/[0.03] border border-border px-3 py-1.5 rounded-full">
-                                                            <div className="w-5 h-5 rounded-full bg-orange-500/20 flex items-center justify-center text-[9px] font-black text-orange-300">
-                                                                {(m.portal_users?.full_name || '?')[0].toUpperCase()}
+                                            {/* Members + Tasks + Submissions */}
+                                            <div className="border-t border-border px-6 py-4 space-y-4">
+                                                {/* Member task rows */}
+                                                <div className="space-y-2">
+                                                    {members.map((m: any) => {
+                                                        const subs = groupSubmissions[group.id] || [];
+                                                        const sub = subs.find((s: any) => s.portal_user_id === m.student_id);
+                                                        const isEditingTasks = editingTasksGroupId === group.id;
+                                                        return (
+                                                            <div key={m.id} className="flex items-start gap-3 bg-white/[0.02] border border-border rounded-xl px-4 py-3">
+                                                                {/* Avatar */}
+                                                                <div className="w-8 h-8 rounded-full bg-orange-500/20 border border-orange-500/30 flex items-center justify-center flex-shrink-0 text-[10px] font-black text-orange-300">
+                                                                    {(m.portal_users?.full_name || '?')[0].toUpperCase()}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    {/* Name + grade */}
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        <span className="text-xs font-bold text-foreground">{m.portal_users?.full_name || '—'}</span>
+                                                                        {group.is_graded && (
+                                                                            <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
+                                                                                {isGroupEval ? group.group_score : m.individual_score ?? '—'} pts
+                                                                            </span>
+                                                                        )}
+                                                                        {/* Submission status */}
+                                                                        {sub && (
+                                                                            <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${sub.status === 'graded' ? 'bg-emerald-500/10 text-emerald-400' : sub.status === 'submitted' ? 'bg-amber-500/10 text-amber-400' : 'bg-white/5 text-white/30'}`}>
+                                                                                {sub.status === 'graded' ? '✓ Graded' : sub.status === 'submitted' ? 'Submitted' : sub.status}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    {/* Task */}
+                                                                    {isEditingTasks ? (
+                                                                        <input
+                                                                            value={editingTasks[m.student_id] ?? (m.task_description || '')}
+                                                                            onChange={e => setEditingTasks(prev => ({ ...prev, [m.student_id]: e.target.value }))}
+                                                                            placeholder="Enter task for this member…"
+                                                                            className="mt-1.5 w-full px-3 py-1.5 bg-white/5 border border-orange-500/30 rounded-lg text-xs text-white placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/60 transition-colors"
+                                                                        />
+                                                                    ) : m.task_description ? (
+                                                                        <p className="mt-1 text-[11px] text-orange-300/80 italic flex items-start gap-1">
+                                                                            <ClipboardDocumentListIcon className="w-3 h-3 mt-0.5 flex-shrink-0 text-orange-400/60" />
+                                                                            {m.task_description}
+                                                                        </p>
+                                                                    ) : (
+                                                                        <p className="mt-1 text-[10px] text-white/20 italic">No task assigned</p>
+                                                                    )}
+                                                                    {/* Submission preview */}
+                                                                    {sub?.submission_text && (
+                                                                        <p className="mt-1.5 text-[10px] text-white/50 line-clamp-2 bg-white/[0.03] border border-white/[0.06] rounded-lg px-2 py-1.5">
+                                                                            "{sub.submission_text}"
+                                                                        </p>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                            <span className="text-[11px] font-semibold text-muted-foreground">{m.portal_users?.full_name || '—'}</span>
-                                                            {group.is_graded && (
-                                                                <span className="text-[10px] font-black text-emerald-400 ml-1">
-                                                                    {isGroupEval ? group.group_score : m.individual_score ?? '—'}
-                                                                </span>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Actions row */}
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    {/* Edit tasks toggle */}
+                                                    {editingTasksGroupId === group.id ? (
+                                                        <>
+                                                            <button onClick={() => saveGroupTasks(group.id)} disabled={savingTasks}
+                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest transition-all rounded-lg">
+                                                                {savingTasks ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <CheckIcon className="w-3 h-3" />}
+                                                                Save Tasks
+                                                            </button>
+                                                            <button onClick={() => { setEditingTasksGroupId(null); setEditingTasks({}); }}
+                                                                className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+                                                        </>
+                                                    ) : (
+                                                        <button onClick={() => {
+                                                            setEditingTasksGroupId(group.id);
+                                                            const init: Record<string, string> = {};
+                                                            members.forEach((m: any) => { init[m.student_id] = m.task_description || ''; });
+                                                            setEditingTasks(init);
+                                                        }}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.03] border border-white/[0.06] hover:border-orange-500/30 text-muted-foreground hover:text-orange-400 text-[10px] font-black uppercase tracking-widest transition-all rounded-lg">
+                                                            <ClipboardDocumentListIcon className="w-3.5 h-3.5" /> Edit Tasks
+                                                        </button>
+                                                    )}
+                                                    {/* View submissions */}
+                                                    {group.assignment_id && (
+                                                        <button onClick={async () => {
+                                                            if (expandedSubsId === group.id) { setExpandedSubsId(null); return; }
+                                                            setExpandedSubsId(group.id);
+                                                            if (!groupSubmissions[group.id]) await loadGroupSubmissions(group);
+                                                        }}
+                                                            className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all rounded-lg ${expandedSubsId === group.id ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' : 'bg-white/[0.03] border-white/[0.06] hover:border-cyan-500/20 text-muted-foreground hover:text-cyan-400'}`}>
+                                                            {loadingSubsId === group.id ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <EyeIcon className="w-3.5 h-3.5" />}
+                                                            {expandedSubsId === group.id ? 'Hide Submissions' : 'View Submissions'}
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {/* Expanded submission details */}
+                                                {expandedSubsId === group.id && group.assignment_id && (() => {
+                                                    const subs = groupSubmissions[group.id] || [];
+                                                    const noSub = members.filter((m: any) => !subs.find((s: any) => s.portal_user_id === m.student_id));
+                                                    return (
+                                                        <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-4 space-y-3">
+                                                            <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">
+                                                                {group.assignments?.title || 'Submissions'} — {subs.length} of {members.length} submitted
+                                                            </p>
+                                                            {subs.length === 0 && noSub.length === members.length ? (
+                                                                <p className="text-xs text-white/30 italic">No submissions yet.</p>
+                                                            ) : (
+                                                                <>
+                                                                    {subs.map((sub: any) => {
+                                                                        const mem = members.find((m: any) => m.student_id === sub.portal_user_id);
+                                                                        return (
+                                                                            <div key={sub.id} className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 space-y-2">
+                                                                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                                                                    <span className="text-xs font-bold text-foreground">{mem?.portal_users?.full_name || 'Unknown'}</span>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${sub.status === 'graded' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>{sub.status}</span>
+                                                                                        {sub.grade != null && <span className="text-[10px] font-black text-emerald-400">{sub.grade} pts</span>}
+                                                                                        {sub.submitted_at && <span className="text-[9px] text-white/30">{new Date(sub.submitted_at).toLocaleDateString('en-GB')}</span>}
+                                                                                    </div>
+                                                                                </div>
+                                                                                {sub.submission_text && (
+                                                                                    <p className="text-[11px] text-white/60 bg-white/[0.02] border border-white/[0.04] rounded-lg px-3 py-2 line-clamp-4">{sub.submission_text}</p>
+                                                                                )}
+                                                                                {sub.file_url && (
+                                                                                    <a href={sub.file_url} target="_blank" rel="noopener noreferrer"
+                                                                                        className="inline-flex items-center gap-1.5 text-[10px] font-black text-cyan-400 hover:text-cyan-300 transition-colors">
+                                                                                        <ArrowDownTrayIcon className="w-3 h-3" /> Download File
+                                                                                    </a>
+                                                                                )}
+                                                                                {sub.feedback && <p className="text-[10px] text-emerald-300/70 italic">Feedback: "{sub.feedback}"</p>}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                    {noSub.length > 0 && (
+                                                                        <p className="text-[10px] text-amber-400/60 italic">
+                                                                            Not submitted: {noSub.map((m: any) => m.portal_users?.full_name).join(', ')}
+                                                                        </p>
+                                                                    )}
+                                                                </>
                                                             )}
                                                         </div>
-                                                    ))}
-                                                </div>
+                                                    );
+                                                })()}
                                             </div>
 
                                             {/* WhatsApp Share Panel */}
@@ -1309,19 +1534,29 @@ export default function ProjectsPage() {
                                                             {members.map((m: any) => {
                                                                 const name = m.portal_users?.full_name || '—';
                                                                 const key = m.student_id;
+                                                                const subs = groupSubmissions[group.id] || [];
+                                                                const sub = subs.find((s: any) => s.portal_user_id === m.student_id);
                                                                 return (
-                                                                    <div key={key} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start bg-white/[0.02] border border-border rounded-xl px-4 py-3">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <div className="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center text-[9px] font-black text-orange-300">{(name)[0].toUpperCase()}</div>
-                                                                            <span className="text-[11px] font-bold text-foreground">{name}</span>
+                                                                    <div key={key} className="bg-white/[0.02] border border-border rounded-xl px-4 py-3 space-y-3">
+                                                                        {/* Member name + task + submission */}
+                                                                        <div className="flex items-start gap-2">
+                                                                            <div className="w-7 h-7 rounded-full bg-orange-500/20 flex items-center justify-center text-[9px] font-black text-orange-300 flex-shrink-0">{(name)[0].toUpperCase()}</div>
+                                                                            <div className="flex-1 min-w-0">
+                                                                                <p className="text-[11px] font-bold text-foreground">{name}</p>
+                                                                                {m.task_description && <p className="text-[10px] text-orange-300/70 italic mt-0.5">{m.task_description}</p>}
+                                                                                {sub?.submission_text && (
+                                                                                    <p className="mt-1 text-[10px] text-white/50 bg-white/[0.03] border border-white/[0.06] rounded-lg px-2 py-1 line-clamp-3">{sub.submission_text}</p>
+                                                                                )}
+                                                                                {!sub && group.assignment_id && <p className="text-[10px] text-amber-400/50 mt-0.5 italic">No submission yet</p>}
+                                                                            </div>
+                                                                            {sub && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full flex-shrink-0 ${sub.status === 'graded' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>{sub.status}</span>}
                                                                         </div>
-                                                                        <div>
+                                                                        {/* Score + feedback */}
+                                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                                             <input type="number" min={0} max={100} value={individualScores[key]?.score || ''}
                                                                                 onChange={e => setIndividualScores(prev => ({ ...prev, [key]: { ...prev[key], score: e.target.value } }))}
-                                                                                placeholder="Score"
+                                                                                placeholder="Score (0–100)"
                                                                                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-orange-500/50 transition-colors" />
-                                                                        </div>
-                                                                        <div>
                                                                             <input value={individualScores[key]?.feedback || ''}
                                                                                 onChange={e => setIndividualScores(prev => ({ ...prev, [key]: { ...prev[key], feedback: e.target.value } }))}
                                                                                 placeholder="Feedback (optional)"

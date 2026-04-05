@@ -30,10 +30,10 @@ export async function GET(req: Request) {
         .from('project_groups')
         .select(`
           id, name, evaluation_type, group_score, group_feedback, is_graded,
-          created_at, updated_at, class_name, school_name,
-          assignments(id, title),
+          created_at, updated_at, class_name, school_name, assignment_id,
+          assignments(id, title, description, due_date),
           project_group_members(
-            id, individual_score, individual_feedback,
+            id, student_id, individual_score, individual_feedback, task_description,
             portal_users(id, full_name, email, phone, section_class)
           )
         `)
@@ -67,10 +67,10 @@ export async function GET(req: Request) {
         .from('project_groups')
         .select(`
           id, name, evaluation_type, group_score, group_feedback, is_graded,
-          class_name, created_at,
+          class_name, created_at, assignment_id,
           assignments(id, title, description, due_date),
           project_group_members(
-            id, student_id, individual_score, individual_feedback,
+            id, student_id, individual_score, individual_feedback, task_description,
             portal_users(id, full_name)
           )
         `)
@@ -99,7 +99,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { name, assignment_id, class_name, school_name, evaluation_type = 'individual', student_ids } = body;
+    const { name, assignment_id, class_name, school_name, evaluation_type = 'individual', student_ids, member_tasks } = body;
 
     if (!name?.trim())           return NextResponse.json({ error: 'Group name is required' }, { status: 400 });
     if (!Array.isArray(student_ids) || student_ids.length < 2) {
@@ -123,7 +123,12 @@ export async function POST(req: Request) {
 
     if (gErr) throw gErr;
 
-    const members = (student_ids as string[]).map(sid => ({ group_id: group.id, student_id: sid }));
+    const tasksMap: Record<string, string> = member_tasks || {};
+    const members = (student_ids as string[]).map(sid => ({
+      group_id: group.id,
+      student_id: sid,
+      task_description: tasksMap[sid]?.trim() || null,
+    }));
     const { error: mErr } = await admin.from('project_group_members').insert(members);
     if (mErr) throw mErr;
 
@@ -145,7 +150,7 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json();
-    const { id, group_score, group_feedback, individual_scores, is_graded, evaluation_type, name } = body;
+    const { id, group_score, group_feedback, individual_scores, is_graded, evaluation_type, name, member_tasks } = body;
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
     const admin = createAdminClient();
@@ -176,6 +181,16 @@ export async function PATCH(req: Request) {
           .update({ individual_score: s.score, individual_feedback: s.feedback ?? null })
           .eq('group_id', id)
           .eq('student_id', s.student_id);
+      }
+    }
+
+    // Update per-member task descriptions
+    if (member_tasks && typeof member_tasks === 'object') {
+      for (const [student_id, task] of Object.entries(member_tasks as Record<string, string>)) {
+        await admin.from('project_group_members')
+          .update({ task_description: (task as string)?.trim() || null })
+          .eq('group_id', id)
+          .eq('student_id', student_id);
       }
     }
 
