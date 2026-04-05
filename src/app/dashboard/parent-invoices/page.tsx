@@ -438,13 +438,26 @@ function ParentInvoicesContent() {
 
                         {inv.notes && <p className="mt-2 text-[11px] text-muted-foreground italic">{inv.notes}</p>}
 
-                        {/* Pay Button */}
+                        {/* Pay + WhatsApp Reminder */}
                         {isPayable && (
-                          <button onClick={() => setPayingInvoice(inv)}
-                            className="mt-4 flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-xs font-black uppercase tracking-widest hover:from-orange-500 hover:to-orange-400 transition-all">
-                            <BanknotesIcon className="w-4 h-4" />
-                            Pay {formatCurrency(inv.amount, inv.currency)}
-                          </button>
+                          <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                            <button onClick={() => setPayingInvoice(inv)}
+                              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-xs font-black uppercase tracking-widest hover:from-orange-500 hover:to-orange-400 transition-all">
+                              <BanknotesIcon className="w-4 h-4" />
+                              Pay {formatCurrency(inv.amount, inv.currency)}
+                            </button>
+                            <a
+                              href={`https://wa.me/?text=${encodeURIComponent(
+                                `Hello, I'd like to make payment for Invoice #${inv.invoice_number} — Amount: ${formatCurrency(inv.amount, inv.currency)}${inv.due_date ? `, Due: ${new Date(inv.due_date).toLocaleDateString('en-GB')}` : ''}. Please advise on payment arrangements. Thank you.`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                            >
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.139.565 4.143 1.548 5.877L.057 23.43a.75.75 0 0 0 .928.928l5.554-1.49A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22.5a10.45 10.45 0 0 1-5.348-1.467l-.383-.228-3.975 1.066 1.067-3.894-.25-.4A10.451 10.451 0 0 1 1.5 12C1.5 6.201 6.201 1.5 12 1.5S22.5 6.201 22.5 12 17.799 22.5 12 22.5z"/></svg>
+                              WhatsApp Admin
+                            </a>
+                          </div>
                         )}
 
                         {inv.status === 'paid' && (
