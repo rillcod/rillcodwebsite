@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Database } from '@/types/supabase';
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
-import { generateReportPDF, ScaledReportCard } from '@/lib/pdf-utils';
+import { generateReportPDF, ScaledReportCard, shareReportCard } from '@/lib/pdf-utils';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
     UserGroupIcon, DocumentTextIcon, EyeIcon, XMarkIcon,
@@ -27,14 +27,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
     );
 }
 
-function fmtWaPhone(raw: string | null | undefined): string | null {
-    if (!raw) return null;
-    const d = raw.replace(/\D/g, '');
-    if (!d) return null;
-    if (d.startsWith('234')) return d;
-    if (d.startsWith('0'))   return '234' + d.slice(1);
-    return d.length >= 10 ? d : null;
-}
+
 import { cn } from '@/lib/utils';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
@@ -281,6 +274,7 @@ function ReportBuilderInner() {
     };
     const [showPreview, setShowPreview] = useState(false);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [isSharingPdf, setIsSharingPdf] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [milestoneInput, setMilestoneInput] = useState('');
     const [showMilestoneSuggestions, setShowMilestoneSuggestions] = useState(false);
@@ -2520,36 +2514,37 @@ function ReportBuilderInner() {
                             {isGeneratingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}
                             {isGeneratingPdf ? 'Processing...' : 'Export PDF'}
                         </button>
-                        {/* WhatsApp share */}
-                        {(() => {
-                            const phone = fmtWaPhone((selectedStudent as any)?.phone);
-                            const lines: string[] = [
-                                `Hello, please find below the ${sessionConfig.report_term || 'term'} progress report for *${form.student_name || 'your child'}*.`,
-                                '',
-                                `📚 *Course:* ${sessionConfig.course_name || '—'}`,
-                                `🏫 *Class:* ${form.section_class || sessionConfig.section_class || '—'}`,
-                                `📅 *Term:* ${sessionConfig.report_term || '—'}`,
-                                '',
-                                form.theory_score     ? `Theory:      ${form.theory_score}/100` : '',
-                                form.practical_score  ? `Practical:   ${form.practical_score}/100` : '',
-                                form.attendance_score ? `Attendance:  ${form.attendance_score}/100` : '',
-                                overallScore          ? `\n*Overall Score: ${overallScore}/100*` : '',
-                                overallGradeLetter    ? `*Grade: ${overallGradeLetter}*` : '',
-                                '',
-                                '— Rillcod Academy',
-                            ].filter(l => l !== '');
-                            const msg = lines.join('\n');
-                            const waUrl = phone
-                                ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
-                                : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-                            return (
-                                <a href={waUrl} target="_blank" rel="noopener noreferrer"
-                                    className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 text-white text-sm font-black rounded-none shadow-xl shadow-green-900/30 transition-all whitespace-nowrap">
-                                    <WhatsAppIcon className="w-4 h-4" />
-                                    {phone ? 'Send via WhatsApp' : 'Share on WhatsApp'}
-                                </a>
-                            );
-                        })()}
+                        {/* Share report card PDF via Web Share / WhatsApp */}
+                        <button
+                            disabled={isSharingPdf || !form.student_name}
+                            onClick={async () => {
+                                if (!pdfRef.current) { setError('Open Live Preview first, then share.'); return; }
+                                setIsSharingPdf(true); setError('');
+                                try {
+                                    const name = form.student_name.replace(/\s+/g, '_') || 'Student';
+                                    const term = sessionConfig.report_term.replace(/\s+/g, '_') || 'Report';
+                                    const result = await shareReportCard(
+                                        pdfRef.current,
+                                        `${name}_${term}.pdf`,
+                                        `Progress report for ${form.student_name} — ${sessionConfig.report_term} — Rillcod Academy`,
+                                    );
+                                    if (result === 'downloaded') {
+                                        setError('Web Share not supported on this browser — PDF downloaded instead.');
+                                    }
+                                } catch (err: unknown) {
+                                    const msg = err instanceof Error ? err.message : '';
+                                    if (!msg.toLowerCase().includes('cancel') && !msg.toLowerCase().includes('abort')) {
+                                        setError('Could not share: ' + msg);
+                                    }
+                                } finally { setIsSharingPdf(false); }
+                            }}
+                            className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-black rounded-none shadow-xl shadow-green-900/30 transition-all whitespace-nowrap"
+                        >
+                            {isSharingPdf
+                                ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                : <WhatsAppIcon className="w-4 h-4" />}
+                            {isSharingPdf ? 'Preparing…' : 'Share Report'}
+                        </button>
                     </div>
                     <div ref={previewContainerRef} className="flex-1 overflow-auto p-2 sm:p-6 bg-black/40">
                         {/* Outer wrapper sized to scaled A4 dimensions so scroll area is correct */}

@@ -22,19 +22,12 @@ function WhatsAppIcon({ className }: { className?: string }) {
     );
 }
 
-function fmtWaPhone(raw: string | null | undefined): string | null {
-    if (!raw) return null;
-    const d = raw.replace(/\D/g, '');
-    if (!d) return null;
-    if (d.startsWith('234')) return d;
-    if (d.startsWith('0'))   return '234' + d.slice(1);
-    return d.length >= 10 ? d : null;
-}
+
 
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
-import { ScaledReportCard, generateReportPDF } from '@/lib/pdf-utils';
+import { ScaledReportCard, generateReportPDF, shareReportCard } from '@/lib/pdf-utils';
 import { Database } from '@/types/supabase';
 import { cn } from '@/lib/utils';
 
@@ -155,6 +148,7 @@ function ResultsPageInner() {
 
     // ── PDF state ──────────────────────────────────────────────────────────────
     const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+    const [isSharingPdf, setIsSharingPdf] = useState(false);
     const [isBatchDownloading, setIsBatchDownloading] = useState(false);
     const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
     const [captureReport, setCaptureReport] = useState<StudentReport | null>(null);
@@ -1094,38 +1088,41 @@ tbody tr:hover{background:#f3f4f6}
                                                                 : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
                                                             {isDownloadingPdf ? 'Downloading…' : 'Download PDF'}
                                                         </button>
-                                                        {/* WhatsApp share */}
-                                                        {(() => {
-                                                            const phone = fmtWaPhone(selectedStudent?.phone);
-                                                            const r = selectedReport;
-                                                            const name = r.student_name || selectedStudent?.full_name || 'Student';
-                                                            const lines: string[] = [
-                                                                `Hello, please find below the ${r.report_term || 'term'} progress report for *${name}*.`,
-                                                                '',
-                                                                `📚 *Course:* ${r.course_name || '—'}`,
-                                                                `🏫 *Class:* ${r.section_class || '—'}`,
-                                                                `📅 *Term:* ${r.report_term || '—'}`,
-                                                                '',
-                                                                r.theory_score     != null ? `Theory:      ${r.theory_score}/100` : '',
-                                                                r.practical_score  != null ? `Practical:   ${r.practical_score}/100` : '',
-                                                                r.attendance_score != null ? `Attendance:  ${r.attendance_score}/100` : '',
-                                                                r.overall_score    != null ? `\n*Overall Score: ${r.overall_score}/100*` : '',
-                                                                r.overall_grade               ? `*Grade: ${r.overall_grade}*` : '',
-                                                                '',
-                                                                '— Rillcod Academy',
-                                                            ].filter(l => l !== '');
-                                                            const msg = lines.join('\n');
-                                                            const waUrl = phone
-                                                                ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
-                                                                : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-                                                            return (
-                                                                <a href={waUrl} target="_blank" rel="noopener noreferrer"
-                                                                    className="h-full inline-flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-[10px] font-black uppercase tracking-widest rounded-none transition-all whitespace-nowrap shadow-lg shadow-green-900/40">
-                                                                    <WhatsAppIcon className="w-3.5 h-3.5" />
-                                                                    {phone ? 'Send via WhatsApp' : 'Share on WhatsApp'}
-                                                                </a>
-                                                            );
-                                                        })()}
+                                                        {/* Share report card as PDF attachment */}
+                                                        <button
+                                                            disabled={isSharingPdf}
+                                                            onClick={async () => {
+                                                                if (!printableRef.current || !reportToDisplay) return;
+                                                                setIsSharingPdf(true);
+                                                                try {
+                                                                    const name = (reportToDisplay.student_name || 'Student').replace(/\s+/g, '_');
+                                                                    const term = (reportToDisplay.report_term || 'Report').replace(/\s+/g, '_');
+                                                                    const filename = `${name}_${term}.pdf`;
+                                                                    const result = await shareReportCard(
+                                                                        printableRef.current,
+                                                                        filename,
+                                                                        `Progress report for ${reportToDisplay.student_name || 'your child'} — ${reportToDisplay.report_term || ''} — Rillcod Academy`,
+                                                                    );
+                                                                    if (result === 'downloaded') {
+                                                                        alert('Web Share not supported on this browser. The PDF has been downloaded instead.');
+                                                                    }
+                                                                } catch (err: unknown) {
+                                                                    // User cancelled share — ignore
+                                                                    const msg = err instanceof Error ? err.message : '';
+                                                                    if (!msg.toLowerCase().includes('cancel') && !msg.toLowerCase().includes('abort')) {
+                                                                        alert('Could not share PDF. Try downloading instead.');
+                                                                    }
+                                                                } finally {
+                                                                    setIsSharingPdf(false);
+                                                                }
+                                                            }}
+                                                            className="h-full inline-flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-none transition-all whitespace-nowrap shadow-lg shadow-green-900/40"
+                                                        >
+                                                            {isSharingPdf
+                                                                ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                                : <WhatsAppIcon className="w-3.5 h-3.5" />}
+                                                            {isSharingPdf ? 'Preparing…' : 'Share Report'}
+                                                        </button>
                                                     </div>
                                                 )}
                                             </div>
