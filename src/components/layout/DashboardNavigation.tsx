@@ -36,6 +36,7 @@ export default function DashboardNavigation() {
   const isMinimal = searchParams.get('minimal') === 'true';
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifUnread, setNotifUnread] = useState(0);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -59,10 +60,14 @@ export default function DashboardNavigation() {
       db.from('messages').select('id', { count: 'exact', head: true })
         .eq('recipient_id', profile.id).eq('is_read', false),
       (db.from('newsletter_delivery' as any)).select('id', { count: 'exact', head: true })
-        .eq('user_id', profile.id).eq('is_viewed', false)
-    ]).then(([msgRes, nwlRes]) => {
-      const total = (msgRes.count ?? 0) + (nwlRes.count ?? 0);
+        .eq('user_id', profile.id).eq('is_viewed', false),
+      db.from('notifications').select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id).eq('is_read', false),
+    ]).then(([msgRes, nwlRes, notifRes]) => {
+      const nc = notifRes.count ?? 0;
+      const total = (msgRes.count ?? 0) + (nwlRes.count ?? 0) + nc;
       setUnreadCount(total);
+      setNotifUnread(nc);
     });
   }, [profile?.id, isMinimal]); // eslint-disable-line
 
@@ -131,6 +136,7 @@ export default function DashboardNavigation() {
           { name: 'Transactions', href: '/dashboard/transactions', icon: CreditCardIcon },
           { divider: true, label: 'System' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ];
@@ -167,6 +173,7 @@ export default function DashboardNavigation() {
           { divider: true, label: 'More' },
           { name: 'Live Sessions', href: '/dashboard/live-sessions', icon: VideoCameraIcon },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ];
 
@@ -197,6 +204,7 @@ export default function DashboardNavigation() {
           { name: 'My Report Card', href: '/dashboard/results', icon: DocumentChartBarIcon },
           { divider: true, label: 'More' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ];
@@ -220,6 +228,7 @@ export default function DashboardNavigation() {
           { name: 'Transactions', href: '/dashboard/transactions', icon: CreditCardIcon },
           { divider: true, label: 'More' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ];
 
@@ -239,6 +248,7 @@ export default function DashboardNavigation() {
           { name: 'Share Feedback', href: '/dashboard/parent-feedback', icon: ChatBubbleLeftEllipsisIcon },
           { divider: true, label: 'More' },
           { name: 'Messages', href: '/dashboard/messages', icon: EnvelopeIcon },
+          { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ];
@@ -394,6 +404,11 @@ export default function DashboardNavigation() {
                 {name === 'Messages' && unreadCount > 0 && (
                   <span className="ml-auto flex-shrink-0 px-1.5 py-0.5 bg-rose-500 text-white text-[8px] font-black min-w-[1.1rem] text-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+                {name === 'Notifications' && notifUnread > 0 && (
+                  <span className="ml-auto flex-shrink-0 px-1.5 py-0.5 bg-orange-500 text-white text-[8px] font-black min-w-[1.1rem] text-center">
+                    {notifUnread > 9 ? '9+' : notifUnread}
                   </span>
                 )}
                 {active && (
