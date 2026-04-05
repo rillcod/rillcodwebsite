@@ -41,7 +41,8 @@ export async function GET(request: NextRequest) {
       .order('due_date', { ascending: true });
 
     if (caller.role === 'teacher') {
-      query = query.eq('created_by', caller.id) as any;
+      // Teachers see assignments they created (for any school they're assigned to)
+      query = (query as any).eq('created_by', caller.id);
     } else if (caller.role === 'school') {
       const filters: string[] = [];
       if (caller.school_id) filters.push(`school_id.eq.${caller.school_id}`);

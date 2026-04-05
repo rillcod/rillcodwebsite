@@ -152,9 +152,13 @@ export default function NewProjectActivityPage() {
     // Step 3 — Visibility & Assignment
     // Visibility: who can SEE this activity
     const [visibilityType, setVisibilityType] = useState<'school' | 'class'>('school');
+    const [targetSchoolId, setTargetSchoolId]   = useState('');
+    const [targetSchoolName, setTargetSchoolName] = useState('');
     const [targetClassId, setTargetClassId]   = useState('');
     const [targetClassName, setTargetClassName] = useState('');
+    const [assignedSchools, setAssignedSchools] = useState<any[]>([]);
     const [classes, setClasses]               = useState<any[]>([]);
+    const [classesLoading, setClassesLoading] = useState(false);
     // Work mode: HOW students work on it
     const [workMode, setWorkMode] = useState<'individual' | 'specific' | 'group'>('individual');
     const [isGroupActivity, setIsGroupActivity] = useState(false);
@@ -166,12 +170,29 @@ export default function NewProjectActivityPage() {
         if (authLoading || !isStaff) return;
         Promise.all([
             fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }).then(r => r.json()),
+            fetch('/api/teacher-schools', { cache: 'no-store' }).then(r => r.json()),
             fetch('/api/classes', { cache: 'no-store' }).then(r => r.json()),
-        ]).then(([sj, cj]) => {
+        ]).then(([sj, schj, cj]) => {
             setStudents(sj.data || []);
+            setAssignedSchools(schj.data || []);
             setClasses(cj.data || []);
         });
     }, [authLoading, isStaff]); // eslint-disable-line
+
+    // Re-load classes when a target school is selected
+    async function handleSchoolSelect(schoolId: string, schoolName: string) {
+        setTargetSchoolId(schoolId);
+        setTargetSchoolName(schoolName);
+        setTargetClassId('');
+        setTargetClassName('');
+        if (!schoolId) return;
+        setClassesLoading(true);
+        try {
+            const r = await fetch(`/api/classes?school_id=${schoolId}`, { cache: 'no-store' });
+            const j = await r.json();
+            setClasses(j.data || []);
+        } finally { setClassesLoading(false); }
+    }
 
     function toggleTargetStudent(id: string) {
         setTargetStudentIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -252,9 +273,9 @@ export default function NewProjectActivityPage() {
                 max_points:       gradingMode === 'rubric' ? rubricTotal : (parseInt(maxPoints) || 100),
                 assignment_type:  'project',
                 is_active:        !isDraft,
-                // auto-attach teacher/admin school
-                school_id:   profile?.school_id   || null,
-                school_name: profile?.school_name  || null,
+                // use selected school if set, otherwise fall back to teacher's primary school
+                school_id:   targetSchoolId   || profile?.school_id   || null,
+                school_name: targetSchoolName || profile?.school_name  || null,
                 metadata: {
                     category,
                     difficulty,
@@ -722,10 +743,29 @@ export default function NewProjectActivityPage() {
                                 {/* ── SECTION A: Visibility ── */}
                                 <div className={CARD}>
                                     <label className={LABEL}>Who can see this activity?</label>
-                                    <div className="grid grid-cols-2 gap-3 mt-1">
+
+                                    {/* School picker (if teacher has multiple schools) */}
+                                    {assignedSchools.length > 1 && (
+                                        <div className="mb-4">
+                                            <label className={LABEL}>Target School</label>
+                                            <select value={targetSchoolId}
+                                                onChange={e => {
+                                                    const sch = assignedSchools.find((s: any) => s.id === e.target.value);
+                                                    handleSchoolSelect(e.target.value, sch?.name || '');
+                                                }}
+                                                className={INPUT}>
+                                                <option value="">— Select a school —</option>
+                                                {assignedSchools.map((s: any) => (
+                                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-3">
                                         {([
-                                            { key: 'school', label: 'Whole School', sub: 'All students at your school see this', icon: '🏫' },
-                                            { key: 'class',  label: 'Specific Class', sub: 'Only a selected class can see this', icon: '📚' },
+                                            { key: 'school', label: 'Whole School', sub: 'All students at the selected school see this', icon: '🏫' },
+                                            { key: 'class',  label: 'Specific Class', sub: 'Only students in a chosen class can see this', icon: '📚' },
                                         ] as const).map(opt => (
                                             <button key={opt.key} type="button" onClick={() => setVisibilityType(opt.key)}
                                                 className={`flex items-start gap-3 px-4 py-4 border text-left transition-all ${visibilityType === opt.key ? 'bg-violet-500/10 border-violet-500/40' : 'bg-white/[0.02] border-white/[0.06] hover:border-white/20'}`}>
@@ -742,8 +782,12 @@ export default function NewProjectActivityPage() {
                                     {visibilityType === 'class' && (
                                         <div className="mt-4">
                                             <label className={LABEL}>Select Class</label>
-                                            {classes.length === 0 ? (
-                                                <p className="text-xs text-white/30 italic">No classes found — create a class first</p>
+                                            {classesLoading ? (
+                                                <div className="flex items-center gap-2 text-white/30 text-xs py-2">
+                                                    <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Loading classes…
+                                                </div>
+                                            ) : classes.length === 0 ? (
+                                                <p className="text-xs text-white/30 italic py-2">No classes found for this school</p>
                                             ) : (
                                                 <select value={targetClassId}
                                                     onChange={e => {
@@ -754,7 +798,9 @@ export default function NewProjectActivityPage() {
                                                     className={INPUT}>
                                                     <option value="">— Select a class —</option>
                                                     {classes.map((cls: any) => (
-                                                        <option key={cls.id} value={cls.id}>{cls.name}{cls.schools?.name ? ` · ${cls.schools.name}` : ''}</option>
+                                                        <option key={cls.id} value={cls.id}>
+                                                            {cls.name}{cls.schools?.name ? ` · ${cls.schools.name}` : ''}
+                                                        </option>
                                                     ))}
                                                 </select>
                                             )}
@@ -933,6 +979,7 @@ export default function NewProjectActivityPage() {
                                                 { label: 'Due Date',    value: dueDate ? new Date(dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No deadline' },
                                                 { label: 'Max Points',  value: gradingMode === 'rubric' ? `${rubricTotal} pts` : `${maxPoints} pts` },
                                                 { label: 'Grading',     value: GRADING_MODES.find(m => m.key === gradingMode)?.label || '' },
+                                                { label: 'School',      value: targetSchoolName || profile?.school_name || '—' },
                                                 { label: 'Visibility',  value: visibilityType === 'class' ? `Class: ${targetClassName || '(not set)'}` : 'Whole School' },
                                                 { label: 'Work Mode',   value: workMode === 'group' ? `Group (${groups.length} teams)` : workMode === 'specific' ? `${targetStudentIds.length} specific student(s)` : 'Individual' },
                                             ].map(s => (
