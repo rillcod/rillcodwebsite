@@ -1059,10 +1059,10 @@ export default function ParentsPage() {
                   if (val) load();
                   else { setParents([]); setLoading(false); }
                 }}
-                disabled={!isAdmin && schools.length <= 1}
+                disabled={false}
                 className="pl-9 pr-8 py-2.5 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors min-w-[180px] appearance-none disabled:opacity-70"
               >
-                {isAdmin && <option value="">— Select School —</option>}
+                <option value="">— Select School —</option>
                 {/* Guarantee teacher's school is always an option before schools[] loads */}
                 {teacherSchool && !schools.includes(teacherSchool) && (
                   <option value={teacherSchool}>{teacherSchool}</option>
