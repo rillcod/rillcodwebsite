@@ -93,18 +93,19 @@ export function StudentPicker({
     let list = schoolFilter
       ? students.filter(s => s.school_name?.toLowerCase() === schoolFilter.toLowerCase())
       : students;
-    // Narrow by teacher class if provided
+    // Narrow by class if provided — use exact case-insensitive match only
     if (classFilter) {
-      const cf = classFilter.toLowerCase().replace(/\s+/g, '');
-      const classMatched = list.filter(s => {
-        const fields = [s.current_class, s.section, s.grade_level].map(v => (v ?? '').toLowerCase().replace(/\s+/g, ''));
-        const hasClassData = fields.some(f => f.length > 0);
-        // Always include students with no class data (unclassified/new accounts)
-        if (!hasClassData) return true;
-        return fields.some(f => f === cf || f.startsWith(cf) || cf.startsWith(f));
+      const cf = classFilter.toLowerCase().trim();
+      const inClass = list.filter(s => {
+        const fields = [s.current_class, s.section, s.grade_level].map(v => (v ?? '').toLowerCase().trim());
+        return fields.some(f => f === cf);
       });
-      // Only narrow if we got matches — avoids empty list when data doesn't line up perfectly
-      if (classMatched.length > 0) list = classMatched;
+      const unassigned = list.filter(s => {
+        const fields = [s.current_class, s.section, s.grade_level].map(v => (v ?? '').trim());
+        return fields.every(f => f === '');
+      });
+      // Show class-matched students first; show unassigned only when there are no class matches
+      list = inClass.length > 0 ? inClass : unassigned;
     }
     if (q.trim()) {
       const lower = q.toLowerCase();
