@@ -10,13 +10,13 @@ import {
   ClipboardIcon, KeyIcon, PrinterIcon, ArrowUpTrayIcon, CreditCardIcon, TrashIcon,
 } from '@/lib/icons';
 
-import { useRouter } from 'next/navigation';
-import { 
-  Parent, 
-  Student, 
-  Teacher, 
-  LinkedChild, 
-  StudentPicker 
+import {
+  Parent,
+  Student,
+  Teacher,
+  LinkedChild,
+  StudentPicker,
+  ParentForm,
 } from '@/components/parents/ParentForm';
 
 
@@ -137,7 +137,7 @@ function LinkStudentModal({
               className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-orange-500 transition-colors disabled:opacity-60"
             >
               {schools.length === 0 && <option value="">— No Schools Available —</option>}
-              {profile?.role === 'admin' && schools.length > 1 && <option value="">— Select School —</option>}
+              {(profile?.role === 'admin' || !selectedSchool) && <option value="">— Select School —</option>}
               {schools.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
@@ -722,8 +722,6 @@ function AccessCardsModal({ parents, schoolFilter, onClose }: {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ParentsPage() {
-  const router = useRouter();
-
   const { profile, loading: authLoading } = useAuth();
   const [parents, setParents] = useState<Parent[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -757,6 +755,15 @@ export default function ParentsPage() {
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [showAccessCards, setShowAccessCards] = useState(false);
   const [resetting, setResetting] = useState<string | null>(null);
+  // Slide-over drawer for Add / Edit
+  const [showSlide, setShowSlide] = useState(false);
+  const [slideMode, setSlideMode] = useState<'add' | 'edit'>('add');
+  const [slideParent, setSlideParent] = useState<Parent | null>(null);
+  const [slidePickerLoading, setSlidePickerLoading] = useState(false);
+  // Delete confirmation modal
+  const [deleteTarget, setDeleteTarget] = useState<Parent | null>(null);
+  // Status filter
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [resetResult, setResetResult] = useState<{ email: string; password: string } | null>(null);
   const [pickerLoading, setPickerLoading] = useState(false);
   const [pickerLoaded, setPickerLoaded] = useState(false);
@@ -834,6 +841,36 @@ export default function ParentsPage() {
     await load(true);
   }, [pickerLoaded, load]);
 
+  // Open slide-over drawer (lazy-loads picker data if needed)
+  const openSlide = useCallback(async (mode: 'add' | 'edit', parent?: Parent) => {
+    setSlideMode(mode);
+    setSlideParent(parent ?? null);
+    setShowSlide(true);
+    if (!pickerLoaded) {
+      setSlidePickerLoading(true);
+      await load(true);
+      setSlidePickerLoading(false);
+    }
+  }, [pickerLoaded, load]);
+
+  // Re-fetch students/teachers/classes for a specific school (used inside the slide-over)
+  const handleSlideSchoolChange = useCallback(async (school: string) => {
+    setSlidePickerLoading(true);
+    try {
+      const params = new URLSearchParams({ include_picker_data: 'true' });
+      if (school) params.set('school', school);
+      const res = await fetch(`/api/parents/manage?${params.toString()}`);
+      const json = await res.json();
+      if (res.ok) {
+        setStudents(json.students || []);
+        setTeachers(json.teachers || []);
+        setClasses(json.classes || []);
+      }
+    } finally {
+      setSlidePickerLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!authLoading) {
       // Load parents list only on mount; picker data is loaded lazily when modal opens
@@ -885,7 +922,6 @@ export default function ParentsPage() {
   };
 
   const handleDeleteParent = async (parent: Parent) => {
-    if (!confirm(`Permanently delete ${parent.full_name}'s account? This removes them from the database and cannot be undone.`)) return;
     setDeleting(parent.id);
     try {
       const res = isAdmin
@@ -928,6 +964,10 @@ export default function ParentsPage() {
       setResetResult({ email: parent.email, password: j.new_password });
     } catch { alert('Failed to reset password'); } finally { setResetting(null); }
   };
+
+  const visibleParents = statusFilter === 'all'
+    ? parents
+    : parents.filter(p => statusFilter === 'active' ? p.is_active : !p.is_active);
 
   if (authLoading) return null;
 
@@ -975,7 +1015,7 @@ export default function ParentsPage() {
             </button>
           )}
           <button
-            onClick={() => router.push('/dashboard/parents/add')}
+            onClick={() => openSlide('add')}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
             <PlusIcon className="w-4 h-4" /> <span className="whitespace-nowrap">Add Parent</span>
           </button>
@@ -1040,6 +1080,29 @@ export default function ParentsPage() {
         )}
       </div>
 
+      {/* Status filter tabs */}
+      <div className="flex items-center gap-1 bg-card border border-border p-1 w-fit">
+        {([
+          { id: 'all' as const, label: 'All', count: parents.length },
+          { id: 'active' as const, label: 'Active', count: parents.filter(p => p.is_active).length },
+          { id: 'inactive' as const, label: 'Inactive', count: parents.filter(p => !p.is_active).length },
+        ]).map(({ id, label, count }) => (
+          <button key={id} onClick={() => setStatusFilter(id)}
+            className={`flex items-center gap-1.5 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+              statusFilter === id
+                ? id === 'active' ? 'bg-emerald-500/20 text-emerald-400'
+                  : id === 'inactive' ? 'bg-rose-500/20 text-rose-400'
+                  : 'bg-white/10 text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}>
+            {label}
+            <span className={`text-[9px] px-1.5 py-0.5 font-black ${
+              statusFilter === id ? 'bg-white/10' : 'bg-white/5'
+            }`}>{count}</span>
+          </button>
+        ))}
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="bg-card border border-border p-4">
@@ -1089,31 +1152,33 @@ export default function ParentsPage() {
             <div key={i} className="bg-card border border-border p-4 animate-pulse h-16" />
           ))}
         </div>
-      ) : parents.length === 0 ? (
+      ) : visibleParents.length === 0 ? (
         <div className="bg-card border border-border p-12 text-center">
           <HeartIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm font-black text-foreground uppercase tracking-wider">No parent accounts found</p>
+          <p className="text-sm font-black text-foreground uppercase tracking-wider">
+            {parents.length === 0 ? 'No parent accounts found' : `No ${statusFilter} accounts`}
+          </p>
           <p className="text-xs text-muted-foreground mt-1">
-            {search || schoolFilter ? 'Try adjusting your filters.' : 'Click "Add Parent" to create one.'}
+            {search || schoolFilter ? 'Try adjusting your filters.' : parents.length === 0 ? 'Click "Add Parent" to create one.' : `All ${parents.length} parents are ${statusFilter === 'active' ? 'inactive' : 'active'}.`}
           </p>
         </div>
       ) : (
         <div className="bg-card border border-border divide-y divide-border">
           {/* Select-all header — admin only */}
-          {isAdmin && parents.length > 0 && (
+          {isAdmin && visibleParents.length > 0 && (
             <div className="flex items-center gap-3 px-4 sm:px-5 py-2 border-b border-border bg-background/40">
               <button
                 type="button"
                 onClick={toggleSelectAll}
-                className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center text-[8px] font-black transition-all ${selectedIds.size === parents.length && parents.length > 0 ? 'bg-rose-500 border-rose-500 text-white' : 'border-border hover:border-rose-500/50'}`}>
-                {selectedIds.size === parents.length && parents.length > 0 ? '✓' : ''}
+                className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center text-[8px] font-black transition-all ${selectedIds.size === visibleParents.length && visibleParents.length > 0 ? 'bg-rose-500 border-rose-500 text-white' : 'border-border hover:border-rose-500/50'}`}>
+                {selectedIds.size === visibleParents.length && visibleParents.length > 0 ? '✓' : ''}
               </button>
               <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
-                {selectedIds.size === parents.length && parents.length > 0 ? 'Deselect all' : `Select all ${parents.length}`}
+                {selectedIds.size === visibleParents.length && visibleParents.length > 0 ? 'Deselect all' : `Select all ${visibleParents.length}`}
               </span>
             </div>
           )}
-          {parents.map(parent => (
+          {visibleParents.map(parent => (
             <div key={parent.id}>
                 {/* Parent row */}
                 <div
@@ -1129,44 +1194,65 @@ export default function ParentsPage() {
                       {selectedIds.has(parent.id) ? '✓' : ''}
                     </button>
                   )}
-                  {/* Avatar */}
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-none bg-orange-500/10 border border-orange-500/20 flex items-center justify-center flex-shrink-0">
-                    <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-400" />
-                  </div>
-  
+                  {/* Initials avatar */}
+                  {(() => {
+                    const initials = parent.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+                    return (
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-sm bg-gradient-to-br from-orange-600 to-orange-400 flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <span className="text-xs sm:text-sm font-black text-white">{initials}</span>
+                      </div>
+                    );
+                  })()}
+
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs sm:text-sm font-bold text-foreground truncate max-w-[150px] sm:max-w-none">{parent.full_name}</span>
-                      {!parent.is_active && (
-                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-400">
-                          Inactive
-                        </span>
-                      )}
+                      <span className="text-xs sm:text-sm font-bold text-foreground truncate max-w-[140px] sm:max-w-xs">{parent.full_name}</span>
+                      <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 border flex-shrink-0 ${
+                        parent.is_active
+                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                          : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                      }`}>
+                        {parent.is_active ? 'Active' : 'Inactive'}
+                      </span>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-0.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3 mt-0.5">
                       <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 truncate">
                         <EnvelopeIcon className="w-3 h-3 shrink-0" /> <span className="truncate">{parent.email}</span>
                       </span>
                       {parent.phone && (
-                        <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1 shrink-0">
                           <PhoneIcon className="w-3 h-3 shrink-0" /> {parent.phone}
                         </span>
                       )}
                     </div>
+                    {/* Children chips — visible in collapsed row on sm+ */}
+                    {parent.children.length > 0 && (
+                      <div className="hidden sm:flex items-center gap-1 mt-1 flex-wrap">
+                        {parent.children.slice(0, 3).map(c => (
+                          <span key={c.id} className="text-[9px] font-bold px-2 py-0.5 bg-white/5 border border-border text-muted-foreground">
+                            {c.full_name.split(' ')[0]}
+                          </span>
+                        ))}
+                        {parent.children.length > 3 && (
+                          <span className="text-[9px] text-muted-foreground">+{parent.children.length - 3} more</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                {/* Children count */}
-                <div className="hidden xs:flex items-center gap-1.5 text-xs text-muted-foreground flex-shrink-0 px-2 py-1 bg-muted/30 border border-border sm:border-transparent sm:bg-transparent">
-                  <AcademicCapIcon className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{parent.children.length} {parent.children.length === 1 ? 'child' : 'children'}</span>
-                  <span className="sm:hidden">{parent.children.length}</span>
-                </div>
+                  {/* Children count badge */}
+                  <div className="hidden xs:flex items-center gap-1.5 flex-shrink-0">
+                    <div className="flex items-center gap-1 px-2 py-1.5 bg-orange-500/5 border border-orange-500/15">
+                      <AcademicCapIcon className="w-3.5 h-3.5 text-orange-400" />
+                      <span className="text-xs font-black text-orange-400">{parent.children.length}</span>
+                    </div>
+                  </div>
 
-                {/* Expand icon */}
-                <div className="flex-shrink-0 text-muted-foreground ml-1">
-                  {expanded === parent.id ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
-                </div>
+                  {/* Expand icon */}
+                  <div className="flex-shrink-0 text-muted-foreground ml-1">
+                    {expanded === parent.id ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+                  </div>
               </div>
 
               {/* Expanded detail */}
@@ -1211,45 +1297,88 @@ export default function ParentsPage() {
                   </div>
 
                   {/* Action bar */}
-                  <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 pt-3 border-t border-border">
+                  <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border">
+                    {/* Edit */}
                     <button
-                      onClick={() => router.push(`/dashboard/parents/edit/${parent.id}`)}
-                      className="flex items-center justify-center gap-2 px-4 py-2.5 border border-border text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all">
-                      <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+                      onClick={() => openSlide('edit', parent)}
+                      title="Edit parent profile"
+                      className="group flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-border hover:border-white/30 transition-all">
+                      <span className="w-6 h-6 rounded-sm bg-violet-500/20 flex items-center justify-center group-hover:bg-violet-500/30 transition-colors">
+                        <PencilSquareIcon className="w-3.5 h-3.5 text-violet-400" />
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors hidden sm:block">Edit</span>
                     </button>
+
+                    {/* Link Student */}
                     <button
                       onClick={async () => { await ensurePickerData(); setLinkTarget(parent); }}
-                      className="flex items-center justify-center gap-2 px-4 py-2.5 border border-orange-500/40 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-orange-400 hover:border-orange-500 hover:text-orange-300 transition-all">
-                      <LinkIcon className="w-3.5 h-3.5" /> Link Student
+                      title="Link a student to this parent"
+                      className="group flex items-center gap-2 px-3 py-2 bg-orange-500/5 hover:bg-orange-500/10 border border-orange-500/20 hover:border-orange-500/50 transition-all">
+                      <span className="w-6 h-6 rounded-sm bg-orange-500/20 flex items-center justify-center group-hover:bg-orange-500/30 transition-colors">
+                        <LinkIcon className="w-3.5 h-3.5 text-orange-400" />
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 hidden sm:block">Link Student</span>
                     </button>
+
+                    {/* Activate / Deactivate */}
                     <button
                       onClick={() => handleToggleActive(parent)}
                       disabled={toggling === parent.id}
-                      className={`flex items-center justify-center gap-2 px-4 py-2.5 border text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 ${
+                      title={parent.is_active ? 'Deactivate account' : 'Activate account'}
+                      className={`group flex items-center gap-2 px-3 py-2 border transition-all disabled:opacity-50 ${
                         parent.is_active
-                          ? 'border-rose-500/30 text-rose-400 hover:border-rose-500 hover:text-rose-300'
-                          : 'border-emerald-500/30 text-emerald-400 hover:border-emerald-500 hover:text-emerald-300'
+                          ? 'bg-rose-500/5 hover:bg-rose-500/10 border-rose-500/20 hover:border-rose-500/50'
+                          : 'bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/20 hover:border-emerald-500/50'
                       }`}>
-                      {parent.is_active ? <XCircleIcon className="w-3.5 h-3.5" /> : <CheckCircleIcon className="w-3.5 h-3.5" />}
-                      {toggling === parent.id ? '…' : parent.is_active ? 'Deactivate' : 'Activate'}
+                      <span className={`w-6 h-6 rounded-sm flex items-center justify-center transition-colors ${
+                        parent.is_active ? 'bg-rose-500/20 group-hover:bg-rose-500/30' : 'bg-emerald-500/20 group-hover:bg-emerald-500/30'
+                      }`}>
+                        {parent.is_active
+                          ? <XCircleIcon className="w-3.5 h-3.5 text-rose-400" />
+                          : <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400" />}
+                      </span>
+                      <span className={`text-[10px] font-black uppercase tracking-widest hidden sm:block ${parent.is_active ? 'text-rose-400' : 'text-emerald-400'}`}>
+                        {toggling === parent.id ? '…' : parent.is_active ? 'Deactivate' : 'Activate'}
+                      </span>
                     </button>
-                    <button
-                      onClick={() => handleDeleteParent(parent)}
-                      disabled={deleting === parent.id}
-                      className="flex items-center justify-center gap-2 px-4 py-2.5 border border-rose-500/20 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-rose-400 hover:border-rose-500 hover:text-rose-300 transition-all disabled:opacity-50">
-                      <TrashIcon className="w-3.5 h-3.5" />
-                      {deleting === parent.id ? '…' : 'Delete'}
-                    </button>
+
+                    {/* Reset Password */}
                     <button
                       onClick={() => handleResetPassword(parent)}
                       disabled={resetting === parent.id}
-                      className="flex items-center justify-center gap-2 px-4 py-2.5 border border-amber-500/30 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-amber-400 hover:border-amber-500 hover:text-amber-300 transition-all disabled:opacity-50">
-                      <KeyIcon className="w-3.5 h-3.5" /> {resetting === parent.id ? '…' : 'Reset PW'}
+                      title="Reset login password"
+                      className="group flex items-center gap-2 px-3 py-2 bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/50 transition-all disabled:opacity-50">
+                      <span className="w-6 h-6 rounded-sm bg-amber-500/20 flex items-center justify-center group-hover:bg-amber-500/30 transition-colors">
+                        <KeyIcon className="w-3.5 h-3.5 text-amber-400" />
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 hidden sm:block">
+                        {resetting === parent.id ? '…' : 'Reset PW'}
+                      </span>
                     </button>
+
+                    {/* Message */}
                     <a href={`/dashboard/messages?to=${parent.id}`}
-                      className="flex items-center justify-center gap-2 px-4 py-2.5 border border-border text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all ms-auto">
-                      <EnvelopeIcon className="w-3.5 h-3.5" /> Message
+                      title="Send message to parent"
+                      className="group flex items-center gap-2 px-3 py-2 bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/20 hover:border-blue-500/50 transition-all">
+                      <span className="w-6 h-6 rounded-sm bg-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
+                        <EnvelopeIcon className="w-3.5 h-3.5 text-blue-400" />
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 hidden sm:block">Message</span>
                     </a>
+
+                    {/* Delete — pushed right */}
+                    <button
+                      onClick={() => setDeleteTarget(parent)}
+                      disabled={deleting === parent.id}
+                      title="Delete parent account"
+                      className="group flex items-center gap-2 px-3 py-2 bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/20 hover:border-rose-500/50 transition-all disabled:opacity-50 ml-auto">
+                      <span className="w-6 h-6 rounded-sm bg-rose-500/20 flex items-center justify-center group-hover:bg-rose-500/30 transition-colors">
+                        <TrashIcon className="w-3.5 h-3.5 text-rose-400" />
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-rose-400 hidden sm:block">
+                        {deleting === parent.id ? '…' : 'Delete'}
+                      </span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -1329,6 +1458,132 @@ export default function ParentsPage() {
           schoolFilter={schoolFilter}
           onClose={() => setShowAccessCards(false)}
         />
+      )}
+
+      {/* ── Slide-over drawer: Add / Edit parent ─────────────────────────── */}
+      {showSlide && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowSlide(false)}
+          />
+          {/* Panel */}
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-[#0f0f1a] border-l border-border shadow-2xl flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${slideMode === 'add' ? 'bg-orange-500/20' : 'bg-violet-500/20'}`}>
+                  {slideMode === 'add'
+                    ? <PlusIcon className="w-4 h-4 text-orange-400" />
+                    : <PencilSquareIcon className="w-4 h-4 text-violet-400" />}
+                </div>
+                <div>
+                  <h2 className="text-sm font-black text-foreground uppercase tracking-widest">
+                    {slideMode === 'add' ? 'Add Parent Account' : `Edit: ${slideParent?.full_name}`}
+                  </h2>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {slideMode === 'add'
+                      ? 'Create a new parent account and link to students.'
+                      : 'Update profile, school links, and student connections.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSlide(false)}
+                className="p-2 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {slidePickerLoading ? (
+                <div className="flex flex-col items-center justify-center h-48 gap-3">
+                  <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs text-muted-foreground font-black uppercase tracking-widest animate-pulse">
+                    Loading form data…
+                  </p>
+                </div>
+              ) : (
+                <ParentForm
+                  initialData={slideMode === 'edit' ? slideParent : undefined}
+                  students={students}
+                  teachers={teachers}
+                  schools={schools}
+                  officialClasses={classes}
+                  defaultSchool={
+                    slideMode === 'edit'
+                      ? (slideParent?.children[0]?.school_name || (profile?.role === 'teacher' ? profile?.school_name ?? '' : ''))
+                      : (profile?.role === 'teacher' ? profile?.school_name ?? '' : '')
+                  }
+                  onSchoolChange={handleSlideSchoolChange}
+                  onCancel={() => setShowSlide(false)}
+                  onSaved={() => { setShowSlide(false); load(); }}
+                />
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Delete confirmation modal ─────────────────────────────────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-card border border-rose-500/40 shadow-2xl overflow-hidden">
+            {/* Top accent strip */}
+            <div className="h-1 w-full bg-gradient-to-r from-rose-600 to-rose-400" />
+            <div className="p-6 space-y-5">
+              <div className="flex items-start gap-4">
+                <div className="w-11 h-11 bg-rose-500/10 border border-rose-500/30 flex items-center justify-center flex-shrink-0">
+                  <TrashIcon className="w-5 h-5 text-rose-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-foreground uppercase tracking-widest">Delete Parent Account</h3>
+                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                    You are about to permanently delete{' '}
+                    <span className="text-foreground font-bold">{deleteTarget.full_name}</span>&apos;s account.
+                    {deleteTarget.children.length > 0 && (
+                      <> This will also unlink {deleteTarget.children.length} linked {deleteTarget.children.length === 1 ? 'child' : 'children'}.</>
+                    )}{' '}
+                    <span className="text-rose-400 font-bold">This action cannot be undone.</span>
+                  </p>
+                  {/* Child list */}
+                  {deleteTarget.children.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {deleteTarget.children.map(c => (
+                        <span key={c.id} className="text-[9px] px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 font-bold">
+                          {c.full_name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 px-4 py-2.5 border border-border text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    await handleDeleteParent(deleteTarget);
+                    setDeleteTarget(null);
+                  }}
+                  disabled={deleting === deleteTarget.id}
+                  className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                >
+                  {deleting === deleteTarget.id
+                    ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Deleting…</>
+                    : <><TrashIcon className="w-3.5 h-3.5" /> Delete Permanently</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

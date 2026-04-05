@@ -1,11 +1,12 @@
 'use client';
 
 import { useAuth } from '@/contexts/auth-context';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   ChatBubbleLeftEllipsisIcon, CheckCircleIcon, StarIcon,
-  UserIcon, BuildingOfficeIcon, ClockIcon,
+  UserIcon, BuildingOfficeIcon, ClockIcon, AcademicCapIcon,
 } from '@/lib/icons';
 
 interface FeedbackRow {
@@ -21,9 +22,11 @@ interface FeedbackRow {
   school_name: string | null;
 }
 
+interface Child { id: string; full_name: string; user_id: string | null }
+
 const CATEGORIES = [
   'General Experience',
-  'Child\'s Progress',
+  "Child's Progress",
   'Teacher Communication',
   'School Environment',
   'Admin & Support',
@@ -63,7 +66,14 @@ function StarRating({ value, onChange }: { value: number; onChange?: (v: number)
 }
 
 // ── Parent: Submit feedback form ──────────────────────────────────────────────
-function ParentFeedbackForm({ profile }: { profile: any }) {
+function ParentFeedbackForm({ profile }: { profile: { id: string; email?: string | null } }) {
+  const searchParams = useSearchParams();
+  const studentParam = searchParams.get('student');
+
+  const [children, setChildren] = useState<Child[]>([]);
+  const [selectedChildId, setSelectedChildId] = useState<string>(studentParam ?? '');
+  const [loadingChildren, setLoadingChildren] = useState(true);
+
   const [form, setForm] = useState({
     category: CATEGORIES[0],
     rating: 0,
@@ -74,6 +84,21 @@ function ParentFeedbackForm({ profile }: { profile: any }) {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    fetch('/api/parents/portal?section=children')
+      .then(r => r.json())
+      .then(data => {
+        const list = (data.children ?? []) as Child[];
+        setChildren(list);
+        // Auto-select the first child if no param provided
+        if (!selectedChildId && list.length > 0) setSelectedChildId(list[0].id);
+      })
+      .catch(() => {/* silently ignore */})
+      .finally(() => setLoadingChildren(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selectedChild = children.find(c => c.id === selectedChildId);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.message.trim()) { setError('Please write your feedback.'); return; }
@@ -81,33 +106,43 @@ function ParentFeedbackForm({ profile }: { profile: any }) {
     setSubmitting(true);
     try {
       const supabase = createClient();
-      const { error: err } = await (supabase.from('parent_feedback' as any)).insert({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const payload: any = {
         portal_user_id: profile.id,
         category: form.category,
         rating: form.rating > 0 ? form.rating : null,
         message: form.message.trim(),
         is_anonymous: form.is_anonymous,
         status: 'pending',
-      });
+      };
+      if (selectedChildId) payload.student_id = selectedChildId;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: err } = await (supabase.from('parent_feedback' as any)).insert(payload);
       if (err) throw err;
       setSubmitted(true);
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to submit. Please try again.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to submit. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const resetForm = () => {
+    setSubmitted(false);
+    setForm({ category: CATEGORIES[0], rating: 0, message: '', is_anonymous: false });
+  };
+
   if (submitted) {
     return (
-      <div className="bg-card border border-emerald-500/30 p-10 text-center">
+      <div className="bg-card border border-emerald-500/30 p-10 text-center max-w-xl">
         <CheckCircleIcon className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
         <h2 className="text-base font-black text-foreground uppercase tracking-widest mb-2">Thank You!</h2>
         <p className="text-sm text-muted-foreground max-w-sm mx-auto">
           Your feedback has been received. We value your perspective and will review it carefully.
         </p>
         <button
-          onClick={() => { setSubmitted(false); setForm({ category: CATEGORIES[0], rating: 0, message: '', is_anonymous: false }); }}
+          onClick={resetForm}
           className="mt-6 px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-foreground text-xs font-black uppercase tracking-widest transition-all"
         >
           Submit Another
@@ -122,9 +157,52 @@ function ParentFeedbackForm({ profile }: { profile: any }) {
         <div>
           <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Share Your Feedback</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Your feedback helps us improve your child's educational experience.
+            Your feedback helps us improve your child&apos;s educational experience.
           </p>
         </div>
+
+        {/* Child Selector */}
+        {!loadingChildren && children.length > 0 && (
+          <div>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-2">
+              Regarding which child?
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {children.map(child => (
+                <button
+                  key={child.id}
+                  type="button"
+                  onClick={() => setSelectedChildId(child.id)}
+                  className={`flex items-center gap-2 px-3 py-2 border text-xs font-bold transition-all ${
+                    selectedChildId === child.id
+                      ? 'bg-orange-600 border-orange-600 text-white'
+                      : 'bg-white/5 border-border text-muted-foreground hover:border-orange-500/50'
+                  }`}
+                >
+                  <AcademicCapIcon className="w-3.5 h-3.5" />
+                  {child.full_name}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setSelectedChildId('')}
+                className={`px-3 py-2 border text-xs font-bold transition-all ${
+                  selectedChildId === ''
+                    ? 'bg-white/10 border-white/30 text-foreground'
+                    : 'bg-white/5 border-border text-muted-foreground hover:border-white/30'
+                }`}
+              >
+                General / School
+              </button>
+            </div>
+            {selectedChild && (
+              <p className="text-[10px] text-orange-400 mt-2 flex items-center gap-1">
+                <AcademicCapIcon className="w-3 h-3" />
+                Feedback about <strong>{selectedChild.full_name}</strong>
+              </p>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
@@ -191,7 +269,7 @@ function ParentFeedbackForm({ profile }: { profile: any }) {
 }
 
 // ── Staff: View all feedback ──────────────────────────────────────────────────
-function StaffFeedbackView({ profile }: { profile: any }) {
+function StaffFeedbackView({ profile }: { profile: { role: string; school_name?: string | null } }) {
   const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'reviewed' | 'actioned'>('all');
@@ -200,6 +278,7 @@ function StaffFeedbackView({ profile }: { profile: any }) {
   const load = async () => {
     setLoading(true);
     const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let q = (supabase.from('parent_feedback' as any))
       .select(`
         id, created_at, category, rating, message, is_anonymous, status,
@@ -209,12 +288,9 @@ function StaffFeedbackView({ profile }: { profile: any }) {
       .limit(100);
 
     if (filter !== 'all') q = q.eq('status', filter);
-    if (profile.role === 'teacher' && profile.school_name) {
-      // Teachers only see their school's feedback (via portal_users.school_name)
-      // Supabase can't filter on joined columns directly — load all and filter client-side for now
-    }
 
     const { data } = await q;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows = (data ?? []).map((r: any) => ({
       id: r.id,
       created_at: r.created_at,
@@ -228,7 +304,7 @@ function StaffFeedbackView({ profile }: { profile: any }) {
       school_name: r.portal_users?.school_name ?? null,
     }));
 
-    // Filter by teacher's school
+    // Filter by teacher's school client-side (can't filter on joined columns)
     if (profile.role === 'teacher' && profile.school_name) {
       setFeedback(rows.filter((r: FeedbackRow) => r.school_name === profile.school_name));
     } else {
@@ -242,8 +318,9 @@ function StaffFeedbackView({ profile }: { profile: any }) {
   const updateStatus = async (id: string, status: string) => {
     setUpdating(id);
     const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase.from('parent_feedback' as any)).update({ status }).eq('id', id);
-    setFeedback(prev => prev.map(f => f.id === id ? { ...f, status: status as any } : f));
+    setFeedback(prev => prev.map(f => f.id === id ? { ...f, status: status as FeedbackRow['status'] } : f));
     setUpdating(null);
   };
 
@@ -355,8 +432,8 @@ function StaffFeedbackView({ profile }: { profile: any }) {
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
-export default function ParentFeedbackPage() {
+// ── Inner page (needs Suspense for useSearchParams) ───────────────────────────
+function ParentFeedbackContent() {
   const { profile, loading: authLoading } = useAuth();
 
   if (authLoading || !profile) return null;
@@ -380,7 +457,7 @@ export default function ParentFeedbackPage() {
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           {isParent
-            ? 'Let us know how we\'re doing. Your voice helps shape your child\'s learning environment.'
+            ? "Let us know how we're doing. Your voice helps shape your child's learning environment."
             : 'Review feedback submitted by parents across your schools.'}
         </p>
       </div>
@@ -388,5 +465,14 @@ export default function ParentFeedbackPage() {
       {isParent && <ParentFeedbackForm profile={profile} />}
       {isStaff && <StaffFeedbackView profile={profile} />}
     </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+export default function ParentFeedbackPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse h-64 bg-card border border-border" />}>
+      <ParentFeedbackContent />
+    </Suspense>
   );
 }

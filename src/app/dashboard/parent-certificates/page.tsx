@@ -48,7 +48,12 @@ function ParentCertificatesContent() {
   }, [profile]);
 
   useEffect(() => {
-    if (!selectedId) return;
+    const child = children.find(c => c.id === selectedId);
+    if (!selectedId || !child?.user_id) {
+      setLoadingCerts(false);
+      setCerts([]);
+      return;
+    }
     setLoadingCerts(true);
     fetch(`/api/parents/portal?section=certificates&child_id=${selectedId}`)
       .then(res => res.json())
@@ -62,7 +67,7 @@ function ParentCertificatesContent() {
         console.error('Failed to load certificates:', err);
         setLoadingCerts(false);
       });
-  }, [selectedId]);
+  }, [selectedId, children]);
 
   if (profile?.role !== 'parent') {
     return (
