@@ -149,17 +149,33 @@ export default function NewProjectActivityPage() {
         { id: 'r3', name: 'Creativity',    desc: 'Does the student show original thinking?', maxPts: 30 },
     ]);
 
-    // Step 3 — Students & Groups
+    // Step 3 — Visibility & Assignment
+    // Visibility: who can SEE this activity
+    const [visibilityType, setVisibilityType] = useState<'school' | 'class'>('school');
+    const [targetClassId, setTargetClassId]   = useState('');
+    const [targetClassName, setTargetClassName] = useState('');
+    const [classes, setClasses]               = useState<any[]>([]);
+    // Work mode: HOW students work on it
+    const [workMode, setWorkMode] = useState<'individual' | 'specific' | 'group'>('individual');
     const [isGroupActivity, setIsGroupActivity] = useState(false);
     const [groups, setGroups]                   = useState<Group[]>([{ id: 'g1', name: 'Group 1', studentIds: [] }]);
+    const [targetStudentIds, setTargetStudentIds] = useState<string[]>([]);
     const [studentSearch, setStudentSearch]     = useState('');
 
     useEffect(() => {
         if (authLoading || !isStaff) return;
-        fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' })
-            .then(r => r.json())
-            .then(j => setStudents(j.data || []));
+        Promise.all([
+            fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }).then(r => r.json()),
+            fetch('/api/classes', { cache: 'no-store' }).then(r => r.json()),
+        ]).then(([sj, cj]) => {
+            setStudents(sj.data || []);
+            setClasses(cj.data || []);
+        });
     }, [authLoading, isStaff]); // eslint-disable-line
+
+    function toggleTargetStudent(id: string) {
+        setTargetStudentIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    }
 
     // ── Rubric helpers ────────────────────────────────────────────────────────
     function addCriterion() {
@@ -227,6 +243,7 @@ export default function NewProjectActivityPage() {
         setSaving(true); setError('');
         try {
             const tagList_ = tagList;
+            const isGroup = workMode === 'group';
             const payload: any = {
                 title:            title.trim(),
                 description:      description.trim() || null,
@@ -235,17 +252,26 @@ export default function NewProjectActivityPage() {
                 max_points:       gradingMode === 'rubric' ? rubricTotal : (parseInt(maxPoints) || 100),
                 assignment_type:  'project',
                 is_active:        !isDraft,
+                // auto-attach teacher/admin school
+                school_id:   profile?.school_id   || null,
+                school_name: profile?.school_name  || null,
                 metadata: {
                     category,
                     difficulty,
                     tags: tagList_,
-                    submission_types:  selectedTypes,
-                    grading_mode:      gradingMode,
-                    rubric:            gradingMode === 'rubric' ? rubric : [],
-                    auto_grade:        gradingMode === 'auto',
-                    group_activity:    isGroupActivity,
-                    groups:            isGroupActivity ? groups : [],
-                    is_draft:          isDraft,
+                    submission_types:   selectedTypes,
+                    grading_mode:       gradingMode,
+                    rubric:             gradingMode === 'rubric' ? rubric : [],
+                    auto_grade:         gradingMode === 'auto',
+                    group_activity:     isGroup,
+                    groups:             isGroup ? groups : [],
+                    is_draft:           isDraft,
+                    // visibility & targeting
+                    visibility:         visibilityType,           // 'school' | 'class'
+                    target_class_id:    visibilityType === 'class' ? (targetClassId || null) : null,
+                    target_class_name:  visibilityType === 'class' ? (targetClassName || null) : null,
+                    work_mode:          workMode,                 // 'individual' | 'specific' | 'group'
+                    target_student_ids: workMode === 'specific'   ? targetStudentIds : [],
                 },
             };
 
@@ -685,39 +711,105 @@ export default function NewProjectActivityPage() {
                             </div>
                         )}
 
-                        {/* STEP 3 — Students & Groups */}
+                        {/* STEP 3 — Visibility & Assignment */}
                         {step === 3 && (
                             <div className="space-y-6">
                                 <div>
-                                    <h2 className="text-lg font-black text-white uppercase tracking-tight italic mb-0.5">Students & Groups</h2>
-                                    <p className="text-xs text-white/30">Set up how students will work — individually or in teams</p>
+                                    <h2 className="text-lg font-black text-white uppercase tracking-tight italic mb-0.5">Visibility & Assignment</h2>
+                                    <p className="text-xs text-white/30">Control who sees this activity and how they work on it</p>
                                 </div>
 
-                                {/* Group mode selector */}
+                                {/* ── SECTION A: Visibility ── */}
                                 <div className={CARD}>
-                                    <label className={LABEL}>Work Mode</label>
+                                    <label className={LABEL}>Who can see this activity?</label>
                                     <div className="grid grid-cols-2 gap-3 mt-1">
-                                        <button type="button" onClick={() => setIsGroupActivity(false)}
-                                            className={`flex items-start gap-3 px-4 py-4 border text-left transition-all ${!isGroupActivity ? 'bg-indigo-500/10 border-indigo-500/40' : 'bg-white/[0.02] border-white/[0.06] hover:border-white/20'}`}>
-                                            <div className={`w-3 h-3 rounded-full border-2 mt-0.5 flex-shrink-0 ${!isGroupActivity ? 'bg-indigo-500 border-indigo-500' : 'border-white/20'}`} />
-                                            <div>
-                                                <p className={`text-xs font-black uppercase tracking-widest ${!isGroupActivity ? 'text-indigo-300' : 'text-white/50'}`}>Individual Work</p>
-                                                <p className="text-[10px] text-white/30 mt-1">Each student submits and is graded separately</p>
-                                            </div>
-                                        </button>
-                                        <button type="button" onClick={() => setIsGroupActivity(true)}
-                                            className={`flex items-start gap-3 px-4 py-4 border text-left transition-all ${isGroupActivity ? 'bg-indigo-500/10 border-indigo-500/40' : 'bg-white/[0.02] border-white/[0.06] hover:border-white/20'}`}>
-                                            <div className={`w-3 h-3 rounded-full border-2 mt-0.5 flex-shrink-0 ${isGroupActivity ? 'bg-indigo-500 border-indigo-500' : 'border-white/20'}`} />
-                                            <div>
-                                                <p className={`text-xs font-black uppercase tracking-widest ${isGroupActivity ? 'text-indigo-300' : 'text-white/50'}`}>Group Work</p>
-                                                <p className="text-[10px] text-white/30 mt-1">Assign students to teams — one submission per group</p>
-                                            </div>
-                                        </button>
+                                        {([
+                                            { key: 'school', label: 'Whole School', sub: 'All students at your school see this', icon: '🏫' },
+                                            { key: 'class',  label: 'Specific Class', sub: 'Only a selected class can see this', icon: '📚' },
+                                        ] as const).map(opt => (
+                                            <button key={opt.key} type="button" onClick={() => setVisibilityType(opt.key)}
+                                                className={`flex items-start gap-3 px-4 py-4 border text-left transition-all ${visibilityType === opt.key ? 'bg-violet-500/10 border-violet-500/40' : 'bg-white/[0.02] border-white/[0.06] hover:border-white/20'}`}>
+                                                <span className="text-lg leading-none flex-shrink-0">{opt.icon}</span>
+                                                <div>
+                                                    <p className={`text-xs font-black uppercase tracking-widest ${visibilityType === opt.key ? 'text-violet-300' : 'text-white/50'}`}>{opt.label}</p>
+                                                    <p className="text-[10px] text-white/30 mt-1">{opt.sub}</p>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Class picker */}
+                                    {visibilityType === 'class' && (
+                                        <div className="mt-4">
+                                            <label className={LABEL}>Select Class</label>
+                                            {classes.length === 0 ? (
+                                                <p className="text-xs text-white/30 italic">No classes found — create a class first</p>
+                                            ) : (
+                                                <select value={targetClassId}
+                                                    onChange={e => {
+                                                        setTargetClassId(e.target.value);
+                                                        const cls = classes.find((c: any) => c.id === e.target.value);
+                                                        setTargetClassName(cls?.name || '');
+                                                    }}
+                                                    className={INPUT}>
+                                                    <option value="">— Select a class —</option>
+                                                    {classes.map((cls: any) => (
+                                                        <option key={cls.id} value={cls.id}>{cls.name}{cls.schools?.name ? ` · ${cls.schools.name}` : ''}</option>
+                                                    ))}
+                                                </select>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* ── SECTION B: Work Mode ── */}
+                                <div className={CARD}>
+                                    <label className={LABEL}>How do students work on it?</label>
+                                    <div className="grid grid-cols-3 gap-3 mt-1">
+                                        {([
+                                            { key: 'individual', label: 'Individual',       sub: 'Every student submits their own work',          icon: '👤' },
+                                            { key: 'specific',   label: 'Specific Students', sub: 'Only hand-picked students can submit',           icon: '🎯' },
+                                            { key: 'group',      label: 'Group Work',        sub: 'Assign students to teams, one submission each',  icon: '👥' },
+                                        ] as const).map(opt => (
+                                            <button key={opt.key} type="button"
+                                                onClick={() => { setWorkMode(opt.key); setIsGroupActivity(opt.key === 'group'); }}
+                                                className={`flex items-start gap-3 px-4 py-4 border text-left transition-all ${workMode === opt.key ? 'bg-indigo-500/10 border-indigo-500/40' : 'bg-white/[0.02] border-white/[0.06] hover:border-white/20'}`}>
+                                                <span className="text-base leading-none flex-shrink-0">{opt.icon}</span>
+                                                <div>
+                                                    <p className={`text-[10px] font-black uppercase tracking-widest ${workMode === opt.key ? 'text-indigo-300' : 'text-white/50'}`}>{opt.label}</p>
+                                                    <p className="text-[9px] text-white/30 mt-1 leading-relaxed">{opt.sub}</p>
+                                                </div>
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
 
+                                {/* Specific students picker */}
+                                {workMode === 'specific' && (
+                                    <div className={CARD}>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <label className={LABEL + ' mb-0'}>Select Students</label>
+                                            <span className="text-[10px] text-indigo-400 font-bold">{targetStudentIds.length} selected</span>
+                                        </div>
+                                        <input value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
+                                            placeholder="Search by name..." className={`${INPUT} mb-3`} />
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-64 overflow-y-auto">
+                                            {filteredStudents.map(s => {
+                                                const sel = targetStudentIds.includes(s.id);
+                                                return (
+                                                    <button key={s.id} type="button" onClick={() => toggleTargetStudent(s.id)}
+                                                        className={`flex items-center gap-1.5 px-2 py-1.5 border text-[10px] font-bold text-left transition-all ${sel ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300' : 'bg-white/[0.02] border-white/[0.06] text-white/50 hover:border-indigo-500/30 hover:text-white'}`}>
+                                                        {sel ? <CheckIcon className="w-2.5 h-2.5 flex-shrink-0 text-indigo-400" /> : <div className="w-2.5 h-2.5 rounded-full border border-white/20 flex-shrink-0" />}
+                                                        <span className="truncate">{s.full_name || s.email}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Group builder */}
-                                {isGroupActivity && (
+                                {workMode === 'group' && (
                                     <div className={CARD}>
                                         <div className="flex items-center justify-between mb-4">
                                             <label className={LABEL + ' mb-0'}>Build Teams</label>
@@ -789,13 +881,18 @@ export default function NewProjectActivityPage() {
                                     </div>
                                 )}
 
-                                {!isGroupActivity && (
+                                {workMode === 'individual' && (
                                     <div className="bg-indigo-500/5 border border-indigo-500/20 px-5 py-4 flex items-start gap-3">
                                         <CheckCircleIcon className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
                                         <div>
-                                            <p className="text-xs font-black text-indigo-300 mb-1">Individual Mode — All Students Can Submit</p>
+                                            <p className="text-xs font-black text-indigo-300 mb-1">
+                                                Individual Mode · {visibilityType === 'class' && targetClassName ? `Class: ${targetClassName}` : 'Whole School'}
+                                            </p>
                                             <p className="text-[11px] text-white/40">
-                                                This activity will be visible to all {students.length} enrolled student{students.length !== 1 ? 's' : ''}. Each student submits and receives their own grade.
+                                                {visibilityType === 'class' && targetClassName
+                                                    ? `Only students in ${targetClassName} will see this activity. Each submits individually.`
+                                                    : `All students at your school will see this activity. Each submits and receives their own grade.`
+                                                }
                                             </p>
                                         </div>
                                     </div>
@@ -836,7 +933,8 @@ export default function NewProjectActivityPage() {
                                                 { label: 'Due Date',    value: dueDate ? new Date(dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No deadline' },
                                                 { label: 'Max Points',  value: gradingMode === 'rubric' ? `${rubricTotal} pts` : `${maxPoints} pts` },
                                                 { label: 'Grading',     value: GRADING_MODES.find(m => m.key === gradingMode)?.label || '' },
-                                                { label: 'Work Mode',   value: isGroupActivity ? `Group (${groups.length} teams)` : 'Individual' },
+                                                { label: 'Visibility',  value: visibilityType === 'class' ? `Class: ${targetClassName || '(not set)'}` : 'Whole School' },
+                                                { label: 'Work Mode',   value: workMode === 'group' ? `Group (${groups.length} teams)` : workMode === 'specific' ? `${targetStudentIds.length} specific student(s)` : 'Individual' },
                                             ].map(s => (
                                                 <div key={s.label} className="bg-white/[0.03] border border-white/[0.06] px-3 py-2.5">
                                                     <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">{s.label}</p>
@@ -982,7 +1080,7 @@ export default function NewProjectActivityPage() {
                                         { label: 'Submission types',      done: selectedTypes.length > 0 },
                                         { label: 'Instructions written',  done: instructions.trim().length > 10 },
                                         { label: 'Due date set',          done: !!dueDate },
-                                        { label: 'Groups configured',     done: !isGroupActivity || groups.some(g => g.studentIds.length > 0) },
+                                        { label: 'Assignment configured', done: workMode !== 'group' || groups.some(g => g.studentIds.length > 0) },
                                     ].map(item => (
                                         <div key={item.label} className="flex items-center gap-2">
                                             <div className={`w-4 h-4 flex items-center justify-center flex-shrink-0 ${item.done ? 'text-emerald-400' : 'text-white/15'}`}>
