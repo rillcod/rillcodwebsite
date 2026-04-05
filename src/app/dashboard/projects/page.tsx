@@ -14,6 +14,7 @@ import {
     GlobeAltIcon, CpuChipIcon, PaintBrushIcon, PresentationChartBarIcon,
     CalendarDaysIcon, ChartBarIcon, TrophyIcon, FireIcon,
     UsersIcon, XMarkIcon, TrashIcon, AcademicCapIcon, ShareIcon,
+    ArrowDownTrayIcon,
 } from '@/lib/icons';
 
 function WhatsAppIcon({ className }: { className?: string }) {
